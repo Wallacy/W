@@ -82,4 +82,14 @@ int main()
 }
 //
 
+import { coisa } from 'outraCoisa'
+import lalala from 'lololo'
+import * as lili from 'lulu'
+include 'bababa' // semelhante include do C, usando bababa default namespace
+include 'bababa' as nanana // mudando namespace
+include ninini from 'hahaha' // vai incluir só ninini e derivados
+import * from 'bababa' // same as [ include 'bababa' ]
+
+//
+
 ```
