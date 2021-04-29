@@ -254,7 +254,214 @@ Com isso poderia um enum se for atualizado entre versões não vai ter colisão.
 
 //
 
-No linux poderia se manipular a stack como parte do module.memory, isso pode gerar flexbilidade. Pois é interessante do sistema criar a propria stack/ringbuffer para o resto.
+No linux poderia se manipular a stack como parte do module.memory, isso pode gerar flexbilidade. Pois é interessante do sistema criar a propria stack/ringbuffer para o resto da heap.
 
+//
+
+Outra ideia é usar auto e porcentagens para alocar coisas na stack/memoria
+
+// A ideia é aproveita o maximo da stack nesse caso
+fn(){
+  let a = [auto] // compilador tenta adivinhar um bom valor
+  let b = [@] // compilador usa pesos nos valores
+  let c = [@.5]
+  let d = [@2]
+  let e = 55 // e is type is number e o compilador vai tentar usar o menor tipo automagicamente
+}
+//
+
+Variaveis exportadas poderiam estar no data segment e serem consideradas globais como no C intermediario. 
+
+Pensar se vale a pena representar o modulo como uma grande função para poder compatilhar facilmente dados da stack sem fazer copia
+Blocos podem ser usados como forma de isolar o body das funções, as fariaveis re retorno e chamada das funções poderiam ficar fora do body, dessa forma não precisaria de ponteiros dentro do modulo
+Tudo que for usado no heap poderia ser desalocado por padrão quando sair do contexto igual a stack, a não ser que seja apontado um contexto de desalocação, algo como "de free nessa quando essa outra morrer" e por aí sucessivamente. Nos objetos seria no dealoc e eles seriam no contexto apontado, como por exemplo o modulo, que poderia ser o padrão. Tudo que não foi exportado no modulo morre com o ele.
+
+Uma alternativa é fazer com que funções usem apenas o stack e actions/`services` consigam usar o heap
+services serial a contrapartida heap de objetos/stucts, e actions a contrapartida das funções.
+
+Verificar também se faz sentido split-stack nessa linguagem.
+
+//
+
+SomeType {
+  //
+}
+
+SomeType.constants.{
+  undefined = 'undefined'
+  null = 'null'
+  unitialized = 'undefined' // e.g
+}
+
+if let aa {
+  // test for undefined/null/unitialized => exists with actual info
+}
+
+if aa ~= 'condtion/regex/glob/pattern' {
+
+}
+
+if bb[@] ~= 'someElementMatch' {
+
+}
+
+fomeFunc(b){
+  //
+}
+
+if bb[@] ~= someFunc {
+ // exit on first true
+}
+
+if bb[@] ~= (b) =>{
+ // exit on first true
+}
+
+let someVar = bb[@] ~= (b) =>{
+ // exit first non undefined return
+}
+
+valueOf someVar == 'undefined'
+typeOf someVar == ActualType?
+ActualType.contants.null == 'undefined'
+
+if (someVar == null){
+  //okay for 'undefined'
+}
+
+'unitialized' is only for lifecycle, during the new ActualType(...)
+
+// ===
+bb.forEach(b =>{
+  if (true){
+    return;
+  }
+})
+
+
+int/float/string
+
+string.constants.unitialized == ""
+string.constants.undefined == 'null'
+string.constants.null == 'null'
+string.constants.empty == ""
+
+int.constants.unitialized == 'unitialized'
+int.constants.undefined == 0
+int.constants.null == 0
+int.constants.empty == 0
+
+number.constants.unitialized == 'unitialized'
+...
+
+*(number.constants.unitialized) = &constUnitialized // `C`
+
+if (someVar == .undefined){
+  // seria bacana tratar todos os tipos como se fossem enuns com valores
+}
+if (someVar == .empty){
+}
+
+if (someVar == "valor" && someOther == 0){
+  // qualquer coisa que não use o . é implicito o campo "value" / "valueOf"
+} 
+//
+
+// Pensar um pouco aqui, mas esse unitialized pode resolver o problema do force-unwrap
+
+//
+
+enum DayOfWeek(var dayNumber: Int) {
+  MONDAY(1), TUESDAY(2), WEDNESDAY(3), THURSDAY(4),
+  FRIDAY(5), SATURDAY(6), SUNDAY(7)
+} // fazer como no Kotlin / dayNumber will be a property with get/set; Isso se eu não encontrar uma forma melhor que encapsular. Como Property Behaviors / Property Wrappers
+
+object Text(var body: String)
+obj Image(let url: String, var caption: String)
+// cada propriedade vai ter o construtor implicito get/set
+
+// object / obj / enum / class / struct ?  Penso em deixar tudo como obj e deixar tudo como o enum com payload, adicionar funções etc.
+// Fico pensando em como ligar com a questão da referencia vs valor, mas acho que da pra ser algo mais automatico.
+
+////
+
+Structured concurrency // ver swift
+
+makeDinner() async throws -> Meal {
+  let veggies = try await chopVegetables()
+  let meat = await marinateMeat()
+  let oven = try await preheatOven(temperature: 350)
+
+  let dish = Dish(ingredients: [veggies, meat])
+  return try await oven.cook(dish, duration: .hours(3))
+}
+// É assincrono mas não concorrente ==>
+makeDinner() async throws -> Meal {
+  async let veggies = chopVegetables()
+  async let meat = marinateMeat()
+  async let oven = preheatOven(temperature: 350)
+
+  let dish = Dish(ingredients: await [try veggies, meat])
+  return await oven.cook(dish, duration: .hours(3))
+}
+// <== É concorrente e assincrono 
+
+Com o lançe dos tipos, veggies por exemplo pode ser do tipe `async Vegetable` (ao invés de uma Promise<Vegetable>) e você pode pedir para a variavel veggies coisas do tipo:
+
+async seria uma propriedade reservada na linguagem:
+
+async(.cancel) veggies // seria noOp em variaveis não assync.
+
+async let coisa = nonAsyncFunc() // Iria rodar async mesmo sem a marcação async
+
+// async no nome da func seria apenas uma indicação de boa pratica por ser uma função potencialmente demorada. Já que da pra forçar o async de qualquer forma.
+
+makeDinner() throws -> Meal {
+  let veggies = try chopVegetables()
+  let meat = marinateMeat()
+  let oven = try preheatOven(temperature: 350)
+
+  let dish = Dish(ingredients: [veggies, meat])
+  return try oven.cook(dish, duration: .hours(3))
+}
+// <== Forçaria ser sincrono! Mesmo veggies podendo ser async.
+
+// Pensei que se uma task for cacenlada e tentar ler sem conferir, poderia dar throw automatico.
+// Checar o unitialized poderia ser o suficiente para evitar throw nesse contexto e continuar o codigo
+...
+valueOf dish == .unitialized
+console.log(throwOf dish) // dish is unitialized because meat is unitialized
+...
+
+// Acho que por padrão todos os init/contrutories poderiam fazer isso automatico com as variaveis que recebe
+
+async(.cpu(1,3)) let veggies = chopVegetables() // boa forma de fazer afinidade
+
+// resumo
+async let variable = someFunc()
+async let variable = new Coisa()
+async let variable = 1+2
+// mesma coisa:
+let variable = async someFunc()
+let variable = async new Coisa()
+let variable = async 1+2
+//
+let variable = await someFunc()
+let variable = await new Coisa()
+let variable = await 1+2
+// Não é a mesma coisa
+let variable = sync someAsyncFunc()
+let variable = sync new Coisa()
+let variable = sync 1+2
+//
+
+// sync tem o mesmo efeito de apenas chamar apenas a função, porém a vantagem de ser mais claro que você está serializando na mesma thread intencionamente uma função async; Isso pode ser interessante dependendo das regras do linter;
+
+// Chamar someAsyncFunc() sem sync ou await gera um warning, já chamar someFunc() (consdierando que não é marcado como async) com sync é um noOp e pode gerar um warning também.
+
+
+Conferir C++20 (tem corrotinas)
+
+//
 
 ```
