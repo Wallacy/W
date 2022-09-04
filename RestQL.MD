@@ -12,3 +12,6 @@ POST:
 call functions
 Options:
 definição
+
+//
+trpc-openapi
