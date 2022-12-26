@@ -72,3 +72,19 @@ A ideia é que se programe quase nada do back, tudo seja plugin, anotation ou mi
 Também seja agnostico ao modo de transporte, TCP, UDP, websocket, etc... Dai já tenha os proviles para cada situação.
 
 ... wip
+
+//
+
+Tava pensando em algo onde as query são enviadas via header.... e basicamente a query é um json simples com palceholder:
+{
+  product: ""
+  price: 0.0
+}
+
+Dessa forma ele ta pedindo product com value string e price com value double; Qualquer valor colocado na tag será considerado palceholder;
+
+Eventualmente o mesmo pode ser usado para formatar date/time e outros campos. (max length em string?)
+
+Criar os paths atumaticamente usando json schema é uma opção, mas parece mais dificil também. Algo parecido com o TRPC é legal, eventualmente isso pode ser usado em algum modo "dinamico" one não tem validação real, apenas promessa que irá tudo funcionar porque pode ser validado as duas pontas (back/front) via typescript.
+
+//
