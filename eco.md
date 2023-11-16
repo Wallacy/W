@@ -70,3 +70,8 @@ Existem diversos modelos de privatização pulverizadas (onde é propositalmente
 
 //
 
+Nem li o que eu escrevi antes agora... sei lá o tempo passa a as vezes me acho cada vez mais burro... Saio anotando algumas coisas que vem na cabeça e depois penso, que porra foi essa que eu escrevi, como posso ser tão tapado... mas dai vou lá e escrevo mais merda ainda... Em fim... continua aqui minha saga...
+
+
+//
+
