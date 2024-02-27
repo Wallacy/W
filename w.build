@@ -1,0 +1,23 @@
+Build Options:
+
+Target: Windows | Linux | macOS
+Arch: x86 | x86_64 | arm64
+
+allocator: libC | mimalloc
+string: libC+W | icu4c
+
+libC: gnu | musl | cosmopolitan
+
+Profiles: Debug | Release | ReleaseFast | ReleaseSmall
+
+*** Relese usa mimalloc safe alloc + O3; ReleaseFast default allocator + Ofast
+
+LinkerType: Dynamic | Static // default static
+
+Installer: msi, deb/rpm, dmg e ???
+
+// 
+
+W       C       Rust    JS
+Int     Int     i64     Number
+String  char[]  CString JS_ToCString // etc
