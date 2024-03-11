@@ -4,7 +4,7 @@ Target: Windows | Linux | macOS
 Arch: x86 | x86_64 | arm64
 
 allocator: libC | mimalloc
-string: libC+W | icu4c
+string: libC+W | icu4c | utf8proc+w
 
 libC: gnu | musl | cosmopolitan
 
@@ -21,3 +21,13 @@ Installer: msi, deb/rpm, dmg e ???
 W       C       Rust    JS
 Int     Int     i64     Number
 String  char[]  CString JS_ToCString // etc
+
+Builds:
+
+TCC+cosmopolitan (Otimo para bootstrap da linguagem)
+ZigCC || Zig , C, JS (quickJS), TS (esbuild), etc referenciadas no arquivo de build poderia facilmente ser baixado as tools quanto necessario. Por padrão poderia ser a versão cosmo mesmo.
+Vale lembrar que o cosmos consegue fazer build de varias dessas linguagens incluindo Rust. Levar isso em consdieração.
+
+// also: https://github.com/ahgamut/superconfigure
+
+Um instalador generico baseado no cosmo poderia ser legal também, msi é um parto, dmg é burro, deb/rpm só são legais via repositorio. Pode ser um .install generico auto executavel (PKZIP??)
