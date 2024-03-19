@@ -31,3 +31,17 @@ Vale lembrar que o cosmos consegue fazer build de varias dessas linguagens inclu
 // also: https://github.com/ahgamut/superconfigure
 
 Um instalador generico baseado no cosmo poderia ser legal também, msi é um parto, dmg é burro, deb/rpm só são legais via repositorio. Pode ser um .install generico auto executavel (PKZIP??)
+
+
+Artefatos:
+debug: so / .dll + .a / .lib + .symbols etc... |  URL - tar.xz / tar.gz / tar.bz2
+static: .a / .lib |  URL - tar.xz / tar.gz / tar.bz2
+dynamic: .so / .dll |  ...
+header: .h          |  ...
+resources: <blobs>  |  ...
+source: <code + w.build > |  ...
+bundle: <static + dynamic + resources + debug> |  ...
+
+O sistema vai baixar e compara as hashs. Os artefatos podem estar ou não compactados em tar.xz, etc.
+
+Por padrão o sistema via tentar o bundle, porém se não foi definido, vai tentar o static + resources + header; caso não tenha header vai gerar usando o pahole, caso não tenha static vai ir para o dynamic, quando compilar para debug vai tentar usar a versão debug.
