@@ -1,6 +1,6 @@
-#include<stdio.h>
-#include<stdatomic.h>
-#include<pthread.h>
+#include <stdio.h>
+#include <stdatomic.h>
+#include <pthread.h>
 
 _Atomic int acnt;
 int cnt;
