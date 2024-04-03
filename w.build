@@ -45,3 +45,5 @@ bundle: <static + dynamic + resources + debug> |  ...
 O sistema vai baixar e compara as hashs. Os artefatos podem estar ou não compactados em tar.xz, etc.
 
 Por padrão o sistema via tentar o bundle, porém se não foi definido, vai tentar o static + resources + header; caso não tenha header vai gerar usando o pahole, caso não tenha static vai ir para o dynamic, quando compilar para debug vai tentar usar a versão debug.
+
+Baseado nas falhas do XZ, seria legal ter uma forma de poder verificar se determinados hashs são seguros, e ainda alguma comando como "lib check" sei lá onde ele vefificar se o binario bate com o source code... Isso poderia ser feito em uma CI e ter uma forma de consumir pelo w build.

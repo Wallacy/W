@@ -1,0 +1,1 @@
+// Vou começar a escrever aqui como se fosse o readme do projeto já consolidando o que falei nos outros lugares.
