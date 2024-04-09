@@ -47,3 +47,52 @@ O sistema vai baixar e compara as hashs. Os artefatos podem estar ou não compac
 Por padrão o sistema via tentar o bundle, porém se não foi definido, vai tentar o static + resources + header; caso não tenha header vai gerar usando o pahole, caso não tenha static vai ir para o dynamic, quando compilar para debug vai tentar usar a versão debug.
 
 Baseado nas falhas do XZ, seria legal ter uma forma de poder verificar se determinados hashs são seguros, e ainda alguma comando como "lib check" sei lá onde ele vefificar se o binario bate com o source code... Isso poderia ser feito em uma CI e ter uma forma de consumir pelo w build.
+
+Todos os binarios do w.build poderiam ser assinados e liberar um aquivo de audit final com os detalhes. Esse aquivo poderia opcionalmente fazer parte do version control e as proximas versões sempre considerar ele como parte do proximo hash.
+
+//
+Para o release build padrão:
+Via git gerar ima tag, dessa tag copiar o zip/tar.gz/tar.xz/tar.bz2 do repositorio em pasta temporaria (pode ser uma copia interna ../build/sources/)
+Dessa copia obter todas as dependencias, podendo usar a parte do repositorio principal com cache, mas sempre verificar se o artefato web apontado nas deps bate com a assinatura.
+Fazer a build, e gerar as hashs:
+
+Source Hash: Hash do arquivo compactado com o source code.
+Binary Hash: Hash do binario principal gerado. No binario, incluir o hash do source code.
+Audit Hash: Hash do arquivo de audit contendo todas as informações relevantes da build, incuindo o hash do binario principal.
+Bundle Hash: Hash da pasta com o binario, eventuais outros aquivos e arquivo de audit.
+
+Como o W usa libs, gerar o hash de cada lib intemediaria, mesmo que estatica gerada. Essas hash devem estar no audit.
+
+Disponibilizar no W PM o arquivo de audit também, assim como no github releases etc. Duas builds em duas maquinas diferentes devem gerar o mesmo bundle hash. Qualquer diverncia deve ser reportada.
+Se o software usa informações dinamicas, como hora de build etc. Essas informações devem estar no AUDIT ANTES da build, e de lá o binario deverá consultar e/ou o W build injetar usando ENV, replace etc.
+
+Quando existe um aquivo de audit ANTES da release build infomando informações dinamicas, esse aquivo deve conter um novo hash, que também vai fazer parte do binario, e depois no arquivo audit deve ser adicionado as informações da build final e um novo hash gerado.
+
+Dessa forma o w build poderá simplesmente regerar os mesmos binarios usando todas as informações dinamicas contidas no audit.
+
+O PM deve conter formas de baixar executaveis de um outro provedor primario. Uma forma por exemplo de uma empresa grande garantir as builds internas, fazer cache de todas as libs etc.
+
+O PM deve ter a habilidade de classificar as hashes:
+Indefinidas: Ainda não existe track do PM para aquela hash, um warning deve ser gerado.
+Validas: para as que foram geradas com o PM no formato correto e correspondem ao output de um comando de build daquele artefato;
+Verified: para as que teve algum tipo de check e auditoria, garantindo o minimo adicional de segurança que aquela lib é potencialmente segura.
+Invalidas: Qualquer artefato apontado como problematico, seja por falha de segurança. Essas NÃO podem fazer parte do build system. 
+ - Se for uma hash de binario, deve ser então ignorado o binario, logo deve ser buildado pelo source.
+ - Se for uma hash de source, o source vai ser ignorado e a lib não pode ser incluida como parte do build system.
+ - Se for uma hash de bundle, o sistema deve tentar produzir um novo bundle.
+ - Se for uma hash de audit, assim como o de source, o sistema deve ignorar a lib naquela versão por completo.
+
+A validação de uma hash deve ser feita em CI publica, no caso de projetos open source, no caso de closed source, é necessario um endereço onde o w.build possa consultar essas hashs. Não é necessario um PM completo, apenas uma versão para validar versões.
+
+Para os 3 sistemas pricipais, tentar ter gerar adicionalmente um assinatura valida que o sistema operacional possa reconhecer. Seja um developer ID via MS/Apple ou qualquer outra coisa. Essa assinatura não é obrigada, mas seria recomendado em cada plataforma que suportasse, incluindo algumas distros linuxes. Essa assinatura iria pro audit com a chave publica para vefificação.
+Prover alguma forma de assinar executavis via Cloudflare/Lets Encripty... Deixar a nuvem assinar via worker ou sei lá, qualquer coisa com validade bem longa. (Acho que consigo 15 anos na cloudflare)... Isso não poderia ser um impeditivo, mas poderia fazer parte da check list. Se nas dependencias diz que ele quer aquela lib assinada, então deve ter uma assinatura valida e ponto final.
+
+
+
+// We will provide the "main":
+
+Main entry file will be availabe on the intermediate folder, and will be used to provide the call to `entry` ...
+A base seria: https://github.com/cloudflare/sandbox
+https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code
+
+Prover secomp com poucas configs vai ser muito legal! Com o main sendo provido pelo builder, da pra por facilmente as hashes de auditoria e a parte de secomp
