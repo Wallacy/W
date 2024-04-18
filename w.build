@@ -8,9 +8,11 @@ string: libC+W | icu4c | utf8proc+w
 
 libC: gnu | musl | cosmopolitan
 
+musl deveria ser o padrão... pelo que vi (2024) já é supera o glibc em varias coisas: https://wiki.musl-libc.org/functional-differences-from-glibc.html
+
 Profiles: Debug | Release | ReleaseFast | ReleaseSmall
 
-*** Relese usa mimalloc safe alloc + O3; ReleaseFast default allocator + Ofast -fno-fast-math
+*** Relese usa mimalloc safe alloc + O3; ReleaseFast default allocator + Ofast -fno-fast-math; 
 
 LinkerType: Dynamic | Static // default static
 
