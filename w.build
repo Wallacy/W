@@ -98,3 +98,11 @@ A base seria: https://github.com/cloudflare/sandbox
 https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code
 
 Prover secomp com poucas configs vai ser muito legal! Com o main sendo provido pelo builder, da pra por facilmente as hashes de auditoria e a parte de secomp
+
+
+bootstrap:
+
+quickJS > w build > w
+
+
+// Acho que posso deixar minha ideia do custom parser pra depois... => https://tree-sitter.github.io/

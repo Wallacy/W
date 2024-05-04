@@ -17,6 +17,7 @@ void handle_SIGUSR1(int sig)
     write(STDOUT_FILENO, MSG, strlen(MSG));
 }
 
+
 void * reporter(void *arg)
 {
     printf("Entered reporter thread\n");

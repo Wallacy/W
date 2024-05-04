@@ -689,13 +689,13 @@ someAsync(
 someAsync4(
   for/while/etc
   tudo terá um 
-  yeld() implicito
-  yeld também usado em algums pontos aleatorios quando o bloco é grande.
+  yield() implicito
+  yield também usado em algums pontos aleatorios quando o bloco é grande.
 )
 
 // Dai o codigo por ir indo e voltando em todas as funções, toda função chamada por await é responsabilidade de quem chama mandar um heap e todas as variaveis dessa ao invés da stack fica na heap que é enviada como contexto. Isso evita problemas de thread etc.
 // Da para tratar uns erros, ver se é melhor olhar o codigo de retorno em todas as linhas ou só no while e fazer alguma operação pra saber em qual deu erro. O ideal é evitar olhar toda hora, poderia verificar os erros em um switch, com codigos simples é facil descobrir qual linha deu erro, 199, etc...
-// Comunicação entre threads poderia ser apenas a questão dos seriviços e alguma area de meoria compartilhada. Se ficar bem definido quem escreve quem lê, quando voltar do yeld para a mesma area da pra saber se a outra thread retornou finalizou ou não a execução.
+// Comunicação entre threads poderia ser apenas a questão dos seriviços e alguma area de meoria compartilhada. Se ficar bem definido quem escreve quem lê, quando voltar do yield para a mesma area da pra saber se a outra thread retornou finalizou ou não a execução.
 
 // Funções com asinatura de async pode usar sempre a heap por padrão exceto se for usado o modificador sync do lado de chamada dai o compilador poderia gerar a mesma função sync.
 // Funções sem assinatura async usa a stack por padrão mas o compilador tenta criar a versão com heap dedicada.
@@ -2827,29 +2827,29 @@ fn someFunc(): O{
 
 Se transformar em:
 
-fn someFunc_s1(): Promisse<O>{
+fn someFunc_s1(): Promise<O>{
   ...variables...
-  let promisse = new Promisse<O>;
-  store_async({variables}, someFunc_s2, promisse)
-  return promisse
+  let promise = new Promise<O>;
+  store_async({variables}, someFunc_s2, promise)
+  return promise
 }
 
-fn someFunc_s2({variables}, promisse): void {
+fn someFunc_s2({variables}, promise): void {
   var o = otherFun()
   ...
-  promisse.resolve(o);
+  promise.resolve(o);
 }
 
 Coisas importantes aqui:
 
 Se cada vez que eu chamar o async/await/spawn etc... Eu quebrar a função em partes. Posso:
 
-1. Resolver a promisse em paralelo-> se for spawn principalmente
+1. Resolver a promise em paralelo-> se for spawn principalmente
 2. Resolver o resto do segmentos apenas quando ocorrer o await -> quando a quebra foi via async/spawn
 3. Não preciso de jump/longjump ou lidar com toda a stack, apenas o que eu copiar para o store
 4. Posso pausar em um thread e voltar em outra sem problema.
 5. Não preciso de event loop!! Apenas que até o fim da thread, ou do main, antes do exit eu processe todo o store_async.
-6. Na main, ele vai ter que executar serializado, já que não tem pra onde "voltar" a call da promisse se houver quebra. Virando efetivamente "sync". A não ser que esteja em um runloop.
+6. Na main, ele vai ter que executar serializado, já que não tem pra onde "voltar" a call da promise se houver quebra. Virando efetivamente "sync". A não ser que esteja em um runloop.
 
 {
   fn runloop<while(signal)>(){ // só pode ser usado no main como entry
@@ -3210,3 +3210,136 @@ exports class Entry: ModuleEntry {
 Faz sentido ser uma classe já que o modulo seria singleton... Mas eu deixaria todas as classes ser do tipo Entry? Se for especial provavelmente vai ser mais facil, mas não custa indagar...
 
 //
+AND e OR junto com && e || 
+ou ao invés, não vejo motivo para não ser mais idiomatico... Por isso falei lá sobre o SQL-like...
+
+//
+
+import { X , Y , Z } from 'alphabet' with { config, ....}
+
+Melhor deixar o # apenas pra tempo de compilação. Já no import rola de fazer umas coisas via runtime time. Fora que #alguma coisa meio que to só usando pra modificadores estaticos. Meio que no C é tudo pre processador com # então não vejo pq aqui não seria, daria inclusive pra fazer o #include pra funcionar igual no caso do C mesmo.
+
+using vs with?
+
+eu estava esquevendo using antes, mas acho que agora `with` faz mais sentido.
+
+// Comptime Type builders
+
+Em typescript isso é possivel:
+
+type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+type Hour = `${0 | 1}${Digit}` | `2${0 | 1 | 2 | 3}`;
+type Minute = `${0 | 1 | 2 | 3 | 4 | 5}${Digit}`;
+type Time = `${Hour}:${Minute}`;
+
+someFunc("23:45") // okay
+someFunc("24:11") // erro em compiler time...
+
+Okay, daria pra tentar por isso em W porém porque não fazer tudo via comptime functions também
+
+type Time = type(/^(?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9])?$/)
+type Custom = type(isCustom(T))
+
+type seria uma função to tipo comptime que aceita qualquer string, regex ou boleano que valida true/false para o tipo em compiler time. Nos casos onde não é possivel verificar em compiler time, um warning é gerado e a pessoa tem que chamar o <T>.isValid()
+
+fn someFunc(c: Custom){
+  guard Costom.isValid(c) else {
+    return Error
+  }
+  ...
+}
+
+Caso a função seja usada com literais juntos em algum ponto, o compilador, caso faça inline pode pular o guard check, caso não esteja inline, em alguns casos pode gerar uma versão sem esse check da função, ou implicitamente passar um argumento a mais para dizer que já chegou. A ideia é que qualquer otimização aí seja detalhe de implementação. Uma forma simples de otimizar isso é mover essa função para o lado de quem chamou. Ainda mais caso coloque pra fazer o check automatico.
+
+fn someFunc<typeCheck>(c: Custom){ // provavelmente deveria ser default o typeCheck...
+  // guard Costom.isValid(c) else {
+  //   return Error
+  // } // implicito no call side
+  ...
+}
+
+Todo tipo poderia ter o isValid btw;
+//
+
+///
+
+Okay, pensei de novo, o W ainda é util para algumas coisas, basicamente ao invés de fazer as corrotinas em C daria pra fazer no compilador, etc.. plano inicial. Eu só não vou focar nele no inicio.
+
+// CORRITINAS AGAIN
+
+Okay, a ideia aqui já está mais evoluida. Pensando bem, não precido de lib ou macros nem nada para corrotina, eu preciso ajustar o SPLIT das funções... Basicamente o que expliquei acima...
+
+fn someFunc(){
+...
+var coisa = await someOther();
+}
+
+viraria algo:
+
+fn someFunc(){
+...
+var idx = addToStaticVarThatControlsThat(args, someFunc_p2)
+return Promisse(idx) // O index da função para eu poder dar await...
+}
+
+fn someFunc_p2(...){
+...
+}
+
+Então eu teria um circular ringbuffer em cada thread, onde eu iria criando atomicamente esses objetos no tail ou head, provavelmente no head porque se for processar em background preciso fazer do mais recente pro mais antigo e seguir a ideia do STRUCTURE CONCURRENCE do libdill/swift...
+
+#asyncMaxWait = 10; // Se não der pra fazer uma lista bacana pode ser um array...
+
+Dai eu teria:
+
+async => adiciona as entradas na lista para processamento futuro, obtem uma promise e continua.
+await => chama a função async, obtem a promise, adiciona nas entradas na lista para processamento futuro e retorna para função pai se houver;
+yield => adiciona as entradas na lista para processamento futuro e retorna a promise; // no yield ao invés do next, o then/await pode receber uma tupla com uma outra promessa...
+
+Chega no final da thread... processa a lista do mais recente ao mais antigo; Outros pontos de parada vão ser criados, mas vão ser processados só após acabar essa lista; Termina e verifica se tem mais coisa na lista, vai até o final, se não chegar nada aguarda um evento para continuar a verificar a lista. 
+
+spawn => adiciona as entradas na lista para processamento futuro, obtem uma Task e continua. Porém adicionar um local a mais para onde a nova thread criada vai guardar o resultado; Essa variavel onde vai ter o result é passada como argumento para a thread chamada, e só ela escreve em algum momento.
+
+fork = mesma coisa do spawn, porém outor modulo.
+
+sync => Tenta executar aquela promessa naquele momento. // porque não wait ao invés de sync ?
+
+await-on-<Promise/Task>: verifica se a Promise/Task foi resolvida, se não adiciona outra entradas na lista para processamento futuro, obtem uma promise para aquele ponto no código e continua.
+
+Promise/Task ... Provavelmente eu só preciso de Promisse, pq posso passar o local onde vai ter o result para o caso do await on task/promise, porém na task da para criar uma forma de cancelar, a não ser que eu faça minhas promessas serem canceladas também, que nesse caso é só tirar da lista... Tenho que ver se preciso de um outro tipo, ou faço tudo com promessa, porém não tava querendo expor isso ao usuario... já que posso chamar qualquer coisa com async, a promessa poderia ter um tipo virtual mesmo, não permitir .then() etc, só await mesmo, dessa forma se é promisse ou task acaba sendo meramente um detalhe.
+
+O problema é como cancelar? outra keyword?
+
+revoke promisseOrTask;
+
+Nesse caso faz um certo sentido pq mesmo cancelar pode demorar um pouco, ter que fazer umas operações atomicas etc. Porém não sei se nesse caso ele devolveria o ponteiro de execução. Só se fosse realmente muito lento cancelar.
+
+revoke => Cancela a promessa/task // se é de forma sincrona ainda não sei, mas provavelmente sim. No caso de promisse certamente, no caso de tenho que pensar já que eu provavelmente chamaria o pthread_cancel; Nesse caso o revoke teria que ser similar a await e retornar o ponteiro de execução.
+
+https://man7.org/linux/man-pages/man3/pthread_cancel.3.html
+
+ah sim:
+
+volatile _Atomic courrotines[#max] = []
+
+// SIGUSR1 e SIGUSR2
+
+SIGUSR1 => Thread se tiver parada, leia a lista de eventos e processe;
+SIGUSR2 => Thread se tiver em execução, pare o que está fazendo, leia a lista de eventos e processe;
+
+Eles são usados por outros programas, mas eu realmente queria ver se consigo usa-los aqui... Muito mais leve e mais "posix"... Provavelmente eu teria que ainda permitir que o usuario use esses sinais, mas processa-los também. Já que são só hints, eles não param a aplicação nem nada, só destrava a thread se tiver travada. No caso do SIGUSR2 ele meio que para, porém processar qualquer evento para de uma forma ou outra.
+
+Porém aqui tem: https://man7.org/linux/man-pages/man7/signal.7.html
+
+SIGRTMIN => O que pensei para o SIGUSR1 
+SIGRTMAX => O que pensei para o SIGUSR2
+
+No bash o trap usa eles: https://phoenixnap.com/kb/bash-trap-command
+
+Mas dai pelo que vi não da pra chamar via kill, e sim via sigqueue ... o que faz muito sentido. Porém tem o lance da portablidade.... No cosmo tem, as vezes faço polifil ou mudo por completo a libC padrão. Ou uso tecnonicas diferentes de acordo com a libC lincada...
+
+//
+
+// Acho que posso deixar minha ideia do custom parser pra depois... => https://tree-sitter.github.io/
+
+
