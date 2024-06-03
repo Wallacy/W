@@ -12,9 +12,9 @@ musl deveria ser o padrão... pelo que vi (2024) já é supera o glibc em varias
 
 Profiles: Debug | Release | ReleaseFast | ReleaseSmall
 
-*** Relese usa mimalloc safe alloc + O3; ReleaseFast default allocator + Ofast -fno-fast-math; 
+*** Relese usa mimalloc safe alloc + O3 -fpie; ReleaseFast default allocator + Ofast -fno-fast-math -fPIE; 
 
-LinkerType: Dynamic | Static // default static
+LinkerType: Dynamic | Static // default static (libs usando -fPIC)
 
 Installer: msi, deb/rpm, dmg e ???
 
@@ -106,3 +106,5 @@ quickJS > w build > w
 
 
 // Acho que posso deixar minha ideia do custom parser pra depois... => https://tree-sitter.github.io/
+
+nm --size-sort -Sr vmlinux a.out

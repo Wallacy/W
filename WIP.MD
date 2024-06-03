@@ -3342,4 +3342,219 @@ Mas dai pelo que vi não da pra chamar via kill, e sim via sigqueue ... o que fa
 
 // Acho que posso deixar minha ideia do custom parser pra depois... => https://tree-sitter.github.io/
 
+Considerando que eu vou aceitar outras linguagens, vou precisar gerar um tipo de type-check para elas... Eu nem tinha pensado nisso antes, posso resolver o lance da minha linguagem mais simples com os regex lá mas vai cagar tudo quando eu por as outras....
 
+Vou começar com esses doidos aí e ver onde chego. Depois que eu gerar o CST, penso em um code generator para eles, agora no caso posso até brincar de gerar usando typescript mesmo, já que o tree-siter tem bind para node.js (devo usar o bun).... Depois do bostratp eu crio o bind para o W, e quem sabe depois até faço meu parser.
+
+// Sobre os outros códigos. Criar uma lista de imputs validos e outputs validos naquela linguagem que vão ser aceitos no W como uma especie de binding e dai o parser deve ender certinho os tipos de entrada/saida...
+
+Tenho que começar de verdade essa parada mas só pra listar ultimas coisas que provavelmente já falei mas não lembro dos detalhes...
+
+SIMD instruction direto na linguagem ou algo assim pode ser muito bom...
+
+SIMD(....)
+AVX(...)
+
+Mesmo para outras instruções que posso garantir que vão ser otimizadas para os conjuntos corretos. Isso deve dar uma "cara" de low level bem legal pra linguagem.
+
+O OpemMP tem muita coisa legal => #pragma omp simd
+
+Pode ser que eu integre por padrão na linguagem, to vendo muita gente usando no contexto do LLM... Porém não to muito confortavel de usar nada além da libc
+
+Criar uma forma de gerenciamento de memoria manual sem "cair" par ao WC ... ou então fazer o WC ser mais que uma linguagem intermediaria, já tava mesmo querendo pular ela mesmo, acho legal ter um código mais perto do C para eu criar os templates e testar as coisas, eventualmente posso fazer o WC ser só um W com a mesma chamada de função do C, declarações etc, só adicionar async, uns imports melhores, strings melhores, eventualmente etc... Dai deixo o ponteiro e o free manual. Posso tentar ir vendo isso na hora de produzir o dialeto completo e o exemplo do restaurante.
+
+Testes...:>> 
+
+Provavavelmente tenho que fazer um auto test para da função, chamando com valores randomicos, posso tentar usar o nome das variaveis para tentar, baseado em um dicionario ou um llm, o que for menor e mais rapido produzir um conjunto de imputs e fazer um teste automatico, depois a pessoa vai lá e arruma. A ideia seria:
+
+Produz função. Fica 1s sem mecher nela um teste é criato em
+
+.w/.autotest/mesmo/path/do/src/mesmoarquivo.test.w
+
+Dai já faço varios testes e tento produzir um tipo de bencharm para colocar na IDE o tempo medio de execução memoria etc.
+
+Esse seria os testes autimatico que iria criar um freeze point junto com o commit; Uma vez comitado nas proximas alterações ele da erro e pergunta pra pessoa se quer substituir.
+
+Porém a cois a mais importante é SEMPRE testar automaticament o exemplo que a pessoa colocar na documentação/comentario do código:
+
+// somefunc
+// #arg1 ...blabla.. value: 2
+// #arg2 ...blabla.. value: 3
+// #result ...blabla.. expected: 5
+someFunc(type1: arg1, type2: arg2): type3 {
+  ...
+}
+
+Algo assim, de forma que nesse caso, se ele falhar para o exemplo, um erro é gerado e a pessoa ou arruma o exemplo ou corrige e função.
+Para mais testes fora do automatico, ela pode criar arquivos .test junto do orginal, ou preferencialmente no mesmo nivel da pasta src, em uma pasta tests
+Em .w/tests também pode ser caso ela não queria que fique muito visivel e seja dificil da pessoa mexer de forma incinciente. Nessas pastas da pra fazer a regressão, só usar tags ou branch do git como primeiro nivel.
+
+
+NAMED PARAMENTERS:
+// ISSO EU AHCO TOP NO SWIFT
+
+some(isso: 1, comIsso: 2, eIsso: 3)
+
+Acho super valido, e acho que deveria ser padrão... Inclusive para o primeiro argumento, mas eventualmente copio swift na cara dura mesmo. Fica até bom para produzir overload também. Mais facil de ligar com defaults já que assim a ordem não importa muito, e como devo usar struct como argumento deve ser tranquilo traduzir pro C/WC já que agora da pra inicializar structs estaticamente com os nomes. Bem melhor que usar a sintax ({}) direto no W ..., não que não possa, ainda rola de suportar isso para destruir objetos.
+
+// Alinhamento
+Posso estar enganado mas acho que alinhar todas as structs pensando no size_t seria o ideal sempre, por padrão. Pessoal vive fazendo isso default em C, eu poderia sempre informar no linter que adicionamentos X bytes de padding padrão; Posso fazer os testes olharem isso; E só preciso avisar que vai quebrar quando a pessoa usar mais que que tinha antes, dai aviso que é um breaking change a partir da versão X se for comunicar com as versões anteriores por causa do ABI, etc... Isso é outro selling point da linguagem.
+
+
+// Range e multirange
+
+
+[1..5] ==> 1,2,3,4,5
+[1..<5] ==> 1,2,3,4
+[1>..5] ==> 2,3,4,5
+[1>..<5] ==> 2,3,4
+[1>..<5, 2] ==> 3 // para int step 1 é o default
+[1>..<5, 3] ==> 4
+[1..5, 2] ==> 1,3,5
+
+[-5..-1, 2] ==> -5,-3,-1
+[-5..-1, -2] // error...
+[-1..-5, -2] ==> -1,-3,-5
+
+[1.0>..<5.0, 1.0] ==> 2.0, 3.0, 4.0 // para float e double step 1.0 é o default, mas pode escrever se quiser..
+[1.0..<5.0, 1.5] ==> 1.0, 2.5, 3.5, 4.5
+
+Range Igual ao for initializer + condition + step
+
+for (float x = 1.0; x < 5.0; x += 1.5 ){
+  //
+}
+
+Dessa forma:
+
+let range = [1.0..<5.0, 1.5] // type: Range<float>
+
+range.forEarch(x => {
+    // x tem os mesmos valores esperados em um for loop
+})
+
+
+// MultiRange
+
+Mesma coisa do Range porém com multiplos
+
+var mRange = [1.0..<5.0, 1.5; 1>..5] = (1.0, 2), (2.5, 3), (3.5, 4), (4.5, 5) // type: Range<(float, int)>
+
+Mesma coisa que:
+
+for (float x = 1.0, int a = 2.0; x < 5.0, a <=5; x += 1.5, a++){
+  // x = 1.0, a=2 ...
+}
+
+Nesse caso:
+
+let mRange = [1.0..<5.0, 1.5; 1>..5, 2] = (1.0, 3), (2.5, 5) // WARNING: multi-range with diferent numbers of steps;
+
+Seria o mesmo caso que no for loop, mas aqui tem um warning, enventualmente posso fazer o mesmo no for-loop mas deixar o warning desabilitado;
+
+Range se torna concreto quando operado por exemplo:
+
+range.contains(value: 3.14) === false
+//range.isOn(bound: 3.14) === true // Não sei se faz sentido em W ... Esse seria valido como contains em Swift...
+
+De fato 3.14 está nesse range;
+
+for x in [1..5] {
+// Uma forma de fazer o for-in
+}
+
+['A'..'Z']
+['a'..'z']
+
+Olhar bem como a linguagem Ada faz, não só o Swift... Pq Range da pra ser uma especie de subtipo já que penso também limitar os tipos como em Int<size>
+Importante: https://langdev.stackexchange.com/questions/1802/why-dont-many-languages-have-integer-range-types
+Limitações no tamanho dos tipos complicam as operações. Mas no caso, acho que eu gostaria que o tipo fosse concreto, o range sempre vira um array concreto de possiblidade, e no caso do tipo só diz os bounds daquele tipo, não que ele contem simultanemente todo aquele range de numeros.
+
+Todo Range é uma especie de LazyArray que é construido quando necessario, e cacheado quando conveniente
+A ideia do isOn é mais como uma coisa pra saber se algo está entre o lower e o upperbound mas não se é um valor que será produzido quando o range for contruido. Mas tenho que ver se tem um uso real pra isso, se não deixo só como o conceito de array concreto não inicializado.
+
+De um certo modo acho que o swift "mente" quando cria um range de numeros, ontem um dado numero teoricamnete está dentro dos bounds, mas quando vc intera ele nunca encontra ele.
+
+Em um cenario de range de idades por exemplo, acho até interessante de uma verificação sem dados concretos... Talves valha a pena por uma função pra olhar se está entre o lower e upperbound.
+
+range.contains(onBound: 3.14) === true // provavelmente melhor que o isOn ... posso usar também isOnBounds: 3.14, ou só bound: ..
+
+Idealmente quando:
+let range = [1>..<5] // [2..4, 1]
+
+range.lowerBound == 2 // Já resolvo o primeiro e ultimo elemento do Array
+range.upperBound == 4 // Esse aqui pode ser que seja mais complicado de resolver direto, mas tenho certeza que crio uma formula tranquila.
+range.step == 1 // e já coloco o step aqui...
+range.count == 3 // já da pra processar o numero de passos também.
+
+let range2 = [1>..<5, 2]// === [3..3, 0] // ou seria [3..3, 2] ??
+
+range2.lowerBound == 3
+range2.upperBound == 3
+range2.step == 0 // 2 ?
+range2.count == 1
+
+let range3 = [1>..<5, 3]// === [4..4, 0] // ou seria [4..4, 3] ??
+
+range3.lowerBound == 4
+range3.upperBound == 4 // Viu que não é tão simples kkkk; Mas importante aqui é fazer isso em tempo de compilação, sempre que der.
+range3.step == 0 // 3 ?
+range3.count == 1
+
+// Nesse caso aqui continuo considerando que o range é algo concreto, pensar em um upperBound de 5 é errado e de 5-3 também é errado... upperBound é igual ao MaxValue ou LastValue nesse caso. O range é um "produtor" de numeros em W; As outras linguagens permite apenas incremento discreto no range, aqui não vejo porque.
+
+let range4 = [0..<10000]// tipico para interar em array === [0...9999, 1]
+
+let range5 = [0..<10, 3] // [0..9, 3]
+let range6 = [1>..<10, 3] // [4..7, 3]
+
+1..5 == [1..5] == 0>..<6
+
+Todo range é resolvido, e o comparador do range compara a equalidade da struct
+
+Range<T>{
+ lowerBound: T 
+ upperBound: T
+ step: T
+ count: Int // Aqui talves eu possa deixar como UInt, mas pode ser uma má ideia, tenho que pensar nisso melhor quando pensar nas operações aritimeticas
+}
+
+// Operações
+
+1 + 1.0 == ??
+(u32)1 + (i32)2 == ??
+
+Se eu sempre usar promoção e nunca downgrande posso até usar UInt/u32 como tipos em count, pq quando fosse fazer alguma aritimetica com i32 por exemplo eu promoveria ambos a i64 por exemplo...
+
+Não pra pra eliminar overflow sempre, mas principalmente na multiplicação é uma boa ideia, incluido:
+
+(i32) 10 * (i32) 10 = (i64)100
+
+Pelo menos se eu for trabalhar com promoção automatica... Preciso pesquisar melhor em outras linguagens, incluindo Rust, Haskell, Fortran, Ada... Python apela, e resolve isso logo com precisão arbitraria;
+
+Pesquisar também sobre https://www.wikiwand.com/en/Unum_(number_format)
+
+Porque float / double são um saco, não sei se vou me aventurar nisso, mas não custa nada...
+
+Tipo, o double pode teoricamente representar numeros até 1.8e308 ; Porém só tem 2^53-1 de valor, pois 11 bits são de exponente. Dai da uns 15 digitos de precisão e o resto é tudo aproximação. Não conheço a fundo a area mas acho que qualquer e308 um absurdo de grande o o MAX_VALUE é totalmente lixo, pq por mais que exista um numero real para ele, na pratica qualquer compiutação pouco abaixo é tudo aproximação e brincadeira de exponente... Sei lá, coisa doida. Até entendo porque a Intel fez o fast-math
+
+https://gcc.gnu.org/wiki/FloatingPointMath
+
+// Zero terminated Array
+
+Arrays que terminam com zero podem ser traduzidos da seguinte forma:
+
+while(*array) {
+  // 
+}
+
+Olhar direitinho pq é mais facil que um for para interar em diversos casos, não é muito otimizavel mas é muito simples...
+// https://twitter.com/falco_girgis/status/1788827993130815636
+
+//
+
+Apenas como nota, muita gente tentando fazer stack C + ImgGUI como stack Web... posso ver como compatibilizar algo assim também.
+
+// Começar logo...
+
+`

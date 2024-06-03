@@ -57,7 +57,7 @@ Para W poder interperar com diversas bibiotecas, é necessario formalizar bem co
 
 //
 
-Como da para ver claramente no caso do struc.c; Ter as variaveis "estaticas/constantes" dentro do escopo permite (em C) otimizar a construção do objeto e ignorar por completo as strucs. (https://godbolt.org/ - fazer testes também com  -fwhole-program -Ofast -flto -fPIC -fno-fast-math etc)
+Como da para ver claramente no caso do struc.c; Ter as variaveis "estaticas/constantes" dentro do escopo permite (em C) otimizar a construção do objeto e ignorar por completo as strucs. (https://godbolt.org/ - fazer testes também com  -fwhole-program -Ofast -flto -fPIC -fPIE -fno-fast-math etc)
 
 
 De modo geral, sempre gerar artefatos com "-fwhole-program" (e outras otimizações similares), pois os modulos devem ser importados considerando que são libs... Logo códigos intermediarios não valem e o compilador pode otimizar por completo o executavel e a lib. // https://stackoverflow.com/questions/73526838/for-a-function-that-takes-a-const-struct-does-the-compiler-not-optimize-the-fun
@@ -66,8 +66,8 @@ Pelo que vi o GCC sempre produz os melhores resultados (e suporta o -fwhole-prog
 
 Essa otimização pode ser uma mão na roda: https://gcc.gnu.org/onlinedocs/gcc-4.8.5/gccint/WHOPR.html
 
-O mais similar com o clang é: -O3 -fwhole-program-vtables -flto -march=native  -std=gnu23 
-O analogo em gcc é: -O3 -fwhole-program -flto -std=gnu2x  -march=native
+O mais similar com o clang é: -O3 -fwhole-program-vtables -flto -fpie -march=native  -std=gnu23 
+O analogo em gcc é: -O3 -fwhole-program -flto -std=gnu2x  -fpie -march=native
 
 Nesse caso o clang é até melhor, por pouco, mas o -fwhole-program pode ser executado sem o -flto
 
@@ -349,6 +349,10 @@ functionCall<.gpu>(...)
 let<.gpu> frame = ...
 
 Daria pra fazer usando o AMD HIP e/ou OpenMP....
+
+Porém o melhor candidato é: https://github.com/HigherOrderCO/Bend
+
+fn<Bend, .gpu> (...)
 
 // Compile flags:
 
