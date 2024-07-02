@@ -108,3 +108,6 @@ quickJS > w build > w
 // Acho que posso deixar minha ideia do custom parser pra depois... => https://tree-sitter.github.io/
 
 nm --size-sort -Sr vmlinux a.out
+
+// w patch <lib>
+
