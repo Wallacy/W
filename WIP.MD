@@ -3558,3 +3558,6 @@ Apenas como nota, muita gente tentando fazer stack C + ImgGUI como stack Web... 
 // Começar logo...
 
 // Print: https://github.com/spevnev/uprintf
+// outra lib para verificar: https://github.com/Psteven5/cbinc
+
+Implementação do Defer da pra fazer com um simples "goto cleanup;"
