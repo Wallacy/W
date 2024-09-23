@@ -830,9 +830,9 @@ const callback = ()=>{
 } // é uma func ou callback, tanto faz. Se acessar context implicitamente é func.
 
 const callback = (arg)=>{
-
-}(capture1, capture2, etc)
-// }<=(capture1, capture2, etc)
+  |capture1, capture2, etc|
+}
+//
 
 // package-manager
 
@@ -3561,3 +3561,31 @@ Apenas como nota, muita gente tentando fazer stack C + ImgGUI como stack Web... 
 // outra lib para verificar: https://github.com/Psteven5/cbinc
 
 Implementação do Defer da pra fazer com um simples "goto cleanup;"
+
+// Alternativa para o @test
+@Test("Continents mentioned in videos", arguments: [
+  "A Beach",
+  "By the Lake",
+  "Camping in the Woods"
+])
+func mentionedContinents(videoName: String) async throws {
+  let videoLibrary = try await VideoLibrary()
+  let video = try #require(await videoLibrary.video(named: videoName))
+  #expect(video.mentionedContinents.count <= 3)
+}
+
+// Captura: Adicionar |ref| no inicio da função ou clousere
+
+func contador(init: Int)  throws {
+  let count = init
+  return (add: Int) => {
+    |count|
+    return (count + add)
+  }
+}
+
+// Permitir capturar em outra variavel também
+
+|let c = count, self, xxx|
+
+
