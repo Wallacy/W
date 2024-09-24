@@ -419,7 +419,7 @@ obj Image(let url: String, var caption: String)
 
 Structured concurrency // ver swift
 
-makeDinner() async throws -> Meal {
+fn makeDinner() async throws: Meal {
   let veggies = try await chopVegetables()
   let meat = await marinateMeat()
   let oven = try await preheatOven(temperature: 350)
@@ -428,7 +428,7 @@ makeDinner() async throws -> Meal {
   return try await oven.cook(dish, duration: .hours(3))
 }
 // É concorrente mas não paralelo ==>
-makeDinner() async throws -> Meal {
+fn makeDinner() async throws: Meal {
   async let veggies = chopVegetables()
   async let meat = marinateMeat()
   async let oven = preheatOven(temperature: 350)
@@ -448,7 +448,7 @@ async let coisa = nonAsyncFunc() // Iria rodar async mesmo sem a marcação asyn
 
 // async no nome da func seria apenas uma indicação de boa pratica por ser uma função potencialmente demorada. Já que da pra forçar o async de qualquer forma.
 
-makeDinner() throws -> Meal {
+fn makeDinner() throws: Meal {
   let veggies = try chopVegetables()
   let meat = marinateMeat()
   let oven = try preheatOven(temperature: 350)
@@ -529,7 +529,7 @@ Faz um certo sentido em começar usando o Tcc (Tiny C Compiler) via libtcc; Já 
 // https://github.com/microsoft/mimalloc
 
 
-makeDinner() async<.max(8)> throws -> Meal {
+fn makeDinner() async<.max(8)> throws: Meal {
   let veggies = try chopVegetables()
   let meat = marinateMeat()
   let oven = try preheatOven(temperature: 350)
@@ -540,9 +540,9 @@ makeDinner() async<.max(8)> throws -> Meal {
 
 // Nesse caso o pool de thread implicito da função makeDinner pode chegar até 8 threads no maximo, desse ponto, funções que chamam ( await makeDinner() ) teriam que aguadar na fila
 
-// No caso do `makeDinner() async(.max(8)) throws` Isso poderia ser considerado `function composition` e na pratica ser:
+// No caso do `fn makeDinner() async(.max(8)) throws` Isso poderia ser considerado `function composition` e na pratica ser:
 
-throws<throwCtx,async<asyncConfig,makeDinner>>
+throws<throwCtx,async<asyncConfig,fn makeDinner>>
 
 //Dessa forma qualquer função que tiver um overload capaz de aceitar uma função de 'handler' poderia ser composta:
 
@@ -566,9 +566,9 @@ let dinner = try await makeDinner()
 
 // Pensei em outras alternativas
 
-makeDinner(): Meal async throws 
-makeDinner(): Meal | async | throws 
-makeDinner(): Meal | async<.max(8)> | throws
+fn makeDinner(): Meal async throws 
+fn makeDinner(): Meal | async | throws 
+fn makeDinner(): Meal | async<.max(8)> | throws
 {
   
 } 
@@ -722,7 +722,7 @@ int async_originalFunc(args){
 
 // Uma coisa que facilitaria decidir o que iria para uma nova thread é a notação explicita na func
 
-makeDinner() async<.IO> -> Meal {
+fn makeDinner() async<.IO>: Meal {
  //
 }
 
