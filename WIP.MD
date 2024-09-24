@@ -3574,18 +3574,63 @@ func mentionedContinents(videoName: String) async throws {
   #expect(video.mentionedContinents.count <= 3)
 }
 
-// Captura: Adicionar |ref| no inicio da função ou clousere
+// Captura: Adicionar |object| no inicio da função ou clousere
 
-func contador(init: Int)  throws {
+func contador(init: Int) {
   let count = init
-  return (add: Int) => {
-    |count|
-    return (count + add)
+  return (add: Int) => { |let c = count, self|
+    return (c + add)
   }
 }
 
 // Permitir capturar em outra variavel também
 
 |let c = count, self, xxx|
+
+
+// Captura implicita = |weak object|
+// Captura explicita = |object| => |strong object|
+// Captura por copia = |const object, let object|
+// Captura por referencia = |weak const object, weak let object|
+
+func contador(init: Int) {
+  let count = init
+  return (add: Int) => {
+    return (count ?+ add) // count é Int|Null e o operador ?+ é de condicional add
+  }
+}
+func contador(init: Int) {
+  let count = init
+  return (add: Int) => { |count|
+    return (count + add) // count é Int (copia pois é primitivo, mas uma string por exemplo seria uma referencia)
+  }
+}
+func contador(init: Int) {
+  let count = init
+  return (add: Int) => { |let count|
+    return (count + add) // count é uma copia de count de fora, mas poderia ser algo como let c = count
+  }
+}
+func contador(init: Int) {
+  let count = init
+  return (add: Int) => { |weak const count|
+    return (count ?+ add) // count é Int|Null e const ref
+  }
+}
+
+// Optional operators
+
+?+ ?- ?* ?/ ?% ?> ?< ?>= ?<= ?+= ?-=
+
+// Funções (novamente)
+
+func nomeDaFunc(args: Tipo) {}
+fn nomeDaFunc(args: Tipo) {}
+nomeDaFunc(args: Tipo) => {}
+(args: Tipo) => {}
+func<C> nomeDaFunc(args: Tipo) {}
+fn<Zig> (args: Tipo) => {}
+fn<Bend, .gpu> nomeDaFunc(args: Tipo) {}
+fn<.gpu> (args: Tipo) => {}
 
 
