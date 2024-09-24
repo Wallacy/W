@@ -3618,19 +3618,40 @@ func contador(init: Int) {
   }
 }
 
+func contador(init: Int) {
+  let count = init
+  return somador(add: Int) { |count| // o nome somador vai se perder no retorno. Mas poderia ser qualquer função.
+    return (count + add)
+  }
+}
+
+func contador(init: Int) {
+  let count = init
+  somador(add: Int) {
+    return (count ?+ add)
+  }
+  return somador
+}
+
+
 // Optional operators
 
 ?+ ?- ?* ?/ ?% ?> ?< ?>= ?<= ?+= ?-=
 
-// Funções (novamente)
+// Funções (novamente) // aida não sei se uso fn/func
 
 func nomeDaFunc(args: Tipo) {}
 fn nomeDaFunc(args: Tipo) {}
+func<C> nomeDaFunc(args: Tipo) {}
+fn<Bend, .gpu> nomeDaFunc(args: Tipo) {}
+fn (args: Tipo) {}
+
 nomeDaFunc(args: Tipo) => {}
 (args: Tipo) => {}
-func<C> nomeDaFunc(args: Tipo) {}
 fn<Zig> (args: Tipo) => {}
-fn<Bend, .gpu> nomeDaFunc(args: Tipo) {}
 fn<.gpu> (args: Tipo) => {}
+
+Como por definição a diferença entre função e clousure é a captura de variavel. E nesse caso permito usar captura mesmo em função, não existe uma ditinção clara de um para outro. Apenas que convencionei chamar de closure quando não se usa func/fn mas sim =>, mesmo nos casos onde também uso fn<> junto com =>
+
 
 
