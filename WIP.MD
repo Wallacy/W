@@ -1570,7 +1570,7 @@ class example {
 
    }
 
-    mut fn someOtherFunc(){
+    mut someOtherFunc(){
 
     let b: String<expected> = fetch() // aloca string com expected value se não dynamic iniciando em min até max
 
@@ -1743,7 +1743,7 @@ let a = someCode() // var A usado o HEAP(B), já qualquer coisa em someCode usa 
 
 let count = 0;
 
-fn mut thing(let b: SomeClass){
+mut thing(let b: SomeClass){
     count = b.count
     return `Count is ${count}`
 }
@@ -1988,7 +1988,7 @@ fn someFunc(string @a a){ // @a é alias de a, ambos podem ser usados, mas no ca
 
 
 @debug("variavel que na verdade vai mudar em debug a primeira vez que rodar esse aquivo") // Só em debug
-fn mut someFunc(string a){
+mut someFunc(string a){
  @debug("posso me chamar também sempre que executa a função em debug")
  @debug someOtherFunc() // apenas em deub essa outra função.
  #debug ("a") == Result.OK // Seria os códigos de erro propagados automagicamente junto com todos os retornos em debug ? 
@@ -3653,5 +3653,35 @@ fn<.gpu> (args: Tipo) => {}
 
 Como por definição a diferença entre função e clousure é a captura de variavel. E nesse caso permito usar captura mesmo em função, não existe uma ditinção clara de um para outro. Apenas que convencionei chamar de closure quando não se usa func/fn mas sim =>, mesmo nos casos onde também uso fn<> junto com =>
 
+// Função com side efect:
 
+let count = 0
+
+mut action(){
+  count++
+}
+
+return mut () => {
+  count++
+}
+
+// Function config:
+
+declare configX = <W, .gpu, .heap>
+
+fn<configX> call() {}
+
+Parece interessante deixar também colocar configs em declarações.
+
+// https://blog.cloudflare.com/sqlite-in-durable-objects/
+
+Output gates me parece uma ideia genial para qualquer forma de sync/async single thread... W precisa disso!
+
+Pode ser algo relacionado ao retorno =>> Se a ultima opreção for um IO em disco por exemplo, seria mais interessante a thread que chama executar esse metodo "sync" com os argumentos que a outra thread produziu. Dessa forma toda thread que chama um modulo se torna um output gate. A outra thread é liberada.
+
+Normal <Th A><Call Func><Schudele B Atomic><T B><Schedule B Call Func><Func Produce Return><Schedule A Return><Th A Continue>
+Gate <Th A><Call Func><Return Func><Schudele B Atomic><T B><Schedule B Call Func><Func Produce Return Args><Schedule A Return><Call Return Func><Th A Continue>
+
+Se no retorno ele só precisar copiar um valor em meoria ou algo assim, deixar isso tudo para a Thread que chama, a ideia é fazer tudo até a ultima execução possivel antes de produzir o valor de retorno. No caso de funções de IO ou outras que são "puras" e depedem apenas do argumentos produzidos pela thread de execução. Elas podem por completo serem feitas na thread que chama.
+Tenho que ver se isso ajuda, tentar desenhar esse cenario obviamente pois não rola de lotar a thread cliente de calls também.
 
