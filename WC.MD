@@ -358,3 +358,5 @@ fn<Bend, .gpu> (...)
 
 O Phononix parece ter uma lista do carvalho: https://www.phoronix.com/review/intel-meteorlake-gcc-clang
 As do Clang dando pra usar no ZigCC para cada uma das 3 principais plataformas okay.
+
+Caso eu não tenha deixado claro: Acreditoque WC deve ser só uma lib estatica com macros. descondiderar qualquer coisa como WC sendo uma linguagem.

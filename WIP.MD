@@ -3685,3 +3685,4 @@ Gate <Th A><Call Func><Return Func><Schudele B Atomic><T B><Schedule B Call Func
 Se no retorno ele só precisar copiar um valor em meoria ou algo assim, deixar isso tudo para a Thread que chama, a ideia é fazer tudo até a ultima execução possivel antes de produzir o valor de retorno. No caso de funções de IO ou outras que são "puras" e depedem apenas do argumentos produzidos pela thread de execução. Elas podem por completo serem feitas na thread que chama.
 Tenho que ver se isso ajuda, tentar desenhar esse cenario obviamente pois não rola de lotar a thread cliente de calls também.
 
+

@@ -111,3 +111,56 @@ nm --size-sort -Sr vmlinux a.out
 
 // w patch <lib>
 
+
+Um dos motivos que vejo o pessoal usar o W seria o W build pois:
+
+Tenta produzir builds reproduziveis: Sempre geralmete o mesmo executavo com o mesmo hash a partir do mesmo código.
+build.lock
+Usa um esquima parecido com o JWT. O executavel é gerado a partir da config do w.build e de um audit. Provalemnte algo assim:
+w build create version:
+v1.2.3.build => Arquivo com o wbuild resolvido para aquela versão. Onde tudo que é dinamico é resolvido, variaveis etc. Ele vira o source of thuth da build
+w build v1.2.3 // imagino que se não tiver criado basta perguntar pra criar...
+pega a versão, compila com os argumentos e gera um audit
+audit {
+    src: {
+        file,
+        hash,
+    }
+    version: {
+        file: v1.2.3.build
+        hash,
+    }
+    output:{
+        file,
+        hash,
+    }
+    auditInfo:{
+        date,
+        spec,
+    }
+}
+
+Dai no site basta publicar o arquivo de audit junto com o arquivo de output. Obviamente se o audit apontar arquivos de version externos precisam estar também publicados. Mas acho que da pra fazer o build de tudo como opção:
+
+w build audit bundle
+v1.2.3.bundle.tar.xz (src, audit, version.build, artifact)
+
+w build audit bundle --src-uri
+v1.2.3.bundle.tar.xz (src-uri, audit, version.build, artifact)
+Cada "file" pode ter uma URL de onde foi publicado o artefato ao invés de ficar no bundle.
+
+caso seja criado sem "version", o aquivo de build pode ser só w.build resolvido no diretorio final tambem.
+
+"builder"
+
+No W build pode-se apontar builders externos como imagens em docker, ou vms para poder criar replicabilidade. Penso também que eventualmente poderia no builder ser só um script também que configa um determinado sistema para tentar o mesmo sem usar docker/vms
+
+builder: ".Dockerfile" | "QEMU" | "script" | .ENV
+
+Essa infmações são resolvidas e fazem parte do artefato de build/version final. ENVs são resolvidas no arquivo .build e scripts e outras coisas são importados, eventualmente em base64
+
+Pode-se usar o -src-uri, -script-uri, -dockerfile-uri, --all-uri etc para desativar o auto import. Esses arquivos vão estar juntos do zip de bundle final com seus respectivos hash
+Caso a uri seja local, pode ser relativo a pasta de build e ao bundle "./script.sh", ./assets/script.sh, file://assets/script.sh, etc...
+
+Boostrap com bun??
+
