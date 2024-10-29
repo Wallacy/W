@@ -3685,4 +3685,68 @@ Gate <Th A><Call Func><Return Func><Schudele B Atomic><T B><Schedule B Call Func
 Se no retorno ele só precisar copiar um valor em meoria ou algo assim, deixar isso tudo para a Thread que chama, a ideia é fazer tudo até a ultima execução possivel antes de produzir o valor de retorno. No caso de funções de IO ou outras que são "puras" e depedem apenas do argumentos produzidos pela thread de execução. Elas podem por completo serem feitas na thread que chama.
 Tenho que ver se isso ajuda, tentar desenhar esse cenario obviamente pois não rola de lotar a thread cliente de calls também.
 
+// Storage
+
+Usar SQLite como forma "padrão" para manipular dados persistentes. Tem o lance do SQLite ser potencialmente 35% mais rapido, economizando 20% do disco, etc. Mas o mais importante mesmo é simplicar o acesso entre threads e ter uma API mais rica. Fazer algo parecido com os durables e criar uma API conveniente em uma table interna _keys algo assim. Eventualmente também separando um outro SQLite para logs persistentes por padrão caso a pessoa assim escolha.
+
+storage.get() ; storage.put(), .list(), .append(), etc...
+
+// https://www.sqlite.org/c3ref/blob_write.html
+
+Para melhor integração com o padrão unix poderia ter um utilitario separado para fazer leitura desse banco como se fosse um aquivo, algo assim. wsql db.sqlite | grep awk | sed etc.
+
+
+// Early Return
+
+// bad...
+func example() {
+  if (cond) {
+    if (cond2){
+      if (cond3){
+        ...thing...
+        return ...
+      }
+    }
+  }
+}
+
+// also bad
+func example() {
+  if (!cond){
+   return "reason1"
+  }
+  if (!cond2){
+   return "reason2"
+  }
+  if (!cond3){
+   return "reason3"
+  }
+  ...thing...
+  return ...
+}
+
+// better
+func example() {
+  guard cond return "reason1"
+  guard cond2 return "reason2"
+  guard cond3 return "reason3"
+
+  ...thing...
+  return ...
+}
+
+guard <bool_expression> else {
+  return <...> 
+}
+guard <bool_expression> else return <...> 
+guard <bool_expression> return <...>
+
+Seria só uma progressão normal do guard.
+
+// Concorrencia
+
+Single Thread mode: <main_thread>
+Multi Thread mode: <main_thread> -> <app_thread> + <n_module_thread>
+
+main_thread => struct _w_shared_internal => named_threads, etc.
 

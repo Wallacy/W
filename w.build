@@ -167,3 +167,5 @@ Boostrap com bun??
 No create version penso que ele só cria um json como versão de pré-lançamento de forma que a pessoa possa por descrição etc. Na build que ele finaliza a versão.
 
 Outra coisa em relação a parte colaborativa do sistema: As pessoas podem doar "buckets", basta cadastrar as credenciais e a quotas, e o sistema vai ir usando esses buckets. Eventualmente replicando em mais de um para disponibilidade.
+
+
