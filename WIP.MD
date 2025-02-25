@@ -3648,7 +3648,7 @@ fn (args: Tipo) {}
 
 nomeDaFunc(args: Tipo) => {}
 (args: Tipo) => {}
-fn<Zig> (args: Tipo) => {}
+func<Zig> (args: Tipo) => {}
 fn<.gpu> (args: Tipo) => {}
 
 Como por definição a diferença entre função e clousure é a captura de variavel. E nesse caso permito usar captura mesmo em função, não existe uma ditinção clara de um para outro. Apenas que convencionei chamar de closure quando não se usa func/fn mas sim =>, mesmo nos casos onde também uso fn<> junto com =>
@@ -3750,3 +3750,155 @@ Multi Thread mode: <main_thread> -> <app_thread> + <n_module_thread>
 
 main_thread => struct _w_shared_internal => named_threads, etc.
 
+
+## 4. Exemplo de Gramática para Tree-sitter (AST)
+
+Para criar um parser Tree-sitter para W, precisamos definir uma gramática que represente a estrutura da linguagem. Abaixo está um exemplo inicial de gramática em `grammar.js` para Tree-sitter, que cobre os principais constructs de W (declarações de funções, módulos, tipos, etc.).
+```
+```javascript
+module.exports = grammar({
+  name: 'w',
+
+  extras: $ => [
+    /\s/,
+    $.comment,
+  ],
+
+  rules: {
+    source_file: $ => repeat($._definition),
+
+    _definition: $ => choice(
+      $.module_declaration,
+      $.function_declaration,
+      $.type_declaration,
+    ),
+
+    module_declaration: $ => seq(
+      'module',
+      $.identifier,
+      '{',
+      repeat($._definition),
+      '}'
+    ),
+
+    function_declaration: $ => seq(
+      'func',
+      $.identifier,
+      '(',
+      optional($.parameters),
+      ')',
+      optional($.return_type),
+      '{',
+      repeat($._statement),
+      '}'
+    ),
+
+    type_declaration: $ => seq(
+      'type',
+      $.identifier,
+      '=',
+      $.type_expression
+    ),
+
+    parameters: $ => seq(
+      $.parameter,
+      repeat(seq(',', $.parameter))
+    ),
+
+    parameter: $ => seq(
+      $.identifier,
+      ':',
+      $.type_expression
+    ),
+
+    return_type: $ => seq(
+      '->',
+      $.type_expression
+    ),
+
+    type_expression: $ => choice(
+      $.identifier,
+      $.restricted_type
+    ),
+
+    restricted_type: $ => seq(
+      $.identifier,
+      '<',
+      repeat($.type_restriction),
+      '>'
+    ),
+
+    type_restriction: $ => choice(
+      seq('maxLength:', $.number),
+      seq('pattern:', $.string),
+      seq('range:', $.range)
+    ),
+
+    range: $ => seq(
+      $.number,
+      '...',
+      $.number
+    ),
+
+    _statement: $ => choice(
+      $.expression_statement,
+      $.return_statement
+    ),
+
+    expression_statement: $ => seq(
+      $.expression,
+      ';'
+    ),
+
+    return_statement: $ => seq(
+      'return',
+      optional($.expression),
+      ';'
+    ),
+
+    expression: $ => choice(
+      $.identifier,
+      $.string,
+      $.number,
+      $.call_expression
+    ),
+
+    call_expression: $ => seq(
+      $.identifier,
+      '(',
+      optional($.arguments),
+      ')'
+    ),
+
+    arguments: $ => seq(
+      $.expression,
+      repeat(seq(',', $.expression))
+    ),
+
+    identifier: $ => /[a-zA-Z_][a-zA-Z0-9_]*/,
+
+    string: $ => /"([^"\\]|\\.)*"/,
+
+    number: $ => /\d+/,
+
+    comment: $ => /\/\/[^\n]*/,
+  }
+});
+```
+
+### Notas sobre o AST e Tree-sitter
+
+- **Estrutura Intuitiva**: Cada nó no AST corresponde diretamente a um símbolo terminal ou não-terminal na gramática.
+- **LR(1) Adherence**: A gramática é projetada para ser eficiente com o algoritmo GLR de Tree-sitter.
+- **Próximos Passos**:
+  - Adicionar suporte para `async`/`await`, corrotinas e modificadores (`ref`, `cow`, etc.).
+  - Implementar validações para tipos restritos e gerenciamento de memória.
+  - Testar com exemplos reais de código W.
+
+Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
+
+1. Instale Tree-sitter: `npm install -g tree-sitter-cli`.
+2. Crie um diretório para o parser: `tree-sitter init --grammar grammar.js`.
+3. Modifique `grammar.js` com o código acima.
+4. Compile: `tree-sitter generate`.
+5. Teste com código W: `tree-sitter parse exemplo.w`.
