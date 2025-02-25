@@ -1,203 +1,180 @@
-# W Language Quick Reference
+# Cheatsheet da Linguagem W
 
-**W** is a modern, safe, and expressive programming language designed as a superset of C. It combines C's performance with modern features inspired by TypeScript, Swift, Zig, and Rust, focusing on memory safety, concurrency, and interoperability with C. W generates pure C (likely C2y) as its output.
+## Sintaxe Básica
 
-**Version**: Pre-release (in development)  
-**Website**: [W Language GitHub (TBD)](https://github.com/your-username/w-lang)  
-**License**: MIT  
-**Contribute**: [GitHub Repository (TBD)](https://github.com/your-username/w-lang)
+**Comentários:**
 
----
-
-## Basics
-
-### Hello World
-
-```w
-func main() {
-  print("Hello, World!")
-}
-```
-
-- **Compile**: `w build main.w` (generates C, then compiles with GCC/Clang).
-- **Run**: `./main` (after build).
-
-### Comments
-
-```w
-// Single-line comment
+```typescript
+// Comentário de linha única
 
 /*
-Multi-line
-comment
-*/
+ * Comentário
+ * de múltiplas
+ * linhas
+ */
 ```
 
----
+**Declaração de Variáveis:**
 
-## Variables
-
-### Declare Variables
-
-```w
-let x: Int = 42             // Explicit type, immutable
-var y: String = "Hello"     // Mutable variable
-let z = 100                 // Type inferred, immutable
+```typescript
+let nomeImutavel = "W Lang" // Variável imutável (constante)
+var nomeMutavel = "W Lang"   // Variável mutável
+const PI = 3.14159         // Constante global (nível de módulo)
 ```
 
-- `let`: Immutable (read-only).
-- `var`: Mutable.
-- Type inference available; use explicit types for clarity or restrictions.
+**Tipos de Dados:**
 
-### Constants (Compile-Time)
-
-```w
-const PI: Float = 3.14159   // Compile-time constant
+```typescript
+Int         // Inteiro (tamanho dependente da arquitetura, padrão i32/i64)
+Int<size>   // Inteiro com tamanho específico (e.g., Int<16>, Int<32>)
+Float       // Ponto flutuante (padrão double)
+Float<size> // Ponto flutuante com tamanho específico (e.g., Float<32>, Float<64>)
+String      // String UTF-8
+Char        // Caractere Unicode
+Bool        // Booleano (true ou false)
+Void        // Tipo vazio (sem retorno)
+Any         // Tipo dinâmico (inferência em tempo de execução)
 ```
 
-- `const` for values known at compile time.
+**Tipos Opcionais:**
 
----
-
-## Data Types
-
-### Primitive Types
-
-```w
-let num: Int = 42          // Integer
-let dec: Float = 3.14      // Floating-point
-let text: String = "Hi"    // String
-let flag: Bool = true      // Boolean
-let char: Char = 'a'       // Character
+```typescript
+let usuario: String? = nil  // Variável String que pode ser nula
+let idade: Int?          // Variável Int opcional, valor inicial nil
 ```
 
-### Custom Types
+**Tipos Restritos:**
 
-```w
-type Name = String<maxLength: 20>  // Restricted type
-let name: Name = "John"           // Only strings up to 20 chars
+```typescript
+type NomeUsuario = String<maxLength: 20, pattern: /^[a-zA-Z0-9_]+$/>
+type IdadeValida = Int<range: 0...120>
 ```
 
-- Use `type` for aliases or restrictions (e.g., length, pattern).
+**Operadores:**
 
-### Arrays
+*   **Aritméticos:** `+`, `-`, `*`, `/`, `%`
+    ```typescript
+    10 + 5  // 15
+    20 - 3  // 17
+    7 * 6   // 42
+    50 / 5  // 10
+    10 % 3  // 1
+    ```
+*   **Comparação:** `==`, `!=`, `>`, `<`, `>=`, `<=`
+    ```typescript
+    10 == 10 // true
+    5 != 3   // true
+    8 > 2    // true
+    1 < 0    // false
+    5 >= 5   // true
+    2 <= 1   // false
+    ```
+*   **Lógicos:** `&&`, `||`, `!`
+    ```typescript
+    true && false // false
+    true || false // true
+    !true        // false
+    ```
+*   **Atribuição:** `=`, `+=`, `-=`, `*=`, `/=`, `%=`
+    ```typescript
+    var x = 10
+    x += 5 // x é agora 15
+    x -= 3 // x é agora 12
+    x *= 2 // x é agora 24
+    x /= 4 // x é agora 6
+    x %= 5 // x é agora 1
+    ```
+*   **Coalescência Nula:** `??` (ex: `nomeUsuario ?? "Anônimo"`)
+    ```typescript
+    let nome: String? = nil
+    let nomeExibicao = nome ?? "Visitante" // nomeExibicao é "Visitante"
+    ```
+*   **Opcional Chaining:** `?.` (ex: `usuario?.nome`)
+    ```typescript
+    class Usuario {
+        let nome: String?
+    }
+    let usuario: Usuario? = nil
+    let nomeUsuario = usuario?.nome // nomeUsuario é nil
+    ```
+*   **Range Operators:** `..` (inclusivo), `..<` (exclusivo superior), `>..` (exclusivo inferior), `>..<` (exclusivo ambos)
+    ```typescript
+    for (i in [1..3]) { print(i) }      // 1 2 3
+    for (i in [1..<3]) { print(i) }     // 1 2
+    for (i in [2>..5]) { print(i) }     // 3 4 5
+    for (i in [2>..<5]) { print(i) }    // 3 4
+    for (i in [1..7, 2]) { print(i) }   // 1 3 5 7
+    ```
 
-```w
-let numbers: Int[] = [1, 2, 3]
-let mixed: [Int, String] = [42, "Hi"]  // Heterogeneous array
-```
+## Estruturas de Controle
 
-- Arrays are immutable by default; use `var` for mutability.
+**Condicional `if`:**
 
-### Structs
-
-```w
-struct Point {
-  x: Float
-  y: Float
-}
-
-let p = Point { x: 10.0, y: 20.0 }
-```
-
-- Value types, allocated on stack or embedded.
-
-### Classes
-
-```w
-class User {
-  let name: String
-  init(name: String) {
-    this.name = name
-  }
-}
-
-let user = User { name: "Alice" }  // Reference type, managed by ARC
-```
-
-- Reference types, managed by ARC (Automatic Reference Counting).
-
-### Enums
-
-```w
-enum Color {
-  case Red
-  case Green
-  case Blue(String)
-}
-
-let color = Color.Red
-```
-
-- Can carry associated values.
-
----
-
-## Control Flow
-
-### If Statement
-
-```w
+```typescript
 let x = 10
 if (x > 5) {
-  print("Greater than 5")
+  print("Maior que 5")
 } else if (x == 5) {
-  print("Equal to 5")
+  print("Igual a 5")
 } else {
-  print("Less than 5")
+  print("Menor que 5")
 }
 ```
 
-- Supports ternary-like syntax:
+**Condicional `guard`:**
 
-```w
-let msg = x > 5 ? "Big" : "Small"
-```
-
-### Switch Statement
-
-```w
-let value = 3
-switch (value) {
-  case 1: print("One")
-  case 2, 3: print("Two or Three")  // Multiple cases
-  default: print("Other")
+```typescript
+func processarValor(valor: Int?) -> String? {
+  guard let val = valor else {
+    return nil // Early return se valor for nil
+  }
+  // Continua o processamento se valor não for nil
+  return "Valor processado: \(val)"
 }
 ```
 
-- No fall-through by default; use explicit `fallthrough` if needed:
+**Switch Statement:**
 
-```w
-switch (value) {
-  case 1: print("One"); fallthrough
-  case 2: print("One or Two")
-  default: print("Other")
+```typescript
+let valor = 3
+switch (valor) {
+  case 1: print("Um")
+  case 2, 3: print("Dois ou Três")  // Múltiplos casos
+  default: print("Outro")
 }
 ```
 
-### For Loop
+**Loop `for`:**
 
-```w
-for i in 0..<5 {  // Range [0, 5)
-  print(i)        // Prints 0, 1, 2, 3, 4
+```typescript
+for (var i = 0; i < 5; i++) {
+  print(i)        // Imprime 0, 1, 2, 3, 4
 }
 
-for item in [1, 2, 3] {
-  print(item)     // Iterates over array
+for (item in colecao) { // for-in para coleções (arrays, etc - a ser definido)
+  print(item)     // Itera sobre array
+}
+
+for (valor in [1..5]) {  // Range inclusivo: 1, 2, 3, 4, 5
+  print(valor)
+}
+
+for (valor in [1..<5]) { // Range exclusivo superior: 1, 2, 3, 4
+  print(valor)
+}
+
+for (valor in [1>..5]) { // Range exclusivo inferior: 2, 3, 4, 5
+  print(valor)
+}
+
+for (valor in [1>..<5, 2]) { // Range com step: 3
+  print(valor)
 }
 ```
 
-- Step sizes with ranges:
+**Loop `while`:**
 
-```w
-for i in 0..<10, 2 {  // Steps of 2: 0, 2, 4, 6, 8
-  print(i)
-}
-```
-
-### While Loop
-
-```w
+```typescript
 var count = 0
 while (count < 5) {
   print(count)
@@ -205,9 +182,9 @@ while (count < 5) {
 }
 ```
 
-### Do-While Loop
+**Loop `do-while`:**
 
-```w
+```typescript
 var count = 0
 do {
   print(count)
@@ -215,251 +192,266 @@ do {
 } while (count < 5)
 ```
 
----
+## Funções e Closures
 
-## Functions
+Em W, funções e closures compartilham a mesma base sintática. Funções são, essencialmente, closures nomeadas.
 
-### Function Declaration
+**Declaração de Função Nomeada:**
 
-```w
-func add(a: Int, b: Int) -> Int {
-  return a + b
+```typescript
+func nomeDaFuncao(parametro1: Tipo1, parametro2: Tipo2): TipoRetorno {
+  // Corpo da função
+  return valorDeRetorno
 }
-
-async func fetch(url: String) throws -> String {  // Async with error handling
-  let response = await http.get(url)
-  return response
-}
-```
-
-- `->` for return type.
-- `async` for asynchronous functions; use `await`.
-- `throws` for error-prone functions; handle with `try`.
-
-### Parameters and Modifiers
-
-```w
-func process(data: ref String) -> storage String {  // Reference and storage
-  data += " processed"
-  return data
+// Funções sem tipo de retorno (retornam Void implicitamente)
+func funcaoSemRetorno(parametro: Tipo) {
+  // Corpo da função
 }
 ```
 
-- `ref`: Reference with ARC.
-- `storage`: Transfers ownership.
-- `cow`: Copy-on-write for sharing.
+**Funções Anônimas (Closures):**
 
----
-
-## Arithmetic Operations
-
-### Basic Arithmetic
-
-```w
-let a = 10
-let b = 5
-
-let sum = a + b      // Addition: 15
-let diff = a - b     // Subtraction: 5
-let prod = a * b     // Multiplication: 50
-let quot = a / b     // Division: 2
-let mod = a % b      // Modulus: 0
-```
-
-- All operators follow C-like precedence and associativity.
-
-### Compound Assignment
-
-```w
-var x = 10
-x += 5    // x = 15
-x -= 3    // x = 12
-x *= 2    // x = 24
-x /= 4    // x = 6
-x %= 2    // x = 0
-```
-
----
-
-## Memory Management
-
-### ARC (Reference Types)
-
-```w
-class Data {
-  let value: String
+```typescript
+let minhaFuncaoAnonima = (parametro: Tipo): TipoRetorno {
+  // Corpo da função anônima
+  return valorDeRetorno
 }
 
-func use(data: ref Data) {
-  print(data.value)  // Retains data
-}  // Data released when ref count reaches 0
+// Shorthand para funções anônimas com corpo de uma linha
+let funcaoCurta = (parametro: Tipo) => valorDeRetorno // Quando não usa o par `{ }`, deve-se usar `=>`
 ```
 
-- Use `ref`, `storage`, or `cow` to control ownership.
+**Funções como Closures com Captura Explícita:**
 
-### Copy-on-Write (Cow)
-
-```w
-func modify(data: cow String) -> cow String {
-  return data + " modified"  // Copies only if modified
-}
-```
-
-- Efficient for immutable sharing; copies on mutation.
-
----
-
-## Concurrency
-
-### Async/Await
-
-```w
-async func download(url: String) throws -> String {
-  let response = await http.get(url)
-  return response.text()
-}
-
-func main() {
-  try await print(download("https://example.com"))
-}
-```
-
-- `async` for coroutines; `await` to wait for results.
-
-### Parallelism (Spawn)
-
-```w
-func compute() -> Int {
-  return 42  // Heavy computation
-}
-
-func main() {
-  let task = spawn compute()  // Runs in separate thread
-  let result = await task
-  print(result)
-}
-```
-
-- `spawn` for background threads; `await` for results.
-
----
-
-## Modules
-
-### Module Declaration
-
-```w
-module Math {
-  export func add(a: Int, b: Int) -> Int {
-    return a + b
+```typescript
+func contador(init: Int) {
+  var count = init
+  return (incremento: Int) { |let c = count| // Captura 'count' por cópia
+    return (c + incremento)
   }
 }
 
-module Main {
-  import { add } from "Math"
+let meuContador = contador(init: 10)
+print(meuContador(5)) // 15
+print(meuContador(3)) // 18
+```
 
-  func main() {
-    print(add(3, 4))  // 7
-  }
+**Funções Assíncronas (`async`/`await`) com Modificadores:**
+
+```typescript
+async func funcaoAssincrona(): String {
+  // Código assíncrono
+  let resultado = await algumaOperacaoAssincrona()
+  return resultado
+}
+
+func chamarFuncaoAsync() async {
+  let resultado = await funcaoAssincrona()
+  print(resultado)
 }
 ```
 
-- Modules are singletons; use `#config` for settings.
+**Funções Paralelas (`spawn`/`await`) com Modificadores:**
 
-### Module Configuration
+```typescript
+async func tarefaPesada(): String { // Spawn só pode ser feito em funções do tipo async.
+  // Operação computacionalmente intensiva
+  return "Tarefa pesada concluída"
+}
 
-```w
-module Network {
-  #config {
-    threads = [.background, .network]
-    memory = .rcu  // Read-Copy-Update for concurrency
-  }
+func executarParalelamente() async {
+  let tarefa = spawn tarefaPesada()
+  let resultado = await tarefa
+  print(resultado)
+}
+
+func executarParalelamenteEmBackground() async {
+  let tarefa = spawn<.background> tarefaPesada()
+  let resultado = await tarefa
+  print(resultado)
 }
 ```
 
----
+**Modificadores de Parâmetros:**
 
-## Interoperability with C
+```typescript
+func processarDados(dados: String<.ref>, arquivo: String<.storage>, cache: String<.cow>) {
+  // .ref: Referência mutável (in-out)
+  // .storage: Transferência de posse
+  // .cow: Copy-on-write
+}
+```
 
-### Calling C Functions
+**Chamando código em outras linguagens:**
 
-```w
+```typescript
+// Importando uma função C da biblioteca padrão
 import { printf } from "c:stdio.h"
 
-func sayHello(name: String) {
-  printf("Hello, %s!\n", name)
+func dizerOiC(nome: String) {
+  printf("Olá, %s!\n", nome) // Chamando printf diretamente
+}
+
+// Chamando código JavaScript (exemplo hipotético)
+import { jsFunction } from "js:modulo_js"
+
+func usarJs() {
+  let resultado = jsFunction("Olá do W!")
+  print(resultado)
+}
+
+// Chamando código Rust (exemplo hipotético)
+import { rustFunction } from "rust:modulo_rust"
+
+func usarRust() {
+  let resultado = rustFunction(10, 20)
+  print("Resultado Rust: \(resultado)")
 }
 ```
 
-- Maps W types (e.g., `String` → `char*`) to C; uses ARC/structs for safety.
+## Módulos
 
----
+**Declaração de Módulo:**
 
-## Error Handling
+```typescript
+module NomeDoModulo {
+  // Funções, constantes, tipos, etc.
+  export func funcaoDoModulo() { ... }
+  export const CONSTANTE_MODULO = 123
 
-### Try/Catch (Planned)
-
-```w
-func risky() throws -> Int {
-  if (someCondition) {
-    throw "Error occurred"
+  export { // Exportando múltiplos itens em um bloco
+    funcaoDoModulo,
+    CONSTANTE_MODULO,
   }
-  return 42
-}
 
-func main() {
-  try {
-    let result = risky()
-    print(result)
-  } catch (error) {
-    print(`Error: ${error}`)
+  export default { // Export default para valor padrão do módulo
+    versao: "1.0.0"
   }
 }
 ```
 
-- `throws` for functions that can throw; `try` for handling.
+**Import de Módulos:**
 
----
+```typescript
+import { funcaoDoModulo, CONSTANTE_MODULO } from "NomeDoModulo" // Import seletivo
+import NomeDoModulo from "NomeDoModulo" // Importa módulo como namespace
+import * as ModuloAlias from "NomeDoModulo" // Importa com alias
+```
 
-## Build System
+**Configurações de Módulo:**
 
-### Build Command
+```typescript
+module MeuModulo {
+  #config { // Configurações inline
+    threads = [.background, .network] // Threads dedicadas
+    memory = .rcu                   // Gerenciamento de memória RCU
+  }
 
-```w
-// build.w
+  #config threads = [.background, .network] // Shorthand para config única
+  #config memory = .rcu
+}
+
+module Rede {
+    #config {
+        dynamic.maxSize = 1G        // Limite de memória dinâmica
+        threads = [.background, .network]
+        callPolice = .rcu           // Read-Copy-Update para concorrência
+    }
+}
+```
+
+**Entry Points de Módulo:**
+
+```typescript
+module Principal {
+  export func main(args: String[]) { // Entry point principal para executáveis
+    print("Executando módulo principal com argumentos: \(args)")
+  }
+
+  export func fetch(request: Request, context: Context) -> Response { // Entry point similar ao Cloudflare Workers
+    return new Response("Resposta do módulo W!")
+  }
+
+  export default func() { // Default export como entry point alternativo
+    print("Entry point default do módulo")
+  }
+}
+```
+
+## Classes e Objetos
+
+**Declaração de Classe:**
+
+```typescript
+class NomeDaClasse {
+  let propriedadeImutavel: Tipo
+  var propriedadeMutavel: Tipo
+
+  init(parametro1: Tipo, parametro2: Tipo) {
+    this.propriedadeImutavel = parametro1
+    this.propriedadeMutavel = parametro2
+  }
+
+  func metodoDaClasse() {
+    // ...
+  }
+}
+```
+
+**Herança (Sintaxe a ser Definida):**
+
+```typescript
+// Exemplo conceitual de herança
+class SubClasse : SuperClasse {
+  // ...
+}
+```
+
+**Instanciação de Objetos:**
+
+```typescript
+let objeto = NomeDaClasse(parametro1: valor1, parametro2: valor2)
+```
+
+## Interoperabilidade com C
+
+**Import de Bibliotecas C:**
+
+```typescript
+import { funcao_c } from "c:biblioteca_c.h" // Importa função C
+import { tipo_c } from "c:biblioteca_c.h"   // Importa tipo C
+```
+
+**Chamada de Funções C:**
+
+```typescript
+func usarFuncaoC() {
+  let resultadoC: Int = funcao_c(argumentoW)
+  // ...
+}
+```
+
+## Sistema de Build
+
+**Arquivo `build.w`:**
+
+```typescript
 module Build {
   func main() {
-    let sources = glob("src/*.w")
-    let objects = sources.map(f => compile(f, "c"))
-    link(objects, "my_program")
+    let fontes = glob("src/*.w")
+    let objetos = fontes.map(f => compile(f, "c"))
+    link(objetos, "programa_w")
   }
 }
 ```
 
-- Run `w build` to compile W code to C, then link with GCC/Clang.
-- Uses [libuv](https://github.com/libuv/libuv) for async operations.
+**Comandos `w build`:**
+
+*   `w build` - Compila o projeto.
+*   `w run` - Compila e executa.
+*   `w test` - Executa testes (a serem definidos).
+*   `w package` - Empacota para distribuição.
 
 ---
 
-## Tips & Tricks
-
-- **Type Inference**: Use `let` without types when possible; W infers them.
-- **Safety**: Use restricted types (e.g., `String<maxLength: 20>`) to catch errors early.
-- **Performance**: Avoid unnecessary `cow` copies; prefer `ref` for ARC.
-
----
-
-## References
-
-- **[pthread](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/pthread.h.html)**: For threading in C backend.
-- **[Clang/LLVM](https://clang.llvm.org/)**: Compiler backend.
-- **[Tree-sitter](https://tree-sitter.github.io/)**: For parsing (AST grammar TBD).
-- **[mimalloc](https://github.com/microsoft/mimalloc)**: Potential allocator for ARC.
-
----
-
-## Contribute
-
-- **Repository**: [W Language GitHub (TBD)](https://github.com/your-username/w-lang)
-- **License**: MIT (see [LICENSE](https://github.com/your-username/w-lang/blob/main/LICENSE))
-- **Issues/Features**: Open a pull request or issue on GitHub.
+**Nota:** Este cheatsheet está em desenvolvimento e pode mudar. Consulte a documentação completa para informações detalhadas.
