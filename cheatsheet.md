@@ -30,9 +30,6 @@ global const PI = 3.14159         // Constante global (nível de módulo)
 Int         // Inteiro (tamanho dependente da arquitetura, padrão i32/i64)
 Int<size>   // Inteiro com tamanho específico (e.g., Int<16>, Int<32>, Int<64>)
 Int<bitSize: size> // Inteiro com tamanho específico em bits (e.g., Int<bitSize: 16>)
-Int<maxSize: bytes> // Inteiro cujo tipo é inferido para caber em maxSize bytes
-i1000       // Inteiro cujo tipo é inferido para caber no valor 1000
-i10B        // Inteiro cujo tipo é inferido para caber em 10 bilhões
 Float       // Ponto flutuante (padrão double)
 Float<size> // Ponto flutuante com tamanho específico (e.g., Float<32>, Float<64>)
 String      // String UTF-8
@@ -40,7 +37,7 @@ Char        // Caractere Unicode
 Bool        // Booleano (true ou false)
 Void        // Tipo vazio (sem retorno)
 ```
-`Int`, `Float`, `String`, `Char`, `Bool`, e `Void` são tipos primitivos. `Int` e `Float` podem ter tamanhos especificados. `Int` pode ter o tamanho inferido baseado em `maxSize` em bytes ou um valor literal como `i1000` ou `i10B`.
+`Int`, `Float`, `String`, `Char`, `Bool`, e `Void` são tipos primitivos. `Int` e `Float` podem ter tamanhos especificados.
 
 **Tipos Opcionais:**
 
@@ -59,6 +56,16 @@ type CPF = String<maxLength: 12; mask:CPF, inputType:Number>; // Tipo String com
 type CPFType = String<maxLength: 12; mask:CPF, inputType:Number>; // Type alias para CPF
 type Email = String<pattern: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/>
 type Senha = String<minLength: 8>
+type HexColor = String<pattern: /^#([0-9A-F]{3}){1,2}$/i> // Cores Hexadecimal
+type TelefoneBR = String<mask: '(99) 99999-9999', inputType: Number> // Telefone BR
+type Porcentagem = Float<range: 0.0...1.0> // Porcentagens entre 0 e 1
+type UUID = String<pattern: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/> // UUIDs
+type DataISO = String<pattern: /^\d{4}-\d{2}-\d{2}$/> // Datas no formato ISO 8601 (YYYY-MM-DD)
+type Hora24h = String<pattern: /^(?:[01]\d|2[0-3]):[0-5]\d$/ > // Horas no formato 24h (HH:MM)
+type ValorMonetario = Float<range: 0...> // Valores monetários não negativos
+type CodigoPostalBR = String<mask: '99999-999', inputType: Number> // Código postal brasileiro
+type PlacaVeiculoBR = String<maxLength: 8, pattern: /^[A-Z]{3}\d[A-Z0-9]\d{2}$/> // Placas de veículo no formato BR
+
 ```
 Tipos podem ser restringidos com `maxLength`, `pattern`, `range`, `minLength`, `mask`, e `inputType`. `type` keyword creates type aliases.
 
@@ -987,8 +994,6 @@ var value = someInput() using(max_value:30000, boundChecking: true) // boundChec
 declare type myInt = int using(max_value:10000) // declare type with using clause
 declare type myInt = int32 using(boundChecking: true) // declare type with boundChecking
 declare type age = int using(max_value:1000) // declare type with using clause
-declare type age = i1000 // shorthand for declare type age = int using(max_value:1000)
-declare type UserNum = i10B // shorthand for declare type UserNum = int using(max_value:10000000000)
 
 guard someNumber { // guard block for runtime overflow checking
   // overflow in runtime, can be handled here.
@@ -1035,54 +1040,3 @@ service NameOfService { // Service declaration
 }
 ```
 Services are declared using the `service` keyword and provide a unified way to handle IPC/ITC, RPC, and other communication methods. Services define lifecycle handlers (`onStart`, `onFinish`), message handlers (`handler`), and functions for communication (`call`, `send`, `receive`).
-
-## Computer Units (CU)
-
-**Computer Unit Description:**
-
-Computer Units (CU) are fundamental units of computation in W, defined by memory, CPU, and storage allocations.
-
-```text
-Computer Unit:
-128M Memory (Dynamic)
-1vCPU
-1KV Storage (Dynamic)
-```
-
-**CU Sharing and Isolation:**
-
-CUs can be shared or isolated in terms of memory, CPU, and storage.
-
-```text
-Mais System: 4GB / 8 Cores-HT (16vCPUS)
-
-Kernel -> Basic HW Abstration -> W Module -> CU Workers ->
-
-CUW[0] => Text-Shell Unit Process (Or a Graphic-Shell Unit) | 128M / 1vCPU
-CUW[1] => Periphels Controls Unit Process | 128M / 1vCPU
-CUW[2] => App1 (One Full CU) | 128M / 1vCPU + Storage
-CUW[3] => App2 (Using 4 CUs) | 128GiB / 4vCPU
-CUW[4] => AppGroup1 (4 Apps using 4 Shared CUs) | 1GiB / 1vCPU
-CUW[5] => AppGroup2 (8 Apps using 8 Shared CUs) | 1GiB / 8vCPU
-CUW[6] => AppGroup2 (4 Apps using 2 Shared CUs) | 256M / 2vCPU
-etc..
-```
-CUs can be grouped and configured to share or isolate resources, enabling flexible application deployment and resource management.
-
-**CU Entry Points:**
-
-Each CU has well-defined entry points for different types of messages and events, allowing the system to interact with the CU in a standardized way.
-
-```text
-Fetch/Main/Alert/Store/Notify/Cron/etc...
-```
-Standardized entry points enable system-level interaction with CU applications, similar to service workers or command-line interfaces.
-
-**CU Bind and Memory Sharing:**
-
-CUs can bind to each other to share memory or other resources. Memory binding involves moving memory from one CU to another, rather than direct shared memory access.
-
-**CU Single Thread Default:**
-
-Each CU is single-threaded by default, simplifying concurrency management within a CU. Parallelism is achieved by using multiple CUs and coordinating them through defined entry points.
-```
