@@ -91,7 +91,7 @@ type IdadeValida = Int<range: 0...120>
     ```
 *   **Opcional Chaining:** `?.` (ex: `usuario?.nome`)
     ```typescript
-    class Usuario {
+    object Usuario { //"object" é usado para declarar classes e structs
         let nome: String?
     }
     let usuario: Usuario? = nil
@@ -129,7 +129,7 @@ func processarValor(valor: Int?) -> String? {
     return nil // Early return se valor for nil
   }
   // Continua o processamento se valor não for nil
-  return "Valor processado: \(val)"
+  return "Valor processado: ${val}"
 }
 ```
 
@@ -192,9 +192,9 @@ do {
 } while (count < 5)
 ```
 
-## Funções e Closures
+## Funções, Closures e Lambdas
 
-Em W, funções e closures compartilham a mesma base sintática. Funções são, essencialmente, closures nomeadas.
+Em W, funções e closures compartilham a mesma base sintática. Funções são, essencialmente, closures nomeadas. Lambdas são funções anônimas *inline*.
 
 **Declaração de Função Nomeada:**
 
@@ -207,6 +207,24 @@ func nomeDaFuncao(parametro1: Tipo1, parametro2: Tipo2): TipoRetorno {
 func funcaoSemRetorno(parametro: Tipo) {
   // Corpo da função
 }
+
+//Funções com nome de parametro
+func cumprimentar(nome pessoa: String, idade: Int) {
+    print("Olá, ${pessoa}! Você tem ${idade} anos.")
+}
+cumprimentar(nome: "Ana", idade: 30)
+
+//Funções com argumentos variádicos
+func somar(numeros: Int...) -> Int {
+    var total = 0
+    for (numero in numeros) {
+        total += numero
+    }
+    return total
+}
+
+print(somar(1, 2, 3, 4, 5)) // Imprime 15
+
 ```
 
 **Funções Anônimas (Closures):**
@@ -217,15 +235,24 @@ let minhaFuncaoAnonima = (parametro: Tipo): TipoRetorno {
   return valorDeRetorno
 }
 
-// Shorthand para funções anônimas com corpo de uma linha
+// Shorthand para funções anônimas com corpo de uma linha (Lambdas)
 let funcaoCurta = (parametro: Tipo) => valorDeRetorno // Quando não usa o par `{ }`, deve-se usar `=>`
+
+//Exemplos
+let dobrar = (x: Int) => x * 2
+print(dobrar(5)) // Imprime 10
+
+let saudacao = (nome: String) => {
+    return "Olá, ${nome}!"
+}
+print(saudacao("Carlos")) // Imprime "Olá, Carlos!"
 ```
 
 **Funções como Closures com Captura Explícita:**
 
 ```typescript
-func contador(init: Int) {
-  var count = init
+func contador(init: Int) -> (Int) -> Int { // Retorna uma função (closure)
+  var count = init // Variável local à função contador
   return (incremento: Int) { |let c = count| // Captura 'count' por cópia
     return (c + incremento)
   }
@@ -234,6 +261,20 @@ func contador(init: Int) {
 let meuContador = contador(init: 10)
 print(meuContador(5)) // 15
 print(meuContador(3)) // 18
+
+// Captura por referência (weak)
+func observador(valor: Int) -> () -> Int? {
+    var valorObservado: Int? = valor // Usando opcional para simular referência fraca
+    return () { |weak valorObservado|
+        return valorObservado
+    }
+}
+
+var valorInicial = 10
+let meuObservador = observador(valor: valorInicial)
+print(meuObservador()) // Imprime Optional(10)
+valorInicial = 20 // Modificar valorInicial não afeta valorObservado
+print(meuObservador()) // Imprime Optional(10)
 ```
 
 **Funções Assíncronas (`async`/`await`) com Modificadores:**
@@ -276,9 +317,9 @@ func executarParalelamenteEmBackground() async {
 
 ```typescript
 func processarDados(dados: String<.ref>, arquivo: String<.storage>, cache: String<.cow>) {
-  // .ref: Referência mutável (in-out)
-  // .storage: Transferência de posse
-  // .cow: Copy-on-write
+  // ref: Referência mutável (in-out)
+  // storage: Transferência de posse
+  // cow: Copy-on-write
 }
 ```
 
@@ -305,7 +346,7 @@ import { rustFunction } from "rust:modulo_rust"
 
 func usarRust() {
   let resultado = rustFunction(10, 20)
-  print("Resultado Rust: \(resultado)")
+  print("Resultado Rust: ${resultado}")
 }
 ```
 
@@ -365,7 +406,7 @@ module Rede {
 ```typescript
 module Principal {
   export func main(args: String[]) { // Entry point principal para executáveis
-    print("Executando módulo principal com argumentos: \(args)")
+    print("Executando módulo principal com argumentos: ${args}")
   }
 
   export func fetch(request: Request, context: Context) -> Response { // Entry point similar ao Cloudflare Workers
@@ -378,39 +419,101 @@ module Principal {
 }
 ```
 
-## Classes e Objetos
+## Objetos (Classes e Structs)
 
-**Declaração de Classe:**
+Em W, `object` é a palavra-chave usada para declarar tanto classes (tipos por referência) quanto structs (tipos por valor). A distinção principal é o comportamento de cópia e mutabilidade.
+
+**Declaração de `object` (Classe - Tipo por Referência):**
 
 ```typescript
-class NomeDaClasse {
+object NomeDaClasse { // Por padrão, é um tipo por referência (classe)
   let propriedadeImutavel: Tipo
   var propriedadeMutavel: Tipo
 
+  // Construtor (init)
   init(parametro1: Tipo, parametro2: Tipo) {
     this.propriedadeImutavel = parametro1
     this.propriedadeMutavel = parametro2
   }
 
+    // Construtor nomeado
+  init.completo(param1: Tipo, param2: Tipo, param3: Tipo) {
+        this.propriedadeImutavel = param1
+        this.propriedadeMutavel = param2
+        // ... outras inicializações
+  }
+
+  // Métodos
   func metodoDaClasse() {
     // ...
   }
+
+  mut func metodoMutavel() {
+      this.propriedadeMutavel = novoValor //permitido apenas em func mut
+  }
 }
-```
 
-**Herança (Sintaxe a ser Definida):**
-
-```typescript
-// Exemplo conceitual de herança
-class SubClasse : SuperClasse {
-  // ...
-}
-```
-
-**Instanciação de Objetos:**
-
-```typescript
+// Instanciação
 let objeto = NomeDaClasse(parametro1: valor1, parametro2: valor2)
+let objetoCompleto = NomeDaClasse.completo(param1: val1, param2: val2, param3: val3)
+
+```
+
+**Declaração de `object` (Struct - Tipo por Valor):**
+
+```typescript
+object NomeDaStruct {  // Comportamento de struct (tipo por valor)
+  let propriedadeImutavel: Tipo
+  var propriedadeMutavel: Tipo
+
+//Construtores não são obrigatórios em Structs
+//Se todas as propriedades tiverem valores padrão, você pode usar a struct sem um construtor explícito.
+
+  // Métodos (structs também podem ter métodos)
+  func metodoDaStruct() {
+    // ...
+  }
+
+  // Métodos mutáveis em structs (retornam uma nova cópia)
+  mut func metodoMutavel() -> NomeDaStruct {
+      var copia = this //cópia implicita
+      copia.propriedadeMutavel = novoValor
+      return copia
+  }
+}
+
+// Instanciação
+let minhaStruct = NomeDaStruct(propriedadeImutavel: valor1, propriedadeMutavel: valor2)
+let structModificada = minhaStruct.metodoMutavel() // Retorna uma nova instância
+
+```
+
+**Protocolos (Interfaces):**
+
+```typescript
+protocol Desenhavel {
+    func desenhar()
+    var cor: String { get } // Propriedade apenas para leitura
+    //var tamanho: Int { get set } //erro, protocolos não podem ter propriedades armazenadas
+}
+
+// Conformidade com protocolo
+object Circulo : Desenhavel { //":" indica herança e/ou conformidade
+    let raio: Float
+    var cor: String = "azul" //precisa ter o var aqui
+
+    init(raio: Float) {
+        this.raio = raio
+    }
+
+    func desenhar() {
+        print("Desenhando um círculo de raio ${this.raio} e cor ${this.cor}")
+    }
+}
+
+let meuCirculo: Desenhavel = Circulo(raio: 5.0)
+meuCirculo.desenhar()
+print(meuCirculo.cor)
 ```
 
 ## Interoperabilidade com C
