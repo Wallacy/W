@@ -80,7 +80,7 @@ W utiliza um modelo híbrido de gerenciamento de memória:
 - **Contagem de Referências Automática (ARC)**: Para tipos de referência (classes, módulos).
 - **Semântica de Valor**: Para structs, enums e primitivos, alocados na stack ou embutidos.
 
-Modificadores de propriedade controlam posse e compartilhamento:
+Modificadores de tipo controlam posse e compartilhamento:
 
 - `ref`: Referência mutável sem transferência de posse.
 - `storage`: Garante persistência além do escopo.
@@ -94,14 +94,14 @@ class Data {
   let content: String
 }
 
-func processData(data: ref Data) -> storage Data {
+func processData( Data<.ref>) -> Data<.storage> {
   data.content += " Processed"
   return data // Retorna com posse transferida
 }
 
 func main() {
   let data = Data { content: "Raw" }
-  let processed = processData(ref data)
+  let processed = processData( data)
   print(processed.content) // "Raw Processed"
 }
 ```
