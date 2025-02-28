@@ -1,77 +1,76 @@
-# Cheatsheet da Linguagem W
+# W Language Cheatsheet
 
-## Sintaxe Básica
+## Basic Syntax
 
-**Comentários:**
+**Comments:**
 
 ```typescript
-// Comentário de linha única
+// Single-line comment
 
 /*
- * Comentário
- * de múltiplas
- * linhas
+ * Multi-line
+ * comment
  */
 ```
 
-**Declaração de Variáveis:**
+**Variable Declaration:**
 
 ```typescript
-let nomeImutavel = "W Lang" // Variável imutável (constante)
-const nomeConstante = "W Lang" // Variável constante, escopo de bloco
-var nomeMutavel = "W Lang"   // Variável mutável, escopo de bloco
-global const PI = 3.14159         // Constante global (nível de módulo)
+let immutableName = "W Lang" // Immutable variable (constant)
+const constantName = "W Lang" // Constant variable, block scope
+var mutableName = "W Lang"   // Mutable variable, block scope
+global const PI = 3.14159         // Global constant (module level)
 ```
-`const` declara constantes com escopo de bloco, enquanto `global const` declara constantes no escopo do módulo. `let` declara variáveis imutáveis com escopo de bloco, e `var` declara variáveis mutáveis com escopo de bloco.
+`const` declares block-scoped constants, while `global const` declares module-scoped constants. `let` declares block-scoped immutable variables, and `var` declares block-scoped mutable variables.
 
-**Tipos de Dados:**
+**Data Types:**
 
 ```typescript
-Int         // Inteiro (tamanho dependente da arquitetura, padrão i32/i64)
-Int<size>   // Inteiro com tamanho específico (e.g., Int<16>, Int<32>, Int<64>)
-Int<bitSize: size> // Inteiro com tamanho específico em bits (e.g., Int<bitSize: 16>)
-Float       // Ponto flutuante (padrão double)
-Float<size> // Ponto flutuante com tamanho específico (e.g., Float<32>, Float<64>)
-String      // String UTF-8
-Char        // Caractere Unicode
-Bool        // Booleano (true ou false)
-Void        // Tipo vazio (sem retorno)
+Int         // Integer (architecture-dependent size, default i32/i64)
+Int<size>   // Integer with specific size (e.g., Int<16>, Int<32>, Int<64>)
+Int<bitSize: size> // Integer with specific size in bits (e.g., Int<bitSize: 16>)
+Float       // Floating-point (default double)
+Float<size> // Floating-point with specific size (e.g., Float<32>, Float<64>)
+String      // UTF-8 String
+Char        // Unicode Character
+Bool        // Boolean (true or false)
+Void        // Empty type (no return)
 ```
-`Int`, `Float`, `String`, `Char`, `Bool`, e `Void` são tipos primitivos. `Int` e `Float` podem ter tamanhos especificados.
+`Int`, `Float`, `String`, `Char`, `Bool`, and `Void` are primitive types. `Int` and `Float` can have specified sizes.
 
-**Tipos Opcionais:**
+**Optional Types:**
 
 ```typescript
-let usuario: String? = nil  // Variável String que pode ser nula
-let idade: Int?          // Variável Int opcional, valor inicial nil
+let user: String? = nil  // String variable that can be null
+let age: Int?          // Optional Int variable, initial value nil
 ```
-Tipos opcionais são declarados com `?` e podem conter `nil`.
+Optional types are declared with `?` and can contain `nil`.
 
-**Tipos Restritos:**
+**Restricted Types:**
 
 ```typescript
-type NomeUsuario = String<maxLength: 20, pattern: /^[a-zA-Z0-9_]+$/>
-type IdadeValida = Int<range: 0...120>
-type CPF = String<maxLength: 12; mask:CPF, inputType:Number>; // Tipo String com máscara de CPF
-type CPFType = String<maxLength: 12; mask:CPF, inputType:Number>; // Type alias para CPF
+type Username = String<maxLength: 20, pattern: /^[a-zA-Z0-9_]+$/>
+type ValidAge = Int<range: 0...120>
+type CPF = String<maxLength: 12; mask:CPF, inputType:Number>; // String type with CPF mask
+type CPFType = String<maxLength: 12; mask:CPF, inputType:Number>; // Type alias for CPF
 type Email = String<pattern: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/>
-type Senha = String<minLength: 8>
-type HexColor = String<pattern: /^#([0-9A-F]{3}){1,2}$/i> // Cores Hexadecimal
-type TelefoneBR = String<mask: '(99) 99999-9999', inputType: Number> // Telefone BR
-type Porcentagem = Float<range: 0.0...1.0> // Porcentagens entre 0 e 1
+type Password = String<minLength: 8>
+type HexColor = String<pattern: /^#([0-9A-F]{3}){1,2}$/i> // Hexadecimal Colors
+type BRPhone = String<mask: '(99) 99999-9999', inputType: Number> // BR Phone
+type Percentage = Float<range: 0.0...1.0> // Percentages between 0 and 1
 type UUID = String<pattern: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/> // UUIDs
-type DataISO = String<pattern: /^\d{4}-\d{2}-\d{2}$/> // Datas no formato ISO 8601 (YYYY-MM-DD)
-type Hora24h = String<pattern: /^(?:[01]\d|2[0-3]):[0-5]\d$/ > // Horas no formato 24h (HH:MM)
-type ValorMonetario = Float<range: 0...> // Valores monetários não negativos
-type CodigoPostalBR = String<mask: '99999-999', inputType: Number> // Código postal brasileiro
-type PlacaVeiculoBR = String<maxLength: 8, pattern: /^[A-Z]{3}\d[A-Z0-9]\d{2}$/> // Placas de veículo no formato BR
+type ISOData = String<pattern: /^\d{4}-\d{2}-\d{2}$/> // Dates in ISO 8601 format (YYYY-MM-DD)
+type Hour24h = String<pattern: /^(?:[01]\d|2[0-3]):[0-5]\d$/ > // Hours in 24h format (HH:MM)
+type MonetaryValue = Float<range: 0...> // Non-negative monetary values
+type BRPostalCode = String<mask: '99999-999', inputType: Number> // Brazilian postal code
+type BRVehiclePlate = String<maxLength: 8, pattern: /^[A-Z]{3}\d[A-Z0-9]\d{2}$/> // Vehicle plates in BR format
 
 ```
-Tipos podem ser restringidos com `maxLength`, `pattern`, `range`, `minLength`, `mask`, e `inputType`. `type` keyword creates type aliases.
+Types can be restricted with `maxLength`, `pattern`, `range`, `minLength`, `mask`, and `inputType`. `type` keyword creates type aliases.
 
-**Operadores:**
+**Operators:**
 
-*   **Aritméticos:** `+`, `-`, `*`, `/`, `%`
+*   **Arithmetic:** `+`, `-`, `*`, `/`, `%`
     ```typescript
     10 + 5  // 15
     20 - 3  // 17
@@ -79,7 +78,7 @@ Tipos podem ser restringidos com `maxLength`, `pattern`, `range`, `minLength`, `
     50 / 5  // 10
     10 % 3  // 1
     ```
-*   **Comparação:** `==`, `!=`, `>`, `<`, `>=`, `<=`
+*   **Comparison:** `==`, `!=`, `>`, `<`, `>=`, `<=`
     ```typescript
     10 == 10 // true
     5 != 3   // true
@@ -88,35 +87,35 @@ Tipos podem ser restringidos com `maxLength`, `pattern`, `range`, `minLength`, `
     5 >= 5   // true
     2 <= 1   // false
     ```
-*   **Lógicos:** `&&`, `||`, `!`
+*   **Logical:** `&&`, `||`, `!`
     ```typescript
     true && false // false
     true || false // true
     !true        // false
     ```
-*   **Atribuição:** `=`, `+=`, `-=`, `*=`, `/=`, `%=`
+*   **Assignment:** `=`, `+=`, `-=`, `*=`, `/=`, `%=`
     ```typescript
     var x = 10
-    x += 5 // x é agora 15
-    x -= 3 // x é agora 12
-    x *= 2 // x é agora 24
-    x /= 4 // x é agora 6
-    x %= 5 // x é agora 1
+    x += 5 // x is now 15
+    x -= 3 // x is now 12
+    x *= 2 // x is now 24
+    x /= 4 // x is now 6
+    x %= 5 // x is now 1
     ```
-*   **Coalescência Nula:** `??` (ex: `nomeUsuario ?? "Anônimo"`)
+*   **Null Coalescing:** `??` (e.g., `userName ?? "Anonymous"`)
     ```typescript
-    let nome: String? = nil
-    let nomeExibicao = nome ?? "Visitante" // nomeExibicao é "Visitante"
+    let name: String? = nil
+    let displayName = name ?? "Visitor" // displayName is "Visitor"
     ```
-*   **Opcional Chaining:** `?.` (ex: `usuario?.nome`)
+*   **Optional Chaining:** `?.` (e.g., `user?.name`)
     ```typescript
-    class Usuario {
-        let nome: String?
+    class User {
+        let name: String?
     }
-    let usuario: Usuario? = nil
-    let nomeUsuario = usuario?.nome // nomeUsuario é nil
+    let user: User? = nil
+    let userName = user?.name // userName is nil
     ```
-*   **Range Operators:** `..` (inclusivo), `..<` (exclusivo superior), `>..` (exclusivo inferior), `>..<` (exclusivo ambos)
+*   **Range Operators:** `..` (inclusive), `..<` (upper exclusive), `>..` (lower exclusive), `>..<` (both exclusive)
     ```typescript
     for (i in [1..3]) { print(i) }      // 1 2 3
     for (i in [1..<3]) { print(i) }     // 1 2
@@ -132,9 +131,9 @@ Tipos podem ser restringidos com `maxLength`, `pattern`, `range`, `minLength`, `
     print(b ?+ 5) // nil
     ```
 
-**Strings e String Interpolation:**
+**Strings and String Interpolation:**
 
-Strings podem ser declaradas com `"` , `'` ou `` ` ``.
+Strings can be declared with `"` , `'` or `` ` ``.
 
 ```typescript
 print("Hello, ${name}! Today is \"${date.DayOfWeek}\", it's ${date:HH:mm} now.")
@@ -158,42 +157,42 @@ print("Hello, Joe! "
       "now its a good time") // Implicit string concatenation
 
 ```
-Strings suportam interpolação com `${}`.  `$`` enables positional interpolation. `@` disables interpolation for literal strings. `#"` enables multiline strings with indentation based on `#` position. `#$`` enables multiline and positional interpolation. Strings can be implicitly concatenated by placing them side-by-side.
+Strings support interpolation with `${}`.  `$`` enables positional interpolation. `@` disables interpolation for literal strings. `#"` enables multiline strings with indentation based on `#` position. `#$`` enables multiline and positional interpolation. Strings can be implicitly concatenated by placing them side-by-side.
 
 **Whitespace Handling:**
 
 Whitespace is generally ignored outside of strings.
 
-## Estruturas de Controle
+## Control Structures
 
-**Condicional `if`:**
+**Conditional `if`:**
 
 ```typescript
 let x = 10
 if (x > 5) {
-  print("Maior que 5")
+  print("Greater than 5")
 } else if (x == 5) {
-  print("Igual a 5")
+  print("Equal to 5")
 } else {
-  print("Menor que 5")
+  print("Less than 5")
 }
 ```
 
-**Condicional `guard`:**
+**Conditional `guard`:**
 
 ```typescript
-func processarValor(valor: Int?) -> String? {
-  guard let val = valor else {
-    return nil // Early return se valor for nil
+func processValue(value: Int?) -> String? {
+  guard let val = value else {
+    return nil // Early return if value is nil
   }
-  // Continua o processamento se valor não for nil
-  return "Valor processado: ${val}"
+  // Continue processing if value is not nil
+  return "Processed value: ${val}"
 }
 ```
 
 ```typescript
 func example() {
-  guard cond return "reason1" // Early return com valor
+  guard cond return "reason1" // Early return with value
   guard cond2 return "reason2"
   guard cond3 return "reason3"
 
@@ -203,7 +202,7 @@ func example() {
 ```
 `guard` statements ensure conditions are met before proceeding, providing early exits. `guard <bool_expression> return <...>` provides a shorthand for early return with a value.
 
-**Condicional `if let`:**
+**Conditional `if let`:**
 
 ```typescript
 const provider = getProvider() // Provider | undefined
@@ -213,7 +212,7 @@ if let prov = provider {
 ```
 `if let` provides a way to safely unwrap optionals and check for non-null values.
 
-**Condicional `if ~= condition`:**
+**Conditional `if ~= condition`:**
 
 ```typescript
 var bb = [...]
@@ -235,11 +234,11 @@ if bb ~= (b) => { // Checks if the lambda returns true for any element in bb
 **Switch Statement:**
 
 ```typescript
-let valor = 3
-switch (valor) {
-  case 1: print("Um")
-  case 2, 3: print("Dois ou Três")  // Múltiplos casos
-  default: print("Outro")
+let value = 3
+switch (value) {
+  case 1: print("One")
+  case 2, 3: print("Two or Three")  // Multiple cases
+  default: print("Other")
 }
 ```
 
@@ -247,26 +246,26 @@ switch (valor) {
 
 ```typescript
 for (var i = 0; i < 5; i++) {
-  print(i)        // Imprime 0, 1, 2, 3, 4
+  print(i)        // Prints 0, 1, 2, 3, 4
 }
 
-for (item in colecao) { // for-in para coleções (arrays, etc - a ser definido)
-  print(item)     // Itera sobre array
+for (item in collection) { // for-in for collections (arrays, etc - to be defined)
+  print(item)     // Iterates over array
 }
 
-for (valor in [1..5]) {  // Range inclusivo: 1, 2, 3, 4, 5
-  print(valor)
+for (value in [1..5]) {  // Inclusive range: 1, 2, 3, 4, 5
+  print(value)
 }
 
-for (valor in [1..<5]) { // Range exclusivo superior: 1, 2, 3, 4
-  print(valor)
+for (value in [1..<5]) { // Upper exclusive range: 1, 2, 3, 4
+  print(value)
 }
 
-for (valor in [1>..5]) { // Range exclusivo inferior: 2, 3, 4, 5
-  print(valor)
+for (value in [1>..5]) { // Lower exclusive range: 2, 3, 4, 5
+  print(value)
 }
 
-for (valor in [1>..<5, 2]) { // Range com step: 3
+for (value in [1>..<5, 2]) { // Range with step: 3
   print(valor)
 }
 ```
@@ -291,114 +290,114 @@ do {
 } while (count < 5)
 ```
 
-## Funções, Closures e Lambdas
+## Functions, Closures, and Lambdas
 
-Em W, funções e closures compartilham a mesma base sintática. Funções são, essencialmente, closures nomeadas. Lambdas são funções anônimas *inline*.
+In W, functions and closures share the same syntactic basis. Functions are essentially named closures. Lambdas are anonymous *inline* functions.
 
-**Declaração de Função Nomeada:**
+**Named Function Declaration:**
 
 ```typescript
-func nomeDaFuncao(parametro1: Tipo1, parametro2: Tipo2): TipoRetorno {
-  // Corpo da função
-  return valorDeRetorno
+func functionName(parameter1: Type1, parameter2: Type2): ReturnType {
+  // Function body
+  return returnValue
 }
-// Funções sem tipo de retorno (retornam Void implicitamente)
-func funcaoSemRetorno(parametro: Tipo) {
-  // Corpo da função
+// Functions without return type (implicitly return Void)
+func functionWithoutReturn(parameter: Type) {
+  // Function body
 }
 
-//Funções com nome de parametro
-func cumprimentar(nome pessoa: String, idade: Int) {
-    print("Olá, ${pessoa}! Você tem ${idade} anos.")
+//Functions with parameter names
+func greet(name person: String, age: Int) {
+    print("Hello, ${person}! You are ${age} years old.")
 }
-cumprimentar(nome: "Ana", idade: 30)
+greet(name: "Ana", age: 30)
 
-//Funções com argumentos variádicos
-func somar(numeros: Int...) -> Int {
+//Functions with variadic arguments
+func sum(numbers: Int...) -> Int {
     var total = 0
-    for (numero in numeros) {
-        total += numero
+    for (number in numbers) {
+        total += number
     }
     return total
 }
 
-print(somar(1, 2, 3, 4, 5)) // Imprime 15
+print(sum(1, 2, 3, 4, 5)) // Prints 15
 
-// Funções com código em outras linguagens
-func<C> funcaoC(parametro: Int): Int {
-    // Código C inline
-    return parametro * 2;
+// Functions with code in other languages
+func<C> cFunction(parameter: Int): Int {
+    // Inline C code
+    return parameter * 2;
 }
 
-func<asm ("MYFUNC")> funcaoAsm() Int // Declaração de função assembly externa
+func<asm ("MYFUNC")> asmFunction() Int // External assembly function declaration
 
 ```
-Funções são declaradas using `func` or `fn` keyword.  Functions can have named parameters and variadic arguments. Functions can also contain inline code in other languages like C, using `func<C>`. External assembly functions can be declared using `func<asm ("MYFUNC")>`.
+Functions are declared using `func` or `fn` keyword.  Functions can have named parameters and variadic arguments. Functions can also contain inline code in other languages like C, using `func<C>`. External assembly functions can be declared using `func<asm ("MYFUNC")>`.
 
-**Funções Anônimas (Closures):**
+**Anonymous Functions (Closures):**
 
 ```typescript
-let minhaFuncaoAnonima = (parametro: Tipo): TipoRetorno {
-  // Corpo da função anônima
-  return valorDeRetorno
+let myAnonymousFunction = (parameter: Type): ReturnType {
+  // Anonymous function body
+  return returnValue
 }
 
-// Shorthand para funções anônimas com corpo de uma linha (Lambdas)
-let funcaoCurta = (parametro: Tipo) => valorDeRetorno // Quando não usa o par `{ }`, deve-se usar `=>`
+// Shorthand for anonymous functions with a single-line body (Lambdas)
+let shortFunction = (parameter: Type) => returnValue // When not using `{ }` pair, `=>` must be used
 
-//Exemplos
-let dobrar = (x: Int) => x * 2
-print(dobrar(5)) // Imprime 10
+//Examples
+let double = (x: Int) => x * 2
+print(double(5)) // Prints 10
 
-let saudacao = (nome: String) => {
-    return "Olá, ${nome}!"
+let greeting = (name: String) => {
+    return "Hello, ${name}!"
 }
-print(saudacao("Carlos")) // Imprime "Olá, Carlos!"
+print(greeting("Carlos")) // Prints "Hello, Carlos!"
 ```
 
-**Funções como Closures com Captura Explícita:**
+**Functions as Closures with Explicit Capture:**
 
 ```typescript
-func contador(init: Int) -> (Int) -> Int { // Retorna uma função (closure)
-  var count = init // Variável local à função contador
-  return (incremento: Int) { |let c = count| // Captura 'count' por cópia
-    return (c + incremento)
+func counter(init: Int) -> (Int) -> Int { // Returns a function (closure)
+  var count = init // Local variable to the counter function
+  return (increment: Int) { |let c = count| // Captures 'count' by copy
+    return (c + increment)
   }
 }
 
-let meuContador = contador(init: 10)
-print(meuContador(5)) // 15
-print(meuContador(3)) // 18
+let myCounter = counter(init: 10)
+print(myCounter(5)) // 15
+print(myCounter(3)) // 18
 
-// Captura por referência (weak)
-func observador(valor: Int) -> () -> Int? {
-    var valorObservado: Int? = valor // Usando opcional para simular referência fraca
-    return () { |weak valorObservado|
-        return valorObservado
+// Capture by weak reference
+func observer(value: Int) -> () -> Int? {
+    var observedValue: Int? = value // Using optional to simulate weak reference
+    return () { |weak observedValue|
+        return observedValue
     }
 }
 
-var valorInicial = 10
-let meuObservador = observador(valor: valorInicial)
-print(meuObservador()) // Imprime Optional(10)
-valorInicial = 20 // Modificar valorInicial não afeta valorObservado
-print(meuObservador()) // Imprime Optional(10)
+var initialValue = 10
+let myObserver = observer(valorInicial)
+print(myObserver()) // Prints Optional(10)
+initialValue = 20 // Modifying initialValue does not affect observedValue
+print(myObserver()) // Prints Optional(10)
 
-func contador(init: Int) {
+func counter(init: Int) {
   let count = init
-  return (add: Int) => { |let c = count, self| // Captura 'count' por cópia e 'self' por strong reference
+  return (add: Int) => { |let c = count, self| // Captures 'count' by copy and 'self' by strong reference
     return (c + add)
   }
 }
 
-func contador(init: Int) {
+func counter(init: Int) {
   let count = init
-  return (add: Int) => { |weak object| // Captura 'object' por weak reference
+  return (add: Int) => { |weak object| // Captures 'object' by weak reference
     return (count ?+ add)
   }
 }
 
-func contador(init: Int) {
+func counter(init: Int) {
   let count = init
   return somador(add: Int) { |count| // Named closure, 'somador' name is lost in return type
     return (count + add)
@@ -407,39 +406,39 @@ func contador(init: Int) {
 ```
 Closures can capture variables explicitly using `|capture_list|`. Capture modes include copy (`let`), strong reference (`self`), and weak reference (`weak`). Captures can be named using `|let captureName = variable, ...|`.
 
-**Funções Assíncronas (`async`/`await`) com Modificadores:**
+**Asynchronous Functions (`async`/`await`) with Modifiers:**
 
 ```typescript
-async func funcaoAssincrona(): String {
-  // Código assíncrono
-  let resultado = await algumaOperacaoAssincrona()
-  return resultado
+async func asynchronousFunction(): String {
+  // Asynchronous code
+  let result = await someAsynchronousOperation()
+  return result
 }
 
-func chamarFuncaoAsync() async {
-  let resultado = await funcaoAssincrona()
-  print(resultado)
+func callAsyncFunction() async {
+  let result = await asynchronousFunction()
+  print(result)
 }
 ```
 
-**Funções Paralelas (`spawn`/`await`) com Modificadores:**
+**Parallel Functions (`spawn`/`await`) with Modifiers:**
 
 ```typescript
-async func tarefaPesada(): String { // Spawn só pode ser feito em funções do tipo async.
-  // Operação computacionalmente intensiva
-  return "Tarefa pesada concluída"
+async func heavyTask(): String { // Spawn can only be done in async type functions.
+  // Computationally intensive operation
+  return "Heavy task completed"
 }
 
-func executarParalelamente() async {
-  let tarefa = spawn tarefaPesada()
-  let resultado = await tarefa
-  print(resultado)
+func executeInParallel() async {
+  let task = spawn heavyTask()
+  let result = await task
+  print(result)
 }
 
-func executarParalelamenteEmBackground() async {
-  let tarefa = spawn<.background> tarefaPesada()
-  let resultado = await tarefa
-  print(resultado)
+func executeInParallelInBackground() async {
+  let task = spawn<.background> heavyTask()
+  let result = await task
+  print(result)
 }
 
 async<.max(8)> func makeDinner() throws: Meal { // Max threads for async function
@@ -453,12 +452,12 @@ async<.max(8)> func makeDinner() throws: Meal { // Max threads for async functio
 ```
 `async` and `await` keywords are used for asynchronous operations. `spawn` creates parallel tasks. Modifiers like `<.background>` and `<.max(threads)>` can be used to configure execution context.
 
-**Modificadores de Parâmetros:**
+**Parameter Modifiers:**
 
 ```typescript
-func processarDados(dados: String<.ref>, arquivo: String<.storage>, cache: String<.cow>) {
-  // ref: Referência mutável (in-out)
-  // storage: Transferência de posse
+func processData( String<.ref>, file: String<.storage>, cache: String<.cow>) {
+  // ref: Mutable reference (in-out)
+  // storage: Ownership transfer
   // cow: Copy-on-write
 }
 ```
@@ -467,12 +466,12 @@ Parameter modifiers control ownership and mutability of arguments passed to func
 **CallbackType:**
 
 ```typescript
-func greet(callback fptr: (nome: String) -> Void) {
+func greet(callback fptr: (name: String) -> Void) {
     fptr("World");
 }
 
-func sayHello(nome: String) {
-    print("Hello, ${nome}!\n")
+func sayHello(name: String) {
+    print("Hello, ${name}!\n")
 }
 
 func main() {
@@ -498,7 +497,7 @@ func some(a: Int, callback x: CallbackTypeAlias){ // Callback with type alias
 ```
 `callback` modifier defines function pointer types, enabling interoperability with C-style callbacks and event systems. `CallbackType` is a special type for function pointers.
 
-**Funções com Side Effects:**
+**Functions with Side Effects:**
 
 ```typescript
 let count = 0
@@ -525,38 +524,38 @@ Function configurations can be declared using `declare configX = <...>` and appl
 **Asm Functions:**
 
 ```typescript
-fn<asm ("MYFUNC")> funcaoAsm() Int // Declaração de função assembly externa
+fn<asm ("MYFUNC")> asmFunction() Int // External assembly function declaration
 ```
 External assembly functions can be declared using `fn<asm ("MYFUNC")>`.
 
-## Módulos
+## Modules
 
-**Declaração de Módulo:**
+**Module Declaration:**
 
 ```typescript
-module NomeDoModulo { // Module declaration
-  // Funções, constantes, tipos, etc.
-  export func funcaoDoModulo() { ... }
-  export const CONSTANTE_MODULO = 123
+module ModuleName { // Module declaration
+  // Functions, constants, types, etc.
+  export func moduleFunction() { ... }
+  export const MODULE_CONSTANT = 123
 
-  export { // Exportando múltiplos itens em um bloco
-    funcaoDoModulo,
-    CONSTANTE_MODULO,
+  export { // Exporting multiple items in a block
+    moduleFunction,
+    MODULE_CONSTANT,
   }
 
-  export default { // Export default para valor padrão do módulo
-    versao: "1.0.0"
+  export default { // Export default for default module value
+    version: "1.0.0"
   }
 }
 ```
 Modules are declared using the `module` keyword and act as singletons. Module names are case-sensitive and lowercase ASCII.
 
-**Import de Módulos:**
+**Module Import:**
 
 ```typescript
-import { funcaoDoModulo, CONSTANTE_MODULO } from "NomeDoModulo" // Import seletivo
-import NomeDoModulo from "NomeDoModulo" // Importa módulo como namespace
-import * as ModuloAlias from "NomeDoModulo" // Importa com alias
+import { moduleFunction, MODULE_CONSTANT } from "ModuleName" // Selective import
+import ModuleNamespace from "ModuleName" // Imports module as namespace
+import * as ModuleAlias from "ModuleName" // Imports with alias
 import { a,b,c } as lili from 'lulu' // Import with alias and selection
 include 'bababa' // Include module content in current module namespace
 include 'bababa' as nanana // Include module with namespace renaming
@@ -565,8 +564,8 @@ import * from 'bababa' // Include all exports, same as include 'bababa'
 import lilili from lololo // Module rename, module names are global variables
 import math from 'https://libs.w.org/supermath@1.2.3/math.w' // Import from URL with version
 import math from 'supermath' // Import using defined name
-import { coisa } from someModule(args) // Import with module function call
-import { coisa } from someModule --arg like -cli=true // Import with module CLI arguments
+import { thing } from someModule(args) // Import with module function call
+import { thing } from someModule --arg like -cli=true // Import with module CLI arguments
 import 'supermath' from 'https://libs.w.org/supermath@1.2.4/math' // Import with extension type preference (.a, .dyn, .w)
 import a from "a" // Import module 'a' as 'a' variable
 import type a from "a" // Import only type definitions from module 'a'
@@ -576,26 +575,26 @@ import { X , Y , Z } from 'alphabet' with { config, ....} // Import with configu
 ```
 Modules are imported using `import` and `include` keywords. `import` makes the module available as a variable, while `include` merges the module's content into the current namespace. Variations include selective imports, aliases, URL imports, and conditional imports. `fork import` creates a new instance of a module. `import ... with { config, ... }` allows overriding module configurations during import.
 
-**Configurações de Módulo:**
+**Module Configurations:**
 
 ```typescript
-module MeuModulo {
-  #config { // Configurações inline
-    threads = [.background, .network] // Threads dedicadas
-    memory = .rcu                   // Gerenciamento de memória RCU
-    dynamic.maxSize = 1G        // Limite de memória dinâmica
+module MyModule {
+  #config { // Inline configurations
+    threads = [.background, .network] // Dedicated threads
+    memory = .rcu                   // RCU memory management
+    dynamic.maxSize = 1G        // Dynamic memory limit
   }
 
-  #config threads = [.background, .network] // Shorthand para config única
+  #config threads = [.background, .network] // Shorthand for single config
   #config memory = .rcu
   #config dynamic.maxSize = 1G
 }
 
-module Rede {
+module Network {
     #config {
-        dynamic.maxSize = 1G        // Limite de memória dinâmica
+        dynamic.maxSize = 1G        // Dynamic memory limit
         threads = [.background, .network]
-        callPolice = .rcu           // Read-Copy-Update para concorrência
+        callPolice = .rcu           // Read-Copy-Update for concurrency
         #threads: .module // Module dedicated threads
         #dynamicThreads: 100 // Dynamic threads limit for module
     }
@@ -603,20 +602,20 @@ module Rede {
 ```
 Module configurations are defined using `#config` blocks, controlling threads, memory management, and other resources. Configurations can be inline or shorthand.
 
-**Entry Points de Módulo:**
+**Module Entry Points:**
 
 ```typescript
-module Principal {
-  export func main(args: String[]) { // Entry point principal para executáveis
-    print("Executando módulo principal com argumentos: ${args}")
+module MainModule {
+  export func main(args: String[]) { // Main entry point for executables
+    print("Executing main module with arguments: ${args}")
   }
 
-  export func fetch(request: Request, context: Context) -> Response { // Entry point similar ao Cloudflare Workers
-    return new Response("Resposta do módulo W!")
+  export func fetch(request: Request, context: Context) -> Response { // Entry point similar to Cloudflare Workers
+    return new Response("W module response!")
   }
 
-  export default func() { // Default export como entry point alternativo
-    print("Entry point default do módulo")
+  export default func() { // Default export as alternative entry point
+    print("Default module entry point")
   }
 
   export entry { // Entry block for multiple entry points
@@ -676,34 +675,34 @@ module SomeModule {
 ```
 `export` keyword is used to make functions, constants, and types available outside the module. `hide_export` block hides exports from the module's public interface.
 
-## Objetos (Classes e Structs)
+## Objects (Classes and Structs)
 
-Em W, `class` e `struct` são keywords usadas para declarar tipos complexos. `class` declares reference types, and `struct` declares value types. `object` keyword is used to define protocols or interfaces, and for generic object references that can be either class or struct instances.
+In W, `class` and `struct` are keywords used to declare complex types. `class` declares reference types, and `struct` declares value types. `object` keyword is used to define protocols or interfaces, and for generic object references that can be either class or struct instances.
 
-**Declaração de `class` (Tipo por Referência):**
+**`class` Declaration (Reference Type):**
 
 ```typescript
-class NomeDaClasse : SuperClasse, Protocolo1, Protocolo2 { // Class declaration with inheritance and protocols
-  public let propriedadeImutavel: Tipo // Public immutable property
-  private var propriedadeMutavel: Tipo // Private mutable property
+class ClassName : SuperClass, Protocol1, Protocol2 { // Class declaration with inheritance and protocols
+  public let immutableProperty: Type // Public immutable property
+  private var mutableProperty: Type // Private mutable property
 
-  init(parametro1: Tipo, parametro2: Tipo) { // Constructor
-    this.propriedadeImutavel = parametro1
-    this.propriedadeMutavel = parametro2
+  init(parameter1: Type, parameter2: Type) { // Constructor
+    this.immutableProperty = parameter1
+    this.mutableProperty = parameter2
   }
 
-    init.completo(param1: Tipo, param2: Tipo, param3: Tipo) { // Named constructor
-        this.propriedadeImutavel = param1
-        this.propriedadeMutavel = param2
-        // ... outras inicializações
+    init.complete(param1: Type, param2: Type, param3: Type) { // Named constructor
+        this.immutableProperty = param1
+        this.mutableProperty = param2
+        // ... other initializations
   }
 
-  public func metodoDaClasse() { // Public method
+  public func classMethod() { // Public method
     // ...
   }
 
-  mut public func metodoMutavel() { // Public mutable method
-      this.propriedadeMutavel = novoValor //permitido apenas em func mut
+  mut public func mutableMethod() { // Public mutable method
+      this.mutableProperty = newValue //allowed only in mut func
   }
 
   static constants->{ // Static constants block
@@ -722,42 +721,42 @@ class NomeDaClasse : SuperClasse, Protocolo1, Protocolo2 { // Class declaration 
 
 }
 
-// Instanciação
-let objeto = NomeDaClasse(parametro1: valor1, parametro2: valor2)
-let objetoCompleto = NomeDaClasse.completo(param1: val1, param2: val2, param3: val3)
+// Instantiation
+let object = ClassName(parameter1: value1, parameter2: value2)
+let completeObject = ClassName.complete(param1: val1, param2: val2, param3: val3)
 ```
 `class` keyword declares reference types. Classes support inheritance, protocols, constructors (`init` and named `init.name`), methods (public and private, mutable with `mut`), static constants, and property configurations. Properties can be declared as `public` or `private`. Property configurations include default properties (`::`), indexed properties (`:index:`), and default layout properties (`:-:`). `_id` and `_state` properties are special properties for object identity and persistence.
 
-**Declaração de `struct` (Tipo por Valor):**
+**`struct` Declaration (Value Type):**
 
 ```typescript
-struct NomeDaStruct {  // Struct declaration
-  let propriedadeImutavel: Tipo
-  var propriedadeMutavel: Tipo
+struct StructName {  // Struct declaration
+  let immutableProperty: Type
+  var mutableProperty: Type
 
-//Construtores não são obrigatórios em Structs
-//Se todas as propriedades tiverem valores padrão, você pode usar a struct sem um construtor explícito.
+//Constructors are not mandatory in Structs
+//If all properties have default values, you can use the struct without an explicit constructor.
 
-  // Métodos (structs também podem ter métodos)
-  func metodoDaStruct() {
+  // Methods (structs can also have methods)
+  func structMethod() {
     // ...
   }
 
-  // Métodos mutáveis em structs (retornam uma nova cópia)
-  mut func metodoMutavel() -> NomeDaStruct {
-      var copia = this //cópia implicita
-      copia.propriedadeMutavel = novoValor
-      return copia
+  // Mutable methods in structs (return a new copy)
+  mut func mutableMethod() -> StructName {
+      var copy = this //implicit copy
+      copy.mutableProperty = newValue
+      return copy
   }
 }
 
-// Instanciação
-let minhaStruct = NomeDaStruct(propriedadeImutavel: valor1, propriedadeMutavel: valor2)
-let structModificada = minhaStruct.metodoMutavel() // Retorna uma nova instância
+// Instantiation
+let myStruct = StructName(immutableProperty: value1, mutableProperty: value2)
+let modifiedStruct = myStruct.mutableMethod() // Returns a new instance
 ```
 `struct` keyword declares value types. Structs are similar to classes but are value types, copied on assignment. Structs can have methods, including mutable methods that return a new copy of the struct. Constructors are optional for structs.
 
-**Declaração de `enum` (Tipo Enumerado):**
+**`enum` Declaration (Enumerated Type):**
 
 ```typescript
 enum DayOfWeek(var dayNumber: Int) { // Enum declaration with associated value
@@ -792,8 +791,8 @@ enum number() { // Enum as type with cases as constructors
   bitInt(var f: long[]))
 }
 
-var coisa: number = .float(2) // Enum case constructor usage
-var coisa: number = 2.0 // Shorthand for enum case constructor
+var thing: number = .float(2) // Enum case constructor usage
+var thing: number = 2.0 // Shorthand for enum case constructor
 
 enum PackageDependencies { // Enum for package dependencies
   .package(url: String, from: String)
@@ -803,36 +802,36 @@ let packageDep: PackageDependencies = .package(url: "https://github.com/gringoir
 ```
 `enum` keyword declares enumeration types. Enums can have associated values, and cases can be used as constructors. Enums can also be used to define types with enumerable constructors.
 
-**Declaração de `object` (Protocolo/Interface):**
+**`object` Declaration (Protocol/Interface):**
 
 ```typescript
-protocol Desenhavel { // Protocol declaration using 'protocol' keyword
-    func desenhar()
-    var cor: String { get } // Propriedade apenas para leitura
-    //var tamanho: Int { get set } //erro, protocolos não podem ter propriedades armazenadas
+protocol Drawable { // Protocol declaration using 'protocol' keyword
+    func draw()
+    var color: String { get } // Read-only property
+    //var size: Int { get set } //error, protocols cannot have stored properties
 }
 
-// Conformidade com protocolo
-class Circulo : Desenhavel { //":" indicates inheritance and/or protocol conformance
-    let raio: Float
-    var cor: String = "azul" //precisa ter o var aqui
+// Protocol conformance
+class Circle : Drawable { //":" indicates inheritance and/or protocol conformance
+    let radius: Float
+    var color: String = "blue" //must have var here
 
-    init(raio: Float) {
-        this.raio = raio
+    init(radius: Float) {
+        this.radius = radius
     }
 
-    func desenhar() {
-        print("Desenhando um círculo de raio ${this.raio} e cor ${this.cor}")
+    func draw() {
+        print("Drawing a circle of radius ${this.radius} and color ${this.color}")
     }
 }
 
-let meuCirculo: Desenhavel = Circulo(raio: 5.0) // Protocol type usage
-meuCirculo.desenhar()
-print(meuCirculo.cor)
+let myCircle: Drawable = Circle(radius: 5.0) // Protocol type usage
+myCircle.draw()
+print(myCircle.color)
 ```
 `protocol` keyword declares interfaces. `object` keyword can be used as a synonym for `protocol` when defining interfaces. Protocols define contracts that classes and structs can conform to. Protocols cannot have stored properties, only computed properties and methods.
 
-**Métodos de Objetos:**
+**Object Methods:**
 
 ```typescript
 object SomeObject {
@@ -850,20 +849,20 @@ obj.someMethod() // Method call
 ```
 Methods are functions associated with classes and structs. Object call syntax `obj.method()` is syntactic sugar for `object_method(obj)`.
 
-## Interoperabilidade com C
+## Interoperability with C
 
-**Import de Bibliotecas C:**
+**Importing C Libraries:**
 
 ```typescript
-import { funcao_c } from "c:biblioteca_c.h" // Importa função C
-import { tipo_c } from "c:biblioteca_c.h"   // Importa tipo C
+import { c_function } from "c:c_library.h" // Imports C function
+import { c_type } from "c:c_library.h"   // Imports C type
 ```
 
-**Chamada de Funções C:**
+**Calling C Functions:**
 
 ```typescript
-func usarFuncaoC() {
-  let resultadoC: Int = funcao_c(argumentoW)
+func useCFunction() {
+  let cResult: Int = c_function(wArgument)
   // ...
 }
 ```
@@ -887,29 +886,29 @@ module CModule {
 ```
 `#C::NamespaceName { ... }` blocks allow embedding C code directly within W modules, with optional namespace specification.
 
-## Sistema de Build
+## Build System
 
-**Arquivo `build.w`:**
+**`build.w` File:**
 
 ```typescript
 module Build {
   func main() {
-    let fontes = glob("src/*.w")
-    let objetos = fontes.map(f => compile(f, "c"))
-    link(objetos, "programa_w")
+    let sources = glob("src/*.w")
+    let objects = sources.map(f => compile(f, "c"))
+    link(objects, "w_program")
   }
 }
 ```
 
-**Comandos `w build`:**
+**`w build` Commands:**
 
-*   `w build` - Compila o projeto.
-*   `w run` - Compila e executa.
-*   `w test` - Executa testes (a serem definidos).
-*   `w package` - Empacota para distribuição.
-*   `w release` - Empacota para release, using git tags for versioning.
+*   `w build` - Compiles the project.
+*   `w run` - Compiles and runs.
+*   `w test` - Executes tests (to be defined).
+*   `w package` - Packages for distribution.
+*   `w release` - Packages for release, using git tags for versioning.
 
-## Testes e Debug
+## Testing and Debugging
 
 **Test Files:**
 
@@ -956,9 +955,9 @@ func mentionedContinents(videoName: String) async throws {
   #expect(video.mentionedContinents.count <= 3)
 }
 
-@debug("variavel que na verdade vai mudar em debug a primeira vez que rodar esse aquivo") // Debug variable annotation
+@debug("variable that will actually change in debug the first time this file runs") // Debug variable annotation
 mut someFunc(string a){
- @debug("posso me chamar também sempre que executa a função em debug") // Debug function call annotation
+ @debug("I can also call myself whenever the function is executed in debug") // Debug function call annotation
  @debug someOtherFunc() // Debug function call annotation
  #debug ("a") == Result.OK // Debug assertion with Result type
  return new SomeComplexObject()
@@ -1006,7 +1005,7 @@ var someArray = [{someLabel, 33}, 44, 55, {lolo, 66}] // Wlon array with labels
 ```
 `#func()` executes a function at compile time. Comptime functions can be used for code generation and static computations. `using` clause helps the compiler infer type bounds. `declare type ... using(...)` declares types with bounds and runtime checks. `guard someNumber { ... }` block handles runtime overflow checks. Wlon (W Literal Object Notation) is used for literal object and array initialization, and for comptime function return values.
 
-## Serviços
+## Services
 
 **Service Declaration:**
 
