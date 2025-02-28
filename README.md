@@ -2,24 +2,24 @@
 
 ## 1. Descrição Geral da Linguagem W
 
-**W** é uma linguagem de programação moderna, segura e expressiva, projetada como um superconjunto de C. Inspirada por linguagens como TypeScript, Swift, Zig e Rust, W combina a performance e o controle de baixo nível do C com uma sintaxe mais amigável ao desenvolvedor e recursos de segurança integrados. W enfatiza modularidade, gerenciamento de memória eficiente e concorrência estruturada, tornando-a ideal para programação de sistemas, aplicações concorrentes e projetos que requerem acesso direto ao hardware.
+**W** is a modern, safe, and expressive programming language, designed as a superset of C. Inspired by languages like TypeScript, Swift, Zig, and Rust, W combines the performance and low-level control of C with a more developer-friendly syntax and built-in safety features. W emphasizes modularity, efficient memory management, and structured concurrency, making it ideal for systems programming, concurrent applications, and projects that require direct hardware access.
 
-### Objetivos Principais
+### Main Objectives
 
-- **Segurança**: Prevenir bugs comuns como estouros de buffer, dereferências de ponteiros nulos e erros de concorrência, utilizando verificações em tempo de compilação e execução.
-- **Expressividade**: Sintaxe moderna e legível, com recursos como destruturação, operadores de coalescência nula, `async`/`await` e inferência de tipos.
-- **Desempenho**: Manter a eficiência de C, com compilação para código de máquina otimizado via backend C.
-- **Interoperabilidade**: Integração direta com código e bibliotecas C existentes, sem overhead significativo.
-- **Concorrência**: Suporte integrado para programação concorrente estruturada, usando corrotinas e primitivas de paralelismo.
-- **Modularidade**: Organização de código em módulos singleton com controle independente de memória e paralelismo.
+- **Safety**: Prevent common bugs such as buffer overflows, null pointer dereferences, and concurrency errors, using compile-time and runtime checks.
+- **Expressiveness**: Modern and readable syntax, with features like destructuring, null coalescing operators, `async`/`await`, and type inference.
+- **Performance**: Maintain the efficiency of C, with compilation to optimized machine code via a C backend.
+- **Interoperability**: Direct integration with existing C code and libraries, without significant overhead.
+- **Concurrency**: Built-in support for structured concurrent programming, using coroutines and parallelism primitives.
+- **Modularity**: Code organization into singleton modules with independent control of memory and parallelism.
 
-## 2. Características Detalhadas da Linguagem W
+## 2. Detailed Features of the W Language
 
-### 2.1 Sintaxe Moderna
+### 2.1 Modern Syntax
 
-W possui uma sintaxe limpa e moderna, semelhante a C, mas com extensões para facilitar a escrita de código. Exemplos:
+W has a clean and modern syntax, similar to C, but with extensions to facilitate code writing. Examples:
 
-- **Destruturação**: Desestruturação de structs e arrays para accessar campos diretamente.
+- **Destructuring**: Destructuring of structs and arrays to access fields directly.
 
 ```w
 func process({ a: String, b: Int }) {
@@ -32,14 +32,14 @@ func main() {
 }
 ```
 
-- **Operadores de Coalescência Nula e Opcionais**: Usa `??` para valores padrão e `?` para tipos opcionais.
+- **Null Coalescing and Optional Operators**: Uses `??` for default values and `?` for optional types.
 
 ```w
 let name: String? = nil
-let displayName = name ?? "Anonymous" // Usa "Anonymous" se name for nil
+let displayName = name ?? "Anonymous" // Uses "Anonymous" if name is nil
 ```
 
-- **Async/Await**: Suporte para operações assíncronas estruturadas.
+- **Async/Await**: Support for structured asynchronous operations.
 
 ```w
 async func fetchData(url: String) throws -> String {
@@ -52,11 +52,11 @@ func main() {
 }
 ```
 
-### 2.2 Sistema de Tipos Avançado
+### 2.2 Advanced Type System
 
-W possui um sistema de tipos estático com inferência de tipos e restrições. Tipos podem ser decorados com restrições para validação em tempo de compilação.
+W has a static type system with type inference and constraints. Types can be decorated with constraints for compile-time validation.
 
-- **Tipos Restritos**: Exemplo com `String<maxLength: 22>` ou `Number<range: 0...100>`.
+- **Restricted Types**: Example with `String<maxLength: 22>` or `Number<range: 0...100>`.
 
 ```w
 type Username = String<maxLength: 22, pattern: /^[a-zA-Z0-9]+$/>
@@ -66,28 +66,28 @@ func setUsername(name: Username) {
 }
 
 func main() {
-  let validName: Username = "John123" // Válido
+  let validName: Username = "John123" // Valid
   try setUsername(validName)
 
-  let invalidName: Username = "John@123" // Lança erro em tempo de compilação
+  let invalidName: Username = "John@123" // Throws compile-time error
 }
 ```
 
-### 2.3 Gerenciamento de Memória
+### 2.3 Memory Management
 
-W utiliza um modelo híbrido de gerenciamento de memória:
+W uses a hybrid memory management model:
 
-- **Contagem de Referências Automática (ARC)**: Para tipos de referência (classes, módulos).
-- **Semântica de Valor**: Para structs, enums e primitivos, alocados na stack ou embutidos.
+- **Automatic Reference Counting (ARC)**: For reference types (classes, modules).
+- **Value Semantics**: For structs, enums, and primitives, allocated on the stack or embedded.
 
-Modificadores de tipo controlam posse e compartilhamento:
+Type modifiers control ownership and sharing:
 
-- `ref`: Referência mutável sem transferência de posse.
-- `storage`: Garante persistência além do escopo.
-- `transfer`: Transfere posse para o chamador.
-- `cow` (copy-on-write): Compartilhamento eficiente com cópia sob demanda.
+- `ref`: Mutable reference without ownership transfer.
+- `storage`: Ensures persistence beyond scope.
+- `transfer`: Transfers ownership to the caller.
+- `cow` (copy-on-write): Efficient sharing with copy on demand.
 
-Exemplo:
+Example:
 
 ```w
 class Data {
@@ -96,7 +96,7 @@ class Data {
 
 func processData( Data<.ref>) -> Data<.storage> {
   data.content += " Processed"
-  return data // Retorna com posse transferida
+  return data // Returns with ownership transferred
 }
 
 func main() {
@@ -106,15 +106,15 @@ func main() {
 }
 ```
 
-### 2.4 Concorrência Estruturada
+### 2.4 Structured Concurrency
 
-W suporta concorrência via corrotinas, `async`/`await` e `spawn` para paralelismo:
+W supports concurrency via coroutines, `async`/`await`, and `spawn` for parallelism:
 
-- **Corrotinas**: Funções pausáveis e retomáveis para operações assíncronas.
-- **Async/Await**: Simplifica código assíncrono.
-- **Spawn**: Lança tarefas em threads separadas.
+- **Coroutines**: Pausable and resumable functions for asynchronous operations.
+- **Async/Await**: Simplifies asynchronous code.
+- **Spawn**: Launches tasks in separate threads.
 
-Exemplo:
+Example:
 
 ```w
 async func fetchUser(userId: String) throws -> User {
@@ -124,19 +124,19 @@ async func fetchUser(userId: String) throws -> User {
 
 func main() {
   let task = spawn fetchUser("123")
-  // Outra lógica...
+  // Other logic...
   let user = try await task
   print(user.name)
 }
 ```
 
-### 2.5 Interoperabilidade com C
+### 2.5 Interoperability with C
 
-W é um superconjunto de C, permitindo chamadas diretas a funções C e uso de bibliotecas C. O compilador W gera código C intermediário, que é compilado com um compilador C (como GCC ou Clang).
+W is a superset of C, allowing direct calls to C functions and use of C libraries. The W compiler generates intermediate C code, which is compiled with a C compiler (like GCC or Clang).
 
-#### Exemplo de Código W e Seu Equivalente em C
+#### Example of W Code and Its C Equivalent
 
-**Código W:**
+**W Code:**
 
 ```w
 import { printf } from "c:stdio.h"
@@ -150,7 +150,7 @@ func main() {
 }
 ```
 
-**Equivalente em C (Backend Gerado pelo Compilador W):**
+**C Equivalent (Backend Generated by W Compiler):**
 
 ```c
 #include <stdio.h>
@@ -165,16 +165,16 @@ int main() {
 }
 ```
 
-#### Detalhes do Backend em C
+#### Details of the C Backend
 
-- O compilador W transforma o código W em um AST, que é serializado como código C intermediário.
-- Funções W são mapeadas para funções C, com tipos W convertidos para tipos C correspondentes (e.g., `String` em W pode ser um `char*` ou uma struct customizada).
-- Tipos restritos e gerenciamentos de memória (ARC, `cow`) são implementados em tempo de execução com bibliotecas C geradas automaticamente.
-- Chamadas assíncronas e corrotinas são transformadas em callbacks ou threads C, utilizando `corrotinas` ou `pthreads`.
+- The W compiler transforms W code into an AST, which is serialized as intermediate C code.
+- W functions are mapped to C functions, with W types converted to corresponding C types (e.g., `String` in W can be a `char*` or a custom struct).
+- Restricted types and memory management (ARC, `cow`) are implemented at runtime with automatically generated C libraries.
+- Asynchronous calls and coroutines are transformed into C callbacks or threads, using `coroutines` or `pthreads`.
 
-Exemplo mais complexo com gerenciamento de memória:
+More complex example with memory management:
 
-**Código W:**
+**W Code:**
 
 ```w
 class Person {
@@ -191,7 +191,7 @@ func main() {
 }
 ```
 
-**Equivalente em C (com ARC Simulado):**
+**C Equivalent (with Simulated ARC):**
 
 ```c
 #include <stdio.h>
@@ -241,9 +241,9 @@ int main() {
 }
 ```
 
-### 2.6 Modularidade
+### 2.6 Modularity
 
-Módulos em W são singletons, encapsulando código e gerenciando memória e paralelismo:
+Modules in W are singletons, encapsulating code and managing memory and parallelism:
 
 ```w
 module Math {
@@ -261,21 +261,25 @@ module Main {
 }
 ```
 
-Configurações de módulo controlam recursos:
+Module configurations control resources:
 
 ```w
 module Network {
   #config {
     dynamic.maxSize = 1G
     threads = [.background, .network]
-    callPolice = .rcu // Read-Copy-Update para concurrência
+    callPolice = .rcu // Read-Copy-Update for concurrency
   }
 }
 ```
 
-## 3. Ferramentas de Desenvolvimento
+## 3. Development Tools
 
-- **Compilador W**: Utiliza Clang como backend inicial, gerando código C intermediário.
-- **Linter**: Verifica código W por boas práticas e segurança.
-- **IDE Suporte**: Plugin para VSCode com autocompletar e debug.
-- **Gerenciador de Pacotes**: `w build` para gerenciar dependências e construir projetos.
+- **W Compiler**: Uses Clang as initial backend, generating intermediate C code.
+- **Linter**: Checks W code for best practices and security.
+- **IDE Support**: Plugin for VSCode with autocomplete and debug.
+- **Package Manager**: `w build` to manage dependencies and build projects.
+
+## 4. Cheat Sheet
+
+For a quick reference to W language syntax and features, please refer to the [W Language Cheat Sheet](W/cheatsheet.md). This cheat sheet provides concise examples and explanations of W's syntax, control structures, data types, and more, serving as a handy guide for developers. It is continuously updated to reflect the latest language features and best practices.
