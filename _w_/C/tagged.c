@@ -46,22 +46,24 @@ bool has_lam_uai() {
     // Obtém Vendor ID e máximo EAX suportado
     __cpuid(0, eax, ebx, ecx, edx);
     unsigned int max_eax = eax;
-    *((unsigned int*)vendor) = ebx;
-    *((unsigned int*)(vendor + 4)) = edx;
-    *((unsigned int*)(vendor + 8)) = ecx;
-    vendor[12] = '\0';
 
-    // Intel LAM
+    // Copia os registradores para vendor usando memcpy
+    memcpy(vendor, &ebx, 4);      // Primeiros 4 bytes
+    memcpy(vendor + 4, &edx, 4);  // Próximos 4 bytes
+    memcpy(vendor + 8, &ecx, 4);  // Últimos 4 bytes
+    vendor[12] = '\0';            // Termina a string
+
+    // Verifica Intel LAM
     if (strncmp(vendor, "GenuineIntel", 12) == 0 && max_eax >= 7) {
         __cpuid(7, eax, ebx, ecx, edx);
         return (ecx & (1 << 26)) != 0;  // Bit 26 de ECX para LAM
     }
-    // AMD UAI
+    // Verifica AMD UAI
     else if (strncmp(vendor, "AuthenticAMD", 12) == 0) {
         __cpuid(0x80000000, eax, ebx, ecx, edx);
         if (eax >= 0x80000008) {
             __cpuid(0x80000008, eax, ebx, ecx, edx);
-            return (ecx & (1 << 31)) != 0;  // Verificar o bit correto para UAI
+            return (ecx & (1 << 31)) != 0;  // Bit ajustado para UAI (confirmar o bit correto na documentação da AMD)
         }
     }
     return false;
