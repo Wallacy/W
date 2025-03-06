@@ -13,7 +13,11 @@
 #define FREE(ptr) free(ptr)
 #endif
 
-#define CHECK_CPU 0 // Define se deve verificar suporte a LAM/UAI ou Page-5
+#ifndef W_KERNEL_MODE
+#define W_KERNEL_MODE 0
+#endif
+
+#define CHECK_CPU 1 // Define se deve verificar suporte a LAM/UAI ou Page-5
 #define ADDRESS_BITS_48 1
 #define true 1
 #define false 0
@@ -24,10 +28,9 @@ typedef union {
     uintptr_t raw;
     struct {
         uintptr_t address       : 48;  // Bits 0-47: endereço
-        uint16_t sdata          : 13;  // Bits 48-60: small data
-        uint8_t is_shared       : 1;   // Bit 61
-        uint8_t is_deallocated  : 1;   // Bit 62
-        uint8_t reserved        : 1;   // Bit 63: reservado
+        uint16_t sdata          : 14;  // Bits 48-61: small data
+        uint8_t is_shared       : 1;   // Bit 62
+        uint8_t is_deallocated  : 1;   // Bit 63
     };
 } TaggedPointerX86_64_48;
 
@@ -35,10 +38,9 @@ typedef union {
     uintptr_t raw;
     struct {
         uintptr_t address       : 57;  // Bits 0-56: endereço
-        uint8_t sdata           : 4;   // Bits 57-60: small data
-        uint8_t is_shared       : 1;   // Bit 61
-        uint8_t is_deallocated  : 1;   // Bit 62
-        uint8_t reserved        : 1;   // Bit 63: reservado
+        uint8_t sdata           : 5;   // Bits 57-61: small data
+        uint8_t is_shared       : 1;   // Bit 62
+        uint8_t is_deallocated  : 1;   // Bit 63
     };
 } TaggedPointerX86_64_57;
 
@@ -48,10 +50,9 @@ typedef union {
     uintptr_t raw;
     struct {
         uintptr_t address       : 52;  // Bits 0-51: endereço
-        uint16_t sdata          : 9;   // Bits 52-60: small data
-        uint8_t is_shared       : 1;   // Bit 61
-        uint8_t is_deallocated  : 1;   // Bit 62
-        uint8_t reserved        : 1;   // Bit 63: reservado
+        uint16_t sdata          : 10;  // Bits 52-61: small data
+        uint8_t is_shared       : 1;   // Bit 62
+        uint8_t is_deallocated  : 1;   // Bit 63
     };
 } TaggedPointerARM64_52;
 
@@ -59,10 +60,9 @@ typedef union {
     uintptr_t raw;
     struct {
         uintptr_t address       : 56;  // Bits 0-55: endereço
-        uint8_t sdata           : 5;   // Bits 56-60: small data
-        uint8_t is_shared       : 1;   // Bit 61
-        uint8_t is_deallocated  : 1;   // Bit 62
-        uint8_t reserved        : 1;   // Bit 63: reservado
+        uint8_t sdata           : 6;   // Bits 56-61: small data
+        uint8_t is_shared       : 1;   // Bit 62
+        uint8_t is_deallocated  : 1;   // Bit 63
     };
 } TaggedPointerARM64_56;
 
@@ -94,12 +94,6 @@ typedef TaggedPointerARM64_56 TaggedPointer;
 typedef TaggedPointer32 TaggedPointer;
 #else
 #error "Plataforma ou tamanho de endereço não suportado"
-#endif
-
-#ifdef W_KERNEL_MODE
-#define RESERVED_BIT 0
-#else
-#define RESERVED_BIT 1
 #endif
 
 // ***** Funções de verificação de CPU (apenas para 64 bits) ***** //
@@ -144,21 +138,20 @@ typedef TaggedPointer32 TaggedPointer;
 
 // ***** Criação de Tagged Pointer ***** //
 #if defined(__x86_64__) || defined(__aarch64__)
-TaggedPointer create_tagged_pointer(void* ptr, uint16_t sdata, bool dealloc) {
+TaggedPointer create_tagged_pointer(void* ptr, uint16_t sdata, bool is_shared, bool dealloc) {
     TaggedPointer tp;
     tp.raw = (uintptr_t)ptr;
     tp.sdata = sdata;
+    tp.is_shared = is_shared; 
     tp.is_deallocated = dealloc;
-    tp.is_shared = 0;  // Inicializa como 0 por padrão
-    tp.reserved = RESERVED_BIT;
     return tp;
 }
 #elif defined(__arm__) || defined(__i386__)
-TaggedPointer create_tagged_pointer(void* ptr, uint8_t flags, bool dealloc) {
+TaggedPointer create_tagged_pointer(void* ptr, bool is_shared, bool dealloc) {
     TaggedPointer tp;
     tp.raw = (uint32_t)((uintptr_t)ptr >> 2);  // Remove 2 bits LSB (alinhamento)
     tp.is_deallocated = dealloc;
-    tp.is_shared = flags & 0x1;  // Usa o bit 0 de flags
+    tp.is_shared = is_shared;
     return tp;
 }
 #endif
@@ -167,10 +160,15 @@ TaggedPointer create_tagged_pointer(void* ptr, uint8_t flags, bool dealloc) {
 #if defined(__x86_64__) || defined(__aarch64__)
 bool lam_uai_supported = false;
 #define GET_REAL_POINTER(tp) \
-    ((lam_uai_supported) ? (void*)(tp).raw : \
-     (void*)(((tp).address & (1ULL << 47)) ? \
+    ({ \
+        uintptr_t adjusted_ptr = (lam_uai_supported) ? (tp).raw : \
+            (((tp).address & (1ULL << 47)) ? \
              ((tp).address | 0xFFFF000000000000) : \
-             ((tp).address & 0x0000FFFFFFFFFFFF)))
+             ((tp).address & 0x0000FFFFFFFFFFFF)); \
+        /* Ajuste para modo kernel */ \
+        adjusted_ptr = (W_KERNEL_MODE) ? (adjusted_ptr | ((uintptr_t)1 << 63)) : adjusted_ptr; \
+        (void*)adjusted_ptr; \
+    })
 #elif defined(__arm__) || defined(__i386__)
 #define GET_REAL_POINTER(tp) \
     ((void*)((tp).address << 2))  // Restaura o endereço shiftando de volta
@@ -196,7 +194,7 @@ int main() {
     printf("Ponteiro int sem tags: 0x%016lx\n", (uintptr_t)int_obj);
 
     #if defined(__x86_64__) || defined(__aarch64__)
-    TaggedPointer tp_int = create_tagged_pointer(int_obj, 132, false);
+    TaggedPointer tp_int = create_tagged_pointer(int_obj, 132, false, false);
     #elif defined(__arm__) || defined(__i386__)
     TaggedPointer tp_int = create_tagged_pointer(int_obj, 0, false);
     #endif
@@ -205,18 +203,19 @@ int main() {
     int* int_value = (int*)GET_REAL_POINTER(tp_int);
     printf("Valor int: %d\n", *int_value);  // 42
 
-    #if defined(__x86_64__) || defined(__aarch64__)
-    printf("SMI: %d, Deallocated: %d\n", tp_int.sdata, tp_int.is_deallocated);
-    #elif defined(__arm__) || defined(__i386__)
-    printf("Flags: %d, Deallocated: %d\n", tp_int.is_shared, tp_int.is_deallocated);
-    #endif
-
     tp_int.is_deallocated = true;
     FREE(int_value);
     if (tp_int.is_deallocated) {
-        printf("Int foi desalocada\n");
+        printf("Int foi desalocado\n");
     }
 
+    #if defined(__x86_64__) || defined(__aarch64__)
+    printf("SMI: %d, Shared:%d , Deallocated: %d\n", tp_int.sdata, tp_int.is_shared, tp_int.is_deallocated);
+    #elif defined(__arm__) || defined(__i386__)
+    printf("Shared: %d, Deallocated: %d\n", tp_int.is_shared, tp_int.is_deallocated);
+    #endif
+
+   
     // Exemplo 2: Objeto string
     char* str_obj = MALLOC(13);  // "Hello World!" + null terminator
     if (!str_obj) {
@@ -227,7 +226,7 @@ int main() {
     printf("Ponteiro str sem tags: 0x%016lx\n", (uintptr_t)str_obj);
 
     #if defined(__x86_64__) || defined(__aarch64__)
-    TaggedPointer tp_str = create_tagged_pointer(str_obj, 114, false);
+    TaggedPointer tp_str = create_tagged_pointer(str_obj, 114, true, false);
     #elif defined(__arm__) || defined(__i386__)
     TaggedPointer tp_str = create_tagged_pointer(str_obj, 0, false);
     #endif
@@ -236,17 +235,19 @@ int main() {
     char* str_value = (char*)GET_REAL_POINTER(tp_str);
     printf("Valor str: %s\n", str_value);  // "Hello World!"
 
-    #if defined(__x86_64__) || defined(__aarch64__)
-    printf("SMI: %d, Deallocated: %d\n", tp_str.sdata, tp_str.is_deallocated);
-    #elif defined(__arm__) || defined(__i386__)
-    printf("Flags: %d, Deallocated: %d\n", tp_str.is_shared, tp_str.is_deallocated);
-    #endif
-
     tp_str.is_deallocated = true;
     FREE(str_value);
     if (tp_str.is_deallocated) {
         printf("String foi desalocada\n");
     }
+
+    #if defined(__x86_64__) || defined(__aarch64__)
+    printf("SMI: %d, Shared:%d , Deallocated: %d\n", tp_str.sdata, tp_str.is_shared, tp_str.is_deallocated);
+    #elif defined(__arm__) || defined(__i386__)
+    printf("Shared: %d, Deallocated: %d\n", tp_str.is_shared, tp_str.is_deallocated);
+    #endif
+
+
 
     return 0;
 }
