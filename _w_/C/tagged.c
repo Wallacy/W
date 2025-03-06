@@ -101,14 +101,10 @@ typedef TaggedPointer32 TaggedPointer;
     #if CHECK_CPU
         #include <cpuid.h>
 
-        void has_page5() {
+        bool has_page5() {
             unsigned int eax, ebx, ecx, edx;
             __cpuid(7, eax, ebx, ecx, edx);  // CPUID com EAX=7 e ECX=0
-            if (ecx & (1 << 16)) {
-                printf("Suporta paginação de 5 níveis (57 bits)\n");
-            } else {
-                printf("Suporta apenas paginação de 4 níveis (48 bits)\n");
-            }
+            return !!(ecx & (1 << 16));
         }
 
         bool has_lam_uai() {
@@ -133,7 +129,21 @@ typedef TaggedPointer32 TaggedPointer;
             }
             return false;
         }
+        // Função para obter o número de bits de endereço virtual em arquiteturas de 64 bits
+        int get_virtual_address_bits() {
+            unsigned int eax, ebx, ecx, edx;
+            __cpuid(0x80000008, eax, ebx, ecx, edx);  // CPUID com EAX=0x80000008
+            int virtual_bits = (eax >> 8) & 0xFF;     // Bits 8-15 de EAX contêm o número de bits virtuais
+            return virtual_bits;
+        }
     #endif
+#elif defined(__arm__) || defined(__i386__)
+    // Para arquiteturas de 32 bits, retorna o valor padrão de 32 bits
+    int get_virtual_address_bits() {
+        return 32;
+    }
+#else
+    #error "Arquitetura não suportada"
 #endif
 
 // ***** Criação de Tagged Pointer ***** //
@@ -178,7 +188,10 @@ bool lam_uai_supported = false;
 int main() {
     #if defined(__x86_64__) || defined(__aarch64__)
         #if CHECK_CPU
-            has_page5();
+            int virtual_bits = get_virtual_address_bits();
+            printf("Número de bits de endereço virtual: %d\n", virtual_bits);
+            bool page5 = has_page5();
+            printf("Suporta paginação %s\n", page5 ? "de 5 níveis (57 bits)" : "4 níveis (48 bits)");
             lam_uai_supported = has_lam_uai();
             printf("Suporte a LAM/UAI: %s\n", lam_uai_supported ? "Sim" : "Não");
         #endif
