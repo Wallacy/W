@@ -43,71 +43,26 @@ typedef struct {
 } SharedPointer;
 #endif
 
-// ***** Definições de TaggedPointer para 64 bits ***** //
+// ***** Definições de TaggedPointer ***** //
+typedef union {
+    _Atomic uintptr_t raw;
+    struct {
 #if defined(__x86_64__) || defined(__aarch64__)
-typedef union {
-    _Atomic uintptr_t raw;
-    struct {
-        uintptr_t address : 48;  // Bits 0-47: endereço
-        uint16_t tags     : 14;  // Bits 48-61: tags ou ref_count
+        uintptr_t address : ADDRESS_BITS;  // Bits 0-(ADDRESS_BITS-1): endereço
+        uint16_t tags     : (62 - ADDRESS_BITS);  // Bits ADDRESS_BITS-61: tags ou ref_count
         uint8_t is_shared : 1;   // Bit 62
         uint8_t is_null   : 1;   // Bit 63
-    };
-} TaggedPointer_48;
-
-typedef union {
-    _Atomic uintptr_t raw;
-    struct {
-        uintptr_t address : 52;  // Bits 0-51: endereço
-        uint16_t tags     : 10;  // Bits 52-61: tags ou ref_count
-        uint8_t is_shared : 1;   // Bit 62
-        uint8_t is_null   : 1;   // Bit 63
-    };
-} TaggedPointer_52;
-
-typedef union {
-    _Atomic uintptr_t raw;
-    struct {
-        uintptr_t address : 56;  // Bits 0-55: endereço
-        uint8_t tags      : 6;   // Bits 56-61: tags ou ref_count
-        uint8_t is_shared : 1;   // Bit 62
-        uint8_t is_null   : 1;   // Bit 63
-    };
-} TaggedPointer_56;
-
-typedef union {
-    _Atomic uintptr_t raw;
-    struct {
-        uintptr_t address : 57;  // Bits 0-56: endereço
-        uint8_t tags      : 5;   // Bits 57-61: tags ou ref_count
-        uint8_t is_shared : 1;   // Bit 62
-        uint8_t is_null   : 1;   // Bit 63
-    };
-} TaggedPointer_57;
-
-#if ADDRESS_BITS == 48
-typedef TaggedPointer_48 TaggedPointer;
-#elif ADDRESS_BITS == 52
-typedef TaggedPointer_52 TaggedPointer;
-#elif ADDRESS_BITS == 56
-typedef TaggedPointer_56 TaggedPointer;
-#elif ADDRESS_BITS == 57
-typedef TaggedPointer_57 TaggedPointer;
-#else
-#error "Número de bits de endereço não suportado"
-#endif
-
-// ***** Definições de TaggedPointer para 32 bits ***** //
 #elif defined(__arm__) || defined(__i386__)
-typedef union {
-    _Atomic uint32_t raw;
-    struct {
         uint32_t address  : 30;  // Bits 0-29: endereço
         uint32_t is_shared: 1;   // Bit 30
         uint32_t is_null  : 1;   // Bit 31
+        union {
+            uint32_t       : 30;
+            uint32_t tags  : 2;  // Bits 30-31: tags
+        };
+#endif
     };
 } TaggedPointer;
-#endif
 
 // ***** Funções Auxiliares para 64 bits ***** //
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -155,28 +110,6 @@ static inline int get_virtual_address_bits() {
 }
 #endif
 
-// ***** Macros de Acesso ao Ponteiro Real ***** //
-#if defined(__x86_64__) || defined(__aarch64__)
-#define GET_REAL_POINTER(tp) \
-    ({ \
-        uintptr_t adjusted_ptr = (lam_uai_supported) ? (tp).raw : \
-            (((tp).address & (1ULL << (ADDRESS_BITS - 1))) ? \
-             ((tp).address | ~((1ULL << ADDRESS_BITS) - 1)) : \
-             ((tp).address & ((1ULL << ADDRESS_BITS) - 1))); \
-        adjusted_ptr = (W_KERNEL_MODE) ? (adjusted_ptr | ((uintptr_t)1 << 63)) : adjusted_ptr; \
-        (void*)adjusted_ptr; \
-    })
-#elif defined(__arm__) || defined(__i386__)
-#define GET_REAL_POINTER(tp) \
-    ((void*)((tp).address << 2))
-#endif
-
-#define SET(tp, value) \
-    do { if (!get_null(tp)) { *(typeof(value)*)GET_REAL_POINTER(tp) = (value); } } while(0)
-
-#define GET(tp, type) \
-    (get_null(tp) ? (type)0 : *(type*)GET_REAL_POINTER(tp))
-
 // ***** Declarações de Funções ***** //
 static inline bool get_shared(TaggedPointer tp);
 static inline uint16_t get_tags(TaggedPointer tp);
@@ -190,47 +123,84 @@ static inline void dealloc(TaggedPointer* tp);
 static inline TaggedPointer create(size_t size, uint16_t tags, bool is_shared, bool is_null);
 static inline void update_tagged_pointer(TaggedPointer* tp, uint16_t tags, bool is_shared, bool is_null, size_t realloc_size);
 
-// ***** Funções de Manipulação de TaggedPointer ***** //
+// ***** Funções de Acesso ao Ponteiro Real ***** //
+static inline void* get_real_pointer(TaggedPointer tp) {
 #if defined(__x86_64__) || defined(__aarch64__)
+    uintptr_t adjusted_ptr = (lam_uai_supported) ? tp.raw :
+        ((tp.address & (1ULL << 47)) ?
+         (tp.address | 0xFFFF000000000000) :
+         (tp.address & 0x0000FFFFFFFFFFFF));
+    
+    adjusted_ptr = (W_KERNEL_MODE) ? (adjusted_ptr | ((uintptr_t)1 << 63)) : adjusted_ptr;
+    return (void*)adjusted_ptr;
+#elif defined(__arm__) || defined(__i386__)
+    return (void*)(tp.address << 2);
+#endif
+}
+
+static inline void set_value(TaggedPointer tp, void* value, size_t size) {
+    if (!get_null(tp)) {
+        memcpy(get_real_pointer(tp), value, size);
+    }
+}
+
+static inline void* get_value(TaggedPointer tp) {
+    return get_null(tp) ? NULL : get_real_pointer(tp);
+}
+
+// ***** Funções de Manipulação de TaggedPointer ***** //
 static inline TaggedPointer create(size_t size, uint16_t tags, bool is_shared, bool is_null) {
     void* ptr = MALLOC(size);
     if (!ptr) return (TaggedPointer){0};
-    TaggedPointer tp = { .address = (uintptr_t)ptr, .tags = tags, .is_shared = is_shared, .is_null = is_null };
+    TaggedPointer tp = { .raw = (uintptr_t)ptr };
+#if defined(__x86_64__) || defined(__aarch64__)
+    tp.tags = tags;
+#endif
+    tp.is_shared = is_shared;
+    tp.is_null = is_null;
     return tp;
 }
 
 static inline void update_tagged_pointer(TaggedPointer* tp, uint16_t tags, bool is_shared, bool is_null, size_t realloc_size) {
     if (realloc_size > 0) {
-        void* new_ptr = REALLOC((void*)GET_REAL_POINTER(*tp), realloc_size);
+        void* new_ptr = REALLOC((void*)get_real_pointer(*tp), realloc_size);
         if (!new_ptr) return;
-        tp->address = (uintptr_t)new_ptr;
+        tp->raw = (uintptr_t)new_ptr;
     }
+#if defined(__x86_64__) || defined(__aarch64__)
     tp->tags = tags;
+#endif
     tp->is_shared = is_shared;
     tp->is_null = is_null;
 }
 
 static inline void set_tags(TaggedPointer* tp, uint16_t tags) {
-    if (get_shared(*tp) && get_tags(*tp) == ((1U << (62 - ADDRESS_BITS)) - 1)) {
+    if (get_shared(*tp)) {
         SharedPointer* sp = (SharedPointer*)tp->address;
         atomic_store(&sp->tags, tags);
     } else {
+#if defined(__x86_64__) || defined(__aarch64__)
         tp->tags = tags;
+#endif
     }
 }
 
 static inline uint16_t get_tags(TaggedPointer tp) {
-    uint16_t tags = (tp.raw >> ADDRESS_BITS) & ((1U << (62 - ADDRESS_BITS)) - 1);
-    if (get_shared(tp) && tags == ((1U << (62 - ADDRESS_BITS)) - 1)) {
+    if (get_shared(tp)) {
         SharedPointer* sp = (SharedPointer*)tp.address;
         return atomic_load(&sp->tags);
+    } else {
+#if defined(__x86_64__) || defined(__aarch64__)
+        return (tp.raw >> ADDRESS_BITS) & ((1U << (62 - ADDRESS_BITS)) - 1);
+#else
+        return 0;
+#endif
     }
-    return tags;
 }
 
 static inline void set_shared(TaggedPointer* tp, bool isShared) {
     if (isShared && !tp->is_shared && !tp->is_null) {
-        if (tp->tags != 0) {
+        if (get_tags(*tp) != 0) {
             promote_to_shared(tp);
         } else {
             tp->is_shared = true;
@@ -241,24 +211,35 @@ static inline void set_shared(TaggedPointer* tp, bool isShared) {
 }
 
 static inline bool get_shared(TaggedPointer tp) {
+#if defined(__x86_64__) || defined(__aarch64__)
     return (tp.raw >> 62) & 1;
+#elif defined(__arm__) || defined(__i386__)
+    return (tp.raw >> 30) & 1;
+#endif
 }
 
 static inline void set_null(TaggedPointer* tp, bool isNull) {
+#if defined(__x86_64__) || defined(__aarch64__)
     tp->is_null = isNull;
+#elif defined(__arm__) || defined(__i386__)
+    tp->is_null = isNull;
+#endif
 }
 
 static inline bool get_null(TaggedPointer tp) {
+#if defined(__x86_64__) || defined(__aarch64__)
     return (tp.raw >> 63) & 1;
-}
+#elif defined(__arm__) || defined(__i386__)
+    return (tp.raw >> 31) & 1;
 #endif
+}
 
 // ***** Funções de Gestão de Referência ***** //
 static inline void promote_to_shared(TaggedPointer* tp) {
     SharedPointer* sp = MALLOC(sizeof(SharedPointer));
     sp->address = tp->address;
-    sp->ref_count = tp->tags ? tp->tags : 1;
-    sp->tags = tp->tags;
+    sp->ref_count = get_tags(*tp) ? get_tags(*tp) : 1;
+    sp->tags = get_tags(*tp);
     tp->address = (uintptr_t)sp;
 #if defined(__x86_64__) || defined(__aarch64__)
     tp->tags = (1U << (62 - ADDRESS_BITS)) - 1;  // max_tags
@@ -288,7 +269,7 @@ static inline void ref(TaggedPointer* tp) {
 static inline void dealloc(TaggedPointer* tp) {
     if (get_null(*tp)) return;
     if (!get_shared(*tp)) {
-        FREE((void*)GET_REAL_POINTER(*tp));
+        FREE((void*)get_real_pointer(*tp));
         set_null(tp, true);
     } else {
         SharedPointer* sp = (SharedPointer*)tp->address;
@@ -306,7 +287,7 @@ int main() {
 #if CHECK_CPU
     lam_uai_supported = has_lam_uai();
     int virtual_bits = get_virtual_address_bits();
-    printf("Número de bits de endereço virtual: %d\n", virtual_bits);
+    printf("Número de bits de endereço virtual detectado: %d | Usando: %d\n", virtual_bits, ADDRESS_BITS);
     printf("Suporta paginação %s\n", has_page5() ? "de 5 níveis (57 bits)" : "4 níveis (48 bits)");
     printf("Suporte a LAM/UAI: %s\n", lam_uai_supported ? "Sim" : "Não");
 #endif
@@ -314,30 +295,32 @@ int main() {
 
     // Exemplo 1: Inteiro Simples
     TaggedPointer tp_int = create(sizeof(int), 113, false, false);
-    SET(tp_int, 42);
+    int value_int = 42;
+    set_value(tp_int, &value_int, sizeof(int));
     printf("\nExemplo 1 - Inteiro Simples:\n");
-    printf("Ponteiro: 0x%016lx, Valor: %d, Tags: %d\n", (uintptr_t)tp_int.raw, GET(tp_int, int), get_tags(tp_int));
+    printf("Ponteiro: 0x%016lx, Valor: %d, Tags: %d\n", (uintptr_t)tp_int.raw, *(int*)get_value(tp_int), get_tags(tp_int));
     dealloc(&tp_int);
 
     // Exemplo 2: String com Realloc
     TaggedPointer tp_str = create(13, 149, false, false);
-    strcpy((char*)GET_REAL_POINTER(tp_str), "Hello World!");
+    strcpy((char*)get_real_pointer(tp_str), "Hello World!");
     printf("\nExemplo 2 - String com Realloc:\n");
-    printf("Ponteiro: 0x%016lx, Valor: %s, Tags: %d\n", (uintptr_t)tp_str.raw, (char*)GET_REAL_POINTER(tp_str), get_tags(tp_str));
-    update_tagged_pointer(&tp_str, 149, false, false, 21);
-    strcpy((char*)GET_REAL_POINTER(tp_str), "Hello TaggedPointer!");
-    printf("Após realloc: %s, Tags: %d\n", (char*)GET_REAL_POINTER(tp_str), get_tags(tp_str));
+    printf("Ponteiro: 0x%016lx, Valor: %s, Tags: %d\n", (uintptr_t)tp_str.raw, (char*)get_real_pointer(tp_str), get_tags(tp_str));
+    update_tagged_pointer(&tp_str, 151, false, false, 21);
+    strcpy((char*)get_real_pointer(tp_str), "Hello TaggedPointer!");
+    printf("Após realloc: %s, Tags: %d\n", (char*)get_real_pointer(tp_str), get_tags(tp_str));
     dealloc(&tp_str);
 
     // Exemplo 3: Promoção Automática
     printf("\nExemplo 3 - Promoção Automática:\n");
     TaggedPointer tp_auto = create(sizeof(int), 0, false, false);
-    SET(tp_auto, 100);
+    int value_auto = 100;
+    set_value(tp_auto, &value_auto, sizeof(int));
     printf("Inicial: tags/ref_count: %d, isShared: %d\n", get_tags(tp_auto), get_shared(tp_auto));
     for (int i = 0; i < 15; i++) ref(&tp_auto);
     printf("Após 15 refs: tags: %d, isShared: %d\n", get_tags(tp_auto), get_shared(tp_auto));
     if (get_shared(tp_auto)) {
-        SharedPointer* sp = (SharedPointer*)tp_auto.address;
+        SharedPointer* sp = (SharedPointer*)(uintptr_t)tp_auto.address;
         printf("Promovido - ref_count: %lu\n", (unsigned long)sp->ref_count);
     }
     dealloc(&tp_auto);
@@ -346,25 +329,26 @@ int main() {
     // Exemplo 4: Promoção Forçada
     printf("\nExemplo 4 - Promoção Forçada:\n");
     TaggedPointer tp_force = create(sizeof(int), 42, false, false);
-    SET(tp_force, 200);
+    int value_force = 200;
+    set_value(tp_force, &value_force, sizeof(int));
     printf("Inicial: tags: %d, isShared: %d\n", get_tags(tp_force), get_shared(tp_force));
     set_shared(&tp_force, true);
     printf("Após set_shared: tags: %d, isShared: %d\n", get_tags(tp_force), get_shared(tp_force));
-    SharedPointer* sp_force = (SharedPointer*)tp_force.address;
+    SharedPointer* sp_force = (SharedPointer*)(uintptr_t)tp_force.address;
     printf("Promovido - tags: %lu, ref_count: %lu\n", (unsigned long)sp_force->tags, (unsigned long)sp_force->ref_count);
     dealloc(&tp_force);
 
     // Exemplo 5: Array de Inteiros com Realloc
     printf("\nExemplo 5 - Array de Inteiros com Realloc:\n");
     TaggedPointer tp_array = create(sizeof(int) * 3, 200, false, false);
-    int* array = (int*)GET_REAL_POINTER(tp_array);
+    int* array = (int*)get_real_pointer(tp_array);
     for (int i = 0; i < 3; i++) array[i] = i * 10;
     printf("Ponteiro: 0x%016lx, Tags: %d\n", (uintptr_t)tp_array.raw, get_tags(tp_array));
     printf("Antes do realloc: [");
     for (int i = 0; i < 3; i++) printf("%d%s", array[i], i < 2 ? ", " : "");
     printf("]\n");
     update_tagged_pointer(&tp_array, 200, false, false, sizeof(int) * 5);
-    array = (int*)GET_REAL_POINTER(tp_array);
+    array = (int*)get_real_pointer(tp_array);
     for (int i = 3; i < 5; i++) array[i] = i * 10;
     printf("Após realloc: [");
     for (int i = 0; i < 5; i++) printf("%d%s", array[i], i < 4 ? ", " : "");
@@ -374,10 +358,11 @@ int main() {
     // Exemplo 6: Tags Dinâmicos
     printf("\nExemplo 6 - Tags Dinâmicos:\n");
     TaggedPointer tp_tags = create(sizeof(int), 5, false, false);
-    SET(tp_tags, 500);
-    printf("Inicial: Valor: %d, Tags: %d\n", GET(tp_tags, int), get_tags(tp_tags));
+    int value_tags = 500;
+    set_value(tp_tags, &value_tags, sizeof(int));
+    printf("Inicial: Valor: %d, Tags: %d\n", *(int*)get_value(tp_tags), get_tags(tp_tags));
     set_tags(&tp_tags, 10);
-    printf("Após set_tags: Valor: %d, Tags: %d\n", GET(tp_tags, int), get_tags(tp_tags));
+    printf("Após set_tags: Valor: %d, Tags: %d\n", *(int*)get_value(tp_tags), get_tags(tp_tags));
     dealloc(&tp_tags);
 
     return 0;
