@@ -3906,3 +3906,33 @@ Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
 
 //
 
+
+Falar sobre como é o tagged pointer... Detalhar aqui primeiro.
+Posso falar também do assembly gerado por acessar o lock direto é mais clean que usando as funções. Mesmo no caso do sub.
+
+//
+
+
+Tiers de pacotes / modulos.
+
+Tier 1: STD - Não pode ser importado. Contem coisas como String e outras funções uteis. Em caso de colisão os outros pacotes devem usar o nome full: mymodule:String por exemplo.
+Tier 2: Util - Coisas como JSON, SHA, etc. Tudo que for um padrão bem definido e muito usado. Importar é opcional pra evitar colisão: W:JSON , W:SHA1 etc....
+Tier 3: Comunity - Qualquer coisa da comunidade que pode ser interessante. Até aqui o W vai evitar ao maximo quebrar. Coisas como HTTP Server, S3 conector etc. É necessario importar e não é obrigado a desambiguar o modulo, só usar ( ex: import { http } from "TrustedModule"), isso é. Até esse tier o import ainda é pelo nome canonico do modulo.
+Tier 4: Packages - É como as listas "awesome", são projetos de terceiro com zero controle É necessario import e nome full com nome do pacote: import { http } from "RandomProject/ServerModuleName". Caso a linguagem evolua e quebre pacotes aqui, os mantenedores que deverão ajustar.
+
+A ideia é que o W Build consiga ter visibilidade de todos esses pacotes, inclusive IAs no futuro podem selecionar pacotes dessa lista e a intenção é que todas as builds possam ser vefificadas online, ver trend de download possiblidade de revisão de segurança manual e automazada, etc.
+É possivel instalar por fora do package manager é claro. Esse seria o Tier 5.
+
+Um pacote pode conter multiplos modulos. Um projeto pode ter varios pacotes, mas não é necessario informar nome do projeto a não ser é claro para desambiguar quando conveniente. Por exmeplo você poderia ter o pacote AWS, com o modulo S3 dentro. Mas se outra pessoa fizer um pacote AWS você tem que identificar com o nome do projeto, Amazon/AWS/S3 por exemplo. O Gerenciador de pacotes não vai deixar cadastrar mais de um projeto com mesmo nome. Porem pacotes e modulos podem se chamar do que bem entender. Os artefatos vão estar publicos por padrão. Mas qualquer pacote do Tier 3-5 pode exigir tokens e outros metodos de autenticação. Podendo até limitar o acesso de outras formas. A ideia é permitir aqui que empresas possam publicas inclusive pacotes privados que só vão poder ser listados com as credenciais corretas.
+
+Qualquer um pode publicar um projeto no Tier 4, apesar que existe uma revisão minima obviamente. A promoção para os tiers acima é de responsabilidade dos mantenedores da linguagem. Na pratica não deve vir a ser complexo entrar no Tier 3. Já Tier 2 e 1 são decisões de longo prazo, pode ser complicado como decidir um feature da propria linguagem.
+
+//
+
+Concluir modelo de gerencia de memoria.
+
+//
+
+Voltar a ver questão da concorrencia e paralelismo já que o modelo de gerencia de memoria está quase todo definido.
+
+
