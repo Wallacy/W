@@ -13,24 +13,33 @@ typedef union vec {
 
 vec res = {};
 
-void *adding(void *input)
-{
-    for(int i=0; i<10000; i++)
-    {
-        // Posso escolher se vou incrementar atomic ou não!
-        res.acnt++;
-        res._cnt++;
-        // res._acnt++;
-        // res.cnt++;
-    }
-    pthread_exit(NULL);
-}
 void *adding_a(void *input)
 {
     for(int i=0; i<10000; i++)
     {
-        res.acnt++;
-        res.cnt++;
+        // Posso escolher se vou incrementar atomic ou não!
+        if (res.acnt++ == 8754){
+            printf("(A) acnt is 8754\n");
+        }
+        if (res._cnt++ == 8754){
+            printf("(A)  _cnt is 8754\n");
+        }
+        // res._acnt++;
+        // res.cnt++;
+        
+    }
+    pthread_exit(NULL);
+}
+void *adding_b(void *input)
+{
+    for(int i=0; i<10000; i++)
+    {
+        if (res.acnt++ == 8754){
+            printf("(B) acnt is 8754\n");
+        }
+        if (res._cnt++ == 8754){
+            printf("(B)  _cnt is 8754\n");
+        }
     }
     pthread_exit(NULL);
 }
@@ -38,8 +47,8 @@ int main()
 {
     pthread_t tid[200];
     for(int i=0; i<200; i=i+2){
-        pthread_create(&tid[i],NULL,adding,NULL);
-        pthread_create(&tid[i+1],NULL,adding_a,NULL);
+        pthread_create(&tid[i],NULL,adding_a,NULL);
+        pthread_create(&tid[i+1],NULL,adding_b,NULL);
     }
     for(int i=0; i<200; i++)
         pthread_join(tid[i],NULL);
