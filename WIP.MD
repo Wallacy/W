@@ -3906,10 +3906,68 @@ Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
 
 //
 
+##### **Comportamento do `TaggedPointer`**
+O `TaggedPointer` é uma estrutura eficiente que utiliza um único `uintptr_t` para representar diferentes tipos de dados, como valores diretos, ponteiros para o heap, erros e objetos compartilhados com contagem de referências. Ele é projetado para otimizar memória e suportar a semântica da linguagem W.
 
-Falar sobre como é o tagged pointer... Detalhar aqui primeiro.
-Posso falar também do assembly gerado por acessar o lock direto é mais clean que usando as funções. Mesmo no caso do sub.
+##### **Estrutura**
+```c
+typedef union TaggedPointer {
+    _Atomic uintptr_t raw;
+    struct {
+#if defined(__x86_64__) || defined(__aarch64__)
+        uintptr_t address : ADDRESS_BITS;
+        uint16_t tags     : (64 - ADDRESS_BITS - TYPE_BITS - 1);
+        uint8_t type      : TYPE_BITS;
+        uint8_t is_erro   : 1;
+#elif defined(__arm__) || defined(__i386__)
+        uint32_t address  : 30;
+        uint32_t tags     : (32 - 30 - TYPE_BITS - 1);
+        uint32_t type     : TYPE_BITS;
+        uint32_t is_erro  : 1;
+#endif
+    };
+} __attribute__((aligned(sizeof(uintptr_t)))) TaggedPointer;
+```
 
+##### **Componentes**
+- **`address`**: Armazena o endereço de memória ou um valor especial (ex.: máximo para valores marcados).
+- **`tags`**: Contém metadados ou o valor direto quando `address` indica um valor marcado.
+- **`type`**: Define o tipo do dado (ex.: `TYPE_INT`, `TYPE_FLOAT`, `TYPE_CUSTOM`).
+- **`is_erro`**: Indica se o `TaggedPointer` representa um erro (`1`) ou um valor válido (`0`).
+
+##### **Comportamentos**
+
+1. **Valor Marcado (Tagged Value)**:
+   - **Quando**: `address == ((1ULL << ADDRESS_BITS) - 1)` (ex.: `0xffffffffffff` para `ADDRESS_BITS = 48`).
+   - **Descrição**: O valor é armazenado diretamente em `tags`. Usado para valores pequenos (ex.: inteiros até `MAX_TAGS`).
+   - **Exemplo**: Um inteiro `42` armazenado em `tags` com `type = TYPE_INT`.
+
+2. **Ponteiro Indireto (Indirect Pointer)**:
+   - **Quando**: `address != 0 && address != ((1ULL << ADDRESS_BITS) - 1)`.
+   - **Descrição**: `address` aponta para memória no heap. O valor real é acessado via `get_real_pointer`, que ajusta o endereço para a forma canônica.
+   - **Exemplo**: Um array ou uma estrutura complexa alocada no heap com `type = TYPE_ARRAY`.
+
+3. **Nulo**:
+   - **Quando**: `address == 0`.
+   - **Descrição**: Representa um valor nulo. `tags` pode conter metadados adicionais, mas o ponteiro é considerado inválido.
+   - **Exemplo**: Após `dealloc`, o `TaggedPointer` é resetado para `address = 0`.
+
+4. **Erro**:
+   - **Quando**: `is_erro == 1`.
+   - **Descrição**: `address` aponta para uma estrutura `Error` no heap, contendo `error_code`, `message` e `prev_address`. A memória anterior é liberada ao setar o erro.
+   - **Exemplo**: Após `set_error(tp, 404, "Not Found")`, `is_erro = 1`.
+
+5. **Gestão de Referências (SharedPointer)**:
+   - **Quando**: `type == TYPE_CUSTOM` e `is_indirect(tp) == true`.
+   - **Descrição**: `address` aponta para um `SharedPointer`, que contém um `ref_count` para rastrear referências. O `setValue` define o valor diretamente no `address` do `SharedPointer`, tornando o processo transparente. Funções `ref` e `deref` gerenciam a contagem, desalocando automaticamente quando `ref_count` chega a zero.
+   - **Exemplo**: Um objeto compartilhado com `ref_count` inicializado em 1, incrementado por `ref` e decrementado por `deref`.
+
+##### **Funções Principais**
+- **`create(size, tags, type)`**: Inicializa um `TaggedPointer`. Se `size > sizeof(uintptr_t)` ou `type == TYPE_CUSTOM`, aloca memória no heap; caso contrário, usa `tags`.
+- **`set_value(tp, value, size, type)`**: Define o valor de forma transparente. Para `TYPE_CUSTOM`, atualiza diretamente o `address` do `SharedPointer`; para valores pequenos, armazena em `tags`; para valores grandes, aloca no heap.
+- **`set_error(tp, error_code, message)`**: Converte o `TaggedPointer` em um erro, liberando memória anterior.
+- **`dealloc(tp)`**: Libera memória associada, dependendo se é indireto ou erro.
+- **`ref(tp)` e `deref(tp)`**: Gerenciam referências para `TYPE_CUSTOM`.
 //
 
 
