@@ -3993,4 +3993,11 @@ Concluir modelo de gerencia de memoria.
 
 Voltar a ver questão da concorrencia e paralelismo já que o modelo de gerencia de memoria está quase todo definido.
 
+Threads/Queues padrões:
+
+Main, Background, Network, IO, UX.
+
+Onde UX é o ideal para interagir com STDIN/STOUT, como printf/scanf....
+
+
 
