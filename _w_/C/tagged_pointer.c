@@ -24,9 +24,15 @@
 #define CHECK_CPU 1
 #define true 1
 #define false 0
+#define MAX_TAGS (1U << (62 - ADDRESS_BITS))-1
+typedef unsigned __int128 uint128_t;
+
 typedef struct {
-    _Atomic uint32_t ref_count;
-    _Atomic uint32_t type;
+    union
+    {
+        _Atomic uint64_t ref_count;
+        _Atomic uint64_t value;
+    };    
     _Atomic uintptr_t address;
 } SharedPointer;
 
@@ -170,10 +176,10 @@ static inline void INFO(TaggedPointer* tp) {
         Error* err = (Error*)get_real_pointer(tp);
         printf("is_error: 1, error_code: %u", err->error_code);
     } else if (tp->is_compound) {
-        printf("is_compound: 1, address: 0x%lx, tags: %u", tp->address, tp->tags);
-        if (is_indirect(tp) && tp->tags == 1) {
+        printf("is_compound: 1, address: 0x%016lx, tags: %u", tp->address, tp->tags);
+        if (is_indirect(tp) && tp->tags == MAX_TAGS) {
             SharedPointer* sp = (SharedPointer*)get_real_pointer(tp);
-            printf(", ref_count: %u", sp->ref_count);
+            printf(", address: 0x%016lx , ref_count: %llu, value: %llu", sp->address, sp->ref_count, sp->value);
         }
     } else {
         printf("is_compound: 0, value: %llu", tp->value);
@@ -245,14 +251,14 @@ static inline void set_error(TaggedPointer* tp, uint32_t error_code, const char*
 }
 
 static inline void ref(TaggedPointer* tp) {
-    if (tp->is_compound && is_indirect(tp) && tp->tags == 1) {
+    if (tp->is_compound && is_indirect(tp) && tp->tags == MAX_TAGS) {
         SharedPointer* sp = (SharedPointer*)get_real_pointer(tp);
         sp->ref_count++;
     }
 }
 
 static inline void deref(TaggedPointer* tp) {
-    if (tp->is_compound && is_indirect(tp) && tp->tags == 1) {
+    if (tp->is_compound && is_indirect(tp) && tp->tags == MAX_TAGS) {
         SharedPointer* sp = (SharedPointer*)get_real_pointer(tp);
         if (--sp->ref_count == 0) {
             FREE((void*)sp->address);
@@ -372,17 +378,16 @@ int main() {
     printf("dealloc: "); INFO(&tp7);
 
     // Exemplo 8: Composto com SharedPointer
-    printf("\nExemplo 8: Composto com SharedPointer\n");
+    printf("\nExemplo 8: Composto com SharedPointer value\n");
     SharedPointer* sp = CALLOC(sizeof(SharedPointer));
-    sp->ref_count = 1;
-    sp->type = 0;
-    sp->address = (uintptr_t)CALLOC(sizeof(int));
-    *(int*)sp->address = 42;
+    // sp->ref_count = 0;
+    sp->address = 0; // Não alocado, cabe no value.
+    sp->value = 42;
     TaggedPointer tp8 = { .raw = 0 };
     tp8.is_compound = 1;
     tp8.is_error = 0;
     tp8.address = (uintptr_t)sp & ((1ULL << ADDRESS_BITS) - 1);
-    tp8.tags = 1;
+    tp8.tags = MAX_TAGS;
     printf("create: "); INFO(&tp8);
     ref(&tp8);
     printf("ref: "); INFO(&tp8);
@@ -390,6 +395,25 @@ int main() {
     printf("deref: "); INFO(&tp8);
     deref(&tp8);
     printf("deref: "); INFO(&tp8);
+
+     // Exemplo 8: Composto com SharedPointer
+     printf("\nExemplo 9: Composto com SharedPointer address\n");
+     SharedPointer* sp2 = CALLOC(sizeof(SharedPointer));
+     //  sp->value = 0;
+     sp2->address = (_Atomic(uintptr_t))CALLOC(strlen("Hello SharedPointer!") + 1);
+     sp2->ref_count = 1;
+     TaggedPointer tp9 = { .raw = 0 };
+     tp9.is_compound = 1;
+     tp9.is_error = 0;
+     tp9.address = (uintptr_t)sp2 & ((1ULL << ADDRESS_BITS) - 1);
+     tp9.tags = MAX_TAGS;
+     printf("create: "); INFO(&tp9);
+     ref(&tp9);
+     printf("ref: "); INFO(&tp9);
+     deref(&tp9);
+     printf("deref: "); INFO(&tp9);
+     deref(&tp9);
+     printf("deref: "); INFO(&tp9);
 
     return 0;
 }
