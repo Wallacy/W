@@ -3905,69 +3905,181 @@ Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
 
 
 //
+---
 
-##### **Comportamento do `TaggedPointer`**
-O `TaggedPointer` é uma estrutura eficiente que utiliza um único `uintptr_t` para representar diferentes tipos de dados, como valores diretos, ponteiros para o heap, erros e objetos compartilhados com contagem de referências. Ele é projetado para otimizar memória e suportar a semântica da linguagem W.
+## **Especificação Técnica do Tagged Pointer**
 
-##### **Estrutura**
-```c
-typedef union TaggedPointer {
-    _Atomic uintptr_t raw;
-    struct {
-#if defined(__x86_64__) || defined(__aarch64__)
-        uintptr_t address : ADDRESS_BITS;
-        uint16_t tags     : (64 - ADDRESS_BITS - TYPE_BITS - 1);
-        uint8_t type      : TYPE_BITS;
-        uint8_t is_erro   : 1;
-#elif defined(__arm__) || defined(__i386__)
-        uint32_t address  : 30;
-        uint32_t tags     : (32 - 30 - TYPE_BITS - 1);
-        uint32_t type     : TYPE_BITS;
-        uint32_t is_erro  : 1;
-#endif
-    };
-} __attribute__((aligned(sizeof(uintptr_t)))) TaggedPointer;
+O **Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
+
+---
+
+### **Layout Geral**
+
+- **Em 64 bits**:
+  ```
+  +---------------------------------+
+  | 63                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor (62 bits)           | Tipo|
+  +---------------------------+-----+
+  ```
+
+- **Em 32 bits**:
+  ```
+  +---------------------------+-----+
+  | 31                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor (30 bits)           | Tipo|
+  +---------------------------+-----+
+  ```
+
+- **Bits 0-1**: **Tipo** do dado (`00` = `INT`, `01` = `FLOAT`, `10` = `COMPOUND`, `11` = `SHARED`).
+- **Bits 2 até o máximo**: **Valor** ou **endereço**, dependendo do tipo.
+
+---
+
+### **Tipos Suportados**
+
+Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
+
+- **`00`**: Inteiro (`TYPE_INT`)
+  - Inteiro assinado.
+  - Usa todos os bits de valor disponíveis (ex.: 62 bits em 64-bit, 30 bits em 32-bit).
+
+- **`01`**: Float (`TYPE_FLOAT`)
+  - Ponto flutuante (representação IEEE 754).
+  - Usa os bits de valor disponíveis, com truncamento em arquiteturas de 32 bits.
+
+- **`10`**: Composto (`TYPE_COMPOUND`)
+  - Ponteiro para um objeto composto (ex.: array, string).
+  - Os bits de valor contêm o endereço do objeto.
+  - Em arquiteturas de 64 bits, se o endereço ocupar menos bits (ex.: 48 bits), os bits restantes podem ser usados como **tags** para informações adicionais (ex.: tamanho).
+
+- **`11`**: Ponteiro Compartilhado (`TYPE_SHARED`)
+  - Ponteiro para um objeto compartilhado com contagem de referência.
+  - Similar ao `TYPE_COMPOUND`, mas para gerenciamento de memória compartilhada.
+
+---
+
+### **Valores Especiais**
+
+- **`NULL`**:
+  - Todos os bits de valor zerados (`0x0`).
+  - Indica ausência de valor ou erro específico.
+
+- **`ERRO`**:
+  - Todos os bits de valor setados (`(1ULL << VALUE_BITS) - 1`).
+  - Indica estado de erro ou overflow.
+
+---
+
+### **Detalhes por Tipo**
+
+#### **1. Inteiro (`TYPE_INT`)**
+- **Tag de Tipo**: `00`.
+- **Bits de Valor**: Todos os bits disponíveis.
+- **Interpretação**: Inteiro assinado.
+- **Valores Especiais**:
+  - `INT_NULL`: Todos os bits de valor `0`.
+  - `INT_ERRO`: Todos os bits de valor `1`.
+
+#### **2. Float (`TYPE_FLOAT`)**
+- **Tag de Tipo**: `01`.
+- **Bits de Valor**: Todos os bits disponíveis.
+- **Interpretação**: Ponto flutuante (IEEE 754), com truncamento em 32 bits.
+- **Valores Especiais**:
+  - `FLOAT_NULL`: Todos os bits de valor `0`.
+  - `FLOAT_ERRO`: Todos os bits de valor `1`.
+
+#### **3. Composto (`TYPE_COMPOUND`)**
+- **Tag de Tipo**: `10`.
+- **Bits de Valor**: Endereço do objeto composto.
+- **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
+  - **Exemplo em 64 bits com endereços de 48 bits**:
+    ```
+    +------------------------------------------+
+    | 63         50 | 49               2 | 1 0 |
+    +---------------+--------------------+-----+
+    | Tags (14 bits)| Endereço (48 bits) | 10  |
+    +---------------+--------------------+-----+
+    ```
+  - **Uso das Tags**: Ex.: tamanho do array/string (até 16.383 elementos com 14 bits).
+
+#### **4. Ponteiro Compartilhado (`TYPE_SHARED`)**
+- **Tag de Tipo**: `11`.
+- **Bits de Valor**: Endereço do objeto compartilhado.
+- **Contagem de Referência**: Armazenada no objeto apontado ou em tags adicionais.
+
+---
+
+### **Operações Suportadas**
+
+- **Inteiros**:
+  - Configuração: Definir valor, `NULL` ou `ERRO`.
+  - Operações: Adição, subtração, multiplicação, divisão, módulo, incremento, decremento.
+
+- **Floats**:
+  - Configuração: Definir valor, `NULL` ou `ERRO`.
+  - Operações: Adição, subtração, multiplicação, divisão.
+
+- **Compostos e Compartilhados**:
+  - Configuração: Definir ponteiro.
+  - Operações adicionais conforme necessário (ex.: manipulação de arrays ou contagem de referência).
+
+---
+
+### **Portabilidade**
+
+- **32 bits**: 30 bits de valor, com suporte a inteiros e floats truncados.
+- **64 bits**: 62 bits de valor, permitindo maior precisão e endereços maiores.
+
+---
+
+### **Considerações**
+
+- **Inteiros**: Suporte a valores assinados com extensão de sinal.
+- **Floats**: Precisão limitada em 32 bits devido ao truncamento.
+- **Compostos**: Tags adicionais são opcionais e dependem da arquitetura.
+- **Compartilhados**: Contagem de referência pode variar na implementação.
+
+---
+
 ```
 
-##### **Componentes**
-- **`address`**: Armazena o endereço de memória ou um valor especial (ex.: máximo para valores marcados).
-- **`tags`**: Contém metadados ou o valor direto quando `address` indica um valor marcado.
-- **`type`**: Define o tipo do dado (ex.: `TYPE_INT`, `TYPE_FLOAT`, `TYPE_CUSTOM`).
-- **`is_erro`**: Indica se o `TaggedPointer` representa um erro (`1`) ou um valor válido (`0`).
 
-##### **Comportamentos**
+A linguagem W vai ter 2 categorias de tipos:
 
-1. **Valor Marcado (Tagged Value)**:
-   - **Quando**: `address == ((1ULL << ADDRESS_BITS) - 1)` (ex.: `0xffffffffffff` para `ADDRESS_BITS = 48`).
-   - **Descrição**: O valor é armazenado diretamente em `tags`. Usado para valores pequenos (ex.: inteiros até `MAX_TAGS`).
-   - **Exemplo**: Um inteiro `42` armazenado em `tags` com `type = TYPE_INT`.
+Primitivos: u8, u16... u64, u128 (do uint8_t até o unsigned __int128), passando pelos inteiros, i32, i64 etc. Basicamente os equivalentes dos tipos em C. Esses tipos vão ter todas as vantagens e probelmas do C como overflow ou underflow. Esses vão sempre viver na stack.
+Escalar: TaggedPointer como explicado acima...
 
-2. **Ponteiro Indireto (Indirect Pointer)**:
-   - **Quando**: `address != 0 && address != ((1ULL << ADDRESS_BITS) - 1)`.
-   - **Descrição**: `address` aponta para memória no heap. O valor real é acessado via `get_real_pointer`, que ajusta o endereço para a forma canônica.
-   - **Exemplo**: Um array ou uma estrutura complexa alocada no heap com `type = TYPE_ARRAY`.
+Nos primitivos não tem bound check. Nos TaggedPointers sim, já que todas as operações são intermediadas pelos metodos do TaggedPointers, lá também vefica-se os limites. (+% (adição com wrapping), -% (subtração com wrapping), e *% (multiplicação com wrapping))
 
-3. **Nulo**:
-   - **Quando**: `address == 0`.
-   - **Descrição**: Representa um valor nulo. `tags` pode conter metadados adicionais, mas o ponteiro é considerado inválido.
-   - **Exemplo**: Após `dealloc`, o `TaggedPointer` é resetado para `address = 0`.
+Um TaggedPointer escalar é promovido automaticamente para um Composto (indireto) ao atigir os limites.
+Por exemplo
 
-4. **Erro**:
-   - **Quando**: `is_erro == 1`.
-   - **Descrição**: `address` aponta para uma estrutura `Error` no heap, contendo `error_code`, `message` e `prev_address`. A memória anterior é liberada ao setar o erro.
-   - **Exemplo**: Após `set_error(tp, 404, "Not Found")`, `is_erro = 1`.
+let u32 = 42; // Tipo primitivo de uint32_t, ocupa um ponteiro de 64 bits + 32bits do value.
+let UInt = 42; // TaggedPointer especializado em UInt. Ocupa um ponteiro de 64 bits + 128 bits do Shared Pointer ( 32 ref, 32 value, 64 address).
 
-5. **Gestão de Referências (SharedPointer)**:
-   - **Quando**: `type == TYPE_CUSTOM` e `is_indirect(tp) == true`.
-   - **Descrição**: `address` aponta para um `SharedPointer`, que contém um `ref_count` para rastrear referências. O `setValue` define o valor diretamente no `address` do `SharedPointer`, tornando o processo transparente. Funções `ref` e `deref` gerenciam a contagem, desalocando automaticamente quando `ref_count` chega a zero.
-   - **Exemplo**: Um objeto compartilhado com `ref_count` inicializado em 1, incrementado por `ref` e decrementado por `deref`.
+Listar os tipos de float baseado no quanto vai sobrar de tagged. Afinal tem que fazer uns ajustes na mantisa. Float14? Float4?
 
-##### **Funções Principais**
-- **`create(size, tags, type)`**: Inicializa um `TaggedPointer`. Se `size > sizeof(uintptr_t)` ou `type == TYPE_CUSTOM`, aloca memória no heap; caso contrário, usa `tags`.
-- **`set_value(tp, value, size, type)`**: Define o valor de forma transparente. Para `TYPE_CUSTOM`, atualiza diretamente o `address` do `SharedPointer`; para valores pequenos, armazena em `tags`; para valores grandes, aloca no heap.
-- **`set_error(tp, error_code, message)`**: Converte o `TaggedPointer` em um erro, liberando memória anterior.
-- **`dealloc(tp)`**: Libera memória associada, dependendo se é indireto ou erro.
-- **`ref(tp)` e `deref(tp)`**: Gerenciam referências para `TYPE_CUSTOM`.
+(continuar....)
+
+
+The smallest non-zero (positive) value that a standard 64 bit float can have is 2^-1074 which is:
+
+0.000......04940656.............47265625
+            ^                          ^
+            |                          |
+            Decimal digit #324         Decimal digit #1074
+
+And for 62 bit float is 2^-1074:
+
+0.000......01976262.............90625000
+            ^                       ^
+            |                       |
+            Decimal digit #324      Decimal digit #1071
+
+
 //
 
 
