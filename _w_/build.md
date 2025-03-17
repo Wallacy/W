@@ -12,7 +12,14 @@ musl deveria ser o padrão... pelo que vi (2024) já é supera o glibc em varias
 
 Profiles: Debug | Release | ReleaseFast | ReleaseSmall
 
-*** Relese usa mimalloc safe alloc + O3 -fpie; ReleaseFast default allocator + Ofast -fno-fast-math -fPIE; 
+*** Relese usa mimalloc safe alloc + -O3 -s -fpie; ReleaseFast default allocator + -Ofast -s -fno-fast-math -fPIE;
+
+-Ofast = -O3 -ffast-math
+
+//zig cc -s -O3 -flto -fPIC -fPIE -ffast-math -Wl,-z,relro ./file.c
+
+-Wl,-z,relro
+A opção -Wl passa argumentos diretamente para o linker. O -z,relro ativa a proteção de leitura apenas em certas seções do binário, o que pode ajudar a melhorar a segurança. Isso impede a modificação de partes do binário após o carregamento, dificultando ataques de escrita no binário.
 
 LinkerType: Dynamic | Static // default static (libs usando -fPIC)
 

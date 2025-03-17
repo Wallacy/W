@@ -3,23 +3,25 @@
 #include <stdio.h>
 #include <string.h>
 
-#define VALUE_BITS (sizeof(uintptr_t) * 8 - 2) // 62 bits em 64-bit e 30 bits em 32-bit, preservando os 2 bits de tipo.
+#define VALUE_BITS (sizeof(uintptr_t) * 8 - 2) // 62 bits em 64-bit, 30 bits em 32-bit
 #define TYPE_MASK 0x3ULL  // Bits 0 e 1
-#define VALUE_MASK (((1ULL << VALUE_BITS) - 1) << 2)  // Bits 2 a 63 em 64 bits.
+#define VALUE_MASK (((1ULL << VALUE_BITS) - 1) << 2)  // Bits 2 até o máximo
 
-// Definição dos tipos
 #define TYPE_INT 0x0
 #define TYPE_FLOAT 0x1
 #define TYPE_COMPOUND 0x2
 #define TYPE_SHARED 0x3
 
-// Valores especiais para inteiros
-#define INT_NULL 0x0ULL
-#define INT_ERRO ((1ULL << VALUE_BITS) - 1)
+// Valores especiais
+#define NULL_VALUE ((uintptr_t)((1ULL << 61) | 1ULL))
+#define ERRO_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) - 1))
 
-// Valores especiais para floats
-#define FLOAT_NULL 0x0ULL
-#define FLOAT_ERRO ((1ULL << VALUE_BITS) - 1)
+// Define FLOAT_T baseado no tamanho de uintptr_t
+#if UINTPTR_MAX == 0xffffffffffffffffULL
+#define FLOAT_T double
+#else
+#define FLOAT_T float
+#endif
 
 #define red "\e[91m"
 #define grn "\e[92m"
@@ -49,23 +51,23 @@ void print_tp(TaggedPointer* tp) {
     uintptr_t value = (raw & VALUE_MASK) >> 2;
 
     if (type == TYPE_INT) {
-        if (value == INT_NULL) {
+        if (value == NULL_VALUE) {
             printf("raw: 0x%016lx, type: int, value: NULL\n", raw);
-        } else if (value == INT_ERRO) {
+        } else if (value == ERRO_VALUE) {
             printf("raw: 0x%016lx, type: int, value: ERRO\n", raw);
         } else {
             intptr_t ivalue = (intptr_t)(value << (sizeof(uintptr_t) * 8 - VALUE_BITS)) >> (sizeof(uintptr_t) * 8 - VALUE_BITS);
             printf("raw: 0x%016lx, type: int, value: %ld\n", raw, ivalue);
         }
     } else if (type == TYPE_FLOAT) {
-        if (value == FLOAT_NULL) {
+        if (value == NULL_VALUE) {
             printf("raw: 0x%016lx, type: float, value: NULL\n", raw);
-        } else if (value == FLOAT_ERRO) {
+        } else if (value == ERRO_VALUE) {
             printf("raw: 0x%016lx, type: float, value: ERRO\n", raw);
         } else {
-            double fvalue;
+            FLOAT_T fvalue;
             uintptr_t adjusted_value = value << 2;
-            memcpy(&fvalue, &adjusted_value, sizeof(double));
+            memcpy(&fvalue, &adjusted_value, sizeof(FLOAT_T));
             printf("raw: 0x%016lx, type: float, value: %.15f\n", raw, fvalue);
         }
     } else {
@@ -78,33 +80,33 @@ void print_tp(TaggedPointer* tp) {
 }
 
 inline void set_int(TaggedPointer* tp, intptr_t value) {
-    uintptr_t stored_value = (uintptr_t)value & (VALUE_MASK >> 2);  // Máscara os 62 bits
+    uintptr_t stored_value = (uintptr_t)value & (VALUE_MASK >> 2);
     uintptr_t new_raw = (stored_value << 2) | TYPE_INT;
     atomic_store(&tp->raw, new_raw);
 }
 
-inline void set_float(TaggedPointer* tp, double value) {
+inline void set_float(TaggedPointer* tp, FLOAT_T value) {
     uintptr_t value_raw;
-    memcpy(&value_raw, &value, sizeof(double));
-    uintptr_t stored_value = (value_raw >> 2) & (VALUE_MASK >> 2);  // Pega os 62 bits mais significativos
+    memcpy(&value_raw, &value, sizeof(FLOAT_T));
+    uintptr_t stored_value = (value_raw >> 2) & (VALUE_MASK >> 2);
     uintptr_t new_raw = (stored_value << 2) | TYPE_FLOAT;
     atomic_store(&tp->raw, new_raw);
 }
 
 inline void set_int_null(TaggedPointer* tp) {
-    atomic_store(&tp->raw, INT_NULL << 2 | TYPE_INT);
+    atomic_store(&tp->raw, (NULL_VALUE << 2) | TYPE_INT);
 }
 
 inline void set_int_erro(TaggedPointer* tp) {
-    atomic_store(&tp->raw, INT_ERRO << 2 | TYPE_INT);
+    atomic_store(&tp->raw, (ERRO_VALUE << 2) | TYPE_INT);
 }
 
 inline void set_float_null(TaggedPointer* tp) {
-    atomic_store(&tp->raw, FLOAT_NULL << 2 | TYPE_FLOAT);
+    atomic_store(&tp->raw, (NULL_VALUE << 2) | TYPE_FLOAT);
 }
 
 inline void set_float_erro(TaggedPointer* tp) {
-    atomic_store(&tp->raw, FLOAT_ERRO << 2 | TYPE_FLOAT);
+    atomic_store(&tp->raw, (ERRO_VALUE << 2) | TYPE_FLOAT);
 }
 
 #define OPERATION_INT(op_name, operation) \
@@ -114,8 +116,8 @@ inline void op_name##_int(TaggedPointer* tp, intptr_t operand) { \
         old_raw = atomic_load(&tp->raw); \
         if ((old_raw & TYPE_MASK) != TYPE_INT) return; \
         uintptr_t stored_value = (old_raw & VALUE_MASK) >> 2; \
-        if (stored_value == INT_NULL || stored_value == INT_ERRO) return; \
-        intptr_t real_value = (intptr_t)(stored_value << 2) >> 2; \
+        if (stored_value == NULL_VALUE || stored_value == ERRO_VALUE) return; \
+        intptr_t real_value = (intptr_t)(stored_value << (sizeof(uintptr_t) * 8 - VALUE_BITS)) >> (sizeof(uintptr_t) * 8 - VALUE_BITS); \
         intptr_t new_real_value = real_value operation operand; \
         uintptr_t new_stored_value = (uintptr_t)new_real_value & (VALUE_MASK >> 2); \
         new_raw = (new_stored_value << 2) | TYPE_INT; \
@@ -132,19 +134,19 @@ inline void inc_int(TaggedPointer* tp) { add_int(tp, 1); }
 inline void dec_int(TaggedPointer* tp) { sub_int(tp, 1); }
 
 #define OPERATION_FLOAT(op_name, operation) \
-inline void op_name##_float(TaggedPointer* tp, double operand) { \
+inline void op_name##_float(TaggedPointer* tp, FLOAT_T operand) { \
     uintptr_t old_raw, new_raw; \
     do { \
         old_raw = atomic_load(&tp->raw); \
         if ((old_raw & TYPE_MASK) != TYPE_FLOAT) return; \
         uintptr_t value = (old_raw & VALUE_MASK) >> 2; \
-        if (value == FLOAT_NULL || value == FLOAT_ERRO) return; \
-        double fvalue; \
+        if (value == NULL_VALUE || value == ERRO_VALUE) return; \
+        FLOAT_T fvalue; \
         uintptr_t adjusted_value = value << 2; \
-        memcpy(&fvalue, &adjusted_value, sizeof(double)); \
-        double new_fvalue = fvalue operation operand; \
+        memcpy(&fvalue, &adjusted_value, sizeof(FLOAT_T)); \
+        FLOAT_T new_fvalue = fvalue operation operand; \
         uintptr_t new_value_raw; \
-        memcpy(&new_value_raw, &new_fvalue, sizeof(double)); \
+        memcpy(&new_value_raw, &new_fvalue, sizeof(FLOAT_T)); \
         uintptr_t new_stored_value = (new_value_raw >> 2) & (VALUE_MASK >> 2); \
         new_raw = (new_stored_value << 2) | TYPE_FLOAT; \
     } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw)); \
