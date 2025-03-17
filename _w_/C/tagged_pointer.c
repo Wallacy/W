@@ -30,8 +30,8 @@ typedef unsigned __int128 uint128_t;
 typedef struct {
     union
     {
-        _Atomic uint64_t ref_count;
-        _Atomic uint64_t value;
+        _Atomic uintptr_t ref_count;
+        _Atomic uintptr_t value;
     };    
     _Atomic uintptr_t address;
 } SharedPointer;
