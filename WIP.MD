@@ -3907,9 +3907,9 @@ Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
 //
 ---
 
-## **Especificação Técnica do Tagged Pointer**
+## **Especificação Técnica do W Tagged Pointer**
 
-O **Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
+O **W Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
 
 ---
 
@@ -3964,12 +3964,16 @@ Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
 ### **Valores Especiais**
 
 - **`NULL`**:
-  - Todos os bits de valor zerados (`0x0`).
+  - Menor valor negativo representavel possivel para os 62 bits restantes. (no caso de tipo escalar em 64 bits)
   - Indica ausência de valor ou erro específico.
+  - 62 bits: 10000000000000000000000000000000000000000000000000000000000001
 
 - **`ERRO`**:
-  - Todos os bits de valor setados (`(1ULL << VALUE_BITS) - 1`).
+  - Maior valor positivo possivel para os 62 bits restantes. (no caso de tipo escalar em 64 bits)
   - Indica estado de erro ou overflow.
+  - 62 bits: 01111111111111111111111111111111111111111111111111111111111111
+
+Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de endereço `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
 
 ---
 
@@ -3993,7 +3997,7 @@ Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
 
 #### **3. Composto (`TYPE_COMPOUND`)**
 - **Tag de Tipo**: `10`.
-- **Bits de Valor**: Endereço do objeto composto.
+- **Bits de Endereço**: Endereço do objeto composto.
 - **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
   - **Exemplo em 64 bits com endereços de 48 bits**:
     ```
@@ -4007,24 +4011,8 @@ Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
 
 #### **4. Ponteiro Compartilhado (`TYPE_SHARED`)**
 - **Tag de Tipo**: `11`.
-- **Bits de Valor**: Endereço do objeto compartilhado.
+- **Bits de Endereço**: Endereço do objeto compartilhado.
 - **Contagem de Referência**: Armazenada no objeto apontado ou em tags adicionais.
-
----
-
-### **Operações Suportadas**
-
-- **Inteiros**:
-  - Configuração: Definir valor, `NULL` ou `ERRO`.
-  - Operações: Adição, subtração, multiplicação, divisão, módulo, incremento, decremento.
-
-- **Floats**:
-  - Configuração: Definir valor, `NULL` ou `ERRO`.
-  - Operações: Adição, subtração, multiplicação, divisão.
-
-- **Compostos e Compartilhados**:
-  - Configuração: Definir ponteiro.
-  - Operações adicionais conforme necessário (ex.: manipulação de arrays ou contagem de referência).
 
 ---
 
@@ -4053,17 +4041,6 @@ Primitivos: u8, u16... u64, u128 (do uint8_t até o unsigned __int128), passando
 Escalar: TaggedPointer como explicado acima...
 
 Nos primitivos não tem bound check. Nos TaggedPointers sim, já que todas as operações são intermediadas pelos metodos do TaggedPointers, lá também vefica-se os limites. (+% (adição com wrapping), -% (subtração com wrapping), e *% (multiplicação com wrapping))
-
-Um TaggedPointer escalar é promovido automaticamente para um Composto (indireto) ao atigir os limites.
-Por exemplo
-
-let u32 = 42; // Tipo primitivo de uint32_t, ocupa um ponteiro de 64 bits + 32bits do value.
-let UInt = 42; // TaggedPointer especializado em UInt. Ocupa um ponteiro de 64 bits + 128 bits do Shared Pointer ( 32 ref, 32 value, 64 address).
-
-Listar os tipos de float baseado no quanto vai sobrar de tagged. Afinal tem que fazer uns ajustes na mantisa. Float14? Float4?
-
-(continuar....)
-
 
 The smallest non-zero (positive) value that a standard 64 bit float can have is 2^-1074 which is:
 
