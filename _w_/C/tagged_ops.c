@@ -21,8 +21,11 @@
 #define TYPE_SHARED 0x3
 
 // Valores especiais
-#define NULL_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) | 1ULL))
-#define ERRO_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) - 1))
+#define MAX_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) | 1ULL))
+#define MIN_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) - 1))
+
+#define NULL_VALUE MAX_VALUE
+#define ERRO_VALUE MIN_VALUE
 
 // Define FLOAT_T baseado no tamanho de uintptr_t
 #if UINTPTR_MAX == 0xffffffffffffffffULL
@@ -340,6 +343,55 @@ static inline void dec_ref(SharedPointer* sp) {
     }
 }
 
+
+#define OPERATION_INT_CHECK(op_name, builtin_op) \
+inline void op_name##_int_check(TaggedPointer* tp, intptr_t operand) { \
+    uintptr_t old_raw, new_raw; \
+    do { \
+        old_raw = atomic_load(&tp->raw); \
+        if ((old_raw & TYPE_MASK) != TYPE_INT) return; \
+        uintptr_t stored_value = (old_raw & VALUE_MASK) >> 2; \
+        if (stored_value == NULL_VALUE || stored_value == ERRO_VALUE) return; \
+        intptr_t real_value = (intptr_t)(stored_value << (sizeof(uintptr_t) * 8 - VALUE_BITS)) >> (sizeof(uintptr_t) * 8 - VALUE_BITS); \
+        intptr_t new_real_value; \
+        int overflow = builtin_op(real_value, operand, &new_real_value); \
+        if (overflow || new_real_value <= (intptr_t)NULL_VALUE || new_real_value >= (intptr_t)ERRO_VALUE) { \
+            set_int_erro(tp); return; \
+        } \
+        uintptr_t new_stored_value = (uintptr_t)new_real_value & (VALUE_MASK >> 2); \
+        new_raw = (new_stored_value << 2) | TYPE_INT; \
+    } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw)); \
+}
+
+OPERATION_INT_CHECK(add, __builtin_add_overflow)
+OPERATION_INT_CHECK(sub, __builtin_sub_overflow)
+OPERATION_INT_CHECK(mul, __builtin_mul_overflow)
+
+#define OPERATION_INT_DIV_MOD_CHECK(op_name, op_expr) \
+inline void op_name##_int_check(TaggedPointer* tp, intptr_t operand) { \
+    if (operand == 0) { set_int_erro(tp); return; } \
+    uintptr_t old_raw, new_raw; \
+    do { \
+        old_raw = atomic_load(&tp->raw); \
+        if ((old_raw & TYPE_MASK) != TYPE_INT) return; \
+        uintptr_t stored_value = (old_raw & VALUE_MASK) >> 2; \
+        if (stored_value == NULL_VALUE || stored_value == ERRO_VALUE) return; \
+        intptr_t real_value = (intptr_t)(stored_value << (sizeof(uintptr_t) * 8 - VALUE_BITS)) >> (sizeof(uintptr_t) * 8 - VALUE_BITS); \
+        intptr_t new_real_value = op_expr(real_value, operand); \
+        if (new_real_value <= (intptr_t)NULL_VALUE || new_real_value >= (intptr_t)ERRO_VALUE) { \
+            set_int_erro(tp); return; \
+        } \
+        uintptr_t new_stored_value = (uintptr_t)new_real_value & (VALUE_MASK >> 2); \
+        new_raw = (new_stored_value << 2) | TYPE_INT; \
+    } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw)); \
+}
+
+#define DIV_EXPR(a, b) ((a) / (b))
+#define MOD_EXPR(a, b) ((a) % (b))
+
+OPERATION_INT_DIV_MOD_CHECK(div, DIV_EXPR)
+OPERATION_INT_DIV_MOD_CHECK(mod, MOD_EXPR)
+
 int main() {
     TaggedPointer tp = {0};
 
@@ -394,6 +446,32 @@ int main() {
 
     set_int_erro(&tp);
     printf("Após set_int_erro():\n");
+    print_tp(&tp);
+
+    printf("\n=== Testes com Overflow/Underflow ===\n");
+
+    set_int(&tp, MAX_VALUE - 1);
+    printf("Após set_int(INTPTR_MAX-1):\n");
+    print_tp(&tp);
+
+    add_int_check(&tp, 2);
+    printf("Após add_int_check(2):\n");
+    print_tp(&tp);
+
+    set_int(&tp, MIN_VALUE + 1);
+    printf("Após set_int(INTPTR_MIN-1):\n");
+    print_tp(&tp);
+
+    sub_int_check(&tp, 2);
+    printf("Após sub_int_check(2):\n");
+    print_tp(&tp);
+
+    set_int(&tp, 10);
+    printf("Após set_int(10):\n");
+    print_tp(&tp);
+
+    div_int_check(&tp, 0);
+    printf("Após div_int_check(0):\n");
     print_tp(&tp);
 
     printf("\n=== Testes com Floats ===\n");
