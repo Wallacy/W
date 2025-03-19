@@ -3909,65 +3909,14 @@ Para compilar e usar esta gramática, siga as instruções do Tree-sitter:
 
 ## **Especificação Técnica do W Tagged Pointer**
 
-O **W Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
+O **W Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando sempre **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para outros propósitos como o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
 
 ---
-
-### **Layout Geral**
-
-- **Em 64 bits**:
-  ```
-  +---------------------------------+
-  | 63                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor (62 bits)           | Tipo|
-  +---------------------------+-----+
-  ```
-  ```
-  +-------------------------------------------+
-  | 63              15 | 16           2 | 1 0 |
-  +--------------------+----------------+-----+
-  |Endereço (48* bits) | Tags (14 bits) | Tipo|
-  +--------------------+----------------+-----+
-  * Pode variar de acordo com a plataforma.
-  ```
-
-- **Em 32 bits**:
-  ```
-  +---------------------------+-----+
-  | 31                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor/Endereço (30 bits)  | Tipo|
-  +---------------------------+-----+
-  ```
 
 - **Bits 0-1**: **Tipo** do dado (`00` = `INT`, `01` = `FLOAT`, `10` = `COMPOUND`, `11` = `SHARED`).
-- **Bits 2 até o máximo**: **Valor** ou **Endereço**, dependendo do tipo.
+- **Bits 2 até o máximo**: **Valor**, **Endereço**, **Tags**, **Subtipo**, dependendo do tipo.
 
----
-
-### **Tipos Suportados**
-
-Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
-
-- **`00`**: Inteiro (`TYPE_INT`)
-  - Inteiro assinado.
-  - Usa todos os bits de valor disponíveis (ex.: 62 bits em 64-bit, 30 bits em 32-bit).
-
-- **`01`**: Float (`TYPE_FLOAT`)
-  - Ponto flutuante (representação IEEE 754).
-  - Usa os bits de valor disponíveis, com truncamento em arquiteturas de 32 bits.
-
-- **`10`**: Composto (`TYPE_COMPOUND`)
-  - Ponteiro para um objeto composto (ex.: array, string).
-  - Os bits de valor contêm o endereço do objeto.
-  - Em arquiteturas de 64 bits, se o endereço ocupar menos bits (ex.: 48 bits), os bits restantes podem ser usados como **tags** para informações adicionais (ex.: tamanho).
-
-- **`11`**: Ponteiro Compartilhado (`TYPE_SHARED`)
-  - Similar ao `TYPE_COMPOUND`, mas para gerenciamento de memória compartilhada.
-  - Ponteiro para um objeto compartilhado com contagem de referência.
-
----
+--
 
 ### **Valores Especiais**
 
@@ -3982,7 +3931,7 @@ Para `TYPE_INT` e `TYPE_FLOAT`:
   - Indica estado de erro ou over/underflow.
   - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 xx
 
-Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de endereço `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
+Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de **Endereço** `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
 
 - **`NULL`**:
   - Todos os bits da area reservada para **Endereço** são zero.
@@ -3994,7 +3943,8 @@ Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivament
   - Indica estado de erro ou overflow.
   - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx xx
 
-Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os 64 bits o Tagged Pointer seria desabilitado ou mesmo só limitado para os tipos escalares `INT` e `FLOAT`.
+Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os 64 bits o TaggedPointer não teria suporte a tags ou subtipo. Eventualmente essas informações podem ser armazenadas em uma estrutura intermediaria.
+
 ---
 
 ### **Detalhes por Tipo**
@@ -4008,23 +3958,71 @@ Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os
     - 64 bits: 10000000000000000000000000000000000000000000000000000000000001 00
   - `INT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`.
     - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 00
+ - **Layout Geral**:
+  - 64 bits:
+    ```
+  +---------------------------------+
+  | 63                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor (62 bits)           | 0 0 |
+  +---------------------------+-----+
+  ```
+  - 32 bits:
+    ```
+  +---------------------------+-----+
+  | 31                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor          (30 bits)  | 0 0 |
+  +---------------------------+-----+
+  ```
 
 #### **2. Float (`TYPE_FLOAT`)**
 - **Tag de Tipo**: `01`.
 - **Bits de Valor**: Todos os bits disponíveis.
 - **Interpretação**: Ponto flutuante (IEEE 754) de 32/64 bits, com truncamento nos ultimos 2 bits.
+  - *Em 64 bits*:
+    - *double* IEEE-754 cast to 62 bits.
+    - Sinal: 1 bit (bit 61)
+    - Expoente: 11 bits (bits 60 a 50)
+    - Mantissa: 50 bits (bits 49 a 0)
+      - É feito o cast dos ultimos 2 digitos da mantissa.
+  - *Em 32 bits*:
+    - *float* IEEE-754 cast to 30 bits.
+    - Sinal: 1 bit (bit 29)
+    - Expoente: 8 bits (bits 28 a 21)
+    - Mantissa: 21 bits (bits 20 a 0)
+      - É feito o cast dos ultimos 2 digitos da mantissa.
 - **Valores Especiais**:
   - `FLOAT_NULL`: O primeiro bit é `1` (positivo) e ultimo bit de valor na mantissa também é `1`, e todos os outros bits são `0`.
     - 64 bits: 1 00000000000 00000000000000000000000000000000000000000000000001 00
   - `FLOAT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
     - 64 bits: 0 11111111111 11111111111111111111111111111111111111111111111111 01
+ - **Layout Geral**:
+  - 64 bits:
+    ```
+  +---------------------------------+
+  | 63                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor (62 bits)           | 0 01 |
+  +---------------------------+-----+
+  ```
+  - 32 bits:
+    ```
+  +---------------------------+-----+
+  | 31                      2 | 1 0 |
+  +---------------------------+-----+
+  | Valor (30 bits)           | 0 1 |
+  +---------------------------+-----+
+  ```
 
 #### **3. Composto (`TYPE_COMPOUND`)**
 - **Tag de Tipo**: `10`.
-- **Bits de Endereço**: Endereço do objeto composto.
+- **Bits de Endereço**: Endereço do objeto composto. Diferente dos objetos escalares, ao obter o value de um objeto composto é esperado que seja obtido a referencia desse objeto. (ex: chat* int*)
 - **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
-  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint) do tamanho da tag (uint14 por exemplo)
-  - **Uso das Tags**: Ex.: tamanho do array/string (até 16.383 elementos com 14 bits).
+  - **Sub tipo das Tags**: 2 bits adicionais são separados para representar os subtipos.
+    - `SUBTYPE_STRING`, `SUBTYPE_ARRAY`, `SUBTYPE_ENUM`, `SUBTYPE_CUSTOM`
+  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint16_t) com cast ao tamanho disponivel para a tag. Ex: 'uint12_t'
+  - **Uso das Tags**: Ex.: tamanho do array/string (até 4095 elementos com 12 bits).
 - **Valores Especiais**:
   - `NULL`: Todos os bits de endereço (48bits por exemplo) são `0`, e todos os outros bits são `0`.
     - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx 10
@@ -4033,7 +4031,7 @@ Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os
 
 #### **4. Ponteiro Compartilhado (`TYPE_SHARED`)**
 - **Tag de Tipo**: `11`.
-- **Bits de Endereço**: Endereço do objeto compartilhado .
+- **Bits de Endereço**: Endereço do objeto compartilhado. Assim como o TYPE_COMPOUND, a intenção é representar objetos mais complexos. Porem nesse caso o apontamento a inteção é o uso em objetos referenciados em multiplos contextos.
 - **Contagem de Referência**: Armazenada no objeto apontado ou nas tags adicionais.
 - **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
   - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint) do tamanho da tag (uint14 por exemplo)
