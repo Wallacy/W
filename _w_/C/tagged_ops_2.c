@@ -220,11 +220,12 @@ static inline void op_name##_float(TaggedPointer* tp, FLOAT_T operand) { \
     } else { \
         uintptr_t raw = get_raw(tp); \
         if ((raw & TYPE_MASK) != TYPE_FLOAT) return; \
-        FLOAT_T value; \
-        memcpy(&value, &(uintptr_t){raw >> 2}, sizeof(FLOAT_T)); \
-        if (value == (FLOAT_T)NULL_VALUE || value == (FLOAT_T)ERRO_VALUE) return; \
-        value op##= operand; \
-        set_float(tp, value); \
+        uintptr_t value = ((raw >> 2) << 2); \
+        FLOAT_T fvalue; \
+        memcpy(&fvalue, &value, sizeof(FLOAT_T)); \
+        if (value == NULL_VALUE || value == ERRO_VALUE) return; \
+        fvalue op##= operand; \
+        set_float(tp, fvalue); \
     } \
 }
 
