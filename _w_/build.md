@@ -16,7 +16,9 @@ Profiles: Debug | Release | ReleaseFast | ReleaseSmall
 
 -Ofast = -O3 -ffast-math
 
-//zig cc -std=c23 -s -O3 -flto -fPIC -fPIE -ffast-math -Wl,-z,relro ./file.c
+Como quero evitar -ffast-math só -O3 mesmo.
+
+//zig cc -std=c23 -s -O3 -flto -fPIC -fPIE -Wl,-z,relro ./file.c
 
 -Wl,-z,relro
 A opção -Wl passa argumentos diretamente para o linker. O -z,relro ativa a proteção de leitura apenas em certas seções do binário, o que pode ajudar a melhorar a segurança. Isso impede a modificação de partes do binário após o carregamento, dificultando ataques de escrita no binário.
