@@ -56,6 +56,11 @@ typedef union TaggedPointer {
     _Atomic uintptr_t raw;
 } TaggedPointer;
 
+typedef struct {
+    _Atomic uintptr_t ref_count;
+    TaggedPointer address;
+} SharedPointer;
+
 void print_tp(TaggedPointer* tp) {
     uintptr_t raw = atomic_load(&tp->raw);
     uintptr_t type = raw & TYPE_MASK;
@@ -321,11 +326,6 @@ static inline void inc_tags(TaggedPointer* tp) {
         new_raw = (old_raw & ~TAG_MASK) | (tags << (ADDRESS_BITS + 2));
     } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw));
 }
-
-typedef struct {
-    _Atomic uintptr_t ref_count;
-    TaggedPointer address;
-} SharedPointer;
 
 static inline void set_compound(TaggedPointer* tp, void* ptr, uintptr_t tags) {
     uintptr_t addr = (uintptr_t)ptr & ADDRESS_MASK;

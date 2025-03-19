@@ -7,19 +7,20 @@
 #define ADDRESS_BITS 48
 #endif
 
-#define VALUE_BITS (sizeof(uintptr_t) * 8 - 2)
+#define TYPE_BITS 2
 #define SUBTYPE_BITS 2
-#define TAG_VALUE_BITS (sizeof(uintptr_t) * 8 - ADDRESS_BITS - SUBTYPE_BITS - 2)
-#define TAG_BITS (sizeof(uintptr_t) * 8 - ADDRESS_BITS - 2)
+#define VALUE_BITS (sizeof(uintptr_t) * 8 - TYPE_BITS)
+#define TAG_VALUE_BITS (sizeof(uintptr_t) * 8 - ADDRESS_BITS - SUBTYPE_BITS - TYPE_BITS)
+#define TAG_BITS (sizeof(uintptr_t) * 8 - ADDRESS_BITS - TYPE_BITS)
 
 #define TYPE_MASK 0x3ULL
-#define VALUE_MASK (((1ULL << VALUE_BITS) - 1) << 2)
-#define ADDRESS_MASK (((1ULL << ADDRESS_BITS) - 1) << 2)
+#define VALUE_MASK (((1ULL << VALUE_BITS) - 1) << TYPE_BITS)
+#define ADDRESS_MASK (((1ULL << ADDRESS_BITS) - 1) << TYPE_BITS)
 
 #define TYPE_INT 0x0
 #define TYPE_FLOAT 0x1
 #define TYPE_COMPOUND 0x2
-#define TYPE_CUSTOM 0x3
+#define TYPE_SHARED 0x3
 
 #define SUBTYPE_STRING 0x0
 #define SUBTYPE_ARRAY 0x1
@@ -56,16 +57,29 @@ typedef union TaggedPointer {
     } scalar;
     struct {
         uintptr_t address : ADDRESS_BITS;
-        uintptr_t tags : TAG_VALUE_BITS;
-        uintptr_t subtype : SUBTYPE_BITS;
+        uint16_t tags : TAG_VALUE_BITS;
+        uint8_t subtype : SUBTYPE_BITS;
         uint8_t type : 2;
     } compound;
     struct {
         uintptr_t address : ADDRESS_BITS;
-        uintptr_t tags : TAG_BITS;
+        uint16_t tags : TAG_BITS;
         uint8_t type : 2;
     } custom;
 } TaggedPointer;
+
+void print_bits(void* x) {
+    uintptr_t bits;
+    memcpy(&bits, x, sizeof(uintptr_t));
+    int total_bits = sizeof(uintptr_t) * 8;
+    for (int i = total_bits - 1; i >= 0; i--) {
+        uint8_t b = (bits >> i) & 1;
+        b ? printf(grn) : printf(DEF);
+        printf("%u", b);
+        if (i == total_bits - 1 || (total_bits == 64 && i == 52) || i == 2) printf("    ");
+    }
+    printf(DEF"\n");
+}
 
 static inline uintptr_t get_raw(const TaggedPointer* tp) {
     return IS_ATOMIC ? atomic_load(&tp->raw) : tp->raw;
@@ -83,7 +97,7 @@ static inline void set_int(TaggedPointer* tp, intptr_t value) {
 static inline void set_float(TaggedPointer* tp, FLOAT_T value) {
     uintptr_t raw;
     memcpy(&raw, &value, sizeof(FLOAT_T));
-    set_raw(tp, (raw << 2) | TYPE_FLOAT);
+    set_raw(tp, (raw | TYPE_FLOAT));
 }
 
 static inline void set_int_null(TaggedPointer* tp) {
@@ -104,6 +118,37 @@ static inline void set_float_erro(TaggedPointer* tp) {
     set_raw(tp, raw);
 }
 
+void print_tp(TaggedPointer* tp) {
+    uintptr_t raw = get_raw(tp);
+    uint8_t type = raw & TYPE_MASK;
+    printf("raw: 0x%016lx, ", raw);
+    if (type == TYPE_INT) {
+        intptr_t ivalue = (raw  >> 2); \
+        if (ivalue == NULL_VALUE) printf("type: int, value: "blu"NULL"DEF"\n");
+        else if (ivalue == ERRO_VALUE) printf("type: int, value: "red"ERRO"DEF"\n");
+        else printf("type: int, value: %ld\n", ivalue);
+    } else if (type == TYPE_FLOAT) {
+        uintptr_t uvalue = ((raw  >> 2) << 2);
+        FLOAT_T fvalue;
+        memcpy(&fvalue, &uvalue, sizeof(FLOAT_T));
+        if (uvalue == NULL_VALUE << 2) printf("type: float, value: "blu"NULL"DEF"\n");
+        else if (uvalue == ERRO_VALUE << 2) printf("type: float, value: "red"ERRO"DEF"\n");
+        else printf("type: float, value: %.2f\n", fvalue);
+    } else if (type == TYPE_COMPOUND) {
+        const char* subtype_str = (tp->compound.subtype == SUBTYPE_STRING) ? "string" :
+                                  (tp->compound.subtype == SUBTYPE_ARRAY) ? "array" :
+                                  (tp->compound.subtype == SUBTYPE_ENUM) ? "enum" : "custom";
+        printf("type: compound, subtype: %s, address: 0x%lx, tags: %d\n",
+               subtype_str, tp->compound.address, tp->compound.tags);
+    } else {
+        printf("type: custom, address: 0x%lx, tags: %d\n",
+               tp->custom.address, tp->custom.tags);
+    }
+    printf("%d bits: ", (int)(sizeof(uintptr_t) * 8));
+    print_bits(&raw);
+    printf("\n");
+}
+
 #define OPERATION_INT(op_name, op, builtin_op) \
 static inline void op_name##_int(TaggedPointer* tp, intptr_t operand) { \
     if (IS_ATOMIC) { \
@@ -119,12 +164,12 @@ static inline void op_name##_int(TaggedPointer* tp, intptr_t operand) { \
             } else { \
                 new_value = value op operand; \
             } \
-            new_raw = ((uintptr_t)new_value << 2) | TYPE_INT; \
+            new_raw = (new_value << 2) | TYPE_INT; \
         } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw)); \
     } else { \
         uintptr_t raw = get_raw(tp); \
         if ((raw & TYPE_MASK) != TYPE_INT) return; \
-        intptr_t value = (intptr_t)(raw >> 2); \
+        uintptr_t value = raw >> 2; \
         if (value == NULL_VALUE || value == ERRO_VALUE) return; \
         if (CHECK_OVERFLOW) { \
             intptr_t new_value; \
@@ -163,13 +208,14 @@ static inline void op_name##_float(TaggedPointer* tp, FLOAT_T operand) { \
         do { \
             old_raw = get_raw(tp); \
             if ((old_raw & TYPE_MASK) != TYPE_FLOAT) return; \
-            FLOAT_T value; \
-            memcpy(&value, &(uintptr_t){old_raw >> 2}, sizeof(FLOAT_T)); \
-            if (value == (FLOAT_T)NULL_VALUE || value == (FLOAT_T)ERRO_VALUE) return; \
-            value op##= operand; \
+            uintptr_t value = ((old_raw >> 2) << 2); \
+            if (value == NULL_VALUE || value == ERRO_VALUE) return; \
+            FLOAT_T fvalue; \
+            memcpy(&fvalue, &value, sizeof(FLOAT_T)); \
+            FLOAT_T new_fvalue = fvalue op operand; \
             uintptr_t new_value; \
-            memcpy(&new_value, &value, sizeof(FLOAT_T)); \
-            new_raw = (new_value << 2) | TYPE_FLOAT; \
+            memcpy(&new_value, &new_fvalue, sizeof(FLOAT_T)); \
+            new_raw = new_value | TYPE_FLOAT; \
         } while (!atomic_compare_exchange_strong(&tp->raw, &old_raw, new_raw)); \
     } else { \
         uintptr_t raw = get_raw(tp); \
@@ -191,49 +237,6 @@ static inline void inc_int(TaggedPointer* tp) { add_int(tp, 1); }
 static inline void dec_int(TaggedPointer* tp) { sub_int(tp, 1); }
 static inline void inc_float(TaggedPointer* tp) { add_float(tp, 1.0); }
 static inline void dec_float(TaggedPointer* tp) { sub_float(tp, 1.0); }
-
-void print_bits(void* x) {
-    uintptr_t bits;
-    memcpy(&bits, x, sizeof(uintptr_t));
-    int total_bits = sizeof(uintptr_t) * 8;
-    for (int i = total_bits - 1; i >= 0; i--) {
-        uint8_t b = (bits >> i) & 1;
-        b ? printf(grn) : printf(DEF);
-        printf("%u", b);
-        if (i == total_bits - 1 || (total_bits == 64 && i == 52) || i == 2) printf("    ");
-    }
-    printf(DEF"\n");
-}
-
-void print_tp(TaggedPointer* tp) {
-    uintptr_t raw = get_raw(tp);
-    uint8_t type = raw & TYPE_MASK;
-    printf("raw: 0x%016lx, ", raw);
-    intptr_t ivalue = (intptr_t)(raw >> 2);
-    if (type == TYPE_INT) {
-        if (ivalue == NULL_VALUE) printf("type: int, value: "blu"NULL"DEF"\n");
-        else if (ivalue == ERRO_VALUE) printf("type: int, value: "red"ERRO"DEF"\n");
-        else printf("type: int, value: %ld\n", ivalue);
-    } else if (type == TYPE_FLOAT) {
-        FLOAT_T fvalue;
-        memcpy(&fvalue, &(uintptr_t){raw >> 2}, sizeof(FLOAT_T));
-        if (ivalue == NULL_VALUE) printf("type: float, value: "blu"NULL"DEF"\n");
-        else if (ivalue == ERRO_VALUE) printf("type: float, value: "red"ERRO"DEF"\n");
-        else printf("type: float, value: %.2f\n", fvalue);
-    } else if (type == TYPE_COMPOUND) {
-        const char* subtype_str = (tp->compound.subtype == SUBTYPE_STRING) ? "string" :
-                                  (tp->compound.subtype == SUBTYPE_ARRAY) ? "array" :
-                                  (tp->compound.subtype == SUBTYPE_ENUM) ? "enum" : "custom";
-        printf("type: compound, subtype: %s, address: 0x%lx, tags: %d\n",
-               subtype_str, tp->compound.address, tp->compound.tags);
-    } else {
-        printf("type: custom, address: 0x%lx, tags: %d\n",
-               tp->custom.address, tp->custom.tags);
-    }
-    printf("%d bits: ", (int)(sizeof(uintptr_t) * 8));
-    print_bits(&raw);
-    printf("\n");
-}
 
 int main() {
     TaggedPointer tp = {0};
