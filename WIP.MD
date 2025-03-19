@@ -3923,18 +3923,26 @@ O **W Tagged Pointer** é uma estrutura de dados eficiente que armazena diferent
   | Valor (62 bits)           | Tipo|
   +---------------------------+-----+
   ```
+  ```
+  +-------------------------------------------+
+  | 63              15 | 16           2 | 1 0 |
+  +--------------------+----------------+-----+
+  |Endereço (48* bits) | Tags (14 bits) | Tipo|
+  +--------------------+----------------+-----+
+  * Pode variar de acordo com a plataforma.
+  ```
 
 - **Em 32 bits**:
   ```
   +---------------------------+-----+
   | 31                      2 | 1 0 |
   +---------------------------+-----+
-  | Valor (30 bits)           | Tipo|
+  | Valor/Endereço (30 bits)  | Tipo|
   +---------------------------+-----+
   ```
 
 - **Bits 0-1**: **Tipo** do dado (`00` = `INT`, `01` = `FLOAT`, `10` = `COMPOUND`, `11` = `SHARED`).
-- **Bits 2 até o máximo**: **Valor** ou **endereço**, dependendo do tipo.
+- **Bits 2 até o máximo**: **Valor** ou **Endereço**, dependendo do tipo.
 
 ---
 
@@ -3956,25 +3964,37 @@ Os 2 bits de tipo (`bits 0-1`) definem o tipo do dado armazenado:
   - Em arquiteturas de 64 bits, se o endereço ocupar menos bits (ex.: 48 bits), os bits restantes podem ser usados como **tags** para informações adicionais (ex.: tamanho).
 
 - **`11`**: Ponteiro Compartilhado (`TYPE_SHARED`)
-  - Ponteiro para um objeto compartilhado com contagem de referência.
   - Similar ao `TYPE_COMPOUND`, mas para gerenciamento de memória compartilhada.
+  - Ponteiro para um objeto compartilhado com contagem de referência.
 
 ---
 
 ### **Valores Especiais**
 
+Para `TYPE_INT` e `TYPE_FLOAT`:
 - **`NULL`**:
-  - Menor valor negativo representavel possivel para os 62 bits restantes. (no caso de tipo escalar em 64 bits)
+  - Menor valor negativo representavel possivel para os bits de value. (62 bits restantes no caso de tipo escalar em 64 bits)
   - Indica ausência de valor ou erro específico.
-  - 62 bits: 10000000000000000000000000000000000000000000000000000000000001
+  - 64 bits: 10000000000000000000000000000000000000000000000000000000000001 xx
+
+- **`ERRO`**:
+  - Maior valor positivo representavel possivel para os bits de value.
+  - Indica estado de erro ou over/underflow.
+  - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 xx
+
+Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de endereço `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
+
+- **`NULL`**:
+  - Todos os bits da area reservada para **Endereço** são zero.
+  - Indica ausência de valor ou erro específico.
+  - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx xx
 
 - **`ERRO`**:
   - Maior valor positivo possivel para os 62 bits restantes. (no caso de tipo escalar em 64 bits)
   - Indica estado de erro ou overflow.
-  - 62 bits: 01111111111111111111111111111111111111111111111111111111111111
+  - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx xx
 
-Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de endereço `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
-
+Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os 64 bits o Tagged Pointer seria desabilitado ou mesmo só limitado para os tipos escalares `INT` e `FLOAT`.
 ---
 
 ### **Detalhes por Tipo**
@@ -3984,51 +4004,52 @@ Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivament
 - **Bits de Valor**: Todos os bits disponíveis.
 - **Interpretação**: Inteiro assinado.
 - **Valores Especiais**:
-  - `INT_NULL`: Todos os bits de valor `0`.
-  - `INT_ERRO`: Todos os bits de valor `1`.
+  - `INT_NULL`: O primeiro bit é `1` (positivo) e ultimo bit de valor também é `1`, e todos os outros bits são `0`.
+    - 64 bits: 10000000000000000000000000000000000000000000000000000000000001 00
+  - `INT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`.
+    - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 00
 
 #### **2. Float (`TYPE_FLOAT`)**
 - **Tag de Tipo**: `01`.
 - **Bits de Valor**: Todos os bits disponíveis.
-- **Interpretação**: Ponto flutuante (IEEE 754), com truncamento em 32 bits.
+- **Interpretação**: Ponto flutuante (IEEE 754) de 32/64 bits, com truncamento nos ultimos 2 bits.
 - **Valores Especiais**:
-  - `FLOAT_NULL`: Todos os bits de valor `0`.
-  - `FLOAT_ERRO`: Todos os bits de valor `1`.
+  - `FLOAT_NULL`: O primeiro bit é `1` (positivo) e ultimo bit de valor na mantissa também é `1`, e todos os outros bits são `0`.
+    - 64 bits: 1 00000000000 00000000000000000000000000000000000000000000000001 00
+  - `FLOAT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
+    - 64 bits: 0 11111111111 11111111111111111111111111111111111111111111111111 01
 
 #### **3. Composto (`TYPE_COMPOUND`)**
 - **Tag de Tipo**: `10`.
 - **Bits de Endereço**: Endereço do objeto composto.
 - **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
-  - **Exemplo em 64 bits com endereços de 48 bits**:
-    ```
-    +------------------------------------------+
-    | 63         50 | 49               2 | 1 0 |
-    +---------------+--------------------+-----+
-    | Tags (14 bits)| Endereço (48 bits) | 10  |
-    +---------------+--------------------+-----+
-    ```
+  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint) do tamanho da tag (uint14 por exemplo)
   - **Uso das Tags**: Ex.: tamanho do array/string (até 16.383 elementos com 14 bits).
+- **Valores Especiais**:
+  - `NULL`: Todos os bits de endereço (48bits por exemplo) são `0`, e todos os outros bits são `0`.
+    - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx 10
+  - `ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
+    - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx 10
 
 #### **4. Ponteiro Compartilhado (`TYPE_SHARED`)**
 - **Tag de Tipo**: `11`.
-- **Bits de Endereço**: Endereço do objeto compartilhado.
-- **Contagem de Referência**: Armazenada no objeto apontado ou em tags adicionais.
+- **Bits de Endereço**: Endereço do objeto compartilhado .
+- **Contagem de Referência**: Armazenada no objeto apontado ou nas tags adicionais.
+- **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
+  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint) do tamanho da tag (uint14 por exemplo)
+  - **Uso das Tags**:  Contagem de referencias até 16.383 apontamentos.
+- **Valores Especiais**:
+  - `NULL`: Todos os bits de endereço (48bits por exemplo) são `0`, e todos os outros bits são `0`.
+    - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx 11
+  - `ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
+    - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx 11
 
 ---
 
 ### **Portabilidade**
 
-- **32 bits**: 30 bits de valor, com suporte a inteiros e floats truncados.
-- **64 bits**: 62 bits de valor, permitindo maior precisão e endereços maiores.
-
----
-
-### **Considerações**
-
-- **Inteiros**: Suporte a valores assinados com extensão de sinal.
-- **Floats**: Precisão limitada em 32 bits devido ao truncamento.
-- **Compostos**: Tags adicionais são opcionais e dependem da arquitetura.
-- **Compartilhados**: Contagem de referência pode variar na implementação.
+- **32 bits**: 30 bits de valor, com suporte a inteiros e floats truncados. Em 32 bits é feito o truncamento da mantissa tipo "float" de 32 bits para 30. Não há suporte a tags.
+- **64 bits**: 62 bits de valor, permitindo maior precisão e endereços maiores. Em 64 bits é feito o truncamento da mantissa tipo "double" de 64 bits para 62.
 
 ---
 
