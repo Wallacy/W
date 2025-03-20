@@ -20,12 +20,12 @@
 #define TYPE_INT 0x0
 #define TYPE_FLOAT 0x1
 #define TYPE_COMPOUND 0x2
-#define TYPE_SHARED 0x3
+#define TYPE_CUSTOM 0x3
 
 #define SUBTYPE_STRING 0x0
 #define SUBTYPE_ARRAY 0x1
 #define SUBTYPE_ENUM 0x2
-#define SUBTYPE_CUSTOM 0x3
+#define SUBTYPE_SHARED 0x3
 
 // Valores especiais
 #define MAX_VALUE ((uintptr_t)((1ULL << (VALUE_BITS - 1)) | 1ULL))
@@ -46,6 +46,9 @@
 #define DEF "\e[0m"
 
 // Flags globais para controle em tempo de execução
+
+// IS_ATOMIC: Habilita operações atômicas para thread-safety (padrão: 1, desativado com NO_ATOMIC)
+// CHECK_OVERFLOW: Verifica overflow em operações com inteiros (padrão: 1, desativado com NO_OVERFLOW_CHECK)
 
 #if defined(NO_ATOMIC)
 #define IS_ATOMIC 0
