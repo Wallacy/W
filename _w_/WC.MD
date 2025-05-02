@@ -74,7 +74,7 @@ Nesse caso o clang é até melhor, por pouco, mas o -fwhole-program pode ser exe
 Por padrão os códigos são criados via static library, mas podem ser usados como dynamic. Idealmente os dois são exportados.
 
 // Já ia me esquecendo, coisa antiga mas implementação basica de corrotina em C: https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
-// Aqui também em produção: https://github.com/github/putty/blob/master/sshcr.h
+// Aqui também em produção: https://github.com/github/phttps://www.chiark.greenend.org.uk/~sgtatham/coroutines.htmlutty/blob/master/sshcr.h
 
 // C VERSION
 
