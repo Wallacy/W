@@ -3961,5 +3961,39 @@ Main, Background, Network, IO, UX.
 
 Onde UX é o ideal para interagir com STDIN/STOUT, como printf/scanf....
 
+Cada modulo poderia ter sua "thread/queue" default. Eles só estariam em outra por padrão se for explicito essa declaração. Dessa forma o "myLib" vai executar na thread "myLib" em qualquer operação async nessa lib por padrão.
 
+O que pretendo:
 
+Concorrência com async/await:
+Use async para definir funções assíncronas que podem ser suspensas sem bloquear a execução.
+Use await para pausar a execução até que uma operação (como IO ou timer) esteja concluída.
+Ideal para tarefas que esperam por eventos externos, como leituras de socket ou respostas de API.
+
+Ex:
+async function fetchData() {
+    let data = await api.get("/data");
+    console.log("Dados recebidos:", data);
+    return data;
+}
+
+Paralelismo com spawn/await:
+Use spawn para criar uma tarefa que roda em paralelo, aproveitando múltiplos núcleos da CPU.
+Use await para esperar o resultado dessa tarefa, se necessário.
+Perfeito para computações pesadas ou operações que não devem interferir na thread principal.
+Ex:
+async function processHeavyTask() {
+    let result = await spawn computeIntensiveJob(1000);
+    console.log("Resultado:", result);
+}
+
+Você escreve código como se fosse sequencial, mas a linguagem decide automaticamente quando suspender tarefas ou criar threads.
+Tarefas assíncronas (async/await) rodam em uma estrutura eficiente (como uma fila de tarefas), enquanto tarefas paralelas (spawn) usam threads reais para desempenho máximo.
+Não há necessidade de locks ou sincronização manual – a linguagem abstrai isso para você.
+Ex:
+async function main() {
+    let dataTask = fetchData();           // Concorrência: espera IO
+    let computeTask = spawn heavyCalc();  // Paralelismo: roda em outra thread
+    let [data, result] = await [dataTask, computeTask];
+    console.log("Data:", data, "Result:", result);
+}
