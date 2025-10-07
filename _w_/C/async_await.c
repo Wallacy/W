@@ -5,188 +5,78 @@
 #include <unistd.h>
 #include <stdio.h>
 
-// Configurações padrão
-#ifndef MODEL
-#define MODEL 1 // 1: Corrotinas, 2: Thread Pool
-#endif
-#ifndef USE_COROUTINES
-#define USE_COROUTINES 1 // Apenas para Modelo 1 (1: corrotinas, 0: enfileiramento)
-#endif
-
-// Estruturas
+// Estrutura de uma tarefa
 typedef struct Task
 {
-    void (*function)(void *, void (*)(void *)); // Função da tarefa
-    void *args;                                 // Argumentos
-    struct Task *next;                          // Próxima tarefa
+    void (*function)(void *); // Função da tarefa
+    void *args;               // Argumentos
+    struct Task *next;        // Próxima tarefa
 } Task;
 
+// Fila de tarefas lock-free
 typedef struct
 {
-    Task *head;                // Cabeça da fila
-    Task *tail;                // Cauda da fila
-    pthread_mutex_t mutex;     // Proteção da fila
-    _Atomic int tasks_pending; // Contador de tarefas pendentes
+    _Atomic(Task *) head;  // Cabeça da fila
+    _Atomic(Task *) tail;  // Cauda da fila
+    atomic_flag has_tasks; // Sinalização de novas tarefas
 } TaskQueue;
 
+// Estrutura do módulo
 typedef struct
 {
-    jmp_buf context;                        // Contexto da corrotina
-    int state;                              // 0: inicial, 1: rodando, 2: pausado, 3: concluído
-    void (*func)(void *, void (*)(void *)); // Função da corrotina
-    void *args;                             // Argumentos
-    void (*handler)(void *);                // Completion handler
-} Coroutine;
-
-typedef struct
-{
-    TaskQueue *queue;    // Fila de tarefas
+    TaskQueue *queue;    // Fila de tarefas do módulo
+    pthread_t thread;    // Thread do módulo
     _Atomic int running; // Estado de execução
 } Module;
 
-// Funções da fila
+// Estrutura da corrotina (para Módulo A)
+typedef struct
+{
+    jmp_buf context;      // Contexto da corrotina
+    int state;            // 0: inicial, 1: rodando, 2: pausado, 3: concluído
+    void (*func)(void *); // Função da corrotina
+    void *args;           // Argumentos
+} Coroutine;
+
+// Inicializa a fila de tarefas
 void init_queue(TaskQueue *queue)
 {
-    queue->head = NULL;
-    queue->tail = NULL;
-    pthread_mutex_init(&queue->mutex, NULL);
-    atomic_store(&queue->tasks_pending, 0);
+    atomic_store(&queue->head, NULL);
+    atomic_store(&queue->tail, NULL);
+    atomic_flag_clear(&queue->has_tasks);
 }
 
+// Adiciona uma tarefa à fila (lock-free)
 void add_task(TaskQueue *queue, Task *task)
 {
     task->next = NULL;
-    pthread_mutex_lock(&queue->mutex);
-    if (!queue->head)
+    Task *tail = atomic_load(&queue->tail);
+    if (!tail)
     {
-        queue->head = task;
-        queue->tail = task;
+        atomic_store(&queue->head, task);
+        atomic_store(&queue->tail, task);
     }
     else
     {
-        queue->tail->next = task;
-        queue->tail = task;
+        tail->next = task;
+        atomic_store(&queue->tail, task);
     }
-    atomic_fetch_add(&queue->tasks_pending, 1);
-    pthread_mutex_unlock(&queue->mutex);
+    atomic_flag_test_and_set(&queue->has_tasks);
 }
 
+// Remove uma tarefa da fila
 Task *get_task(TaskQueue *queue)
 {
-    pthread_mutex_lock(&queue->mutex);
-    if (!queue->head)
-    {
-        pthread_mutex_unlock(&queue->mutex);
+    Task *head = atomic_load(&queue->head);
+    if (!head)
         return NULL;
-    }
-    Task *task = queue->head;
-    queue->head = task->next;
-    if (!queue->head)
-        queue->tail = NULL;
-    atomic_fetch_sub(&queue->tasks_pending, 1);
-    pthread_mutex_unlock(&queue->mutex);
-    return task;
-}
-void yield(Coroutine *co);
-void socket_task_step2(void *args, void (*handler)(void *));
-void socket_task_step3(void *args, void (*handler)(void *));
-void socket_task_step4(void *args, void (*handler)(void *));
-void async_task(void *args, void (*handler)(void *));
-void compute_task(void *args, void (*handler)(void *));
-void socket_task(void *args, void (*handler)(void *));
-
-// Tarefas
-void socket_task(void *args, void (*handler)(void *))
-{
-#if MODEL == 1 && USE_COROUTINES
-    Coroutine *co = (Coroutine *)args;
-    printf("Abrindo socket...\n");
-    yield(co);
-    printf("Enviando mensagem...\n");
-    yield(co);
-    printf("Recebendo resposta...\n");
-    yield(co);
-    printf("Socket fechado\n");
-#else
-    Module *mod = (Module *)args;
-    printf("Abrindo socket...\n");
-    Task *step2 = malloc(sizeof(Task));
-    step2->function = socket_task_step2;
-    step2->args = mod;
-    add_task(mod->queue, step2);
-    return;
-#endif
-    if (handler)
-        handler("resposta recebida");
+    atomic_store(&queue->head, head->next);
+    if (!head->next)
+        atomic_store(&queue->tail, NULL);
+    return head;
 }
 
-#if MODEL == 1 && !USE_COROUTINES || MODEL == 2
-void socket_task_step2(void *args, void (*handler)(void *))
-{
-    Module *mod = (Module *)args;
-    printf("Enviando mensagem...\n");
-    Task *step3 = malloc(sizeof(Task));
-    step3->function = socket_task_step3;
-    step3->args = mod;
-    add_task(mod->queue, step3);
-}
-
-void socket_task_step3(void *args, void (*handler)(void *))
-{
-    Module *mod = (Module *)args;
-    printf("Recebendo resposta...\n");
-    Task *step4 = malloc(sizeof(Task));
-    step4->function = socket_task_step4;
-    step4->args = mod;
-    add_task(mod->queue, step4);
-}
-
-void socket_task_step4(void *args, void (*handler)(void *))
-{
-    printf("Socket fechado\n");
-    if (handler)
-        handler("resposta recebida");
-}
-#endif
-
-void async_task(void *args, void (*handler)(void *))
-{
-#if MODEL == 1 && USE_COROUTINES
-    Coroutine *co = (Coroutine *)args;
-    printf("Iniciando tarefa assíncrona\n");
-    yield(co);
-    printf("Tarefa assíncrona concluída\n");
-#else
-    printf("Iniciando tarefa assíncrona\n");
-    sleep(1); // Simulação de trabalho
-    printf("Tarefa assíncrona concluída\n");
-#endif
-    if (handler)
-        handler("resultado simples");
-}
-
-void compute_task(void *args, void (*handler)(void *))
-{
-#if MODEL == 1 && USE_COROUTINES
-    Coroutine *co = (Coroutine *)args;
-    printf("Iniciando computação pesada...\n");
-    yield(co);
-    printf("Processando dados...\n");
-    yield(co);
-    printf("Computação concluída\n");
-#else
-    printf("Iniciando computação pesada...\n");
-    sleep(1); // Simulação de trabalho
-    printf("Processando dados...\n");
-    sleep(1); // Simulação de trabalho
-    printf("Computação concluída\n");
-#endif
-    if (handler)
-        handler("resultado computado");
-}
-
-// Corrotinas
-#if MODEL == 1 && USE_COROUTINES
+// Função de yield para corrotinas (Módulo A)
 void yield(Coroutine *co)
 {
     if (co->state == 1)
@@ -197,12 +87,13 @@ void yield(Coroutine *co)
     }
 }
 
+// Executa uma corrotina (Módulo A)
 void run_coroutine(Coroutine *co)
 {
     if (co->state == 0)
     {
         co->state = 1;
-        co->func(co, co->handler);
+        co->func(co);
         co->state = 3;
     }
     else if (co->state == 2)
@@ -211,36 +102,44 @@ void run_coroutine(Coroutine *co)
         longjmp(co->context, 1);
     }
 }
-#endif
 
-// Modelo 1: Thread principal com corrotinas ou enfileiramento
-#if MODEL == 1
-void *module_thread(void *arg)
+// Tarefa async para Módulo A
+void async_task(void *args)
+{
+    Coroutine *co = (Coroutine *)args;
+    printf("Módulo A: Iniciando tarefa async\n");
+    yield(co);
+    printf("Módulo A: Tarefa async concluída\n");
+}
+
+// Tarefa spawn para Módulo B
+void spawn_task(void *args)
+{
+    printf("Módulo B: Executando tarefa spawnada\n");
+    sleep(1); // Simula trabalho paralelo
+    printf("Módulo B: Tarefa spawnada concluída\n");
+}
+
+// Thread do Módulo A (com corrotinas)
+void *module_a_thread(void *arg)
 {
     Module *mod = (Module *)arg;
     TaskQueue *queue = mod->queue;
-#if USE_COROUTINES
     Coroutine coroutines[10];
     int co_count = 0;
-#endif
-    while (atomic_load(&mod->running) || atomic_load(&queue->tasks_pending) > 0)
+
+    while (atomic_load(&mod->running))
     {
         Task *task = get_task(queue);
         if (task)
         {
-#if USE_COROUTINES
             Coroutine *co = &coroutines[co_count++];
             co->func = task->function;
             co->args = co;
-            co->handler = NULL;
             co->state = 0;
             run_coroutine(co);
-#else
-            task->function(mod, NULL);
-#endif
             free(task);
         }
-#if USE_COROUTINES
         int active = 0;
         for (int i = 0; i < co_count; i++)
         {
@@ -250,85 +149,76 @@ void *module_thread(void *arg)
                 active++;
             }
         }
-        if (!active && !atomic_load(&queue->tasks_pending))
-            break;
-#endif
-        sched_yield();
+        if (!active && !atomic_flag_test_and_set(&queue->has_tasks))
+        {
+            sched_yield();
+        }
     }
     return NULL;
 }
-#endif
 
-// Modelo 2: Thread pool
-#if MODEL == 2
-#define MAX_THREADS 4
-void *worker_thread(void *arg)
+// Thread do Módulo B (sem corrotinas)
+void *module_b_thread(void *arg)
 {
     Module *mod = (Module *)arg;
     TaskQueue *queue = mod->queue;
-    while (atomic_load(&mod->running) || atomic_load(&queue->tasks_pending) > 0)
+
+    while (atomic_load(&mod->running))
     {
         Task *task = get_task(queue);
         if (task)
         {
-            task->function(mod, NULL);
+            task->function(task->args);
             free(task);
         }
-        sched_yield();
+        else if (!atomic_flag_test_and_set(&queue->has_tasks))
+        {
+            sched_yield();
+        }
     }
     return NULL;
 }
 
-void start_module(Module *mod)
+// Função para spawnar uma tarefa em outro módulo
+void spawn_task_to_module(TaskQueue *target_queue, void (*func)(void *), void *args)
 {
-    atomic_store(&mod->running, 1);
-    pthread_t threads[MAX_THREADS];
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-        pthread_create(&threads[i], NULL, worker_thread, mod);
-    }
-    for (int i = 0; i < MAX_THREADS; i++)
-    {
-        pthread_join(threads[i], NULL);
-    }
+    Task *task = malloc(sizeof(Task));
+    task->function = func;
+    task->args = args;
+    add_task(target_queue, task);
 }
-#endif
 
 int main()
 {
-    TaskQueue queue;
-    init_queue(&queue);
-    Module mod = {&queue, 0};
+    // Inicializa os módulos
+    TaskQueue queue_a, queue_b;
+    init_queue(&queue_a);
+    init_queue(&queue_b);
+    Module mod_a = {&queue_a, 0, ATOMIC_VAR_INIT(1)};
+    Module mod_b = {&queue_b, 0, ATOMIC_VAR_INIT(1)};
 
-#if MODEL == 1
-    atomic_store(&mod.running, 1);
-    pthread_t thread;
-    pthread_create(&thread, NULL, module_thread, &mod);
-#else
-    start_module(&mod);
-#endif
+    // Cria as threads dos módulos
+    pthread_create(&mod_a.thread, NULL, module_a_thread, &mod_a);
+    pthread_create(&mod_b.thread, NULL, module_b_thread, &mod_b);
 
-    // Enfileira tarefas
-    Task *task1 = malloc(sizeof(Task));
-    task1->function = socket_task;
-    task1->args = &mod;
-    add_task(&queue, task1);
+    // Adiciona uma tarefa async ao Módulo A
+    Task *task_async = malloc(sizeof(Task));
+    task_async->function = async_task;
+    task_async->args = NULL;
+    add_task(&queue_a, task_async);
 
-    Task *task2 = malloc(sizeof(Task));
-    task2->function = async_task;
-    task2->args = &mod;
-    add_task(&queue, task2);
+    // Spawna uma tarefa do Módulo A para o Módulo B
+    spawn_task_to_module(&queue_b, spawn_task, NULL);
 
-    Task *task3 = malloc(sizeof(Task));
-    task3->function = compute_task;
-    task3->args = &mod;
-    add_task(&queue, task3);
+    // Aguarda um pouco para visualização (em produção, usar lógica de término)
+    sleep(2);
 
-#if MODEL == 1
-    pthread_join(thread, NULL);
-#endif
+    // Finaliza os módulos
+    atomic_store(&mod_a.running, 0);
+    atomic_store(&mod_b.running, 0);
+    pthread_join(mod_a.thread, NULL);
+    pthread_join(mod_b.thread, NULL);
 
-    // Limpeza
-    pthread_mutex_destroy(&queue.mutex);
+    printf("Execução concluída.\n");
     return 0;
 }
