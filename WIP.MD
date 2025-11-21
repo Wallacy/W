@@ -3997,3 +3997,11 @@ async function main() {
     let [data, result] = await [dataTask, computeTask];
     console.log("Data:", data, "Result:", result);
 }
+
+----
+
+Como de costume não li o que tava acima então só vou colar as ideias aqui:
+
+De forma resumida acho que faz mais sentido a parte da corrotinas ser basicamente uma linked list;
+
+Basta na system thread (main) ter lista de threads criadas para fazer o thread pool, pode ser uma simples VLA com o numero de CPU cores. Quando uma lib/queue/modulo for acionado, a parte da corrotina que atua dentro da thread pode ser uma linked list onde cada node aponta a proxima opreação, guardar tambem a ultima operação (alem da corrente) e deixar essas operações corretamente atomicas. Não sei se citei isso antes mas vale lembrar agora.
