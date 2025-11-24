@@ -1,142 +1,269 @@
+# W Language Technical Specification (Full Draft)
 
-## **Especificação Técnica do W Tagged Pointer**
-
-O **W Tagged Pointer** é uma estrutura de dados eficiente que armazena diferentes tipos de valores ou ponteiros em um único registrador (`uintptr_t`), utilizando sempre **2 bits menos significativos** (bits 0 e 1) para indicar o tipo do dado e os bits restantes (bits 2 até o máximo) para outros propósitos como o valor ou endereço. Ele é projetado para ser portátil entre arquiteturas de **32 bits** e **64 bits**, oferecendo suporte a valores escalares (inteiros e floats), ponteiros para objetos compostos (como arrays e strings) e ponteiros compartilhados com contagem de referência.
-
----
-
-- **Bits 0-1**: **Tipo** do dado (`00` = `INT`, `01` = `FLOAT`, `10` = `COMPOUND`, `11` = `SHARED`).
-- **Bits 2 até o máximo**: **Valor**, **Endereço**, **Tags**, **Subtipo**, dependendo do tipo.
-
---
-
-### **Valores Especiais**
-
-Para `TYPE_INT` e `TYPE_FLOAT`:
-- **`NULL`**:
-  - Menor valor negativo representavel possivel para os bits de value. (62 bits restantes no caso de tipo escalar em 64 bits)
-  - Indica ausência de valor ou erro específico.
-  - 64 bits: 10000000000000000000000000000000000000000000000000000000000001 xx
-
-- **`ERRO`**:
-  - Maior valor positivo representavel possivel para os bits de value.
-  - Indica estado de erro ou over/underflow.
-  - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 xx
-
-Para `TYPE_COMPOUND` e `TYPE_SHARED` **`NULL`** e **`ERRO`** são respectivamente todos os bits de **Endereço** `0` ou `1`. Tipicamente em 64 bits temos 48 bits para endereço, mas dependendo da plataforma esse valor pode chegar a 57.
-
-- **`NULL`**:
-  - Todos os bits da area reservada para **Endereço** são zero.
-  - Indica ausência de valor ou erro específico.
-  - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx xx
-
-- **`ERRO`**:
-  - Maior valor positivo possivel para os 62 bits restantes. (no caso de tipo escalar em 64 bits)
-  - Indica estado de erro ou overflow.
-  - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx xx
-
-Em uma eventual plataforma onde os bits de endereço sejam 62, ou mesmo todos os 64 bits o TaggedPointer não teria suporte a tags ou subtipo. Eventualmente essas informações podem ser armazenadas em uma estrutura intermediaria.
+> **Status**: Living Specification (Includes Experimental Ideas)
+> **Target**: Systems Programming, High-Performance Web Services, Embedded Systems.
+> **Backend**: C11/C23 (Primary), LLVM (Future).
 
 ---
 
-### **Detalhes por Tipo**
+## 1. Core Philosophy & Architecture
 
-#### **1. Inteiro (`TYPE_INT`)**
-- **Tag de Tipo**: `00`.
-- **Bits de Valor**: Todos os bits disponíveis.
-- **Interpretação**: Inteiro assinado.
-- **Valores Especiais**:
-  - `INT_NULL`: O primeiro bit é `1` (positivo) e ultimo bit de valor também é `1`, e todos os outros bits são `0`.
-    - 64 bits: 10000000000000000000000000000000000000000000000000000000000001 00
-  - `INT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`.
-    - 64 bits: 01111111111111111111111111111111111111111111111111111111111111 00
- - **Layout Geral**:
-  - 64 bits:
-    ```
-  +---------------------------------+
-  | 63                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor (62 bits)           | 0 0 |
-  +---------------------------+-----+
-  ```
-  - 32 bits:
-    ```
-  +---------------------------+-----+
-  | 31                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor          (30 bits)  | 0 0 |
-  +---------------------------+-----+
-  ```
+### 1.1 The "Simple & Powerful C"
+W is designed to be a superset of capabilities over C, providing modern ergonomics without sacrificing the raw performance or memory layout control of C.
+*   **Zero Global GC**: Memory is managed via deterministic Module Arenas.
+*   **Unified Types**: All data structures are variants of Enums (Tagged Unions).
+*   **Structured Concurrency**: Async/Await is built-in, not a library.
 
-#### **2. Float (`TYPE_FLOAT`)**
-- **Tag de Tipo**: `01`.
-- **Bits de Valor**: Todos os bits disponíveis.
-- **Interpretação**: Ponto flutuante (IEEE 754) de 32/64 bits, com truncamento nos ultimos 2 bits.
-  - *Em 64 bits*:
-    - *double* IEEE-754 cast to 62 bits.
-    - Sinal: 1 bit (bit 61)
-    - Expoente: 11 bits (bits 60 a 50)
-    - Mantissa: 50 bits (bits 49 a 0)
-      - É feito o cast dos ultimos 2 digitos da mantissa.
-  - *Em 32 bits*:
-    - *float* IEEE-754 cast to 30 bits.
-    - Sinal: 1 bit (bit 29)
-    - Expoente: 8 bits (bits 28 a 21)
-    - Mantissa: 21 bits (bits 20 a 0)
-      - É feito o cast dos ultimos 2 digitos da mantissa.
-- **Valores Especiais**:
-  - `FLOAT_NULL`: O primeiro bit é `1` (positivo) e ultimo bit de valor na mantissa também é `1`, e todos os outros bits são `0`.
-    - 64 bits: 1 00000000000 00000000000000000000000000000000000000000000000001 00
-  - `FLOAT_ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
-    - 64 bits: 0 11111111111 11111111111111111111111111111111111111111111111111 01
- - **Layout Geral**:
-  - 64 bits:
-    ```
-  +---------------------------------+
-  | 63                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor (62 bits)           | 0 01 |
-  +---------------------------+-----+
-  ```
-  - 32 bits:
-    ```
-  +---------------------------+-----+
-  | 31                      2 | 1 0 |
-  +---------------------------+-----+
-  | Valor (30 bits)           | 0 1 |
-  +---------------------------+-----+
-  ```
-
-#### **3. Composto (`TYPE_COMPOUND`)**
-- **Tag de Tipo**: `10`.
-- **Bits de Endereço**: Endereço do objeto composto. Diferente dos objetos escalares, ao obter o value de um objeto composto é esperado que seja obtido a referencia desse objeto. (ex: chat* int*)
-- **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
-  - **Sub tipo das Tags**: 2 bits adicionais são separados para representar os subtipos.
-    - `SUBTYPE_STRING`, `SUBTYPE_ARRAY`, `SUBTYPE_ENUM`, `SUBTYPE_SHARED`
-  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint16_t) com cast ao tamanho disponivel para a tag. Ex: 'uint12_t'
-  - **Uso das Tags**: Tamanho do array ou string (até 4095 elementos com 12 bits). Contagem de referencias para o shared.
-  - `SUBTYPE_SHARED`: Tipo especial responsavel por contagem de referencia. Dedicado a objetos referenciados em multiplos contextos.
-- **Valores Especiais**:
-  - `NULL`: Todos os bits de endereço (48bits por exemplo) são `0`, e todos os outros bits são `0`.
-    - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxx xx 10
-  - `ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
-    - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxx xx 10
-
-#### **4. Ponteiro Compartilhado (`TYPE_COMMON`)**
-- **Tag de Tipo**: `11`.
-- **Bits de Endereço**: Objetos definidos pelo usuario. 
-- **Tags Adicionais**: Em arquiteturas com endereços menores (ex.: 48 bits em 64-bit), bits extras podem ser usados como tags.
-  - **Tipo das Tags**: Quando disponivel as tags devem ser interpretadas como inteiros sem sinal (uint) do tamanho da tag (uint14 por exemplo)
-  - **Uso das Tags**:  Uso definido de acordo com o objeto.
-- **Valores Especiais**:
-  - `NULL`: Todos os bits de endereço (48bits por exemplo) são `0`, e todos os outros bits são `0`.
-    - 64 bits: 000000000000000000000000000000000000000000000000 xxxxxxxxxxxxxx 11
-  - `ERRO`: O primeiro bit é `0` (netativo) e todos os outros bits são `1`, produzindo um NaN especifico.
-    - 64 bits: 111111111111111111111111111111111111111111111111 xxxxxxxxxxxxxx 11
+### 1.2 Compilation Pipeline
+1.  **Source**: `.w` files (UTF-8).
+2.  **Parser**: Generates AST. Handles "Bash-style" syntax for DSLs.
+3.  **Analysis**: Type checking, Escape Analysis (Stack vs Arena), Hash Generation (XXH3).
+4.  **Transpilation**: Emits optimized C code.
+    *   W Modules -> C Structs (Singletons).
+    *   W Functions -> C Functions (with context pointers).
+    *   W Async -> State Machines / Protothreads.
 
 ---
 
-### **Portabilidade**
+## 2. Syntax & Variables (Experimental)
 
-- **32 bits**: 30 bits de valor, com suporte a inteiros e floats truncados. Em 32 bits é feito o truncamento da mantissa tipo "float" de 32 bits para 30. Não há suporte a tags.
-- **64 bits**: 62 bits de valor, permitindo maior precisão e endereços maiores. Em 64 bits é feito o truncamento da mantissa tipo "double" de 64 bits para 62.
+### 2.1 Variable Declaration
+*   `const`: Compile-time constant (C const).
+*   `let`: Immutable variable (Swift-like).
+*   `var`: Mutable variable.
+
+### 2.2 Function Syntax & Destructuring
+W explores aggressive syntactic sugar for argument handling.
+
+**Implicit Argument Destructuring:**
+```typescript
+fn({ a: string, b: number }) {
+    // 'a' and 'b' are available directly in scope
+    return 0
+}
+```
+
+**Variable Destructuring Syntax:**
+```typescript
+fn(args: SomeType) {
+    let { a, b } = args
+    return false
+}
+
+// Experimental "Dollar" Syntax for Destructuring
+fn(SomeType) {
+    let ${ a, b } // Infers from argument type
+    return `${x}-${a}`
+}
+```
+
+**Return Type Destructuring:**
+```typescript
+type RType = { c: number, d: string }
+fn fName(FType): RType {
+    let ${ a, b }
+    return { c: 0, d: "ok" }
+}
+```
+
+### 2.3 Default Values & Optionals
+```typescript
+type FType2 = { a: string?, b: int }
+fn(FType2) {
+    let ${ a ?? 'default', b == 0 ? 2 : b }
+    return `${a}-${b}`
+}
+```
+
+---
+
+## 3. Type System: "Everything is an Enum"
+
+### 3.1 The Unified Model
+In W, the distinction between `struct`, `enum`, and `object` is syntactic sugar over a single internal representation: the **Tagged Union**.
+
+*   **Enum**: A type with multiple variants.
+*   **Struct**: An enum with a single variant (implicit).
+*   **Object**: A struct/enum with associated methods.
+
+**Internal Layout (C Representation):**
+```c
+struct W_Object {
+    uint64_t type_tag; // Contains Type ID + State Flags (Uninitialized/Empty/etc)
+    union {
+        int64_t as_int;
+        double as_float;
+        struct { ... } as_complex_variant;
+        void* as_pointer;
+    } data;
+};
+```
+
+### 3.2 Numeric Types as Enums
+Numbers themselves can be thought of as enums wrapping underlying C types.
+```typescript
+enum number {
+    float(var f: float),
+    int(var i: int),
+    bigInt(var b: long[])
+}
+```
+*   **Adaptive Integers**: `int` maps to `int_fast32_t` or `int_fast64_t`.
+*   **Bounds Checking**: `declare type Port = int using(max_value: 65535)`.
+
+### 3.3 Hashing & Identifiers (XXH3)
+*   **Concept**: Use XXH3 (64-bit or 128-bit) to hash all property names and identifiers at compile time.
+*   **Benefit**: No string comparisons at runtime. O(1) dispatch.
+*   **Bijective**: XXH3 is bijective for small lengths, guaranteeing no collisions for standard identifiers.
+*   **Implementation**: The compiler replaces `obj.method` with `obj[0x1234ABCD]`.
+
+---
+
+## 4. Memory Management: Module Arenas
+
+### 4.1 The Arena Model
+*   **Isolation**: Each Module instance has its own linear memory allocator (Arena/Region).
+*   **Allocation**: `new` allocates from the current module's arena.
+*   **Deallocation**:
+    *   **Stack**: Automatic (scope-based).
+    *   **Heap**: **Bulk deallocation**. You do not free individual objects. You `flush` the module.
+    *   `process.flush(module)`: Resets the arena pointer to zero. Instant cleanup.
+
+### 4.2 Memory Properties
+```typescript
+module.memory.max = 128M      // Hard limit
+module.memory.base = 64M      // Initial allocation
+module.memory.current         // Current usage
+module.memory.flush()         // Manual flush
+```
+*   `process.memory` is the sum of all `module.memory`.
+
+### 4.3 Stack & Heap Experiments
+*   **HeapStack**: A parallel stack structure for extending the normal stack without modifying the OS stack.
+*   **Split-Stack**: Investigating split-stack support for massive concurrency.
+*   **Linux Stack Manipulation**: Possibility to treat the stack as part of the `module.memory` ringbuffer for flexibility.
+*   **Auto Allocation**: `let a = [auto]` - Compiler attempts to guess the best allocation strategy (Stack vs Heap) based on escape analysis.
+
+---
+
+## 6. Concurrency: Structured & Affinity
+
+### 6.1 Async/Await Implementation
+*   **No OS Threads per Task**: Uses **Protothreads** (Duff's Device style state machines) or **Stackless Coroutines**.
+*   **Context**: Async functions receive a context pointer containing their state machine variables (spilled registers).
+*   **`async let`**: Spawns a coroutine.
+*   **`sync`**: Runs the coroutine loop inline until completion (blocking).
+
+### 6.2 Computer Units (CU) & Affinity
+*   **Spec**: 1 CU = 128MB RAM + 1 vCPU + 1 KV Storage.
+*   **Affinity**:
+    ```typescript
+    async<.cpu(1)> let audioTask = processAudio()
+    ```
+    Pins the coroutine to a specific OS thread/core.
+*   `process.cpu`: Access to CPU topology.
+
+---
+
+## 5. Module System & Packages
+
+### 5.1 Hierarchy
+*   `namespace` > `module` > `file`.
+*   Modules are Singletons. Importing `math` gives you the reference to the allocated `math` struct.
+*   **Global Access**: Modules can be referenced by their canonical name globally if configured.
+
+### 5.2 Import Syntax
+```typescript
+import { http } from std        // Standard Lib
+include 'network' as net        // Include namespace
+import * as utils from 'utils'  // Namespace import
+import math from 'https://...'  // Deno-style URL import
+```
+
+### 5.3 Package Levels (GStreamer-like)
+1.  **std**: Level 1 - Core language support (Guaranteed).
+2.  **library**: Level 2 - Shared support (Language + Community).
+3.  **modules**: Level 3 - Community supported.
+4.  **packages**: Level 4 - Experimental/No guarantee.
+
+### 5.4 Package Manager (`package.w`)
+Uses "Bash-style" syntax for declarative configuration.
+```typescript
+package
+ .name "MyServer"
+ .version "1.0.0"
+
+deps
+ .add "http" "std"
+ .add "utils" "github.com/user/utils" .hash "abc1234"
+```
+
+---
+
+## 7. Advanced Control Flow
+
+### 7.1 The "Ultimate" Switch
+Designed to be the most flexible pattern matcher, inspired by Swift but more powerful.
+```typescript
+switch (value) {
+    case 1: ...                 // Literal
+    case 1..10: ...             // Range
+    case .success(let data): ... // Enum extraction
+    case is String: ...         // Type check
+    case ~= /regex/: ...        // Regex match
+    case {a: 1, b: _}: ...      // Struct pattern
+    default: ...
+}
+```
+*   **Multi-variable Switch**: `switch (var1, var2) { case (1, 2): ... }`
+*   **Handlers**: Passing functions to validate cases.
+*   **Interleave**: Mixing `do-while` with `switch` (Duff's Device style) for state machines.
+
+### 7.2 Snapshots
+Functions marked `snapshot` return deterministic/cached data. Used for:
+1.  **Testing**: Mocking complex backends.
+2.  **PGO**: Providing profile data for optimization.
+3.  **Dev**: Speeding up iteration.
+```typescript
+snapshot fn getUser() { return { name: "Mock" } }
+```
+
+---
+
+## 8. Services & IPC
+*   **`service` Keyword**: Defines a contract for remote execution.
+*   **Broker**: The runtime includes a message broker.
+*   **Transport**: Can be in-memory (same process), pipe (same machine), or TCP (network).
+```typescript
+service Auth {
+    fn login(u: string, p: string): bool
+}
+// Usage
+await .service.call(.login("user", "pass"))
+```
+
+---
+
+## 9. C Interoperability
+*   **`c_module`**: A block allowing raw C code.
+*   **ABI Compatibility**: W structs are standard C structs.
+*   **Header Gen**: The compiler emits `.h` files for all exported W symbols.
+*   **Pointers**: `int* a` syntax supported for low-level C interop.
+
+---
+
+## 10. Implementation Roadmap & Gaps
+To produce the W language, the following components are required:
+
+1.  **Grammar Definition (EBNF)**: *Missing*. Needs a formal grammar file for the parser (Lemon or Bison).
+2.  **Runtime Library (`libw`)**: *Missing*. Needs the C implementation of:
+    *   The Arena Allocator.
+    *   The Coroutine Scheduler.
+    *   The Hash Map (XXH3).
+3.  **Compiler Bootstrap**:
+    *   Phase 1: Write Transpiler in TypeScript or Python (easier to prototype).
+    *   Phase 2: Rewrite in W (Self-hosting).
+4.  **Standard Library**:
+    *   `std/io`: File/Console.
+    *   `std/net`: HTTP/TCP.
+    *   `std/mem`: Low-level memory access.
