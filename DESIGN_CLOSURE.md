@@ -60,10 +60,10 @@ quais layouts são observáveis e quais permanecem internos.
 | Fatia | Pergunta de fechamento | Questões canônicas | Depende de | Artefato de saída |
 |---|---|---|---|---|
 | S0. Contrato de observabilidade | O que source, reflexão, ABI e tooling podem observar? | W-O006, W-O014, W-O044, W-O086, W-O094 | princípios atuais | regra de compatibilidade e matriz de observabilidade |
-| S1. Representação de valores | Quais layouts/niches/tags existem e qual fallback é obrigatório? | W-O018, W-O043, W-O044, W-O045 | S0 | decisão de representação + matriz de targets |
+| S1. Representação de valores | Quais layouts/niches/tags existem e qual fallback é obrigatório? | W-C029–W-C036, W-O018, W-O044–W-O045 | S0 | decisão de representação + matriz de targets |
 | S2. Ownership e memória | Como valores nascem, movem, compartilham, falham e morrem? | W-O002–W-O004, W-O016–W-O017, W-O052–W-O055 | S1 | modelo de memória e pseudocódigo de cleanup |
 | S3. Strings e Unicode | O que `String` armazena e quanto custam indexação, slices e interoperabilidade? | W-O014, W-O046–W-O048, W-O075 | S1–S2 | contrato completo de texto e literais |
-| S4. Sistema de tipos | Como generics, conformances, inference, refinements, closures e conversões compõem? | W-O035, W-O049–W-O053 | S0–S3 | regras de tipos, inference e diagnostics |
+| S4. Sistema de tipos | Como generics, conformances, inference, refinements, closures, property behaviors e conversões compõem? | W-O035, W-O049–W-O053, W-O097 | S0–S3 | regras de tipos, inference e diagnostics |
 | S5. Erros, efeitos e panic | Como falha recuperável, cancelamento, effects e falha irrecuperável atravessam scopes? | W-O005–W-O006, W-O033, W-O053–W-O054, W-O057 | S2–S4 | modelo unificado de exits e cleanup |
 | S6. Concorrência e paralelismo | O que `async`, `spawn`, tasks, groups, streams e scheduler prometem? | W-O001, W-O055–W-O064 | S2, S4–S5 | semântica de tasks + contrato do executor |
 | S7. Módulos, instâncias e serviços | Como código, estado, autoridade, localidade, durability e isolamento se relacionam? | W-O023–W-O027, W-O065–W-O073 | S2, S5–S6 | modelo de módulos/serviços e lifecycle |
@@ -95,7 +95,7 @@ antes aparecia sem ID:
 | módulos/runtime | arquivos, init, visibility, cycles, local/remote calls, mailbox, durability, output gates e failure boundary |
 | stdlib | blocking, filesystem, clocks, randomness, collections, hashing, rede/TLS/HTTP e errors de adapters |
 | ciência | decimal/Money, units, strict/reproducible/fast numeric modes, arrays/tensors, aliases e devices |
-| interop | geração de wrappers C, annotations humanas, source maps e support matrix de `fn<lang>` |
+| interop | geração de wrappers C, adapter overrides, source maps e support matrix de `fn<lang>` |
 | compilador | parser normativo, MLIR core, async lowering, ABI W, generics cross-module, cache e incrementalidade |
 | produto | editions, profiles, conditional compilation, testes, lock/digest, multi-version, registry e policies |
 | distribuição | nota W, envelopes, quorum, closed source, revogação, divergência e builders confidenciais |
@@ -122,11 +122,11 @@ antes aparecia sem ID:
 
 | Item | Estado |
 |---|---|
-| inventário inicial | **Candidato**: 95 questões explícitas, mais hipóteses de pesquisa |
+| inventário atual | **Candidato**: 96 questões explícitas, mais hipóteses de pesquisa |
 | ordem de dependência | **Candidato**: S0–S15 |
-| primeira fatia em revisão | W-C029–W-C034 fecham source/fallback, ausência de `Any`, conversões seguras, refinement storage e existential mínimo; W-O018/W-O043–W-O045 ainda fecham profiles, reflection, layout e fronteiras |
+| primeira fatia em revisão | W-C029–W-C036 fecham source/fallback, ausência de `Any`, refinement, existential/reflection e ausência de annotations; W-O018/W-O044–W-O045 ainda fecham profiles, layout e fronteiras |
 | implementação após a DB1 | bloqueada por decisão do projeto; somente spikes de hipótese são permitidos |
 
-O número de questões não mede qualidade nem obriga 95 features. Uma boa revisão
+O número de questões não mede qualidade nem obriga 96 features. Uma boa revisão
 pode fechar várias com uma única regra, fundir duplicatas ou retirar uma família
 inteira da v0. O requisito é que isso seja deliberado e rastreável.

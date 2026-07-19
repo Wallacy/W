@@ -72,20 +72,15 @@ uma compilation unit. Funções C da unit podem chamar-se diretamente sem entrar
 sair de W a cada call. O risco é transformar `C::equipment` simultaneamente em
 namespace, arquivo e unidade de link; lifecycle não deve ser inferido dessa tag.
 
-## Alternativa D: declaration + adapter
+## Alternativa D: adapter/package declarado
 
-```w
-@foreign(language: C, source: "native/restaurant_equipment.c")
-fn readProbeRaw(_ handle: c.ptr<restaurant_equipment>, _ probe: c.int): c.double
-```
-
-Uma annotation evita gramática especial e generaliza plugins, mas é mais longa e
-pode esconder a linguagem no meio de metadata. Outra variante é gerar a mesma
-declaration a partir de um adapter/package, mantendo o source W igual à baseline.
+Um adapter no manifest pode gerar a mesma declaration a partir do source C,
+mantendo o source W igual à baseline. Ele evita gramática adicional, mas precisa
+preservar language, toolchain, ownership, source map e provenance explicitamente.
 
 ## O que decide
 
-| Critério | `foreign c` | inline | `fn<C> from` | namespace/plugin |
+| Critério | `foreign c` | inline | `fn<C> from` | namespace/adapter |
 |---|---|---|---|---|
 | papel | dependência/ABI existente | ilha da aplicação | source da aplicação separado | várias ilhas/unidade |
 | primeira implementação | melhor baseline | primeiro `fn<lang>` | variante simples | posterior |

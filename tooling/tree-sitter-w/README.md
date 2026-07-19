@@ -74,7 +74,8 @@ neste corte. Eles só devem entrar depois de
 - newline é trivia; a regra exata de separação/formatter ainda precisa de casos
   negativos, portanto `;` permanece aceito;
 - `service`, `worker`, `assistant` e `nanoservice` não são keywords;
-- patterns, captures de closure e annotations estão apenas no subset mínimo;
+- patterns e captures de closure estão apenas no subset mínimo; annotations não
+  pertencem à v0;
 - a posição final de `async`, parser normativo e compartilhamento de CST seguem
   abertos no status.
 

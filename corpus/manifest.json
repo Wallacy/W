@@ -119,7 +119,7 @@
       "polarity": "positive",
       "classification": "frontend-only",
       "family": "ffi",
-      "rules": ["W-C013", "spec/syntax.md#ffi-e-annotations"],
+      "rules": ["W-C013", "spec/syntax.md#ffi-e-fronteiras-de-representação"],
       "expect": { "parse": "success", "observable": { "kind": "cst", "value": "named C boundary" } }
     },
     {
@@ -219,7 +219,7 @@
       "polarity": "negative",
       "classification": "frontend-only",
       "family": "ffi",
-      "rules": ["W-C013", "spec/syntax.md#ffi-e-annotations"],
+      "rules": ["W-C013", "spec/syntax.md#ffi-e-fronteiras-de-representação"],
       "expect": { "parse": "failure", "diagnostic": { "code": "W-SYN-0010", "message": "expected a language after foreign" } }
     },
     {

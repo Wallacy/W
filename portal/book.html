@@ -118,7 +118,15 @@ enum LoadError: Error {
 fn find(id: UserId): User?
 fn load(id: UserId): User throws LoadError</code></pre></div>
           <p><code>T?</code> tem somente <code>.some(T)</code> e <code>.none</code>; não mistura ausência com vazio, não inicializado ou ponteiro nulo. Erros recuperáveis são tipados por <code>throws E</code>, propagados por <code>try</code> e tratados por cases. Na baseline, error sets diferentes exigem conversão explícita com <code>catch</code>; isso não promete exceptions ocultas.</p>
+          <h3>Property behaviors: storage sem boilerplate</h3>
+          <p>W-O097 pesquisa uma abstração tipada para uma propriedade controlar storage, inicialização e accessors sem mudar seu tipo lógico. Ela pode cobrir <code>lazy</code>, init tardio, observers, COW e policies locais, mas não pode disfarçar suspensão, rede ou falha como leitura de field.</p>
+          <div class="code-shell"><pre><code>// Hipótese visual; ainda não pertence à grammar.
+object Oven {
+  var target = 180_Celsius with Clamped(in: 30_Celsius...300_Celsius)
+}</code></pre></div>
+          <div class="decision-box"><strong>Property behaviors · Pesquisa</strong><p>A direção de máquina atual é uma declaração própria de <code>behavior</code>, expansão estática e uso <code>var value: T with Behavior(...)</code>. Alternativas preservadas: <code>var [behavior] value</code> do Swift SE-0030, wrapper nominal, bloco na propriedade ou features fixas. Init/set, <code>modify</code>, efeitos, composição, acesso a <code>self</code>, layout e Sendable precisam fechar juntos; isso não reabre annotations genéricas.</p></div>
           <p class="canonical-links">Modelos: <a href="/docs/spec/types-and-memory.md">tipos e memória</a> · <a href="/docs/spec/syntax.md">options e errors</a>.</p>
+          <p class="canonical-links">Pesquisa: <a href="/docs/research/property-behaviors.md">property behaviors e alternativas</a>.</p>
         </article>
 
         <article class="book-chapter" id="controle-strings" data-book-section>
@@ -146,6 +154,7 @@ inspect(value)
 edit(inout value)
 store(take value) // value não está mais disponível</code></pre></div>
           <p>Shared ownership, ARC e regions ainda exigem protótipos. A direção é segurança sem dangling pointers ou data races; a estratégia exata de memória compartilhada permanece <strong>Em aberto</strong>.</p>
+          <div class="decision-box"><strong>Layout e ABI · Em aberto</strong><p>W-O044 recomenda hoje layout nativo opaco entre versões, mas consultável por <code>sizeOf</code>, <code>alignOf</code> e <code>w explain layout</code>; tipos dentro de <code>foreign c</code> adotariam a ABI C, e <code>transparent struct</code> cobriria newtypes zero-cost. Alternativas preservadas: ordem física declarada por default, <code>fixed struct</code> W e <code>packed struct</code>. Fixed/packed podem ficar fora da v0 até existir um caso real de ABI ou hardware.</p></div>
           <p class="canonical-links">Contrato candidato: <a href="/docs/spec/types-and-memory.md">ownership, regiões e FFI</a>.</p>
         </article>
 
@@ -297,7 +306,7 @@ let (_, _) = try await (terminal, web)</code></pre></div>
             <div class="decision-box"><strong>Std implícita · Candidato</strong><p>Mapa de exports únicos congelado por edição. Alternativas: prelude curada ou apenas namespaces implícitos com poucos nomes livres. Todas preservam origem e capability no tooling.</p></div>
             <div class="decision-box"><strong>Visibilidade · Candidato</strong><p>Privado por default e <code>export</code> para a interface. Alternativas para values com invariantes: fields exportados, tipo opaco ou factories. <code>public</code>/<code>private</code> seguem desnecessários no corpus.</p></div>
             <div class="decision-box"><strong>Labels · Candidato</strong><p>Primeiro argumento posicional, seguintes nomeados. Alternativas: todos nomeados ou todos posicionais com lint. Labels customizados continuam parte da API.</p></div>
-            <div class="decision-box"><strong>Unidades · Em aberto</strong><p>O exemplo usa <code>Quantity&lt;si.Unit, f64&gt;</code> e literals provisórios. Sufixo, annotation dedicada e wrapper nominal continuam alternativas em W-O036.</p></div>
+            <div class="decision-box"><strong>Unidades · Em aberto</strong><p>O exemplo usa <code>Quantity&lt;si.Unit, f64&gt;</code> e literals provisórios. Sufixo, declaração de unit e wrapper nominal continuam alternativas em W-O036.</p></div>
             <div class="decision-box"><strong>Exponenciação · Em aberto</strong><p><code>flow * flow</code> mantém a grammar atual. <code>flow ** 2</code>, <code>pow(flow, 2)</code> e APIs por família serão comparados com dimensions, overflow e precedência de unary minus.</p></div>
             <div class="decision-box"><strong>Ranges · Candidato</strong><p><code>...</code>, <code>..&lt;</code>, <code>&gt;..</code> e <code>&gt;..&lt;</code> cobrem os quatro bounds. Intervalo + <code>stride</code>, producer lazy e tipos separados continuam alternativas em W-O041.</p></div>
             <div class="decision-box"><strong>HTTP · Pesquisa</strong><p>Pode morar na std, num pacote first-party versionado com o toolchain ou deixar apenas transporte no núcleo portátil. “Sem terceiro” não obriga congelar framework no core.</p></div>
@@ -329,7 +338,7 @@ fn&lt;C&gt; readProbeRaw(_ handle: c.ptr&lt;restaurant_equipment&gt;, _ probe: c
   double value = 0.0;
   return restaurant_read_probe(handle, probe, &amp;value) == 0 ? value : NAN;
 }</code></pre></div>
-          <div class="decision-box"><strong><code>fn&lt;lang&gt;</code> · Pesquisa</strong><p>Body inline é a hipótese principal. <code>fn&lt;C&gt; ... from</code> mantém o source da aplicação em arquivo separado; <code>fn&lt;C::equipment&gt;</code> agrupa uma compilation unit; <code>@foreign(...)</code> evita gramática especial. LLVM/MLIR comum ajuda no lowering, mas não substitui contratos de ABI, runtime, ownership, exceptions e source maps. Nenhuma forma pertence à grammar atual.</p></div>
+          <div class="decision-box"><strong><code>fn&lt;lang&gt;</code> · Pesquisa</strong><p>Body inline é a hipótese principal. <code>fn&lt;C&gt; ... from</code> mantém o source da aplicação em arquivo separado; <code>fn&lt;C::equipment&gt;</code> agrupa uma compilation unit; um adapter declarado evita gramática especial. LLVM/MLIR comum ajuda no lowering, mas não substitui contratos de ABI, runtime, ownership, exceptions e source maps. Nenhuma forma pertence à grammar atual.</p></div>
           <p class="canonical-links">Experimento completo: <a href="/examples/restaurant/multilingual.md">funções multilíngues</a> · <a href="/examples/restaurant/interop.w">wrapper C do equipamento</a> · <a href="/playground?example=restaurantInterop">comparação visual</a>.</p>
         </article>
 

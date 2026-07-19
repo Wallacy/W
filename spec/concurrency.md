@@ -196,7 +196,7 @@ Traits/capabilities conceituais:
 
 Os nomes públicos ainda são abertos. O HIR precisa dessas propriedades mesmo se forem majoritariamente inferidas.
 
-Tipos C são não-Send/não-Sync por default até annotation ou wrapper provar o contrário.
+Tipos C são não-Send/não-Sync por default até um wrapper/adapter provar o contrário.
 
 ## Mutabilidade compartilhada
 
@@ -284,15 +284,18 @@ A linguagem expressa suspensão. A stdlib escolhe backend por target:
 - `io_uring` quando disponível e vantajoso;
 - APIs de plataforma no embedded/browser runtime.
 
-Uma API blocking estrangeira deve ser marcada/adaptada:
+Uma API blocking estrangeira deve ser adaptada. A sintaxe source ainda depende
+de W-O063; até ela fechar, a declaração FFI permanece conservadora e o adapter
+registra o custo fora de uma annotation genérica:
 
 ```w
-foreign c @blocking {
+foreign c {
   fn legacy_read(...): c.int
 }
 ```
 
-O runtime pode movê-la a um blocking executor, mas isso aparece na metadata e no profile. Uma annotation sem adapter não torna a chamada cancel-safe.
+O runtime pode movê-la a um blocking executor, mas isso aparece na metadata e no
+profile. A declaração sem adapter não torna a chamada cancel-safe.
 
 A escolha entre `read`/`write`, `io_uring` ou outro backend é uma decisão de
 stdlib medida por workload e target, não regra do language core.
@@ -323,7 +326,7 @@ Uma foreign function recebe metadata de concurrency:
 - global state;
 - signal safety quando relevante.
 
-Sem annotation, assume-se a policy conservadora. O wrapper pode serializar ou executar no blocking executor, mas custo e risco precisam aparecer nos diagnostics/profiles.
+Sem override declarado, assume-se a policy conservadora. O wrapper pode serializar ou executar no blocking executor, mas custo e risco precisam aparecer nos diagnostics/profiles.
 
 Callbacks que entram no runtime criam um job num executor conhecido; não retomam arbitrariamente uma task em qualquer thread sem synchronization.
 

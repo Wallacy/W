@@ -90,7 +90,7 @@ O que pode suspender, falhar, mutar estado, transferir ownership ou executar em 
 
 ### Segurança sem fazer da sintaxe um exercício de lifetimes
 
-W busca ownership único por padrão, borrows locais inferidos, valores por cópia/move e compartilhamento explícito. O compilador deve pedir uma anotação apenas quando a intenção não puder ser provada com segurança.
+W busca ownership único por padrão, borrows locais inferidos, valores por cópia/move e compartilhamento explícito. O compilador deve pedir um marcador próprio apenas quando a intenção não puder ser provada com segurança.
 
 ### Baixo nível quando ele realmente importa
 

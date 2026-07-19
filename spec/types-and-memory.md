@@ -53,9 +53,8 @@ struct Coordinate {
 Copiar um struct produz valor logicamente independente. O optimizer pode usar move, scalar replacement, registers ou shared immutable backing quando isso é indistinguível.
 
 Layout interno é escolhido por target. A sintaxe de fronteira permanece aberta
-em [W-O044](../STATUS.md): `@repr(c)` é apenas uma ilustração antiga, não uma
-decisão. A preferência atual é uma construção/modifier próprio da fronteira,
-caso consiga evitar annotations genéricas sem perder composição.
+em [W-O044](../STATUS.md); W-C036 elimina `@repr`/annotations genéricas em favor
+de uma construção/modifier próprio da fronteira.
 
 ### Enums
 
@@ -84,6 +83,15 @@ object Cache {
 Baseline: owner único. Atribuição/call pode mover ownership; borrows dão acesso temporário. Compartilhamento prolongado exige uma construção explícita ainda aberta (`shared T`, região ou owner de serviço).
 
 “Reference type” não significa automaticamente “ARC em toda atribuição”. ARC é uma implementação candidata apenas para valores semanticamente shared.
+
+### Property behaviors
+
+Storage sintetizado por uma propriedade é uma questão distinta de protocol
+existential. [W-O097](../STATUS.md) pesquisa um `behavior` tipado que declare
+init/get/set/modify e seja expandido para storage verificável pelo compiler,
+mantendo o tipo lógico da propriedade. A proposta, alternativas e limites de
+efeitos estão em [property-behaviors.md](../research/property-behaviors.md). Ela
+ainda não pertence à grammar nem decide layout, ownership ou concorrência.
 
 ### Protocols e existentials
 
@@ -152,9 +160,11 @@ ou fields. Um downcast seguro pode comparar essa identidade e retornar option;
 ela nunca vira identidade de wire/package.
 
 Nomes, fields e acesso estrutural só são emitidos por reachability quando o tipo
-declara uma capability/protocol de reflection. Isso evita annotations e permite
-síntese pelo compiler a partir da conformance, por exemplo `struct User:
-Reflectable`, caso reflection entre na v0.
+declara conformance a `Reflectable`. O compiler sintetiza os requisitos sem
+annotation; uma implementação manual futura continua sendo uma conformance
+normal. Reflection respeita visibility e não abre fields privados ao caller.
+Debug symbols/source maps são artefatos separados, podem conter mais detalhes e
+podem ser removidos sem alterar reflection solicitada pelo programa.
 
 Associated types precisam estar bound quando um método existentialmente chamado
 depende deles. A sintaxe exata pertence a W-O050; métodos genéricos ou que usam
@@ -290,6 +300,100 @@ LLVM aceita [range metadata](https://llvm.org/docs/LangRef.html#range-metadata) 
 loads/calls e o passe [SROA](https://llvm.org/doxygen/SROA_8cpp.html) consegue
 eliminar/promover aggregates. A política de quando storage pode estreitar
 continua sendo verificada no dialeto W antes desses lowerings.
+
+## Layout, ABI e resilience
+
+> **Status:** **Em aberto** em [W-O044](../STATUS.md).
+
+Layout de memória, identidade de wire e visibility são contratos diferentes.
+`export` não congela offsets; serialization não copia bytes de uma struct; e um
+layout compatível com C continua específico do target ABI.
+
+### Proposta de máquina
+
+#### W nativo por default
+
+Uma `struct`/`enum` W comum tem layout canônico consultável para a receita atual,
+mas opaco como compromisso entre versões independentes:
+
+- ordem de declaração governa init, drop, reflection e documentação, não exige a
+  mesma ordem física;
+- compiler pode inserir padding, reordenar storage, usar niches ou scalar
+  replacement dentro de uma build compatível;
+- `sizeOf<T>`/`alignOf<T>` retornam facts do target/profile atual, não um wire
+  format nem promessa para outra versão do compiler;
+- exported fields e resilience de API continuam separados em W-O035;
+- cruzar módulos nativos por valor exige representation fingerprint compatível,
+  a ser fechado em W-O045.
+
+#### Fronteira C sem annotation
+
+Uma declaração dentro de `foreign c` adota automaticamente o layout C do target:
+
+```w
+foreign c from "time.h" {
+  struct Timespec {
+    seconds: c.time
+    nanoseconds: c.long
+  }
+
+  fn clock_gettime(clock: c.int, time: c.ptr<Timespec>): c.int
+}
+```
+
+Somente tipos compatíveis com a ABI C podem compor esse layout. A fronteira não
+promete bytes iguais entre Windows/POSIX, 32/64-bit ou ABIs diferentes e nunca é
+usada como serialization implícita.
+
+#### Newtype transparente
+
+Para preservar identidade W sem custo de ABI, a forma candidata é uma keyword:
+
+```w
+transparent struct UserId {
+  raw: u64
+}
+```
+
+Ela exige exatamente um field armazenado e possui layout/calling convention
+iguais aos desse field. Métodos e conformances não mudam a representação.
+
+#### O que não entra ainda
+
+- layout W nativo congelado entre versões fica depois de W-O085;
+- `packed struct` não entra em safe W v0: fields desalinhados não podem produzir
+  `ref` normal e codecs/loads unaligned são mais honestos;
+- endianness, offsets de protocolo e persistência usam encode/decode ou schemas,
+  não memória transmutada;
+- alinhamento especial deve nascer de um caso SIMD/hardware concreto, não de uma
+  annotation genérica.
+
+Um modelo resilient semelhante ao de Swift permitiria mudar fields sem recompilar
+o cliente por meio de metadata/accessors, mas custa indireção. W começa
+source-first e com ABI nativa não estável; não deve pagar nem prometer esse modo
+antes de um caso real de biblioteca dinâmica.
+
+### Alternativas preservadas
+
+| Alternativa | Vantagem | Custo/armadilha |
+|---|---|---|
+| default em ordem de declaração | previsível para low-level | congela oportunidades de packing e vira ABI acidental |
+| default opaco + tooling | otimização e evolução | exige `w explain layout` para inspeção física |
+| `fixed struct` W já na v0 | plugins/native libs mais diretos | congela uma ABI antes de generics, enums e ownership |
+| `packed struct` geral | formatos densos | unaligned borrows, endianness e atomics perigosos |
+
+### Perguntas humanas
+
+1. Você aceita que a ordem física de `struct` W comum seja opaca, embora
+   `sizeOf`/`alignOf` e `w explain layout` mostrem o resultado da build?
+2. `foreign c { struct ... }` e `transparent struct` parecem construções claras
+   o bastante sem `@repr`?
+3. Podemos retirar `fixed`/`packed` da v0 e exigir codecs/adapters até aparecer um
+   caso de hardware/ABI que realmente não caiba em `foreign c`?
+
+Referências de comparação: [Rust type layout](https://doc.rust-lang.org/stable/reference/type-layout.html),
+[Swift library evolution](https://www.swift.org/blog/library-evolution/) e
+[Zig `extern struct`](https://ziglang.org/documentation/master/#extern-struct).
 
 ## Aritmética
 
@@ -547,13 +651,13 @@ Veja [research/tagged-values.md](../research/tagged-values.md).
 
 ## Questões que o primeiro protótipo deve responder
 
-1. Quantas anotações `take`/`copy` aparecem em programas reais com last-use inference?
+1. Quantos marcadores `take`/`copy` aparecem em programas reais com last-use inference?
 2. O diagnóstico de alias/inout consegue sugerir correções locais?
 3. Typed throws e ownership podem compartilhar uma calling convention eficiente?
 4. Como task frames guardam owned values e executam destruction no cancelamento?
 5. `shared T` é necessário no primeiro slice ou regiões/owners cobrem os exemplos?
 6. Qual subset de refinement é decidível e útil sem evaluator complexo?
 7. Qual é o custo real de UTF-8 views e quais operações ficam na stdlib?
-8. Quais wrappers C conseguem ser gerados de headers e quais exigem annotations humanas?
+8. Quais wrappers C conseguem ser gerados de headers e quais exigem adapter declarations/overrides humanos?
 
 O resultado pode mudar a sintaxe candidata. Não pode mudar as invariantes sem uma decisão explícita de produto.

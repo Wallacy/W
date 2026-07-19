@@ -74,7 +74,7 @@ não são observáveis pela API.
 I/O cancelável precisa preservar cleanup e declarar quando uma operação é
 realmente interrompível. Uma chamada bloqueante pode ser encaminhada a um
 executor apropriado, desde que blocking, consumo de thread e limitação apareçam
-em metadata/profile; uma annotation sozinha não a torna cancel-safe.
+em metadata/profile; uma declaração sem adapter não a torna cancel-safe.
 
 ### Capabilities e portabilidade
 

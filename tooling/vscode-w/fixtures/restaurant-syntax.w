@@ -2,7 +2,6 @@
 import { io, Url } from std.net
 import kitchen as restaurantKitchen from restaurant.kitchen
 
-@repr(c)
 struct Recipe<T> {
   name: String
   style: CakeStyle

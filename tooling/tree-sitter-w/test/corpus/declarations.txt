@@ -5,7 +5,6 @@ Imports and declarations
 import { http, Url as Address } from std.net
 import models as domain from app.models
 
-@repr(c)
 export struct Header {
   kind: u32
   size: u64
@@ -41,12 +40,7 @@ protocol Drawable {
       (identifier)
       (identifier)))
   (struct_declaration
-    (declaration_prefix
-      (attribute
-        name: (identifier)
-        (argument_list
-          (argument
-            value: (identifier)))))
+    (declaration_prefix)
     name: (type_identifier)
     (type_body
       (field_declaration

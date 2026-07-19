@@ -131,11 +131,7 @@ module.exports = grammar({
         $.const_declaration,
       ),
 
-    declaration_prefix: ($) =>
-      choice(seq(repeat1($.attribute), optional("export")), "export"),
-
-    attribute: ($) =>
-      seq("@", field("name", $.identifier), optional($.argument_list)),
+    declaration_prefix: (_) => "export",
 
     function_declaration: ($) =>
       seq(
@@ -190,7 +186,6 @@ module.exports = grammar({
 
     field_declaration: ($) =>
       seq(
-        repeat($.attribute),
         optional("export"),
         optional("var"),
         field("name", $.identifier),

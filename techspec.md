@@ -46,7 +46,7 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 | runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
 | stdlib | core, mapa implícito por edição, camada portátil, adapters por target e packages externos | candidata; conjunto implícito aberto | [biblioteca padrão](design/stdlib.md) |
 | numéricos | overflow explícito, quantities, modos float e lowerings científicos | direção + pesquisa | [numéricos e quantidades](design/numerics-and-quantities.md) |
-| C | `foreign c`, `@repr(c)`, wrappers e metadata de ownership/concurrency | direção; ABI detalhada aberta | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
+| C | `foreign c`, wrappers e metadata de ownership/concurrency | direção; ABI/layout detalhados abertos | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
 | módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
 | análise de recursos | delta de artefato por import; baseline de instância e peak de operação separados | direção de transparência; tooling em pesquisa | [estimativa de recursos](design/resource-estimation.md) |
 | packages/builds | manifest declarativo, lock, cache content-addressed e verificação independente | direção/design em elaboração | [packages](design/packages.md) |
@@ -62,7 +62,7 @@ A HIR tipada explicita, mesmo quando o source permite inference:
 - dimensões/unidades, rounding, overflow e permissões floating-point;
 - símbolo std resolvido, effect/capability e edição que autorizou o lookup;
 - scopes parent/child, captures, sendability, await/join e cancelamento;
-- layout público, calling convention e requisitos `foreign c`/`@repr(c)`.
+- layout público, calling convention e requisitos da fronteira `foreign c`.
 
 O dialeto W mantém essas propriedades até passes específicos verificarem que não
 há use-after-move, dangling borrow, alias mutável, child vazado, error perdido ou
@@ -173,14 +173,15 @@ desenvolvimento. Fidelidade sob otimização é medida por testes, não presumid
 
 ## C, ABI e artefatos
 
-`foreign c` anuncia a fronteira unsafe e `@repr(c)` solicita layout compatível.
+`foreign c` anuncia a fronteira unsafe. W-O044 propõe que tipos declarados dentro
+do bloco usem layout C compatível com o target; essa forma segue **Em aberto**.
 Wrappers convertem nullable, `(ptr, len)`, allocator/deallocator, callbacks,
 status/errno, thread safety e chamadas bloqueantes para contratos W explícitos.
 Exports W para C usam headers/wrappers; não expõem layout interno instável.
 
 `fn<lang>` permanece pesquisa posterior a essa baseline. O
 [experimento do equipamento](examples/restaurant/multilingual.md) compara source
-externo, body inline, namespace de compilation unit e annotation/plugin sem
+externo, body inline, namespace de compilation unit e adapter declarado sem
 promover nenhum deles à grammar.
 
 A ABI W pública ainda está **aberta**. Artefatos experimentais registram target,

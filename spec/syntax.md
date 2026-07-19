@@ -243,7 +243,9 @@ export fn findUser(id: UserId): User? {
 }
 ```
 
-`export` é a keyword candidata para API de módulo/package. Uma annotation de ABI define exportação estrangeira; nem todo `export` precisa virar symbol público C.
+`export` é a keyword candidata para API de módulo/package. Exportação estrangeira
+usa uma declaração/wrapper dentro da fronteira correspondente; nem todo `export`
+precisa virar symbol público C.
 
 O top-level v0 deve aceitar imports, declarations e `const`. Inicialização runtime e `var` global exigem uma decisão explícita sobre order, errors e concurrency; a baseline recomenda encapsular estado em `object`/serviço.
 
@@ -397,28 +399,33 @@ Uma chamada de função `async` só é válida sob `await` ou como initializer d
 
 `async let` e `spawn let` são bindings especiais cujo valor é um handle lexical. A semântica completa está em [concurrency.md](concurrency.md).
 
-## FFI e annotations
+## FFI e fronteiras de representação
+
+O bloco abaixo combina a baseline `foreign c` com a proposta de layout de
+[W-O044](../STATUS.md). A declaração C já pertence à direção da linguagem; colocar
+tipos de layout C dentro do mesmo bloco ainda está **Em aberto**.
 
 ```w
 foreign c from "sqlite3.h" {
   type sqlite3
   fn sqlite3_close(handle: c.ptr<sqlite3>): c.int
-}
 
-@repr(c)
-struct Header {
-  kind: u32
-  size: u64
+  struct Header {
+    kind: c.uint
+    size: c.size
+  }
 }
 ```
 
-`@name(...)` é reservado a annotations verificadas pelo compilador/tooling. Macros arbitrárias e decorators que executam código não entram no parser mínimo.
+A v0 não reserva `@name(...)`. Semântica usa keywords/blocos próprios e metadata
+de build/deploy usa manifest. Macros arbitrárias e decorators que executam
+código não entram no parser mínimo.
 
 Foreign bodies inline, se existirem, precisam de delimitador que preserve o
 source original e de um adapter/frontend próprio. A primeira versão aceita
 declarações `foreign c`; depois, [W-O042](../STATUS.md) compara body inline da
-aplicação, `from` para source separado, namespace de compilation unit e
-annotation/adapter. O parser W delimita a ilha, mas não interpreta seus
+aplicação, `from` para source separado, namespace de compilation unit e adapter
+declarado. O parser W delimita a ilha, mas não interpreta seus
 statements.
 
 ## Operadores
