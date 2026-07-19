@@ -123,7 +123,7 @@ fn name(label: Type, other: Other = default): Return {
 Exemplos com efeitos:
 
 ```w
-mut fn update(user: inout User) {
+fn update(user: inout User) {
   user.revision += 1
 }
 
@@ -136,7 +136,8 @@ Escolhas candidatas:
 
 - uma única keyword: `fn`, não `func`;
 - tipo de retorno com `:`, não `->`;
-- `mut` antes de `fn` quando a função pode mutar estado externo ao frame;
+- `mut` antes de `fn` quando um método muta seu receiver implícito; uma free
+  function já anuncia mutação externa por `inout`;
 - efeitos após o retorno, em ordem canônica `async throws E`;
 - `Void` pode ser omitido;
 - trailing comma é aceita e emitida em listas multilinha.
@@ -145,13 +146,17 @@ A posição de `async` ainda é questão aberta em [STATUS.md](../STATUS.md). A 
 
 ### Labels
 
-Parâmetros públicos têm label igual ao nome por padrão:
+O primeiro argumento é posicional por default; os seguintes usam o nome como
+label. Isso acompanha o corpus e permanece candidato em [W-O040](../STATUS.md):
 
 ```w
-move(from: source, to: destination)
+fn move(source: Path, to destination: Path)
+move(source, to: destination)
 ```
 
-O label `_` permite argumento posicional onde isso realmente melhora a API:
+Um label explícito antes do nome substitui o default, inclusive no primeiro
+argumento. O label `_` permite argumento posicional adicional onde isso realmente
+melhora a API:
 
 ```w
 fn dot(_ lhs: Point, _ rhs: Point): f64
@@ -170,7 +175,10 @@ fn identity<T>(_ value: T): T {
 fn decode<T: Decodable>(bytes: ref Slice<u8>, as _: T.Type): T throws DecodeError
 ```
 
-`<...>` depois do nome é reservado a parâmetros de tipo/const. Isso é uma razão para não usar `fn<C>` como mecanismo permanente de embedded language.
+`<...>` depois do nome é reservado a parâmetros de tipo/const. A forma histórica
+`fn<C> name` seria lexicalmente distinta porque a tag vem depois de `fn`, não do
+nome. Ela permanece pesquisa por causa de toolchain, body opaco, source maps e
+provenance — não por uma ambiguidade inexistente com generics.
 
 ### Closures
 
@@ -278,7 +286,7 @@ do {
 }
 ```
 
-`Error` é um marker protocol da prelude fixa, não uma classe-base com storage ou
+`Error` é um marker protocol do core/superfície implícita versionada, não uma classe-base com storage ou
 unwind ocultos. A forma candidata `enum E: Error` declara um error set fechado;
 `throws E` aceita esse conjunto no tipo da função.
 
@@ -319,14 +327,40 @@ Regras desejadas:
 - tuples/múltiplos valores;
 - decisão posterior sobre switch como expression.
 
+Ranges podem atuar como patterns, e `where` refina o pattern já selecionado:
+
+```w
+switch value {
+  case 0.0...1.0: useInRange(value)
+  case ..<0.0 where recovery > 0.0: recoverLow(value)
+  case 1.0>.. where recovery < 0.0: recoverHigh(value)
+  case _: reject(value)
+}
+```
+
+Esse uso é candidato. `where` não se torna spelling alternativo de `&&` em todo
+`if`; sua função permanece guardar patterns, constraints e futuras queries.
+
 Ranges:
 
 ```w
-0..<count // half-open
-1...10    // closed
+1...5     // [1, 5]   — ambos inclusivos
+1..<5     // [1, 5)   — upper exclusivo
+1>..5     // (1, 5]   — lower exclusivo
+1>..<5    // (1, 5)   — ambos exclusivos
 ```
 
-As alternativas `>..`, `>..<` e multirange ficam em pesquisa até um caso de uso superar a complexidade léxica.
+As quatro closures entram na grammar como **Candidato**, não como semântica
+fechada. `value in 0.0...1.0` testa bounds sem alocar. Para iteração, a direção
+preferida é permitir `for index in 0..<count` quando o tipo possui sucessor e
+exigir step/`stride` explícito para floats e outros domínios contínuos.
+
+A alternativa histórica de tratar todo range como producer/lazy array, além da
+opção de separar `Interval<T>` de uma progressão, permanece em
+[W-O041](../STATUS.md). Patterns one-sided `..<upper`, `...upper`, `lower>..` e
+`lower...` entram no experimento W-C028. Transformá-los em first-class values,
+multirange ou ranges infinitamente iteráveis continua em pesquisa até definir
+membership, iteration, `count` e bounds.
 
 ## Ownership no source
 
@@ -334,7 +368,7 @@ Assinaturas:
 
 ```w
 fn inspect(value: ref Value)
-mut fn edit(value: inout Value)
+fn edit(value: inout Value)
 fn store(value: take Value)
 ```
 
@@ -380,7 +414,12 @@ struct Header {
 
 `@name(...)` é reservado a annotations verificadas pelo compilador/tooling. Macros arbitrárias e decorators que executam código não entram no parser mínimo.
 
-Foreign bodies inline, se existirem, precisam de delimitador que preserve o source original e de um parser/plugin próprio. A primeira versão aceita declarações e arquivos externos.
+Foreign bodies inline, se existirem, precisam de delimitador que preserve o
+source original e de um adapter/frontend próprio. A primeira versão aceita
+declarações `foreign c`; depois, [W-O042](../STATUS.md) compara body inline da
+aplicação, `from` para source separado, namespace de compilation unit e
+annotation/adapter. O parser W delimita a ilha, mas não interpreta seus
+statements.
 
 ## Operadores
 
@@ -391,7 +430,7 @@ Precedência inicial, da maior para a menor:
 3. multiplicativos: `*`, `/`, `%` e variantes explícitas;
 4. aditivos: `+`, `-` e variantes explícitas;
 5. shifts: `<<`, `>>`;
-6. ranges: `..<`, `...`;
+6. ranges: `...`, `..<`, `>..`, `>..<`;
 7. relações: `<`, `<=`, `>`, `>=`, `is`, `in`;
 8. igualdade: `==`, `!=`;
 9. bitwise: `&`, `^`, `|`;
@@ -400,6 +439,13 @@ Precedência inicial, da maior para a menor:
 12. assignment: `=`, `+=`, `-=`, etc.
 
 Operadores customizados e precedência declarada pelo usuário ficam fora do parser v0; prejudicam tooling e podem tornar o runtime pouco evidente.
+
+Testar um value contra várias alternativas merece uma forma compacta, mas não
+precisa virar novo operador antes de provar seu lowering. O corpus compara
+`value.isOneOf(a, b)` com `value in (a, b)` em [W-O038](../STATUS.md). A operação
+é OR/membership e não aloca uma coleção observável. Para sets/flags, `hasAny` e
+`hasAll` são operações diferentes; um enum simples nunca pode ser dois cases ao
+mesmo tempo.
 
 ## Keywords candidatas
 

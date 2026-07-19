@@ -9,12 +9,15 @@ Este passeio começa pela experiência que queremos e desce gradualmente até me
 ## 1. Primeiro programa
 
 ```w
-import { io } from std
-
 fn main() {
-  io.print("Hello, W!")
+  print("Hello, W!")
 }
 ```
+
+`print` exercita o mapa de exports std implícitos congelado pela edição. Ele não
+é keyword e não esconde I/O: compiler/LSP ainda mostram origem, effect,
+capability e reachability. Prelude curada, somente namespaces implícitos e import
+explícito permanecem alternativas em [W-O026](STATUS.md).
 
 Arquivos usam UTF-8. Quebra de linha encerra a maior parte das declarações; `;` é aceito apenas onde for necessário interoperar ou colocar statements na mesma linha — a decisão de aceitá-lo como estilo geral ainda será testada pelo formatter.
 
@@ -178,7 +181,7 @@ O refinamento é uma restrição lógica do valor. Política de alocação (`inl
 let nickname: String? = .none
 
 if let name = nickname {
-  io.print(name)
+  print(name)
 }
 
 guard let token = request.token else {
@@ -248,7 +251,7 @@ if temperature > 30 {
 }
 
 for user in users {
-  io.print(user.name)
+  print(user.name)
 }
 
 while queue.hasItems {
@@ -341,10 +344,10 @@ Os quatro termos da baseline são:
 
 ```w
 fn render(user: ref User) {
-  io.print(user.name)
+  print(user.name)
 }
 
-mut fn rename(user: inout User, to name: String) {
+fn rename(user: inout User, to name: String) {
   user.name = name
 }
 
@@ -464,6 +467,18 @@ O compilador deve gerar/importar metadata suficiente para documentar:
 - headers, symbols e libraries usados.
 
 Interop sem overhead é possível quando representações e ownership coincidem; não é uma promessa universal. C++ exige adapter/ABI específico. Blocos implementados em JS, Rust, Zig ou outras linguagens ficam para plugins futuros depois desse contrato funcionar bem para C.
+
+A ideia histórica `fn<lang>` continua visível como pesquisa, não como promessa:
+
+```w
+fn<C> readProbeRaw(_ handle: c.ptr<Equipment>, _ probe: c.int): c.double
+  from "native/equipment.c"
+```
+
+Source externo, body inline, namespace de compilation unit e annotation/plugin
+são comparados no [experimento multilíngue do restaurante](examples/restaurant/multilingual.md).
+Em qualquer spelling, o call site recebe tipos W e a receita fixa adapter,
+toolchain, flags, source digests e artefatos.
 
 ## 13. O package também é um contrato
 

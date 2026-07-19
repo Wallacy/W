@@ -1,12 +1,8 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
 // Protocols modelam capabilities; implementações e placement físico são do host.
 
-import { ServiceRef } from std.service
-import {
-  CakeFlavor,
-  SaladKind,
-  SoupKind,
-} from restaurant.domain
+import { CakeFlavor, SaladKind, SoupKind } from restaurant.domain
+import { Temperature } from restaurant.units
 
 export enum Ingredient {
   flour
@@ -23,7 +19,7 @@ export enum Ingredient {
 export struct CakePlan {
   flavor: CakeFlavor
   portions: Int
-  temperature: Int
+  temperature: Temperature
   ingredients: List<Ingredient>
 }
 
@@ -78,7 +74,7 @@ export enum PantryError: Error {
 export enum OvenError: Error {
   overloaded
   unavailable
-  temperatureRejected(Int)
+  temperatureRejected(Temperature)
 }
 
 // A lease é um capability owned local. Preaquecer suspende; release é cleanup

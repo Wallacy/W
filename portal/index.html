@@ -265,6 +265,7 @@ let volume = clamp(value: 72, min: 0, max: 100)</code></pre>
 // Deve equivaler a: slug(lowercase(trim(input)))</code></pre>
                 </div>
               </article>
+
             </div>
           </section>
 
@@ -778,6 +779,25 @@ fn allocate(size: c.size): Buffer? {
 }</code></pre>
                 </div>
                 <p class="card-caveat">O ponteiro C bruto pode ser nulo; a fronteira o verifica antes de produzir o wrapper opcional seguro.</p>
+              </article>
+
+              <article class="cheat-card" data-topics="multilingual fn lang c rust zig migration migração inline llvm mlir interop">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge open">Pesquisa</span>
+                    <h3>Uma ilha de outra linguagem</h3>
+                  </div>
+                  <span class="card-token">fn&lt;C&gt;</span>
+                </div>
+                <p class="card-summary">Código legado pode continuar dentro da aplicação enquanto uma boundary W tipada permite migração gradual.</p>
+                <div class="code-shell">
+                  <pre><code>fn&lt;C&gt; legacyTotal(_ items: c.ptr&lt;Item&gt;, _ count: c.size): c.double {
+  return calculate_total(items, count);
+}
+
+let total = legacyTotal(items.raw, items.count)</code></pre>
+                </div>
+                <p class="card-caveat">Alternativas preservadas: source da aplicação com <code>from</code>, namespace <code>C::unit</code> e annotation/adapter. Backend comum não elimina contratos de ABI, runtime e ownership.</p>
               </article>
             </div>
           </section>

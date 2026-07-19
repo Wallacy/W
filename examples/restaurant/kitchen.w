@@ -1,8 +1,6 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
 // Cada try await entre ServiceRefs mantém suspensão/falha/custo observáveis.
 
-import { ServiceRef } from std.service
-import { Task } from std.task
 import {
   Cake,
   CakeFlavor,
@@ -33,25 +31,14 @@ import {
   SaladIngredients,
   SoupIngredients,
 } from restaurant.resources
-import {
-  OrderApi,
-  OrderError,
-  OrderStage,
-} from restaurant.order_service
+import { cakeSetpoint } from restaurant.oven
+import { Temperature } from restaurant.units
+import { OrderApi, OrderError, OrderStage } from restaurant.order_service
 
 export protocol KitchenApi {
-  fn makeCake(
-    request: CakeRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Cake async throws KitchenError
-  fn makeSoup(
-    request: SoupRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Soup async throws KitchenError
-  fn makeSalad(
-    request: SaladRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Salad async throws KitchenError
+  fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake async throws KitchenError
+  fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup async throws KitchenError
+  fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad async throws KitchenError
 }
 
 export enum KitchenError: Error {
@@ -63,10 +50,7 @@ export enum KitchenError: Error {
   order(OrderError)
 }
 
-fn moveOrder(
-  order: ServiceRef<OrderApi>,
-  to stage: OrderStage,
-): Void async throws KitchenError {
+fn moveOrder(order: ServiceRef<OrderApi>, to stage: OrderStage): Void async throws KitchenError {
   do {
     return try await order.move(to: stage)
   } catch let error {
@@ -82,15 +66,12 @@ fn validateCake(request: CakeRequest): CakePlan throws KitchenError {
   return CakePlan(
     flavor: request.flavor,
     portions: request.portions,
-    temperature: 180,
+    temperature: cakeSetpoint(request.flavor),
     ingredients: [.flour, .sugar, .eggs, .butter, .milk],
   )
 }
 
-fn reserveOven(
-  temperature: Int,
-  in ovens: ServiceRef<OvenPoolApi>,
-): OvenLease async throws KitchenError {
+fn reserveOven(temperature: Temperature, in ovens: ServiceRef<OvenPoolApi>): OvenLease async throws KitchenError {
   do {
     return try await ovens.reserve(temperature)
   } catch let error {
@@ -139,10 +120,7 @@ fn fetchSaladIngredients(
   }
 }
 
-fn mix(
-  dry: take IngredientBatch,
-  with wet: take IngredientBatch,
-): Batter {
+fn mix(dry: take IngredientBatch, with wet: take IngredientBatch): Batter {
   return Batter(dry: take dry, wet: take wet)
 }
 
@@ -150,19 +128,11 @@ fn prepareIcing(batch: take IngredientBatch): Icing {
   return Icing(batch: take batch)
 }
 
-fn splitBatter(
-  batter: take Batter,
-): (BatterBatch, BatterBatch) {
-  return (
-    BatterBatch(value: copy batter),
-    BatterBatch(value: take batter),
-  )
+fn splitBatter(batter: take Batter): (BatterBatch, BatterBatch) {
+  return (BatterBatch(value: copy batter), BatterBatch(value: take batter))
 }
 
-fn bakeLayer(
-  batch: take BatterBatch,
-  in lane: ServiceRef<OvenLaneApi>,
-): CakeLayer async throws KitchenError {
+fn bakeLayer(batch: take BatterBatch, in lane: ServiceRef<OvenLaneApi>): CakeLayer async throws KitchenError {
   do {
     return try await lane.bake(take batch)
   } catch let error {
@@ -203,59 +173,27 @@ fn saladLabel(kind: SaladKind): String {
   }
 }
 
-fn decorate(
-  left: take CakeLayer,
-  right: take CakeLayer,
-  with icing: take Icing,
-  using plan: CakePlan,
-): Cake {
-  return Cake(
-    summary: DishSummary(
-      kind: .cake,
-      portions: plan.portions,
-      label: cakeLabel(plan.flavor),
-    ),
-  )
+fn decorate(left: take CakeLayer, right: take CakeLayer, with icing: take Icing, using plan: CakePlan): Cake {
+  return Cake(summary: DishSummary(kind: .cake, portions: plan.portions, label: cakeLabel(plan.flavor)))
 }
 
 fn package(cake: take Cake): Cake {
   return cake
 }
 
-fn cookSoup(
-  ingredients: take SoupIngredients,
-  portions: Int,
-): Soup {
-  return Soup(
-    summary: DishSummary(
-      kind: .soup,
-      portions: portions,
-      label: soupLabel(ingredients.kind),
-    ),
-  )
+fn cookSoup(ingredients: take SoupIngredients, portions: Int): Soup {
+  return Soup(summary: DishSummary(kind: .soup, portions: portions, label: soupLabel(ingredients.kind)))
 }
 
-fn assembleSalad(
-  ingredients: take SaladIngredients,
-  portions: Int,
-): Salad {
-  return Salad(
-    summary: DishSummary(
-      kind: .salad,
-      portions: portions,
-      label: saladLabel(ingredients.kind),
-    ),
-  )
+fn assembleSalad(ingredients: take SaladIngredients, portions: Int): Salad {
+  return Salad(summary: DishSummary(kind: .salad, portions: portions, label: saladLabel(ingredients.kind)))
 }
 
 object KitchenState {
   pantry: ServiceRef<PantryApi>
   ovens: ServiceRef<OvenPoolApi>
 
-  mut fn makeSoup(
-    request: SoupRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Soup async throws KitchenError {
+  mut fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup async throws KitchenError {
     try await moveOrder(order, to: .preparing)
     let ingredients = try await fetchSoupIngredients(request, from: pantry)
     Task.checkCancellation()
@@ -264,10 +202,7 @@ object KitchenState {
     return soup
   }
 
-  mut fn makeSalad(
-    request: SaladRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Salad async throws KitchenError {
+  mut fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad async throws KitchenError {
     try await moveOrder(order, to: .preparing)
     let ingredients = try await fetchSaladIngredients(request, from: pantry)
     Task.checkCancellation()
@@ -276,10 +211,7 @@ object KitchenState {
     return salad
   }
 
-  mut fn makeCake(
-    request: CakeRequest,
-    for order: ServiceRef<OrderApi>,
-  ): Cake async throws KitchenError {
+  mut fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake async throws KitchenError {
     // Sequencial: validar antes de consumir capacidade limitada.
     let plan = try validateCake(request)
     // reserve suspende de modo cancelável ou retorna overload; nunca drop.
@@ -311,12 +243,7 @@ object KitchenState {
     try await moveOrder(order, to: .finishing)
 
     // Sequencial novamente: decorar depende das duas camadas assadas.
-    let cake = decorate(
-      take leftLayer,
-      take rightLayer,
-      with: take icing,
-      using: plan,
-    )
+    let cake = decorate(take leftLayer, take rightLayer, with: take icing, using: plan)
     return package(take cake)
   }
 }

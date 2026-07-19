@@ -1,0 +1,77 @@
+0:0   - 13:0    source_file
+0:0   - 8:1       function_declaration
+0:0   - 0:2         "fn"
+0:3   - 0:13        name: identifier `sumThrough`
+0:13  - 0:25        parameters: parameter_list
+0:13  - 0:14          "("
+0:14  - 0:24          parameter
+0:14  - 0:19            name: identifier `limit`
+0:19  - 0:20            ":"
+0:21  - 0:24            type: type
+0:21  - 0:24              base: type_name
+0:21  - 0:24                name: type_identifier `i32`
+0:24  - 0:25          ")"
+0:25  - 0:26        ":"
+0:27  - 0:30        return_type: type
+0:27  - 0:30          base: type_name
+0:27  - 0:30            name: type_identifier `i32`
+0:31  - 8:1         body: block
+0:31  - 0:32          "{"
+1:2   - 1:15          binding_declaration
+1:2   - 1:5             "var"
+1:6   - 1:11            pattern: pattern
+1:6   - 1:11              identifier `total`
+1:12  - 1:13            "="
+1:14  - 1:15            value: number_literal `0`
+2:2   - 2:16          binding_declaration
+2:2   - 2:5             "var"
+2:6   - 2:12            pattern: pattern
+2:6   - 2:12              identifier `number`
+2:13  - 2:14            "="
+2:15  - 2:16            value: number_literal `1`
+3:2   - 6:3           while_statement
+3:2   - 3:7             "while"
+3:8   - 3:23            binary_expression
+3:8   - 3:14              left: identifier `number`
+3:15  - 3:17              "<="
+3:18  - 3:23              right: identifier `limit`
+3:24  - 6:3             block
+3:24  - 3:25              "{"
+4:4   - 4:19              expression_statement
+4:4   - 4:19                assignment_expression
+4:4   - 4:9                   left: identifier `total`
+4:10  - 4:12                  "+="
+4:13  - 4:19                  right: identifier `number`
+5:4   - 5:15              expression_statement
+5:4   - 5:15                assignment_expression
+5:4   - 5:10                  left: identifier `number`
+5:11  - 5:13                  "+="
+5:14  - 5:15                  right: number_literal `1`
+6:2   - 6:3               "}"
+7:2   - 7:14          return_statement
+7:2   - 7:8             "return"
+7:9   - 7:14            identifier `total`
+8:0   - 8:1           "}"
+10:0  - 12:1      function_declaration
+10:0  - 10:2        "fn"
+10:3  - 10:7        name: identifier `main`
+10:7  - 10:9        parameters: parameter_list
+10:7  - 10:8          "("
+10:8  - 10:9          ")"
+10:10 - 12:1        body: block
+10:10 - 10:11         "{"
+11:2  - 11:22         expression_statement
+11:2  - 11:22           call_expression
+11:2  - 11:7              function: identifier `print`
+11:7  - 11:22             arguments: argument_list
+11:7  - 11:8                "("
+11:8  - 11:21               argument
+11:8  - 11:21                 value: call_expression
+11:8  - 11:18                   function: identifier `sumThrough`
+11:18 - 11:21                   arguments: argument_list
+11:18 - 11:19                     "("
+11:19 - 11:20                     argument
+11:19 - 11:20                       value: number_literal `5`
+11:20 - 11:21                     ")"
+11:21 - 11:22               ")"
+12:0  - 12:1          "}"

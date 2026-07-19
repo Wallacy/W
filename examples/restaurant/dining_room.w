@@ -1,11 +1,7 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
 // Uma mesa liga vários pedidos sem esconder concorrência ou alias de `inout`.
 
-import { ServiceHost, ServiceRef } from std.service
-import {
-  BirthdayTableRequest,
-  TableReceipt,
-} from restaurant.domain
+import { BirthdayTableRequest, TableReceipt } from restaurant.domain
 import { KitchenApi } from restaurant.kitchen
 import {
   MenuError,
@@ -33,12 +29,7 @@ export fn serveBirthdayTable(
   async let salad = prepareMenuSalad(request.salad, for: saladOrder, in: kitchen)
   let (cake, soup, salad) = try await (cake, soup, salad)
 
-  return TableReceipt(
-    tableId: request.tableId,
-    cake: cake,
-    soup: soup,
-    salad: salad,
-  )
+  return TableReceipt(tableId: request.tableId, cake: cake, soup: soup, salad: salad)
 }
 
 // OrderApi representa estado externo à árvore lexical. Cancelar child tasks não

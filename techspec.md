@@ -44,7 +44,8 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 | frontend | CST recuperável, AST e HIR tipada; EBNF/parser normativo por definir | Em aberto | [compilador](design/compiler.md), [sintaxe](spec/syntax.md) |
 | IR/backend | dialeto W/MLIR, lowerings, LLVM dialect/IR e código nativo | direção arquitetural; operações candidatas | [compilador](design/compiler.md) |
 | runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
-| stdlib | core/prelude, camada portátil, adapters por target e packages externos separados | candidata; superfície v0 aberta | [biblioteca padrão](design/stdlib.md) |
+| stdlib | core, mapa implícito por edição, camada portátil, adapters por target e packages externos | candidata; conjunto implícito aberto | [biblioteca padrão](design/stdlib.md) |
+| numéricos | overflow explícito, quantities, modos float e lowerings científicos | direção + pesquisa | [numéricos e quantidades](design/numerics-and-quantities.md) |
 | C | `foreign c`, `@repr(c)`, wrappers e metadata de ownership/concurrency | direção; ABI detalhada aberta | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
 | módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
 | análise de recursos | delta de artefato por import; baseline de instância e peak de operação separados | direção de transparência; tooling em pesquisa | [estimativa de recursos](design/resource-estimation.md) |
@@ -58,6 +59,8 @@ A HIR tipada explicita, mesmo quando o source permite inference:
 - tipo, initialization state e refinements provados por caminho;
 - owner, borrows, move/copy, exclusividade e ordem de destruction;
 - `mut`, `async`, `throws E`, error edges e cleanup por `defer`;
+- dimensões/unidades, rounding, overflow e permissões floating-point;
+- símbolo std resolvido, effect/capability e edição que autorizou o lookup;
 - scopes parent/child, captures, sendability, await/join e cancelamento;
 - layout público, calling convention e requisitos `foreign c`/`@repr(c)`.
 
@@ -79,6 +82,11 @@ nós de erro; AST remove açúcar simples; HIR resolve tipos e semântica. Diagn
 possuem código, ranges, labels e formato estruturado. Bun/TypeScript é útil para
 runners, formatter/IDE experimental, visualização e CLI, sem obrigar que o core
 MLIR passe pela C API.
+
+O [restaurante](examples/restaurant/README.md) é o corpus top-down principal:
+dezesseis módulos cobrem quantities, PID, scheduling, billing, ownership,
+services, TUI, HTTP e a boundary C. Sua [matriz de requisitos](examples/restaurant/REQUIREMENTS.md)
+explicita as alternativas e o que cada estágio precisa provar.
 
 O [tooling inicial](tooling/README.md) separa highlighting lexical imediato de
 parsing estrutural. TextMate atende a extensão local do VS Code; Tree-sitter e
@@ -169,6 +177,11 @@ desenvolvimento. Fidelidade sob otimização é medida por testes, não presumid
 Wrappers convertem nullable, `(ptr, len)`, allocator/deallocator, callbacks,
 status/errno, thread safety e chamadas bloqueantes para contratos W explícitos.
 Exports W para C usam headers/wrappers; não expõem layout interno instável.
+
+`fn<lang>` permanece pesquisa posterior a essa baseline. O
+[experimento do equipamento](examples/restaurant/multilingual.md) compara source
+externo, body inline, namespace de compilation unit e annotation/plugin sem
+promover nenhum deles à grammar.
 
 A ABI W pública ainda está **aberta**. Artefatos experimentais registram target,
 runtime, toolchain, feature/profile e versão de metadata. O toolchain resolve

@@ -1,7 +1,6 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
 // ServiceHost/ServiceRef são APIs candidatas; `service` não é keyword adotada.
 
-import { ServiceHost, ServiceRef, StartError } from std.service
 import { DishSummary, OrderId, Receipt } from restaurant.domain
 
 export enum OrderStage {
@@ -30,13 +29,13 @@ export protocol OrderApi {
 fn canMove(from current: OrderStage, to next: OrderStage): Bool {
   switch current {
     case .accepted:
-      return next == .preparing || next == .cancelled
+      return next.isOneOf(.preparing, .cancelled)
     case .preparing:
-      return next == .baking || next == .finishing || next == .cancelled
+      return next.isOneOf(.baking, .finishing, .cancelled)
     case .baking:
-      return next == .finishing || next == .cancelled
+      return next.isOneOf(.finishing, .cancelled)
     case .finishing:
-      return next == .completed || next == .cancelled
+      return next.isOneOf(.completed, .cancelled)
     case .completed:
       return false
     case .cancelled:
@@ -69,10 +68,7 @@ object OrderState {
   }
 }
 
-export fn openOrder(
-  id: OrderId,
-  on host: inout ServiceHost,
-): ServiceRef<OrderApi> async throws OrderError {
+export fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> async throws OrderError {
   // .key, .serial e .bounded são configuração candidata, não gramática.
   do {
     return try await host.startService(

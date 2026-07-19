@@ -52,7 +52,10 @@ struct Coordinate {
 
 Copiar um struct produz valor logicamente independente. O optimizer pode usar move, scalar replacement, registers ou shared immutable backing quando isso é indistinguível.
 
-Layout interno é escolhido por target. `@repr(c)` ou outro atributo de representação congela regras adicionais e pode exigir padding explícito.
+Layout interno é escolhido por target. A sintaxe de fronteira permanece aberta
+em [W-O044](../STATUS.md): `@repr(c)` é apenas uma ilustração antiga, não uma
+decisão. A preferência atual é uma construção/modifier próprio da fronteira,
+caso consiga evitar annotations genéricas sem perder composição.
 
 ### Enums
 
@@ -95,6 +98,65 @@ fn index<T: Hashable>(_ value: ref T): Hash
 ```
 
 O call site e metadata devem permitir descobrir quando dispatch é dinâmico. Protocols não injetam storage invisível.
+
+#### `Any`, existential e reflection
+
+Estes conceitos não devem ser fundidos:
+
+| Forma | Tipo concreto conhecido por | Dispatch/custo esperado |
+|---|---|---|
+| `T: P` | caller e compiler | generic, normalmente especializável |
+| `some P` | implementação e compiler | identidade preservada, escondida do caller |
+| `any P` | somente runtime | existential com witness table e inline/box |
+| `Any` | somente runtime | type erasure total; exige downcast antes de operar |
+
+`some P` e `any P` são sintaxe de trabalho, não decisão. A recomendação de
+máquina para [W-O043](../STATUS.md) é manter `Any` como escape hatch raro, não
+como base dinâmica da linguagem:
+
+- `Any` owns o valor erased por default; borrows não viram owners;
+- erasure pode usar payload inline ou box sem mudar o tipo lógico;
+- `TypeId` identifica tipos apenas dentro do mesmo universo de toolchain/
+  artefato; não é schema ID, nome público nem identidade serializável;
+- IPC, persistência e packages usam uma identidade de schema versionada,
+  separada de `TypeId`;
+- metadata runtime é emitida por reachability para operações realmente usadas:
+  type check, move/drop e witness tables aplicáveis;
+- `Any` não ganha `copy`, equality, hash, serialization ou `Send` universais;
+  cada operação exige uma constraint/capability comprovada;
+- conversão para `Any` pode ser contextual; downcast e extração são sempre
+  explícitos e nunca fazem cópia escondida.
+
+API ilustrativa, ainda **Em aberto**:
+
+```w
+let payload: Any = take order
+
+if let order = payload.ref(as: Order) {
+  print(order.id)
+}
+
+let order = payload.take(as: Order) // Order?; consome somente no sucesso
+```
+
+Alternativas preservadas:
+
+| Alternativa | Ganho | Armadilha principal |
+|---|---|---|
+| somente generics/protocols na v0 | core menor e mais estático | empurra type erasure incompatível para cada biblioteca/FFI |
+| separar `T`, `some P`, `any P` e `Any` | custo e autoridade ficam distinguíveis | quatro conceitos precisam de ensino e diagnostics bons |
+| tornar todo protocol automaticamente existential | source menor | dispatch/boxing ficam invisíveis e generics se tornam ambíguos |
+| reflection completa em todo tipo | plugins/serializers muito flexíveis | metadata, encapsulamento, stripping e ABI viram custo universal |
+
+Permanecem três decisões humanas para W-O043:
+
+1. `Any` deve ser um escape hatch deliberadamente raro, mantendo generics e
+   protocols como caminho normal?
+2. A conversão contextual `T → Any` pode ser implícita quando a assinatura já
+   declara `Any`, com boxing mostrado pelo tooling, ou deve exigir uma palavra no
+   call site?
+3. O custo de dispatch merece `any P` explícito, distinguindo-o de `T: P` e
+   `some P`, ou o nome `P` sozinho deve poder significar existential?
 
 ### Tuplas, funções e collections
 
@@ -273,7 +335,7 @@ let sum = checksum(data)
 ### Borrow mutável exclusivo
 
 ```w
-mut fn normalize(image: inout Image)
+fn normalize(image: inout Image)
 normalize(inout image)
 ```
 
@@ -425,6 +487,13 @@ Pointer tagging pode compactar `Option<ref T>`, `Any`, small integers ou runtime
 - misturar bitfield non-atomic com acesso atomic;
 - vazar para ABI C;
 - deixar targets com pointer authentication, sanitizers ou capability pointers sem fallback.
+
+Pela política candidata W-C029:
+
+- não existe annotation de compactação no source;
+- boxing de `Any` é permitido e precisa ser reportável;
+- `Option<ref T>` não aloca para representar `.some`/`.none`, mas seu tamanho e
+  alinhamento permanecem propriedades publicadas do target/profile.
 
 Veja [research/tagged-values.md](../research/tagged-values.md).
 

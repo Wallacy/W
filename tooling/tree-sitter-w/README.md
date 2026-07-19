@@ -22,7 +22,9 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
-- corpus positivo e um caso intencionalmente inválido para recuperação.
+- nove casos estruturais internos e o
+  [corpus compartilhado](../../corpus/README.md), com 12 positivos e 11
+  negativos versionados.
 
 O corpus usa snippets autocontidos para que compiler, formatter, portal e
 extensão possam futuramente reutilizar os mesmos fixtures. Os arquivos do
@@ -38,6 +40,7 @@ npm install
 npm run generate
 npm test
 npm run parse:restaurant
+npm run corpus
 ```
 
 Ou execute todos os checks:
@@ -46,7 +49,8 @@ Ou execute todos os checks:
 npm run check
 ```
 
-O CLI está fixado em `tree-sitter-cli` 0.26.11. Após `generate`, `src/` e o
+`npm run check` também executa o corpus compartilhado. O CLI está fixado em
+`tree-sitter-cli` 0.26.11. Após `generate`, `src/` e o
 parser C gerado tornam a gramática consumível sem copiar regras para outro
 lexer. Um binding Node nativo é responsabilidade do consumidor e não é exigido
 para gerar/testar esta pasta.

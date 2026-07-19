@@ -35,6 +35,11 @@ a semântica dos valores W.
 
 ## Candidato
 
+O mapeamento concreto de quantities, Lists, request buffers, task frames,
+`ServiceRef` e state de instância está no
+[corpus do restaurante](../examples/restaurant/REQUIREMENTS.md#memória-automática-é-viável-aqui).
+Ele é o teste top-down desta estratégia; não cria exceções às regras abaixo.
+
 ### Escada híbrida
 
 A escada é uma preferência para diagnósticos, lowering e APIs, não uma ordem
@@ -125,6 +130,10 @@ isolamento mais forte por processo ou sandbox somente quando o target o oferece.
 ## Em aberto
 
 ### Pointer tagging e tagged addresses
+
+A política aceita de source/fallback e o gate dos profiles compactos estão em
+[tagged-values](../research/tagged-values.md#política-candidata-da-db1).
+W-C029 não promove nenhum profile de W-O018 por si só.
 
 Tagged addresses são otimização de representação, nunca prova de lifetime,
 ownership, thread safety ou validade de ponteiro. Podem compactar `Option<ref T>`,

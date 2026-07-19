@@ -1,0 +1,28 @@
+0:0  - 3:0    •source_file
+0:0  - 2:1      •function_declaration
+0:0  - 0:2         "fn"
+0:3  - 0:7         name: identifier `main`
+0:7  - 0:9         parameters: parameter_list
+0:7  - 0:8           "("
+0:8  - 0:9           ")"
+0:9  - 0:10       ":"
+0:11 - 0:15       return_type: type
+0:11 - 0:15         base: type_name
+0:11 - 0:15           name: type_identifier `Void`
+0:16 - 0:21       "async"
+0:22 - 2:1        body: •block
+0:22 - 0:23         "{"
+1:2  - 1:24         •binding_declaration
+1:2  - 1:7            "async"
+1:8  - 1:11           "let"
+1:12 - 1:13           •ERROR
+1:12 - 1:13             "="
+1:14 - 1:24           pattern: pattern
+1:14 - 1:24             identifier `fetchValue`
+1:24 - 1:27         expression_statement
+1:24 - 1:27           parenthesized_expression
+1:24 - 1:25             "("
+1:25 - 1:26             number_literal `1`
+1:26 - 1:27             ")"
+2:0  - 2:1          "}"
+<source>	(ERROR [1, 12] - [1, 13])

@@ -18,6 +18,8 @@ toda função em RPC e não esconde uma call remota atrás de uma chamada local.
 
 ```text
 cliente
+  → TUI e HTTP concorrem sobre a mesma `RestaurantApi`
+  → front desk serializa a authority mutável de pedidos
   → salão abre pedidos keyed sem compartilhar `inout` entre children
   → menu escolhe um fluxo com switch
   → OrderApi encontra/cria uma instância keyed por OrderId
@@ -31,6 +33,10 @@ cliente
 Uma seta entre instâncias representa custo observável: `try await`, typed error,
 deadline/cancelamento e backpressure. O exemplo nunca pressupõe que os serviços
 estão no mesmo processo.
+
+Nem toda seta é async. `oven.w`, `refrigeration.w`, `planning.w` e `billing.w`
+contêm cálculo, loops, branches e mutação local deliberada. Async/await fica nas
+boundaries que realmente esperam I/O, timers ou outra instância.
 
 ## “Make a Cake” como pipeline
 
@@ -79,15 +85,58 @@ externo ao scope. `cancelBirthdayTable` deixa a compensação explícita; como
 integrá-la automaticamente a cleanup assíncrono continua uma decisão de runtime,
 não uma promessa escondida pelo exemplo.
 
+## Equipamento e cálculo
+
+O forno agora possui um modelo térmico e um controlador PID. A fórmula pura
+separa potência, energia, temperatura e tempo; a função `regulateOven` adiciona
+sensor, actuator, espera e cancelamento somente na boundary de hardware:
+
+```w
+let wallLoss = surface * transmittance * (inside - ambient)
+let cavityEnergy = (heaterPower * duty - wallLoss - foodTransfer) * elapsed
+let nextCavity = cavity + cavityEnergy / cavityCapacity
+```
+
+A refrigeração testa perda térmica, fluxo e queda de pressão. O scheduler ordena
+jobs por deadline e atribui cada um à lane menos carregada; billing calcula
+subtotal, serviço e imposto em minor units, com rounding explícito. Os quatro
+casos pressionam numéricos, collections e memória automática sem fingir que toda
+função é apenas um wrapper de `async`.
+
+## Duas interfaces, um lifecycle
+
+`terminal.w` usa `print` e `readLine` sem import std explícito. `web.w` usa os
+namespaces implícitos `http` e `json`. Os imports de aplicação continuam
+explícitos. `app.w` inicia ambos como children concorrentes; falha de uma
+interface cancela, reúne e limpa a outra antes de propagar.
+
+Esse source exercita [W-C016](../../STATUS.md), mas não encerra a decisão. O Book
+e [REQUIREMENTS.md](REQUIREMENTS.md) preservam as alternativas de prelude curada,
+mapa de nomes únicos e somente namespaces implícitos.
+
 ## Arquivos
 
 - [`domain.w`](domain.w): requests, pratos, IDs e recibos como values;
+- [`units.w`](units.w): aliases dimensionais provisórios e helpers sem runtime;
+- [`oven.w`](oven.w): balanço térmico, PID e loop cancelável de hardware;
+- [`refrigeration.w`](refrigeration.w): carga térmica, pressão, fluxo e compressor;
 - [`resources.w`](resources.w): capabilities tipadas de despensa, forno e lanes;
+- [`planning.w`](planning.w): scheduler guloso determinístico de lotes;
+- [`billing.w`](billing.w): dinheiro exato, imposto e rounding de domínio;
 - [`menu.w`](menu.w): menu exaustivo, conversão de errors e roteamento top-down;
 - [`order_service.w`](order_service.w): instância keyed por pedido e estado
   serial candidato;
 - [`kitchen.w`](kitchen.w): pipelines dos três pratos, child tasks e paralelismo;
-- [`dining_room.w`](dining_room.w): fan-out estruturado de uma mesa completa.
+- [`dining_room.w`](dining_room.w): fan-out estruturado de uma mesa completa;
+- [`front_desk.w`](front_desk.w): facade serial e visibilidade por `export`;
+- [`terminal.w`](terminal.w): TUI com std implícita;
+- [`web.w`](web.w): handler e servidor HTTP sem framework externo;
+- [`app.w`](app.w): lifecycle concorrente de TUI + HTTP;
+- [`interop.w`](interop.w): raw ABI C privada e wrapper tipado de equipamento;
+- [`multilingual.md`](multilingual.md): ilha inline `fn<C>` para migração e as
+  alternativas `from`, namespace, adapter e `foreign c`;
+- [`REQUIREMENTS.md`](REQUIREMENTS.md): consequências para frontend, HIR,
+  memória, runtime e alternativas ainda vivas.
 
 Os arquivos repetem o aviso de Working Draft para não parecerem corpus
 executável quando abertos isoladamente.
@@ -107,6 +156,11 @@ executável quando abertos isoladamente.
 | mailbox | limitada; aguarda vaga ou falha com error tipado |
 | cleanup | pertence ao scope e ocorre em sucesso, error ou cancelamento |
 | compensação | estado de serviço externo não é desfeito implicitamente com a task |
+| std implícita | lookup congelado por edição; não concede capability nem esconde reachability |
+| `export` | top-level privado por default; interface explícita sem `public`/`private` redundantes |
+| quantidades | check dimensional candidato; literal e representação continuam em W-O036 |
+| collections | ownership único e allocation/copy observáveis; placement físico pode ser otimizado |
+| outra linguagem | `foreign c` é baseline; `fn<lang>` continua pesquisa visível e comparável |
 
 O exemplo não escolhe sintaxe própria para `service`, política final de
 reentrância, escopo de singleton ou API definitiva de backpressure. Essas
@@ -119,6 +173,8 @@ questões continuam abertas.
 - [módulos, imports e instâncias](../../spec/modules.md);
 - [arquitetura candidata de módulos/runtime](../../design/modules-and-runtime.md);
 - [estimativa experimental de recursos](../../design/resource-estimation.md);
+- [formatação canônica](../../design/formatting.md);
+- [numéricos e quantidades](../../design/numerics-and-quantities.md);
 - [status e questões abertas](../../STATUS.md).
 
 O portal oferece uma leitura visual e um lexer local. Ele não substitui esses

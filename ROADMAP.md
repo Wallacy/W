@@ -5,7 +5,8 @@ sequência de provas executáveis. Ele não promete datas nem mede progresso por
 quantidade de features. A medida é uma fatia vertical cada vez mais fiel:
 
 ```text
-10–20 programas/goldens
+baseline de design fechada
+  -> 10–20 programas/goldens
   -> gramática, formatter e diagnósticos
   -> AST e HIR tipada
   -> dialeto W/MLIR
@@ -29,6 +30,9 @@ Os estados deste documento usam somente o vocabulário de
   ABI e verificadores. As duas trilhas se encontram em cada critério de saída.
 - **Direção:** manter um caminho baseline portável antes de qualquer layout,
   scheduler ou backend otimizado.
+- **Direção:** fechar a [Baseline de Design 1](DESIGN_CLOSURE.md) antes de
+  avançar o frontend, AST/HIR, MLIR ou runtime; somente corpus e spikes
+  delimitados podem ser usados para decidir hipóteses durante esse fechamento.
 - **Candidato:** Bun/TypeScript pode servir corpus, runner, formatter,
   visualizações e tooling; C++/TableGen pode implementar o core MLIR. A divisão
   só se consolida por integração real, como descrito na
@@ -44,7 +48,8 @@ Os estados deste documento usam somente o vocabulário de
 
 | Fase | Prova principal | Depende de | Desbloqueia |
 |---|---|---|---|
-| 0. Contrato por corpus | 10–20 programas e negativos correspondentes | especificações candidatas | gramática e oracles estáveis |
+| -1. Baseline de design | todas as decisões materiais da v0 classificadas e coerentes | visão, inventário e experimentos de decisão | implementação sem premissas escondidas |
+| 0. Contrato por corpus | 10–20 programas e negativos correspondentes | DB1 e especificações candidatas | gramática e oracles estáveis |
 | 1. Frontend explicável | CST/AST, formatter e diagnósticos recuperáveis | fase 0 | HIR tipada |
 | 2. Núcleo semântico | resolução, tipos e HIR verificável | fase 1 | dialeto W mínimo |
 | 3. Executável nativo | W/MLIR -> LLVM -> objeto/link | fase 2 | provas runtime e ABI |
@@ -53,12 +58,59 @@ Os estados deste documento usam somente o vocabulário de
 | 6. Módulos e packages | build hermético, lock e cache local | fases 3–5 | distribuição experimental |
 | 7. Consolidação | pipeline reproduzível e superfície limpa | fases 0–6 | decisão humana sobre extração |
 
-Nenhuma fase exige que toda a linguagem esteja fechada. Cada uma amplia o mesmo
-corpus e mantém os testes anteriores verdes.
+As fases 0–7 só avançam depois da DB1. Elas ainda podem revelar que uma decisão
+precisa ser reaberta, mas não escolhem semântica ou sintaxe por conveniência de
+implementação. Durante a fase -1, o corpus existente é laboratório de design e
+permanece congelado salvo quando um experimento delimitado exige comparações.
+
+## Fase -1 — Fechamento da baseline de design
+
+**Status:** **Direção**.
+
+O mapa canônico de trabalho é
+[DESIGN_CLOSURE.md](DESIGN_CLOSURE.md). As fatias S0–S15 cobrem source,
+semântica, representação, runtime, stdlib, compilador, packages, distribuição e
+tooling em ordem de dependência.
+
+### Top-down
+
+- Escrever os mesmos casos em duas ou três alternativas quando a decisão for de
+  superfície, sem promover a preferida apenas porque já aparece no restaurante.
+- Revisar legibilidade, surpresa, densidade de tokens, capacidade de ensinar e
+  coerência com “Prazer para humanos. Clareza para máquinas.”.
+- Consolidar a forma escolhida no tour somente depois de registrar seu estado.
+
+### Bottom-up
+
+- Para cada alternativa, descrever tipos/HIR, lowering, efeitos, lifetime,
+  falhas, custo, FFI, portability e evolução suficiente para detectar uma
+  promessa inviável.
+- Construir somente spikes mínimos com oracle diferencial quando análise não
+  bastar: representação de valores, ownership, async lowering, ABI e
+  reprodutibilidade são exemplos legítimos.
+- Preservar um fallback portável para toda otimização target-specific.
+
+### Critérios mensuráveis de saída
+
+- todas as questões materiais têm ID em `STATUS.md` ou foram deliberadamente
+  fundidas/rejeitadas com justificativa;
+- cada fatia S0–S15 cumpre os dez critérios de fechamento da DB1;
+- nenhuma feature necessária à v0 permanece apenas como **Pesquisa**;
+- exemplos, regras negativas e esboços de lowering não entram em contradição;
+- a revisão final da superfície não encontra sinônimos ou custos ocultos sem uma
+  decisão explícita;
+- o usuário aprova a DB1 como base para retomar a fase 0/1.
 
 ## Fase 0 — Contrato por corpus
 
 **Status:** **Direção**.
+
+**Evidência candidata atual:** o [corpus de contrato](corpus/README.md) contém
+12 positivos, 11 negativos, snapshots versionados e cinco contratos
+`executable`. O runner cobre toda família positiva com um negativo e confirma a
+mesma CST em duas execuções. A fase permanece aberta até revisão humana dos
+programas, outputs e diagnósticos desejados; formatter e diagnostics gerais já
+pertencem ao gate da Fase 1.
 
 ### Top-down
 
@@ -94,8 +146,9 @@ corpus e mantém os testes anteriores verdes.
 - 100% dos exemplos classificados como `frontend-only` ou `executável`;
 - runner produz o mesmo resultado em duas execuções consecutivas com os mesmos
   inputs;
-- nenhuma construção do corpus depende de regra marcada apenas como
-  **Pesquisa**.
+- nenhuma construção do subset executável da fase depende de regra marcada
+  apenas como **Pesquisa**; módulos exploratórios do restaurante permanecem
+  `frontend-only` até a alternativa ser promovida.
 
 ## Fase 1 — Gramática, formatter e diagnósticos
 
@@ -379,12 +432,13 @@ Nenhum benchmark isolado pode substituir correctness dos scopes.
 **Status:** **Direção** para tooling explicável; itens individuais começam como
 **Candidato**.
 
-Esta trilha acompanha as fases, mas não bloqueia o primeiro executável salvo
-quando revela divergência normativa:
+Esta trilha fica congelada durante a fase -1, exceto para corrigir erros ou
+visualizar alternativas necessárias a uma decisão. Depois acompanha as fases e
+pode bloquear um executável quando revela divergência normativa:
 
 | Marco da trilha | Entrega | Sincroniza com |
 |---|---|---|
-| linguagem visível | atualizar o [portal/livro](portal/README.md) apenas com constructs presentes no corpus e status visível | fases 0–1 |
+| linguagem visível | atualizar o [portal/livro](portal/README.md) apenas depois da DB1 e somente com constructs presentes no corpus e status visível | fases -1–1 |
 | edição local | TextMate utilizável no VS Code e Tree-sitter testado como parser incremental não normativo | fases 0–1 |
 | frontend explorável | visualizações de tokens/CST/AST, formatter e catálogo pesquisável de diagnostics | fases 1–2 |
 | semântica explicável | `explain` de tipos, effects, moves e motivos de rejeição; diff HIR/MLIR por passe | fases 2–4 |
@@ -404,8 +458,8 @@ no [catálogo de pesquisa](research/README.md), mas não bloqueiam nenhuma fase:
 - **Pesquisa:** wQL/wRPC/RestPC como bibliotecas e contratos de ecossistema, não
   keywords v0;
 - **Pesquisa:** V6/Computer Units e qualquer runtime **serverless** ou isolate;
-- **Pesquisa:** tagged values/tagged pointers e niche layouts, sempre posteriores
-  ao fallback portátil;
+- **Pesquisa:** high-bit tagged addresses e NaN-boxing; a decisão da DB1 sobre
+  fallback e niches convencionais pertence à fatia S1;
 - **Pesquisa:** GPU, HDL, CUDA/HIP, OpenMP e SIMD explícito, posteriores ao
   pipeline CPU nativo;
 - **Pesquisa:** SQLite como adapter oficial ou storage interno de tooling, nunca

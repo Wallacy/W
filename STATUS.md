@@ -4,6 +4,8 @@
 
 Este documento impede que uma hipótese exploratória seja lida como promessa. Ele
 é o índice de maturidade do design, não uma especificação formal.
+O [mapa de fechamento](DESIGN_CLOSURE.md) organiza as mesmas decisões por
+dependência; este arquivo continua sendo o registro canônico do estado.
 
 ## Vocabulário
 
@@ -53,18 +55,28 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-C010 | `async let` inicia filho concorrente; `spawn let` inicia filho paralelo | preserva a distinção central com pouca sintaxe |
 | W-C011 | módulo é namespace/unidade de build, não heap singleton obrigatório | lifecycle e recursos ficam em objetos/serviços explícitos; arenas de módulo continuam pesquisáveis |
 | W-C012 | imports usam nomes lógicos resolvidos pelo manifest/lock | código não depende de URL mutável; resolução continua reproduzível |
-| W-C013 | `foreign c` declara a fronteira C; corpos `fn<lang>` ficam para depois | primeiro resolve ABI, ownership e erros de uma linguagem externa bem suportada |
+| W-C013 | `foreign c` declara a fronteira C; ilhas da aplicação `fn<lang>` ficam para depois | primeiro resolve ABI, ownership e erros de uma linguagem bem suportada antes de embutir seu frontend no build W |
 | W-C014 | frontend preserva semântica num dialeto W/MLIR antes do lowering | ownership, tasks e efeitos não somem cedo num C intermediário |
 | W-C015 | source + artefatos reproduzíveis/content-addressed | static libs são preferíveis quando compatíveis, não a única forma de distribuição |
-| W-C016 | baseline do primeiro protótipo: prelude pequena, fixa e pura; `io` explícito | lookup não muda quando a stdlib cresce e authority de host permanece visível; a ergonomia final segue em W-O026 |
+| W-C016 | experimento do primeiro protótipo: mapa de exports implícitos da stdlib congelado por edição, com fallback somente para nome único | `print` e outras APIs comuns podem ser curtas sem lookup ambiental; origem, efeito, capability e dependência continuam visíveis no tooling e na receita; o conjunto exato segue em W-O026 |
 | W-C017 | baseline do primeiro protótipo: instância `service` explícita com handler serial e turn fechado | estado e eventos têm lifecycle; o default final de reentrância segue em W-O024 |
 | W-C018 | registry governa metadata assinada; hosts/CDNs são mirrors de bytes por digest | trocar o mirror não troca identidade nem trust root |
 | W-C019 | payload inclui nota W mínima; attestations e envelopes permanecem externos | evita assinatura autorreferente e separa reprodução, autorização e platform signing |
 | W-C020 | lens de import mede delta de artefato/reachability e separa custos de instância e operação | mantém `import` estático, evita dupla contagem e coloca o custo perto da decisão que o introduziu |
 | W-C021 | `enum E: Error` forma um error set fechado; `try` só propaga o mesmo `E` sem conversão | composição de errors diferentes permanece explícita enquanto W-O033 estiver aberta |
 | W-C022 | tooling mantém Tree-sitter + queries como projeção estrutural; TextMate é compatibilidade do VS Code e o scanner do portal é temporário | evita três grammars permanentes sem encerrar W-O007/W-O008 nem confundir CST com tradução semântica |
+| W-C023 | declarations são privadas ao módulo por default; `export` forma a interface W | evita `public`/`private` redundantes; valores transparentes, objetos encapsulados e operações remotas continuam semanticamente distintos |
+| W-C024 | formatter candidato usa largura preferida 120, mantém a construção inteira em uma linha quando cabe e usa forma vertical determinística quando quebra | reduz ruído e tokens sem criar duas formas canônicas; fórmulas e comentários longos seguem mensuráveis no corpus |
+| W-C025 | primeiro argumento é posicional por default; seguintes usam o nome como label, com labels customizáveis | economiza repetição no receiver/valor principal e preserva intenção nos argumentos seguintes; defaults alternativos seguem em W-O040 |
+| W-C026 | `mut fn` marca mutação do receiver implícito; free function usa `inout` sem repetir `mut` | mantém mutação visível no contrato e evita dois marcadores para a mesma authority explícita |
+| W-C027 | grammar experimenta quatro closures de range: `...`, `..<`, `>..`, `>..<` | a posição de `>`/`<` mostra qual bound é excluído; semântica de intervalo/progressão segue em W-O041 |
+| W-C028 | switch pattern experimenta ranges bounded e one-sided com guard `where` | reutiliza pattern refinement em vez de tornar `where` um sinônimo geral de `&&`; first-class unbounded ranges seguem abertos |
+| W-C029 | compactação de valores é invisível no source, sempre tem fallback e fica explicável pelo tooling | `Any` pode fazer box com custo reportado; `Option<ref T>` promete zero alocação, não tamanho universal; W-O018 ainda seleciona profiles e W-O043–W-O045 fecham metadata/layout |
 
 ## Questões abertas prioritárias
+
+Os IDs são estáveis e não são renumerados; W-O034 ficou sem atribuição durante a
+consolidação inicial e permanece reservado para evitar reutilização acidental.
 
 | ID | Questão | Alternativas a prototipar | Teste de decisão |
 |---|---|---|---|
@@ -93,7 +105,7 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-O023 | `service` começa como keyword, declaração gerada ou API? | sintaxe própria · object + metadata · IDL/codegen | leitura, tooling, lifecycle e possibilidade de remover o açúcar |
 | W-O024 | qual modelo de turn/reentrância é o default? | closed turn · reentrância opt-in · actor estrito | invariantes, deadlock, latency e três workloads com I/O |
 | W-O025 | quais escopos de singleton existem no primeiro corte? | process · key · deployment · request · nenhum default | routing, restart, testes e isolamento observáveis |
-| W-O026 | `io.print` merece exceção na prelude pura? | import explícito · prelude por profile · açúcar fixo | clareza de authority, scripts pequenos, autocomplete e colisões |
+| W-O026 | quais exports da stdlib entram no mapa implícito da edição? | todos os nomes únicos · somente uma prelude curada · namespaces implícitos + poucos nomes livres | clareza de authority, tokens, autocomplete, estabilidade entre edições e colisões no restaurante |
 | W-O027 | “nanoservice” é nome público e qual é sua unidade mínima? | apenas lente interna · nome de `service` · handler stateless também | state/lifecycle/capability que justifique boundary sem feature soup |
 | W-O028 | qual é o primeiro corte do lens de recursos? | somente import/artefato · import + calls do restaurante | precisão, latência incremental e utilidade antes de existir runtime |
 | W-O029 | qual budget valida primeiro o modelo? | payload final · baseline por instância · peak por request | dado reproduzível, ação de recovery e valor em CI |
@@ -101,6 +113,68 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-O031 | qual workload complementa o restaurante? | parser · servidor HTTP · imagens | recursão, I/O, FFI, fanout e alocação com formas diferentes |
 | W-O032 | como perfis medidos entram em revisão e CI? | apenas local · anexo redigido · corpus público reproduzível | privacidade, portabilidade e não confundir p95 com teto |
 | W-O033 | como compor error sets diferentes sem esconder controle? | `catch` explícito · conversão `from` declarada · injeção única inferida | ambiguidade, ergonomia, ABI e diagnóstico no restaurante |
+| W-O035 | como exportar values com invariantes sem expor toda a representação? | `export struct` transparente · fields exportados individualmente · tipo opaco + factories | evolução de API, construção cross-module, pattern matching e ABI |
+| W-O036 | qual sintaxe representa quantidades e unidades físicas? | sufixo de literal · `Number<Unit>` · annotation dedicada | dimensional analysis, legibilidade de fórmulas, generics, FFI e zero overhead |
+| W-O037 | quais modos numéricos são observáveis? | IEEE estrito default · modo reproduzível · fast-math explícito por scope | resultados entre targets, vetorização, redução paralela e diagnóstico |
+| W-O038 | qual forma compacta testa um valor contra várias alternativas? | `value.isOneOf(a, b)` · `value in (a, b)` · pattern alternativo | tokens, ausência de alocação/varargs, narrowing, diagnostics e leitura de `canMove` |
+| W-O039 | qual forma representa exponenciação? | `base ** exponent` · `pow(base, exponent)` · APIs distintas por família numérica | precedência de unary minus, dimensions, inteiros negativos, overflow e lowering math |
+| W-O040 | qual default de labels produz melhor API? | primeiro posicional + restantes nomeados · todos nomeados · todos posicionais com lint | tokens, autocomplete, refactors e leitura de calls com vários argumentos do restaurante |
+| W-O041 | `Range<T>` é intervalo, progressão iterável ou tipos separados? | intervalo + `stride` explícito · producer lazy com step · `Interval<T>` separado de `Range<T>` | membership float, `for` inteiro, count/last, alocação, infinitos e mensagem matemática correta |
+| W-O042 | qual forma delimita e agrupa ilhas `fn<lang>` da própria aplicação? | body inline opaco · `from` para source separado · namespace de compilation unit · annotation/adapter | migração gradual, language injection, chamadas intra-unit, ABI, source maps, cache, provenance e targets |
+| W-O043 | qual é o contrato de `Any`, existentials e metadata dinâmica de tipo? | `Any` raro + `any P` explícito · somente protocols/generics na v0 · protocol implicitamente existential | ownership/downcast, dispatch, boxing, metadata por reachability, `TypeId` não serializável e código genérico sem type confusion |
+| W-O044 | quais layouts são observáveis e quais formas de `repr`/resilience existem? | layout nativo opaco · `repr(C)`/`transparent` · layout W estável versionado | `sizeOf`, evolução de fields/enums, FFI, módulos de versões distintas e otimização cross-module |
+| W-O045 | como módulos negociam um profile de representação interna? | somente dentro do mesmo artefato · metadata versionada · marshal sempre entre módulos | LTO, dynamic linking, cache, sanitizers, fallback e rejeição segura de incompatibilidade |
+| W-O046 | qual é storage, ownership e mutabilidade de `String`? | UTF-8 contíguo value · COW · buffer owned com views · rope especializado separado | copy/move/drop, SSO, concatenação, FFI, tasks e custo previsível |
+| W-O047 | quais unidades podem indexar/slicear `String` e como boundaries inválidos falham? | bytes/scalars/graphemes por views nomeadas · índices tipados · apenas iteradores para graphemes | complexidade, alocação, normalização, invalid UTF-8 e diagnostics |
+| W-O048 | qual é a sintaxe canônica de string literal, raw, multiline e interpolation? | um delimitador + escapes · raw com marcador · multiline dedent explícito | gramática sem sinônimos, Unicode, source maps, formatter e injection segura |
+| W-O049 | quais conversions, promotions e casts numéricos são implícitos? | somente widening comprovado · nenhum cast implícito cross-family · regras contextuais limitadas | overflow, generics, units, literals, SIMD e portabilidade |
+| W-O050 | qual modelo de generics e conformances entra na v0? | monomorphization · dictionaries · híbrido; `protocol`/traits explícitos | compile time, code size, dynamic linking, diagnostics e specialization |
+| W-O051 | qual é o limite de inference, refinements e avaliação compile-time? | subset decidível · solver limitado por budget · predicates somente runtime fora do subset | termination, mensagens locais, build hermético e expressão matemática útil |
+| W-O052 | qual sintaxe e representação governam captures e closures que escapam? | lista explícita `copy/ref/take/weak` · inferência com diagnostics · closure object uniforme | lifetime, alocação, callbacks C, `async`/`spawn` e cycles |
+| W-O053 | qual é a política para falha de alocação fora de um budget declarado? | `throws AllocError` em APIs alocantes · panic/abort por profile · allocator fallible explícito | cleanup, containers, FFI, overcommit e código que não pode recuperar |
+| W-O054 | o que `panic` faz e W suporta unwind entre frames? | abort por default · unwind W-only · policy por deployment sem cruzar FFI | destructors, locks, tasks, binary size, C++ exceptions e isolamento de serviço |
+| W-O055 | qual modelo de memória e superfície de atomics W expõe? | atomics na stdlib com orders explícitas · subset seguro + `unsafe` avançado · apenas primitives de runtime na v0 | data races, LLVM mapping, target support, reclamation e diagnostics |
+| W-O056 | qual sintaxe solicita cancelamento e como o motivo é representado? | `cancel task` · `task.cancel(reason:)` · cancellation token/capability | typed errors, cleanup, idempotência, deadlines e propagação estrutural |
+| W-O057 | `Task<T,E>` é nomeável e qual é a semântica de `await` do resultado? | handle lexical one-shot · task pública multi-await para `Copy` · shared result explícito | ownership do resultado, retenção de frame, cancelamento e API de groups |
+| W-O058 | qual falha tem primazia quando filhos concorrentes falham? | ordem lexical · primeira observada · aggregate tipado · policy do group | determinismo, cancelamento dos siblings, logs e reproducibilidade de testes |
+| W-O059 | como `Send`, `Sync` e cancellation safety são nomeados e derivados? | traits públicas · propriedades inferidas consultáveis · capabilities estruturais sem nomes públicos | generics, unsafe opt-out, FFI, diagnostics e evolução compatível |
+| W-O060 | qual API mínima de task group, ordering e backpressure? | group lexical · producer/consumer bounded · combinators na stdlib | fan-out grande, memória limitada, erro/cancelamento e ordem de resultados |
+| W-O061 | quais garantias pertencem ao executor/scheduler? | fairness mínima sem prioridade · priorities explícitas · policy de host | starvation, latency, determinismo, oversubscription, blocking e observabilidade |
+| W-O062 | qual é o modelo de streams assíncronos? | `AsyncSequence` pull · channel bounded · generator `yield` com demand | ownership por elemento, buffering, erro, cancelamento e fusão de pipelines |
+| W-O063 | qual é o contrato entre execução bloqueante e executor async? | pool bloqueante explícito · adapters por capability · proibir blocking em executor cooperativo | deadlock, oversubscription, FFI síncrona, filesystem e diagnostics |
+| W-O064 | qual lowering e ABI de runtime implementam `async`/tasks? | state machines próprias · LLVM coroutines · MLIR Async como etapa | cancelamento, destruction de frames, debug, portability e custo de call |
+| W-O065 | como declarar módulos multi-arquivo, init e módulos internos? | manifest determina files · declaração no source · convenção de diretório | ordem de init, rebuild incremental, partial modules e tooling |
+| W-O066 | qual sistema de visibility, re-export e acesso de package existe? | export por declaração · blocos de export · package/internal sem `friend` | API review, refactor, tests, cycles e código gerado |
+| W-O067 | imports entre módulos precisam formar DAG? | DAG estrito · SCC com interfaces separadas · cycles somente de tipos | init, resolução, compile time, cache e diagnostics |
+| W-O068 | uma call de `ServiceRef` exige `await` mesmo no fast path local? | sempre async · overload local sync separado · efeito inferido por placement | refactor local→IPC, failure, latency visível e otimização sem mudança semântica |
+| W-O069 | qual policy de mailbox define overload, fairness e batching? | aguardar espaço · erro tipado imediato · policy explícita por instância | memory bound, starvation, cancelamento, priority inversion e métricas |
+| W-O070 | qual contrato une turn, transação durable e output gate? | turn automático transacional · transação explícita · adapter neutro com commit causal | crash recovery, retries, external effects, logs e SQLite/alternativas |
+| W-O071 | qual é a failure/isolation/restart boundary default? | processo da app · processo por trust domain · isolate por serviço · deployment obrigatório | panic, seccomp, custo, state recovery e observabilidade de geração |
+| W-O072 | como authority/capability é representada e transportada? | parâmetro tipado · referência de capability · grants no manifest + handle runtime | ambient authority, delegation, revocation, IPC e testabilidade |
+| W-O073 | promise pipelining e capability RPC entram na v0? | protocolo stdlib posterior · runtime local/remote uniforme · apenas wRPC em Pesquisa | partial failure, cycles, lifetime remoto, backpressure e complexidade do core |
+| W-O074 | qual contrato mínimo une I/O sync e async sem esconder blocking? | APIs distintas · interface comum com efeito observável · async-first + adapter explícito | ergonomia, targets sem event loop, FFI, cancelamento e custo |
+| W-O075 | quais dados Unicode, locale e timezone acompanham a v0? | bundle mínimo versionado · provider registrável · pacote first-party separado | resultados reproduzíveis, tamanho, atualizações de segurança e targets embedded |
+| W-O076 | como error sets de adapters preservam portabilidade sem congelar códigos do OS? | erro semântico + cause opaca · enum por adapter · wrapper de código nativo | matching, logs, ABI, evolução e diagnóstico cross-platform |
+| W-O077 | quais clocks, deadlines, timers e fontes de aleatoriedade são padrão? | capabilities explícitas · context do host · globais std com substituição em teste | determinismo, segurança, virtual time, suspensão e builds reproduzíveis |
+| W-O078 | qual contrato portátil de paths, filesystem e processos entra na stdlib? | tipos por capability · paths como bytes/Unicode por target · módulos first-party fora do core | Windows/POSIX, encoding, sandbox, cancelamento e efeitos |
+| W-O079 | HTTP, TLS e networking pertencem à stdlib ou a pacotes first-party? | sockets portáteis no std · stack HTTP/TLS oficial · interfaces + adapters versionados | segurança, cadence de atualização, binary size, embedded e server workloads |
+| W-O080 | quais collections, hashing e regras de iteração são observáveis? | ordem estável por tipo · hash randomizado por default · variantes determinísticas explícitas | DoS, reproducibilidade, serialization, paralelismo e generics |
+| W-O081 | qual modelo de decimal e `Money` entra no primeiro corte? | decimal fixed-scale · decimal floating · `Money<Currency,Scale>` com rounding explícito | impostos, ABI, serialization, overflow e locale |
+| W-O082 | qual modelo de arrays/tensors/views preserva shape e aliases? | `Array` core + pacote tensor · ranked types · memref-like views públicas | bounds, strides, mutation, SIMD/linalg, devices e FFI científica |
+| W-O083 | quais mappings e annotations permitem gerar wrappers C seguros? | import de headers + overrides · IDL W explícita · wrappers manuais primeiro | macros, ownership, nullability, callbacks, variadics e diagnostics |
+| W-O084 | quais linguagens e artefatos podem existir em `fn<lang>`? | somente C primeiro · frontends LLVM allowlist · source/objeto externo por adapter | parser/lowering disponível, ABI, exceptions, runtime, cache e provenance |
+| W-O085 | como generics, layouts e symbols evoluem na ABI W? | ABI instável até 1.0 · interfaces resilientes · distribuição source-first | inlining, specialization, plugins, dynamic libs e cache binário |
+| W-O086 | qual é a regra exata de newline, `;`, comments e forma canônica? | newline contextual · `;` sempre opcional/permitido · terminador explícito em casos ambíguos | parser recovery, formatter, diffs, formula layout e codegen por IA |
+| W-O087 | quais profiles, features e conditional compilation são source-level? | manifest/profile somente · `when target(...)` limitado · feature flags tipadas | reprodutibilidade, dead code, API divergente e matriz de testes |
+| W-O088 | como múltiplas versões e features de packages coexistem no grafo? | uma versão global · isolamento por package · unificação controlada de features | type identity, ABI, diamond dependencies, lockfile e binary size |
+| W-O089 | qual é a unidade de compilação incremental e monomorphization? | módulo · arquivo · item; instâncias no consumidor ou pacote produtor | invalidation, cache CAS, parallel build, debug e distribuição binária |
+| W-O090 | quais partes do toolchain pertencem ao bootstrap confiável? | bundle fixado completo · seed mínimo reconstruível · estágios diversos verificados | trusting-trust, disponibilidade, tamanho, cross-build e atualização |
+| W-O091 | qual identidade, namespace e lifecycle governa registry, yanks e advisories? | nomes globais · namespaces por organização · identidade por chave | squatting, transferência, offline builds, revogação e UX |
+| W-O092 | como licenses, policies organizacionais e exceções compõem? | metadata SPDX + policy externa · policy no manifest · attestations separadas | conflitos transitivos, auditoria, override autorizado e interoperabilidade |
+| W-O093 | quem pode declarar `verified`, `diverged`, `revoked` ou `yanked`? | registry · threshold de builders · policy do consumidor | governança contestada, recovery, transparência e nenhum score enganoso |
+| W-O094 | como editions, deprecation e source compatibility evoluem? | editions opt-in · versionamento sem editions · migrations automatizadas obrigatórias | parser, std implícita, packages, tooling e código longevo |
+| W-O095 | qual contrato de testes integra unit, doc, property, fuzz e compile-fail? | runner único com modos · ferramentas separadas sobre manifest comum · apenas unit/doc na v0 | reprodutibilidade, diagnostics, coverage, isolamento e package trust |
+| W-O096 | quais guarantees de custo o compilador pode afirmar estaticamente? | somente facts exatos · estimativas intervalares · profiles medidos anexados | não prometer runtime incerto, budgets, imports, LTO e CI reproduzível |
 
 ## Pesquisa ativa
 
@@ -111,7 +185,7 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | caller-allocated return universal | calling convention a comparar, não regra visível de todo valor |
 | WC como linguagem intermediária pública | possível backend/diagnóstico via EmitC; MLIR é a baseline arquitetural |
 | módulos singleton e `fork module` | pode reaparecer como `service`/`isolate`, separado de namespace |
-| `fn<C>`, `fn<JS>`, `fn<Rust>` | adapters/toolchain plugins após uma FFI C segura |
+| `fn<C>`, `fn<JS>`, `fn<Rust>` | ilhas de implementação da aplicação, via adapters de frontend após uma FFI C segura |
 | WLO/WLON | candidato a literal/serialização canônica, fora do parser mínimo |
 | wQL, wRPC e RestPC | contratos e bibliotecas do ecossistema, não keywords v0 |
 | Computer Units e V6 | runtime/serverless separado |
@@ -120,6 +194,7 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | GPU, HDL, OpenMP, SIMD explícito | lowerings futuros depois do pipeline CPU nativo |
 | snapshots, PGO e autotest por IA | tooling futuro sobre testes/documentação executável |
 | highlighting e parser incremental | Tree-sitter/queries são a projeção estrutural mantida; TextMate é compatibilidade lexical e semantic tokens futuros pertencem a `wls`/HIR |
+| unidades físicas, decimal, arrays e cálculo científico | corpus térmico do restaurante; representação, literal, reproducibilidade e lowerings continuam em W-O036/W-O037 |
 
 ## Rejeitado por enquanto
 

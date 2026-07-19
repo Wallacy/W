@@ -1,0 +1,28 @@
+{
+  "schema": "w.diagnostics/1",
+  "case": "missing-case-pattern",
+  "source": "negative/04-missing-case-pattern.w",
+  "diagnostics": [
+    {
+      "code": "W-SYN-0004",
+      "severity": "error",
+      "message": "expected a pattern after case",
+      "primary": {
+        "start": {
+          "row": 2,
+          "column": 8,
+          "byte": 56
+        },
+        "end": {
+          "row": 2,
+          "column": 8,
+          "byte": 56
+        }
+      },
+      "parser": {
+        "kind": "MISSING",
+        "expectedNode": "identifier"
+      }
+    }
+  ]
+}

@@ -18,11 +18,12 @@ A superfície se divide em cinco níveis, com dependências apenas para baixo:
    borrows, `throws E`, operações atômicas fundamentais e pontos de suspensão.
    Intrinsics são uma interface interna versionada, não uma coleção de APIs
    privilegiadas para aplicações.
-2. **Prelude:** nomes pequenos usados quase sempre e importados implicitamente,
-   sem iniciar threads, alocar buffers grandes, consultar relógios ou fazer I/O.
-   `Option<T>` dá a semântica de `T?`; isso não adiciona estados além de `.some(T)`
-   e `.none`. Erros recuperáveis no source usam `throws E`; a prelude não impõe
-   `Result` como assinatura pública.
+2. **Superfície implícita da edição:** core, nomes livres e namespaces da stdlib
+   registrados num mapa versionado. Visibilidade não executa trabalho nem concede
+   capability; `print` pode ser curto e ainda registrar I/O, terminal e
+   reachability no tooling. `Option<T>` dá a semântica de `T?`; isso não adiciona
+   estados além de `.some(T)` e `.none`. Erros recuperáveis no source usam
+   `throws E`; a stdlib não impõe `Result` como assinatura pública.
 3. **Stdlib portátil:** valores, algoritmos e contratos que preservam a mesma
    semântica em todos os targets suportados. Uma implementação pode usar
    intrinsics, mas precisa de fallback conforme [W-D010](../STATUS.md).
@@ -155,11 +156,15 @@ na fronteira estável declarada.
   registráveis na receita de build/deploy, não como estado ambiental invisível.
 - Publicar wrappers C reutilizáveis como módulos normais quando não forem parte
   do bootstrap; apenas o mecanismo `foreign c` pertence ao core.
+- Gerar com cada edição uma tabela canônica `nome livre → export std`, rejeitando
+  entradas ambíguas e preservando namespace qualificado para todas elas. O LSP e
+  `w explain name` devem mostrar origem, effects, capability e custo alcançável.
 
 ## Em aberto
 
-- Quais protocolos entram na prelude sem aumentar compile time, namespace e
-  compromisso de compatibilidade?
+- Quais exports entram no mapa implícito sem aumentar compile time, autocomplete
+  e compromisso de compatibilidade? Comparar todos os nomes únicos, uma prelude
+  curada e namespaces implícitos com poucos nomes livres em W-O026.
 - Qual é a API exata para allocator/região/budget e como ela interage com
   inferência de moves, shared ownership e cancelamento?
 - Capabilities aparecem em parâmetros, metadata inferida ou effects adicionais

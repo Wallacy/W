@@ -14,7 +14,8 @@
     "generate": "tree-sitter generate",
     "test": "tree-sitter test",
     "parse:restaurant": "tree-sitter parse --grammar-path . --quiet --stat ../../examples/restaurant/*.w",
-    "check": "npm run generate && npm test && npm run parse:restaurant"
+    "corpus": "bun ../../corpus/runner.ts",
+    "check": "npm run generate && npm test && npm run parse:restaurant && npm run corpus"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"

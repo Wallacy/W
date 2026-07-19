@@ -41,7 +41,8 @@ bun run start
 | `/reference` | Mapa dos documentos que possuem fatos e decisões |
 | `/playground` | Editor com análise lexical local, sem execução |
 | `/status` | Snapshot visual da maturidade do projeto |
-| `/examples/restaurant/README.md` | Índice do exemplo top-down “O restaurante W”; os seis fontes `.w` também possuem rotas explícitas |
+| `/examples/restaurant/README.md` | Índice do exemplo top-down “O restaurante W”; as dezesseis fontes `.w`, requisitos e experimento multilíngue também possuem rotas explícitas |
+| `/corpus/README.md` | Contrato da Fase 0; manifest e schema também possuem rotas explícitas |
 | `/health` | Health check JSON |
 
 O tema claro/escuro é compartilhado entre páginas e persistido localmente. A
@@ -112,6 +113,7 @@ Com o servidor rodando, confirme `GET`/`HEAD` nas páginas, `501` no contrato,
 - `w-syntax.js`: scanner lexical e realçador DOM local, fallback para a futura gramática Tree-sitter/WASM;
 - `playground.html` + `playground.js`: editor, pré-visualização realçada e análise local;
 - `../examples/restaurant/`: pseudocódigo narrativo servido por rotas explícitas;
+- `../corpus/`: manifest e documentação do corpus servidos para inspeção;
 - `styles.css` e `app.js`: identidade, acessibilidade, tema e interações comuns;
 - `server.ts`: servidor Bun, headers de segurança e contrato `501`;
 - `check.ts`: parse/build em memória, sem artefatos;

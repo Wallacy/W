@@ -31,10 +31,11 @@ Este arquivo descreve somente hipóteses ainda úteis e seus próximos experimen
 | Tagged values e tagged pointers | Pesquisa | otimização de lowering por target |
 | Arenas/heaps por módulo | Pesquisa e questão aberta de regiões | allocator/região explícita ou runtime de serviço |
 | WC e EmitC | WC público em pesquisa; EmitC em aberto | backend inspecionável para um subset |
-| `fn<lang>` | Pesquisa pós-FFI C | plugin/adaptador de toolchain |
+| `fn<lang>` | Pesquisa pós-FFI C | ilha da aplicação + adapter de frontend |
 | WLO/WLON | Pesquisa | literal/serialização canônica opcional |
 | wQL, wRPC e RestPC | Pesquisa pós-core | bibliotecas e contratos do ecossistema |
 | V6 e Computer Units | Pesquisa separada | runtime/serverless/isolate |
+| Numéricos, units, arrays e lowerings científicos | Direção + Pesquisa | core numérico, stdlib e pacotes/lowerings |
 
 ## Hipóteses de pesquisa
 
@@ -47,6 +48,7 @@ Este arquivo descreve somente hipóteses ainda úteis e seus próximos experimen
 | SQLite | Pesquisa | adapter oficial ou storage interno de tooling | dependência universal e claims fora do workload | comparar cache/tooling e adapter explícito com alternativas |
 | GPU e HDL | Pesquisa pós-pipeline CPU | lowering/target especializado | portabilidade e semânticas de memória distintas | um kernel puro com baseline CPU e fallback |
 | Snapshots, PGO e autotests | Pesquisa de tooling | testes executáveis e profiling | oracle circular, dados frágeis ou privados | doc-test e snapshot explícito antes de PGO/IA |
+| Unidades e computação científica | Pesquisa com corpus térmico | fórmulas verificáveis e target CPU eficiente | feature soup, float não reproduzível e ABI difícil | type-check dimensional + lowering escalar do forno em dois targets |
 
 ## Tagged values e tagged pointers
 
@@ -121,9 +123,10 @@ output, qualidade de debug e os pontos que não podem ser representados.
 para a primeira fronteira externa; `fn<C>`, `fn<JS>`, `fn<TS>`, `fn<Rust>`,
 `fn<Zig>` e variantes de GPU não estão no parser mínimo.
 
-**Valor potencial:** manter código especializado próximo do wrapper W, gerar
-bibliotecas por toolchains diferentes e converter tipos na fronteira pode reduzir
-cerimônia em aplicações realmente multilíngues.
+**Valor potencial:** manter ilhas de código legado/especializado dentro da
+aplicação permite migração gradual e pontes pequenas sem exigir uma library
+externa ou uma conversão W idiomática imediata. A ideia se aproxima de `asm` em
+C, mas delega um body completo ao frontend da linguagem indicada.
 
 **Risco:** cada linguagem adiciona parser, formatter, toolchain, cache, sandbox,
 debug, source maps, regras de ownership, modelo de erro e matriz de targets. A
@@ -131,9 +134,12 @@ conversão “automática” pode esconder cópias ou lifetimes inválidos. Cód
 embutido também complica provenance e reprodutibilidade.
 
 **Próximo experimento:** concluir primeiro uma chamada `foreign c` com tipos,
-ownership e erros explícitos. Depois, implementar um único plugin externo fora
-da gramática principal, com artifact e toolchain fixados no lockfile, e comparar
-o resultado com um arquivo externo comum.
+ownership e erros explícitos. Depois, implementar um adapter C e uma ilha inline
+delimitada, com toolchain fixado na receita, e comparar o resultado com o mesmo
+source da aplicação em arquivo separado. O
+[experimento do equipamento do restaurante](../examples/restaurant/multilingual.md)
+mantém `foreign c`, body inline, `fn<C> from`, namespace e annotation/plugin lado
+a lado sem promover nenhuma forma.
 
 ## WLO/WLON
 
