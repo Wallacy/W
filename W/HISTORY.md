@@ -87,6 +87,20 @@ O novo resumo promove a fatos ideias que as fontes tratavam como alternativas, e
 
 Em 18 de julho de 2026 começa a reconstrução de `W/` com uma regra diferente: separar visão, escolhas candidatas, questões abertas e pesquisa. O objetivo não é apagar as ideias antigas, mas impedir que uma hipótese seja confundida com promessa atual.
 
+## Documentação e testes no próprio source
+
+`Y/WIP.MD`, linhas históricas em torno de 1914–2003, já propunha testes ao lado da
+função, arquivos `file.test.w`, remoção dos testes do artefato release e reserva
+de vocabulário inspirado em JSDoc. A notação explorada incluía `//@(2,1) == 3`,
+`@a` para argumentos e `@@` para resultado, além de ideias de debug inline.
+
+A DB1 preserva a intenção, não essa DSL: a versão atual usa comentários `///`
+Markdown, fences `w test`, declaração contextual `test "..." for symbol` e os
+mesmos testes em `*.test.w`. O contrato está em
+[`W/design/documentation-and-tests.md`](../../W/design/documentation-and-tests.md).
+As formas `@`/`@@`, execução de debug embutida e snapshots remotos continuam
+históricas até demonstrarem uma necessidade que a sintaxe atual não cubra.
+
 ## Linhagem dos caminhos
 
 ```text

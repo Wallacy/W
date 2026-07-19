@@ -93,7 +93,7 @@ O SHA-256 identifica os bytes locais anteriores à remoção, calculados com
 
 [HISTORY.md](HISTORY.md) estabelece que `Y/WIP.MD` deriva de `W/README.MD` (2020) via `.WIP.MD`/`WIP.MD`, e que `Y/_w_/` continua os spikes antes localizados em `W/C` e `W/_w_/`. Também registra que `Y/_w_/README.md` é o snapshot do resumo anterior de W. Essa linhagem é provenance documental: as fontes mantêm alternativas, e não autoridade normativa sobre os documentos atuais.
 
-As seguintes alternativas ficam preservadas exclusivamente como **Pesquisa/adiadas**, e não são direções atuais: musl, Cosmopolitan, instaladores, seccomp, builders herméticos e espelhos; inspection points de WC e extensões GNU/Clang; import dinâmico e `configOverride`; `#embed`; `#pragma pack`; e módulo `fork`/`self`. Qualquer retomada exige decisão, contrato, testes por target e status explícito.
+As seguintes alternativas ficam preservadas exclusivamente como **Pesquisa/adiadas**, e não são direções atuais: musl, Cosmopolitan, instaladores, seccomp, builders herméticos e espelhos; inspection points de WC e extensões GNU/Clang; import dinâmico e `configOverride`; `#embed`; `#pragma pack`; módulo `fork`/`self`; e a DSL de teste/debug `@`/`@@` descrita em `Y/WIP.MD`. A intenção de testes co-localizados foi promovida por uma sintaxe nova em `W/design/documentation-and-tests.md`; qualquer retomada das formas históricas exige decisão, contrato, testes por target e status explícito.
 
 ## Provenance e licença das estruturas importadas
 
