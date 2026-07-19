@@ -16,9 +16,10 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 ## Cobertura deste corte
 
 - imports lógicos, aliases e exports;
-- `fn`, parâmetros rotulados, generics, efeitos `async throws` e blocos;
-- `struct`, `object`, `enum`, `protocol`, aliases refinados e `foreign c`;
-- bindings, ownership no call site, `try`/`await`, `async let` e `spawn let`;
+- `fn`, parâmetros rotulados, generics, `async fn`/`throws` e blocos;
+- `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
+- bindings/behaviors, ownership, `try`/`await`, `async let`, `spawn let` e `cancel`;
+- units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
@@ -73,11 +74,13 @@ neste corte. Eles só devem entrar depois de
 - comentários de bloco ainda não são aninhados;
 - newline é trivia; a regra exata de separação/formatter ainda precisa de casos
   negativos, portanto `;` permanece aceito;
-- `service`, `worker`, `assistant` e `nanoservice` não são keywords;
+- `service` é keyword candidata; `worker`, `assistant` e `nanoservice` não são;
+- raw com múltiplos hashes balanceados ainda precisa de scanner externo; este
+  corte reconhece a forma canônica de um hash;
 - patterns e captures de closure estão apenas no subset mínimo; annotations não
   pertencem à v0;
-- a posição final de `async`, parser normativo e compartilhamento de CST seguem
-  abertos no status.
+- parser normativo e compartilhamento de CST seguem gates de protótipo; a DB1
+  fixou `async fn` e mantém esta gramática como projeção de tooling.
 
 Quando uma forma mudar, altere nesta ordem: decisão canônica, `grammar.js`,
 corpus, queries e consumidores gerados. Não mantenha uma lista de sintaxe

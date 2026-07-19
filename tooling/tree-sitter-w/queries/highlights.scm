@@ -9,8 +9,12 @@
   (multiline_string_literal)
 ] @string
 
-(number_literal) @number
-(unit_identifier) @constant.builtin
+[
+  (number_literal)
+  (quantity_literal)
+  (unit_suffix_literal)
+  (size_literal)
+] @number
 (boolean_literal) @boolean
 
 [
@@ -19,12 +23,15 @@
   "foreign"
   "object"
   "protocol"
+  "service"
   "struct"
+  "test"
   "type"
 ] @keyword.type
 
 [
   "break"
+  "cancel"
   "case"
   "catch"
   "continue"
@@ -42,6 +49,7 @@
 
 [
   "async"
+  "atomic"
   "await"
   "const"
   "copy"
@@ -90,7 +98,7 @@
 
 [
   "=" "+=" "-=" "*=" "/=" "%="
-  "+" "-" "*" "/" "%"
+  "+" "-" "*" "**" "/" "%"
   "<<" ">>" "..." "..<" ">.." ">..<"
   "<" "<=" ">" ">=" "==" "!=" "is"
   "&" "^" "|" "&&" "||" "??"

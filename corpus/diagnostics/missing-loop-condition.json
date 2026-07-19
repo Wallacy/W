@@ -21,7 +21,7 @@
       },
       "parser": {
         "kind": "MISSING",
-        "expectedNode": "number_literal"
+        "expectedNode": "true"
       }
     }
   ]

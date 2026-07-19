@@ -1,15 +1,15 @@
 0:0  - 3:0    •source_file
 0:0  - 2:1      •function_declaration
-0:0  - 0:2         "fn"
-0:3  - 0:7         name: identifier `main`
-0:7  - 0:9         parameters: parameter_list
-0:7  - 0:8           "("
-0:8  - 0:9           ")"
-0:9  - 0:10       ":"
-0:11 - 0:15       return_type: type
-0:11 - 0:15         base: type_name
-0:11 - 0:15           name: type_identifier `Void`
-0:16 - 0:21       "async"
+0:0  - 0:5         "async"
+0:6  - 0:8         "fn"
+0:9  - 0:13        name: identifier `main`
+0:13 - 0:15        parameters: parameter_list
+0:13 - 0:14          "("
+0:14 - 0:15          ")"
+0:15 - 0:16       ":"
+0:17 - 0:21       return_type: type
+0:17 - 0:21         base: type_name
+0:17 - 0:21           name: type_identifier `Void`
 0:22 - 2:1        body: •block
 0:22 - 0:23         "{"
 1:2  - 1:24         •binding_declaration

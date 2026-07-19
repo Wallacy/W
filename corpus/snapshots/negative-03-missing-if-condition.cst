@@ -9,17 +9,18 @@
 0:10 - 0:11         "{"
 1:2  - 3:3          •if_statement
 1:2  - 1:4            "if"
-1:4  - 1:4            •number_literal
-1:5  - 3:3            block
-1:5  - 1:6              "{"
-2:4  - 2:24             expression_statement
-2:4  - 2:24               call_expression
-2:4  - 2:9                  function: identifier `print`
-2:9  - 2:24                 arguments: argument_list
-2:9  - 2:10                   "("
-2:10 - 2:23                   argument
-2:10 - 2:23                     value: string_literal `\"unreachable\"`
+1:4  - 1:4            •boolean_literal
+1:4  - 1:4              MISSING: "true"
+1:5  - 3:3             block
+1:5  - 1:6               "{"
+2:4  - 2:24              expression_statement
+2:4  - 2:24                call_expression
+2:4  - 2:9                   function: identifier `print`
+2:9  - 2:24                  arguments: argument_list
+2:9  - 2:10                    "("
+2:10 - 2:23                    argument
+2:10 - 2:23                      value: string_literal `\"unreachable\"`
 2:23 - 2:24                   ")"
 3:2  - 3:3              "}"
 4:0  - 4:1          "}"
-<source>	(MISSING number_literal [1, 4] - [1, 4])
+<source>	(MISSING "true" [1, 4] - [1, 4])

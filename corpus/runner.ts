@@ -73,12 +73,13 @@ function normalize(text: string, sourcePath?: string): string {
 }
 
 function parserDiagnostics(cst: string): ParserDiagnostic[] {
-  const pattern = /\((ERROR|MISSING)(?:\s+([A-Za-z_][A-Za-z0-9_]*))?\s+\[(\d+),\s*(\d+)\]\s+-\s+\[(\d+),\s*(\d+)\]\)/g;
+  const pattern =
+    /\((ERROR|MISSING)(?:\s+(?:([A-Za-z_][A-Za-z0-9_]*)|"([^"]+)"))?\s+\[(\d+),\s*(\d+)\]\s+-\s+\[(\d+),\s*(\d+)\]\)/g;
   return [...cst.matchAll(pattern)].map((match) => ({
     kind: match[1] as "ERROR" | "MISSING",
-    ...(match[2] ? { expectedNode: match[2] } : {}),
-    start: { row: Number(match[3]), column: Number(match[4]) },
-    end: { row: Number(match[5]), column: Number(match[6]) },
+    ...(match[2] || match[3] ? { expectedNode: match[2] ?? match[3] } : {}),
+    start: { row: Number(match[4]), column: Number(match[5]) },
+    end: { row: Number(match[6]), column: Number(match[7]) },
   }));
 }
 
