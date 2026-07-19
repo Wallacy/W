@@ -142,7 +142,7 @@ tardia sem tornar o wrapper o tipo público da propriedade:
 
 ```w
 // Hipótese visual; ainda não pertence à grammar.
-var heatProfile = deriveHeatProfile(model) with Lazy
+var heatProfile by Lazy = deriveHeatProfile(model)
 ```
 
 O compiler enxergaria storage, init, accessors, ownership e efeitos em HIR. O

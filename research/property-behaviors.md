@@ -48,15 +48,15 @@ behavior Lazy<Value> for Value {
 }
 
 object Oven {
-  var heatProfile = deriveHeatProfile(model) with Lazy
+  var heatProfile by Lazy = deriveHeatProfile(model)
 }
 ```
 
 `heatProfile` continua tendo seu tipo lógico; o optional de `Lazy` é detalhe de
-implementação. `with` torna a feature uma construção dedicada e pesquisável,
-sem reabrir `@annotations`. A declaração de behavior produz HIR tipada, não AST
-arbitrária, e o compiler conhece storage, lifetime, accessors e efeitos antes do
-lowering.
+implementação. `by` torna a feature uma construção dedicada e pesquisável, sem
+reabrir `@annotations`, e aparece antes da expressão cuja avaliação controla. A
+declaração de behavior produz HIR tipada, não AST arbitrária, e o compiler conhece
+storage, lifetime, accessors e efeitos antes do lowering.
 
 ### Contrato mínimo a testar
 
@@ -95,13 +95,13 @@ a semântica. Três formas ficam preservadas:
 
 ```w
 // A. pipeline declarada; ordem definida pela linguagem
-var menu = loadMenu() with Lazy, Observed(onMenuChange)
+var menu by Lazy, Observed(onMenuChange) = loadMenu()
 
 // B. nesting explícito; mais longo, sem ambiguidade
-var menu = loadMenu() with Observed(Lazy)
+var menu by Observed(Lazy) = loadMenu()
 
 // C. composição nomeada pela biblioteca
-var menu = loadMenu() with ObservableLazy(onMenuChange)
+var menu by ObservableLazy(onMenuChange) = loadMenu()
 ```
 
 A máquina prefere B/C: a forma expandida, ownership e ordem dos accessors são
@@ -125,7 +125,10 @@ rejeitadas. Nunca se presume que behaviors comutam.
 
 | Forma | Leitura | Consequência |
 |---|---|---|
-| `var value: T with Behavior(...)` | comportamento depois do contrato lógico | recomendação de máquina atual; clara e sem annotation |
+| `var value: T by Behavior(...) = initial` | propriedade implementada pelo behavior | recomendação de máquina; policy antes do initializer e parse estável |
+| `var value = Behavior initial` | behavior prefixa diretamente o initializer | preferência humana registrada; mínima, mas parece expression modifier e dificulta composição/Tree-sitter |
+| `var value: T with Behavior(...) = initial` | comportamento depois do contrato lógico | clara, mas `with` é genérico e a leitura é menos direta que `by` |
+| `var value = initial with Behavior(...)` | lê como transformação posterior do valor | preservada, mas associa visualmente ao initializer em vez do storage |
 | `var [behavior(...)] value: T` | compacta e próxima do SE-0030 | colchetes ganham um segundo papel e o nome chega tarde |
 | `var value: Behavior<T>` | usa apenas o type system comum | vaza storage no tipo público e piora calls/generics |
 | bloco `var value: T { behavior ... }` | acomoda accessors customizados | mais verboso e composição menos imediata |
@@ -133,8 +136,8 @@ rejeitadas. Nunca se presume que behaviors comutam.
 
 ## Perguntas para fechar W-O097
 
-1. `with Behavior(...)` preserva a sensação de uma propriedade comum ou parece
-   esconder comportamento demais depois do nome?
+1. `by Behavior(...)` comunica storage/policy melhor que o prefixo compacto
+   `Behavior initial`, ou o parse contextual vale a economia e a leitura humana?
 2. O conjunto v0 deve aceitar somente `init/get/set/modify`, síncronos e sem
    `throws`, deixando custom accessors, projections e `self` para depois?
 3. Composição deve exigir nesting/composite nomeado no primeiro corte?
