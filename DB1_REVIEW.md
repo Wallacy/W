@@ -167,11 +167,12 @@ exige scope explícito.
 ### H06 · Property behaviors
 
 Recomendação: declaração dedicada `behavior` e uso
-`var value by Behavior(...) = initial`, sem annotations. A policy aparece antes
-do initializer e pertence à propriedade. A forma humana mais curta
-`var value = Behavior initial` continua alternativa explícita; ela só vence se o
-parser/Tree-sitter e a composição não precisarem resolver um nome semanticamente
-para descobrir a estrutura. O tipo lógico não muda; HIR vê storage,
+`var Behavior(...) value: T = initial`, sem annotations. Em
+`var Lazy heatProfile = deriveHeatProfile(model)`, `var` ancora o parse e tudo
+entre ele e o nome pertence à lista de behaviors; nenhum lookup semântico é
+necessário para reconhecer a declaração. `Lazy var heatProfile` permanece
+alternativa humana, mas exigiria ordenar behaviors junto de `export`, ownership
+e outros modifiers. O tipo lógico não muda; HIR vê storage,
 init/get/set/modify, efeitos e cleanup. Accessors comuns são síncronos e
 non-throwing; variantes com efeitos exigem `try`/`await` no uso e nunca escondem
 blocking/rede. `self` só pode ser usado por accessors após definite
@@ -377,7 +378,7 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O094 | **Candidato** | editions opt-in, migrations automatizadas e janela de suporte explícita | H12 |
 | W-O095 | **Candidato** | runner único; unit/doc/compile-fail baseline; property/fuzz engines oficiais | H13 |
 | W-O096 | **Candidato** | facts/bounds provados são guarantees; estimates intervalares e profiles medidos ficam rotulados | H13 |
-| W-O097 | **Candidato** | `behavior` + `by` antes do initializer; prefixo direto preservado; expansão e composição explícitas | H06 |
+| W-O097 | **Candidato** | `var Behavior value = initial`; `Behavior var` preservado; expansão e composição explícitas | H06 |
 | W-O098 | **Candidato** | tiers T0/T1/T2 do SDK, ortogonais a intrinsics/portabilidade/adapters | H09 |
 | W-O099 | **Candidato** + **Pesquisa** | SI e análise numérica oficiais T2; álgebra simbólica fica num package first-party experimental | H05 |
 
