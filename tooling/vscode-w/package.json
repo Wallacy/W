@@ -1,0 +1,50 @@
+{
+  "name": "w-language",
+  "displayName": "W Language (candidate)",
+  "description": "Local, declarative syntax highlighting for candidate W source files.",
+  "version": "0.0.2",
+  "publisher": "w-local",
+  "private": true,
+  "license": "UNLICENSED",
+  "icon": "icons/w.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "w",
+    "language",
+    "syntax highlighting"
+  ],
+  "files": [
+    "package.json",
+    "README.md",
+    "language-configuration.json",
+    "icons/**",
+    "syntaxes/**",
+    "fixtures/**"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "w",
+        "aliases": ["W", "w"],
+        "extensions": [".w"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/w.png",
+          "dark": "./icons/w.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "w",
+        "scopeName": "source.w",
+        "path": "./syntaxes/w.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Playground de especificação da linguagem W, sem execução ou compilação." />
+    <meta name="color-scheme" content="light dark" />
+    <title>W Portal · Playground · Working Draft</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/w-syntax.js" defer></script>
+    <script src="/app.js" defer></script>
+    <script src="/playground.js" defer></script>
+  </head>
+  <body class="playground-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="W Portal — visão"><span class="brand-mark" aria-hidden="true">W</span><span class="brand-copy"><strong>W</strong><small>Portal</small></span></a>
+      <div class="draft-stamp"><span class="status-dot" aria-hidden="true"></span>Working Draft · 0.2</div>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro"><span class="theme-icon" aria-hidden="true">◐</span><span data-theme-label>Tema</span></button>
+    </header>
+    <nav class="portal-nav" aria-label="Navegação principal">
+      <a href="/">Visão</a><a href="/book">Livro</a><a href="/reference">Referência</a><a href="/playground" aria-current="page">Playground</a><a href="/status">Status</a>
+    </nav>
+    <div class="draft-banner" role="note"><strong>Não é um compilador.</strong> O editor reconhece tokens e padrões locais; não valida semântica nem executa W.</div>
+
+    <main id="conteudo" class="playground-main">
+      <header class="tool-hero">
+        <div><p class="eyebrow">Laboratório honesto</p><h1>Playground de especificação</h1><p>Edite exemplos candidatos e veja uma leitura lexical simples, totalmente local.</p></div>
+        <span class="badge open">Compilador indisponível</span>
+      </header>
+
+      <section class="playground-workspace" aria-label="Editor e análise">
+        <div class="editor-panel">
+          <div class="panel-toolbar">
+            <label for="example-select">Exemplo</label>
+            <select id="example-select" data-example-select>
+              <option value="hello">Primeiro programa</option>
+              <option value="options">Options e errors</option>
+              <option value="tasks">Concorrência e paralelismo</option>
+              <option value="restaurantMenu">Restaurante: menu</option>
+              <option value="restaurantOrder">Restaurante: pedido keyed</option>
+              <option value="restaurantKitchen">Restaurante: cozinha</option>
+              <option value="restaurantTable">Restaurante: mesa completa</option>
+              <option value="ffi">Fronteira C</option>
+            </select>
+            <span class="editor-filename" data-filename>hello.w</span>
+          </div>
+          <label class="sr-only" for="w-editor">Código W editável</label>
+          <textarea id="w-editor" data-editor spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="editor-help syntax-preview-help"></textarea>
+          <p id="editor-help" class="editor-help">Atalho: <kbd>Ctrl</kbd> + <kbd>Enter</kbd> abre a explicação de execução.</p>
+          <section class="syntax-preview" aria-labelledby="syntax-preview-title">
+            <div class="syntax-preview-heading"><h2 id="syntax-preview-title">Pré-visualização com realce</h2><span>fallback lexical</span></div>
+            <p id="syntax-preview-help">Sincronizado com o editor. Realce provisório, não normativo: não faz parsing, validação ou compilação.</p>
+            <div class="code-shell syntax-preview-code"><pre aria-label="Código W realçado, somente leitura"><code data-syntax-preview></code></pre></div>
+          </section>
+          <div class="editor-actions">
+            <button class="button primary" type="button" data-run>Executar</button>
+            <button class="button ghost" type="button" data-copy-editor>Copiar</button>
+            <button class="button ghost" type="button" data-reset>Resetar exemplo</button>
+          </div>
+          <div class="run-message" data-run-message hidden tabindex="-1" role="status"></div>
+        </div>
+
+        <div class="analysis-panel" aria-live="polite">
+          <div class="panel-toolbar"><strong>Análise lexical</strong><span data-analysis-state>local · aproximada</span></div>
+          <dl class="token-summary" data-token-summary></dl>
+          <div class="analysis-block"><h2>Tokens</h2><ol class="token-stream" data-token-stream></ol></div>
+          <div class="analysis-block"><h2>Anotações</h2><ul class="annotation-list" data-annotations></ul></div>
+        </div>
+      </section>
+
+      <section class="playground-contract" aria-labelledby="adapter-title">
+        <p class="section-kicker">Contrato futuro</p>
+        <h2 id="adapter-title">Onde uma execução poderia entrar</h2>
+        <p>O botão usa <code>POST /api/playground/compile</code>, que responde <code>501 Not Implemented</code>. Um adapter futuro poderá chamar um compilador em WASM ou um serviço remoto isolado. Nenhuma das duas opções existe nesta POC, e a página não envia código a terceiros.</p>
+        <div class="code-shell"><pre><code>POST /api/playground/compile
+Content-Type: application/json
+
+{ "source": "fn main() { ... }", "target": "native" }
+
+501 { "ok": false, "error": { "code": "compiler_unavailable" } }</code></pre></div>
+      </section>
+    </main>
+    <footer><div class="footer-mark">W</div><div><strong>Playground de especificação</strong><p>Tokens e anotações locais; zero execução de W.</p></div><a href="/book">Voltar ao Livro</a></footer>
+    <div class="copy-status sr-only" aria-live="polite" aria-atomic="true" data-copy-status></div>
+  </body>
+</html>

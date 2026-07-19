@@ -1,0 +1,27 @@
+{
+  "grammars": [
+    {
+      "name": "w",
+      "camelcase": "W",
+      "scope": "source.w",
+      "path": ".",
+      "file-types": ["w"],
+      "injection-regex": "^w$",
+      "highlights": "queries/highlights.scm",
+      "locals": "queries/locals.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.0.1",
+    "license": "MIT",
+    "description": "Candidate structural grammar and highlighting queries for W"
+  },
+  "bindings": {
+    "c": true,
+    "go": false,
+    "node": false,
+    "python": false,
+    "rust": false,
+    "swift": false
+  }
+}

@@ -1,0 +1,230 @@
+==================
+Structured tasks and ownership
+==================
+
+fn makeCake(request: CakeRequest): Cake async throws KitchenError {
+  let plan = try validateCake(request)
+  async let ingredients = pantry.fetch(plan.ingredients)
+  let ready = try await ingredients
+  spawn let cook = bake(take ready)
+  return try await cook
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier)))))
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    error_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (binding_declaration
+        pattern: (pattern
+          (identifier))
+        value: (unary_expression
+          operand: (call_expression
+            function: (identifier)
+            arguments: (argument_list
+              (argument
+                value: (identifier))))))
+      (binding_declaration
+        pattern: (pattern
+          (identifier))
+        value: (call_expression
+          function: (member_expression
+            object: (identifier)
+            property: (identifier))
+          arguments: (argument_list
+            (argument
+              value: (member_expression
+                object: (identifier)
+                property: (identifier))))))
+      (binding_declaration
+        pattern: (pattern
+          (identifier))
+        value: (unary_expression
+          operand: (unary_expression
+            operand: (identifier))))
+      (binding_declaration
+        pattern: (pattern
+          (identifier))
+        value: (call_expression
+          function: (identifier)
+          arguments: (argument_list
+            (argument
+              value: (unary_expression
+                operand: (identifier))))))
+      (return_statement
+        (unary_expression
+          operand: (unary_expression
+            operand: (identifier)))))))
+
+==================
+Switch and explicit error conversion
+==================
+
+fn place(item: MenuItem): Receipt async throws MenuError {
+  switch item {
+    case .cake(let request):
+      return try await makeCake(request)
+    case .soup(let request):
+      return try await makeSoup(request)
+  }
+}
+
+fn convert(): Receipt async throws MenuError {
+  do {
+    return try await makeOrder()
+  } catch let error {
+    throw .order(error)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list
+      (parameter
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier)))))
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    error_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (switch_statement
+        value: (identifier)
+        (switch_case
+          pattern: (pattern
+            (enum_pattern
+              case: (identifier)
+              (pattern
+                (identifier))))
+          (return_statement
+            (unary_expression
+              operand: (unary_expression
+                operand: (call_expression
+                  function: (identifier)
+                  arguments: (argument_list
+                    (argument
+                      value: (identifier))))))))
+        (switch_case
+          pattern: (pattern
+            (enum_pattern
+              case: (identifier)
+              (pattern
+                (identifier))))
+          (return_statement
+            (unary_expression
+              operand: (unary_expression
+                operand: (call_expression
+                  function: (identifier)
+                  arguments: (argument_list
+                    (argument
+                      value: (identifier)))))))))))
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    error_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (do_statement
+        (block
+          (return_statement
+            (unary_expression
+              operand: (unary_expression
+                operand: (call_expression
+                  function: (identifier)
+                  arguments: (argument_list))))))
+        (catch_clause
+          pattern: (pattern
+            (identifier))
+          (block
+            (throw_statement
+              (call_expression
+                function: (enum_literal
+                  case: (identifier))
+                arguments: (argument_list
+                  (argument
+                    value: (identifier)))))))))))
+
+==================
+Recovery keeps the following declaration
+==================
+
+fn broken(value Int): Int {
+  return value
+}
+
+fn stillVisible(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list
+      (ERROR
+        (identifier)
+        (identifier)))
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (return_statement
+        (boolean_literal)))))
+
+==================
+Panic remains a distinct effect call
+==================
+
+fn failInvariant(): Never {
+  return panic("invalid state")
+}
+
+---
+
+(source_file
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list)
+    return_type: (type
+      base: (type_name
+        name: (type_identifier)))
+    body: (block
+      (return_statement
+        (panic_expression
+          arguments: (argument_list
+            (argument
+              value: (string_literal))))))))

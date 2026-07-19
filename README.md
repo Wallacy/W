@@ -1,77 +1,174 @@
-# The W Programming Language
+# W
 
-**W** is a modern systems programming language designed for performance, predictability, and ergonomics. It combines the low-level control of C with the high-level expressiveness of Swift and TypeScript.
+> **Working Draft · 19 de julho de 2026**
+> **Prazer para humanos. Clareza para máquinas.**
 
-> **Slogan**: "A simple and powerful C" — For C what TypeScript is for JavaScript.
+W é uma proposta de linguagem de sistemas nativa, segura e agradável de escrever. Ela combina a familiaridade de C, a legibilidade de Swift e TypeScript e um modelo explícito para memória, efeitos, concorrência e paralelismo.
 
-## Why W?
+Este diretório não afirma que o compilador já existe. Ele é a nova base de design do projeto: mostra como queremos que W seja percebida por quem programa, registra o que já é direção, separa propostas de experimentos e transforma anos de anotações em decisões que podem ser testadas.
 
-### 1. Predictable Memory (No GC)
-In W, memory is managed per-module. Each module acts as an isolated memory arena. You define the limits (`module.memory = 64M`), and the language ensures you stay within them. There is no global Garbage Collector pausing your world. Instead, you "flush" modules when you're done with a unit of work (like a request), instantly reclaiming memory.
+## A ideia em um minuto
 
-### 2. Everything is an Enum
-W unifies types around the concept of Enums (Tagged Unions). Whether it's a primitive `int`, a complex `struct`, or a `class`, they are all treated as variants of data. This allows for powerful pattern matching and a consistent type system.
+```w
+import { http } from std.net
 
-### 3. Structured Concurrency
-Concurrency is not an afterthought. With `async let`, you spawn tasks that are structurally bound to their scope. The compiler ensures you handle their lifecycle, making race conditions and deadlocks significantly harder to write.
+type UserId = u64 where value > 0
 
-### 4. C-Interop First
-W compiles to C. This means you can drop W into any existing C/C++ project, use any C library without overhead, and run on any platform that has a C compiler.
+struct User {
+  id: UserId
+  name: String
+}
 
-## Key Features
+enum LoadError: Error {
+  notFound(UserId)
+  transport(HttpError)
+  invalidPayload(JsonError)
+}
 
-*   **Module-based Memory**: No GC, no manual `malloc/free` hell. Just arenas.
-*   **Pattern Matching**: Expressive `switch` and `if let` constructs.
-*   **Explicit States**: Types handle `uninitialized`, `undefined`, `null`, and `empty` states explicitly.
-*   **Hot-Code Optimization**: Designed to keep hot paths small and cache-friendly.
-*   **Services & IPC**: First-class support for services and inter-process communication.
-*   **Computer Units**: Runtime model based on isolated units of computation (Memory/CPU/Storage).
+fn fetchUserResponse(id: UserId): HttpResponse async throws LoadError {
+  do {
+    return try await http.get("/users/${id}")
+  } catch let error {
+    throw .transport(error)
+  }
+}
 
-## Getting Started
+fn decodeUser(response: ref HttpResponse): User throws LoadError {
+  do {
+    return try response.json(as: User)
+  } catch let error {
+    throw .invalidPayload(error)
+  }
+}
 
-### Hello World
-```typescript
-import { io } from std
+fn loadUser(id: UserId): User async throws LoadError {
+  let response = try await fetchUserResponse(id)
+  guard response.status == .ok else throw .notFound(id)
+  return try decodeUser(response)
+}
 
-fn main() {
-    io.print("Hello, World!")
+fn dashboard(id: UserId): Dashboard async throws LoadError {
+  // Concorrência: duas operações suspensíveis no mesmo escopo.
+  async let user = loadUser(id)
+  async let activity = loadActivity(id)
+
+  let (user, activity) = try await (user, activity)
+
+  // Paralelismo: trabalho de CPU pode ocupar outro núcleo.
+  spawn let score = rank(activity)
+
+  return Dashboard(
+    user: user,
+    activity: activity,
+    score: await score,
+  )
 }
 ```
 
-### A Simple Module
-```typescript
-// user.w
-export object User {
-    let id: int
-    var name: string
-}
+O exemplo acima é **sintaxe candidata**, não uma especificação congelada. Ele já expressa as decisões que queremos testar primeiro:
 
-export fn create(name: string): User {
-    return User(id: 1, name: name)
-}
+- `let` é imutável, `var` é mutável e `const` existe em tempo de compilação;
+- `struct` tem semântica de valor, `object` tem identidade e `enum` representa alternativas;
+- ausência é `T?`/`.none`; `null`, `undefined`, `empty` e `uninitialized` não são o mesmo estado;
+- erros recuperáveis são tipados com `throws E` e não dependem de stack unwinding oculto;
+- `try` propaga o mesmo error set; boundaries entre tipos de erro fazem a
+  conversão explicitamente enquanto a ergonomia final permanece aberta;
+- `async let` cria concorrência estruturada; `spawn let` pede paralelismo;
+- toda tarefa pertence a um escopo, e toda transferência de dados entre executores precisa ser segura;
+- ownership é inferido no caminho comum e fica explícito nos pontos importantes com `ref`, `inout`, `take` e `copy`;
+- C é uma fronteira de ABI e interoperabilidade de primeira classe, não a semântica interna inteira de W.
+
+## O que torna W diferente
+
+### Código que antecipa o runtime
+
+O que pode suspender, falhar, mutar estado, transferir ownership ou executar em paralelo deve ser visível no contrato ou no ponto de uso. Builds `debug` e `release` não devem mudar a semântica do programa.
+
+### Concorrência e paralelismo não são sinônimos
+
+`async`/`await` organiza trabalho suspensível e I/O. `spawn` torna explícita a intenção de usar capacidade paralela. Ambos obedecem à mesma árvore de tarefas, propagação de cancelamento e encerramento estruturado.
+
+### Segurança sem fazer da sintaxe um exercício de lifetimes
+
+W busca ownership único por padrão, borrows locais inferidos, valores por cópia/move e compartilhamento explícito. O compilador deve pedir uma anotação apenas quando a intenção não puder ser provada com segurança.
+
+### Baixo nível quando ele realmente importa
+
+Layout, inteiros de largura fixa, SIMD, FFI, allocators e APIs de sistema continuam acessíveis. A fronteira de C é deliberadamente evidente; não existe a promessa de que qualquer C inseguro se torne seguro apenas por estar dentro de um arquivo `.w`.
+
+### Toolchain e supply chain são parte da linguagem como produto
+
+O plano inclui formatter, linguagem para editores, testes de exemplos, builds determinísticas, lockfile resolvido, cache endereçado por conteúdo, provenance e artefatos assinados. Uma hash isolada comprova integridade, não autoria nem segurança.
+
+### Boa para IA porque é boa para raciocinar
+
+W não precisa de uma sintaxe “para LLM”. Uma gramática canônica, poucos sinônimos, efeitos explícitos, metadata legível por máquina e diagnósticos estruturados tornam o código mais fácil de entender para humanos e assistentes ao mesmo tempo.
+
+## Arquitetura em uma linha
+
+```text
+W source → CST/AST → HIR tipada → dialeto W no MLIR
+         → lowerings (ownership, efeitos, tasks, layout)
+         → LLVM dialect → LLVM IR → código nativo
+         ↘ EmitC/C para subset, portabilidade e inspeção
 ```
 
-### Using Memory Limits
-```typescript
-// server.w
-module.memory = 128M // Hard limit for this request handler
+MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o type checker, o modelo de memória nem o runtime. W preservará suas semânticas de alto nível em um dialeto próprio até haver informação suficiente para baixá-las corretamente.
 
-import { http } from std
+## Estado do projeto
 
-fn handleRequest(req: http.Request) {
-    // All allocations here happen in the module's arena
-    let data = processData(req)
-    // ...
-}
-// When the module is flushed, all 'data' is freed instantly.
-```
+| Camada | Estado atual |
+|---|---|
+| Visão e princípios | direção consolidada |
+| Sintaxe apresentada aqui | proposta de trabalho |
+| Tipos, erros e ownership | modelo candidato; precisa de protótipos |
+| Concorrência estruturada e paralelismo | semântica candidata; runtime ainda inexistente |
+| Frontend e gramática | a especificar e implementar |
+| Highlighting local | TextMate/portal utilizáveis; Tree-sitter em protótipo não normativo |
+| Dialeto W/MLIR | arquitetura proposta |
+| Package/build system | design em elaboração |
+| Estimativas de recursos | experimento de tooling; sem garantia de runtime |
+| Compilador, runtime e stdlib | ainda não implementados |
+| wQL, wRPC, V6 e outras extensões | pesquisa fora do núcleo v0 |
 
-## Documentation
-*   [**Cheatsheet**](cheatsheet.md): Quick syntax reference.
-*   [**Technical Specification**](techspec.md): Deep dive into architecture, memory model, and implementation details.
+O vocabulário normativo usado em toda a documentação está em [STATUS.md](STATUS.md).
 
-## Roadmap
-1.  **Prototype**: Current phase. Defining syntax and core semantics.
-2.  **Bootstrap**: Building the self-hosting compiler.
-3.  **Standard Library**: Building `std` with core IO and networking.
-4.  **Ecosystem**: Package manager and tooling.
+## Como explorar
+
+- Abra a [POC do portal](portal/README.md) para explorar a linguagem, o livro e o
+  playground de especificação. Ela roda localmente com Bun, sem dependências externas.
+- Percorra [O restaurante W](examples/restaurant/README.md), o cenário canônico
+  que combina fluxo sequencial, concorrência, paralelismo e instâncias fine-grained.
+- Experimente o [tooling inicial](tooling/README.md): extensão local do VS Code,
+  grammar Tree-sitter candidata e highlighting do portal.
+- Leia [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md) para percorrer a sintaxe e o comportamento do programa.
+- Leia [VISION.md](VISION.md) para entender público, princípios, não objetivos e opções de posicionamento.
+- Consulte [techspec.md](techspec.md) para a arquitetura técnica resumida.
+- Consulte [spec/syntax.md](spec/syntax.md),
+  [spec/types-and-memory.md](spec/types-and-memory.md),
+  [spec/concurrency.md](spec/concurrency.md) e [spec/modules.md](spec/modules.md)
+  para os modelos candidatos.
+- Consulte [design/compiler.md](design/compiler.md),
+  [design/memory-strategy.md](design/memory-strategy.md),
+  [design/modules-and-runtime.md](design/modules-and-runtime.md),
+  [design/resource-estimation.md](design/resource-estimation.md),
+  [design/stdlib.md](design/stdlib.md), [design/packages.md](design/packages.md) e
+  [design/verification-and-releases.md](design/verification-and-releases.md)
+  para implementação, runtime, biblioteca padrão e distribuição.
+- Veja [research/README.md](research/README.md) antes de promover uma hipótese a requisito.
+- Veja [ROADMAP.md](ROADMAP.md) para a sequência de protótipos.
+
+## Norte imediato
+
+Antes de implementar otimizações sofisticadas, W precisa provar uma fatia vertical pequena:
+
+1. dez a vinte programas que definam a experiência desejada;
+2. gramática, formatter e diagnósticos coerentes para esses programas;
+3. AST/HIR com tipos, opcionais, `throws`, `ref`/`inout`/`take`;
+4. um dialeto MLIR mínimo e lowering até um executável;
+5. concorrência estruturada e `spawn` em um runtime pequeno;
+6. build reproduzível e pacote local endereçado por conteúdo;
+7. um lens de recursos que comece por deltas pós-link exatos e preserve
+   `unknown` onde ainda não houver uma estimativa defensável.
+
+O critério não é quantas features conseguimos listar. É se escrever, ler, explicar e executar um programa W parece simples, previsível e prazeroso.

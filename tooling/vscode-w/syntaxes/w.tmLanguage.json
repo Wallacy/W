@@ -1,0 +1,163 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "W",
+  "scopeName": "source.w",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#annotations" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#declarations" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.documentation.w",
+          "match": "///.*$"
+        },
+        {
+          "name": "comment.line.double-slash.w",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.documentation.w",
+          "begin": "/\\*\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.block.w",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.w",
+          "begin": "\\\"\\\"\\\"",
+          "end": "\\\"\\\"\\\"",
+          "patterns": [{ "include": "#interpolation" }]
+        },
+        {
+          "name": "string.quoted.raw.w",
+          "begin": "r\\\"",
+          "end": "\\\""
+        },
+        {
+          "name": "string.quoted.double.w",
+          "begin": "\\\"",
+          "end": "\\\"",
+          "patterns": [
+            { "name": "constant.character.escape.w", "match": "\\\\(?:[\\\"\\\\nrt0]|u\\{[0-9A-Fa-f]+\\})" },
+            { "include": "#interpolation" }
+          ]
+        }
+      ]
+    },
+    "interpolation": {
+      "patterns": [
+        {
+          "name": "meta.interpolation.w",
+          "begin": "\\$\\{",
+          "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.begin.w" } },
+          "end": "\\}",
+          "endCaptures": { "0": { "name": "punctuation.definition.interpolation.end.w" } },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            { "include": "#numbers" },
+            { "include": "#keywords" },
+            { "include": "#types" },
+            { "include": "#constants" },
+            { "include": "#operators" }
+          ]
+        }
+      ]
+    },
+    "annotations": {
+      "patterns": [
+        {
+          "name": "meta.annotation.w",
+          "match": "@[A-Za-z_][A-Za-z0-9_]*(?=\\s*(?:\\(|$))"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.w",
+          "match": "(?<![A-Za-z0-9_])(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*(?:_[A-Za-z][A-Za-z0-9_]*)?|0[bB][01](?:_?[01])*(?:_[A-Za-z][A-Za-z0-9_]*)?|(?:[0-9](?:_?[0-9])*)(?:\\.(?:[0-9](?:_?[0-9])*)?)?(?:_[A-Za-z][A-Za-z0-9_]*)?)(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.w",
+          "match": "\\b(?:break|case|catch|continue|defer|do|else|for|guard|if|in|return|switch|throw|while)\\b"
+        },
+        {
+          "name": "keyword.declaration.w",
+          "match": "\\b(?:const|enum|export|fn|foreign|import|let|mut|object|protocol|struct|type|var)\\b"
+        },
+        {
+          "name": "keyword.effect.w",
+          "match": "\\b(?:async|await|panic|spawn|throws|try)\\b"
+        },
+        {
+          "name": "keyword.other.ownership.w",
+          "match": "\\b(?:copy|inout|ref|take)\\b"
+        },
+        {
+          "name": "keyword.operator.w",
+          "match": "\\b(?:as|from|is|where)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(fn|struct|object|enum|protocol|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.w" },
+            "2": { "name": "entity.name.type.w" }
+          }
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.builtin.w",
+          "match": "\\b(?:Bool|Void|String|Error|Any|Never|Type|Int|UInt|Float|Double|i(?:8|16|32|64|128|size)|u(?:8|16|32|64|128|size)|f(?:32|64))\\b"
+        },
+        {
+          "name": "entity.name.type.w",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.w",
+          "match": "\\b(?:true|false|self)\\b|\\.(?:none|some|ok|error)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.w",
+          "match": "\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%=!<>~&^|?-]"
+        }
+      ]
+    }
+  }
+}

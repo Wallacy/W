@@ -1,0 +1,183 @@
+==================
+Imports and declarations
+==================
+
+import { http, Url as Address } from std.net
+import models as domain from app.models
+
+@repr(c)
+export struct Header {
+  kind: u32
+  size: u64
+}
+
+enum Result<T, E> {
+  ok(T)
+  error(E)
+}
+
+protocol Drawable {
+  fn draw(on canvas: inout Canvas)
+}
+
+---
+
+(source_file
+  (import_statement
+    items: (named_imports
+      (import_item
+        name: (identifier))
+      (import_item
+        name: (identifier)
+        alias: (identifier)))
+    module: (module_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    items: (namespace_import
+      name: (identifier)
+      alias: (identifier))
+    module: (module_path
+      (identifier)
+      (identifier)))
+  (struct_declaration
+    (declaration_prefix
+      (attribute
+        name: (identifier)
+        (argument_list
+          (argument
+            value: (identifier)))))
+    name: (type_identifier)
+    (type_body
+      (field_declaration
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier))))
+      (field_declaration
+        name: (identifier)
+        type: (type
+          base: (type_name
+            name: (type_identifier))))))
+  (enum_declaration
+    name: (type_identifier)
+    (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    (enum_body
+      (enum_case
+        name: (identifier)
+        (enum_case_parameter
+          type: (type
+            base: (type_name
+              name: (type_identifier)))))
+      (enum_case
+        name: (identifier)
+        (enum_case_parameter
+          type: (type
+            base: (type_name
+              name: (type_identifier)))))))
+  (protocol_declaration
+    name: (type_identifier)
+    (protocol_body
+      (function_declaration
+        name: (identifier)
+        parameters: (parameter_list
+          (parameter
+            label: (identifier)
+            name: (identifier)
+            type: (type
+              base: (type_name
+                name: (type_identifier)))))))))
+
+==================
+Typed errors and foreign boundary
+==================
+
+enum ParseError: Error {
+  unexpectedToken(Token)
+  incompleteDocument
+}
+
+foreign c from "sqlite3.h" {
+  type sqlite3
+  fn sqlite3_close(handle: c.ptr<sqlite3>): c.int
+}
+
+---
+
+(source_file
+  (enum_declaration
+    name: (type_identifier)
+    conformance: (type
+      base: (type_name
+        name: (type_identifier)))
+    (enum_body
+      (enum_case
+        name: (identifier)
+        (enum_case_parameter
+          type: (type
+            base: (type_name
+              name: (type_identifier)))))
+      (enum_case
+        name: (identifier))))
+  (foreign_declaration
+    language: (identifier)
+    source: (string_literal)
+    (foreign_type_declaration
+      name: (type_identifier))
+    (function_declaration
+      name: (identifier)
+      parameters: (parameter_list
+        (parameter
+          name: (identifier)
+          type: (type
+            base: (type_name
+              name: (type_identifier)
+              member: (type_identifier))
+            (type_arguments
+              (type
+                base: (type_name
+                  name: (type_identifier)))))))
+      return_type: (type
+        base: (type_name
+          name: (type_identifier)
+          member: (type_identifier))))))
+
+==================
+Runtime vocabulary is not syntax
+==================
+
+fn inspect(service: ServiceRef): Bool {
+  let worker = service
+  let nanoservice = worker
+  return true
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (return_statement
+        (boolean_literal)))))

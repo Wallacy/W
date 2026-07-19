@@ -1,0 +1,103 @@
+# Tooling inicial de W
+
+> **Status:** Working Draft. Highlighting e o parser incremental experimental
+> são utilizáveis; parser do compilador, formatter, LSP e compilador ainda não
+> existem.
+
+Este diretório antecipa a experiência de escrever W sem transformar cores em
+semântica. A autoridade continua em [spec/syntax.md](../spec/syntax.md) e no
+[registro de decisões](../STATUS.md); nenhum highlighter aceita ou rejeita um
+programa em nome da linguagem.
+
+## Duas camadas, uma só gramática sintática
+
+| Camada | Papel imediato | Limite |
+|---|---|---|
+| [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
+| [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; não é o parser normativo enquanto W-O007/W-O008 estiverem abertas |
+| [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
+
+TextMate é a integração nativa e mais curta para obter cores no VS Code. A
+gramática Tree-sitter é a única candidata a descrever estrutura entre esses
+artefatos; TextMate e o scanner temporário do portal são projeções lexicais, não
+gramáticas concorrentes.
+
+### O que permanece no projeto
+
+| Artefato | Política de manutenção |
+|---|---|
+| `tree-sitter-w/grammar.js`, corpus e `queries/*.scm` | fonte estrutural mantida; serve parsing incremental, highlights, locals e folds |
+| `tree-sitter-w/src/` | saída gerada e versionada para consumir o parser C sem exigir o CLI no usuário final; nunca editar à mão |
+| `vscode-w/syntaxes/*.json` | fallback TextMate pequeno mantido porque é a tokenização lexical nativa do VS Code |
+| `vscode-w/icons/w.png` e language configuration | integração declarativa mantida |
+| `portal/w-syntax.js` | fallback temporário; remover quando Tree-sitter/WASM local passar os mesmos testes no browser |
+| semantic tokens futuros | saem de `wls`/HIR e refinam TextMate; não saem apenas da CST |
+
+Tree-sitter pode ser a entrada do compilador bootstrap, mas não é o tradutor para
+o target. Seu limite é produzir uma CST recuperável. O adapter W transforma CST
+em AST/HIR, resolve nomes/tipos/ownership/effects e só então baixa para o dialeto
+W/MLIR e LLVM. Queries Tree-sitter são excelentes para seleção estrutural de
+tooling; usá-las como substituição textual de código esconderia validação
+semântica e source locations justamente onde W promete previsibilidade.
+
+Fixtures devem convergir para um corpus compartilhado. Toda construção nova
+entra primeiro na especificação/status, depois em um caso positivo e, quando
+estrutural, num negativo correspondente. Só então atualiza queries, TextMate e
+portal. Comparar cores pixel a pixel não é um oracle; comparar tokens essenciais,
+nós e ausência de divergência silenciosa é.
+
+## Papel recomendado do Tree-sitter
+
+Tree-sitter é candidato a componente **permanente do tooling**: edição
+incremental, highlighting estrutural, folds, navegação local e parser WASM do
+portal. Isso não o transforma automaticamente na definição normativa de W.
+Rust e Go, por exemplo, possuem grammars no projeto Tree-sitter, mas seus
+compiladores e language servers mantêm parsers próprios.
+
+Para evitar duas gramáticas durante o bootstrap, o primeiro `wc parse` pode
+consumir a CST gerada aqui por uma interface estreita. Nesse uso, o modo do
+compilador é estrito: rejeita `ERROR`/`MISSING`, executa validações contextuais e
+converte a CST para uma AST/HIR que não expõe tipos de nós acidentais do
+Tree-sitter. A validade continua definida por especificação, precedência,
+corpus positivo/negativo e diagnósticos esperados — nunca pelo que a recuperação
+tolerante conseguiu representar.
+
+Um parser próprio só entra quando medições mostrarem ganho material em
+diagnóstico, macros, parsing contextual, desempenho ou distribuição. Se isso
+acontecer, ambos rodam o mesmo corpus e testes diferenciais/fuzz impedem drift.
+Assim a escolha inicial continua reversível sem jogar fora grammar, queries ou
+integrações de editor.
+
+## Começar agora
+
+1. Para usar W localmente no VS Code, siga
+   [tooling/vscode-w/README.md](vscode-w/README.md). O caminho mais rápido é abrir
+   essa pasta e pressionar `F5`.
+2. Para desenvolver o parser incremental, use os comandos documentados em
+   [tooling/tree-sitter-w/README.md](tree-sitter-w/README.md).
+3. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
+   playground identifica explicitamente qual engine de highlight está ativa.
+
+## Caminho até o browser
+
+1. estabilizar grammar, corpus e queries no host;
+2. gerar `tree-sitter-w.wasm` de forma reproduzível e registrar toolchain/digest;
+3. servir parser e runtime como assets locais com MIME/CSP testados, sem CDN;
+4. trocar o scanner do portal por um adapter incremental, mantendo fallback e
+   erro visível quando WASM não carregar;
+5. só depois avaliar editor completo e semantic tokens produzidos por HIR/LSP.
+
+O WASM não entra no repositório apenas porque foi possível gerá-lo numa máquina.
+Ele precisa de receita reproduzível, teste no browser e regra de atualização.
+
+## Referências de integração
+
+- [VS Code — Syntax Highlight Guide](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide)
+- [VS Code — Language Configuration Guide](https://code.visualstudio.com/api/language-extensions/language-configuration-guide)
+- [VS Code — Semantic Highlight Guide](https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide)
+- [Tree-sitter — Creating Parsers](https://tree-sitter.github.io/tree-sitter/creating-parsers/1-getting-started.html)
+- [Tree-sitter — Syntax Highlighting](https://tree-sitter.github.io/tree-sitter/3-syntax-highlighting.html)
+- [Tree-sitter — binding Web/WASM](https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web)
+- [rustc — lexing e parsing](https://rustc-dev-guide.rust-lang.org/the-parser.html)
+- [rust-analyzer — arquitetura da sintaxe](https://rust-analyzer.github.io/book/contributing/architecture.html)
+- [Go — `go/parser`](https://pkg.go.dev/go/parser)
