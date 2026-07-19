@@ -228,3 +228,140 @@ fn failInvariant(): Never {
           arguments: (argument_list
             (argument
               value: (string_literal))))))))
+
+==================
+Four bounded range closures
+==================
+
+fn containsRatio(value: f64): Bool {
+  let closed = value in 0.0...1.0
+  let upperOpen = value in 0.0..<1.0
+  let lowerOpen = value in 0.0>..1.0
+  let open = value in 0.0>..<1.0
+  return closed && upperOpen && lowerOpen && open
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (binary_expression
+            (number_literal)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (binary_expression
+            (number_literal)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (binary_expression
+            (number_literal)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (binary_expression
+            (number_literal)
+            (number_literal))))
+      (return_statement
+        (binary_expression
+          (binary_expression
+            (binary_expression
+              (identifier)
+              (identifier))
+            (identifier))
+          (identifier))))))
+
+==================
+Range patterns with where guards
+==================
+
+fn shouldAccumulate(raw: f64, error: f64): Bool {
+  switch raw {
+    case 0.0...1.0:
+      return true
+    case ..<0.0 where error > 0.0:
+      return true
+    case 1.0>.. where error < 0.0:
+      return true
+    case _:
+      return false
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (switch_statement
+        (identifier)
+        (switch_case
+          (pattern
+            (range_pattern
+              (number_literal)
+              (number_literal)))
+          (return_statement
+            (boolean_literal)))
+        (switch_case
+          (pattern
+            (range_pattern
+              (number_literal)))
+          (binary_expression
+            (identifier)
+            (number_literal))
+          (return_statement
+            (boolean_literal)))
+        (switch_case
+          (pattern
+            (range_pattern
+              (number_literal)))
+          (binary_expression
+            (identifier)
+            (number_literal))
+          (return_statement
+            (boolean_literal)))
+        (switch_case
+          (pattern)
+          (return_statement
+            (boolean_literal)))))))

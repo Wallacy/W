@@ -15,6 +15,7 @@ programa em nome da linguagem.
 |---|---|---|
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; não é o parser normativo enquanto W-O007/W-O008 estiverem abertas |
+| [Corpus](../corpus/README.md) | manifest, positivos/negativos e snapshots de CST compartilhados | outputs são contratos; execução W ainda não existe |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
@@ -75,7 +76,9 @@ integrações de editor.
    essa pasta e pressionar `F5`.
 2. Para desenvolver o parser incremental, use os comandos documentados em
    [tooling/tree-sitter-w/README.md](tree-sitter-w/README.md).
-3. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
+3. Para validar o contrato compartilhado, rode `bun run runner.ts` em
+   [`../corpus/`](../corpus/README.md).
+4. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
    playground identifica explicitamente qual engine de highlight está ativa.
 
 ## Caminho até o browser

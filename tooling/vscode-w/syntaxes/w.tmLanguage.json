@@ -104,7 +104,7 @@
         },
         {
           "name": "keyword.declaration.w",
-          "match": "\\b(?:const|enum|export|fn|foreign|import|let|mut|object|protocol|struct|type|var)\\b"
+          "match": "\\b(?:const|enum|export|fn|foreign|from|import|let|mut|object|protocol|struct|type|var)\\b"
         },
         {
           "name": "keyword.effect.w",
@@ -116,7 +116,7 @@
         },
         {
           "name": "keyword.operator.w",
-          "match": "\\b(?:as|from|is|where)\\b"
+          "match": "\\b(?:as|is|where)\\b"
         }
       ]
     },
@@ -155,7 +155,7 @@
       "patterns": [
         {
           "name": "keyword.operator.w",
-          "match": "\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%=!<>~&^|?-]"
+          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%=!<>~&^|?-]"
         }
       ]
     }

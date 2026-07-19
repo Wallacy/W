@@ -65,6 +65,8 @@ const BINARY_OPERATORS = [
   ["-", 11],
   ["<<", 10],
   [">>", 10],
+  [">..<", 9],
+  [">..", 9],
   ["..<", 9],
   ["...", 9],
   ["<", 8],
@@ -317,11 +319,25 @@ module.exports = grammar({
 
     pattern: ($) =>
       choice(
+        $.range_pattern,
         $.identifier,
         $.enum_pattern,
         $.tuple_pattern,
         seq("let", $.identifier),
         "_",
+      ),
+    range_pattern: ($) =>
+      choice(
+        prec(
+          1,
+          seq(
+            field("lower", $.number_literal),
+            field("operator", choice("...", "..<", ">..", ">..<")),
+            field("upper", $.number_literal),
+          ),
+        ),
+        seq(field("operator", choice("...", "..<")), field("upper", $.number_literal)),
+        seq(field("lower", $.number_literal), field("operator", choice("...", ">.."))),
       ),
     enum_pattern: ($) =>
       prec.right(seq(".", field("case", $.identifier), optional(seq("(", commaSep1($.pattern), optional(","), ")")))),

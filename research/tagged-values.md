@@ -1,10 +1,78 @@
 # Tagged values como otimização de target
 
-> **Status: Research · 18 de julho de 2026**
+> **Status: Pesquisa · 19 de julho de 2026**
 
 Este documento preserva a hipótese investigada pelos spikes de março de 2025: alguns valores dinâmicos, opcionais ou referências poderiam ocupar uma única palavra usando bits que uma combinação específica de arquitetura, sistema operacional e ABI deixa disponíveis.
 
 A hipótese é de **representação interna target-specific**. Ela não define a semântica de W, não torna “tudo um enum”, não reduz a precisão dos tipos numéricos normais e não pode ser requisito para executar um programa.
+
+## Política candidata da DB1
+
+A política de source e portabilidade foi aceita como
+[W-C029](../STATUS.md#modelo-candidato-usado-nos-exemplos). A escolha dos
+profiles compactos que realmente justificam implementação continua **Em aberto**
+em [W-O018](../STATUS.md#questões-abertas-prioritárias).
+
+### Opção recomendada: niches conservadores, tags agressivas fora da baseline
+
+1. O source conhece `Option<T>`, enums, referências, `Any` e existentials; não
+   conhece “tagged pointer” nem muda de sintaxe conforme o target.
+2. Todo tipo possui um lowering portátil que é o oracle semântico.
+3. A DB1 permite niche optimization quando o compilador prova um padrão inválido
+   do payload — em especial null para uma referência W non-null — sem perder
+   nenhum estado lógico.
+4. Bits baixos só podem ser experimentados em valores internos cujo alinhamento
+   foi provado, com encode/decode explícitos e sem cruzar uma fronteira estável.
+5. Bits altos de endereço, LAM/UAI/TBI e NaN-boxing continuam **Pesquisa** opt-in
+   por target. Eles não pertencem ao profile normal da DB1.
+6. `Any` começa com `TypeId` explícito e payload inline ou box. O tamanho do
+   inline storage só fecha depois de workloads; valores que não cabem nunca
+   perdem bits.
+7. Referências de objeto continuam ponteiros/handles normais. Tags não guardam a
+   única cópia de lifetime, owner, refcount, capability ou metadata necessária
+   para validar/liberar o objeto.
+8. `shared T` usa um controle de ownership separado do encoding do valor; o
+   modelo de ARC/região continua sendo uma decisão independente.
+9. FFI C, IPC, persistência, shared memory e layout público usam representação
+   explícita e marshal. Um profile compacto não atravessa essas fronteiras por
+   acidente.
+10. Um passe tardio escolhe fallback, niche, inline ou box e registra a escolha
+    no artefato. `w explain layout` deve tornar custo, alocações e fallback
+    consultáveis.
+
+Essa opção preserva o ganho de maior retorno e menor risco (`Option<ref T>` e
+outros niches) sem fazer a correção depender de bits que o OS, hardening,
+sanitizers ou uma arquitetura futura podem usar.
+
+### Alternativas reais
+
+| Alternativa | Vantagem | Custo/risco | Recomendação de máquina |
+|---|---|---|---|
+| A. somente fallback explícito | implementação e ABI mais simples | perde compactação convencional de enums/opcionais | oracle obrigatório, mas conservadora demais como único profile |
+| B. niches + low bits internos provados | boa densidade sem depender de high bits; fallback local | representation selection e testes diferenciais adicionais | recomendada para a DB1 |
+| C. high bits/NaN-boxing por target | pode compactar mais casos de `Any` | conflito com provenance, PAC/MTE/sanitizers/OS/FFI e matriz grande | **Pesquisa**, nunca requisito da v0 |
+| D. tagged object pointer como modelo universal | metadata muito compacta em um target ideal | mistura representação, ownership e ABI; portabilidade frágil | **Rejeitado por enquanto** |
+
+### Decisões humanas registradas
+
+1. Não haverá annotation como `@compact`: a otimização é invisível no source e
+   explicável pelo tooling.
+2. `Any` pode fazer box conforme tipo/profile; `w explain` e o lens de recursos
+   devem tornar o custo observável.
+3. `Option<ref T>` promete ausência de alocação para representar a opção e
+   publica o layout efetivo por target; não promete uma palavra universal.
+
+### Gate de promoção de um profile compacto
+
+Antes de um profile low-bit/high-bit virar **Candidato**, ele precisa de:
+
+- tabela dos estados lógicos de `Option`, enum, `Any` e nested options;
+- layout fallback completo, inclusive clone/move/drop e OOM;
+- regra de observabilidade alinhada a W-O043–W-O045;
+- teste diferencial fallback/niche/low-bit;
+- execução com sanitizers/hardening e ao menos x86-64, AArch64 e Wasm;
+- wrappers C e módulos com profiles diferentes;
+- benchmark com limiar de ganho/regressão registrado antes da medição.
 
 ## Hipótese
 
@@ -292,3 +360,12 @@ Mesmo aprovado, o resultado será uma decisão de backend por target. A semânti
 
 O estado da hipótese e das decisões relacionadas permanece em
 [STATUS.md](../STATUS.md).
+
+## Referências primárias para os gates
+
+- [Rust `Option`: representation e null pointer optimization](https://doc.rust-lang.org/core/option/#representation)
+- [Swift ABI: Type Layout, spare bits e extra inhabitants](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeLayout.rst)
+- [Linux AArch64 Tagged Address ABI](https://www.kernel.org/doc/html/latest/arch/arm64/tagged-address-abi.html)
+- [Linux AArch64 Memory Tagging Extension](https://www.kernel.org/doc/html/latest/arch/arm64/memory-tagging-extension.html)
+- [LLVM Pointer Authentication](https://llvm.org/docs/PointerAuth.html)
+- [LLVM Language Reference: pointer/integer conversions](https://llvm.org/docs/LangRef.html#conversion-operations)

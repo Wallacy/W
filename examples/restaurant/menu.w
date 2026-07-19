@@ -1,7 +1,6 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
 // Formas de service/runtime abaixo são candidatas, não sintaxe normativa.
 
-import { ServiceHost, ServiceRef } from std.service
 import {
   Cake,
   CakeRequest,
@@ -13,8 +12,7 @@ import {
   Soup,
   SoupRequest,
 } from restaurant.domain
-import { OrderApi, openOrder } from restaurant.order_service
-import { OrderError } from restaurant.order_service
+import { OrderApi, OrderError, openOrder } from restaurant.order_service
 import { KitchenApi, KitchenError } from restaurant.kitchen
 
 export enum MenuItem {
@@ -31,10 +29,7 @@ export enum MenuError: Error {
 
 // Enquanto W-O033 estiver aberta, cada boundary converte seu error set de modo
 // explícito. `try` sozinho não injeta OrderError/KitchenError em MenuError.
-export fn openMenuOrder(
-  id: OrderId,
-  on host: inout ServiceHost,
-): ServiceRef<OrderApi> async throws MenuError {
+export fn openMenuOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> async throws MenuError {
   do {
     return try await openOrder(id, on: inout host)
   } catch let error {
@@ -78,10 +73,7 @@ fn makeMenuSalad(
   }
 }
 
-fn finishMenuOrder(
-  order: ServiceRef<OrderApi>,
-  with summary: DishSummary,
-): Receipt async throws MenuError {
+fn finishMenuOrder(order: ServiceRef<OrderApi>, with summary: DishSummary): Receipt async throws MenuError {
   do {
     return try await order.complete(with: summary)
   } catch let error {
@@ -89,9 +81,7 @@ fn finishMenuOrder(
   }
 }
 
-export fn cancelMenuOrder(
-  order: ServiceRef<OrderApi>,
-): Void async throws MenuError {
+export fn cancelMenuOrder(order: ServiceRef<OrderApi>): Void async throws MenuError {
   do {
     return try await order.requestCancellation()
   } catch let error {

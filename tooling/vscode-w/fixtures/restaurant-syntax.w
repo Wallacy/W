@@ -32,7 +32,7 @@ fn inspect(recipe: ref Recipe<String>): Bool {
   return recipe.portions > 0 && recipe.name != ""
 }
 
-mut fn makeCake(recipe: take Recipe<String>, oven: inout Oven): Cake async throws KitchenError {
+fn makeCake(recipe: take Recipe<String>, oven: inout Oven): Cake async throws KitchenError {
   guard inspect(recipe) else {
     throw .invalidRecipe("A recipe needs portions")
   }

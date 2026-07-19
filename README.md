@@ -120,10 +120,12 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 | Camada | Estado atual |
 |---|---|
 | Visão e princípios | direção consolidada |
+| Baseline de design | fechamento S0–S15 iniciado; primeira fatia é representação de valores |
 | Sintaxe apresentada aqui | proposta de trabalho |
 | Tipos, erros e ownership | modelo candidato; precisa de protótipos |
 | Concorrência estruturada e paralelismo | semântica candidata; runtime ainda inexistente |
-| Frontend e gramática | a especificar e implementar |
+| Corpus de contrato | 12 positivos, 11 negativos e runner determinístico; revisão humana pendente |
+| Frontend e gramática | Tree-sitter candidato produz CST; formatter, AST/HIR e diagnostics gerais ainda não existem |
 | Highlighting local | TextMate/portal utilizáveis; Tree-sitter em protótipo não normativo |
 | Dialeto W/MLIR | arquitetura proposta |
 | Package/build system | design em elaboração |
@@ -132,15 +134,24 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 | wQL, wRPC, V6 e outras extensões | pesquisa fora do núcleo v0 |
 
 O vocabulário normativo usado em toda a documentação está em [STATUS.md](STATUS.md).
+O inventário e a ordem de fechamento estão em
+[DESIGN_CLOSURE.md](DESIGN_CLOSURE.md).
 
 ## Como explorar
 
 - Abra a [POC do portal](portal/README.md) para explorar a linguagem, o livro e o
   playground de especificação. Ela roda localmente com Bun, sem dependências externas.
 - Percorra [O restaurante W](examples/restaurant/README.md), o cenário canônico
-  que combina fluxo sequencial, concorrência, paralelismo e instâncias fine-grained.
+  que combina cálculo, algoritmos, fluxo sequencial, concorrência, paralelismo,
+  TUI/HTTP e instâncias fine-grained. Os
+  [requisitos derivados](examples/restaurant/REQUIREMENTS.md) ligam o source ao
+  frontend, HIR, memória e runtime.
 - Experimente o [tooling inicial](tooling/README.md): extensão local do VS Code,
   grammar Tree-sitter candidata e highlighting do portal.
+- Inspecione o [corpus de contrato](corpus/README.md): manifest versionado,
+  positivos/negativos, snapshots de CST e classificação do subset executável.
+- Consulte o [fechamento da baseline](DESIGN_CLOSURE.md) para ver todas as
+  pendências e a ordem em que serão decididas antes da implementação.
 - Leia [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md) para percorrer a sintaxe e o comportamento do programa.
 - Leia [VISION.md](VISION.md) para entender público, princípios, não objetivos e opções de posicionamento.
 - Consulte [techspec.md](techspec.md) para a arquitetura técnica resumida.
@@ -151,6 +162,8 @@ O vocabulário normativo usado em toda a documentação está em [STATUS.md](STA
 - Consulte [design/compiler.md](design/compiler.md),
   [design/memory-strategy.md](design/memory-strategy.md),
   [design/modules-and-runtime.md](design/modules-and-runtime.md),
+  [design/formatting.md](design/formatting.md),
+  [design/numerics-and-quantities.md](design/numerics-and-quantities.md),
   [design/resource-estimation.md](design/resource-estimation.md),
   [design/stdlib.md](design/stdlib.md), [design/packages.md](design/packages.md) e
   [design/verification-and-releases.md](design/verification-and-releases.md)
@@ -160,7 +173,9 @@ O vocabulário normativo usado em toda a documentação está em [STATUS.md](STA
 
 ## Norte imediato
 
-Antes de implementar otimizações sofisticadas, W precisa provar uma fatia vertical pequena:
+Antes de continuar frontend, MLIR ou runtime, W precisa fechar a Baseline de
+Design 1. O corpus e spikes mínimos servem apenas para decidir hipóteses durante
+esse período. Depois disso, a primeira fatia vertical implementável será:
 
 1. dez a vinte programas que definam a experiência desejada;
 2. gramática, formatter e diagnósticos coerentes para esses programas;

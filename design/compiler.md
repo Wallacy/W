@@ -82,6 +82,38 @@ a EBNF são compartilhados e testes diferenciais detectam divergência; se uma C
 for compartilhada, essa equivalência precisa ser provada em edição incompleta.
 Nenhum sketch isolado é baseline, conforme [spec/syntax.md](../spec/syntax.md).
 
+### Ilhas multilíngues posteriores
+
+`fn<lang>` pesquisa uma ilha de implementação pertencente ao source da aplicação,
+não uma library externa implícita. É uma ferramenta de migração semelhante em
+intenção ao `asm` de C, mas o body é entregue a um frontend completo. O primeiro
+experimento vem somente depois de `foreign c` provar tipos e ownership na
+fronteira.
+
+O frontend W reconheceria assinatura e delimitadores, preservaria os bytes do
+body na CST e criaria um nó AST opaco. Um adapter da linguagem receberia:
+
+- body inline ou source separado pertencente à mesma receita;
+- assinatura W já restrita a tipos de fronteira suportados;
+- target, data layout, profile, capabilities e compilation unit;
+- imports/includes explícitos e versões fixadas de frontend/toolchain.
+
+O adapter devolveria IR ou object compatível, símbolos, diagnostics mapeados ao
+source, dependências descobertas, metadata de efeitos/ownership e digests. O
+parser W nunca interpreta statements C, Rust ou Zig como se fossem W.
+
+Convergir em MLIR/LLVM pode habilitar link e otimização conjunta, mas compartilhar
+backend não estabelece calling convention, runtime, exception/panic, layout ou
+ownership. A própria [conversão de dialetos do MLIR](https://mlir.llvm.org/docs/DialectConversion/)
+exige regras explícitas de legalidade e conversão/materialização de tipos; o
+[LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/) carrega target triple e
+data layout, e a [LLVM LangRef](https://llvm.org/docs/LangRef.html#calling-conventions)
+exige calling conventions compatíveis. Cada adapter e target precisa provar
+esses contratos. Namespaces como `fn<C::equipment>` podem agrupar calls diretas
+numa compilation unit sem transformar a tag em lifecycle. As formas seguem abertas em
+[W-O042](../STATUS.md) e no
+[experimento do restaurante](../examples/restaurant/multilingual.md).
+
 ### Experimento de bootstrap para W-O008
 
 A primeira implementação deve testar Tree-sitter como `SyntaxProvider` do
@@ -126,7 +158,11 @@ primeira em que todos os contratos semânticos precisam estar explícitos. Ela d
 registrar, antes de entrar no MLIR:
 
 - tipos resolvidos, substitutions genéricas e constraints de layout/ABI;
+- símbolo resolvido, módulo de origem e edição que autorizou cada lookup std
+  implícito, sem perder effect/capability ou reachability;
 - categorias `struct`, `object`, `enum`, protocol/existential e refinement;
+- dimensões/unidades normalizadas, literal original, overflow, rounding e modo
+  floating-point observável;
 - estado de inicialização por caminho de controle;
 - CFG, patterns normalizados e joins de narrowing;
 - owner, move, copy, borrow e exclusividade de `inout`;
@@ -151,6 +187,7 @@ Famílias mínimas candidatas:
 | Família | Informação preservada |
 |---|---|
 | tipos e valores | value/object/enum/option/result, refinement provado, layout ainda abstrato |
+| numéricos | dimensões/units, overflow, rounding, strict/reproducible/fast math e shapes adotados |
 | ownership | criação, borrow, `inout`, move, copy, drop e fim de lifetime |
 | controle e efeitos | calls tipadas, branches, `throws`, panic, cleanup e `defer` |
 | tasks | scope, child concorrente, spawn paralelo, await, cancel, join e captures |
@@ -184,7 +221,9 @@ de função e módulo. Antes de apagar uma abstração, o pipeline precisa prova
 8. cancellation preserva cleanup e não atravessa uma chamada C bloqueante sem
    adapter;
 9. layout público e `repr(c)` são compatíveis com o target declarado;
-10. nenhuma otimização altera overflow, opcionais ou semântica entre profiles.
+10. operações dimensionais são válidas e conversões com escala/offset continuam explícitas;
+11. nenhuma otimização altera overflow, opcionais, rounding ou garantia numérica
+    entre profiles sem annotation/metadata source correspondente.
 
 Falha de verifier é bug do compilador e interrompe o pipeline. Erro de programa
 deve ter sido diagnosticado na HIR com código, mensagem, labels de source e, onde
@@ -202,7 +241,7 @@ invariante até o passe responsável por consumi-la.
 | W canônico | desugaring de option/result/patterns, monomorphization candidata, cleanup explícito | semântica ainda independente de layout |
 | representação | data layout, enum/option layout, stack/heap/region, ABI e calling convention | representações escolhidas com fallback |
 | tasks e errors | scopes para frames/continuations, result/control flow, runtime calls | parent/child, cleanup e erro preservados |
-| MLIR comum | `func`, `scf`/`cf`, `arith`, memória e outros dialetos aplicáveis | nenhuma operação W sem lowering definido |
+| MLIR comum | `func`, `scf`/`cf`, `arith`, `math`, `vector`/`linalg`, memória e outros dialetos aplicáveis | nenhuma operação W sem lowering definido |
 | LLVM | conversão ao LLVM dialect, legalização por target, tradução a LLVM IR | módulo verificável pelo backend |
 | nativo | otimização, codegen, link e metadata | artefato associado aos inputs do build |
 
@@ -312,6 +351,10 @@ do primeiro compilador.
 - EBNF de trabalho, lexer/parser recuperável e CST serializável;
 - formatter idempotente;
 - AST/HIR snapshots para bindings, funções, controle e tipos básicos.
+
+O [corpus versionado](../corpus/README.md) inicia esta fatia com 12 positivos,
+11 negativos e CST determinística. Formatter e AST/HIR ainda não estão
+implementados; parse aceito não deve ser confundido com semântica aprovada.
 
 **Saída:** nenhum programa nativo ainda; sintaxe e diagnostics podem ser mudados
 com evidência antes de contaminar o backend.

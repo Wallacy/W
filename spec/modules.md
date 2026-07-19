@@ -73,28 +73,39 @@ compatível sem mudar a semântica observável do programa.
 
 ### Prelude e imports implícitos
 
-A prelude é uma lista pequena, fixa e versionada de nomes puros importados em
-todo módulo. Ela não é equivalente a `import std.*` e, conforme a direção da
-[stdlib](../design/stdlib.md), não inicia I/O, alocação relevante, threads nem
-consulta estado do host.
+A baseline anterior limitava a prelude a uma lista pequena de nomes puros. O
+primeiro protótipo deve comparar essa opção com um **mapa de exports implícitos
+congelado pela edição**. Esse mapa é parte do toolchain/lock, não é reconstruído
+a partir da versão mais nova da stdlib nem das dependências instaladas.
+
+No experimento mais amplo, todo export elegível da stdlib pode ser usado sem um
+`import` quando seu nome é único no mapa daquela edição. Namespaces oficiais
+também ficam disponíveis, portanto `http.serve` permanece uma forma estável
+quando `serve` não é único. `print` não é uma keyword ou açúcar especial: é um
+símbolo normal cuja origem pode ser mostrada pelo compiler e pelo LSP.
 
 A resolução candidata procura, sem fallback ambíguo:
 
 1. declarations e bindings lexicais;
 2. imports explícitos e seus aliases;
-3. nomes da prelude fixa.
+3. exports livres do mapa implícito da edição, apenas quando há um único
+   candidato;
+4. nomes qualificados sob um namespace std implícito.
 
 Se dois imports explícitos fornecem o mesmo nome, o source precisa selecionar ou
 dar alias; ordem textual não desempata. Auto-import da IDE pode inserir a forma
 canônica no arquivo, mas não altera a resolução do compiler por conta própria.
 
-Importar implicitamente qualquer item da stdlib “até surgir uma colisão” é
-**Rejeitado por enquanto**: adicionar uma dependência ou uma nova API à stdlib
-poderia mudar a resolução de source antes válido. `io` fica fora da prelude
-inicial porque representa acesso ao host; `import { io } from std` continua
-explícito enquanto o modelo de capabilities/effects estiver em aberto. Uma sugar
-futura só deve avançar se expandir de forma única e aparecer nos diagnostics e
-na metadata de build.
+Uma colisão no mapa não escolhe pela ordem, popularidade ou target. O nome livre
+deixa de existir e o diagnóstico oferece as formas qualificadas ou um import com
+alias. Adicionar uma API à stdlib dentro da mesma edição não altera o mapa; o
+novo símbolo só fica disponível por qualificação/import explícito até uma edição
+posterior. A migração de edição consegue assim listar cada nova ambiguidade.
+
+Visibilidade de nome não concede autoridade. Resolver `print` não cria terminal;
+resolver `http.serve` não abre socket. Effects/capabilities, reachability e custo
+do módulo usado continuam na interface inferida, no lens do editor e na receita
+de build. Essa separação é condição do experimento, não detalhe opcional.
 
 ### Interface e visibilidade
 
@@ -129,6 +140,15 @@ autoridade antes de existir uma ABI W estável.
 Por default, uma declaration sem `export` é privada ao módulo. Visibilidade
 restrita ao package, re-export de facade e acesso `friend` permanecem **Em
 aberto**; nenhum deles deve depender do layout de diretórios por acidente.
+
+Para o corpus inicial, `export struct` e `export enum` descrevem values
+transparentes: fields/cases necessários para construção e pattern matching
+cross-module entram na interface. `export protocol` exporta seus requirements.
+Um `object` mantém storage privado mesmo quando sua identidade é exportada;
+operações públicas são `export fn` ou, preferencialmente nas boundaries de
+execução, um `protocol` exportado. Values com invariantes e representação oculta
+continuam em [W-O035](../STATUS.md); não serão simulados com `private`/`public`
+redundantes.
 
 ### Dependências e ciclos
 
@@ -175,8 +195,6 @@ Um esboço compatível com a sintaxe já candidata usa tipos comuns e uma API
 explícita; os nomes de runtime abaixo não são stdlib congelada:
 
 ```w
-import { io } from std
-
 protocol CounterApi {
   fn increment(): u64 async throws CounterError
   fn current(): u64 async throws CounterError
@@ -229,7 +247,7 @@ fn main(host: inout ServiceHost): Void async throws CounterAppError {
   let counter = try await startCounter(inout host)
 
   let value = try await incrementCounter(counter)
-  io.print("counter: \(value)")
+  print("counter: ${value}")
 }
 ```
 
@@ -542,7 +560,7 @@ mesmo quando o linker transforma a representação.
 |---|---|---|
 | módulo como namespace/interface/build unit | **Direção** | corpus multiarquivo e rebuild incremental |
 | import sem execução, rede ou authority | **Direção** | resolver hermético e negative tests |
-| prelude pequena e fixa | **Direção** | lista versionada, pureza e lookup determinístico |
+| mapa std implícito congelado por edição | **Candidato** | colisões, effects/capabilities, autocomplete e migração determinística |
 | lifecycle somente em instância explícita | **Direção** | protótipo com start/drain/restart |
 | unidades lógicas fine-grained sem boundary física obrigatória | **Direção** | preservar contrato, custos e observabilidade sob co-location |
 | handler serial não reentrante por default | **Candidato** | latência, deadlocks, diagnostics e ergonomia em três workloads |
@@ -580,9 +598,9 @@ mesmo quando o linker transforma a representação.
    manifest/deployment enquanto [W-O006](../STATUS.md) estiver aberto?
 10. Promise pipelining/capability RPC é parte da visão do runtime ou apenas um
     experimento posterior de wRPC?
-11. [W-O026](../STATUS.md): você concorda em manter `io` explícito e deixar o editor inserir o import, ou
-    o valor ergonômico de `io.print` sem import justifica uma exceção fixa e
-    documentada à prelude pura?
+11. [W-O026](../STATUS.md): o protótipo amplo com todo export std único supera
+    uma prelude curada ou somente namespaces implícitos? Compare `print`,
+    `http.serve`, autocomplete, colisões e atualização de edição.
 12. [W-O027](../STATUS.md): “Nanoservice” ajuda a comunicar a visão ou deve permanecer somente uma lente
     interna? Qual limite mínimo justifica uma instância separada: state keyed,
     lifecycle/capability independente ou também um handler stateless curto?

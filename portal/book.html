@@ -78,11 +78,9 @@
         <article class="book-chapter" id="primeiro-programa" data-book-section>
           <p class="chapter-number">Capítulo 2</p>
           <h2>Primeiro programa</h2>
-          <p>Um programa começa com imports lógicos e uma função <code>main</code>. O manifest e o lockfile resolvem de onde vem <code>std</code>; o source não espalha URLs e hashes.</p>
-          <div class="code-shell"><pre><code>import { io } from std
-
-fn main() {
-  io.print("Olá, W!")
+          <p>Um programa começa com uma função <code>main</code>. Nomes std elegíveis podem vir do mapa implícito congelado pela edição; dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
+          <div class="code-shell"><pre><code>fn main() {
+  print("Olá, W!")
 }</code></pre></div>
           <p>Arquivos são UTF-8. Quebras de linha encerram a maior parte das declarações. Essas formas são exemplos dourados de design: você pode estudá-las e editá-las no playground, mas ainda não executá-las.</p>
           <div class="try-next"><strong>Experimente:</strong> <a href="/playground?example=hello">abra este exemplo no Playground</a> e observe os tokens reconhecidos.</div>
@@ -207,7 +205,7 @@ fn main(host: inout ServiceHost): Void async throws CatalogAppError {
         <article class="book-chapter restaurant-chapter" id="restaurante-w" data-book-section>
           <p class="chapter-number">Capítulo 9 · exemplo top-down</p>
           <h2>O restaurante W</h2>
-          <p>Um pedido de bolo conecta as ideias anteriores sem esconder fronteiras. O menu escolhe um fluxo com <code>switch</code>; uma instância candidata keyed por pedido mantém estado serial; a cozinha usa children concorrentes durante espera e trabalho paralelo para lotes independentes.</p>
+          <p>Um pedido de bolo conecta as ideias anteriores sem esconder fronteiras. O menu escolhe um fluxo com <code>switch</code>; uma instância candidata keyed por pedido mantém estado serial; a cozinha usa children concorrentes durante espera e trabalho paralelo para lotes independentes. Equipamento, scheduling, billing, TUI e HTTP acrescentam cálculo e lifecycle reais ao mesmo corpus.</p>
           <div class="status-callout"><span class="badge proposal">Working Draft</span><p>Este é pseudocódigo pedagógico. <code>ServiceHost</code>, <code>ServiceRef</code> e a configuração de instância são candidatos; <code>service</code>, <code>worker</code>, <code>assistant</code> e “nanoservice” não são keywords W.</p></div>
 
           <aside class="codelens-mock" aria-labelledby="codelens-title">
@@ -267,8 +265,47 @@ let (cake, soup, salad) = try await (cake, soup, salad)</code></pre></div>
             <p><strong>Children pertencem ao handler.</strong> Error ou cancelamento encerra a árvore, faz join e executa <code>defer</code>/cleanup antes de sair.</p>
             <p><strong>Estado externo exige compensação.</strong> Cancelar as child tasks não desfaz silenciosamente uma instância <code>OrderState</code>; <code>cancelBirthdayTable</code> torna essa ação explícita.</p>
           </div>
-          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">leia a narrativa completa</a> · <a href="/playground?example=restaurantKitchen">edite a cozinha</a> · <a href="/playground?example=restaurantTable">abra a mesa completa</a>.</div>
-          <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">instâncias e calls tipadas</a> · <a href="/docs/design/modules-and-runtime.md">arquitetura candidata</a>.</p>
+
+          <h3>O restaurante também calcula</h3>
+          <p>O modelo térmico separa funções puras da boundary de hardware. Quantidades incompatíveis devem falhar no type checker; o loop assíncrono fica apenas onde sensor, actuator e timer realmente suspendem.</p>
+          <div class="code-shell"><pre><code>let wallLoss = surface * transmittance * (inside - ambient)
+let cavityEnergy = (heaterPower * duty - wallLoss - foodTransfer) * elapsed
+let nextCavity = cavity + cavityEnergy / cavityCapacity</code></pre></div>
+          <p><code>planning.w</code> executa earliest-deadline-first e escolhe a lane menos carregada. <code>billing.w</code> calcula imposto em minor units com rounding explícito. Nenhuma dessas funções precisa de task, service ou framework.</p>
+          <div class="decision-box"><strong>Mesma regra, intenções diferentes</strong><p>A integração do PID usa <code>switch rawDuty</code> com ranges one-sided e guards <code>where</code>. A expressão direta com <code>in</code>/<code>||</code>/<code>&&</code> e uma futura tuple-pattern permanecem documentadas como alternativas; <code>where</code> refina patterns, não duplica todo operador booleano.</p></div>
+          <div class="code-shell"><pre><code>switch rawDuty {
+  case 0.0...1.0: return true
+  case ..&lt;0.0 where error &gt; 0.0: return true
+  case 1.0&gt;.. where error &lt; 0.0: return true
+  case _: return false
+}</code></pre></div>
+          <p>A forma booleana é a alternativa mais direta quando a política não merece nome ou pattern matching:</p>
+          <div class="code-shell"><pre><code>let canAccumulate = rawDuty in 0.0...1.0
+  || (rawDuty &lt; 0.0 &amp;&amp; error &gt; 0.0)
+  || (rawDuty &gt; 1.0 &amp;&amp; error &lt; 0.0)</code></pre></div>
+          <p>Uma futura tuple-pattern poderia agrupar os três casos num único <code>case</code>; ela só será candidata se o match múltiplo ficar mais legível que os guards e produzir diagnostics melhores.</p>
+
+          <h3>TUI e HTTP compartilham uma facade</h3>
+          <div class="code-shell"><pre><code>async let terminal = runTerminalInterface(restaurant)
+async let web = runWebInterface(address, restaurant)
+let (_, _) = try await (terminal, web)</code></pre></div>
+          <p><code>print</code>, <code>readLine</code>, <code>http</code> e <code>json</code> testam a superfície std implícita da edição. Os imports entre módulos do restaurante continuam explícitos. Nome visível não concede terminal, socket ou rede: effects, capabilities e reachability continuam observáveis.</p>
+
+          <h3>Laboratório de alternativas</h3>
+          <div class="restaurant-lessons">
+            <div class="decision-box"><strong>Membership · Candidato</strong><p><code>next.isOneOf(.preparing, .cancelled)</code>. Alternativas: <code>next in (.preparing, .cancelled)</code> e a forma explícita com <code>== ||</code>. Vence a que provar clareza e zero allocation.</p></div>
+            <div class="decision-box"><strong>Std implícita · Candidato</strong><p>Mapa de exports únicos congelado por edição. Alternativas: prelude curada ou apenas namespaces implícitos com poucos nomes livres. Todas preservam origem e capability no tooling.</p></div>
+            <div class="decision-box"><strong>Visibilidade · Candidato</strong><p>Privado por default e <code>export</code> para a interface. Alternativas para values com invariantes: fields exportados, tipo opaco ou factories. <code>public</code>/<code>private</code> seguem desnecessários no corpus.</p></div>
+            <div class="decision-box"><strong>Labels · Candidato</strong><p>Primeiro argumento posicional, seguintes nomeados. Alternativas: todos nomeados ou todos posicionais com lint. Labels customizados continuam parte da API.</p></div>
+            <div class="decision-box"><strong>Unidades · Em aberto</strong><p>O exemplo usa <code>Quantity&lt;si.Unit, f64&gt;</code> e literals provisórios. Sufixo, annotation dedicada e wrapper nominal continuam alternativas em W-O036.</p></div>
+            <div class="decision-box"><strong>Exponenciação · Em aberto</strong><p><code>flow * flow</code> mantém a grammar atual. <code>flow ** 2</code>, <code>pow(flow, 2)</code> e APIs por família serão comparados com dimensions, overflow e precedência de unary minus.</p></div>
+            <div class="decision-box"><strong>Ranges · Candidato</strong><p><code>...</code>, <code>..&lt;</code>, <code>&gt;..</code> e <code>&gt;..&lt;</code> cobrem os quatro bounds. Intervalo + <code>stride</code>, producer lazy e tipos separados continuam alternativas em W-O041.</p></div>
+            <div class="decision-box"><strong>HTTP · Pesquisa</strong><p>Pode morar na std, num pacote first-party versionado com o toolchain ou deixar apenas transporte no núcleo portátil. “Sem terceiro” não obriga congelar framework no core.</p></div>
+            <div class="decision-box"><strong>Serviço · Candidato</strong><p><code>object</code> privado + <code>protocol</code> + <code>ServiceRef</code>. Keyword <code>service</code>, metadata e IDL/codegen permanecem alternativas; placement local/remoto nunca é escondido pelo import.</p></div>
+          </div>
+
+          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
+          <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">módulos e std implícita</a> · <a href="/docs/design/numerics-and-quantities.md">numéricos e quantidades</a> · <a href="/docs/design/formatting.md">formatter</a>.</p>
         </article>
 
         <article class="book-chapter" id="ffi" data-book-section>
@@ -280,6 +317,20 @@ let (cake, soup, salad) = try await (cake, soup, salad)</code></pre></div>
   fn sqlite3_close(handle: c.ptr&lt;sqlite3&gt;): c.int
 }</code></pre></div>
           <p>Um ponteiro non-null não é prova de validade. Allocator e deallocator precisam combinar; callbacks precisam declarar ownership do contexto e regras de thread. O bloco foreign pode quebrar garantias, mas sua API pública deve restabelecê-las.</p>
+          <h3>Uma call W, várias implementações possíveis</h3>
+          <p>O equipamento do restaurante testa a ideia histórica de funções multilíngues para migração. O body C pertence à própria aplicação — não é uma library externa — enquanto o call site continua W comum e tipado.</p>
+          <div class="code-shell"><pre><code>let temperature = try equipment.read(.cavity)
+
+// Baseline implementável: ABI declarada e wrapper W seguro.
+foreign c from "restaurant_equipment.h" { /* declarations */ }
+
+// Pesquisa: ilha compilada pelo frontend C junto da aplicação.
+fn&lt;C&gt; readProbeRaw(_ handle: c.ptr&lt;restaurant_equipment&gt;, _ probe: c.int): c.double {
+  double value = 0.0;
+  return restaurant_read_probe(handle, probe, &amp;value) == 0 ? value : NAN;
+}</code></pre></div>
+          <div class="decision-box"><strong><code>fn&lt;lang&gt;</code> · Pesquisa</strong><p>Body inline é a hipótese principal. <code>fn&lt;C&gt; ... from</code> mantém o source da aplicação em arquivo separado; <code>fn&lt;C::equipment&gt;</code> agrupa uma compilation unit; <code>@foreign(...)</code> evita gramática especial. LLVM/MLIR comum ajuda no lowering, mas não substitui contratos de ABI, runtime, ownership, exceptions e source maps. Nenhuma forma pertence à grammar atual.</p></div>
+          <p class="canonical-links">Experimento completo: <a href="/examples/restaurant/multilingual.md">funções multilíngues</a> · <a href="/examples/restaurant/interop.w">wrapper C do equipamento</a> · <a href="/playground?example=restaurantInterop">comparação visual</a>.</p>
         </article>
 
         <article class="book-chapter" id="packages" data-book-section>

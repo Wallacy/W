@@ -1,10 +1,8 @@
 const examples = {
   hello: {
     filename: "hello.w",
-    source: `import { io } from std
-
-fn main() {
-  io.print("Olá, W!")
+    source: `fn main() {
+  print("Olá, W!")
 }`,
   },
   options: {
@@ -33,11 +31,7 @@ fn label(id: UserId): String throws LoadError {
   restaurantMenu: {
     filename: "restaurant/menu.w",
     source: `// Working Draft: pseudocódigo, não executável.
-fn place(
-  item: MenuItem,
-  orders: inout ServiceHost,
-  kitchen: ServiceRef<KitchenApi>,
-): Receipt async throws MenuError {
+fn place(item: MenuItem, orders: inout ServiceHost, kitchen: ServiceRef<KitchenApi>): Receipt async throws MenuError {
   switch item {
     case .cake(let request):
       let order = try await openMenuOrder(request.orderId, on: inout orders)
@@ -101,6 +95,80 @@ async let salad = prepareMenuSalad(request.salad, for: saladOrder, in: kitchen)
 let (cake, soup, salad) = try await (cake, soup, salad)
 
 return TableReceipt(tableId: request.tableId, cake: cake, soup: soup, salad: salad)`,
+  },
+  restaurantOven: {
+    filename: "restaurant/oven.w",
+    source: `// Função pura: dimensions devem ser verificadas em compile time.
+fn predictStep(
+  model: ref ThermalModel,
+  state: ThermalState,
+  ambient: Temperature,
+  duty: Ratio,
+  elapsed: Duration,
+): ThermalState {
+  let wallLoss = model.surface * model.transmittance * (state.cavity - ambient)
+  let foodTransfer = model.coupling * (state.cavity - state.food) / 1.0_KelvinDelta
+  let cavityEnergy = (model.heaterPower * duty - wallLoss - foodTransfer) * elapsed
+  let foodEnergy = foodTransfer * elapsed
+  let nextCavity = state.cavity + cavityEnergy / model.cavityCapacity
+  let nextFood = state.food + foodEnergy / model.foodCapacity
+  return ThermalState(cavity: nextCavity, food: nextFood, cavityRate: (nextCavity - state.cavity) / elapsed)
+}`,
+  },
+  restaurantPlanning: {
+    filename: "restaurant/planning.w",
+    source: `// Earliest-deadline-first + lane menos carregada.
+var ordered = copy jobs
+ordered.sort(by: (left, right) => left.deadline < right.deadline)
+var loads = List.filled(count: laneCount, with: Duration.zero)
+var entries: List<ScheduledBake> = []
+
+for job in ordered {
+  let lane = earliestLane(loads)
+  let startsAt = opening + loads[lane]
+  let finishesAt = startsAt + job.duration
+  entries.append(ScheduledBake(
+    orderId: job.orderId,
+    lane: lane,
+    startsAt: startsAt,
+    finishesAt: finishesAt,
+    temperature: job.temperature,
+  ))
+  loads[lane] += job.duration
+}`,
+  },
+  restaurantInterfaces: {
+    filename: "restaurant/app.w",
+    source: `// Nomes std curtos não escondem effects/capabilities.
+print("Restaurante W")
+
+// TUI e HTTP são children long-lived da mesma árvore.
+async let terminal = runTerminalInterface(restaurant)
+async let web = runWebInterface(address, restaurant)
+let (_, _) = try await (terminal, web)`,
+  },
+  restaurantInterop: {
+    filename: "restaurant/multilingual-experiment.w",
+    source: `// Baseline aceita pelo parser: fronteira C + wrapper W seguro.
+foreign c from "restaurant_equipment.h" {
+  type restaurant_equipment
+  fn restaurant_read_probe(
+    _ handle: c.ptr<restaurant_equipment>,
+    _ probe: c.int,
+    _ outCelsius: c.ptr<c.double>,
+  ): c.int
+}
+
+let temperature = try equipment.read(.cavity)
+
+// Pesquisa visual: ilha da aplicação, ainda fora da grammar.
+fn<C> readProbeRaw(_ handle: c.ptr<restaurant_equipment>, _ probe: c.int): c.double {
+  double value = 0.0;
+  int status = restaurant_read_probe(handle, probe, &value);
+  return status == 0 ? value : NAN;
+}
+
+let celsius = readProbeRaw(device, Probe.cavity.rawValue)`,
   },
   ffi: {
     filename: "sqlite.w",
