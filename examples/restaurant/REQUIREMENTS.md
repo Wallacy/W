@@ -11,23 +11,25 @@ uma candidata se tornar normativa.
 
 | Tema | Forma usada no corpus | Alternativas ainda válidas | O que decide |
 |---|---|---|---|
-| std implícita | todo export único do mapa congelado pela edição; namespaces sempre disponíveis | prelude curada · somente namespaces + poucos nomes livres · import explícito | tokens, autocomplete, colisões, atualização de edição e capability visível |
+| std implícita | prelude T0 curada e congelada pela edição; namespaces sempre disponíveis | todo export único · somente namespaces + poucos nomes livres · import explícito | tokens, autocomplete, colisões, atualização de edição e capability visível |
 | impressão | `print(...)` | `io.print(...)` · import de `print` · açúcar fixo | scripts/TUI, efeitos inferidos e diagnóstico de authority |
 | visibilidade | privado por default + `export` | fields exportados individualmente · tipo opaco/factory · package visibility | invariantes, pattern matching, ABI e evolução |
-| múltiplas alternativas | `value.isOneOf(a, b)` | `value in (a, b)` · `value == a || value == b` · pattern alternativo | tokens, narrowing, variadic pack e garantia de zero allocation |
+| múltiplas alternativas | `value in (a, b)` | `value.isOneOf(a, b)` · `value == a || value == b` · pattern alternativo | tokens, narrowing, lista estática e garantia de zero allocation |
 | formatter | largura preferida 120; horizontal se couber | outra largura antes da v1 · exceção documentada para fórmula | corpus formatado, diffs e leitura lado a lado |
 | labels | primeiro argumento posicional; seguintes nomeados | todos nomeados · todos posicionais + lint | tokens, leitura, refactor e autocomplete |
 | mutação | `mut fn` para receiver; `inout` para argumento explícito | `mut` como effect em toda função mutante | redundância, function types e diagnostics de borrow |
-| unidades | tipos `Quantity<si.Unit, f64>` e literals provisórios `180_Celsius` | sufixo próprio · declaração de unit · wrapper nominal | parser, conversão, offsets, generics, ABI e zero overhead |
-| exponenciação | multiplicação explícita em `flow * flow` | `flow ** 2` · `pow(flow, 2)` · APIs por família | precedência, dimensions, overflow e lowering |
-| ranges | quatro closures; `in` como membership; one-sided em switch patterns | producer lazy com step · `Interval` separado · unbounded como values | floats, iteration, count/last, zero allocation e diagnostics |
+| unidades | quantity literal delimitado `180[°C]`; corpus executável ainda usa `180_Celsius` | sufixo próprio · `Number<Unit>` · declaração longa/wrapper nominal | parser, conversão, offsets, generics, ABI e zero overhead |
+| exponenciação | `flow ** 2`; corpus executável mantém `flow * flow` até a grammar mudar | `pow(flow, 2)` · multiplicação explícita · APIs por família | precedência, dimensions, overflow e lowering |
+| ranges | quatro closures, `in`, `clamp` em closed range e `stride` separado | producer lazy com step · `Interval` separado · unbounded como values | floats, totalidade, iteration, count/last, zero allocation e diagnostics |
 | condição PID | helper com range patterns + `where` | expressão `||`/`&&` direta · tuple-pattern · combinador nomeado | intenção, duplicação do body, narrowing e HIR simples |
 | serviço | `object` privado + `protocol` exportado + `ServiceRef` | keyword `service` · IDL/codegen · object com metadata | lifecycle, error, call local/remota e capacidade de remover açúcar |
 | HTTP | `http`/`json` first-party | pacote oficial fora da std · somente transporte na std | portabilidade, TLS, codecs, tamanho e ritmo de evolução |
 | outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · adapter declarado | migração, ABI, ownership, parser injection, debug, cache e provenance |
 
-`.isOneOf` significa OR/membership. Um enum simples não pode ser simultaneamente
-dois cases. Sets/flags precisam de operações distintas como `hasAny` e `hasAll`.
+`in (a, b)` significa OR/membership finito e baixa para comparações estáticas.
+`.isOneOf` preserva a mesma leitura como alternativa. Um enum simples não pode
+ser simultaneamente dois cases. Sets/flags precisam de operações distintas como
+`hasAny` e `hasAll`.
 
 As três leituras preservadas para a condição de anti-windup são:
 

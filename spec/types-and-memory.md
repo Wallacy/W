@@ -345,28 +345,51 @@ Somente tipos compatíveis com a ABI C podem compor esse layout. A fronteira nã
 promete bytes iguais entre Windows/POSIX, 32/64-bit ou ABIs diferentes e nunca é
 usada como serialization implícita.
 
-#### Newtype transparente
+#### Newtype nominal sem wrapper
 
-Para preservar identidade W sem custo de ABI, a forma candidata é uma keyword:
+Para preservar identidade W sem criar um aggregate de um field, a proposta usa
+as keywords que o sistema de tipos já precisa:
 
 ```w
-transparent struct UserId {
-  raw: u64
-}
+type UserId = u64
+type Port = u16 where value in 1...65535
+alias NativeSize = c.size
 ```
 
-Ela exige exatamente um field armazenado e possui layout/calling convention
-iguais aos desse field. Métodos e conformances não mudam a representação.
+`type` cria identidade nominal, constructors/conversões controladas e pode somar
+refinement, mas preserva o storage do tipo base. `alias` não cria identidade.
+Métodos e conformances do newtype não mudam a representação. Dentro de uma ABI W
+com fingerprint compatível, o profile pode classificá-lo como o base; na FFI, o
+adapter ainda autoriza a conversão para evitar que igualdade de bytes seja
+confundida com compatibilidade semântica ou calling convention.
 
-#### O que não entra ainda
+#### Packed e alinhamento no low-level seguro
 
-- layout W nativo congelado entre versões fica depois de W-O085;
-- `packed struct` não entra em safe W v0: fields desalinhados não podem produzir
-  `ref` normal e codecs/loads unaligned são mais honestos;
+A revisão em lote não retira toda facility de layout da v0. Ela propõe
+`packed struct` e uma forma dedicada de `aligned(N) struct`, sujeitas a regras
+que o type checker consegue provar:
+
+- field possivelmente desalinhado é lido/escrito por valor com operações
+  unaligned; nunca produz `ref`/`inout` normal;
+- atomic access só existe quando offset/alignment/target satisfazem `Atomic<T>`;
+- declaration order, padding/backing e bit width são parte do tipo packed;
+- endianness continua explícito em field type/codec; packed não transforma
+  memória nativa em wire format portátil;
+- layout C afetado por pragma/packing vem do header/adapter e registra flags na
+  receita, em vez de ser adivinhado por uma struct W parecida.
+
+A sintaxe exata de `packed`/`aligned` ainda precisa do corpus low-level. O
+contrato seguro acima pode entrar na v0 mesmo que o compiler inicialmente baixe
+o acesso para `memcpy`/unaligned load conservador.
+
+#### O que continua fora do compromisso nativo
+
+- layout W normal congelado universalmente entre versões fica separado de
+  exact-layout types e depende de W-O085;
 - endianness, offsets de protocolo e persistência usam encode/decode ou schemas,
-  não memória transmutada;
-- alinhamento especial deve nascer de um caso SIMD/hardware concreto, não de uma
-  annotation genérica.
+  salvo quando um packed type declara exatamente esse contrato;
+- um `struct` W normal nunca se torna C-compatible apenas porque seus fields
+  aparentam coincidir.
 
 Um modelo resilient semelhante ao de Swift permitiria mudar fields sem recompilar
 o cliente por meio de metadata/accessors, mas custa indireção. W começa
@@ -379,17 +402,18 @@ antes de um caso real de biblioteca dinâmica.
 |---|---|---|
 | default em ordem de declaração | previsível para low-level | congela oportunidades de packing e vira ABI acidental |
 | default opaco + tooling | otimização e evolução | exige `w explain layout` para inspeção física |
-| `fixed struct` W já na v0 | plugins/native libs mais diretos | congela uma ABI antes de generics, enums e ownership |
-| `packed struct` geral | formatos densos | unaligned borrows, endianness e atomics perigosos |
+| `type X = T` nominal | newtype curto, zero storage extra e refinable | precisa distinguir constructor, unwrap e `alias` com precisão |
+| `transparent struct` | familiar a Rust e acomoda zero-sized fields | keyword de layout para um caso já coberto por `type` |
+| `fixed struct` W universal | plugins/native libs mais diretos | congela uma ABI antes de generics, enums e ownership |
+| `packed`/`aligned` restritos | hardware e formatos densos sem annotations | exige regras de unaligned ref, endian e atomics no type checker |
+| `packed struct` irrestrita | máxima liberdade low-level | torna borrows, atomics e interop silenciosamente perigosos |
 
 ### Perguntas humanas
 
-1. Você aceita que a ordem física de `struct` W comum seja opaca, embora
-   `sizeOf`/`alignOf` e `w explain layout` mostrem o resultado da build?
-2. `foreign c { struct ... }` e `transparent struct` parecem construções claras
-   o bastante sem `@repr`?
-3. Podemos retirar `fixed`/`packed` da v0 e exigir codecs/adapters até aparecer um
-   caso de hardware/ABI que realmente não caiba em `foreign c`?
+O bundle [H03](../DB1_REVIEW.md#h03--tipos-layout-e-abi) pede ratificação conjunta
+de quatro escolhas: layout W comum opaco; layout C apenas na fronteira; `type`
+versus `alias` para newtypes; e packed/aligned seguros na v0 sem congelar uma ABI
+W universal.
 
 Referências de comparação: [Rust type layout](https://doc.rust-lang.org/stable/reference/type-layout.html),
 [Swift library evolution](https://www.swift.org/blog/library-evolution/) e
