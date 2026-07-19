@@ -25,7 +25,7 @@ enum LoadError: Error {
   invalidPayload(JsonError)
 }
 
-fn fetchUserResponse(id: UserId): HttpResponse async throws LoadError {
+async fn fetchUserResponse(id: UserId): HttpResponse throws LoadError {
   do {
     return try await http.get("/users/${id}")
   } catch let error {
@@ -41,13 +41,13 @@ fn decodeUser(response: ref HttpResponse): User throws LoadError {
   }
 }
 
-fn loadUser(id: UserId): User async throws LoadError {
+async fn loadUser(id: UserId): User throws LoadError {
   let response = try await fetchUserResponse(id)
   guard response.status == .ok else throw .notFound(id)
   return try decodeUser(response)
 }
 
-fn dashboard(id: UserId): Dashboard async throws LoadError {
+async fn dashboard(id: UserId): Dashboard throws LoadError {
   // Concorrência: duas operações suspensíveis no mesmo escopo.
   async let user = loadUser(id)
   async let activity = loadActivity(id)
@@ -120,7 +120,7 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 | Camada | Estado atual |
 |---|---|
 | Visão e princípios | direção consolidada |
-| Baseline de design | fechamento S0–S15 iniciado; primeira fatia é representação de valores |
+| Baseline de design | DB1 ratificada como candidata; ensaio integrado do restaurante em revisão |
 | Sintaxe apresentada aqui | proposta de trabalho |
 | Tipos, erros e ownership | modelo candidato; precisa de protótipos |
 | Concorrência estruturada e paralelismo | semântica candidata; runtime ainda inexistente |
@@ -128,6 +128,8 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 | Frontend e gramática | Tree-sitter candidato produz CST; formatter, AST/HIR e diagnostics gerais ainda não existem |
 | Highlighting local | TextMate/portal utilizáveis; Tree-sitter em protótipo não normativo |
 | Dialeto W/MLIR | arquitetura proposta |
+| Bootstrap | seed C portátil + self-host W cedo; ainda não implementado |
+| Documentação/testes | `///`, doctests e testes co-localizados candidatos; runner inexistente |
 | Package/build system | design em elaboração |
 | Estimativas de recursos | experimento de tooling; sem garantia de runtime |
 | Compilador, runtime e stdlib | ainda não implementados |
@@ -159,11 +161,14 @@ questões e o formulário único de ratificação estão em
 - Leia [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md) para percorrer a sintaxe e o comportamento do programa.
 - Leia [VISION.md](VISION.md) para entender público, princípios, não objetivos e opções de posicionamento.
 - Consulte [techspec.md](techspec.md) para a arquitetura técnica resumida.
+- Leia [ARCHITECTURE.md](ARCHITECTURE.md) para as fronteiras de longo prazo entre
+  linguagem, implementação, runtime, SDK, build, distribuição e tooling.
 - Consulte [spec/syntax.md](spec/syntax.md),
   [spec/types-and-memory.md](spec/types-and-memory.md),
   [spec/concurrency.md](spec/concurrency.md) e [spec/modules.md](spec/modules.md)
   para os modelos candidatos.
 - Consulte [design/compiler.md](design/compiler.md),
+  [design/documentation-and-tests.md](design/documentation-and-tests.md),
   [design/memory-strategy.md](design/memory-strategy.md),
   [design/modules-and-runtime.md](design/modules-and-runtime.md),
   [design/formatting.md](design/formatting.md),
@@ -172,19 +177,22 @@ questões e o formulário único de ratificação estão em
   [design/stdlib.md](design/stdlib.md), [design/packages.md](design/packages.md) e
   [design/verification-and-releases.md](design/verification-and-releases.md)
   para implementação, runtime, biblioteca padrão e distribuição.
-- Veja [research/README.md](research/README.md) antes de promover uma hipótese a requisito.
+- Veja [research/README.md](research/README.md) e o
+  [programa de longo prazo](research/long-term-program.md) antes de promover uma
+  hipótese a requisito.
 - Veja [ROADMAP.md](ROADMAP.md) para a sequência de protótipos.
 
 ## Norte imediato
 
-Antes de continuar frontend, MLIR ou runtime, W precisa fechar a Baseline de
-Design 1. O corpus e spikes mínimos servem apenas para decidir hipóteses durante
-esse período. Depois disso, a primeira fatia vertical implementável será:
+A DB1 foi ratificada; antes de implementar o frontend, o restaurante precisa fazer
+o double-check integrado da superfície e registrar qualquer contradição real. Em
+seguida, a primeira fatia vertical implementável será:
 
 1. dez a vinte programas que definam a experiência desejada;
 2. gramática, formatter e diagnósticos coerentes para esses programas;
 3. AST/HIR com tipos, opcionais, `throws`, `ref`/`inout`/`take`;
-4. um dialeto MLIR mínimo e lowering até um executável;
+4. um seed C auditável que produza o primeiro compilador W e um dialeto MLIR
+   mínimo com lowering até executável;
 5. concorrência estruturada e `spawn` em um runtime pequeno;
 6. build reproduzível e pacote local endereçado por conteúdo;
 7. um lens de recursos que comece por deltas pós-link exatos e preserve

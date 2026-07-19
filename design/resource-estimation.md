@@ -107,11 +107,11 @@ import { KitchenApi } from restaurant.kitchen
 
 import { OrderApi } from restaurant.order_service
 
-fn serveCake(
+async fn serveCake(
   request: CakeRequest,
   order: ServiceRef<OrderApi>,
   kitchen: ServiceRef<KitchenApi>,
-): Cake async throws KitchenError {
+): Cake throws KitchenError {
   return try await kitchen.makeCake(request, for: order)
 }
 ```

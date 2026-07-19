@@ -37,6 +37,10 @@ Comentários:
 ```
 
 Comentários de bloco aninhados são desejáveis, mas só entram se o lexer e o formatter os tratarem sem casos especiais frágeis.
+`///` se anexa à próxima declaração e contém Markdown. Fences `w test` viram
+doctests; `///` não cria uma annotation geral nem executa durante import. O
+contrato completo está em
+[documentação e testes](../design/documentation-and-tests.md).
 
 ## Separação de statements
 
@@ -69,21 +73,39 @@ false
 3.141_592_f64
 ```
 
-O sufixo exato e as regras de inferência ainda serão definidos. Separadores `_` não alteram o valor.
+Separadores `_` não alteram o valor. Uma unit expression canônica segue o número:
+
+```w
+9.81[m/s^2]
+90[degC]
+64[KiB]
+```
+
+Dentro de `[...]`, `^` é potência dimensional. Açúcares contíguos como `90C`,
+`90°F`, `5km` e `64KiB` pertencem ao mapa versionado da edição e sempre podem ser
+expandidos pela tooling; a forma delimitada permanece estável. Regras de prefixos,
+temperatura e informação estão em
+[numéricos e quantidades](../design/numerics-and-quantities.md).
 
 ### Strings
 
 ```w
 "plain UTF-8"
 "Hello, ${name}"
-r"C:\path\${literal}"
+#"C:\path\${literal}"#
+#"raw can contain "quotes" and ${noInterpolation}"#
 """
   multiline text
   dedented by the closing delimiter
   """
 ```
 
-Há uma única string interpolada comum, uma raw e uma multiline. Aspas simples e crase não são delimitadores equivalentes. Concatenação exige `+`, interpolation ou builder explícito.
+Há uma única string interpolada comum, uma raw hash-delimited e uma multiline.
+Raw não usa prefixo `r`; a mesma quantidade de `#` abre e fecha o literal, e
+hashes adicionais permitem incluir a sequência de fechamento. Raw não processa
+escapes nem `${}`. A forma multiline raw usa os mesmos hashes em torno de
+`"""..."""`. Aspas simples e crase não são delimitadores equivalentes.
+Concatenação exige `+`, interpolation ou builder explícito.
 
 ### Coleções e records
 
@@ -102,11 +124,20 @@ const pageSize = 4096
 let name = "W"
 let port: u16 = 8080
 var requests = 0
+var Lazy heatProfile = deriveHeatProfile(model)
+var atomic completedOrders: u64 = 0
 ```
 
 - `const`: valor disponível no compile time hermético;
 - `let`: binding runtime não reatribuível;
 - `var`: binding runtime reatribuível.
+
+Uma lista de behaviors pode existir entre `var` e o nome. `var` ancora a
+declaração; `Lazy var value`, `by` e `with` não são formas canônicas. Behaviors
+de biblioteca preservam o tipo lógico e expandem storage/accessors em HIR.
+`atomic` é um modifier contextual verifier-backed, não um behavior comum:
+`var atomic completedOrders: u64` possui storage `Atomic<u64>`, proíbe borrow
+normal do payload e dá semântica atômica às operações suportadas.
 
 Uma declaração sem initializer só é aceita quando o analisador prova inicialização em todos os caminhos antes da leitura.
 
@@ -127,7 +158,7 @@ fn update(user: inout User) {
   user.revision += 1
 }
 
-fn load(id: UserId): User async throws LoadError {
+async fn load(id: UserId): User throws LoadError {
   // ...
 }
 ```
@@ -136,9 +167,11 @@ Escolhas candidatas:
 
 - uma única keyword: `fn`, não `func`;
 - tipo de retorno com `:`, não `->`;
+- `async` imediatamente antes de `fn`; combinado com receiver mutável, a ordem é
+  `mut async fn`;
 - `mut` antes de `fn` quando um método muta seu receiver implícito; uma free
   function já anuncia mutação externa por `inout`;
-- efeitos após o retorno, em ordem canônica `async throws E`;
+- `throws E` após o retorno; `async` não reaparece como sufixo;
 - `Void` pode ser omitido;
 - trailing comma é aceita e emitida em listas multilinha.
 
@@ -364,6 +397,19 @@ opção de separar `Interval<T>` de uma progressão, permanece em
 multirange ou ranges infinitamente iteráveis continua em pesquisa até definir
 membership, iteration, `count` e bounds.
 
+## Testes no módulo
+
+```w
+test "clamp preserva o interior" for clampRatio {
+  expect clampRatio(0.5) == 0.5
+}
+```
+
+`test` é contextual, o nome é obrigatório e `for symbol` é opcional. A declaração
+não é exportada e é removida de builds release. Testes maiores usam `*.test.w` sem
+mudar de linguagem ou runner. Veja
+[documentação e testes](../design/documentation-and-tests.md).
+
 ## Ownership no source
 
 Assinaturas:
@@ -393,17 +439,24 @@ let body = try await response
 
 spawn let digest = hash(bytes)
 let value = await digest
+
+cancel response
+cancel digest, reason: .shutdown
 ```
 
 Uma chamada de função `async` só é válida sob `await` ou como initializer de uma construção de child task. Não há Future/Promise silenciosa criada por esquecer uma keyword.
 
-`async let` e `spawn let` são bindings especiais cujo valor é um handle lexical. A semântica completa está em [concurrency.md](concurrency.md).
+`async let` e `spawn let` são bindings especiais cujo valor é um handle lexical.
+`cancel` é keyword contextual aceita somente para `Task`/`TaskGroup` ou outro
+tipo explicitamente `Cancellable`; ela solicita cancelamento cooperativo e não
+interrompe uma stack de forma assíncrona. A semântica completa está em
+[concurrency.md](concurrency.md).
 
 ## FFI e fronteiras de representação
 
-O bloco abaixo combina a baseline `foreign c` com a proposta de layout de
-[W-O044](../STATUS.md). A declaração C já pertence à direção da linguagem; colocar
-tipos de layout C dentro do mesmo bloco ainda está **Em aberto**.
+O bloco abaixo combina a baseline `foreign c` com o layout C candidato de
+[W-C039](../STATUS.md). Uma declaração dentro do bloco segue a ABI C do target;
+uma struct W normal continua com layout opaco entre builds.
 
 ```w
 foreign c from "sqlite3.h" {
@@ -433,34 +486,39 @@ statements.
 Precedência inicial, da maior para a menor:
 
 1. member/call/index: `.`, `()`, `[]`, `?.`;
-2. prefix: `!`, `~`, unary `-`, `copy`, `take`, `await`;
-3. multiplicativos: `*`, `/`, `%` e variantes explícitas;
-4. aditivos: `+`, `-` e variantes explícitas;
-5. shifts: `<<`, `>>`;
-6. ranges: `...`, `..<`, `>..`, `>..<`;
-7. relações: `<`, `<=`, `>`, `>=`, `is`, `in`;
-8. igualdade: `==`, `!=`;
-9. bitwise: `&`, `^`, `|`;
-10. boolean: `&&`, `||`;
-11. coalescing: `??`;
-12. assignment: `=`, `+=`, `-=`, etc.
+2. exponenciação: `**`, associativa à direita;
+3. prefix: `!`, `~`, unary `-`, `copy`, `take`, `await`;
+4. multiplicativos: `*`, `/`, `%` e variantes explícitas;
+5. aditivos: `+`, `-` e variantes explícitas;
+6. shifts: `<<`, `>>`;
+7. ranges: `...`, `..<`, `>..`, `>..<`;
+8. relações: `<`, `<=`, `>`, `>=`, `is`, `in`;
+9. igualdade: `==`, `!=`;
+10. bitwise: `&`, `^`, `|`;
+11. boolean: `&&`, `||`;
+12. coalescing: `??`;
+13. assignment: `=`, `+=`, `-=`, etc.
+
+Assim, `-x ** 2` significa `-(x ** 2)`. Dentro de `[unit expression]`, uma
+subgramática separada usa `^` para expoentes científicos, como `m/s^2`; fora
+dela, `^` continua XOR.
 
 Operadores customizados e precedência declarada pelo usuário ficam fora do parser v0; prejudicam tooling e podem tornar o runtime pouco evidente.
 
-Testar um value contra várias alternativas merece uma forma compacta, mas não
-precisa virar novo operador antes de provar seu lowering. O corpus compara
-`value.isOneOf(a, b)` com `value in (a, b)` em [W-O038](../STATUS.md). A operação
-é OR/membership e não aloca uma coleção observável. Para sets/flags, `hasAny` e
-`hasAll` são operações diferentes; um enum simples nunca pode ser dois cases ao
-mesmo tempo.
+`value in (a, b)` é membership finito intrinsic e não aloca uma coleção
+observável. Para sets/flags, `hasAny` e `hasAll` são operações diferentes; um
+enum simples nunca pode ser dois cases ao mesmo tempo.
 
 ## Keywords candidatas
 
 ```text
-as async await break case catch const continue copy defer do else enum
+as async atomic await break cancel case catch const continue copy defer do else enum
 export false fn for foreign from guard if import in inout is let mut object panic
-protocol ref return spawn struct switch take throw throws true try type var where while
+protocol ref return service spawn struct switch take test throw throws true try type var where while
 ```
+
+`atomic`, `cancel` e `test` são contextuais: continuam disponíveis como identifiers
+fora das posições de modifier/statement/declaration em que a gramática os reconhece.
 
 `self` e `this` ainda precisam de uma única regra. A preferência é `self` para receiver de valor/objeto e o nome do módulo para namespace, evitando dois pronomes contextuais.
 

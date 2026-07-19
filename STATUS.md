@@ -58,7 +58,7 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-C013 | `foreign c` declara a fronteira C; ilhas da aplicação `fn<lang>` ficam para depois | primeiro resolve ABI, ownership e erros de uma linguagem bem suportada antes de embutir seu frontend no build W |
 | W-C014 | frontend preserva semântica num dialeto W/MLIR antes do lowering | ownership, tasks e efeitos não somem cedo num C intermediário |
 | W-C015 | source + artefatos reproduzíveis/content-addressed | static libs são preferíveis quando compatíveis, não a única forma de distribuição |
-| W-C016 | experimento do primeiro protótipo: mapa de exports implícitos da stdlib congelado por edição, com fallback somente para nome único | `print` e outras APIs comuns podem ser curtas sem lookup ambiental; origem, efeito, capability e dependência continuam visíveis no tooling e na receita; o conjunto exato segue em W-O026 |
+| W-C016 | prelude T0 curada e congelada por edição; nomes T1 selecionados podem ser curtos quando a capability existe | `print` resolve para console T1, não para o core; origem, efeito, capability e dependência continuam visíveis no tooling e na receita |
 | W-C017 | baseline do primeiro protótipo: instância `service` explícita com handler serial e turn fechado | estado e eventos têm lifecycle; o default final de reentrância segue em W-O024 |
 | W-C018 | registry governa metadata assinada; hosts/CDNs são mirrors de bytes por digest | trocar o mirror não troca identidade nem trust root |
 | W-C019 | payload inclui nota W mínima; attestations e envelopes permanecem externos | evita assinatura autorreferente e separa reprodução, autorização e platform signing |
@@ -79,11 +79,29 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-C034 | `any P` carrega somente value witnesses e witnesses exigidos por `P`; reflection nominal/estrutural é opt-in e alcançável | `ref any P` pode ser fat borrow sem alocação; owned existential pode inline/box; descriptor identity serve de `TypeId` local sem nomes/fields universais |
 | W-C035 | declarar conformance a `Reflectable` sintetiza metadata alcançável, sem annotation; debug symbols são separados e removíveis | reflection runtime não atravessa encapsulamento nem força nomes/fields em todo binário; customização futura usa requisitos do protocol, não decorators |
 | W-C036 | a v0 não possui sistema genérico de `@annotations` | comportamento semântico usa keywords/blocos próprios; build/deployment usa manifest; macros, derives e metadata arbitrária não criam uma segunda linguagem escondida |
+| W-C037 | H01: `async fn`, `switch` expression, `**`, membership `in`, semicolon não canônico e strings raw `#"..."#` | uma forma source por intenção; raw usa hashes balanceados sem prefixo `r` |
+| W-C038 | H02: last-use move, `shared T` explícito, regions lexicais e abort da isolation boundary para panic/OOM não recuperável | ownership comum permanece estático; RC é fallback de shared, não default universal |
+| W-C039 | H03: layout W opaco entre builds, `foreign c` para ABI C, `type` nominal e packed/aligned seguros | evolução e otimização internas não fingem bytes portáteis; exact layout tem regras próprias |
+| W-C040 | H04: identifiers Unicode seguros, `String` UTF-8 owned e views bytes/scalars/graphemes sem `string[i]` | bundles Unicode/locale/timezone são versionados e representação interna não vira contrato |
+| W-C041 | H05: Range é intervalo; quantities usam unit expression com `^`, prefixes e sugars de edição; SI/análise numérica são T2 | `[unit]` é forma estável, suffixes são expansões explicáveis e temperatures point/delta não se confundem |
+| W-C042 | H06: property behavior usa somente `var Behavior value = initial` e expande para storage/accessors HIR tipados | `var` ancora o parse; behavior não esconde rede, blocking ou failure sem effects visíveis |
+| W-C043 | H07: `cancel` é statement contextual; `Send`/`Sync` são protocols; `var atomic` baixa para `Atomic<T>` | cancelamento continua cooperativo e atomics avançados mantêm memory order explícita |
+| W-C044 | H08: `service` é açúcar próprio, turn é fechado, `ServiceRef` sempre async e capabilities são handles tipados | módulo continua estático; placement, trust boundary e durability pertencem ao host/adapter |
+| W-C045 | H09: T0 é environment-independent, T1 reúne systems/adapters incluindo `print`, e T2 contém domains oficiais | tiers são ortogonais a linking e imports; reachability e capability continuam observáveis |
+| W-C046 | H10: seed/bootstrap W-owned no profile portátil `w-seed-c` baseado em C11, CMake/Ninja inicialmente, self-host W cedo e MLIR atrás de adapter C | Dependable C informa a matriz, mas não autoriza UB nem exige C89; Bun/xmake não pertencem ao compilador; versão W anterior é bootstrap normal após o primeiro self-host |
+| W-C047 | H11: importer Clang e adapters formam a fronteira C; `fn<C>` inline/from é a primeira ilha multilíngue | outra linguagem só entra com parser, runtime, ABI, toolchain e provenance herméticos comprovados |
+| W-C048 | H12: manifest compila para modelo canônico, CBOR determinístico, digests tagged, builders independentes e policy no consumidor | registry publica fatos e bytes imutáveis; assinatura não simula reprodução ou auditoria inexistente |
+| W-C049 | H13: lens separa facts/estimates/measurements; `w test` une unit/doc/compile-fail/property/fuzz | `///` Markdown, doctests e testes co-localizados pertencem ao grafo de teste, nunca ao payload release |
+| W-C050 | H14: a DB1 fecha uma rota pública completa sem exigir que cada otimização esteja pronta no primeiro slice | implementação pode ser incremental, mas cada feature pública já possui baseline e boundary de extensão |
 
-## Questões abertas prioritárias
+## Inventário de questões da DB1 ratificada
 
-Os IDs são estáveis e não são renumerados; W-O034 ficou sem atribuição durante a
-consolidação inicial e permanece reservado para evitar reutilização acidental.
+Os IDs W-O continuam estáveis e pesquisáveis, mas a revisão humana de
+[DB1_REVIEW.md](DB1_REVIEW.md) promoveu seus destinos para W-C037–W-C050 ou para
+**Pesquisa**/**Rejeitado por enquanto**. A tabela abaixo preserva a pergunta e as
+alternativas que motivaram a decisão; ela não significa que os 97 itens continuam
+**Em aberto**. W-O034 permanece reservado e W-O043 já havia sido promovida antes
+da revisão em lote.
 
 | ID | Questão | Alternativas a prototipar | Teste de decisão |
 |---|---|---|---|
@@ -181,7 +199,7 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | W-O094 | como editions, deprecation e source compatibility evoluem? | editions opt-in · versionamento sem editions · migrations automatizadas obrigatórias | parser, std implícita, packages, tooling e código longevo |
 | W-O095 | qual contrato de testes integra unit, doc, property, fuzz e compile-fail? | runner único com modos · ferramentas separadas sobre manifest comum · apenas unit/doc na v0 | reprodutibilidade, diagnostics, coverage, isolamento e package trust |
 | W-O096 | quais guarantees de custo o compilador pode afirmar estaticamente? | somente facts exatos · estimativas intervalares · profiles medidos anexados | não prometer runtime incerto, budgets, imports, LTO e CI reproduzível |
-| W-O097 | qual contrato de property behaviors generaliza storage e accessors sem esconder efeitos? | `var Behavior value = initial` · `Behavior var value = initial` · `by`/`with Behavior(...)` · prefixo no initializer · `var [behavior]` ao estilo SE-0030 · wrapper nominal · behaviors especiais no core | ordem com `export`/ownership/modifiers, attachment à propriedade vs expressão, parse sem lookup semântico, init vs set, ownership/drop, `modify`/exclusivity, efeitos, composição, layout, reflection, `self`, Sendable e lowering sem runtime obrigatório |
+| W-O097 | qual contrato de property behaviors generaliza storage e accessors sem esconder efeitos? | `var Behavior value = initial` · `by`/`with Behavior(...)` · prefixo no initializer · `var [behavior]` ao estilo SE-0030 · wrapper nominal · behaviors especiais no core | ordem com `export`/ownership/modifiers, attachment à propriedade vs expressão, parse sem lookup semântico, init vs set, ownership/drop, `modify`/exclusivity, efeitos, composição, layout, reflection, `self`, Sendable e lowering sem runtime obrigatório |
 | W-O098 | qual contrato separa os tiers T0/T1/T2 do SDK? | foundation/prelude · systems/capabilities · domains oficiais; tudo bundled mas apenas reachability-linked | estabilidade, disponibilidade por target, cadence de segurança, imports implícitos, tamanho e expectativa do usuário |
 | W-O099 | qual escopo científico oficial acompanha SI no T2? | SI completo + análise numérica · também symbolic algebra · apenas units/quantities e packages independentes | dimensional analysis, offsets, tolerância/erro, versão dos dados, compile time, tamanho e não prometer prova matemática |
 
@@ -190,6 +208,7 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | Questão original | Estado atual | Decisões candidatas |
 |---|---|---|
 | W-O043 | **Candidato** | W-C030 e W-C033–W-C035: sem `Any` público, existential explícito, witnesses mínimos e reflection por conformance/reachability |
+| W-O001–W-O099, exceto W-O034 reservado e W-O043 acima | **Candidato**/**Pesquisa** conforme a matriz | W-C037–W-C050 e a [matriz individual](DB1_REVIEW.md#matriz-exaustiva-das-questões) registram cada destino; gates empíricos continuam em Pesquisa sem reabrir a baseline |
 
 ## Pesquisa ativa
 
@@ -205,13 +224,14 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | wQL, wRPC e RestPC | contratos e bibliotecas do ecossistema, não keywords v0 |
 | Computer Units e V6 | runtime/serverless separado |
 | tree strings | estrutura especializada para interning/índices, não `String` geral |
-| property behaviors | mecanismo tipado dedicado em W-O097, não retorno de annotations genéricas |
-| tiers T0/T1/T2 e ciência oficial | proposta integral em W-O098/W-O099; não confundir tier de SDK com intrinsic ou portabilidade |
+| property behaviors | sintaxe/storage candidatos em W-C042; custom accessors e composições avançadas exigem protótipo |
+| tiers T0/T1/T2 e ciência oficial | candidatos W-C041/W-C045; não confundir tier de SDK com intrinsic ou portabilidade |
 | SQLite como storage padrão | adapter oficial e possível storage de tooling, não semântica obrigatória |
 | GPU, HDL, OpenMP, SIMD explícito | lowerings futuros depois do pipeline CPU nativo |
 | snapshots, PGO e autotest por IA | tooling futuro sobre testes/documentação executável |
 | highlighting e parser incremental | Tree-sitter/queries são a projeção estrutural mantida; TextMate é compatibilidade lexical e semantic tokens futuros pertencem a `wls`/HIR |
-| unidades físicas, decimal, arrays e cálculo científico | corpus térmico do restaurante; representação, literal, reproducibilidade e lowerings continuam em W-O036/W-O037 |
+| álgebra simbólica e lowerings científicos avançados | SI e análise numérica têm baseline; CAS, GPU e kernels especializados continuam Pesquisa |
+| arquitetura e continuidade de longo prazo | [ARCHITECTURE.md](ARCHITECTURE.md) fixa seams; [programa LT](research/long-term-program.md) organiza 15 trilhas sem ampliar a v0 |
 
 ## Rejeitado por enquanto
 
@@ -222,6 +242,10 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 - Confiar em uma hash recebida pelo mesmo canal do artefato como modelo completo de segurança.
 - Executar scripts de build/instalação com rede e filesystem irrestritos por padrão.
 - Tornar três delimitadores de string e várias combinações de prefixos semanticamente equivalentes.
+- Usar `r` antes da raw string; a forma candidata é `#"..."#`.
+- Colocar um behavior antes de `var`; a forma candidata única é `var Behavior value`.
+- Colocar `print` no T0 environment-independent; console e formatação de saída são T1.
+- Usar Bun/TypeScript ou xmake como dependência do compilador/bootstrap.
 - Basear identidade de símbolo em hash sem detecção de colisão, metadata de nome e estratégia de evolução.
 - Congelar ABI antes de provar tipos, ownership, errors e task lowering.
 

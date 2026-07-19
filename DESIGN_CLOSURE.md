@@ -1,6 +1,6 @@
 # Fechamento da baseline de design
 
-> **Status:** Direção · 19 de julho de 2026
+> **Status:** **Candidato** · DB1 ratificada; ensaio de consistência em andamento · 19 de julho de 2026
 
 Este documento é o mapa de fechamento do W. O registro canônico do estado de
 cada escolha continua em [STATUS.md](STATUS.md); aqui as questões são ordenadas
@@ -42,8 +42,9 @@ quais layouts são observáveis e quais permanecem internos.
 
 ## Regra de trabalho durante o fechamento
 
-- Portal, formatter, AST/HIR, dialeto MLIR e runtime não recebem novas features
-  enquanto a DB1 estiver aberta.
+- Portal, formatter, AST/HIR, dialeto MLIR e runtime só recebem features
+  ratificadas pela DB1; o ensaio do restaurante pode reabrir uma decisão antes
+  do primeiro slice de implementação.
 - O corpus e pequenos spikes podem mudar apenas para comparar candidatos ou
   refutar hipóteses. Eles são instrumentos de decisão, não evidência de uma
   implementação pronta.
@@ -82,7 +83,7 @@ uma escolha posterior usando como premissa algo que ainda está **Em aberto**.
 ## Inventário por camada
 
 O inventário completo de questões numeradas está em
-[STATUS.md](STATUS.md#questões-abertas-prioritárias). Esta visão agrega o que
+[STATUS.md](STATUS.md#inventário-de-questões-da-db1-ratificada). Esta visão agrega o que
 antes aparecia sem ID:
 
 | Camada | Pendências que agora precisam de fechamento explícito |
@@ -124,8 +125,10 @@ antes aparecia sem ID:
 |---|---|
 | inventário atual | **Candidato**: 98 questões registradas — 97 ativas e W-O043 promovida; W-O034 continua reservado |
 | ordem de dependência | **Candidato**: S0–S15 |
-| revisão integral em lote | [DB1_REVIEW.md](DB1_REVIEW.md) cobre cada questão ativa e agrupa ratificação humana em H01–H14 |
-| implementação após a DB1 | bloqueada por decisão do projeto; somente spikes de hipótese são permitidos |
+| revisão integral em lote | [DB1_REVIEW.md](DB1_REVIEW.md) foi ratificada com exceções e promovida a W-C037–W-C050 |
+| ensaio de consistência | restaurante DB1 precisa exercitar syntax, memory, tasks, units, std tiers, docs/tests e bootstrap assumptions juntos |
+| implementação após a DB1 | aguarda o double check do ensaio; depois começa pelo seed C e slices verticais |
+| horizonte pós-v0 | seams em [ARCHITECTURE.md](ARCHITECTURE.md); hipóteses e gates em [research/long-term-program.md](research/long-term-program.md), fora do bloqueio da DB1 |
 
 O número de questões não mede qualidade nem obriga 98 features. Uma boa revisão
 pode fechar várias com uma única regra, fundir duplicatas ou retirar uma família

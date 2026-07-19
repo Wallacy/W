@@ -87,11 +87,20 @@ Baseline: owner único. Atribuição/call pode mover ownership; borrows dão ace
 ### Property behaviors
 
 Storage sintetizado por uma propriedade é uma questão distinta de protocol
-existential. [W-O097](../STATUS.md) pesquisa um `behavior` tipado que declare
-init/get/set/modify e seja expandido para storage verificável pelo compiler,
-mantendo o tipo lógico da propriedade. A proposta, alternativas e limites de
-efeitos estão em [property-behaviors.md](../research/property-behaviors.md). Ela
-ainda não pertence à grammar nem decide layout, ownership ou concorrência.
+existential. W-C042 fixa a forma `var Behavior value = initial`: `var` ancora o
+parse, o behavior tipado declara init/get/set/modify e o compiler o expande para
+storage/accessors HIR verificáveis, mantendo o tipo lógico da propriedade.
+
+```w
+var Lazy heatProfile = deriveHeatProfile(model)
+```
+
+Effects relevantes não podem desaparecer no accessor; rede, blocking, suspensão
+e falha continuam na interface. Composição, layout e exclusivity ainda precisam
+de protótipos descritos em
+[property-behaviors.md](../research/property-behaviors.md). `atomic` ocupa a mesma
+posição visual em `var atomic count: u64`, mas é modifier intrínseco com regras de
+memória verificadas, não um behavior de biblioteca nem uma annotation.
 
 ### Protocols e existentials
 
@@ -575,7 +584,7 @@ Elas devem ser separadas. Um módulo estático pode ter metadata de custo sem po
 Possível direção de API, ainda não sintaxe:
 
 ```w
-region request(limit: 64 MiB) {
+region request(limit: 64MiB) {
   let model = try parse(payload, in: request)
   respond(model)
 }

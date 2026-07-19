@@ -1,19 +1,21 @@
 # Revisão integral da Baseline de Design 1
 
-> **Status:** **Em aberto** · proposta de fechamento em lote · 19 de julho de 2026
+> **Status:** **Candidato** · ratificada com exceções · 19 de julho de 2026
 
-Este documento responde de uma vez ao inventário de questões abertas do W. Ele
-não altera sozinho o estado canônico de nenhuma decisão: [STATUS.md](STATUS.md)
-continua sendo a autoridade. Depois da ratificação humana, as escolhas aceitas
-serão promovidas em lote e distribuídas pelas especificações correspondentes.
+Este documento responde de uma vez ao inventário original de questões abertas do
+W. [STATUS.md](STATUS.md) continua sendo a autoridade. A revisão humana aceitou
+H01–H14 com as exceções registradas abaixo; as escolhas foram promovidas a
+**Candidato**, não a implementação ou compatibilidade normativa.
 
-## Como responder
+## Ratificação recebida
 
-A resposta curta possível é:
+Resposta humana consolidada:
 
 ```text
-Aceito os defaults H01–H14.
-Exceções: H03 ..., H05 ...
+Aceitos H01–H14.
+Exceções: raw string sem `r`; units com `^`, prefixes e sugars versionados;
+somente `var Behavior value`; `cancel` contextual e `atomic` modifier;
+`print` em T1; bootstrap C e self-host W antecipado; docs/doctests inline.
 ```
 
 Cada bundle abaixo apresenta a recomendação da máquina. A matriz posterior cobre
@@ -22,9 +24,9 @@ entram na baseline continuam preservadas como **Pesquisa** ou **Rejeitado por
 enquanto**; “completo” não significa fazer toda otimização depender da primeira
 implementação.
 
-O passe propõe 90 questões como **Candidato**, cinco como **Candidato** com um
-gate de **Pesquisa**, uma como **Pesquisa** e uma como **Rejeitado por enquanto**.
-Essas contagens descrevem o resultado sugerido, não uma promoção já realizada.
+O passe promove 90 questões a **Candidato**, cinco a **Candidato** com um gate de
+**Pesquisa**, uma a **Pesquisa** e uma a **Rejeitado por enquanto**. Protótipos e
+o ensaio DB1 do restaurante ainda podem revelar uma contradição e reabrir um ID.
 
 ## Quatro correções de rumo
 
@@ -108,13 +110,13 @@ edição da linguagem. Tier não significa qualidade menor nem import implícito
 
 ### H01 · Superfície e forma canônica
 
-Recomendação: `async fn f(): T throws E`; apenas `mut`, `async`, `throws` e
+Decisão candidata: `async fn f(): T throws E`; apenas `mut`, `async`, `throws` e
 `unsafe` aparecem como efeitos de linguagem. `switch` é também expressão
 exaustiva e não existe sinônimo `match`. `**` é exponenciação, associativa à
 direita e mais forte que unary minus. Membership finito usa `value in (a, b)`
 sem alocação. Formatter omite `;`, mas o parser o aceita para desambiguação ou
-dois statements na mesma linha. Strings usam `"..."`, raw `r#"..."#`, multiline
-`"""..."""` com dedent e interpolation `${expr}`.
+dois statements na mesma linha. Strings usam `"..."`, raw `#"..."#` com hashes
+balanceados, multiline `"""..."""` com dedent e interpolation `${expr}`.
 
 ### H02 · Ownership, regiões, OOM e panic
 
@@ -148,31 +150,34 @@ bundles versionados do SDK, não estado do host.
 
 ### H05 · Ranges, SI e computação científica
 
-Recomendação: `Range<T>` é intervalo; tipos discretos podem fazê-lo conformar a
+Decisão candidata: `Range<T>` é intervalo; tipos discretos podem fazê-lo conformar a
 iteração, enquanto `stride` produz progressão lazy. Range fechado oferece
 `clamp`; intersection retorna optional e union pode produzir `RangeSet`.
 Quantities usam dimensions com expoentes racionais normalizados em compile time,
-unidades como escala/apresentação e representação numérica genérica.
-Literais usam uma subgramática delimitada, por exemplo `9.81[m/s**2]` e
-`180[°C]`; temperatura absoluta e delta são tipos distintos. `std.si` T2 inclui
-as sete dimensões base, unidades derivadas, prefixos e constantes oficiais
-versionadas. `std.math.analysis` cobre integração/diferenciação/raízes numéricas
-com tolerância/erro explícitos; álgebra simbólica permanece package T2
-first-party separado e experimental. As constantes definidoras do SI são exatas;
-constantes físicas medidas, incertezas e correlações vêm de bundle CODATA
-versionado separado.
+unidades como escala/apresentação e representação numérica genérica. A
+subgramática delimitada usa a notação científica usual, como `9.81[m/s^2]`;
+`^` só é exponenciação dentro de units. `180[degC]` é a forma ASCII estável;
+`180[°C]`, `180C`, simple-unit suffixes e `64KiB` são sugars de edição
+explicáveis. Prefixos SI (`k`, `M`, ...) e IEC (`Ki`, `Mi`, ...) preservam caixa e
+escala; information units vivem fora de `std.si`. Temperatura absoluta e delta
+são tipos distintos; `deltaK`, `deltaDegC` e `deltaDegF` são aliases ASCII
+estáveis para diferenças. `std.si` T2 inclui as sete dimensões base, unidades
+derivadas, prefixes e constantes oficiais versionadas. `std.math.analysis` cobre
+integração/diferenciação/raízes numéricas com tolerância/erro explícitos; álgebra
+simbólica permanece package T2 first-party separado e experimental. As
+constantes definidoras do SI são exatas; constantes físicas medidas, incertezas e
+correlações vêm de bundle CODATA versionado separado.
 IEEE estrito é default, `reproducible` fixa também ordem/dependências e `fast`
 exige scope explícito.
 
 ### H06 · Property behaviors
 
-Recomendação: declaração dedicada `behavior` e uso
+Decisão candidata: declaração dedicada `behavior` e uso
 `var Behavior(...) value: T = initial`, sem annotations. Em
 `var Lazy heatProfile = deriveHeatProfile(model)`, `var` ancora o parse e tudo
 entre ele e o nome pertence à lista de behaviors; nenhum lookup semântico é
-necessário para reconhecer a declaração. `Lazy var heatProfile` permanece
-alternativa humana, mas exigiria ordenar behaviors junto de `export`, ownership
-e outros modifiers. O tipo lógico não muda; HIR vê storage,
+necessário para reconhecer a declaração. `Behavior var value` deixa de ser
+alternativa ativa. O tipo lógico não muda; HIR vê storage,
 init/get/set/modify, efeitos e cleanup. Accessors comuns são síncronos e
 non-throwing; variantes com efeitos exigem `try`/`await` no uso e nunca escondem
 blocking/rede. `self` só pode ser usado por accessors após definite
@@ -182,16 +187,19 @@ range.
 
 ### H07 · Concorrência e paralelismo
 
-Recomendação: cancellation é um control signal separado de `throws`, com reason
-diagnóstico e propagação estrutural. `Task<T,E>` é handle linear nomeável; await
+Decisão candidata: cancellation é um control signal separado de `throws`, com
+reason diagnóstico e propagação estrutural. `cancel task` é uma statement
+contextual; `cancel task, reason: value` registra o motivo sem destruir stack
+assincronamente. `Task<T,E>` é handle linear nomeável; await
 consome o resultado, e multi-await exige `SharedTask`. Falhas simultâneas escolhem
 primary lexical determinístico e preservam as demais como suppressed/aggregate.
 Task groups são lexicais e bounded; completion order é default, source order é
 opção. `Send` e `Sync` são protocols públicos derivados. `Atomic<T>` oferece
-default seq-cst e orders avançadas explícitas. Async streams são pull; channels
-bounded são tipo separado. Blocking exige adapter/pool explícito. O dialeto W
-preserva semântica e pode baixar para LLVM coroutines/MLIR Async sem adotá-los
-como runtime contract.
+default seq-cst e orders avançadas explícitas; `var atomic count: u64 = 0` é
+açúcar de declaração verifier-backed para storage `Atomic<u64>`, não um behavior
+de biblioteca. Async streams são pull; channels bounded são tipo separado.
+Blocking exige adapter/pool explícito. O dialeto W preserva semântica e pode
+baixar para LLVM coroutines/MLIR Async sem adotá-los como runtime contract.
 
 ### H08 · Módulos, services e durability
 
@@ -208,9 +216,11 @@ tipados. Promise pipelining e “nanoservice” como keyword ficam fora do core.
 
 ### H09 · SDK T0/T1/T2 e capabilities
 
-Recomendação: adotar os tiers descritos acima e uma prelude T0 curada, congelada
-por edição; não importar todo nome único da stdlib. `print` permanece livre e
-explicável pelo tooling. T1 inclui sockets/DNS, filesystem, process, time/random e
+Decisão candidata: adotar os tiers descritos acima e uma prelude T0 curada,
+congelada por edição; não importar todo nome único da stdlib. T0 contém somente
+contratos semanticamente independentes do ambiente. `print` é um nome curto T1,
+resolvido apenas quando o target fornece console capability e sempre explicável
+pelo tooling. T1 inclui sockets/DNS, filesystem, process, time/random e
 primitivas de runtime; T2 inclui HTTP/TLS e domínios. I/O é async-first, com API
 sync separada/blocking. Authority entra por handles/context injetável. `Path`
 preserva a representação nativa; `Utf8Path` é distinto. `Map` preserva insertion
@@ -218,14 +228,18 @@ order com hashing randomizado; `HashMap` pode ter ordem não observável.
 
 ### H10 · Frontend, MLIR e bootstrap
 
-Recomendação: parser normativo handwritten recursive-descent + Pratt, acompanhado
-por EBNF e corpus; Tree-sitter permanece projeção de IDE. Core MLIR em
-C++/TableGen; frontend/tooling pode usar Bun durante bootstrap e migrar para W.
-CMake/Ninja é build canônico por integração LLVM; xmake pode ser facade, nunca
-segunda fonte. EmitC é backend de inspeção para subset síncrono, não backend
-universal. Interface W versionada própria + MLIR bytecode descartável. Cache é
-item-level; módulo é unidade semântica. Toolchain publicado é bundle fixado e
-reconstruível em estágios.
+Decisão candidata: parser normativo handwritten recursive-descent + Pratt,
+acompanhado por EBNF e corpus; Tree-sitter permanece projeção de IDE. O seed
+auditável é C11 e emite C/LLVM pelo caminho mínimo; nenhuma parte do compilador
+depende de Bun ou xmake. CMake/Ninja é o build inicial único. O compilador de
+produção migra cedo para W e usa MLIR por um adapter C estreito; custom dialects
+podem continuar implementados em C++/TableGen porque o MLIR é C++ internamente.
+Depois do primeiro self-host, uma versão W estável anterior é o bootstrap normal
+e o seed C permanece rota de auditoria. EmitC é backend de inspeção para subset
+síncrono, não backend universal. Interface W versionada própria + MLIR bytecode
+descartável. Cache é item-level; módulo é unidade semântica. `w build` deve
+evoluir para builder rápido e cross-target sem tornar essa promessa requisito do
+seed.
 
 ### H11 · C e `fn<lang>`
 
@@ -251,14 +265,17 @@ da policy do consumidor. Editions são opt-in com `w migrate`.
 
 ### H13 · Recursos, testes e observabilidade
 
-Recomendação: lens inicial mede delta por import e reachable symbol, tamanho do
+Decisão candidata: lens inicial mede delta por import e reachable symbol, tamanho do
 payload, baseline de instância e peak por operação separadamente. Primeiro budget
 é peak por pedido do restaurante. Contratos duros vivem no manifest/profile;
 estimates inferidos permanecem rotulados. Segundo workload é um parser. Profiles
 de CI publicam receita e aggregates redigidos; claims usam corpus reproduzível.
 `w test` orquestra unit, doc e compile-fail na baseline, com property/fuzz como
-engines oficiais. Tooling só chama de guarantee um fato exato ou bound provado;
-intervalos estimados e medições ficam separados.
+engines oficiais. `///` produz Markdown associado à declaração; fences `w test`
+viram doctests e testes co-localizados usam uma declaração `test ... for symbol`,
+sem entrar no artefato release. O contrato detalhado está em
+[documentação e testes](design/documentation-and-tests.md). Tooling só chama de guarantee um fato exato ou
+bound provado; intervalos estimados e medições ficam separados.
 
 ### H14 · Ratificação global de escopo
 
@@ -282,8 +299,8 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O006 | **Candidato** | source: `mut`, `async`, `throws`, `unsafe`; I/O/alloc/blocking em capabilities e metadata/lens | H01 |
 | W-O007 | **Candidato** | recursive-descent/Pratt normativo, EBNF e corpus diferencial | H10 |
 | W-O008 | **Candidato** | Tree-sitter para IDE; frontend separado compartilhando tokens/corpus, não CST semântica | H10 |
-| W-O009 | **Candidato** | core MLIR C++/TableGen com fronteira estreita para tooling/frontend | H10 |
-| W-O010 | **Candidato** | CMake/Ninja canônico; xmake apenas facade opcional | H10 |
+| W-O009 | **Candidato** | seed W-owned em C11; compilador W usa adapter C estreito sobre MLIR/C++/TableGen | H10 |
+| W-O010 | **Candidato** | CMake/Ninja canônico até `w build`; sem xmake no toolchain | H10 |
 | W-O011 | **Candidato** + **Pesquisa** | EmitC para inspeção/subset síncrono; backend universal rejeitado enquanto não houver coverage | H10 |
 | W-O012 | **Candidato** | interface/metadata W versionada + MLIR bytecode apenas como cache interno | H10 |
 | W-O013 | **Candidato** | worker hermético, sem rede, inputs/capabilities/budgets declarados e hasheados | H12 |
@@ -299,7 +316,7 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O023 | **Candidato** | keyword `service`, lowering para object + descriptor | H08 |
 | W-O024 | **Candidato** | closed turn default, reentrância explícita | H08 |
 | W-O025 | **Candidato** | nenhum singleton default; scopes e keyed identity declarados pelo host/service | H08 |
-| W-O026 | **Candidato** | prelude T0 curada/frozen; namespaces continuam disponíveis e tooling mostra origem | H09 |
+| W-O026 | **Candidato** | prelude T0 curada/frozen; `print` T1 curto só com console capability | H09 |
 | W-O027 | **Rejeitado por enquanto** | “nanoservice” permanece lente; somente `service` tem semântica pública | H08 |
 | W-O028 | **Candidato** | lens por import e symbol reachability, com instância/operação separadas | H13 |
 | W-O029 | **Candidato** | primeiro budget: peak live bytes por pedido; payload e baseline coletados em paralelo | H13 |
@@ -313,7 +330,7 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O032 | **Candidato** | raw local, aggregate redigido em CI e corpus público para claims | H13 |
 | W-O033 | **Candidato** | `from` declarado e inserção implícita somente quando total, única e não ambígua; `catch` fora disso | H02 |
 | W-O035 | **Candidato** | tipo opaco + factories por default; fields ganham `export` individual quando são parte da API | H03 |
-| W-O036 | **Candidato** | dimension/unit declarations + quantity literal delimitado `[unit expression]`; símbolos SI usam subgramática própria | H05 |
+| W-O036 | **Candidato** | `[unit expression]` estável + suffix sugars versionados; `^`, prefixes SI/IEC e temperature aliases | H05 |
 | W-O037 | **Candidato** | IEEE strict default; scopes `reproducible` e `fast` explícitos | H05 |
 | W-O038 | **Candidato** | `value in (a, b)` é membership finito intrinsic; flags usam `hasAny`/`hasAll` | H01 |
 | W-O039 | **Candidato** | `**` para exponenciação; `pow` permanece API para famílias/casos especiais | H05 |
@@ -324,15 +341,15 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O045 | **Candidato** | profile compacto somente em artefato/fingerprint compatível; mismatch rejeita ou faz marshal | H03 |
 | W-O046 | **Candidato** | UTF-8 owned contíguo, move-first, view borrowed e SSO invisível; COW não é contrato | H04 |
 | W-O047 | **Candidato** | views bytes/scalars/graphemes com índices próprios; sem indexação direta de `String` | H04 |
-| W-O048 | **Candidato** | uma forma normal, raw hash-delimited, multiline dedent e `${}` | H04 |
+| W-O048 | **Candidato** | uma forma normal, raw `#"..."#` sem `r`, multiline dedent e `${}` | H01/H04 |
 | W-O049 | **Candidato** | lattice total/value-preserving de W-C031; literals contextuais, casts numéricos perigosos explícitos | H05 |
 | W-O050 | **Candidato** | generics híbridos: monomorphization/specialization local e witnesses nas interfaces | H03 |
 | W-O051 | **Candidato** | inference bidirecional local e solver decidível/budgeted; predicates restantes checam em runtime | H05 |
 | W-O052 | **Candidato** | captures inferidos; lista `copy/ref/take/weak` só para override; env de closure explícito na HIR | H02 |
 | W-O053 | **Candidato** | allocator fallible explícito; OOM geral encerra isolation boundary | H02 |
 | W-O054 | **Candidato** | abort da isolation boundary, sem unwind default e nunca através de FFI | H02 |
-| W-O055 | **Candidato** | `Atomic<T>`/locks na std; seq-cst conveniente e memory orders avançadas explícitas | H07 |
-| W-O056 | **Candidato** | `task.cancel(reason:)`; cancellation é signal estrutural separado de error set | H07 |
+| W-O055 | **Candidato** | `Atomic<T>` + sugar `var atomic`; seq-cst conveniente e memory orders avançadas explícitas | H07 |
+| W-O056 | **Candidato** | statement contextual `cancel task[, reason: value]`; signal separado de error set | H07 |
 | W-O057 | **Candidato** | `Task<T,E>` linear e one-await; `SharedTask` explícita para múltiplos observers | H07 |
 | W-O058 | **Candidato** | primary lexical determinístico, siblings cancelados e outras falhas preservadas | H07 |
 | W-O059 | **Candidato** | protocols públicos `Send`/`Sync`, derivados e verificáveis; conformance manual somente unsafe | H07 |
@@ -371,15 +388,15 @@ explicitamente em H01–H13 e mantém apenas gates empíricos como **Pesquisa**.
 | W-O087 | **Candidato** | profiles/features no manifest; `when target(...)` limitado e registrado na interface | H12 |
 | W-O088 | **Candidato** | package instances isolam versões; type identity inclui digest/instância; feature unification local | H12 |
 | W-O089 | **Candidato** | dependency graph/cache por item; módulo é unidade de type checking; generic instance keyed no CAS | H10 |
-| W-O090 | **Candidato** | bundle de toolchain fixado + rebuild em estágios e diversidade posterior | H10 |
+| W-O090 | **Candidato** | seed C auditável, self-host W cedo, bootstrap normal pela versão W anterior e rebuild em estágios | H10 |
 | W-O091 | **Candidato** | namespaces por owner/org com delegação/rotação de keys; conteúdo imutável por digest | H12 |
 | W-O092 | **Candidato** | SPDX/SBOM no artefato; policy externa e exceção assinada | H12 |
 | W-O093 | **Candidato** | registry publica facts; policy do consumidor calcula verified; yank/revoke possuem autoridades separadas | H12 |
 | W-O094 | **Candidato** | editions opt-in, migrations automatizadas e janela de suporte explícita | H12 |
-| W-O095 | **Candidato** | runner único; unit/doc/compile-fail baseline; property/fuzz engines oficiais | H13 |
+| W-O095 | **Candidato** | runner único; `///` doctest, test co-localizado, unit/doc/compile-fail; property/fuzz oficiais | H13 |
 | W-O096 | **Candidato** | facts/bounds provados são guarantees; estimates intervalares e profiles medidos ficam rotulados | H13 |
-| W-O097 | **Candidato** | `var Behavior value = initial`; `Behavior var` preservado; expansão e composição explícitas | H06 |
-| W-O098 | **Candidato** | tiers T0/T1/T2 do SDK, ortogonais a intrinsics/portabilidade/adapters | H09 |
+| W-O097 | **Candidato** | somente `var Behavior value = initial`; expansão e composição explícitas | H06 |
+| W-O098 | **Candidato** | T0 environment-independent; `print`/console em T1; T2 domains | H09 |
 | W-O099 | **Candidato** + **Pesquisa** | SI e análise numérica oficiais T2; álgebra simbólica fica num package first-party experimental | H05 |
 
 W-O034 continua reservado e W-O043 já foi promovida. Assim, cada questão ativa
@@ -389,6 +406,8 @@ aparece exatamente uma vez nesta matriz.
 
 - [BIPM — SI Brochure, 9th edition/current revision](https://www.bipm.org/en/publications/si-brochure/)
 - [NIST — CODATA fundamental physical constants](https://physics.nist.gov/cuu/Constants/)
+- [NIST — IEC binary prefixes](https://www.physics.nist.gov/cuu/Units/binary.html)
+- [Dependable C — portable compatibility subset](https://dependablec.org/)
 - [F# — Units of Measure](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure)
 - [Unicode UAX #31 — Identifiers](https://www.unicode.org/reports/tr31/)
 - [Unicode UTS #39 — Security mechanisms](https://www.unicode.org/reports/tr39/)
