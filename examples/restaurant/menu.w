@@ -29,7 +29,7 @@ export enum MenuError: Error {
 
 // Enquanto W-O033 estiver aberta, cada boundary converte seu error set de modo
 // explícito. `try` sozinho não injeta OrderError/KitchenError em MenuError.
-export fn openMenuOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> async throws MenuError {
+export async fn openMenuOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> throws MenuError {
   do {
     return try await openOrder(id, on: inout host)
   } catch let error {
@@ -37,11 +37,11 @@ export fn openMenuOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<Ord
   }
 }
 
-fn makeMenuCake(
+async fn makeMenuCake(
   request: CakeRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Cake async throws MenuError {
+): Cake throws MenuError {
   do {
     return try await kitchen.makeCake(request, for: order)
   } catch let error {
@@ -49,11 +49,11 @@ fn makeMenuCake(
   }
 }
 
-fn makeMenuSoup(
+async fn makeMenuSoup(
   request: SoupRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Soup async throws MenuError {
+): Soup throws MenuError {
   do {
     return try await kitchen.makeSoup(request, for: order)
   } catch let error {
@@ -61,11 +61,11 @@ fn makeMenuSoup(
   }
 }
 
-fn makeMenuSalad(
+async fn makeMenuSalad(
   request: SaladRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Salad async throws MenuError {
+): Salad throws MenuError {
   do {
     return try await kitchen.makeSalad(request, for: order)
   } catch let error {
@@ -73,7 +73,7 @@ fn makeMenuSalad(
   }
 }
 
-fn finishMenuOrder(order: ServiceRef<OrderApi>, with summary: DishSummary): Receipt async throws MenuError {
+async fn finishMenuOrder(order: ServiceRef<OrderApi>, with summary: DishSummary): Receipt throws MenuError {
   do {
     return try await order.complete(with: summary)
   } catch let error {
@@ -81,7 +81,7 @@ fn finishMenuOrder(order: ServiceRef<OrderApi>, with summary: DishSummary): Rece
   }
 }
 
-export fn cancelMenuOrder(order: ServiceRef<OrderApi>): Void async throws MenuError {
+export async fn cancelMenuOrder(order: ServiceRef<OrderApi>): Void throws MenuError {
   do {
     return try await order.requestCancellation()
   } catch let error {
@@ -89,39 +89,39 @@ export fn cancelMenuOrder(order: ServiceRef<OrderApi>): Void async throws MenuEr
   }
 }
 
-export fn prepareMenuCake(
+export async fn prepareMenuCake(
   request: CakeRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Receipt async throws MenuError {
+): Receipt throws MenuError {
   let cake = try await makeMenuCake(request, for: order, in: kitchen)
   return try await finishMenuOrder(order, with: cake.summary)
 }
 
-export fn prepareMenuSoup(
+export async fn prepareMenuSoup(
   request: SoupRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Receipt async throws MenuError {
+): Receipt throws MenuError {
   let soup = try await makeMenuSoup(request, for: order, in: kitchen)
   return try await finishMenuOrder(order, with: soup.summary)
 }
 
-export fn prepareMenuSalad(
+export async fn prepareMenuSalad(
   request: SaladRequest,
   for order: ServiceRef<OrderApi>,
   in kitchen: ServiceRef<KitchenApi>,
-): Receipt async throws MenuError {
+): Receipt throws MenuError {
   let salad = try await makeMenuSalad(request, for: order, in: kitchen)
   return try await finishMenuOrder(order, with: salad.summary)
 }
 
 // O switch fechado faz cada item escolher um fluxo visível.
-export fn place(
+export async fn place(
   item: MenuItem,
   orders: inout ServiceHost,
   kitchen: ServiceRef<KitchenApi>, // handle conceitual candidato
-): Receipt async throws MenuError {
+): Receipt throws MenuError {
   switch item {
     case .cake(let request):
       let order = try await openMenuOrder(request.orderId, on: inout orders)

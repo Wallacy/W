@@ -78,7 +78,7 @@
         <article class="book-chapter" id="primeiro-programa" data-book-section>
           <p class="chapter-number">Capítulo 2</p>
           <h2>Primeiro programa</h2>
-          <p>Um programa começa com uma função <code>main</code>. A proposta DB1 usa uma prelude T0 pequena e congelada pela edição; dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
+          <p>Um programa começa com uma função <code>main</code>. A DB1 usa uma prelude T0 pura, pequena e congelada pela edição; nomes T1 muito comuns, como <code>print</code>, podem ser curtos sem esconder capability. Dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
           <div class="code-shell"><pre><code>fn main() {
   print("Olá, W!")
 }</code></pre></div>
@@ -97,7 +97,7 @@ var served = 0
 fn welcome(to guest: String): String {
   return "Olá, ${guest}!"
 }</code></pre></div>
-          <p>Funções usam uma forma canônica: <code>fn nome(label: Tipo): Retorno</code>. Labels fazem a chamada ler como uma frase; <code>_</code> pode retirar o label quando isso torna a API mais clara. Efeitos candidatos ficam no contrato, como em <code>async throws LoadError</code>.</p>
+          <p>Funções usam uma forma canônica: <code>fn nome(label: Tipo): Retorno</code>. Labels fazem a chamada ler como uma frase; <code>_</code> pode retirar o label quando isso torna a API mais clara. Uma função suspensível usa <code>async fn</code>; <code>throws LoadError</code> permanece depois do retorno.</p>
           <p class="canonical-links">Detalhes: <a href="/docs/spec/syntax.md">sintaxe de trabalho</a>.</p>
         </article>
 
@@ -119,12 +119,12 @@ fn find(id: UserId): User?
 fn load(id: UserId): User throws LoadError</code></pre></div>
           <p><code>T?</code> tem somente <code>.some(T)</code> e <code>.none</code>; não mistura ausência com vazio, não inicializado ou ponteiro nulo. Erros recuperáveis são tipados por <code>throws E</code>, propagados por <code>try</code> e tratados por cases. Na baseline, error sets diferentes exigem conversão explícita com <code>catch</code>; isso não promete exceptions ocultas.</p>
           <h3>Property behaviors: storage sem boilerplate</h3>
-          <p>W-O097 pesquisa uma abstração tipada para uma propriedade controlar storage, inicialização e accessors sem mudar seu tipo lógico. Ela pode cobrir <code>lazy</code>, init tardio, observers, COW e policies locais, mas não pode disfarçar suspensão, rede ou falha como leitura de field.</p>
-          <div class="code-shell"><pre><code>// Hipótese visual; ainda não pertence à grammar.
+          <p>W-C042 adota uma abstração tipada para uma propriedade controlar storage, inicialização e accessors sem mudar seu tipo lógico. Ela pode cobrir <code>lazy</code>, init tardio, observers, COW e policies locais, mas não pode disfarçar suspensão, rede ou falha como leitura de field.</p>
+          <div class="code-shell"><pre><code>// Forma candidata; lowering ainda precisa de protótipo.
 object Oven {
   var Lazy heatProfile = deriveHeatProfile(model)
 }</code></pre></div>
-          <div class="decision-box"><strong>Property behaviors · Pesquisa</strong><p>A recomendação conjunta é <code>var Lazy heatProfile = expression</code>: <code>var</code> ancora a declaração e o behavior fica imediatamente antes do nome. <code>Lazy var heatProfile</code> permanece a alternativa humana mais próxima, mas mistura behaviors com a ordem de <code>export</code>, ownership e outros modifiers. <code>by</code>, <code>with</code>, prefixo no initializer, <code>var [behavior]</code>, wrapper nominal e bloco na propriedade continuam preservados. Init/set, <code>modify</code>, efeitos, composição, acesso a <code>self</code>, layout e Sendable precisam fechar juntos; isso não reabre annotations genéricas.</p></div>
+          <div class="decision-box"><strong>Property behaviors · Candidato DB1</strong><p>A única forma canônica é <code>var Lazy heatProfile = expression</code>: <code>var</code> ancora a declaração e o behavior fica imediatamente antes do nome. <code>Lazy var</code>, <code>by</code>, <code>with</code>, prefixo no initializer e <code>var [behavior]</code> ficam rejeitados; wrapper nominal e accessor explícito continuam alternativas de biblioteca. Init/set, <code>modify</code>, efeitos, composição, acesso a <code>self</code>, layout e Sendable precisam de protótipo; isso não reabre annotations genéricas.</p></div>
           <p class="canonical-links">Modelos: <a href="/docs/spec/types-and-memory.md">tipos e memória</a> · <a href="/docs/spec/syntax.md">options e errors</a>.</p>
           <p class="canonical-links">Pesquisa: <a href="/docs/research/property-behaviors.md">property behaviors e alternativas</a>.</p>
         </article>
@@ -176,9 +176,9 @@ let value = await digest</code></pre></div>
           <p class="chapter-number">Capítulo 8</p>
           <h2>Módulos, services e workers</h2>
           <p>Um módulo organiza namespace e build; ele não ganha heap, thread ou lifecycle singleton por existir. Importar resolve símbolos, não consulta a rede, concede capabilities ou inicia uma instância. Estado duradouro pertence a objetos ou instâncias runtime explícitas.</p>
-          <div class="status-callout"><span class="badge proposal">Candidato</span><p>A separação entre módulo estático, instância de service e worker precisa ser validada. <code>ServiceHost</code>, <code>service</code>, <code>worker</code> e <code>isolate</code> ainda não são API ou keywords congeladas.</p></div>
+          <div class="status-callout"><span class="badge proposal">Candidato DB1</span><p>A separação entre módulo estático, instância de service e deployment/isolamento precisa de protótipo. <code>service Name as Api</code> é o único açúcar candidato; <code>ServiceHost</code> ainda é API provisória, e <code>worker</code>/<code>isolate</code> descrevem policies, não keywords equivalentes.</p></div>
           <div class="code-shell"><pre><code>protocol CatalogApi {
-  fn list(): Array&lt;Item&gt; async throws CatalogError
+  async fn list(): Array&lt;Item&gt; throws CatalogError
 }
 
 enum CatalogAppError: Error {
@@ -186,7 +186,7 @@ enum CatalogAppError: Error {
   catalog(CatalogError)
 }
 
-fn startCatalog(host: inout ServiceHost): ServiceRef&lt;CatalogApi&gt; async throws CatalogAppError {
+async fn startCatalog(host: inout ServiceHost): ServiceRef&lt;CatalogApi&gt; throws CatalogAppError {
   do {
     return try await host.startService(
       CatalogState(), as: CatalogApi, scope: .process, policy: .serial,
@@ -196,7 +196,7 @@ fn startCatalog(host: inout ServiceHost): ServiceRef&lt;CatalogApi&gt; async thr
   }
 }
 
-fn loadItems(catalog: ServiceRef&lt;CatalogApi&gt;): Array&lt;Item&gt; async throws CatalogAppError {
+async fn loadItems(catalog: ServiceRef&lt;CatalogApi&gt;): Array&lt;Item&gt; throws CatalogAppError {
   do {
     return try await catalog.list()
   } catch let error {
@@ -204,7 +204,7 @@ fn loadItems(catalog: ServiceRef&lt;CatalogApi&gt;): Array&lt;Item&gt; async thr
   }
 }
 
-fn main(host: inout ServiceHost): Void async throws CatalogAppError {
+async fn main(host: inout ServiceHost): Void throws CatalogAppError {
   let catalog = try await startCatalog(inout host)
   let items = try await loadItems(catalog)
 }</code></pre></div>
@@ -297,24 +297,30 @@ let nextCavity = cavity + cavityEnergy / cavityCapacity</code></pre></div>
           <h3>TUI e HTTP compartilham uma facade</h3>
           <div class="code-shell"><pre><code>async let terminal = runTerminalInterface(restaurant)
 async let web = runWebInterface(address, restaurant)
+defer {
+  cancel terminal, reason: .shutdown
+  cancel web, reason: .shutdown
+}
 let (_, _) = try await (terminal, web)</code></pre></div>
           <p><code>print</code>, <code>readLine</code>, <code>http</code> e <code>json</code> testam a superfície std implícita da edição. Os imports entre módulos do restaurante continuam explícitos. Nome visível não concede terminal, socket ou rede: effects, capabilities e reachability continuam observáveis.</p>
 
           <h3>Laboratório de alternativas</h3>
           <div class="restaurant-lessons">
             <div class="decision-box"><strong>Membership · Proposta DB1</strong><p><code>next in (.preparing, .cancelled)</code> é um teste finito intrínseco e sem allocation. Alternativas preservadas: <code>next.isOneOf(...)</code>, a forma explícita com <code>== ||</code> e patterns. Flags usam operações distintas, como <code>hasAny</code>/<code>hasAll</code>.</p></div>
-            <div class="decision-box"><strong>Std implícita · Proposta DB1</strong><p>Prelude T0 pequena e congelada por edição, incluindo <code>print</code>; namespaces oficiais continuam disponíveis. Alternativas: todo export único ou somente namespaces com pouquíssimos nomes livres. Todas preservam origem, reachability e capability no tooling.</p></div>
+            <div class="decision-box"><strong>Std implícita · Candidato DB1</strong><p>Prelude T0 pequena, pura e congelada por edição; <code>print</code> é um nome T1 curto quando o console existe. Namespaces oficiais continuam disponíveis. Todo export único, somente namespaces e tudo explícito permanecem alternativas registradas. Todas preservam origem, reachability e capability no tooling.</p></div>
             <div class="decision-box"><strong>Visibilidade · Candidato</strong><p>Privado por default e <code>export</code> para a interface. Alternativas para values com invariantes: fields exportados, tipo opaco ou factories. <code>public</code>/<code>private</code> seguem desnecessários no corpus.</p></div>
             <div class="decision-box"><strong>Labels · Candidato</strong><p>Primeiro argumento posicional, seguintes nomeados. Alternativas: todos nomeados ou todos posicionais com lint. Labels customizados continuam parte da API.</p></div>
-            <div class="decision-box"><strong>Unidades · Proposta DB1</strong><p><code>180[°C]</code> usa uma unit expression delimitada. <code>std.si</code> T2 cobre o SI oficial completo, dimensões, prefixos e temperatura ponto/delta; suffix, <code>Number&lt;Unit&gt;</code> e wrappers continuam alternativas. Unidades apagam no lowering quando não são observadas.</p></div>
-            <div class="decision-box"><strong>Exponenciação · Proposta DB1</strong><p><code>flow ** 2</code> é o operador, associativo à direita e mais forte que unary minus; <code>pow</code> continua API para famílias e casos especiais. Multiplicação explícita permanece sempre válida.</p></div>
+            <div class="decision-box"><strong>Unidades · Candidato DB1</strong><p><code>180[degC]</code> é canônico; <code>180C</code>/<code>180[°C]</code> são sugars de edição. <code>std.si</code> T2 cobre dimensões, prefixos e temperatura ponto/delta; <code>KiB</code> pertence ao catálogo IEC de informação. <code>Number&lt;Unit&gt;</code> e wrappers continuam alternativas de fronteira. Unidades apagam no lowering quando não são observadas.</p></div>
+            <div class="decision-box"><strong>Exponenciação · Candidato DB1</strong><p><code>flow ** 2</code> é o operador W, associativo à direita e mais forte que unary minus; a subgramática de unidade usa a notação usual <code>m/s^2</code>. <code>pow</code> continua API para famílias e casos especiais.</p></div>
             <div class="decision-box"><strong>Ranges · Proposta DB1</strong><p><code>...</code>, <code>..&lt;</code>, <code>&gt;..</code> e <code>&gt;..&lt;</code> descrevem bounds; <code>stride</code> descreve progressão. Range fechado oferece <code>clamp</code>; intersection retorna range opcional e union possivelmente descontígua produz <code>RangeSet</code>. <code>Clamped</code> não precisa ser uma feature do core.</p></div>
             <div class="decision-box"><strong>HTTP · Proposta DB1</strong><p>TCP/UDP/DNS ficam no T1; HTTP/TLS são módulos T2 oficiais, bundled e versionados pelo package/lock para receber correções fora da edição da linguagem. Manter apenas transporte oficial ou usar pacote comunitário continuam alternativas.</p></div>
             <div class="decision-box"><strong>Serviço · Proposta DB1</strong><p><code>service</code> é açúcar próprio sobre object + descriptor, com <code>ServiceRef</code> sempre async. Object/protocol explícitos e metadata sem keyword permanecem alternativas; placement local/remoto nunca é escondido pelo import.</p></div>
+            <div class="decision-box"><strong>Atomic e cancel · Candidato DB1</strong><p><code>var atomic count: u64</code> infere storage <code>Atomic&lt;u64&gt;</code>; <code>cancel task</code> é statement contextual e cooperativo. APIs explícitas continuam disponíveis para ordering e tipos canceláveis comuns.</p></div>
+            <div class="decision-box"><strong>Docs e testes · Candidato DB1</strong><p><code>///</code> contém Markdown/doctests e <code>test "..." for symbol</code> mantém casos pequenos junto da API. <code>*.test.w</code> continua para casos grandes; nenhum teste executa ao importar ou entra no release.</p></div>
           </div>
 
-          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
-          <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">módulos e std implícita</a> · <a href="/docs/design/numerics-and-quantities.md">numéricos e quantidades</a> · <a href="/docs/design/formatting.md">formatter</a> · <a href="/docs/DB1_REVIEW.md#h05--ranges-si-e-computação-científica">default DB1 e alternativas</a>.</p>
+          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/DB1_ASSAY.md">ensaio integrado H01–H14</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
+          <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">módulos e std implícita</a> · <a href="/docs/design/numerics-and-quantities.md">numéricos e quantidades</a> · <a href="/docs/design/documentation-and-tests.md">documentação e testes</a> · <a href="/docs/design/formatting.md">formatter</a> · <a href="/docs/DB1_REVIEW.md#h05--ranges-si-e-computação-científica">default DB1 e alternativas</a>.</p>
         </article>
 
         <article class="book-chapter" id="ffi" data-book-section>

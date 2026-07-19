@@ -10,7 +10,7 @@ export enum AppError: Error {
   web(WebError)
 }
 
-fn runTerminalInterface(restaurant: ServiceRef<RestaurantApi>): Void async throws AppError {
+async fn runTerminalInterface(restaurant: ServiceRef<RestaurantApi>): Void throws AppError {
   do {
     return try await runTerminal(restaurant)
   } catch let error {
@@ -18,7 +18,7 @@ fn runTerminalInterface(restaurant: ServiceRef<RestaurantApi>): Void async throw
   }
 }
 
-fn runWebInterface(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void async throws AppError {
+async fn runWebInterface(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void throws AppError {
   do {
     return try await serveWeb(address, restaurant: restaurant)
   } catch let error {
@@ -26,8 +26,12 @@ fn runWebInterface(address: http.Address, restaurant: ServiceRef<RestaurantApi>)
   }
 }
 
-export fn runInterfaces(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void async throws AppError {
+export async fn runInterfaces(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void throws AppError {
   async let terminal = runTerminalInterface(restaurant)
   async let web = runWebInterface(address, restaurant: restaurant)
+  defer {
+    cancel terminal, reason: .shutdown
+    cancel web, reason: .shutdown
+  }
   let (_, _) = try await (terminal, web)
 }

@@ -42,7 +42,11 @@ bun run start
 | `/playground` | Editor com análise lexical local, sem execução |
 | `/status` | Snapshot visual da maturidade do projeto |
 | `/docs/DB1_REVIEW.md` | Questionário único e matriz exaustiva da Baseline de Design 1 |
-| `/examples/restaurant/README.md` | Índice do exemplo top-down “O restaurante W”; as dezesseis fontes `.w`, requisitos e experimento multilíngue também possuem rotas explícitas |
+| `/docs/ARCHITECTURE.md` | Fronteiras de longo prazo do sistema W |
+| `/docs/research/long-term-program.md` | Trilhas, gates e ondas de pesquisa pós-v0 |
+| `/docs/design/documentation-and-tests.md` | Contrato candidato de `///`, doctests, testes co-localizados e runner |
+| `/examples/restaurant/README.md` | Índice do exemplo top-down “O restaurante W”; as dezesseis fontes `.w`, requisitos, ensaio DB1 e experimento multilíngue também possuem rotas explícitas |
+| `/examples/restaurant/DB1_ASSAY.md` | Double-check integrado das decisões H01–H14 |
 | `/corpus/README.md` | Contrato da Fase 0; manifest e schema também possuem rotas explícitas |
 | `/health` | Health check JSON |
 

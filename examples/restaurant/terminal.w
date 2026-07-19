@@ -1,5 +1,5 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
-// `print`/`readLine` vêm do mapa std da edição; origem e efeito seguem observáveis.
+// `print`/`readLine` são nomes T1 do mapa da edição; console capability segue visível.
 
 import { CakeRequest, OrderId, Receipt } from restaurant.domain
 import { FrontDeskError, RestaurantApi } from restaurant.front_desk
@@ -29,7 +29,7 @@ fn parseCommand(line: ref String): TerminalCommand {
   return .unknown(command)
 }
 
-fn submitCake(restaurant: ServiceRef<RestaurantApi>): Receipt async throws TerminalError {
+async fn submitCake(restaurant: ServiceRef<RestaurantApi>): Receipt throws TerminalError {
   let request = CakeRequest(
     orderId: OrderId(value: "terminal-demo"),
     flavor: .chocolate,
@@ -44,8 +44,8 @@ fn submitCake(restaurant: ServiceRef<RestaurantApi>): Receipt async throws Termi
   }
 }
 
-export fn runTerminal(restaurant: ServiceRef<RestaurantApi>): Void async throws TerminalError {
-  print("Restaurante W — cake | status | quit")
+export async fn runTerminal(restaurant: ServiceRef<RestaurantApi>): Void throws TerminalError {
+  print(#"Restaurante W — cake | status | quit"#)
   var running = true
 
   while running {

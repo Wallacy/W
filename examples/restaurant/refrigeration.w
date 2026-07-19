@@ -42,8 +42,8 @@ export enum RefrigerationError: Error {
 }
 
 export protocol RefrigerationApi {
-  fn sample(): RefrigerationSample async throws RefrigerationError
-  fn apply(compressorDuty: Ratio): Void async throws RefrigerationError
+  async fn sample(): RefrigerationSample throws RefrigerationError
+  async fn apply(compressorDuty: Ratio): Void throws RefrigerationError
 }
 
 export fn conductiveLoad(model: ref RefrigerationModel, sample: ref RefrigerationSample): Power {
@@ -68,7 +68,7 @@ export fn chooseRefrigerationDuty(
   target: Temperature,
   controlBand: TemperatureDelta,
 ): RefrigerationDecision throws RefrigerationError {
-  guard sample.suctionPressure > 0.0_Pascal else {
+  guard sample.suctionPressure > 0[Pa] else {
     throw .pressureOutOfRange(sample.suctionPressure)
   }
 

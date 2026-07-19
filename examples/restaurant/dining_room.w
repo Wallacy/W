@@ -15,11 +15,11 @@ import { OrderApi } from restaurant.order_service
 
 // O host é usado sequencialmente para criar três instâncias keyed. Depois disso,
 // cada child possui seu próprio OrderApi e os pratos podem progredir juntos.
-export fn serveBirthdayTable(
+export async fn serveBirthdayTable(
   request: BirthdayTableRequest,
   orders: inout ServiceHost,
   kitchen: ServiceRef<KitchenApi>,
-): TableReceipt async throws MenuError {
+): TableReceipt throws MenuError {
   let cakeOrder = try await openMenuOrder(request.cake.orderId, on: inout orders)
   let soupOrder = try await openMenuOrder(request.soup.orderId, on: inout orders)
   let saladOrder = try await openMenuOrder(request.salad.orderId, on: inout orders)
@@ -34,11 +34,11 @@ export fn serveBirthdayTable(
 
 // OrderApi representa estado externo à árvore lexical. Cancelar child tasks não
 // desfaz automaticamente esse estado; a compensação permanece explícita.
-export fn cancelBirthdayTable(
+export async fn cancelBirthdayTable(
   cake: ServiceRef<OrderApi>,
   soup: ServiceRef<OrderApi>,
   salad: ServiceRef<OrderApi>,
-): Void async throws MenuError {
+): Void throws MenuError {
   async let cakeCancelled = cancelMenuOrder(cake)
   async let soupCancelled = cancelMenuOrder(soup)
   async let saladCancelled = cancelMenuOrder(salad)

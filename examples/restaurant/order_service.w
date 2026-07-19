@@ -1,5 +1,5 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
-// ServiceHost/ServiceRef são APIs candidatas; `service` não é keyword adotada.
+// `service` baixa para object + descriptor; ServiceHost escolhe scope/placement.
 
 import { DishSummary, OrderId, Receipt } from restaurant.domain
 
@@ -21,21 +21,21 @@ export enum OrderError: Error {
 }
 
 export protocol OrderApi {
-  fn move(to stage: OrderStage): Void async throws OrderError
-  fn complete(with summary: DishSummary): Receipt async throws OrderError
-  fn requestCancellation(): Void async throws OrderError
+  async fn move(to stage: OrderStage): Void throws OrderError
+  async fn complete(with summary: DishSummary): Receipt throws OrderError
+  async fn requestCancellation(): Void throws OrderError
 }
 
 fn canMove(from current: OrderStage, to next: OrderStage): Bool {
   switch current {
     case .accepted:
-      return next.isOneOf(.preparing, .cancelled)
+      return next in (.preparing, .cancelled)
     case .preparing:
-      return next.isOneOf(.baking, .finishing, .cancelled)
+      return next in (.baking, .finishing, .cancelled)
     case .baking:
-      return next.isOneOf(.finishing, .cancelled)
+      return next in (.finishing, .cancelled)
     case .finishing:
-      return next.isOneOf(.completed, .cancelled)
+      return next in (.completed, .cancelled)
     case .completed:
       return false
     case .cancelled:
@@ -44,23 +44,23 @@ fn canMove(from current: OrderStage, to next: OrderStage): Bool {
 }
 
 // Um handler externo por vez é a policy candidata do primeiro protótipo.
-object OrderState {
+service OrderState as OrderApi {
   id: OrderId
   var stage: OrderStage
 
-  mut fn move(to next: OrderStage): Void async throws OrderError {
+  mut async fn move(to next: OrderStage): Void throws OrderError {
     guard canMove(from: stage, to: next) else {
       throw .invalidTransition(from: stage, to: next)
     }
     stage = next
   }
 
-  mut fn complete(with summary: DishSummary): Receipt async throws OrderError {
+  mut async fn complete(with summary: DishSummary): Receipt throws OrderError {
     try await move(to: .completed)
     return Receipt(orderId: id, dish: summary)
   }
 
-  mut fn requestCancellation(): Void async throws OrderError {
+  mut async fn requestCancellation(): Void throws OrderError {
     if stage == .cancelled {
       return
     }
@@ -68,7 +68,7 @@ object OrderState {
   }
 }
 
-export fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> async throws OrderError {
+export async fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> throws OrderError {
   // .key, .serial e .bounded são configuração candidata, não gramática.
   do {
     return try await host.startService(
@@ -76,7 +76,7 @@ export fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderAp
       as: OrderApi,
       scope: .key(id),
       policy: .serial,
-      mailbox: .bounded(items: 32, bytes: 64 KiB),
+      mailbox: .bounded(items: 32, bytes: 64KiB),
     )
   } catch let error {
     throw .start(error)

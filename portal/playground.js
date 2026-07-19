@@ -19,7 +19,7 @@ fn label(id: UserId): String throws LoadError {
   },
   tasks: {
     filename: "tasks.w",
-    source: `fn dashboard(id: UserId): Dashboard async throws LoadError {
+    source: `async fn dashboard(id: UserId): Dashboard throws LoadError {
   async let user = loadUser(id)
   async let activity = loadActivity(id)
   let (user, activity) = try await (user, activity)
@@ -31,7 +31,7 @@ fn label(id: UserId): String throws LoadError {
   restaurantMenu: {
     filename: "restaurant/menu.w",
     source: `// Working Draft: pseudocódigo, não executável.
-fn place(item: MenuItem, orders: inout ServiceHost, kitchen: ServiceRef<KitchenApi>): Receipt async throws MenuError {
+async fn place(item: MenuItem, orders: inout ServiceHost, kitchen: ServiceRef<KitchenApi>): Receipt throws MenuError {
   switch item {
     case .cake(let request):
       let order = try await openMenuOrder(request.orderId, on: inout orders)
@@ -47,8 +47,13 @@ fn place(item: MenuItem, orders: inout ServiceHost, kitchen: ServiceRef<KitchenA
   },
   restaurantOrder: {
     filename: "restaurant/order_service.w",
-    source: `// Working Draft: ServiceRef e configuração são candidatos.
-fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> async throws OrderError {
+    source: `// service baixa para object + descriptor; o host escolhe scope.
+service OrderState as OrderApi {
+  id: OrderId
+  var stage: OrderStage
+}
+
+async fn openOrder(id: OrderId, on host: inout ServiceHost): ServiceRef<OrderApi> throws OrderError {
   do {
     return try await host.startService(
       OrderState(id: id, stage: .accepted),
@@ -107,7 +112,7 @@ fn predictStep(
   elapsed: Duration,
 ): ThermalState {
   let wallLoss = model.surface * model.transmittance * (state.cavity - ambient)
-  let foodTransfer = model.coupling * (state.cavity - state.food) / 1.0_KelvinDelta
+  let foodTransfer = model.coupling * (state.cavity - state.food) / 1[deltaK]
   let cavityEnergy = (model.heaterPower * duty - wallLoss - foodTransfer) * elapsed
   let foodEnergy = foodTransfer * elapsed
   let nextCavity = state.cavity + cavityEnergy / model.cavityCapacity
@@ -145,6 +150,10 @@ print("Restaurante W")
 // TUI e HTTP são children long-lived da mesma árvore.
 async let terminal = runTerminalInterface(restaurant)
 async let web = runWebInterface(address, restaurant)
+defer {
+  cancel terminal, reason: .shutdown
+  cancel web, reason: .shutdown
+}
 let (_, _) = try await (terminal, web)`,
   },
   restaurantInterop: {

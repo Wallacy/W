@@ -11,16 +11,16 @@ export enum FrontDeskError: Error {
 }
 
 export protocol RestaurantApi {
-  fn place(item: MenuItem): Receipt async throws FrontDeskError
+  async fn place(item: MenuItem): Receipt throws FrontDeskError
 }
 
 // Storage e implementação permanecem privados ao módulo. Só RestaurantApi e a
 // factory abaixo fazem parte da interface exportada.
-object FrontDeskState {
+service FrontDeskState as RestaurantApi {
   orders: ServiceHost
   kitchen: ServiceRef<KitchenApi>
 
-  mut fn place(item: MenuItem): Receipt async throws FrontDeskError {
+  mut async fn place(item: MenuItem): Receipt throws FrontDeskError {
     do {
       return try await placeMenuItem(item, orders: inout orders, kitchen: kitchen)
     } catch let error {
@@ -29,18 +29,18 @@ object FrontDeskState {
   }
 }
 
-export fn startFrontDesk(
+export async fn startFrontDesk(
   orders: take ServiceHost,
   kitchen: ServiceRef<KitchenApi>,
   on services: inout ServiceHost,
-): ServiceRef<RestaurantApi> async throws FrontDeskError {
+): ServiceRef<RestaurantApi> throws FrontDeskError {
   do {
     return try await services.startService(
       FrontDeskState(orders: take orders, kitchen: kitchen),
       as: RestaurantApi,
       scope: .process,
       policy: .serial,
-      mailbox: .bounded(items: 256, bytes: 1 MiB),
+      mailbox: .bounded(items: 256, bytes: 1MiB),
     )
   } catch let error {
     throw .start(error)
