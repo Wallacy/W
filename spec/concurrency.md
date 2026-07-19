@@ -64,7 +64,7 @@ return merge(await left, await right)
 ## Contrato de função async
 
 ```w
-fn fetch(id: UserId): User async throws NetworkError {
+async fn fetch(id: UserId): User throws NetworkError {
   // ...
 }
 ```
@@ -91,7 +91,7 @@ O handle tem tipo conceitual `Task<T, E>`, mas seu lifetime é lexical e não de
 Considere:
 
 ```w
-fn page(id: UserId): Page async throws PageError {
+async fn page(id: UserId): Page throws PageError {
   async let user = loadUser(id)
   async let posts = loadPosts(id)
 
@@ -144,14 +144,26 @@ Uma task observa cancelamento:
 - em APIs cancel-aware de I/O;
 - em boundaries de task group configuradas pelo compiler/runtime.
 
-Exemplo de intenção:
+Exemplos de intenção:
 
 ```w
+async let report = buildReport()
+cancel report
+
+spawn let index = rebuildIndex()
+cancel index, reason: .shutdown
+
 for chunk in chunks {
   Task.checkCancellation()
   process(chunk)
 }
 ```
+
+`cancel` é uma statement contextual, não um método livremente sobrecarregável.
+O operando precisa ser `Task`, `TaskGroup` ou conformar explicitamente a
+`Cancellable`. A forma com `reason:` registra diagnóstico/policy; não muda
+cancelamento em typed error nem permite matar uma thread ou desenrolar foreign
+frames assincronamente.
 
 Propriedades:
 
@@ -161,8 +173,8 @@ Propriedades:
 - foreign blocking call não pode ser interrompida com segurança sem adapter próprio;
 - deadlines são cancellation com motivo/metadata, não outra hierarquia de threads.
 
-A sintaxe de `cancel task` versus método `task.cancel()` permanece aberta. O
-modelo não cria outra keyword de cancelamento sem necessidade demonstrada.
+`async`/`await`/`spawn`/`cancel` formam o vocabulário source; APIs de runtime
+podem ainda expor handles/tokens, mas não criam uma segunda semântica.
 
 ## Paralelismo e segurança de dados
 
@@ -194,7 +206,9 @@ Traits/capabilities conceituais:
 | `Sync` | refs imutáveis podem ser observados concorrentemente |
 | `CancelSafe` | uma operação suspensível preserva invariantes se cancelada |
 
-Os nomes públicos ainda são abertos. O HIR precisa dessas propriedades mesmo se forem majoritariamente inferidas.
+`Send`, `Sync` e `CancelSafe` são nomes públicos candidatos e aparecem em
+constraints/diagnostics quando a inferência não basta. Conformance manual que
+contorna o verifier exige uma fronteira `unsafe`.
 
 Tipos C são não-Send/não-Sync por default até um wrapper/adapter provar o contrário.
 
@@ -210,6 +224,30 @@ W não promete remover locks. Oferece abstrações que tornam a policy localizad
 - RCU para bibliotecas especializadas.
 
 O compiler pode provar um padrão single-producer/single-consumer e eliminar sincronização, mas o source não deve fingir que atomics sempre são gratuitos nem transformar toda property em `_Atomic`.
+
+### Modifier `atomic`
+
+O caminho comum pode declarar storage atômico no mesmo slot visual dos property
+behaviors, sem fingir que ele é um behavior de biblioteca:
+
+```w
+var atomic completedOrders: u64 = 0
+
+completedOrders += 1              // RMW seq-cst, não load + store
+let snapshot = completedOrders    // load seq-cst
+completedOrders.store(0, order: .release)
+```
+
+Na HIR, o binding possui storage `Atomic<u64>`. Reads/writes/operators comuns
+usam seq-cst; APIs nomeadas selecionam acquire/release/relaxed/compare-exchange.
+`ref completedOrders` empresta o handle atômico, nunca um `ref u64`, e `inout` do
+payload é proibido. `let atomic` não existe: um handle imutável para storage
+mutável continua sendo construído explicitamente como `let counter = Atomic(0)`.
+
+`atomic` é verifier-backed porque altera data-race checking, operações válidas,
+layout e target support. Um `behavior Atomic` escrito pela biblioteca não pode
+alegar essas garantias. Composição com `Lazy`/`Observed` é rejeitada até existir
+uma regra específica que preserve initialization e memory ordering.
 
 ## Task groups dinâmicos
 
@@ -243,7 +281,7 @@ O runtime nunca deve criar uma thread por item sem policy explícita.
 Direção futura:
 
 ```w
-fn lines(file: ref File): Stream<String> async throws IOError
+async fn lines(file: ref File): Stream<String> throws IOError
 ```
 
 O stream precisa especificar demand, buffer/watermark, cancellation e ownership de cada elemento. Até isso existir, `yield` não entra na gramática mínima.

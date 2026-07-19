@@ -25,7 +25,7 @@ Forma horizontal preferida:
 
 ```w
 fn heatLoss(area: Area, uValue: ThermalTransmittance, delta: TemperatureDelta): Power
-let lease = try await ovens.reserve(temperature, tolerance: 2_Celsius)
+let lease = try await ovens.reserve(temperature, tolerance: 2[deltaK])
 ```
 
 Forma vertical quando o conjunto inteiro não cabe:

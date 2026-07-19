@@ -14,10 +14,11 @@ fn main() {
 }
 ```
 
-`print` exercita a prelude T0 curada proposta para a DB1. Ele não é keyword e
-não esconde I/O: compiler/LSP ainda mostram origem, effect, capability e
-reachability. Todo export std único, somente namespaces implícitos e import
-explícito permanecem alternativas em [W-O026](STATUS.md).
+`print` é um nome T1 curto registrado pela edição quando o console existe. Ele
+não é keyword e não esconde I/O: compiler/LSP ainda mostram origem, effect,
+capability e reachability. A prelude T0 permanece pura e independente do
+ambiente; todo export std único, somente namespaces e import explícito ficam como
+alternativas registradas em [W-O026](STATUS.md).
 
 Arquivos usam UTF-8. Quebra de linha encerra a maior parte das declarações; `;` é aceito apenas onde for necessário interoperar ou colocar statements na mesma linha — a decisão de aceitá-lo como estilo geral ainda será testada pelo formatter.
 
@@ -135,20 +136,21 @@ object Connection {
 
 Um `object` tem owner e identidade. Ele não ganha compartilhamento global implícito só por ser uma referência. `shared`/ARC é uma das questões abertas; o modelo inicial deve funcionar com ownership único, borrows e transferência.
 
-### Property behaviors: storage tipado, ainda em pesquisa
+### Property behaviors: storage tipado
 
-W-O097 estuda generalizar patterns como lazy, observers, COW e inicialização
+W-C042 adota um slot para patterns como lazy, observers, COW e inicialização
 tardia sem tornar o wrapper o tipo público da propriedade:
 
 ```w
-// Hipótese visual; ainda não pertence à grammar.
+// Forma candidata; o lowering ainda precisa de protótipo.
 var Lazy heatProfile = deriveHeatProfile(model)
 ```
 
 O compiler enxergaria storage, init, accessors, ownership e efeitos em HIR. O
-caller continuaria vendo `target: Celsius`. A forma `with`, o `var [behavior]` do
-Swift original, wrapper nominal e bloco próprio permanecem alternativas em
-[property behaviors](research/property-behaviors.md); nenhuma reabre annotations
+caller continuaria vendo `target: Celsius`. `Lazy var`, `with`, `by` e
+`var [behavior]` não são formas canônicas. Wrapper nominal, accessor explícito e
+os gates de composição permanecem em
+[property behaviors](research/property-behaviors.md); nada reabre annotations
 genéricas ou autoriza I/O oculto em field access.
 
 ### Enum: alternativas exaustivas
@@ -315,13 +317,14 @@ for index in 0..<items.count { } // inclui 0, exclui count
 for day in 1...31 { }            // inclui os dois limites
 ```
 
-Steps, ranges multidimensionais e extremos abertos à esquerda ficam como APIs/experimentos até justificarem nova pontuação.
+Steps e ranges multidimensionais ficam como APIs/experimentos. Extremos abertos à
+esquerda usam `>..`/`>..<` na DB1.
 
 ## 8. Strings deixam a unidade explícita
 
 ```w
 let greeting = "Hello, ${user.name}!"
-let path = r"C:\work\${notInterpolation}"
+let path = #"C:\work\${notInterpolation}"#
 let message = """
   First line
   Second line
@@ -394,7 +397,7 @@ Destruição é determinística. O compilador pode escolher stack, heap ou regi�
 Uma função suspensível declara `async` no contrato:
 
 ```w
-fn fetchProfile(id: UserId): Profile async throws NetworkError {
+async fn fetchProfile(id: UserId): Profile throws NetworkError {
   let response = try await http.get("/profiles/${id}")
   return try response.json(as: Profile)
 }
@@ -403,7 +406,7 @@ fn fetchProfile(id: UserId): Profile async throws NetworkError {
 `await` suspende a task atual; não bloqueia necessariamente uma thread. `async let` cria um filho que começa imediatamente dentro do mesmo escopo:
 
 ```w
-fn home(id: UserId): Home async throws NetworkError {
+async fn home(id: UserId): Home throws NetworkError {
   async let profile = fetchProfile(id)
   async let feed = fetchFeed(id)
 
@@ -430,7 +433,7 @@ O type checker registra sendability, captures e efeitos antes que o lowering tra
 `spawn let` cria outro filho estruturado, mas autoriza execução simultânea em um executor de CPU:
 
 ```w
-fn thumbnails(images: Array<Image>): Array<Thumbnail> async {
+async fn thumbnails(images: Array<Image>): Array<Thumbnail> {
   return await TaskGroup<Thumbnail>.parallel { group in
     for image in images {
       group.add(take image, using: resize)
@@ -466,7 +469,7 @@ fn cosine(value: f64): f64 {
 }
 ```
 
-A proposta atual de W-O044 coloca layout compatível dentro da fronteira:
+W-C039 coloca layout compatível dentro da fronteira:
 
 ```w
 foreign c {
@@ -477,7 +480,7 @@ foreign c {
 }
 ```
 
-Essa forma ainda está **Em aberto**. O default proposto para a DB1 separa layout
+O default candidato separa layout
 W nativo opaco, layout C dentro de `foreign c`, `type` nominal versus `alias` e
 `packed`/`aligned` seguros. Ordem física por default, `transparent struct` e uma
 ABI W universal fixa continuam preservados como alternativas.

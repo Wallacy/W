@@ -1,7 +1,7 @@
 # Catálogo de pesquisa do W
 
 > **Status:** Working Draft
-> **Data:** 2026-07-18
+> **Data:** 2026-07-19
 
 ## Propósito
 
@@ -25,6 +25,10 @@ sobreviver a um protótipo, uma alternativa mais simples e análise de portabili
 Este arquivo descreve somente hipóteses ainda úteis e seus próximos experimentos.
 
 ## Índice
+
+O [programa de pesquisa de longo prazo](long-term-program.md) organiza as
+hipóteses por dependência, baseline, gate e onda. As entradas detalhadas abaixo
+preservam a história e o próximo experimento de cada ideia original.
 
 | Tema | Estado no mapa atual | Possível destino |
 |---|---|---|

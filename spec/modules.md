@@ -180,8 +180,9 @@ evita um grafo de inicializadores implícitos cuja ordem dependa do linker.
 
 ### Conceito
 
-Uma instância — chamada provisoriamente de **service**, **worker** ou
-**isolate** conforme o profile — é um owner runtime explícito. Ela pode possuir:
+Uma instância de **service** é um owner runtime explícito. `worker` pode descrever
+um deployment e `isolate` uma boundary de isolamento, mas não são sinônimos nem
+keywords da DB1. A instância pode possuir:
 
 - estado em memória;
 - uma árvore de tasks estruturadas;
@@ -191,28 +192,26 @@ Uma instância — chamada provisoriamente de **service**, **worker** ou
 - um adapter opcional de durable state;
 - lifecycle, política de falha e observabilidade.
 
-Os três nomes não são ainda keywords. **Em aberto:** usar uma única declaração
-`service`, reservar `worker` para deployment e `isolate` para isolamento, ou
-expressar tudo inicialmente por `object` + API de runtime.
-
-Um esboço compatível com a sintaxe já candidata usa tipos comuns e uma API
-explícita; os nomes de runtime abaixo não são stdlib congelada:
+W-C044 adota `service` como açúcar de declaração que baixa para object +
+descriptor/conformance. A forma canônica candidata é `service Name as Api`; `as`
+repete a relação já usada ao iniciar a instância e evita introduzir `implements`.
+O descriptor continua sendo um valor explícito passado ao host:
 
 ```w
 protocol CounterApi {
-  fn increment(): u64 async throws CounterError
-  fn current(): u64 async throws CounterError
+  async fn increment(): u64 throws CounterError
+  async fn current(): u64 throws CounterError
 }
 
-object CounterState {
+service CounterState as CounterApi {
   var value: u64
 
-  mut fn increment(): u64 async throws CounterError {
+  mut async fn increment(): u64 throws CounterError {
     value += 1
     return value
   }
 
-  fn current(): u64 async throws CounterError {
+  async fn current(): u64 throws CounterError {
     return value
   }
 }
@@ -222,9 +221,9 @@ enum CounterAppError: Error {
   counter(CounterError)
 }
 
-fn startCounter(
+async fn startCounter(
   host: inout ServiceHost,
-): ServiceRef<CounterApi> async throws CounterAppError {
+): ServiceRef<CounterApi> throws CounterAppError {
   do {
     return try await host.startService(
       CounterState(value: 0),
@@ -237,9 +236,9 @@ fn startCounter(
   }
 }
 
-fn incrementCounter(
+async fn incrementCounter(
   counter: ServiceRef<CounterApi>,
-): u64 async throws CounterAppError {
+): u64 throws CounterAppError {
   do {
     return try await counter.increment()
   } catch let error {
@@ -247,7 +246,7 @@ fn incrementCounter(
   }
 }
 
-fn main(host: inout ServiceHost): Void async throws CounterAppError {
+async fn main(host: inout ServiceHost): Void throws CounterAppError {
   let counter = try await startCounter(inout host)
 
   let value = try await incrementCounter(counter)
@@ -570,44 +569,30 @@ mesmo quando o linker transforma a representação.
 | handler serial não reentrante por default | **Candidato** | latência, deadlocks, diagnostics e ergonomia em três workloads |
 | múltiplas instâncias + `spawn` para paralelismo | **Candidato** | type checking de captures e pool limitado |
 | mailbox limitada e backpressure observável | **Candidato** | overload, fairness e cancelamento determinísticos |
-| sintaxe/keyword `service` | **Em aberto** | comparar API, declaração própria e codegen de contrato |
+| sintaxe/keyword `service` | **Candidato** | parse/lowering para object + descriptor e diagnostics de conformance |
 | input/output gates | **Pesquisa** | oracle de transação, falhas e causalidade de outputs |
 | SQLite como adapter durable | **Pesquisa** | benchmark e recovery contra adapters alternativos |
 | seccomp por target | **Pesquisa** | threat model Linux e boundary real por processo |
 | singleton/heap/thread para todo módulo | **Rejeitado por enquanto** | conflita com W-C011 e imports previsíveis |
 | uma library por compilation unit obrigatória | **Rejeitado por enquanto** | não prova isolamento e restringe otimização/linking |
 | processo por função ou RPC em toda call | **Rejeitado por enquanto** | confunde granularidade lógica com topologia física e esconde custo |
-| `nanoservice` como keyword/nome final | **Em aberto** | vocabulário só avança após limites e UX do modelo estarem provados |
+| `nanoservice` como keyword/nome final | **Rejeitado por enquanto** | permanece lente arquitetural, sem criar um segundo construct |
 | WASM como substituto de JavaScript | **Rejeitado por enquanto** | fora do objetivo declarado |
 
-## Perguntas diretas para a próxima revisão
+## Gates do primeiro protótipo
 
-1. [W-O023](../STATUS.md): você quer que `service` seja sintaxe da linguagem ou que comece como
-   `object` + contrato/runtime e só seja promovido após o protótipo?
-2. [W-O024](../STATUS.md): o default deve realmente impedir qualquer novo evento até o handler terminar,
-   ou você prefere reentrância somente em `await` marcado como seguro?
-3. [W-O025](../STATUS.md): quais escopos de singleton são indispensáveis no primeiro corte: processo,
-   request, chave persistente ou deployment?
-4. Uma call para `ServiceRef` deve sempre exigir `await`, inclusive no fast path
-   local, para preservar previsibilidade de localidade e falha?
-5. Em overload, o default aguarda espaço na mailbox ou falha imediatamente com
-   erro tipado?
-6. O primeiro durable prototype deve usar SQLite ou uma interface memory KV com
-   SQLite como segunda implementação?
-7. A resposta externa só pode sair depois de todo commit causal estar confirmado,
-   ou haverá uma operação explícita para aceitar confirmação eventual?
-8. Um panic reinicia apenas a instância em profiles isolados e encerra o processo
-   nos demais, ou o comportamento deve ser sempre escolhido no deployment?
-9. Você quer uma sintaxe source para budgets/capabilities ou prefere mantê-los no
-   manifest/deployment enquanto [W-O006](../STATUS.md) estiver aberto?
-10. Promise pipelining/capability RPC é parte da visão do runtime ou apenas um
-    experimento posterior de wRPC?
-11. [W-O026](../STATUS.md): o protótipo amplo com todo export std único supera
-    uma prelude curada ou somente namespaces implícitos? Compare `print`,
-    `http.serve`, autocomplete, colisões e atualização de edição.
-12. [W-O027](../STATUS.md): “Nanoservice” ajuda a comunicar a visão ou deve permanecer somente uma lente
-    interna? Qual limite mínimo justifica uma instância separada: state keyed,
-    lifecycle/capability independente ou também um handler stateless curto?
+1. provar que `service Name as Api` produz diagnostics melhores que a expansão
+   object + descriptor sem esconder layout ou lifecycle;
+2. medir latência e deadlocks do turn fechado, com reentrância somente opt-in;
+3. exercitar scopes process/request/key/deployment sem singleton implícito;
+4. manter `await` em toda call `ServiceRef`, inclusive fast path local;
+5. comparar espera por espaço e `trySend` tipado em mailbox bounded;
+6. começar durable storage por interface memory KV e testar SQLite como adapter;
+7. provar transaction/output gates, restart por profile e cleanup causal;
+8. manter budgets/capabilities no manifest/handles até source syntax demonstrar
+   benefício;
+9. deixar promise pipelining em pesquisa de wRPC, sem contaminar o core;
+10. medir a prelude T0 curada e os poucos nomes T1, incluindo `print`.
 
 ## Referências
 

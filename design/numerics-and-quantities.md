@@ -1,6 +1,6 @@
 # Numéricos, quantidades e computação científica
 
-> **Status:** Direção + Pesquisa · Working Draft
+> **Status:** Candidato + Pesquisa · DB1
 
 W pretende cobrir desde controle de equipamento até trabalhos acadêmicos sem
 transformar o core numa coleção de frameworks. O primeiro corpus é o modelo
@@ -22,23 +22,23 @@ linguagem, à stdlib e a pacotes científicos.
 
 ## Unidades físicas
 
-O experimento do forno ainda usa uma notação provisória como `180_Celsius`. A
-[revisão integral](../DB1_REVIEW.md#h05--ranges-si-e-computação-científica)
-recomenda testar uma unit expression delimitada, mais próxima da fórmula e sem
-colidir com lookup comum:
+W-C041 adota uma unit expression delimitada como forma canônica e estável. Ela é
+próxima da fórmula, não depende do teclado do autor e não colide com lookup comum:
 
 ```w
 import si
 
-let setpoint = 180[°C]
-let gravity = 9.80665[m/s**2]
+let setpoint = 180[degC]
+let gravity = 9.80665[m/s^2]
 let energy = 3.6[kW*h]
+let payload = 64[KiB]
 ```
 
-`[...]` seria gramática de unit literal, não indexação nem annotation. A sintaxe
-continua **Em aberto** em [W-O036](../STATUS.md); `Number<Unit>`, suffix
-identificador e uma declaração mais longa permanecem alternativas. A propriedade
-semântica desejada está:
+`[...]` é gramática de unit literal, não indexação nem annotation. Dentro dela,
+`^` significa potência dimensional; fora dela, `^` continua XOR e `**` é a
+exponenciação de expressões W. O parser conhece os delimitadores antes de resolver
+nomes, portanto `9.81[m/s^2]` não cria ambiguidade com operadores gerais. A
+propriedade semântica desejada é:
 
 ```text
 Power × Duration             → Energy
@@ -51,8 +51,36 @@ O compilador deve normalizar dimensões equivalentes e pode apagar as unidades n
 runtime quando nenhuma reflexão foi solicitada. Conversões com offset, como
 Celsius/Kelvin, não podem ser tratadas como simples escala multiplicativa. A
 experiência do F# mostra tanto o valor do check dimensional em compile time
-quanto a possibilidade de representação sem overhead; W precisa ainda resolver
-generics, diagnostics, constantes e ABI C.
+quanto a possibilidade de representação sem overhead; W ainda precisa provar em
+protótipo generics, diagnostics, constantes e ABI C.
+
+### Forma canônica e açúcares de edição
+
+A identidade semântica é sempre uma unidade registrada e versionada, não o texto
+do açúcar. Tooling deve conseguir expandir qualquer forma aceita para a canônica:
+
+| Intenção | Forma canônica estável | Açúcares candidatos da edição |
+|---|---|---|
+| Celsius | `90[degC]` | `90[°C]`, `90C` |
+| Fahrenheit | `90[degF]` | `90[°F]`, `90F` |
+| delta Kelvin | `2[deltaK]` | `2[ΔK]` |
+| delta Celsius | `2[deltaDegC]` | `2[Δ°C]` |
+| quilômetro | `5[km]` | `5km` |
+| aceleração | `9.81[m/s^2]` | — |
+| kibibyte | `64[KiB]` | `64KiB` |
+
+Espaço entre número e açúcar não é permitido: `64 KiB` continua dois tokens e
+recebe fix-it para `64KiB` ou `64[KiB]`. O catálogo da edição só aceita sufixos
+sem ambiguidade lexical; `C` e `F` significam temperatura apenas nesse contexto
+de sufixo, enquanto dentro de `[...]` preservam coulomb e farad. Mudanças no mapa
+de açúcares exigem mudança de edição, diagnóstico de migração e representação
+canônica inalterada. Código gerado e APIs públicas devem preferir a forma canônica.
+
+Prefixos SI preservam caixa e significado oficiais (`k`, `M`, `G`, `m`, `µ`,
+etc.). Aliases ASCII como `um` para `µm` podem ser açúcares explícitos da edição,
+nunca correções case-insensitive. `Ki`, `Mi`, `Gi` e seus múltiplos pertencem ao
+catálogo T2 de informação baseado nos prefixos binários IEC, não ao SI; `kB` e
+`KiB` permanecem valores diferentes.
 
 ### Modelo T2 recomendado
 
@@ -79,6 +107,9 @@ TemperaturePoint + TemperatureDelta → TemperaturePoint
 Temperaturas absolutas formam pontos de um espaço afim; deltas são vetores. Isso
 impede `20[°C] + 30[°C]` de parecer uma operação física normal e torna
 conversões Celsius/Kelvin diferentes de uma mera multiplicação.
+`K`/`degC`/`degF` constroem pontos quando usados como literal; `deltaK`,
+`deltaDegC` e `deltaDegF` constroem diferenças. Assim, APIs e diagnostics não
+dependem de contexto para decidir se `2[K]` era um ponto ou intervalo.
 
 Units são normalmente apagadas no lowering, mas o tipo lógico pode reter
 metadata alcançável para formatting/reflection. Conversão implícita só ocorre
@@ -95,7 +126,7 @@ dimensão irracional são rejeitadas até que exista um contrato explícito para
 Range é a abstração geral para membership, refinement e saturação:
 
 ```w
-let allowed = 30[°C]...300[°C]
+let allowed = 30[degC]...300[degC]
 
 requested in allowed
 allowed.clamp(requested)
@@ -138,12 +169,12 @@ que simplificação simbólica ou prova matemática já são contratos estáveis
 
 ### Operadores de fórmula
 
-`^` já é bitwise na baseline. Exponenciação permanece em
-[W-O039](../STATUS.md): `**` é compacto e reconhecível em fórmulas, enquanto
-`pow(base, exponent)` torna a família numérica e erros mais fáceis de selecionar.
-O teste precisa fixar `-x ** 2`, associatividade, expoente inteiro negativo,
-overflow e transformação de dimensions. Até isso acontecer, o corpus escreve
-`flow * flow` quando o expoente é dois e não finge que `**` já pertence à grammar.
+Na gramática geral, `^` é bitwise XOR e `**` é exponenciação. `**` associa à
+direita e tem precedência maior que prefixos, de modo que `-x ** 2` é
+`-(x ** 2)`. `pow(base, exponent)` continua disponível quando a família numérica,
+o método ou a policy de erro precisam ser nomeados. O type checker valida
+expoente inteiro negativo, overflow e transformação de dimensões. Na subgramática
+de unidade, a escrita matemática mais comum prevalece: `m/s^2`.
 
 ## Execução reproduzível
 
@@ -174,6 +205,7 @@ em vez de apagar cedo as garantias num C intermediário.
 
 - [BIPM: SI Brochure, 9th edition](https://www.bipm.org/en/publications/si-brochure/)
 - [NIST: CODATA recommended values of the fundamental constants](https://physics.nist.gov/cuu/Constants/)
+- [NIST: prefixes for binary multiples](https://www.physics.nist.gov/cuu/Units/binary.html)
 - [F#: Units of Measure](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure)
 - [MLIR: dialect `arith`](https://mlir.llvm.org/docs/Dialects/ArithOps/)
 - [MLIR: dialect `math`](https://mlir.llvm.org/docs/Dialects/MathOps/)

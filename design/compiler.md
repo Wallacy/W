@@ -1,7 +1,7 @@
 # Arquitetura do compilador W
 
 > **Status:** Working Draft; direção arquitetural com detalhes candidatos
-> **Data:** 18 de julho de 2026
+> **Data:** 19 de julho de 2026
 > **Implementação:** ainda não existe um compilador conforme
 
 Este documento descreve como transformar a semântica candidata de W em um
@@ -28,9 +28,11 @@ São objetivos do primeiro compilador:
 - oferecer um caminho EmitC/C opcional para um subconjunto definido;
 - permitir testes de equivalência entre a semântica de referência e backends.
 
-Não são objetivos iniciais self-hosting, ABI W estável, otimização agressiva,
-hot reload, GPU, execução remota, macros arbitrárias ou cobertura completa da
-linguagem imaginada. O compilador não resolve registries nem escolhe versões de
+Não são objetivos do **seed** ABI W estável, otimização agressiva, hot reload,
+GPU, execução remota, macros arbitrárias ou cobertura completa da linguagem.
+Self-hosting, porém, é um objetivo inicial do toolchain: o seed implementa somente
+o subconjunto necessário para compilar a primeira implementação W. O compilador
+não resolve registries nem escolhe versões de
 pacotes; recebe do toolchain um grafo já resolvido, conforme
 [design/packages.md](packages.md).
 
@@ -114,7 +116,7 @@ numa compilation unit sem transformar a tag em lifecycle. As formas seguem abert
 [W-O042](../STATUS.md) e no
 [experimento do restaurante](../examples/restaurant/multilingual.md).
 
-### Experimento de bootstrap para W-O008
+### Experimento do frontend para W-O008
 
 A primeira implementação deve testar Tree-sitter como `SyntaxProvider` do
 compilador, em vez de começar mantendo dois parsers. O adapter:
@@ -359,10 +361,37 @@ origem; detalhes de serviços ficam fora do core em
 ## Bootstrap e fatias verticais
 
 O bootstrap deve crescer por programas executáveis, não por listas horizontais
-de features. Bun/TypeScript é útil para corpus, runner, formatter/IDE experimental,
-visualização e CLI; o core do dialeto/pass pipeline é candidato a C++/TableGen.
-Essa separação evita fazer da integração MLIR via C API uma dependência estrutural
-do primeiro compilador.
+de features. W-C046 fixa três camadas deliberadamente pequenas:
+
+1. **seed auditável em C:** frontend e gerador mínimo W-owned, suficiente para
+   compilar o primeiro compilador escrito em W; CMake + Ninja descrevem o build
+   enquanto `w build` ainda não existe;
+2. **compilador principal em W:** assume a semântica e o diagnóstico completos,
+   usa a última versão estável de W como bootstrap normal e se recompila cedo;
+3. **backend MLIR/LLVM:** fica atrás de uma ABI C estreita e versionada. O frontend
+   W não espalha tipos C++/MLIR pela HIR; implementação de dialetos e passes pode
+   continuar em C++/TableGen onde a API pública do MLIR exigir.
+
+A [C API do MLIR](https://mlir.llvm.org/docs/CAPI/) permite controlar a
+infraestrutura a partir de C, mas é deliberadamente de baixo nível e acompanha
+objetos implementados em C++. Por isso ela é uma ponte, não a promessa de escrever
+todo o backend em C. O seed pode emitir C portátil ou um IR textual limitado; ele
+não precisa hospedar o pipeline MLIR completo para provar o bootstrap.
+
+O source do seed segue um profile portátil e verificável de C, com uma matriz
+explícita de compiladores/targets. [Dependable C](https://dependablec.org/) é uma
+referência útil porque cataloga o subconjunto amplamente implementado de C, mas o
+próprio projeto se descreve como guia de compatibilidade, não como dialeto. W não
+adota suas exceções de undefined behavior nem reduz automaticamente o seed a C89:
+o profile `w-seed-c` parte de C11, proíbe UB conhecida e registra cada feature mais
+nova realmente necessária. Clang, GCC e MSVC compilam o mesmo source em CI; pelo
+menos um build usa warnings/sanitizers disponíveis, e os binários passam pelo
+mesmo corpus de bootstrap.
+
+Bun permanece apenas na implementação do portal atual. Xmake não é dependência do
+compilador. Assim que o self-host fechar, `w build` deve assumir descoberta de
+toolchain, builds incrementais e cross compilation; até lá, não haverá uma segunda
+camada de build além de CMake/Ninja.
 
 ### Slice 0 — contrato do frontend
 
@@ -378,7 +407,7 @@ implementados; parse aceito não deve ser confundido com semântica aprovada.
 **Saída:** nenhum programa nativo ainda; sintaxe e diagnostics podem ser mudados
 com evidência antes de contaminar o backend.
 
-### Slice 1 — executável síncrono mínimo
+### Slice 1 — executável síncrono mínimo pelo seed C
 
 - `fn main`, scalars, `let`/`var`, calls, branches e loops;
 - HIR tipada, dialeto W mínimo e verifiers;
@@ -408,9 +437,11 @@ em caminhos de erro.
 **Saída:** downloader/servidor pequeno e workload CPU exercitam concorrência e
 paralelismo sem child vazado ou data race aceita pelo type checker.
 
-### Slice 4 — artefatos reproduzíveis
+### Slice 4 — self-host e artefatos reproduzíveis
 
 - interfaces de módulo e metadata de ABI versionadas experimentalmente;
+- compilador W recompilado pelo seed e depois por si próprio, com comparação dos
+  resultados semanticamente relevantes;
 - build local hermético com manifest/lock e cache content-addressed;
 - debug symbols/source metadata vinculados ao artefato;
 - matriz inicial de Windows, Linux e macOS conforme disponibilidade real.
@@ -418,8 +449,10 @@ paralelismo sem child vazado ou data race aceita pelo type checker.
 **Saída:** dois builds com os mesmos inputs têm grafo idêntico; qualquer alegação
 bit a bit depende de a receita capturar todos os inputs.
 
-Self-hosting só entra depois dessas fatias, se reduzir a base confiável ou melhorar
-a linguagem na prática. Reescrever por prestígio não é milestone.
+O seed C permanece como rota de auditoria/recovery depois do self-host, sem precisar
+implementar toda feature futura. Releases normais usam a versão W estável anterior;
+releases de confiança também publicam a receita que parte do seed e informa onde
+os caminhos convergem.
 
 ## Estratégia de testes
 
@@ -457,7 +490,7 @@ e explica dependências de recompilação.
 | Tema | Estado | Como decidir |
 |---|---|---|
 | parser normativo e papel do Tree-sitter | Em aberto | recuperação, edição incremental, manutenção e corpus diferencial |
-| implementação do core MLIR: C++/TableGen vs bindings | Em aberto | cobertura das APIs, pin de LLVM, portabilidade do build e velocidade de iteração |
+| fronteira W ↔ core MLIR | Candidato | ABI C estreita; protótipo mede cobertura, pin de LLVM e custo dos adapters C++/TableGen |
 | algoritmo de moves e shared ownership | Em aberto | marcadores em programas reais, cycles, FFI e custo em tasks |
 | ABI de typed errors | Em aberto | benchmark de tagged result/status-out e wrappers C |
 | lowering de async | Em aberto | correctness de cleanup/cancelamento, debug, tamanho de frame e performance |

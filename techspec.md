@@ -44,8 +44,9 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 | frontend | CST recuperável, AST e HIR tipada; EBNF/parser normativo por definir | Em aberto | [compilador](design/compiler.md), [sintaxe](spec/syntax.md) |
 | IR/backend | dialeto W/MLIR, lowerings, LLVM dialect/IR e código nativo | direção arquitetural; operações candidatas | [compilador](design/compiler.md) |
 | runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
-| stdlib/SDK | core, prelude por edição, camada portátil, adapters e packages T0/T1/T2 versionados | candidata; tiers e conjunto implícito em ratificação | [biblioteca padrão](design/stdlib.md), [revisão DB1](DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities) |
-| numéricos | overflow explícito, quantities, modos float e lowerings científicos | direção + pesquisa | [numéricos e quantidades](design/numerics-and-quantities.md) |
+| stdlib/SDK | T0 independente de ambiente; T1 systems/`print`; T2 domains, com mapa implícito por edição | candidata DB1; inventário por prototipar | [biblioteca padrão](design/stdlib.md), [revisão DB1](DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities) |
+| numéricos | overflow explícito, quantities canônicas `[unit]`, sugars de edição, modos float e lowerings científicos | candidata + pesquisa de lowerings | [numéricos e quantidades](design/numerics-and-quantities.md) |
+| docs/testes | `///` Markdown, doctests, `test ... for` e runner único | candidata DB1; implementação inexistente | [documentação e testes](design/documentation-and-tests.md) |
 | C | `foreign c`, wrappers e metadata de ownership/concurrency | direção; ABI/layout detalhados abertos | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
 | módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
 | análise de recursos | delta de artefato por import; baseline de instância e peak de operação separados | direção de transparência; tooling em pesquisa | [estimativa de recursos](design/resource-estimation.md) |
@@ -79,9 +80,9 @@ não há duas gramáticas divergentes.
 
 O corpus de exemplos, parser e formatter evoluem juntos. A CST conserva trivia e
 nós de erro; AST remove açúcar simples; HIR resolve tipos e semântica. Diagnostics
-possuem código, ranges, labels e formato estruturado. Bun/TypeScript é útil para
-runners, formatter/IDE experimental, visualização e CLI, sem obrigar que o core
-MLIR passe pela C API.
+possuem código, ranges, labels e formato estruturado. Bun/TypeScript continua uma
+dependência apenas do portal POC; não pertence ao compilador, formatter, runner
+ou bootstrap W.
 
 O [restaurante](examples/restaurant/README.md) é o corpus top-down principal:
 dezesseis módulos cobrem quantities, PID, scheduling, billing, ownership,
@@ -114,8 +115,10 @@ provas verticais:
 |---|---|---|
 | contrato da linguagem | spec + corpus positivo/negativo + diagnostics versionados | nenhuma implementação isolada define W |
 | sintaxe incremental | `tree-sitter-w`, runtime C e adapter estrito CST -> AST | permanente no tooling; participação no compilador é experimento W-O008 |
-| compiler/MLIR core | C++ compatível com a revisão LLVM fixada + TableGen | linguagem de bootstrap, não requisito para self-hosting |
-| build do toolchain | CMake + Ninja sobre uma revisão única de LLVM/MLIR/LLD | xmake pode ser facade, não uma segunda definição do build |
+| seed do compiler | `w-seed-c`, profile C11 portátil W-owned | subset auditável; Dependable C informa compatibilidade, sem aceitar UB ou impor C89 |
+| compiler principal | W self-hosted cedo | versão estável anterior é bootstrap normal; seed C permanece rota de auditoria |
+| MLIR core | ABI C estreita para C++/TableGen compatível com a revisão LLVM fixada | detalhes C++ não vazam na HIR W |
+| build do toolchain | CMake + Ninja até `w build` assumir | xmake/Bun não são dependências do compilador |
 | representações | AST própria -> HIR/CFG tipada -> dialeto W -> dialetos MLIR -> LLVM | MLIR não substitui frontend, type checker ou semântica de runtime |
 | runtime | `libwrt` mínima, ABI C versionada, componentes core/task/platform | allocator, scheduler e I/O são backends substituíveis; mimalloc é candidato |
 | packages/builds | CLI `w`, CAS de blobs, SQLite para índice/metadata e lock hermético | storage de aplicação e SQLite-by-default não entram no runtime-base |
@@ -199,6 +202,8 @@ A estratégia mínima combina:
 - **runtime:** scheduler controlado, cancelamento, cleanup, races e shutdown;
 - **ABI:** harness C compilado separadamente e headers gerados;
 - **property/fuzz:** parser, serializers, layouts e pipelines de passes;
+- **source:** doctests, compile-fail e `test ... for` no mesmo grafo, removidos do
+  payload release;
 - **target/build:** debug/release, otimização, instrumentation disponível e inputs
   reproduzíveis.
 
@@ -207,24 +212,26 @@ ou diagnóstico negativo preciso.
 
 ## Bootstrap incremental
 
-1. **Frontend:** 10–20 programas, EBNF de trabalho, CST, formatter e HIR snapshots.
-2. **Síncrono nativo:** `main`, scalars, controle, calls e lowering LLVM completo.
+1. **Seed C:** 10–20 programas, EBNF de trabalho, CST, formatter mínimo e HIR
+   suficiente para produzir executáveis síncronos.
+2. **Síncrono nativo:** `main`, scalars, controle, calls e lowering completo pelo
+   seed, seguido do primeiro compiler W.
 3. **Semântica de valores:** structs/enums/options, typed errors, ownership,
    cleanup e um harness C.
 4. **Tasks:** `async let`/`spawn let`, executor mínimo, cancelamento e um I/O
    adapter.
-5. **Artefatos:** interfaces versionadas, build hermético, lock/cache e debug
-   metadata associados ao output.
+5. **Self-host/artefatos:** rebuild em estágios, interfaces versionadas, build
+   hermético, lock/cache e debug metadata associados ao output.
 
-Cada fatia termina em programas executáveis e negativos correspondentes.
-Self-hosting só é considerado depois de o pipeline e a linguagem justificarem o
-custo.
+Cada fatia termina em programas executáveis e negativos correspondentes. O
+self-host é cedo para tornar W o ambiente real de desenvolvimento; não congela a
+ABI pública nem transforma reescrita em prova de correctness.
 
 ## Decisões prioritárias e pesquisa
 
-Continuam **abertos**: posição de `async`, algoritmo de move, shared ownership,
-ABI de typed errors, parser normativo, papel do Tree-sitter, implementação do core
-MLIR, build do compilador, subset EmitC, lowering async e formato de módulos/ABI.
+Continuam como **gates de protótipo**: algoritmo de move, shared ownership, ABI de
+typed errors, parser normativo, papel do Tree-sitter, fronteira do core MLIR,
+subset EmitC, lowering async e formato de módulos/ABI.
 A lista controlada está em [STATUS.md](STATUS.md).
 
 Continuam em **pesquisa**: tagged pointers/values, arenas por módulo, WC como IR
@@ -236,6 +243,8 @@ implementação do runtime nem substituem as provas propostas ali.
 ## Índice canônico
 
 - [README.md](README.md): promessa, arquitetura curta e estado geral.
+- [ARCHITECTURE.md](ARCHITECTURE.md): planos do sistema, contratos de
+  compatibilidade, profiles, bootstrap, segurança e evolução de longo prazo.
 - [STATUS.md](STATUS.md): decisões e maturidade.
 - [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md): experiência candidata ponta a ponta.
 - [spec/syntax.md](spec/syntax.md): sintaxe de trabalho.
@@ -243,6 +252,8 @@ implementação do runtime nem substituem as provas propostas ali.
 - [spec/concurrency.md](spec/concurrency.md): tasks, cancelamento e runtime mínimo.
 - [spec/modules.md](spec/modules.md): imports, interfaces e instâncias de execução.
 - [design/compiler.md](design/compiler.md): frontend, IR, passes, backends e testes.
+- [design/documentation-and-tests.md](design/documentation-and-tests.md): `///`,
+  doctests, testes co-localizados e runner.
 - [tooling/README.md](tooling/README.md): VS Code/TextMate, Tree-sitter e caminho
   de integração do highlighting no portal.
 - [design/memory-strategy.md](design/memory-strategy.md): lowering híbrido,
@@ -259,4 +270,6 @@ implementação do runtime nem substituem as provas propostas ali.
 - [ecosystem/services-and-protocols.md](ecosystem/services-and-protocols.md): pesquisa
   de contratos e protocolos.
 - [research/README.md](research/README.md): hipóteses fora do núcleo v0.
+- [research/long-term-program.md](research/long-term-program.md): trilhas,
+  baselines, gates e ondas de pesquisa.
 - [ROADMAP.md](ROADMAP.md): ordem das provas e critérios de saída.

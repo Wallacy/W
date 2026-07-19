@@ -33,16 +33,16 @@ Os estados deste documento usam somente o vocabulário de
 - **Direção:** fechar a [Baseline de Design 1](DESIGN_CLOSURE.md) antes de
   avançar o frontend, AST/HIR, MLIR ou runtime; somente corpus e spikes
   delimitados podem ser usados para decidir hipóteses durante esse fechamento.
-- **Candidato:** Bun/TypeScript pode servir corpus, runner, formatter,
-  visualizações e tooling; C++/TableGen pode implementar o core MLIR. A divisão
-  só se consolida por integração real, como descrito na
+- **Candidato:** um seed W-owned no profile C11 portátil `w-seed-c` produz cedo o
+  compilador self-hosted; C++/TableGen pode implementar o core MLIR atrás de ABI
+  C estreita. Bun fica restrito ao portal atual. A divisão se prova por integração
+  real, como descrito na
   [arquitetura do compilador](design/compiler.md#bootstrap-e-fatias-verticais).
-- **Em aberto:** parser normativo, integração do core MLIR, build do compilador,
-  ABI de errors, memória compartilhada, lowering de tasks, EmitC e formato de
-  módulos permanecem gates, não premissas escondidas.
-- **Rejeitado por enquanto:** self-hosting como marco de prestígio, congelar ABI
-  antes das provas semânticas e fazer um spike executável contar como
-  implementação conforme.
+- **Gates de protótipo:** parser normativo, fronteira do core MLIR, ABI de errors,
+  memória compartilhada, lowering de tasks, EmitC e formato de módulos não são
+  premissas escondidas.
+- **Rejeitado por enquanto:** congelar ABI antes das provas semânticas e fazer um
+  spike executável contar como implementação conforme.
 
 ## Caminho crítico e dependências
 
@@ -137,6 +137,9 @@ pertencem ao gate da Fase 1.
   [sintaxe](spec/syntax.md), [tipos e memória](spec/types-and-memory.md) ou
   [concorrência](spec/concurrency.md), e para [módulos](spec/modules.md) quando
   introduzir uma instância ou call entre serviços.
+- Extrair `///`, fences e `test ... for` segundo
+  [documentação e testes](design/documentation-and-tests.md), sem executar nada
+  durante import ou build release.
 
 ### Critérios mensuráveis de saída
 
@@ -382,7 +385,7 @@ e quando W será extraído; até essa decisão, W continua incubado em `W/`.
 
 ### Gate M — memória e ownership compartilhado
 
-**Status:** **Em aberto**.
+**Status:** **Candidato**, com cobertura da ABI ainda a medir.
 
 Executar depois da fase 3 e antes de tornar shared state necessário às tasks.
 Comparar owner único + borrows, `shared T`/ARC, regiões e owner de serviço nos
@@ -417,9 +420,11 @@ Nenhum benchmark isolado pode substituir correctness dos scopes.
 
 **Status:** **Em aberto**.
 
-- C++/TableGen, C API + wrapper ou frontend Bun + core C++ são comparados por
-  cobertura das APIs de dialect/pass, pin/build do LLVM, portabilidade e tempo de
-  iteração no pipeline mínimo.
+- O compilador W usa uma ABI C estreita para o core C++/TableGen do MLIR; o
+  protótipo mede cobertura das APIs de dialect/pass, pin/build do LLVM,
+  portabilidade e tempo de iteração no pipeline mínimo.
+- O seed `w-seed-c` é testado com Clang, GCC e MSVC. Dependable C informa a matriz
+  de compatibilidade, sem autorizar UB nem substituir o profile W por C89.
 - LLVM/native é a baseline de **Direção**.
 - EmitC/C é avaliado somente num subset síncrono enumerado, como backend de
   inspeção, oracle ou portabilidade. Ele avança se preservar semântica, produzir
@@ -474,6 +479,13 @@ no [catálogo de pesquisa](research/README.md), mas não bloqueiam nenhuma fase:
 Uma pesquisa só entra no caminho crítico após problema concreto, hipótese
 falsificável, baseline, positivos/negativos, custo de complexidade e promoção
 registrada em [STATUS.md](STATUS.md#como-uma-decisão-avança).
+
+O que acontece depois da v0 também não fica implícito. A
+[arquitetura de longo prazo](ARCHITECTURE.md) separa os contratos que precisam
+sobreviver à primeira implementação; o
+[programa de pesquisa](research/long-term-program.md) organiza conformidade,
+Unicode, memória, schedulers, services, WASI, ABI, ciência, supply chain,
+tooling/IA e governança em ondas que não bloqueiam o bootstrap.
 
 ## Checkpoint de cada fase
 

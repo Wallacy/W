@@ -18,10 +18,11 @@ A superfície se divide em cinco níveis, com dependências apenas para baixo:
    borrows, `throws E`, operações atômicas fundamentais e pontos de suspensão.
    Intrinsics são uma interface interna versionada, não uma coleção de APIs
    privilegiadas para aplicações.
-2. **Superfície implícita da edição:** core, nomes livres e namespaces da stdlib
-   registrados num mapa versionado. Visibilidade não executa trabalho nem concede
-   capability; `print` pode ser curto e ainda registrar I/O, terminal e
-   reachability no tooling. `Option<T>` dá a semântica de `T?`; isso não adiciona
+2. **Superfície implícita da edição:** uma prelude T0 curada e alguns nomes T1
+   muito frequentes, todos registrados num mapa versionado. Visibilidade não
+   executa trabalho nem concede capability; `print` pode ser curto quando um
+   console T1 existe e ainda registra I/O, terminal e reachability no tooling.
+   `Option<T>` dá a semântica de `T?`; isso não adiciona
    estados além de `.some(T)` e `.none`. Erros recuperáveis no source usam
    `throws E`; a stdlib não impõe `Result` como assinatura pública.
 3. **Stdlib portátil:** valores, algoritmos e contratos que preservam a mesma
@@ -41,11 +42,13 @@ uma taxonomia ortogonal para aquilo que acompanha o SDK público:
 
 | Tier | Expectativa | Conteúdo recomendado |
 |---|---|---|
-| T0 · Foundation | prelude/core comum, pequeno e estável | options/errors, ranges, strings/bytes, collections fundamentais e `print` capability-gated |
-| T1 · Systems | uso frequente e abstração de plataforma | tasks/sync, clocks, random, filesystem, process, TCP/UDP/DNS e codecs fundamentais |
+| T0 · Foundation | independente de ambiente, pequeno e estável | options/errors, ranges, strings/bytes, collections fundamentais e algoritmos puros |
+| T1 · Systems | uso frequente e abstração de plataforma | console/`print`, tasks/sync, clocks, random, filesystem, process, TCP/UDP/DNS e codecs fundamentais |
 | T2 · Domains | first-party explícito, bundled e atualizável | HTTP/TLS, SI, decimal/Money, análise numérica, tensors, JSON, regex, SQLite e TUI |
 
-T0/T1/T2 não são níveis de privilégio, qualidade ou linking. Todo source pode
+T0 não consulta OS, host, locale, clock, entropia ou outra condição ambiental.
+Uma operação que escreve, espera ou obtém autoridade é pelo menos T1, mesmo que
+tenha nome curto. T0/T1/T2 não são níveis de privilégio, qualidade ou linking. Todo source pode
 acompanhar o SDK, mas somente reachability entra no artefato. T2 usa o mesmo
 manifest/lock dos packages para poder corrigir TLS, HTTP, timezone ou dados
 científicos sem amarrar sua cadence à edição da linguagem.
@@ -178,13 +181,13 @@ na fronteira estável declarada.
   entradas ambíguas e preservando namespace qualificado para todas elas. O LSP e
   `w explain name` devem mostrar origem, effects, capability e custo alcançável.
 
-## Em aberto
+## Contratos ainda a prototipar
 
-- O contrato T0/T1/T2 e o escopo científico T2 aguardam ratificação conjunta em
-  [W-O098/W-O099](../DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities).
-- Quais exports entram no mapa implícito sem aumentar compile time, autocomplete
-  e compromisso de compatibilidade? Comparar todos os nomes únicos, uma prelude
-  curada e namespaces implícitos com poucos nomes livres em W-O026.
+- O contrato T0/T1/T2 está ratificado em W-C045; o inventário exato de módulos
+  de cada tier precisa de protótipos, owners e testes de portabilidade.
+- A edição publica uma prelude T0 curada, namespaces std disponíveis e uma lista
+  mínima de nomes T1 livres, começando por `print` quando a capability de console
+  existe. Medir compile time, autocomplete e colisões antes de ampliar a lista.
 - Qual é a API exata para allocator/região/budget e como ela interage com
   inferência de moves, shared ownership e cancelamento?
 - Capabilities aparecem em parâmetros, metadata inferida ou effects adicionais
