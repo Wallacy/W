@@ -22,7 +22,7 @@ enum CakeStyle {
 
 const maxCooks = 1_024
 let endpoint = Url("https://restaurant.example/${maxCooks}")
-let rawPath = r"C:\kitchen\${literal}"
+let rawPath = #"C:\kitchen\${literal}"#
 let note = """
   Cake service: candidate source.
   """
@@ -31,7 +31,7 @@ fn inspect(recipe: ref Recipe<String>): Bool {
   return recipe.portions > 0 && recipe.name != ""
 }
 
-fn makeCake(recipe: take Recipe<String>, oven: inout Oven): Cake async throws KitchenError {
+async fn makeCake(recipe: take Recipe<String>, oven: inout Oven): Cake throws KitchenError {
   guard inspect(recipe) else {
     throw .invalidRecipe("A recipe needs portions")
   }

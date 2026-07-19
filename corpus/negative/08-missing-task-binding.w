@@ -1,3 +1,3 @@
-fn main(): Void async {
+async fn main(): Void {
   async let = fetchValue(1)
 }

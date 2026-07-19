@@ -7,12 +7,15 @@ const DECLARATION_KEYWORDS = [
   "foreign",
   "object",
   "protocol",
+  "service",
   "struct",
+  "test",
   "type",
 ];
 
 const CONTROL_KEYWORDS = [
   "break",
+  "cancel",
   "case",
   "catch",
   "continue",
@@ -30,6 +33,7 @@ const CONTROL_KEYWORDS = [
 
 const MODIFIER_KEYWORDS = [
   "async",
+  "atomic",
   "await",
   "const",
   "copy",
@@ -124,11 +128,13 @@ module.exports = grammar({
         $.function_declaration,
         $.struct_declaration,
         $.object_declaration,
+        $.service_declaration,
         $.enum_declaration,
         $.protocol_declaration,
         $.type_declaration,
         $.foreign_declaration,
         $.const_declaration,
+        $.test_declaration,
       ),
 
     declaration_prefix: (_) => "export",
@@ -137,12 +143,12 @@ module.exports = grammar({
       seq(
         optional($.declaration_prefix),
         optional("mut"),
+        optional("async"),
         "fn",
         field("name", $.identifier),
         optional($.type_parameters),
         field("parameters", $.parameter_list),
         optional(seq(":", field("return_type", $.type))),
-        optional("async"),
         optional(seq("throws", field("error_type", $.type))),
         choice(field("body", $.block), optional(";")),
       ),
@@ -168,6 +174,16 @@ module.exports = grammar({
       seq(optional($.declaration_prefix), "struct", field("name", $._type_identifier), optional($.type_parameters), $.type_body),
     object_declaration: ($) =>
       seq(optional($.declaration_prefix), "object", field("name", $._type_identifier), optional($.type_parameters), $.type_body),
+    service_declaration: ($) =>
+      seq(
+        optional($.declaration_prefix),
+        "service",
+        field("name", $._type_identifier),
+        optional($.type_parameters),
+        "as",
+        field("api", $.type),
+        $.type_body,
+      ),
     protocol_declaration: ($) =>
       seq(optional($.declaration_prefix), "protocol", field("name", $._type_identifier), optional($.type_parameters), $.protocol_body),
     enum_declaration: ($) =>
@@ -188,9 +204,9 @@ module.exports = grammar({
       seq(
         optional("export"),
         optional("var"),
+        optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
         field("name", $.identifier),
-        ":",
-        field("type", $.type),
+        optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
         optional(";"),
       ),
@@ -241,6 +257,14 @@ module.exports = grammar({
         optional(";"),
       ),
 
+    test_declaration: ($) =>
+      seq(
+        "test",
+        field("name", $.string_literal),
+        optional(seq("for", field("subject", $.identifier))),
+        field("body", $.block),
+      ),
+
     type: ($) =>
       prec.right(
         seq(
@@ -270,6 +294,7 @@ module.exports = grammar({
         $.do_statement,
         $.break_statement,
         $.continue_statement,
+        $.cancel_statement,
         $.expression_statement,
       ),
 
@@ -277,6 +302,7 @@ module.exports = grammar({
       seq(
         optional(field("task_kind", choice("async", "spawn"))),
         field("kind", choice("let", "var")),
+        optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
         field("pattern", $.pattern),
         optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
@@ -288,6 +314,13 @@ module.exports = grammar({
     throw_statement: ($) => seq("throw", $._expression, optional(";")),
     break_statement: (_) => seq("break", optional(";")),
     continue_statement: (_) => seq("continue", optional(";")),
+    cancel_statement: ($) =>
+      seq(
+        "cancel",
+        field("task", $._expression),
+        optional(seq(",", "reason", ":", field("reason", $._expression))),
+        optional(";"),
+      ),
     defer_statement: ($) => seq("defer", $.block),
     guard_statement: ($) => seq("guard", choice($.optional_binding, $._expression), "else", choice($.block, $._statement)),
     if_statement: ($) =>
@@ -354,6 +387,8 @@ module.exports = grammar({
         $.array_literal,
         $.map_literal,
         $.enum_literal,
+        $.quantity_literal,
+        $.unit_suffix_literal,
         $.size_literal,
         $.number_literal,
         $.string_literal,
@@ -371,6 +406,10 @@ module.exports = grammar({
 
     binary_expression: ($) =>
       choice(
+        prec.right(
+          14,
+          seq(field("left", $._expression), field("operator", "**"), field("right", $._expression)),
+        ),
         ...BINARY_OPERATORS.map(([operator, precedence]) =>
           prec.left(
             precedence,
@@ -417,8 +456,9 @@ module.exports = grammar({
     map_entry: ($) => seq(field("key", $._expression), ":", field("value", $._expression)),
     enum_literal: ($) => prec(16, seq(".", field("case", $.identifier))),
 
-    size_literal: ($) => seq(field("value", $.number_literal), field("unit", $.unit_identifier)),
-    unit_identifier: (_) => token(choice("B", "KiB", "MiB", "GiB")),
+    quantity_literal: (_) => token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?\[[^\]\r\n]+\]/),
+    unit_suffix_literal: (_) => token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:C|F|km)/),
+    size_literal: (_) => token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:B|KiB|MiB|GiB)/),
     number_literal: (_) =>
       token(
         choice(
@@ -428,13 +468,14 @@ module.exports = grammar({
         ),
       ),
     string_literal: (_) => token(/"([^"\\\r\n]|\\.)*"/),
-    raw_string_literal: (_) => token(/r"[^"\r\n]*"/),
+    raw_string_literal: (_) => token(/#"(?:[^"]|"[^#])*"#/),
     multiline_string_literal: (_) => token(/"""([^"\r]|"[^"\r]|""[^"\r])*"""/),
     boolean_literal: (_) => choice("true", "false"),
 
     // Exact keyword tokens win in their syntactic positions. `word` lets
     // Tree-sitter build the keyword table from this shared identifier token.
     identifier: (_) => /[A-Za-z_][A-Za-z0-9_]*/,
+    behavior_identifier: (_) => /[A-Z][A-Za-z0-9_]*/,
 
     comment: (_) =>
       token(choice(seq("//", /[^\r\n]*/), /\/\*[^*]*\*+([^/*][^*]*\*+)*\//)),

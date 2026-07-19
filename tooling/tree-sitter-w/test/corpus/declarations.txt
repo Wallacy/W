@@ -141,7 +141,7 @@ foreign c from "sqlite3.h" {
           member: (type_identifier))))))
 
 ==================
-Runtime vocabulary is not syntax
+Contextual vocabulary remains usable as names
 ==================
 
 fn inspect(service: ServiceRef): Bool {

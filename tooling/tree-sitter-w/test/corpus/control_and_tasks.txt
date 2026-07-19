@@ -2,7 +2,7 @@
 Structured tasks and ownership
 ==================
 
-fn makeCake(request: CakeRequest): Cake async throws KitchenError {
+async fn makeCake(request: CakeRequest): Cake throws KitchenError {
   let plan = try validateCake(request)
   async let ingredients = pantry.fetch(plan.ingredients)
   let ready = try await ingredients
@@ -73,7 +73,7 @@ fn makeCake(request: CakeRequest): Cake async throws KitchenError {
 Switch and explicit error conversion
 ==================
 
-fn place(item: MenuItem): Receipt async throws MenuError {
+async fn place(item: MenuItem): Receipt throws MenuError {
   switch item {
     case .cake(let request):
       return try await makeCake(request)
@@ -82,7 +82,7 @@ fn place(item: MenuItem): Receipt async throws MenuError {
   }
 }
 
-fn convert(): Receipt async throws MenuError {
+async fn convert(): Receipt throws MenuError {
   do {
     return try await makeOrder()
   } catch let error {
