@@ -41,6 +41,7 @@ bun run start
 | `/reference` | Mapa dos documentos que possuem fatos e decisões |
 | `/playground` | Editor com análise lexical local, sem execução |
 | `/status` | Snapshot visual da maturidade do projeto |
+| `/docs/DB1_REVIEW.md` | Questionário único e matriz exaustiva da Baseline de Design 1 |
 | `/examples/restaurant/README.md` | Índice do exemplo top-down “O restaurante W”; as dezesseis fontes `.w`, requisitos e experimento multilíngue também possuem rotas explícitas |
 | `/corpus/README.md` | Contrato da Fase 0; manifest e schema também possuem rotas explícitas |
 | `/health` | Health check JSON |

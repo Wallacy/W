@@ -44,7 +44,7 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 | frontend | CST recuperável, AST e HIR tipada; EBNF/parser normativo por definir | Em aberto | [compilador](design/compiler.md), [sintaxe](spec/syntax.md) |
 | IR/backend | dialeto W/MLIR, lowerings, LLVM dialect/IR e código nativo | direção arquitetural; operações candidatas | [compilador](design/compiler.md) |
 | runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
-| stdlib | core, mapa implícito por edição, camada portátil, adapters por target e packages externos | candidata; conjunto implícito aberto | [biblioteca padrão](design/stdlib.md) |
+| stdlib/SDK | core, prelude por edição, camada portátil, adapters e packages T0/T1/T2 versionados | candidata; tiers e conjunto implícito em ratificação | [biblioteca padrão](design/stdlib.md), [revisão DB1](DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities) |
 | numéricos | overflow explícito, quantities, modos float e lowerings científicos | direção + pesquisa | [numéricos e quantidades](design/numerics-and-quantities.md) |
 | C | `foreign c`, wrappers e metadata de ownership/concurrency | direção; ABI/layout detalhados abertos | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
 | módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |

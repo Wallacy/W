@@ -22,9 +22,23 @@ linguagem, à stdlib e a pacotes científicos.
 
 ## Unidades físicas
 
-O experimento do forno usa uma notação provisória como `180_Celsius` e tipos
-como `Temperature`, `Power`, `Energy` e `ThermalCapacity`. A sintaxe não está
-decidida em [W-O036](../STATUS.md). A propriedade desejada está:
+O experimento do forno ainda usa uma notação provisória como `180_Celsius`. A
+[revisão integral](../DB1_REVIEW.md#h05--ranges-si-e-computação-científica)
+recomenda testar uma unit expression delimitada, mais próxima da fórmula e sem
+colidir com lookup comum:
+
+```w
+import si
+
+let setpoint = 180[°C]
+let gravity = 9.80665[m/s**2]
+let energy = 3.6[kW*h]
+```
+
+`[...]` seria gramática de unit literal, não indexação nem annotation. A sintaxe
+continua **Em aberto** em [W-O036](../STATUS.md); `Number<Unit>`, suffix
+identificador e uma declaração mais longa permanecem alternativas. A propriedade
+semântica desejada está:
 
 ```text
 Power × Duration             → Energy
@@ -39,6 +53,76 @@ Celsius/Kelvin, não podem ser tratadas como simples escala multiplicativa. A
 experiência do F# mostra tanto o valor do check dimensional em compile time
 quanto a possibilidade de representação sem overhead; W precisa ainda resolver
 generics, diagnostics, constantes e ABI C.
+
+### Modelo T2 recomendado
+
+`std.si` não precisa declarar manualmente um tipo runtime para cada combinação.
+Ele define as sete dimensões base do SI, expoentes racionais normalizados no type
+system, unidades como scale/offset/symbol e aliases nomeados para todas as
+unidades base, derivadas e prefixos oficiais. O catálogo normativo carrega a
+versão da [SI Brochure do BIPM](https://www.bipm.org/en/publications/si-brochure/);
+unidades não-SI aceitas ficam numa seção distinta. As sete constantes definidoras
+do SI têm valores exatos; outras constantes físicas, incertezas e correlações
+vêm de um bundle [CODATA/NIST](https://physics.nist.gov/cuu/Constants/) separado
+e igualmente versionado.
+
+```text
+Quantity<Dimension, Representation>
+Unit<Dimension, Scale, Offset>
+
+Length × Length                    → Area
+Power × Duration                   → Energy
+TemperaturePoint - TemperaturePoint → TemperatureDelta
+TemperaturePoint + TemperatureDelta → TemperaturePoint
+```
+
+Temperaturas absolutas formam pontos de um espaço afim; deltas são vetores. Isso
+impede `20[°C] + 30[°C]` de parecer uma operação física normal e torna
+conversões Celsius/Kelvin diferentes de uma mera multiplicação.
+
+Units são normalmente apagadas no lowering, mas o tipo lógico pode reter
+metadata alcançável para formatting/reflection. Conversão implícita só ocorre
+quando é total, exata e única; scale com rounding, offset e perda de precisão são
+explícitos conforme W-C031.
+
+A gramática dentro de `[...]` é própria: símbolos oficiais como `°C` não viram
+identifiers gerais de W. Escalas exatas usam rationals compile-time quando
+possível. Raízes dividem expoentes dimensionais; potências que produziriam uma
+dimensão irracional são rejeitadas até que exista um contrato explícito para ela.
+
+## Ranges como domínios numéricos
+
+Range é a abstração geral para membership, refinement e saturação:
+
+```w
+let allowed = 30[°C]...300[°C]
+
+requested in allowed
+allowed.clamp(requested)
+allowed.intersection(calibrationRange)
+```
+
+`contains` não modifica, `clamp` satura e construir um refined type valida ou
+falha. `clamp` é total apenas quando o range contém os dois extremos — como
+`a...b`; um bound aberto não inventa silenciosamente `nextUp`/`nextDown`.
+Intersection retorna `Range<T>?`; union retorna `Range<T>` quando o resultado é
+contíguo e `RangeSet<T>` quando precisa preservar um buraco. Um property behavior
+pode chamar essas operações, mas não deve reinventar range. `Range<T>` representa
+intervalo; somente bounds discretos/strideable o tornam iterável. Progressões com
+step usam `stride`, evitando fingir que um intervalo de `f64` possui uma
+enumeração natural.
+
+## Análise numérica e simbólica
+
+O tier T2 pode oferecer `std.math.analysis` com integral numérica, derivada,
+roots, interpolation, optimization e estimativa de limite. Cada API declara
+método, tolerância, máximo de iterações, erro/convergência e propagação de units;
+“limit” numérico não afirma uma prova matemática.
+
+Álgebra simbólica, manipulação de expressões e theorem proving possuem escala e
+evolução diferentes. Permanecem package first-party separado em **Pesquisa** em
+[W-O099](../STATUS.md); o SDK pode distribuí-lo como T2 experimental sem fingir
+que simplificação simbólica ou prova matemática já são contratos estáveis.
 
 ## Famílias numéricas candidatas
 
@@ -88,6 +172,8 @@ em vez de apagar cedo as garantias num C intermediário.
 
 ## Referências
 
+- [BIPM: SI Brochure, 9th edition](https://www.bipm.org/en/publications/si-brochure/)
+- [NIST: CODATA recommended values of the fundamental constants](https://physics.nist.gov/cuu/Constants/)
 - [F#: Units of Measure](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure)
 - [MLIR: dialect `arith`](https://mlir.llvm.org/docs/Dialects/ArithOps/)
 - [MLIR: dialect `math`](https://mlir.llvm.org/docs/Dialects/MathOps/)

@@ -135,7 +135,9 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 
 O vocabulário normativo usado em toda a documentação está em [STATUS.md](STATUS.md).
 O inventário e a ordem de fechamento estão em
-[DESIGN_CLOSURE.md](DESIGN_CLOSURE.md).
+[DESIGN_CLOSURE.md](DESIGN_CLOSURE.md). A proposta de fechamento de todas as
+questões e o formulário único de ratificação estão em
+[DB1_REVIEW.md](DB1_REVIEW.md).
 
 ## Como explorar
 
@@ -152,6 +154,8 @@ O inventário e a ordem de fechamento estão em
   positivos/negativos, snapshots de CST e classificação do subset executável.
 - Consulte o [fechamento da baseline](DESIGN_CLOSURE.md) para ver todas as
   pendências e a ordem em que serão decididas antes da implementação.
+- Use a [revisão integral da DB1](DB1_REVIEW.md) para aceitar os defaults H01–H14
+  em lote e registrar somente as exceções.
 - Leia [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md) para percorrer a sintaxe e o comportamento do programa.
 - Leia [VISION.md](VISION.md) para entender público, princípios, não objetivos e opções de posicionamento.
 - Consulte [techspec.md](techspec.md) para a arquitetura técnica resumida.

@@ -14,9 +14,9 @@ fn main() {
 }
 ```
 
-`print` exercita o mapa de exports std implícitos congelado pela edição. Ele não
-é keyword e não esconde I/O: compiler/LSP ainda mostram origem, effect,
-capability e reachability. Prelude curada, somente namespaces implícitos e import
+`print` exercita a prelude T0 curada proposta para a DB1. Ele não é keyword e
+não esconde I/O: compiler/LSP ainda mostram origem, effect, capability e
+reachability. Todo export std único, somente namespaces implícitos e import
 explícito permanecem alternativas em [W-O026](STATUS.md).
 
 Arquivos usam UTF-8. Quebra de linha encerra a maior parte das declarações; `;` é aceito apenas onde for necessário interoperar ou colocar statements na mesma linha — a decisão de aceitá-lo como estilo geral ainda será testada pelo formatter.
@@ -142,7 +142,7 @@ tardia sem tornar o wrapper o tipo público da propriedade:
 
 ```w
 // Hipótese visual; ainda não pertence à grammar.
-var target = 180_Celsius with Clamped(in: 30_Celsius...300_Celsius)
+var heatProfile = deriveHeatProfile(model) with Lazy
 ```
 
 O compiler enxergaria storage, init, accessors, ownership e efeitos em HIR. O
@@ -190,6 +190,11 @@ let port = try Port(input)  // validado em runtime
 ```
 
 O refinamento é uma restrição lógica do valor. Política de alocação (`inline`, arena, capacity) não deve ser misturada no mesmo parâmetro de tipo.
+
+Na proposta de layout da DB1, `type UserId = u64` cria identidade nominal e
+preserva o storage de `u64`; `alias NativeSize = c.size` cria somente um segundo
+nome. Isso substitui `transparent struct` no caso comum de newtype, sem afirmar
+que qualquer struct W possui ABI C.
 
 ## 5. Ausência não é um conjunto de sentinelas
 
@@ -472,8 +477,10 @@ foreign c {
 }
 ```
 
-Essa forma ainda está **Em aberto**; layout nativo opaco, ordem física declarada,
-`transparent struct`, layout W fixo e packed/adapters continuam sendo comparados.
+Essa forma ainda está **Em aberto**. O default proposto para a DB1 separa layout
+W nativo opaco, layout C dentro de `foreign c`, `type` nominal versus `alias` e
+`packed`/`aligned` seguros. Ordem física por default, `transparent struct` e uma
+ABI W universal fixa continuam preservados como alternativas.
 
 O compilador deve gerar/importar metadata suficiente para documentar:
 

@@ -31,24 +31,28 @@ W deve estudar o poder do behavior original com uma superfície menor e mais
 explícita. O formato ilustrativo abaixo **não pertence à grammar atual**:
 
 ```w
-behavior Clamped<Value: Comparable>(in limits: Range<Value>) for Value {
-  storage var value: Value
+behavior Lazy<Value> for Value {
+  storage var cached: Value?
+  initialValue
 
-  init(initial: Value) {
-    value = initial.clamped(to: limits)
+  init { cached = .none }
+
+  mut get {
+    if let value = cached { return value }
+    let value = initialValue()
+    cached = .some(value)
+    return value
   }
 
-  get { value }
-  set(newValue) { value = newValue.clamped(to: limits) }
-  modify { yield inout value }
+  set(newValue) { cached = .some(newValue) }
 }
 
 object Oven {
-  var target = 180_Celsius with Clamped(in: 30_Celsius...300_Celsius)
+  var heatProfile = deriveHeatProfile(model) with Lazy
 }
 ```
 
-`target` continua tendo tipo lógico `Celsius`; `Clamped<Celsius>` é detalhe de
+`heatProfile` continua tendo seu tipo lógico; o optional de `Lazy` é detalhe de
 implementação. `with` torna a feature uma construção dedicada e pesquisável,
 sem reabrir `@annotations`. A declaração de behavior produz HIR tipada, não AST
 arbitrária, e o compiler conhece storage, lifetime, accessors e efeitos antes do
@@ -61,7 +65,7 @@ lowering.
    inlinear, reordenar ou eliminar esse storage sob as mesmas regras de qualquer
    field privado.
 2. **Propriedade lógica para o caller.** Lookup, autocomplete e reflection
-   mostram `target: Celsius`; debug symbols separados podem revelar o backing
+   mostram o tipo lógico de `heatProfile`; debug symbols separados podem revelar o backing
    storage. Derivações como serialization e equality ainda precisam decidir se
    observam o valor lógico ou uma escolha explícita do behavior.
 3. **Inicialização não é setter.** O behavior declara separadamente `init`,
@@ -80,9 +84,9 @@ lowering.
 6. **Ownership e concorrência são derivados, não alegados.** Sendability,
    compartilhamento, mutation e cleanup dependem do storage e dos accessors. Um
    behavior não declara `Atomic`, `Shared` ou `Safe` sem satisfazer os verifiers.
-7. **Invariantes transferíveis pertencem ao tipo.** `Temperature where value in
-   range` protege o valor em qualquer lugar; `Clamped` é uma policy de atribuição
-   daquela propriedade. Behavior não substitui refined types.
+7. **Invariantes transferíveis pertencem ao tipo.** Um refined type protege o
+   valor em qualquer lugar. Range fornece `contains`/`clamp`; behavior só seria
+   necessário para aplicar uma policy repetidamente e não substitui ambos.
 
 ## Composição
 
@@ -136,12 +140,12 @@ rejeitadas. Nunca se presume que behaviors comutam.
 3. Composição deve exigir nesting/composite nomeado no primeiro corte?
 4. `Lazy` pode manter a ergonomia de field access se o lens mostrar first-read
    work, ou W deve exigir uma operação explícita como `menu.get()`?
-5. Qual caso do restaurante valida primeiro a feature: setpoint limitado,
-   calibração lazy, observer da TUI ou storage COW do cardápio?
+5. Qual caso do restaurante valida primeiro a feature: cálculo térmico lazy,
+   observer da TUI, init tardia ou storage COW do cardápio?
 
 ## Experimento mínimo
 
-Modelar `Clamped`, `Lazy` e `Observed` em HIR fictícia e expandi-los para fields e
+Modelar `Lazy`, `Observed` e `Once` em HIR fictícia e expandi-los para fields e
 funções W ordinárias. O teste precisa comparar init/set, move/drop, `inout`, duas
 ordens de composição, reflection lógica, layout explicado e diagnostics de um
 behavior que tenta suspender ou capturar `self` antes da inicialização. Somente

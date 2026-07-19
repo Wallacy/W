@@ -121,14 +121,14 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | W-O032 | como perfis medidos entram em revisão e CI? | apenas local · anexo redigido · corpus público reproduzível | privacidade, portabilidade e não confundir p95 com teto |
 | W-O033 | como compor error sets diferentes sem esconder controle? | `catch` explícito · conversão `from` declarada · injeção única inferida | ambiguidade, ergonomia, ABI e diagnóstico no restaurante |
 | W-O035 | como exportar values com invariantes sem expor toda a representação? | `export struct` transparente · fields exportados individualmente · tipo opaco + factories | evolução de API, construção cross-module, pattern matching e ABI |
-| W-O036 | qual sintaxe representa quantidades e unidades físicas? | sufixo de literal · `Number<Unit>` · declaração de unit dedicada | dimensional analysis, legibilidade de fórmulas, generics, FFI e zero overhead |
+| W-O036 | qual sintaxe representa quantidades e unidades físicas? | `[unit expression]` delimitada · sufixo de literal · `Number<Unit>` · declaração de unit dedicada | dimensional analysis, símbolos SI, legibilidade de fórmulas, generics, FFI e zero overhead |
 | W-O037 | quais modos numéricos são observáveis? | IEEE estrito default · modo reproduzível · fast-math explícito por scope | resultados entre targets, vetorização, redução paralela e diagnóstico |
 | W-O038 | qual forma compacta testa um valor contra várias alternativas? | `value.isOneOf(a, b)` · `value in (a, b)` · pattern alternativo | tokens, ausência de alocação/varargs, narrowing, diagnostics e leitura de `canMove` |
 | W-O039 | qual forma representa exponenciação? | `base ** exponent` · `pow(base, exponent)` · APIs distintas por família numérica | precedência de unary minus, dimensions, inteiros negativos, overflow e lowering math |
 | W-O040 | qual default de labels produz melhor API? | primeiro posicional + restantes nomeados · todos nomeados · todos posicionais com lint | tokens, autocomplete, refactors e leitura de calls com vários argumentos do restaurante |
-| W-O041 | `Range<T>` é intervalo, progressão iterável ou tipos separados? | intervalo + `stride` explícito · producer lazy com step · `Interval<T>` separado de `Range<T>` | membership float, `for` inteiro, count/last, alocação, infinitos e mensagem matemática correta |
+| W-O041 | `Range<T>` é intervalo, progressão iterável ou tipos separados, e quais operações são totais? | intervalo + `stride` explícito + `clamp` só fechado · producer lazy com step · `Interval<T>` separado de `Range<T>` | membership float, bounds abertos, intersection/union, `for` inteiro, count/last, alocação e diagnostics |
 | W-O042 | qual forma delimita e agrupa ilhas `fn<lang>` da própria aplicação? | body inline opaco · `from` para source separado · namespace de compilation unit · adapter declarado | migração gradual, language injection, chamadas intra-unit, ABI, source maps, cache, provenance e targets |
-| W-O044 | quais layouts são observáveis e quais fronteiras explícitas entram na v0? | W nativo opaco · declaração dentro de `foreign c` · `transparent struct` · layout W fixo futuro | `sizeOf`, evolução de fields/enums, FFI, módulos de versões distintas e otimização cross-module |
+| W-O044 | quais layouts são observáveis e quais fronteiras explícitas entram na v0? | W nativo opaco · declaração dentro de `foreign c` · `type` nominal representation-preserving · packed/aligned seguros · layout W fixo futuro | `sizeOf`, evolução de fields/enums, FFI, unaligned access, módulos de versões distintas e otimização cross-module |
 | W-O045 | como módulos negociam um profile de representação interna? | somente dentro do mesmo artefato · metadata versionada · marshal sempre entre módulos | LTO, dynamic linking, cache, sanitizers, fallback e rejeição segura de incompatibilidade |
 | W-O046 | qual é storage, ownership e mutabilidade de `String`? | UTF-8 contíguo value · COW · buffer owned com views · rope especializado separado | copy/move/drop, SSO, concatenação, FFI, tasks e custo previsível |
 | W-O047 | quais unidades podem indexar/slicear `String` e como boundaries inválidos falham? | bytes/scalars/graphemes por views nomeadas · índices tipados · apenas iteradores para graphemes | complexidade, alocação, normalização, invalid UTF-8 e diagnostics |
@@ -182,6 +182,8 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | W-O095 | qual contrato de testes integra unit, doc, property, fuzz e compile-fail? | runner único com modos · ferramentas separadas sobre manifest comum · apenas unit/doc na v0 | reprodutibilidade, diagnostics, coverage, isolamento e package trust |
 | W-O096 | quais guarantees de custo o compilador pode afirmar estaticamente? | somente facts exatos · estimativas intervalares · profiles medidos anexados | não prometer runtime incerto, budgets, imports, LTO e CI reproduzível |
 | W-O097 | qual contrato de property behaviors generaliza storage e accessors sem esconder efeitos? | `with Behavior(...)` + declaração própria · `var [behavior]` ao estilo SE-0030 · wrapper nominal · behaviors especiais no core | init vs set, ownership/drop, `modify`/exclusivity, efeitos de get/set, composição, layout, reflection, `self`, Sendable e lowering sem runtime obrigatório |
+| W-O098 | qual contrato separa os tiers T0/T1/T2 do SDK? | foundation/prelude · systems/capabilities · domains oficiais; tudo bundled mas apenas reachability-linked | estabilidade, disponibilidade por target, cadence de segurança, imports implícitos, tamanho e expectativa do usuário |
+| W-O099 | qual escopo científico oficial acompanha SI no T2? | SI completo + análise numérica · também symbolic algebra · apenas units/quantities e packages independentes | dimensional analysis, offsets, tolerância/erro, versão dos dados, compile time, tamanho e não prometer prova matemática |
 
 ## Questões promovidas
 
@@ -204,6 +206,7 @@ consolidação inicial e permanece reservado para evitar reutilização acidenta
 | Computer Units e V6 | runtime/serverless separado |
 | tree strings | estrutura especializada para interning/índices, não `String` geral |
 | property behaviors | mecanismo tipado dedicado em W-O097, não retorno de annotations genéricas |
+| tiers T0/T1/T2 e ciência oficial | proposta integral em W-O098/W-O099; não confundir tier de SDK com intrinsic ou portabilidade |
 | SQLite como storage padrão | adapter oficial e possível storage de tooling, não semântica obrigatória |
 | GPU, HDL, OpenMP, SIMD explícito | lowerings futuros depois do pipeline CPU nativo |
 | snapshots, PGO e autotest por IA | tooling futuro sobre testes/documentação executável |

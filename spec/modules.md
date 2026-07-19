@@ -76,20 +76,24 @@ compatível sem mudar a semântica observável do programa.
 A baseline anterior limitava a prelude a uma lista pequena de nomes puros. O
 primeiro protótipo deve comparar essa opção com um **mapa de exports implícitos
 congelado pela edição**. Esse mapa é parte do toolchain/lock, não é reconstruído
-a partir da versão mais nova da stdlib nem das dependências instaladas.
+a partir da versão mais nova da stdlib nem das dependências instaladas. A
+[revisão integral da DB1](../DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities)
+recomenda começar pela prelude T0 curada; o mapa amplo continua sendo o
+contrafactual mensurável de W-C016, não um default já ratificado.
 
 No experimento mais amplo, todo export elegível da stdlib pode ser usado sem um
-`import` quando seu nome é único no mapa daquela edição. Namespaces oficiais
-também ficam disponíveis, portanto `http.serve` permanece uma forma estável
-quando `serve` não é único. `print` não é uma keyword ou açúcar especial: é um
-símbolo normal cuja origem pode ser mostrada pelo compiler e pelo LSP.
+`import` quando seu nome é único no mapa daquela edição. No default DB1, apenas
+exports escolhidos para a prelude entram nessa etapa. Namespaces oficiais ficam
+disponíveis nas duas formas, portanto `http.serve` permanece estável. `print` não
+é uma keyword ou açúcar especial: é um símbolo normal cuja origem pode ser
+mostrada pelo compiler e pelo LSP.
 
 A resolução candidata procura, sem fallback ambíguo:
 
 1. declarations e bindings lexicais;
 2. imports explícitos e seus aliases;
-3. exports livres do mapa implícito da edição, apenas quando há um único
-   candidato;
+3. exports livres autorizados pelo conjunto implícito da edição, sempre sem
+   ambiguidade;
 4. nomes qualificados sob um namespace std implícito.
 
 Se dois imports explícitos fornecem o mesmo nome, o source precisa selecionar ou

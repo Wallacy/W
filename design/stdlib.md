@@ -30,9 +30,25 @@ A superfície se divide em cinco níveis, com dependências apenas para baixo:
 4. **Adapters por target:** relógio do sistema, filesystem, sockets, processo,
    ambiente, console, entropia e backends de I/O/scheduler. Cada adapter declara
    capabilities, blocking, cancelamento e restrições do target.
-5. **Pacotes externos:** protocolos, bancos, codecs, UI, frameworks e integrações
-   que não são necessários para compilar ou executar o programa mínimo. São
-   resolvidos por manifesto e lockfile, sem promoção automática à stdlib.
+5. **Pacotes versionados:** módulos first-party T2 ou da comunidade — protocolos,
+   bancos, codecs, UI, frameworks e integrações — que não são necessários para
+   compilar ou executar o programa mínimo. São resolvidos por manifesto e
+   lockfile; acompanhar o SDK não os transforma em intrinsics nem em nomes
+   implícitos.
+
+Essa taxonomia descreve dependência/portabilidade. [W-O098](../STATUS.md) adiciona
+uma taxonomia ortogonal para aquilo que acompanha o SDK público:
+
+| Tier | Expectativa | Conteúdo recomendado |
+|---|---|---|
+| T0 · Foundation | prelude/core comum, pequeno e estável | options/errors, ranges, strings/bytes, collections fundamentais e `print` capability-gated |
+| T1 · Systems | uso frequente e abstração de plataforma | tasks/sync, clocks, random, filesystem, process, TCP/UDP/DNS e codecs fundamentais |
+| T2 · Domains | first-party explícito, bundled e atualizável | HTTP/TLS, SI, decimal/Money, análise numérica, tensors, JSON, regex, SQLite e TUI |
+
+T0/T1/T2 não são níveis de privilégio, qualidade ou linking. Todo source pode
+acompanhar o SDK, mas somente reachability entra no artefato. T2 usa o mesmo
+manifest/lock dos packages para poder corrigir TLS, HTTP, timezone ou dados
+científicos sem amarrar sua cadence à edição da linguagem.
 
 O compiler pode conhecer a semântica de uma operação sem congelar sua
 representação. `Option`, errors, `String`, collections e task frames podem receber
@@ -104,9 +120,9 @@ Exceptions não cruzam a fronteira. A calling convention usada no lowering de
 `throws E` continua independente da API source e deve ser validada por harness C
 compilado separadamente, como exige a [arquitetura do compilador](compiler.md).
 
-### Escopo mínimo v0
+### Escopo do primeiro slice implementável
 
-O primeiro recorte deve ser suficiente para as fatias síncronas, ownership/errors
+O primeiro recorte do compilador deve ser suficiente para as fatias síncronas, ownership/errors
 e tasks estruturadas do compilador:
 
 - prelude mínima com primitivos, `Option`/`T?` e contratos fundamentais de
@@ -123,11 +139,13 @@ e tasks estruturadas do compilador:
 - um adapter pequeno de host para console/filesystem/timer e uma fronteira C
   exercitada end to end em pelo menos dois targets.
 
-Não são objetivos do v0: framework web, TLS, HTTP, banco de dados, serialização
-universal, locale completo, regex, UI, package registry client, streams com
-`yield`, actor framework, GPU ou API estável de plugins. Compatibilidade durável
-da ABI W também não é presumida antes de ownership, errors e tasks estarem
-provados.
+Não são objetivos desse **slice de bootstrap**: framework web, TLS, HTTP, banco
+de dados, serialização universal, locale completo, regex, UI, package registry
+client, streams com `yield`, actor framework, GPU ou API estável de plugins. Isso
+não exclui tais módulos do SDK público completo: T2 pode implementá-los depois
+que T0/T1 e o package system estiverem conformes, antes do lançamento público.
+Compatibilidade durável da ABI W também não é presumida antes de ownership,
+errors e tasks estarem provados.
 
 ### Testes, provenance e versões
 
@@ -162,6 +180,8 @@ na fronteira estável declarada.
 
 ## Em aberto
 
+- O contrato T0/T1/T2 e o escopo científico T2 aguardam ratificação conjunta em
+  [W-O098/W-O099](../DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities).
 - Quais exports entram no mapa implícito sem aumentar compile time, autocomplete
   e compromisso de compatibilidade? Comparar todos os nomes únicos, uma prelude
   curada e namespaces implícitos com poucos nomes livres em W-O026.

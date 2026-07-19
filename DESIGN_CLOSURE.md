@@ -67,8 +67,8 @@ quais layouts são observáveis e quais permanecem internos.
 | S5. Erros, efeitos e panic | Como falha recuperável, cancelamento, effects e falha irrecuperável atravessam scopes? | W-O005–W-O006, W-O033, W-O053–W-O054, W-O057 | S2–S4 | modelo unificado de exits e cleanup |
 | S6. Concorrência e paralelismo | O que `async`, `spawn`, tasks, groups, streams e scheduler prometem? | W-O001, W-O055–W-O064 | S2, S4–S5 | semântica de tasks + contrato do executor |
 | S7. Módulos, instâncias e serviços | Como código, estado, autoridade, localidade, durability e isolamento se relacionam? | W-O023–W-O027, W-O065–W-O073 | S2, S5–S6 | modelo de módulos/serviços e lifecycle |
-| S8. Stdlib e I/O | Qual é o núcleo portátil e onde ficam blocking, adapters e dados versionados? | W-O026, W-O074–W-O080 | S3, S5–S7 | mapa da stdlib e contratos de capabilities |
-| S9. Numéricos e ciência | Como fórmulas preservam overflow, unidades, rounding, shapes e reprodutibilidade? | W-O036–W-O041, W-O049, W-O081–W-O082 | S1, S4, S6 | modelo numérico e corpus científico |
+| S8. Stdlib e I/O | Qual é o núcleo portátil e onde ficam blocking, adapters, dados e tiers do SDK? | W-O026, W-O074–W-O080, W-O098 | S3, S5–S7 | mapa da stdlib e contratos de capabilities |
+| S9. Numéricos e ciência | Como fórmulas preservam overflow, unidades, rounding, shapes e reprodutibilidade? | W-O036–W-O041, W-O049, W-O081–W-O082, W-O099 | S1, S4, S6 | modelo numérico e corpus científico |
 | S10. C e ilhas multilíngues | Como FFI e `fn<lang>` preservam ownership, ABI, provenance e diagnóstico? | W-O042, W-O083–W-O084 | S1–S6 | contrato C primeiro + gate por linguagem |
 | S11. Frontend, IR e backend | Como a semântica chega a código nativo sem ser apagada cedo? | W-O007–W-O012, W-O064, W-O085, W-O089–W-O090 | S0–S10 | arquitetura implementável e interfaces dos passes |
 | S12. Build e packages | O que entra na identidade do artefato e como resolução/cache permanecem herméticos? | W-O013, W-O019, W-O087–W-O093 | S7–S11 | schemas, resolução e política de build |
@@ -122,11 +122,11 @@ antes aparecia sem ID:
 
 | Item | Estado |
 |---|---|
-| inventário atual | **Candidato**: 96 questões explícitas, mais hipóteses de pesquisa |
+| inventário atual | **Candidato**: 98 questões registradas — 97 ativas e W-O043 promovida; W-O034 continua reservado |
 | ordem de dependência | **Candidato**: S0–S15 |
-| primeira fatia em revisão | W-C029–W-C036 fecham source/fallback, ausência de `Any`, refinement, existential/reflection e ausência de annotations; W-O018/W-O044–W-O045 ainda fecham profiles, layout e fronteiras |
+| revisão integral em lote | [DB1_REVIEW.md](DB1_REVIEW.md) cobre cada questão ativa e agrupa ratificação humana em H01–H14 |
 | implementação após a DB1 | bloqueada por decisão do projeto; somente spikes de hipótese são permitidos |
 
-O número de questões não mede qualidade nem obriga 96 features. Uma boa revisão
+O número de questões não mede qualidade nem obriga 98 features. Uma boa revisão
 pode fechar várias com uma única regra, fundir duplicatas ou retirar uma família
 inteira da v0. O requisito é que isso seja deliberado e rastreável.
