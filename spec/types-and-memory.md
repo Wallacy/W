@@ -99,7 +99,7 @@ fn index<T: Hashable>(_ value: ref T): Hash
 
 O call site e metadata devem permitir descobrir quando dispatch é dinâmico. Protocols não injetam storage invisível.
 
-#### `Any`, existential e reflection
+#### Existential, erasure e reflection
 
 Estes conceitos não devem ser fundidos:
 
@@ -108,55 +108,57 @@ Estes conceitos não devem ser fundidos:
 | `T: P` | caller e compiler | generic, normalmente especializável |
 | `some P` | implementação e compiler | identidade preservada, escondida do caller |
 | `any P` | somente runtime | existential com witness table e inline/box |
-| `Any` | somente runtime | type erasure total; exige downcast antes de operar |
 
-`some P` e `any P` são sintaxe de trabalho, não decisão. A recomendação de
-máquina para [W-O043](../STATUS.md) é manter `Any` como escape hatch raro, não
-como base dinâmica da linguagem:
+W-C033 adota `any P`. Escrever somente `P` seria menor e não confundiria o
+parser em posição de tipo, mas esconderia na leitura humana que a identidade
+concreta foi apagada. O token aparece em storage/assinaturas, não no call site,
+e não implica que haverá heap allocation: inline storage e devirtualization
+continuam livres. As duas grafias não coexistem como sinônimos.
 
-- `Any` owns o valor erased por default; borrows não viram owners;
-- erasure pode usar payload inline ou box sem mudar o tipo lógico;
-- `TypeId` identifica tipos apenas dentro do mesmo universo de toolchain/
-  artefato; não é schema ID, nome público nem identidade serializável;
-- IPC, persistência e packages usam uma identidade de schema versionada,
-  separada de `TypeId`;
-- metadata runtime é emitida por reachability para operações realmente usadas:
-  type check, move/drop e witness tables aplicáveis;
-- `Any` não ganha `copy`, equality, hash, serialization ou `Send` universais;
-  cada operação exige uma constraint/capability comprovada;
-- conversão para `Any` pode ser contextual; downcast e extração são sempre
-  explícitos e nunca fazem cópia escondida.
+W-C030 retira `Any` da superfície v0. Casos comuns têm formas mais precisas:
 
-API ilustrativa, ainda **Em aberto**:
+- heterogeneidade fechada usa `enum`;
+- comportamento heterogêneo usa `any P`;
+- algoritmos reutilizáveis usam generics;
+- JSON e bridges dinâmicas definem `JsonValue`/`DynamicValue` próprios;
+- `void*` e handles opacos pertencem a `foreign c`;
+- compiler/runtime podem usar um erased container interno sem torná-lo tipo W.
 
-```w
-let payload: Any = take order
+Conversão `T → any P` é implícita quando `T: P` e ownership permite a passagem.
+Ela pode usar payload inline ou box, e o tooling reporta o custo. Nenhuma
+conversão inversa implícita existe.
 
-if let order = payload.ref(as: Order) {
-  print(order.id)
-}
+[W-O043](../STATUS.md) agora decide somente o mínimo de metadata e operações:
 
-let order = payload.take(as: Order) // Order?; consome somente no sucesso
-```
+- witness de dispatch, layout, move e drop alcançáveis;
+- `copy`, equality, hash, serialization e `Send` apenas quando a constraint os
+  exige;
+- associated types que precisam estar bound para formar o existential;
+- reflection opt-in sem atravessar encapsulamento;
+- `TypeId` local ao universo toolchain/artefato, separado de schema ID estável.
 
-Alternativas preservadas:
+Representação candidata W-C034:
 
-| Alternativa | Ganho | Armadilha principal |
-|---|---|---|
-| somente generics/protocols na v0 | core menor e mais estático | empurra type erasure incompatível para cada biblioteca/FFI |
-| separar `T`, `some P`, `any P` e `Any` | custo e autoridade ficam distinguíveis | quatro conceitos precisam de ensino e diagnostics bons |
-| tornar todo protocol automaticamente existential | source menor | dispatch/boxing ficam invisíveis e generics se tornam ambíguos |
-| reflection completa em todo tipo | plugins/serializers muito flexíveis | metadata, encapsulamento, stripping e ABI viram custo universal |
+| Forma | Representação lógica mínima | Pode alocar? |
+|---|---|---:|
+| `ref any P` | data address + protocol witness | não |
+| owned `any P` inline | payload + value witness + protocol witness | não |
+| owned `any P` boxed | box owner + value witness + protocol witness | sim |
 
-Permanecem três decisões humanas para W-O043:
+O value witness contém somente o necessário para layout, move e drop. `copy`,
+equality, hash ou sendability entram apenas se `P` os exige. A identidade do
+descriptor pode servir como `TypeId` dentro do processo/artefato, sem gravar nome
+ou fields. Um downcast seguro pode comparar essa identidade e retornar option;
+ela nunca vira identidade de wire/package.
 
-1. `Any` deve ser um escape hatch deliberadamente raro, mantendo generics e
-   protocols como caminho normal?
-2. A conversão contextual `T → Any` pode ser implícita quando a assinatura já
-   declara `Any`, com boxing mostrado pelo tooling, ou deve exigir uma palavra no
-   call site?
-3. O custo de dispatch merece `any P` explícito, distinguindo-o de `T: P` e
-   `some P`, ou o nome `P` sozinho deve poder significar existential?
+Nomes, fields e acesso estrutural só são emitidos por reachability quando o tipo
+declara uma capability/protocol de reflection. Isso evita annotations e permite
+síntese pelo compiler a partir da conformance, por exemplo `struct User:
+Reflectable`, caso reflection entre na v0.
+
+Associated types precisam estar bound quando um método existentialmente chamado
+depende deles. A sintaxe exata pertence a W-O050; métodos genéricos ou que usam
+`Self` de forma impossível pelo witness não ficam silenciosamente disponíveis.
 
 ### Tuplas, funções e collections
 
@@ -239,9 +241,55 @@ Regras necessárias:
 - o tipo define um erro de validação ou usa `RefinementError` parametrizado;
 - operações preservam, enfraquecem ou perdem a prova de forma explícita;
 - FFI/deserialize sempre revalida valores não confiáveis;
-- constraints não são usadas para esconder allocation/storage policy.
+- o tipo lógico, overflow e aritmética continuam sendo os do tipo base.
 
 Refinements complexos por regex ou função arbitrária ficam atrás de um protótipo do evaluator hermético.
+
+### Refinement como informação de otimização
+
+Um refinement também fornece facts ao optimizer. Em:
+
+```w
+type SmallCount = u16 where value in 1...10
+```
+
+`SmallCount` continua semanticamente `u16`: conversões, overflow e resultados
+não passam a obedecer aritmética `u8`. O range provado pode, porém:
+
+- usar padrões inválidos como niches de `Option<SmallCount>`/enums;
+- eliminar checks redundantes;
+- escolher instruções/larguras menores e mais lanes SIMD quando equivalentes;
+- especializar storage interno para `u8` e reestender para `u16` ao operar;
+- escolher buffers GPU compactos quando target e interface concordarem.
+
+O compilador separa dois layouts:
+
+| Contexto | Regra candidata |
+|---|---|
+| valor SSA/register | largura livre, desde que operações preservem semântica `u16` |
+| field de struct materializado | storage/alignment canônicos de `u16` |
+| aggregate eliminado por scalar replacement | fields podem estreitar depois que o layout deixa de existir |
+| storage interno não escapante | pode compactar se nenhum endereço/layout for observado |
+| `Array<SmallCount>` | pode compactar somente quando análise prova que não haverá borrow/raw view/layout boundary |
+| `ref`/`inout` ou endereço do elemento | barreira: precisa de storage canônico; não cria proxy temporário escondido |
+| export/ABI/FFI/shared memory/persistência | layout canônico ou schema de fronteira explícito |
+
+Assim, `sizeOf<SmallCount>` continua reportando o layout materializável
+canônico de `u16`; uma variável eliminada ou um buffer especializado não muda o
+resultado. `w explain layout` pode mostrar que um allocation concreto usa bytes
+compactos e por que a otimização foi aceita ou bloqueada.
+
+Para SIMD/GPU, estreitar storage não autoriza aritmética diferente. Cada
+operação usa range analysis para provar que a lane estreita preserva o resultado
+ou estende antes de calcular. Capabilities de storage/alinhamento do target e a
+ABI host↔device fazem parte do representation profile.
+
+A infraestrutura existe sem precisar codificar a regra de W no LLVM: MLIR possui
+[análise de ranges inteiros](https://mlir.llvm.org/doxygen/IntegerRangeAnalysis_8h.html),
+LLVM aceita [range metadata](https://llvm.org/docs/LangRef.html#range-metadata) em
+loads/calls e o passe [SROA](https://llvm.org/doxygen/SROA_8cpp.html) consegue
+eliminar/promover aggregates. A política de quando storage pode estreitar
+continua sendo verificada no dialeto W antes desses lowerings.
 
 ## Aritmética
 
@@ -479,7 +527,7 @@ Emitir C cedo demais perderia distinções necessárias e transformaria regras d
 
 ## Tagged values não definem a linguagem
 
-Pointer tagging pode compactar `Option<ref T>`, `Any`, small integers ou runtime metadata em targets compatíveis. Não deve:
+Pointer tagging pode compactar `Option<ref T>`, existentials/erasure interna, small integers ou runtime metadata em targets compatíveis. Não deve:
 
 - reduzir bits de `f64` silenciosamente;
 - mudar range/overflow de `Int`;
@@ -491,7 +539,7 @@ Pointer tagging pode compactar `Option<ref T>`, `Any`, small integers ou runtime
 Pela política candidata W-C029:
 
 - não existe annotation de compactação no source;
-- boxing de `Any` é permitido e precisa ser reportável;
+- boxing de existentials/erasure interna é permitido e precisa ser reportável;
 - `Option<ref T>` não aloca para representar `.some`/`.none`, mas seu tamanho e
   alinhamento permanecem propriedades publicadas do target/profile.
 

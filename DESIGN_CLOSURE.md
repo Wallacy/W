@@ -87,7 +87,7 @@ antes aparecia sem ID:
 
 | Camada | Pendências que agora precisam de fechamento explícito |
 |---|---|
-| valores/ABI | `Any`, metadata de tipo, layout público, resilience, niches, tags e negociação de profile |
+| valores/ABI | existentials/erasure interna, metadata de tipo, layout público, resilience, niches, tags e negociação de profile |
 | memória | OOM, panic/unwind, atomics, data races, captures e escape de closures |
 | texto | storage, mutabilidade, indexação, slicing, normalização, literais, interpolation e bundles Unicode |
 | tipos | promotions/casts, generics/conformance, specialization, inference, refinements e compile-time evaluation |
@@ -124,7 +124,7 @@ antes aparecia sem ID:
 |---|---|
 | inventário inicial | **Candidato**: 95 questões explícitas, mais hipóteses de pesquisa |
 | ordem de dependência | **Candidato**: S0–S15 |
-| primeira fatia em revisão | **Candidato** em W-C029 para source/fallback; W-O018 e W-O043–W-O045 ainda fecham profiles, `Any`, layout e fronteiras |
+| primeira fatia em revisão | W-C029–W-C034 fecham source/fallback, ausência de `Any`, conversões seguras, refinement storage e existential mínimo; W-O018/W-O043–W-O045 ainda fecham profiles, reflection, layout e fronteiras |
 | implementação após a DB1 | bloqueada por decisão do projeto; somente spikes de hipótese são permitidos |
 
 O número de questões não mede qualidade nem obriga 95 features. Uma boa revisão

@@ -15,8 +15,9 @@ em [W-O018](../STATUS.md#questões-abertas-prioritárias).
 
 ### Opção recomendada: niches conservadores, tags agressivas fora da baseline
 
-1. O source conhece `Option<T>`, enums, referências, `Any` e existentials; não
-   conhece “tagged pointer” nem muda de sintaxe conforme o target.
+1. O source conhece `Option<T>`, enums, referências e existentials; não conhece
+   “tagged pointer” nem muda de sintaxe conforme o target. Um erased container
+   interno não exige `Any` público.
 2. Todo tipo possui um lowering portátil que é o oracle semântico.
 3. A DB1 permite niche optimization quando o compilador prova um padrão inválido
    do payload — em especial null para uma referência W non-null — sem perder
@@ -25,9 +26,9 @@ em [W-O018](../STATUS.md#questões-abertas-prioritárias).
    foi provado, com encode/decode explícitos e sem cruzar uma fronteira estável.
 5. Bits altos de endereço, LAM/UAI/TBI e NaN-boxing continuam **Pesquisa** opt-in
    por target. Eles não pertencem ao profile normal da DB1.
-6. `Any` começa com `TypeId` explícito e payload inline ou box. O tamanho do
-   inline storage só fecha depois de workloads; valores que não cabem nunca
-   perdem bits.
+6. Um erased container interno começa com `TypeId` explícito e payload inline ou
+   box. O tamanho do inline storage só fecha depois de workloads; valores que
+   não cabem nunca perdem bits.
 7. Referências de objeto continuam ponteiros/handles normais. Tags não guardam a
    única cópia de lifetime, owner, refcount, capability ou metadata necessária
    para validar/liberar o objeto.
@@ -50,15 +51,15 @@ sanitizers ou uma arquitetura futura podem usar.
 |---|---|---|---|
 | A. somente fallback explícito | implementação e ABI mais simples | perde compactação convencional de enums/opcionais | oracle obrigatório, mas conservadora demais como único profile |
 | B. niches + low bits internos provados | boa densidade sem depender de high bits; fallback local | representation selection e testes diferenciais adicionais | recomendada para a DB1 |
-| C. high bits/NaN-boxing por target | pode compactar mais casos de `Any` | conflito com provenance, PAC/MTE/sanitizers/OS/FFI e matriz grande | **Pesquisa**, nunca requisito da v0 |
+| C. high bits/NaN-boxing por target | pode compactar mais casos do erased container interno | conflito com provenance, PAC/MTE/sanitizers/OS/FFI e matriz grande | **Pesquisa**, nunca requisito da v0 |
 | D. tagged object pointer como modelo universal | metadata muito compacta em um target ideal | mistura representação, ownership e ABI; portabilidade frágil | **Rejeitado por enquanto** |
 
 ### Decisões humanas registradas
 
 1. Não haverá annotation como `@compact`: a otimização é invisível no source e
    explicável pelo tooling.
-2. `Any` pode fazer box conforme tipo/profile; `w explain` e o lens de recursos
-   devem tornar o custo observável.
+2. Erasure interna/existentials podem fazer box conforme tipo/profile; `w
+   explain` e o lens de recursos devem tornar o custo observável.
 3. `Option<ref T>` promete ausência de alocação para representar a opção e
    publica o layout efetivo por target; não promete uma palavra universal.
 
@@ -66,7 +67,7 @@ sanitizers ou uma arquitetura futura podem usar.
 
 Antes de um profile low-bit/high-bit virar **Candidato**, ele precisa de:
 
-- tabela dos estados lógicos de `Option`, enum, `Any` e nested options;
+- tabela dos estados lógicos de `Option`, enum, erased container e nested options;
 - layout fallback completo, inclusive clone/move/drop e OOM;
 - regra de observabilidade alinhada a W-O043–W-O045;
 - teste diferencial fallback/niche/low-bit;
@@ -88,7 +89,7 @@ O benefício só existe se encode/decode, branches adicionais e restrições de 
 
 ## Objetivos do experimento
 
-1. Medir quando `Any`, `Option<Ref>` e referências internas ganham com uma palavra tagged.
+1. Medir quando um erased container interno, `Option<Ref>` e referências internas ganham com uma palavra tagged.
 2. Preservar exatamente a semântica e todos os bits observáveis do valor lógico.
 3. Selecionar a representação tarde no lowering, depois de conhecer target, ABI, sanitizers e fronteiras públicas.
 4. Manter uma representação portátil sempre disponível e coberta pelos mesmos testes.
@@ -132,9 +133,9 @@ O frontend e o HIR devem representar tipos lógicos, não o truque de bits escol
 - Nested options e valores cujo zero é válido não podem ser achatados de forma a perder casos.
 - Em `repr(C)`, persistência ou ABI versionada, o layout é o declarado pela fronteira, não o melhor niche local.
 
-### `Any`
+### Erased container interno
 
-`Any` é o principal candidato a tagged scalars porque já precisa carregar identidade de tipo.
+Um container erased interno é candidato a tagged scalars porque já precisa carregar identidade de tipo. Isso não reintroduz `Any` na superfície v0.
 
 - O fallback portátil é uma tag explícita acompanhada de payload inline ou ponteiro para box.
 - A variante compacta pode guardar alguns inteiros, bools ou referências diretamente.
@@ -153,7 +154,7 @@ Uma referência a objeto continua sendo uma referência com provenance, lifetime
 
 `i64` e `u64` preservam 64 bits; `f64` preserva todos os padrões de bits IEEE-754 suportados pelo target, incluindo `-0`, infinities e payloads de NaN quando observáveis pelas operações definidas.
 
-Se um `Any` compacto não puder armazenar um `i64` ou `f64` integralmente, ele usa box ou payload lateral. Truncar mantissa, reservar extremos como null/error ou reduzir o range deixa de ser otimização transparente e, portanto, está fora desta hipótese.
+Se o erased container compacto não puder armazenar um `i64` ou `f64` integralmente, ele usa box ou payload lateral. Truncar mantissa, reservar extremos como null/error ou reduzir o range deixa de ser otimização transparente e, portanto, está fora desta hipótese.
 
 ## Riscos concretos encontrados
 
@@ -189,7 +190,7 @@ Encode deve validar o range antes de qualquer shift. Se o valor não couber, a o
 
 `tbytes.c` demonstra que remover bits da mantissa muda o número. OR de uma tag sobre bits de `double`, mesmo seguido de restauração aproximada, não preserva todos os valores.
 
-Uma otimização transparente precisa fazer round-trip bit-exact. Na ausência de um encoding que preserve isso, `f64` dentro de `Any` usa box, payload lateral ou uma variante maior. NaN-boxing é uma hipótese separada e também precisa provar preservação, espaço de NaNs permitido e compatibilidade com canonicalização do target.
+Uma otimização transparente precisa fazer round-trip bit-exact. Na ausência de um encoding que preserve isso, `f64` dentro do erased container usa box, payload lateral ou uma variante maior. NaN-boxing é uma hipótese separada e também precisa provar preservação, espaço de NaNs permitido e compatibilidade com canonicalização do target.
 
 ### Refcount, tags e reclamation
 
@@ -233,7 +234,7 @@ Representações portáteis candidatas, escolhidas por tipo e não globalmente:
 
 ```text
 Option<T>  = { present: bool, payload: T }
-Any        = { type_id: TypeId, payload: InlineStorage | BoxRef }
+ErasedValue = { type_id: TypeId, payload: InlineStorage | BoxRef }
 ObjectRef  = ponteiro/handle normal para header + payload
 Shared<T>  = referência para controle de ownership separado
 ```
@@ -259,7 +260,7 @@ Cada célula aprovada deve registrar arquitetura, OS, versão mínima, ABI, comp
 
 ## Lugar no pipeline MLIR
 
-`Option<T>`, `Any` e referências devem permanecer tipos/operações de alto nível no dialeto W enquanto ownership, efeitos e fronteiras ainda importarem. Um passe tardio de representation selection recebe:
+`Option<T>`, existentials/`ErasedValue` interno e referências devem permanecer tipos/operações de alto nível no dialeto W enquanto ownership, efeitos e fronteiras ainda importarem. Um passe tardio de representation selection recebe:
 
 - data layout do target;
 - visibility e estabilidade de ABI;
@@ -274,7 +275,7 @@ O passe escolhe fallback, niche, inline payload ou box. Lowerings seguintes trab
 
 ### Fase 0 — contrato e oracle
 
-1. Definir semanticamente `Option<Ref>`, um subset mínimo de `Any` e `ObjectRef`.
+1. Definir semanticamente `Option<Ref>`, um subset mínimo de `ErasedValue` interno e `ObjectRef`.
 2. Implementar a representação fallback sem bitfields nem extensões de arquitetura.
 3. Especificar ownership de boxes, clone/move/drop e comportamento de OOM.
 4. Fixar um formato de teste diferencial independente do layout.
@@ -326,7 +327,7 @@ Comparar, no mínimo:
 
 Workloads:
 
-- arrays grandes de `Any` com distribuições diferentes de scalars/objects;
+- arrays grandes de `ErasedValue` interno com distribuições diferentes de scalars/objects;
 - `Option<Ref>` em árvores, tabelas e traversals;
 - parsing/serialização com valores temporários;
 - dispatch e arithmetic sobre pequenos valores dinâmicos;
@@ -356,7 +357,7 @@ Um profile só vira candidato de implementação quando:
 - documenta ABI, tooling e custo de manutenção;
 - pode ser removido sem alterar o source W.
 
-Mesmo aprovado, o resultado será uma decisão de backend por target. A semântica pública continuará sendo `Option`, `Any`, referências e números de largura declarada.
+Mesmo aprovado, o resultado será uma decisão de backend por target. A semântica pública continuará sendo `Option`, existentials, referências e números de largura declarada; `ErasedValue` permanece detalhe interno.
 
 O estado da hipótese e das decisões relacionadas permanece em
 [STATUS.md](../STATUS.md).

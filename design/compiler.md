@@ -161,6 +161,8 @@ registrar, antes de entrar no MLIR:
 - símbolo resolvido, módulo de origem e edição que autorizou cada lookup std
   implícito, sem perder effect/capability ou reachability;
 - categorias `struct`, `object`, `enum`, protocol/existential e refinement;
+- para cada refinement, tipo lógico base, predicate normalizado, range provado,
+  layout canônico e pontos onde o endereço/layout se torna observável;
 - dimensões/unidades normalizadas, literal original, overflow, rounding e modo
   floating-point observável;
 - estado de inicialização por caminho de controle;
@@ -204,6 +206,21 @@ implementação permanente. O projeto não deve depender da expectativa de que a
 [C API do MLIR](https://mlir.llvm.org/docs/CAPI/) cubra com estabilidade todas as
 APIs necessárias para definir dialetos e passes; qualquer binding fica atrás de
 um adaptador estreito e versionado pelo toolchain.
+
+Range propagation ocorre antes da escolha física de storage. O pipeline pode
+usar a análise de ranges inteiros do MLIR e comunicar ranges preservados ao
+LLVM, mas mantém no dialeto W a distinção entre tipo lógico, layout canônico e
+representação especializada. Um passe tardio de representation selection:
+
+1. encontra niches e larguras mínimas provadas;
+2. rejeita compactação em ABI, FFI, persistence, raw view e address-taken;
+3. especializa SSA/storage interno e escolhe lanes SIMD/target quando legais;
+4. insere extensão, validação e checks necessários antes de perder o refinement;
+5. registra a escolha para `w explain layout` e metadata do artefato.
+
+Não se cria um `ref`/`inout` para um proxy descompactado temporário: addressability
+é uma barreira de representação. Isso evita write-back implícito em erro,
+cancelamento ou aliasing.
 
 ### Verificadores obrigatórios
 
