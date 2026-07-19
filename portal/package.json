@@ -1,0 +1,14 @@
+{
+  "name": "w-language-portal",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "bun check.ts",
+    "dev": "bun --watch server.ts",
+    "start": "bun server.ts"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  }
+}

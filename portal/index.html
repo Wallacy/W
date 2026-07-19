@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Portal oficial em construção da linguagem W — visão, livro, referência e playground de especificação."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>W Portal · Visão · Working Draft</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/w-syntax.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="W Portal — visão">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-copy">
+          <strong>W</strong>
+          <small>Portal</small>
+        </span>
+      </a>
+
+      <div class="draft-stamp" title="Documento exploratório, não uma especificação final">
+        <span class="status-dot" aria-hidden="true"></span>
+        Working Draft · 0.2
+      </div>
+
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro">
+        <span class="theme-icon" aria-hidden="true">◐</span>
+        <span data-theme-label>Tema</span>
+      </button>
+    </header>
+
+    <nav class="portal-nav" aria-label="Navegação principal">
+      <a href="/" aria-current="page">Visão</a>
+      <a href="/book">Livro</a>
+      <a href="/reference">Referência</a>
+      <a href="/playground">Playground</a>
+      <a href="/status">Status</a>
+    </nav>
+
+    <div class="draft-banner" role="note">
+      <strong>Documento vivo.</strong>
+      Esta página mostra uma direção de linguagem — não afirma que já exista um compilador W.
+    </div>
+
+    <div class="page-shell">
+      <aside class="rail" aria-label="Navegação da visão geral">
+        <div class="rail-inner">
+          <p class="rail-label">Nesta página</p>
+          <nav class="section-nav" data-section-nav>
+            <a href="#inicio">Visão</a>
+            <a href="#essenciais">Essenciais</a>
+            <a href="#tipos">Tipos &amp; modelos</a>
+            <a href="#fluxo">Fluxo &amp; erros</a>
+            <a href="#concorrencia">Concorrência</a>
+            <a href="#memoria">Memória</a>
+            <a href="#strings">Strings</a>
+            <a href="#sistemas">Sistemas</a>
+            <a href="#pacotes">Pacotes</a>
+            <a href="#pipeline">Pipeline</a>
+            <a href="#aberto">Em aberto</a>
+          </nav>
+
+          <div class="rail-note">
+            <span class="mono">W → intenção</span>
+            <p>Leia o código e antecipe o runtime sem depender de magia.</p>
+          </div>
+        </div>
+      </aside>
+
+      <main id="conteudo">
+        <section class="hero tracked-section" id="inicio" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow">Uma linguagem de sistemas feita para ser lida</p>
+            <h1 id="hero-title">
+              Prazer para humanos.<br />
+              <span>Clareza para máquinas.</span>
+            </h1>
+            <p class="hero-lead">
+              W explora a previsibilidade de C, a expressão de Swift e a clareza de TypeScript —
+              com concorrência e paralelismo dizendo exatamente o que pretendem fazer.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#essenciais">Explorar a sintaxe</a>
+              <a class="button ghost" href="#pipeline">Ver como compila</a>
+            </div>
+          </div>
+
+          <div class="hero-code" aria-label="Amostra da linguagem W">
+            <div class="window-bar" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <small>hello.w</small>
+            </div>
+            <pre><code><span class="tok-key">struct</span> Greeting {
+  <span class="tok-key">let</span> name: String
+}
+
+<span class="tok-key">fn</span> welcome(to guest: Greeting): String {
+  <span class="tok-key">return</span> <span class="tok-str">"Olá, ${guest.name}!"</span>
+}
+
+<span class="tok-key">const</span> language = <span class="tok-str">"W"</span>
+<span class="tok-fn">print</span>(welcome(to: Greeting(name: language)))</code></pre>
+            <div class="intent-line">
+              <span aria-hidden="true">↳</span>
+              valor explícito · efeito visível · leitura linear
+            </div>
+          </div>
+        </section>
+
+        <section class="principles" aria-label="Princípios da linguagem">
+          <article>
+            <span class="principle-number">01</span>
+            <h2>Clara na leitura</h2>
+            <p>O custo e o efeito de uma operação devem aparecer perto de onde ela acontece.</p>
+          </article>
+          <article>
+            <span class="principle-number">02</span>
+            <h2>Segura por padrão</h2>
+            <p>Estados ausentes, erros, mutação e compartilhamento ganham representação própria.</p>
+          </article>
+          <article>
+            <span class="principle-number">03</span>
+            <h2>Próxima do metal</h2>
+            <p>Abstrações podem ser agradáveis sem esconder memória, paralelismo ou interoperabilidade.</p>
+          </article>
+        </section>
+
+        <section class="status-key" aria-labelledby="status-title">
+          <div>
+            <p class="section-kicker">Como ler esta página</p>
+            <h2 id="status-title">Toda ideia carrega seu estado</h2>
+          </div>
+          <div class="status-list">
+            <div>
+              <span class="badge decision">Direção</span>
+              <p>Base adotada para continuar o desenho; ainda revisável durante o Working Draft.</p>
+            </div>
+            <div>
+              <span class="badge proposal">Candidato</span>
+              <p>Forma promissora que precisa de casos de uso, semântica e implementação validados.</p>
+            </div>
+            <div>
+              <span class="badge open">Em aberto</span>
+              <p>Escolha deliberadamente não fechada; alternativas aparecem no fim da página.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="explorer" aria-labelledby="explorer-title">
+          <div class="explorer-heading">
+            <div>
+              <p class="section-kicker">Referência explorável</p>
+              <h2 id="explorer-title">Encontre uma ideia</h2>
+            </div>
+            <p class="result-count" data-result-count aria-live="polite">Todos os exemplos visíveis</p>
+          </div>
+
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5"></circle>
+              <path d="m16 16 4 4"></path>
+            </svg>
+            <label class="sr-only" for="syntax-search">Buscar na visão da linguagem</label>
+            <input
+              id="syntax-search"
+              type="search"
+              inputmode="search"
+              autocomplete="off"
+              placeholder="Busque por async, enum, Port, package…"
+              data-search
+            />
+            <kbd aria-hidden="true">/</kbd>
+          </div>
+
+          <div class="filters" role="group" aria-label="Filtrar exemplos por assunto" data-filters>
+            <button type="button" class="filter is-active" data-filter="all" aria-pressed="true">Tudo</button>
+            <button type="button" class="filter" data-filter="base" aria-pressed="false">Base</button>
+            <button type="button" class="filter" data-filter="types" aria-pressed="false">Tipos</button>
+            <button type="button" class="filter" data-filter="flow" aria-pressed="false">Fluxo</button>
+            <button type="button" class="filter" data-filter="concurrency" aria-pressed="false">Concorrência</button>
+            <button type="button" class="filter" data-filter="systems" aria-pressed="false">Sistemas</button>
+            <button type="button" class="filter" data-filter="tooling" aria-pressed="false">Tooling</button>
+          </div>
+        </section>
+
+        <div class="portal-overview" data-portal-overview>
+          <section class="syntax-section tracked-section" id="essenciais" data-section>
+            <div class="section-heading">
+              <span class="section-index">01</span>
+              <div>
+                <p class="section-kicker">Comece por aqui</p>
+                <h2>Essenciais</h2>
+                <p>Uma superfície familiar, tipada e pequena para as operações mais comuns.</p>
+              </div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card featured" data-topics="base bindings const let var mutabilidade">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Bindings dizem quando mudam</h3>
+                  </div>
+                  <span class="card-token">const · let · var</span>
+                </div>
+                <p class="card-summary">
+                  Constante de compilação, valor imutável em runtime e variável mutável usam nomes distintos.
+                </p>
+                <div class="code-shell">
+                  <pre><code>const maxConnections: u16 = 128
+let endpoint = URL("https://example.dev")
+var attempts = 0
+
+attempts += 1</code></pre>
+                </div>
+                <div class="semantic-row">
+                  <span><b>const</b> conhecido ao compilar</span>
+                  <span><b>let</b> atribuído uma vez</span>
+                  <span><b>var</b> mutação local</span>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="base função fn parâmetros retorno inferência">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Funções leem como contratos</h3>
+                  </div>
+                  <span class="card-token">fn</span>
+                </div>
+                <p class="card-summary">Parâmetros e retorno ficam juntos; inferência ajuda dentro do corpo.</p>
+                <div class="code-shell">
+                  <pre><code>fn clamp(value: i32, min: i32, max: i32): i32 {
+  if value &lt; min { return min }
+  if value &gt; max { return max }
+  return value
+}
+
+let volume = clamp(value: 72, min: 0, max: 100)</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="base pipeline operador pipe composição">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Pesquisa</span>
+                    <h3>Transformações podem fluir</h3>
+                  </div>
+                  <span class="card-token">|&gt;</span>
+                </div>
+                <p class="card-summary">Um operador de pipeline pode tornar cadeias lineares sem criar chamadas implícitas.</p>
+                <div class="code-shell">
+                  <pre><code>let label = input
+  |&gt; trim
+  |&gt; lowercase
+  |&gt; slug
+
+// Deve equivaler a: slug(lowercase(trim(input)))</code></pre>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="tipos" data-section>
+            <div class="section-heading">
+              <span class="section-index">02</span>
+              <div>
+                <p class="section-kicker">Modelar antes de executar</p>
+                <h2>Tipos &amp; modelos</h2>
+                <p>Valor, identidade e variação são conceitos diferentes — e aparecem diferentes no código.</p>
+              </div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card" data-topics="types struct valor value produto">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3><code>struct</code> é valor</h3>
+                  </div>
+                  <span class="card-token">value semantics</span>
+                </div>
+                <p class="card-summary">Dados compactos e independentes, comparáveis por conteúdo quando seus campos permitem.</p>
+                <div class="code-shell">
+                  <pre><code>struct Point {
+  let x: f64
+  let y: f64
+}
+
+let origin = Point(x: 0, y: 0)
+let next = origin // outro valor</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="types object identidade referência reference heap">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3><code>object</code> tem identidade</h3>
+                  </div>
+                  <span class="card-token">reference semantics</span>
+                </div>
+                <p class="card-summary">Entidades têm identidade e owner único; compartilhar exige um mecanismo explícito ainda em aberto.</p>
+                <div class="code-shell">
+                  <pre><code>object Session {
+  let id: SessionId
+  var state: SessionState
+}
+
+let primary = Session(id: id, state: .open)
+let active = take primary // transfere o owner</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card wide" data-topics="types enum sum type associated values pattern switch estados">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3><code>enum</code> torna estados completos</h3>
+                  </div>
+                  <span class="card-token">sum type</span>
+                </div>
+                <p class="card-summary">Cada caso pode carregar dados; o consumidor trata todas as possibilidades.</p>
+                <div class="split-code">
+                  <div class="code-shell">
+                    <pre><code>enum LoadState&lt;T&gt; {
+  idle
+  loading(progress: f32)
+  ready(T)
+  failed(NetworkError)
+}</code></pre>
+                  </div>
+                  <div class="code-shell">
+                    <pre><code>switch state {
+  case .idle: showPlaceholder()
+  case .loading(let progress): show(progress)
+  case .ready(let value): render(value)
+  case .failed(let error): report(error)
+}</code></pre>
+                  </div>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="types protocol interface generic comportamento conformidade">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3><code>protocol</code> descreve capacidade</h3>
+                  </div>
+                  <span class="card-token">contract</span>
+                </div>
+                <p class="card-summary">Comportamento é declarado sem impor hierarquia de objetos.</p>
+                <div class="code-shell">
+                  <pre><code>protocol Encodable {
+  mut fn encode(self, to writer: inout Writer): Void throws EncodeError
+}
+
+fn persist&lt;T: Encodable&gt;(value: ref T): Void throws StoreError {
+  // usa somente o contrato de T
+}</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="types optional opção none nulo null T? ausência">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Ausência usa <code>T?</code></h3>
+                  </div>
+                  <span class="card-token">.none</span>
+                </div>
+                <p class="card-summary">Nada de referência nula escondida: um valor opcional é presença ou <code>.none</code>.</p>
+                <div class="code-shell">
+                  <pre><code>fn nickname(for user: User): String? {
+  if user.nickname.isEmpty { return .none }
+  return user.nickname
+}
+
+if let name = nickname(for: user) {
+  print(name)
+}</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="types refinamento refined where range Port validação domínio">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Restrições vivem no tipo</h3>
+                  </div>
+                  <span class="card-token">where</span>
+                </div>
+                <p class="card-summary">Tipos refinados podem validar fronteiras uma vez e carregar a garantia adiante.</p>
+                <div class="code-shell">
+                  <pre><code>type Port = u16 where value in 1...65535
+type Percentage = f32 where value in 0...100
+
+fn listen(on port: Port): Server throws BindError {
+  // port já respeita o domínio declarado
+}</code></pre>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="fluxo" data-section>
+            <div class="section-heading">
+              <span class="section-index">03</span>
+              <div>
+                <p class="section-kicker">Efeitos à vista</p>
+                <h2>Fluxo &amp; erros</h2>
+                <p>Falhas recuperáveis fazem parte da assinatura e chamadas que podem falhar pedem <code>try</code>.</p>
+              </div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card featured" data-topics="flow erros throws Error try catch falha">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>O caminho de erro é tipado</h3>
+                  </div>
+                  <span class="card-token">throws · try</span>
+                </div>
+                <p class="card-summary">A assinatura anuncia falha; o ponto de chamada mostra propagação ou tratamento.</p>
+                <div class="split-code">
+                  <div class="code-shell">
+                    <pre><code>enum ConfigError: Error {
+  missing(Path)
+  invalid(line: u32, reason: String)
+}
+
+fn readConfig(at path: Path): Config throws ConfigError {
+  // ...
+}</code></pre>
+                  </div>
+                  <div class="code-shell">
+                    <pre><code>fn boot(): App throws ConfigError {
+  let config = try readConfig(at: "app.wconf")
+  return App(config: config)
+}
+
+do {
+  try boot().run()
+} catch .invalid(let line, let reason) {
+  eprint("linha ${line}: ${reason}")
+}</code></pre>
+                  </div>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="flow if guard switch pattern matching controle">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Padrões, sem cascata acidental</h3>
+                  </div>
+                  <span class="card-token">switch</span>
+                </div>
+                <p class="card-summary">Casos são exclusivos e podem decompor valores diretamente.</p>
+                <div class="code-shell">
+                  <pre><code>switch command {
+  case .serve(let port) where port &lt; 1024:
+    requestPrivileges()
+  case .serve(let port):
+    try serve(on: port)
+  case .version:
+    print(build.version)
+}</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="flow defer cleanup escopo recurso">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Limpeza pertence ao escopo</h3>
+                  </div>
+                  <span class="card-token">defer</span>
+                </div>
+                <p class="card-summary">Recursos adquiridos localmente declaram sua liberação ao lado da aquisição.</p>
+                <div class="code-shell">
+                  <pre><code>fn inspect(path: Path): Header throws IoError {
+  let file = try File.open(path)
+  defer file.close()
+
+  return try file.read(Header.self)
+}</code></pre>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="concorrencia" data-section>
+            <div class="section-heading">
+              <span class="section-index">04</span>
+              <div>
+                <p class="section-kicker">Duas intenções, duas palavras</p>
+                <h2>Concorrência &amp; paralelismo</h2>
+                <p><code>async let</code> organiza trabalho concorrente; <code>spawn let</code> pede execução paralela.</p>
+              </div>
+            </div>
+
+            <div class="intent-compare">
+              <article class="intent-card async-intent">
+                <div class="intent-symbol" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+                <div>
+                  <span class="badge proposal">Candidato</span>
+                  <h3><code>async let</code></h3>
+                  <p>Sobrepor espera e I/O dentro de um escopo estruturado.</p>
+                </div>
+                <small>CONCORRÊNCIA</small>
+              </article>
+              <article class="intent-card spawn-intent">
+                <div class="intent-symbol" aria-hidden="true">
+                  <span></span><span></span><span></span>
+                </div>
+                <div>
+                  <span class="badge proposal">Candidato</span>
+                  <h3><code>spawn let</code></h3>
+                  <p>Distribuir trabalho computacional com isolamento verificável.</p>
+                </div>
+                <small>PARALELISMO</small>
+              </article>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card" data-topics="concurrency async let await concorrência structured cancellation io tarefas">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Concorrência estruturada</h3>
+                  </div>
+                  <span class="card-token">async let · await</span>
+                </div>
+                <p class="card-summary">Filhos não escapam do escopo: conclusão, erro e cancelamento voltam ao pai.</p>
+                <div class="code-shell">
+                  <pre><code>fn dashboard(for id: UserId): Dashboard async throws ApiError {
+  async let profile = fetchProfile(id)
+  async let activity = fetchActivity(id)
+
+  return Dashboard(
+    profile: try await profile,
+    activity: try await activity
+  )
+}</code></pre>
+                </div>
+                <div class="runtime-note">
+                  <span aria-hidden="true">↳</span>
+                  O escopo aguarda ou cancela os dois filhos antes de sair.
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="concurrency spawn let await paralelismo cpu threads tarefas data race">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Paralelismo explícito</h3>
+                  </div>
+                  <span class="card-token">spawn let · await</span>
+                </div>
+                <p class="card-summary">O programador pede capacidade paralela; o sistema escolhe workers, não o resultado.</p>
+                <div class="code-shell">
+                  <pre><code>fn sumBoth(values: [i64]): i64 async {
+  let middle = values.count / 2
+
+  spawn let left = sum(values[..middle])
+  spawn let right = sum(values[middle..])
+
+  return await left + await right
+}</code></pre>
+                </div>
+                <div class="runtime-note">
+                  <span aria-hidden="true">↳</span>
+                  Capturas precisam ser seguras para cruzar uma fronteira paralela.
+                </div>
+              </article>
+
+              <article class="cheat-card wide" data-topics="concurrency escopo cancelamento timeout deadline task group structured">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge open">Em aberto</span>
+                    <h3>Políticas pertencem ao escopo</h3>
+                  </div>
+                  <span class="card-token">with timeout</span>
+                </div>
+                <p class="card-summary">Timeout, limite e cancelamento podem ser estruturais em vez de opções espalhadas.</p>
+                <div class="code-shell compact-code">
+                  <pre><code>with timeout(2.seconds) {
+  async let primary = query(primaryStore)
+  async let fallback = query(cache)
+  return try await first(primary, fallback)
+}</code></pre>
+                </div>
+                <p class="card-caveat"><b>Em validação:</b> forma da API, vencedor de <code>first</code> e regra de cancelamento dos demais filhos.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="memoria" data-section>
+            <div class="section-heading">
+              <span class="section-index">05</span>
+              <div>
+                <p class="section-kicker">Ownership sem dominar a página</p>
+                <h2>Memória &amp; passagem</h2>
+                <p>O caminho comum deve ser simples; operações que alteram ownership ganham vocabulário explícito.</p>
+              </div>
+            </div>
+
+            <div class="ownership-strip" aria-label="Operadores de passagem e ownership">
+              <div><code>ref T</code><span>empréstimo somente leitura</span></div>
+              <div><code>inout T</code><span>empréstimo mutável exclusivo</span></div>
+              <div><code>take value</code><span>transfere ownership</span></div>
+              <div><code>copy value</code><span>duplica intencionalmente</span></div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card featured" data-topics="systems memória ownership ref inout take copy empréstimo movimento">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Custo excepcional fica visível</h3>
+                  </div>
+                  <span class="card-token">ref · inout · take · copy</span>
+                </div>
+                <p class="card-summary">Anotações aparecem nas fronteiras relevantes, não em cada uso cotidiano de um valor.</p>
+                <div class="split-code">
+                  <div class="code-shell">
+                    <pre><code>fn checksum(bytes: ref [u8]): u64
+mut fn normalize(buffer: inout Buffer): Void
+fn enqueue(job: take Job): Ticket
+fn snapshot(state: ref State): State {
+  return copy state
+}</code></pre>
+                  </div>
+                  <div class="effect-list" aria-label="Efeitos do exemplo">
+                    <div><span>ref</span><p>Observa, não retém nem altera.</p></div>
+                    <div><span>inout</span><p>Altera durante uma janela exclusiva.</p></div>
+                    <div><span>take</span><p>Origem deixa de poder usar o valor.</p></div>
+                    <div><span>copy</span><p>Custo de duplicação é solicitado.</p></div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="systems memória lifetime arena allocator baixo nível">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge open">Em aberto</span>
+                    <h3>Estratégia de memória</h3>
+                  </div>
+                  <span class="card-token">runtime?</span>
+                </div>
+                <p class="card-summary">ARC, regions, tracing seletivo e análise estática ainda precisam de protótipos comparáveis.</p>
+                <div class="decision-box">
+                  <strong>Invariante desejada</strong>
+                  <p>Sem use-after-free ou data race no código seguro; escape hatches isolados, auditáveis e explícitos.</p>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="strings" data-section>
+            <div class="section-heading">
+              <span class="section-index">06</span>
+              <div>
+                <p class="section-kicker">Texto sem fingir que é simples</p>
+                <h2>Strings UTF-8</h2>
+                <p>Uma string; quatro vistas explícitas para escolher correção humana ou acesso binário.</p>
+              </div>
+            </div>
+
+            <article class="string-visual cheat-card" data-topics="types systems string utf-8 bytes scalars graphemes unicode texto">
+              <div class="card-topline">
+                <div>
+                  <span class="badge proposal">Candidato</span>
+                  <h3>O índice declara o que conta</h3>
+                </div>
+                <span class="card-token">UTF-8</span>
+              </div>
+
+              <div class="string-sample" aria-label="Representações da string café">
+                <div class="string-word">caf<span>é</span><small>texto</small></div>
+                <div class="string-layers">
+                  <div>
+                    <b><code>.bytes</code></b>
+                    <span class="cells bytes"><i>63</i><i>61</i><i>66</i><i>C3</i><i>A9</i></span>
+                    <small>5 unidades · protocolo / arquivo</small>
+                  </div>
+                  <div>
+                    <b><code>.scalars</code></b>
+                    <span class="cells"><i>c</i><i>a</i><i>f</i><i>é</i></span>
+                    <small>4 valores Unicode · transformação</small>
+                  </div>
+                  <div>
+                    <b><code>.graphemes</code></b>
+                    <span class="cells graphemes"><i>c</i><i>a</i><i>f</i><i>é</i></span>
+                    <small>4 caracteres percebidos · UI</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="split-code">
+                <div class="code-shell">
+                  <pre><code>let title = "Olá, 🌎"
+
+let wireSize = title.bytes.count
+let letters = title.graphemes.count
+
+for scalar in title.scalars {
+  inspect(scalar)
+}</code></pre>
+                </div>
+                <div class="decision-box">
+                  <strong>Regra de leitura</strong>
+                  <p><code>String</code> é UTF-8. Acesso por número sem escolher uma view não faz parte do modelo candidato.</p>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="syntax-section tracked-section" id="sistemas" data-section>
+            <div class="section-heading">
+              <span class="section-index">07</span>
+              <div>
+                <p class="section-kicker">Conviver com o mundo</p>
+                <h2>Módulos &amp; sistemas</h2>
+                <p>Imports previsíveis e uma fronteira visível para código estrangeiro.</p>
+              </div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card" data-topics="systems import módulo modules alias arquivo std">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Imports por nomes lógicos</h3>
+                  </div>
+                  <span class="card-token">import</span>
+                </div>
+                <p class="card-summary">A origem é legível e símbolos importados aparecem no cabeçalho do arquivo.</p>
+                <div class="code-shell">
+                  <pre><code>import { print, eprint } from std.io
+import { Client, Response } from std.net.http
+import { User, Session } from app.models
+import crypto as hashes from std.crypto
+
+let digest = hashes.digest(payload.bytes)</code></pre>
+                </div>
+              </article>
+
+              <article class="cheat-card" data-topics="systems foreign c ffi abi ponteiro pointer libc interop">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>FFI é uma fronteira nomeada</h3>
+                  </div>
+                  <span class="card-token">foreign c</span>
+                </div>
+                <p class="card-summary">ABI, tipos e operações inseguras ficam confinados a um bloco auditável.</p>
+                <div class="code-shell">
+                  <pre><code>foreign c from "stdlib.h" {
+  fn malloc(size: c.size): c.ptr&lt;Void&gt;
+}
+
+fn allocate(size: c.size): Buffer? {
+  let raw = malloc(size)
+  if raw.isNull { return .none }
+  return .some(Buffer(taking: raw, size: size))
+}</code></pre>
+                </div>
+                <p class="card-caveat">O ponteiro C bruto pode ser nulo; a fronteira o verifica antes de produzir o wrapper opcional seguro.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section" id="pacotes" data-section>
+            <div class="section-heading">
+              <span class="section-index">08</span>
+              <div>
+                <p class="section-kicker">Reproduzir, verificar, reconhecer</p>
+                <h2>Pacotes &amp; cadeia de suprimentos</h2>
+                <p>Manifesto humano, resolução travada e artefatos identificados pelo conteúdo.</p>
+              </div>
+            </div>
+
+            <div class="package-flow" aria-label="Fluxo de resolução de pacotes">
+              <div><span>1</span><b>package.w</b><small>intenção</small></div>
+              <i aria-hidden="true">→</i>
+              <div><span>2</span><b>package.lock</b><small>resolução exata</small></div>
+              <i aria-hidden="true">→</i>
+              <div><span>3</span><b>digest</b><small>algoritmo registrado</small></div>
+              <i aria-hidden="true">→</i>
+              <div><span>4</span><b>artefato</b><small>origem rastreável</small></div>
+            </div>
+
+            <div class="card-grid">
+              <article class="cheat-card featured" data-topics="tooling package manager manifesto package.w lock hash sha segurança dependências">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>Manifesto pequeno; lock completo</h3>
+                  </div>
+                  <span class="card-token">package.w · package.lock</span>
+                </div>
+                <p class="card-summary">A versão expressa intenção; o lock registra fonte, conteúdo e resultado exatos.</p>
+                <div class="split-code">
+                  <div>
+                    <p class="code-label">package.w</p>
+                    <div class="code-shell">
+                      <pre><code>package {
+  schema: "w.package/1"
+  name: "acme/aurora"
+  version: "0.1.0"
+  products: [{
+    name: "aurora"
+    kind: .executable
+    root: "src/main.w"
+  }]
+  dependencies: [{
+    alias: "http"
+    package: "w/http"
+    version: "^2.3"
+    source: {
+      kind: .registry
+      registry: "w"
+    }
+  }]
+}</code></pre>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="code-label">package.lock · visão resumida</p>
+                    <div class="code-shell">
+                      <pre><code>{
+  schema: "&lt;lock-schema-version&gt;"
+  packages: [{
+    alias: "http"
+    package: "w/http"
+    version: "2.3.1"
+    sourceDigest: "&lt;algorithm&gt;:&lt;hex&gt;"
+    target: "linux-x86_64"
+  }]
+}</code></pre>
+                    </div>
+                  </div>
+                </div>
+                <p class="card-caveat"><b>Em aberto:</b> formato final de lock/attestations, algoritmo e migração de digest, identidade/namespaces e regras exatas de revogação/offline. Mirrors não confiáveis, provenance e publicação híbrida de source/artefatos já são a direção.</p>
+              </article>
+
+              <article class="cheat-card" data-topics="tooling package segurança static library dynamic biblioteca sbom assinatura hash">
+                <div class="card-topline">
+                  <div>
+                    <span class="badge proposal">Candidato</span>
+                    <h3>O binário mantém sua proveniência</h3>
+                  </div>
+                  <span class="card-token">content-addressed</span>
+                </div>
+                <p class="card-summary">Bibliotecas verificáveis e metadados incorporados podem facilitar auditoria e identificação no produto final.</p>
+                <ul class="check-list">
+                  <li>hash por conteúdo, não só por nome e versão</li>
+                  <li>build reproduzível como requisito verificável</li>
+                  <li>inventário exportável de componentes</li>
+                  <li>mirrors com confiança e saúde observáveis</li>
+                </ul>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section pipeline-section" id="pipeline" data-section>
+            <div class="section-heading">
+              <span class="section-index">09</span>
+              <div>
+                <p class="section-kicker">Da intenção ao executável</p>
+                <h2>Pipeline proposto</h2>
+                <p>Uma arquitetura para investigar — não um compilador anunciado.</p>
+              </div>
+            </div>
+
+            <figure class="pipeline-map" data-topics="tooling systems compilador compiler mlir llvm emitc c ast hir pipeline backend">
+              <figcaption>
+                <span class="badge proposal">Candidato</span>
+                <p>Cada estágio reduz ambiguidade e preserva informação útil para diagnóstico e otimização.</p>
+              </figcaption>
+
+              <div class="pipeline-main" aria-label="W source para código nativo via MLIR e LLVM">
+                <div class="pipeline-node source-node">
+                  <span>fonte</span><b>W</b><small>intenção humana</small>
+                </div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node">
+                  <span>front-end</span><b>AST</b><small>estrutura</small>
+                </div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node">
+                  <span>semântica</span><b>HIR</b><small>tipos + efeitos</small>
+                </div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node accent-node">
+                  <span>lowering</span><b>W / MLIR</b><small>dialeto próprio</small>
+                </div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node">
+                  <span>backend</span><b>LLVM IR</b><small>otimização</small>
+                </div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node output-node">
+                  <span>produto</span><b>Nativo</b><small>obj / exe / lib</small>
+                </div>
+              </div>
+
+              <div class="pipeline-branch" aria-label="Rota alternativa opcional via EmitC e C">
+                <span>rota opcional de bootstrap / portabilidade</span>
+                <i aria-hidden="true">↳</i>
+                <div class="pipeline-node muted-node"><b>EmitC / C</b><small>saída inspecionável</small></div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node muted-node"><b>toolchain C</b><small>plataforma existente</small></div>
+              </div>
+            </figure>
+
+            <div class="runtime-heading">
+              <div>
+                <p class="section-kicker">O que pode aparecer no runtime</p>
+                <h3>Sem mágica: cada recurso deixa uma pegada</h3>
+              </div>
+              <span class="badge proposal">Pesquisa</span>
+            </div>
+
+            <div class="runtime-grid">
+              <article class="runtime-card" data-topics="systems runtime struct valores stack register memória">
+                <span class="runtime-icon stack-icon" aria-hidden="true"></span>
+                <h4>Valores</h4>
+                <p><code>struct</code> pode ficar inline, em registradores ou na stack. Escape e otimização decidem a representação.</p>
+                <small>Sem identidade obrigatória</small>
+              </article>
+              <article class="runtime-card" data-topics="systems runtime object identidade referência memória">
+                <span class="runtime-icon object-icon" aria-hidden="true"></span>
+                <h4>Identidade</h4>
+                <p><code>object</code> exige endereço/identidade estável e alguma estratégia explícita de vida útil.</p>
+                <small>Modelo de retenção em aberto</small>
+              </article>
+              <article class="runtime-card" data-topics="concurrency runtime async executor scheduler task cancelamento">
+                <span class="runtime-icon task-icon" aria-hidden="true"></span>
+                <h4>Tarefas async</h4>
+                <p>Frames suspensos, fila de prontos e propagação estruturada de conclusão, erro e cancelamento.</p>
+                <small>Executor é política, semântica é contrato</small>
+              </article>
+              <article class="runtime-card" data-topics="concurrency runtime spawn workers threads paralelismo cpu">
+                <span class="runtime-icon worker-icon" aria-hidden="true"></span>
+                <h4>Workers paralelos</h4>
+                <p><code>spawn</code> pode acionar pool de workers ou integração do host, preservando join e isolamento.</p>
+                <small>Quantidade não é promessa de sintaxe</small>
+              </article>
+              <article class="runtime-card" data-topics="types runtime refinamento bounds check Port validação">
+                <span class="runtime-icon check-icon" aria-hidden="true"></span>
+                <h4>Tipos refinados</h4>
+                <p>Checagem na construção ou fronteira; provas do compilador podem remover validações redundantes.</p>
+                <small>Custo visível onde nasce a garantia</small>
+              </article>
+              <article class="runtime-card" data-topics="types systems runtime string utf-8 buffer views unicode">
+                <span class="runtime-icon text-icon" aria-hidden="true"></span>
+                <h4>Texto UTF-8</h4>
+                <p>Buffer de bytes com views; grafemas podem exigir segmentação e não prometem acesso O(1).</p>
+                <small>Complexidade não deve ser escondida</small>
+              </article>
+            </div>
+          </section>
+
+          <section class="syntax-section tracked-section open-section" id="aberto" data-section>
+            <div class="section-heading">
+              <span class="section-index">10</span>
+              <div>
+                <p class="section-kicker">Escolhas que merecem protótipos</p>
+                <h2>Alternativas em aberto</h2>
+                <p>Não fechar cedo demais também é uma decisão de projeto.</p>
+              </div>
+            </div>
+
+            <div class="open-grid">
+              <article data-topics="systems memória arc regions gc ownership">
+                <span>Memória</span>
+                <h3>Qual é o caminho comum?</h3>
+                <p>ARC otimizado, regions/arenas, análise de ownership ou composição seletiva.</p>
+                <small>Medir latência, previsibilidade e carga cognitiva.</small>
+              </article>
+              <article data-topics="concurrency runtime executor scheduler async io">
+                <span>Execução</span>
+                <h3>Quem hospeda o executor?</h3>
+                <p>Runtime W pequeno, executor injetável, integração com event loops ou múltiplos perfis.</p>
+                <small>Separar a semântica da política.</small>
+              </article>
+              <article data-topics="tooling package registry mirror assinatura source binary">
+                <span>Distribuição</span>
+                <h3>Fonte, artefato ou ambos?</h3>
+                <p>Pacotes source-first, binários verificados por target ou publicação híbrida.</p>
+                <small>Preservar auditabilidade e reprodutibilidade.</small>
+              </article>
+              <article data-topics="tooling systems mlir llvm emitc c backend bootstrap">
+                <span>Compilação</span>
+                <h3>Como implementar o core MLIR e o subset EmitC?</h3>
+                <p>MLIR é a baseline; implementação do core e cobertura do backend EmitC continuam em aberto.</p>
+                <small>Prototipar o menor corte vertical.</small>
+              </article>
+              <article data-topics="types generics monomorphization witness table protocol abi">
+                <span>Tipos</span>
+                <h3>Como especializar genéricos?</h3>
+                <p>Monomorfização, witness tables ou estratégia híbrida conforme fronteira ABI.</p>
+                <small>Tamanho, velocidade e incrementalidade importam.</small>
+              </article>
+              <article data-topics="systems ffi foreign c safety ponteiros baixo nível">
+                <span>Interop</span>
+                <h3>Quão estreita é a fronteira C bruta?</h3>
+                <p>Quais wrappers e capabilities restabelecem garantias ao voltar ao código seguro.</p>
+                <small>O local inseguro precisa ser encontrável.</small>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <div class="empty-state" data-empty-state hidden>
+          <span aria-hidden="true">⌁</span>
+          <h2>Nenhuma ideia encontrada</h2>
+          <p>Tente outro termo ou volte ao filtro “Tudo”.</p>
+          <button type="button" class="button ghost" data-clear-search>Limpar busca</button>
+        </div>
+
+        <section class="closing" aria-labelledby="closing-title">
+          <p class="eyebrow">O contrato de W</p>
+          <h2 id="closing-title">Poder sem adivinhação.</h2>
+          <p>
+            Se uma operação pode falhar, suspender, compartilhar, mover ou custar caro, o código deve ajudar você a perceber.
+          </p>
+          <a href="#inicio">Voltar ao início <span aria-hidden="true">↑</span></a>
+        </section>
+      </main>
+    </div>
+
+    <footer>
+      <div class="footer-mark">W</div>
+      <div>
+        <strong>Prazer para humanos. Clareza para máquinas.</strong>
+        <p>W Portal · Working Draft · não representa uma implementação disponível.</p>
+      </div>
+      <a href="/README.md">Como executar</a>
+    </footer>
+
+    <div class="copy-status sr-only" aria-live="polite" aria-atomic="true" data-copy-status></div>
+    <noscript>
+      <p class="noscript">A sintaxe continua legível sem JavaScript; busca, filtros, tema e cópia ficam desativados.</p>
+    </noscript>
+  </body>
+</html>

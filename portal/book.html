@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="O Livro de W: introdução progressiva à proposta da linguagem." />
+    <meta name="color-scheme" content="light dark" />
+    <title>W Portal · Livro · Working Draft</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/w-syntax.js" defer></script>
+    <script src="/app.js" defer></script>
+    <script src="/book.js" defer></script>
+  </head>
+  <body class="docs-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="W Portal — visão">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-copy"><strong>W</strong><small>Portal</small></span>
+      </a>
+      <div class="draft-stamp"><span class="status-dot" aria-hidden="true"></span>Working Draft · 0.2</div>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro">
+        <span class="theme-icon" aria-hidden="true">◐</span><span data-theme-label>Tema</span>
+      </button>
+    </header>
+    <nav class="portal-nav" aria-label="Navegação principal">
+      <a href="/">Visão</a><a href="/book" aria-current="page">Livro</a><a href="/reference">Referência</a>
+      <a href="/playground">Playground</a><a href="/status">Status</a>
+    </nav>
+    <div class="draft-banner" role="note">
+      <strong>Livro de uma linguagem em design.</strong> Exemplos são candidatos para prototipação, não código executável.
+    </div>
+
+    <div class="book-shell">
+      <aside class="book-sidebar" aria-label="Capítulos do livro">
+        <div class="book-sidebar-inner">
+          <p class="rail-label">O Livro de W</p>
+          <nav class="book-toc" data-book-nav>
+            <a href="#introducao">1. Introdução e status</a>
+            <a href="#primeiro-programa">2. Primeiro programa</a>
+            <a href="#bindings-funcoes">3. Bindings e funções</a>
+            <a href="#tipos-options-errors">4. Tipos, options e errors</a>
+            <a href="#controle-strings">5. Controle e strings</a>
+            <a href="#ownership-memoria">6. Ownership e memória</a>
+            <a href="#concorrencia">7. Concorrência e paralelismo</a>
+            <a href="#modulos-services-workers">8. Módulos, services e workers</a>
+            <a href="#restaurante-w">9. O restaurante W</a>
+            <a href="#ffi">10. FFI</a>
+            <a href="#packages">11. Packages e reprodutibilidade</a>
+            <a href="#proximos-passos">12. Próximos passos</a>
+          </nav>
+          <progress class="reading-progress" max="100" value="0" data-reading-progress aria-label="Progresso de leitura"></progress>
+          <p class="sidebar-source">Fonte pedagógica: <a href="/docs/LANGUAGE_TOUR.md">passeio canônico</a>.</p>
+        </div>
+      </aside>
+
+      <main id="conteudo" class="book-content">
+        <header class="book-hero">
+          <p class="eyebrow">Aprenda por camadas</p>
+          <h1>O Livro de W</h1>
+          <p>Uma leitura progressiva da experiência que W quer oferecer, descendo da primeira linha de código até runtime, interoperabilidade e builds verificáveis.</p>
+          <div class="book-meta">
+            <span class="badge proposal">Candidato</span>
+            <span>12 capítulos</span>
+            <a href="/status">Entenda os estados</a>
+          </div>
+        </header>
+
+        <article class="book-chapter" id="introducao" data-book-section>
+          <p class="chapter-number">Capítulo 1</p>
+          <h2>Introdução e status</h2>
+          <p>W é uma proposta de linguagem de sistemas nativa. Seu norte combina prazer de uso com previsibilidade: falha, suspensão, mutação, transferência e paralelismo devem aparecer no contrato ou no ponto em que acontecem.</p>
+          <div class="status-callout"><span class="badge decision">Direção</span><p>Os princípios são a base de trabalho. Sintaxe, semântica e arquitetura continuam em diferentes graus de maturidade.</p></div>
+          <p>Leia cada exemplo com o rótulo correto. <strong>Direção</strong> é uma intenção estável; <strong>Candidato</strong> é uma baseline coerente ainda não provada; <strong>Em aberto</strong> conserva alternativas legítimas. Hoje não existe compilador, runtime ou stdlib W implementado.</p>
+          <p class="canonical-links">Continue nas fontes: <a href="/docs/README.md">visão do projeto</a> · <a href="/docs/STATUS.md">registro de status</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="primeiro-programa" data-book-section>
+          <p class="chapter-number">Capítulo 2</p>
+          <h2>Primeiro programa</h2>
+          <p>Um programa começa com imports lógicos e uma função <code>main</code>. O manifest e o lockfile resolvem de onde vem <code>std</code>; o source não espalha URLs e hashes.</p>
+          <div class="code-shell"><pre><code>import { io } from std
+
+fn main() {
+  io.print("Olá, W!")
+}</code></pre></div>
+          <p>Arquivos são UTF-8. Quebras de linha encerram a maior parte das declarações. Essas formas são exemplos dourados de design: você pode estudá-las e editá-las no playground, mas ainda não executá-las.</p>
+          <div class="try-next"><strong>Experimente:</strong> <a href="/playground?example=hello">abra este exemplo no Playground</a> e observe os tokens reconhecidos.</div>
+        </article>
+
+        <article class="book-chapter" id="bindings-funcoes" data-book-section>
+          <p class="chapter-number">Capítulo 3</p>
+          <h2>Bindings e funções</h2>
+          <p><code>const</code> nomeia um valor disponível no compile time hermético; <code>let</code> cria um binding runtime que não pode ser reatribuído; <code>var</code> torna a reatribuição explícita.</p>
+          <div class="code-shell"><pre><code>const maxConnections = 512
+let host = "127.0.0.1"
+var served = 0
+
+fn welcome(to guest: String): String {
+  return "Olá, ${guest}!"
+}</code></pre></div>
+          <p>Funções usam uma forma canônica: <code>fn nome(label: Tipo): Retorno</code>. Labels fazem a chamada ler como uma frase; <code>_</code> pode retirar o label quando isso torna a API mais clara. Efeitos candidatos ficam no contrato, como em <code>async throws LoadError</code>.</p>
+          <p class="canonical-links">Detalhes: <a href="/docs/spec/syntax.md">sintaxe de trabalho</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="tipos-options-errors" data-book-section>
+          <p class="chapter-number">Capítulo 4</p>
+          <h2>Tipos, options e errors</h2>
+          <p>As categorias contam uma história de custo e comportamento: <code>struct</code> é valor, <code>object</code> tem identidade, <code>enum</code> fecha alternativas e <code>protocol</code> descreve capacidade sem storage escondido.</p>
+          <div class="code-shell"><pre><code>struct User {
+  id: UserId
+  name: String
+}
+
+enum LoadError: Error {
+  notFound(UserId)
+  transport(HttpError)
+}
+
+fn find(id: UserId): User?
+fn load(id: UserId): User throws LoadError</code></pre></div>
+          <p><code>T?</code> tem somente <code>.some(T)</code> e <code>.none</code>; não mistura ausência com vazio, não inicializado ou ponteiro nulo. Erros recuperáveis são tipados por <code>throws E</code>, propagados por <code>try</code> e tratados por cases. Na baseline, error sets diferentes exigem conversão explícita com <code>catch</code>; isso não promete exceptions ocultas.</p>
+          <p class="canonical-links">Modelos: <a href="/docs/spec/types-and-memory.md">tipos e memória</a> · <a href="/docs/spec/syntax.md">options e errors</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="controle-strings" data-book-section>
+          <p class="chapter-number">Capítulo 5</p>
+          <h2>Controle e strings</h2>
+          <p><code>if</code>, <code>guard</code>, loops e <code>switch</code> favorecem fluxo local e cases exaustivos. Não há fallthrough implícito no switch candidato.</p>
+          <div class="code-shell"><pre><code>guard let user = find(id) else return .notFound
+
+switch user.role {
+  case .admin: showAdmin(user)
+  case .member: showProfile(user)
+}</code></pre></div>
+          <p><code>String</code> contém UTF-8 válido, mas “comprimento” não é uma unidade única. Bytes, escalares Unicode e grafemas são views distintas; APIs devem nomear <code>byteCount</code>, <code>scalarCount</code> ou <code>graphemeCount</code> e deixar o custo visível.</p>
+        </article>
+
+        <article class="book-chapter" id="ownership-memoria" data-book-section>
+          <p class="chapter-number">Capítulo 6</p>
+          <h2>Ownership e memória</h2>
+          <p>O caminho comum busca owner único e borrows locais inferidos. A sintaxe aparece quando a história muda: <code>ref</code> empresta para leitura, <code>inout</code> dá acesso mutável exclusivo, <code>take</code> transfere ownership e <code>copy</code> pede uma cópia.</p>
+          <div class="code-shell"><pre><code>fn inspect(value: ref Value)
+mut fn edit(value: inout Value)
+fn store(value: take Value)
+
+inspect(value)
+edit(inout value)
+store(take value) // value não está mais disponível</code></pre></div>
+          <p>Shared ownership, ARC e regions ainda exigem protótipos. A direção é segurança sem dangling pointers ou data races; a estratégia exata de memória compartilhada permanece <strong>Em aberto</strong>.</p>
+          <p class="canonical-links">Contrato candidato: <a href="/docs/spec/types-and-memory.md">ownership, regiões e FFI</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="concorrencia" data-book-section>
+          <p class="chapter-number">Capítulo 7</p>
+          <h2>Concorrência e paralelismo</h2>
+          <p><code>async let</code> inicia um filho concorrente: trabalhos podem progredir intercalados sem prometer outro núcleo. <code>spawn let</code> solicita um filho paralelo e, por isso, exige transferência segura de dados.</p>
+          <div class="code-shell"><pre><code>async let user = loadUser(id)
+async let feed = loadFeed(id)
+let page = try await (user, feed)
+
+spawn let digest = hash(take bytes)
+let value = await digest</code></pre></div>
+          <p>Ambos vivem numa árvore estruturada: o scope possui os filhos, propaga cancelamento e não termina antes de join e cleanup. O executor pode usar event loop, pool ou outra política; nenhuma dessas estratégias está implementada hoje.</p>
+          <p class="canonical-links">Semântica: <a href="/docs/spec/concurrency.md">tasks, cancelamento e executores</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="modulos-services-workers" data-book-section>
+          <p class="chapter-number">Capítulo 8</p>
+          <h2>Módulos, services e workers</h2>
+          <p>Um módulo organiza namespace e build; ele não ganha heap, thread ou lifecycle singleton por existir. Importar resolve símbolos, não consulta a rede, concede capabilities ou inicia uma instância. Estado duradouro pertence a objetos ou instâncias runtime explícitas.</p>
+          <div class="status-callout"><span class="badge proposal">Candidato</span><p>A separação entre módulo estático, instância de service e worker precisa ser validada. <code>ServiceHost</code>, <code>service</code>, <code>worker</code> e <code>isolate</code> ainda não são API ou keywords congeladas.</p></div>
+          <div class="code-shell"><pre><code>protocol CatalogApi {
+  fn list(): Array&lt;Item&gt; async throws CatalogError
+}
+
+enum CatalogAppError: Error {
+  start(StartError)
+  catalog(CatalogError)
+}
+
+fn startCatalog(host: inout ServiceHost): ServiceRef&lt;CatalogApi&gt; async throws CatalogAppError {
+  do {
+    return try await host.startService(
+      CatalogState(), as: CatalogApi, scope: .process, policy: .serial,
+    )
+  } catch let error {
+    throw .start(error)
+  }
+}
+
+fn loadItems(catalog: ServiceRef&lt;CatalogApi&gt;): Array&lt;Item&gt; async throws CatalogAppError {
+  do {
+    return try await catalog.list()
+  } catch let error {
+    throw .catalog(error)
+  }
+}
+
+fn main(host: inout ServiceHost): Void async throws CatalogAppError {
+  let catalog = try await startCatalog(inout host)
+  let items = try await loadItems(catalog)
+}</code></pre></div>
+          <p class="canonical-links">Leia os contratos dedicados: <a href="../spec/modules.md">spec/modules.md</a> · <a href="../design/modules-and-runtime.md">design/modules-and-runtime.md</a>. O primeiro é semântico; o segundo descreve arquitetura candidata, não implementação disponível.</p>
+        </article>
+
+        <article class="book-chapter restaurant-chapter" id="restaurante-w" data-book-section>
+          <p class="chapter-number">Capítulo 9 · exemplo top-down</p>
+          <h2>O restaurante W</h2>
+          <p>Um pedido de bolo conecta as ideias anteriores sem esconder fronteiras. O menu escolhe um fluxo com <code>switch</code>; uma instância candidata keyed por pedido mantém estado serial; a cozinha usa children concorrentes durante espera e trabalho paralelo para lotes independentes.</p>
+          <div class="status-callout"><span class="badge proposal">Working Draft</span><p>Este é pseudocódigo pedagógico. <code>ServiceHost</code>, <code>ServiceRef</code> e a configuração de instância são candidatos; <code>service</code>, <code>worker</code>, <code>assistant</code> e “nanoservice” não são keywords W.</p></div>
+
+          <aside class="codelens-mock" aria-labelledby="codelens-title">
+            <div class="codelens-source"><span id="codelens-title">Mock de CodeLens · Pesquisa</span><code>import { KitchenApi } from restaurant.kitchen</code></div>
+            <div class="codelens-summary">
+              <strong>+18.4 KiB artifact</strong><span>exact · fixture fictícia</span>
+              <strong>reachable 42.1 KiB</strong><span>static-estimate</span>
+              <strong>instance n/a</strong><span>o import não cria uma cozinha</span>
+              <strong>makeCake p95 3.8 ms</strong><span>profiled · dataset demo · não é teto</span>
+              <strong>target x86_64-windows</strong><span>release · lock resolvido</span>
+            </div>
+            <div class="codelens-detail"><span>.text +14 KiB exact</span><span>.rodata +2 KiB exact</span><span>.data +0.8 KiB exact</span><span>unwind/metadata +1.6 KiB exact</span><span>uso relacionado: KitchenApi 96–160 KiB/instância static-estimate</span><span>unknown: oven FFI</span></div>
+            <p>Valores deliberadamente ilustrativos: este portal não analisou nem mediu o import. Um tooling futuro deverá mostrar decomposição, target, proveniência e classe de confiança — nunca um número mágico. <a href="/docs/design/resource-estimation.md">Leia o experimento de estimativa</a>.</p>
+          </aside>
+
+          <figure class="restaurant-map" aria-labelledby="restaurant-map-title">
+            <figcaption id="restaurant-map-title">“Make a Cake”: do pedido ao prato, com custo visível</figcaption>
+            <div class="restaurant-flow" role="list">
+              <div role="listitem"><span>1</span><strong>Menu</strong><small><code>switch</code> exaustivo</small></div>
+              <i aria-hidden="true">→</i>
+              <div role="listitem"><span>2</span><strong>Pedido keyed</strong><small>estado serial candidato</small></div>
+              <i aria-hidden="true">→</i>
+              <div role="listitem"><span>3</span><strong>Cozinha</strong><small>call tipada · <code>try await</code></small></div>
+              <i aria-hidden="true">→</i>
+              <div role="listitem"><span>4</span><strong>Bolo</strong><small>decorar · embalar · concluir</small></div>
+            </div>
+            <div class="restaurant-lanes">
+              <div><b>Sequencial</b><span>validar → admitir → preparar → assar → finalizar</span></div>
+              <div><b>Concorrente</b><span><code>async let</code> sobrepõe espera do forno, despensa e assistants</span></div>
+              <div><b>Paralelo</b><span><code>spawn let</code> entrega lotes independentes a cozinhas/cozinheiros</span></div>
+            </div>
+          </figure>
+
+          <div class="code-shell"><pre><code>async let ovenTask = preheatOven(slot)
+async let ingredientsTask = fetchCakeIngredients(plan, from: pantry)
+let (oven, ingredients) = try await (ovenTask, ingredientsTask)
+
+let batter = mix(take ingredients.dry, with: ingredients.wet)
+let (left, right) = splitBatter(take batter)
+spawn let cookA = bakeLayer(take left, in: oven.leftKitchen)
+spawn let cookB = bakeLayer(take right, in: oven.rightKitchen)
+let (leftLayer, rightLayer) = try await (cookA, cookB)</code></pre></div>
+
+          <p>Uma mesa completa revela outro detalhe: o mesmo <code>ServiceHost</code> entra como <code>inout</code>, portanto os pedidos keyed são abertos sequencialmente. Só depois, com três handles independentes, os pratos progridem juntos:</p>
+          <div class="code-shell"><pre><code>let cakeOrder = try await openMenuOrder(request.cake.orderId, on: inout orders)
+let soupOrder = try await openMenuOrder(request.soup.orderId, on: inout orders)
+let saladOrder = try await openMenuOrder(request.salad.orderId, on: inout orders)
+
+async let cake = prepareMenuCake(request.cake, for: cakeOrder, in: kitchen)
+async let soup = prepareMenuSoup(request.soup, for: soupOrder, in: kitchen)
+async let salad = prepareMenuSalad(request.salad, for: saladOrder, in: kitchen)
+let (cake, soup, salad) = try await (cake, soup, salad)</code></pre></div>
+
+          <div class="restaurant-lessons">
+            <p><strong>Fine-grained não significa RPC por função.</strong> A fronteira existe quando estado, lifetime, isolamento ou escala justificam; toda call entre instâncias continua suspensível, falível e cancelável.</p>
+            <p><strong>Pressão volta ao caller.</strong> Mailbox limitada aguarda vaga ou produz overload tipado; nunca descarta pedido silenciosamente.</p>
+            <p><strong>Children pertencem ao handler.</strong> Error ou cancelamento encerra a árvore, faz join e executa <code>defer</code>/cleanup antes de sair.</p>
+            <p><strong>Estado externo exige compensação.</strong> Cancelar as child tasks não desfaz silenciosamente uma instância <code>OrderState</code>; <code>cancelBirthdayTable</code> torna essa ação explícita.</p>
+          </div>
+          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">leia a narrativa completa</a> · <a href="/playground?example=restaurantKitchen">edite a cozinha</a> · <a href="/playground?example=restaurantTable">abra a mesa completa</a>.</div>
+          <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">instâncias e calls tipadas</a> · <a href="/docs/design/modules-and-runtime.md">arquitetura candidata</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="ffi" data-book-section>
+          <p class="chapter-number">Capítulo 10</p>
+          <h2>FFI</h2>
+          <p>C é uma ABI de primeira classe e uma fronteira nomeada. Declarações <code>foreign c</code> expõem raw pointers e layouts; wrappers seguros restauram ownership, optional, slices e typed errors.</p>
+          <div class="code-shell"><pre><code>foreign c from "sqlite3.h" {
+  type sqlite3
+  fn sqlite3_close(handle: c.ptr&lt;sqlite3&gt;): c.int
+}</code></pre></div>
+          <p>Um ponteiro non-null não é prova de validade. Allocator e deallocator precisam combinar; callbacks precisam declarar ownership do contexto e regras de thread. O bloco foreign pode quebrar garantias, mas sua API pública deve restabelecê-las.</p>
+        </article>
+
+        <article class="book-chapter" id="packages" data-book-section>
+          <p class="chapter-number">Capítulo 11</p>
+          <h2>Packages e reprodutibilidade</h2>
+          <p>O manifest declara dependências lógicas; um lockfile resolvido fixa grafo, origem e integridade. Cache por conteúdo, provenance e SBOM tornam o build auditável. Uma hash isolada prova integridade, não autoria ou segurança.</p>
+          <div class="status-callout"><span class="badge decision">Direção</span><p>Toolchain e supply chain são parte do produto W desde cedo. O sistema descrito ainda é design, não um gerenciador disponível.</p></div>
+          <p>Build reproduzível é uma propriedade testável: mesmas entradas e ambiente normalizado devem produzir o mesmo artefato. Binários podem ser preferidos quando compatíveis, mas fonte continua sendo um artefato verificável.</p>
+          <p class="canonical-links">Arquitetura: <a href="/docs/design/packages.md">packages, builds e confiança</a>.</p>
+        </article>
+
+        <article class="book-chapter" id="proximos-passos" data-book-section>
+          <p class="chapter-number">Capítulo 12</p>
+          <h2>Próximos passos e referência</h2>
+          <p>Você agora conhece a leitura pretendida de W. O próximo passo honesto não é memorizar toda a sintaxe: é comparar exemplos com os documentos canônicos e acompanhar quais candidatos ganham protótipos.</p>
+          <ol class="next-list">
+            <li>Explore a <a href="/reference">Referência</a> e escolha um documento canônico.</li>
+            <li>Edite exemplos no <a href="/playground">Playground</a> e inspecione a análise lexical.</li>
+            <li>Consulte o <a href="/status">Status</a> antes de tratar uma forma como decisão.</li>
+            <li>Acompanhe o <a href="/docs/ROADMAP.md">roadmap</a> para as fatias executáveis planejadas.</li>
+          </ol>
+          <div class="book-finish"><span aria-hidden="true">W</span><div><strong>Fim do primeiro percurso.</strong><p>O design amadurece quando exemplos, semântica, implementação e evidência concordam.</p></div></div>
+        </article>
+      </main>
+    </div>
+
+    <footer><div class="footer-mark">W</div><div><strong>O Livro de W</strong><p>Texto original baseado nos documentos canônicos do projeto.</p></div><a href="/reference">Abrir referência</a></footer>
+    <div class="copy-status sr-only" aria-live="polite" aria-atomic="true" data-copy-status></div>
+  </body>
+</html>

@@ -1,269 +1,248 @@
-# W Language Technical Specification (Full Draft)
+# Mapa técnico do W
 
-> **Status**: Living Specification (Includes Experimental Ideas)
-> **Target**: Systems Programming, High-Performance Web Services, Embedded Systems.
-> **Backend**: C11/C23 (Primary), LLVM (Future).
+> **Status:** Working Draft; resumo executivo, não especificação normativa
+> **Data:** 19 de julho de 2026
+> **Implementação:** compilador, runtime e stdlib ainda não existem
 
----
+Este documento é a porta de entrada técnica do W. Ele mostra as camadas, o estado
+de cada escolha e onde está o contrato canônico. Detalhes de sintaxe, memória,
+tasks, compilador e packages pertencem aos documentos linkados, não são repetidos
+aqui.
 
-## 1. Core Philosophy & Architecture
+## Leitura de status
 
-### 1.1 The "Simple & Powerful C"
-W is designed to be a superset of capabilities over C, providing modern ergonomics without sacrificing the raw performance or memory layout control of C.
-*   **Zero Global GC**: Memory is managed via deterministic Module Arenas.
-*   **Unified Types**: All data structures are variants of Enums (Tagged Unions).
-*   **Structured Concurrency**: Async/Await is built-in, not a library.
+- **Direção:** intenção estável do projeto.
+- **Candidato:** baseline coerente a ser provada por protótipo.
+- **Em aberto:** alternativas delimitadas ainda precisam de comparação.
+- **Pesquisa:** ideia preservada fora do caminho crítico de v0.
 
-### 1.2 Compilation Pipeline
-1.  **Source**: `.w` files (UTF-8).
-2.  **Parser**: Generates AST. Handles "Bash-style" syntax for DSLs.
-3.  **Analysis**: Type checking, Escape Analysis (Stack vs Arena), Hash Generation (XXH3).
-4.  **Transpilation**: Emits optimized C code.
-    *   W Modules -> C Structs (Singletons).
-    *   W Functions -> C Functions (with context pointers).
-    *   W Async -> State Machines / Protothreads.
+As definições e IDs de decisão vivem em [STATUS.md](STATUS.md). Nenhuma escolha
+candidata neste mapa garante compatibilidade futura.
 
----
+## Arquitetura em uma linha
 
-## 2. Syntax & Variables (Experimental)
-
-### 2.1 Variable Declaration
-*   `const`: Compile-time constant (C const).
-*   `let`: Immutable variable (Swift-like).
-*   `var`: Mutable variable.
-
-### 2.2 Function Syntax & Destructuring
-W explores aggressive syntactic sugar for argument handling.
-
-**Implicit Argument Destructuring:**
-```typescript
-fn({ a: string, b: number }) {
-    // 'a' and 'b' are available directly in scope
-    return 0
-}
+```text
+W source -> CST/AST -> HIR tipada -> dialeto W no MLIR
+         -> lowerings semânticos -> LLVM dialect -> LLVM IR -> nativo
+         \-> EmitC/C para subset portátil, referência e inspeção
 ```
 
-**Variable Destructuring Syntax:**
-```typescript
-fn(args: SomeType) {
-    let { a, b } = args
-    return false
-}
+Preservar ownership, efeitos, errors e tasks no dialeto W até seus verificadores
+rodarem é **direção**. LLVM é o backend nativo de direção. EmitC/C é um caminho
+**opcional e aberto**; C permanece ABI/FFI de primeira classe, mas não define toda
+a semântica interna da linguagem. Veja [arquitetura do compilador](design/compiler.md).
 
-// Experimental "Dollar" Syntax for Destructuring
-fn(SomeType) {
-    let ${ a, b } // Infers from argument type
-    return `${x}-${a}`
-}
-```
+## Mapa das camadas
 
-**Return Type Destructuring:**
-```typescript
-type RType = { c: number, d: string }
-fn fName(FType): RType {
-    let ${ a, b }
-    return { c: 0, d: "ok" }
-}
-```
+| Camada | Baseline técnica | Estado | Documento canônico |
+|---|---|---|---|
+| experiência | custos importantes visíveis, forma canônica e semântica igual em debug/release | direção | [README](README.md), [tour](LANGUAGE_TOUR.md) |
+| source | UTF-8, `fn`, `const`/`let`/`var`, tipos e efeitos explícitos | candidata | [sintaxe](spec/syntax.md) |
+| tipos | value/object/enum/protocol, `T?`, typed errors e refinements | candidata | [tipos e memória](spec/types-and-memory.md) |
+| ownership | owner único, borrows locais, `ref`/`inout`/`take`/`copy`, destruição determinística | candidata; inference/shared abertos | [tipos e memória](spec/types-and-memory.md) |
+| tasks | `async let` concorrente, `spawn let` paralelo, scopes, join e cancelamento | candidata; lowering/runtime abertos | [concorrência](spec/concurrency.md) |
+| frontend | CST recuperável, AST e HIR tipada; EBNF/parser normativo por definir | Em aberto | [compilador](design/compiler.md), [sintaxe](spec/syntax.md) |
+| IR/backend | dialeto W/MLIR, lowerings, LLVM dialect/IR e código nativo | direção arquitetural; operações candidatas | [compilador](design/compiler.md) |
+| runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
+| stdlib | core/prelude, camada portátil, adapters por target e packages externos separados | candidata; superfície v0 aberta | [biblioteca padrão](design/stdlib.md) |
+| C | `foreign c`, `@repr(c)`, wrappers e metadata de ownership/concurrency | direção; ABI detalhada aberta | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
+| módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
+| análise de recursos | delta de artefato por import; baseline de instância e peak de operação separados | direção de transparência; tooling em pesquisa | [estimativa de recursos](design/resource-estimation.md) |
+| packages/builds | manifest declarativo, lock, cache content-addressed e verificação independente | direção/design em elaboração | [packages](design/packages.md) |
+| serviços/protocolos | contratos, wRPC, wQL, RestPC e codecs sobre o core | pesquisa de ecossistema | [serviços e protocolos](ecosystem/services-and-protocols.md) |
 
-### 2.3 Default Values & Optionals
-```typescript
-type FType2 = { a: string?, b: int }
-fn(FType2) {
-    let ${ a ?? 'default', b == 0 ? 2 : b }
-    return `${a}-${b}`
-}
-```
+## Contrato semântico que o compilador deve preservar
 
----
+A HIR tipada explicita, mesmo quando o source permite inference:
 
-## 3. Type System: "Everything is an Enum"
+- tipo, initialization state e refinements provados por caminho;
+- owner, borrows, move/copy, exclusividade e ordem de destruction;
+- `mut`, `async`, `throws E`, error edges e cleanup por `defer`;
+- scopes parent/child, captures, sendability, await/join e cancelamento;
+- layout público, calling convention e requisitos `foreign c`/`@repr(c)`.
 
-### 3.1 The Unified Model
-In W, the distinction between `struct`, `enum`, and `object` is syntactic sugar over a single internal representation: the **Tagged Union**.
+O dialeto W mantém essas propriedades até passes específicos verificarem que não
+há use-after-move, dangling borrow, alias mutável, child vazado, error perdido ou
+cleanup omitido. Só então escolhe layout, frames/continuations, calls de runtime e
+representações LLVM. Tagged/niche layout é otimização tardia com fallback, não
+modelo universal de valores.
 
-*   **Enum**: A type with multiple variants.
-*   **Struct**: An enum with a single variant (implicit).
-*   **Object**: A struct/enum with associated methods.
+## Frontend e tooling
 
-**Internal Layout (C Representation):**
-```c
-struct W_Object {
-    uint64_t type_tag; // Contains Type ID + State Flags (Uninitialized/Empty/etc)
-    union {
-        int64_t as_int;
-        double as_float;
-        struct { ... } as_complex_variant;
-        void* as_pointer;
-    } data;
-};
-```
+A EBNF normativa e a implementação do parser estão **abertas**. Recursive descent
+com recuperação e parser gerado são candidatos. Tree-sitter pode atender CST
+incremental e IDE; ele só participa do compilador se corpus e testes provarem que
+não há duas gramáticas divergentes.
 
-### 3.2 Numeric Types as Enums
-Numbers themselves can be thought of as enums wrapping underlying C types.
-```typescript
-enum number {
-    float(var f: float),
-    int(var i: int),
-    bigInt(var b: long[])
-}
-```
-*   **Adaptive Integers**: `int` maps to `int_fast32_t` or `int_fast64_t`.
-*   **Bounds Checking**: `declare type Port = int using(max_value: 65535)`.
+O corpus de exemplos, parser e formatter evoluem juntos. A CST conserva trivia e
+nós de erro; AST remove açúcar simples; HIR resolve tipos e semântica. Diagnostics
+possuem código, ranges, labels e formato estruturado. Bun/TypeScript é útil para
+runners, formatter/IDE experimental, visualização e CLI, sem obrigar que o core
+MLIR passe pela C API.
 
-### 3.3 Hashing & Identifiers (XXH3)
-*   **Concept**: Use XXH3 (64-bit or 128-bit) to hash all property names and identifiers at compile time.
-*   **Benefit**: No string comparisons at runtime. O(1) dispatch.
-*   **Bijective**: XXH3 is bijective for small lengths, guaranteeing no collisions for standard identifiers.
-*   **Implementation**: The compiler replaces `obj.method` with `obj[0x1234ABCD]`.
+O [tooling inicial](tooling/README.md) separa highlighting lexical imediato de
+parsing estrutural. TextMate atende a extensão local do VS Code; Tree-sitter e
+suas queries formam um protótipo incremental para corpus/IDE/portal. Nenhum dos
+dois é gramática normativa enquanto parser e papel do Tree-sitter permanecerem
+em W-O007/W-O008.
 
----
+O lens de recursos reutiliza o grafo resolvido e, progressivamente, HIR,
+reachability pós-DCE/LTO e instrumentação. Cada valor carrega target/profile,
+proveniência e confiança; artefato, instância e operação não são somados como se
+fossem a mesma dimensão. O desenho experimental está em
+[design/resource-estimation.md](design/resource-estimation.md).
 
-## 4. Memory Management: Module Arenas
+O core inicial do dialeto e dos passes provavelmente usa C++/TableGen. Essa é uma
+escolha **candidata** condicionada à integração real com MLIR; bindings ficam
+atrás de uma interface estreita. Detalhes e links oficiais estão em
+[design/compiler.md](design/compiler.md).
 
-### 4.1 The Arena Model
-*   **Isolation**: Each Module instance has its own linear memory allocator (Arena/Region).
-*   **Allocation**: `new` allocates from the current module's arena.
-*   **Deallocation**:
-    *   **Stack**: Automatic (scope-based).
-    *   **Heap**: **Bulk deallocation**. You do not free individual objects. You `flush` the module.
-    *   `process.flush(module)`: Resets the arena pointer to zero. Instant cleanup.
+## Stack de bootstrap proposta
 
-### 4.2 Memory Properties
-```typescript
-module.memory.max = 128M      // Hard limit
-module.memory.base = 64M      // Initial allocation
-module.memory.current         // Current usage
-module.memory.flush()         // Manual flush
-```
-*   `process.memory` is the sum of all `module.memory`.
+Esta tabela reduz escolhas implícitas sem congelar a arquitetura antes das
+provas verticais:
 
-### 4.3 Stack & Heap Experiments
-*   **HeapStack**: A parallel stack structure for extending the normal stack without modifying the OS stack.
-*   **Split-Stack**: Investigating split-stack support for massive concurrency.
-*   **Linux Stack Manipulation**: Possibility to treat the stack as part of the `module.memory` ringbuffer for flexibility.
-*   **Auto Allocation**: `let a = [auto]` - Compiler attempts to guess the best allocation strategy (Stack vs Heap) based on escape analysis.
+| Parte | Baseline proposta | Limite da decisão |
+|---|---|---|
+| contrato da linguagem | spec + corpus positivo/negativo + diagnostics versionados | nenhuma implementação isolada define W |
+| sintaxe incremental | `tree-sitter-w`, runtime C e adapter estrito CST -> AST | permanente no tooling; participação no compilador é experimento W-O008 |
+| compiler/MLIR core | C++ compatível com a revisão LLVM fixada + TableGen | linguagem de bootstrap, não requisito para self-hosting |
+| build do toolchain | CMake + Ninja sobre uma revisão única de LLVM/MLIR/LLD | xmake pode ser facade, não uma segunda definição do build |
+| representações | AST própria -> HIR/CFG tipada -> dialeto W -> dialetos MLIR -> LLVM | MLIR não substitui frontend, type checker ou semântica de runtime |
+| runtime | `libwrt` mínima, ABI C versionada, componentes core/task/platform | allocator, scheduler e I/O são backends substituíveis; mimalloc é candidato |
+| packages/builds | CLI `w`, CAS de blobs, SQLite para índice/metadata e lock hermético | storage de aplicação e SQLite-by-default não entram no runtime-base |
+| editor | TextMate imediato -> `wls` via LSP + semantic tokens da HIR | VS Code não consome Tree-sitter automaticamente |
+| portal | Bun/assets estáticos -> Tree-sitter WASM local | execução W/WASM vem depois de parse/diagnostics reproduzíveis |
+| qualidade | corpus, goldens, `lit`/FileCheck, fuzz, sanitizers e rebuild bit a bit | cada lowering mantém oracle observável, não só snapshots de IR |
 
----
+O primeiro corte executável é deliberadamente sequencial: parse/check,
+funções e scalars, `emit-mlir`, objeto/link e `libwrt-core`. Ownership, tasks,
+services, SQLite durável e isolamento entram depois que seus contratos forem
+testáveis. Essa ordem evita fazer de uma dependência útil a semântica acidental
+da linguagem.
 
-## 6. Concurrency: Structured & Affinity
+## Lowering e backends
 
-### 6.1 Async/Await Implementation
-*   **No OS Threads per Task**: Uses **Protothreads** (Duff's Device style state machines) or **Stackless Coroutines**.
-*   **Context**: Async functions receive a context pointer containing their state machine variables (spilled registers).
-*   **`async let`**: Spawns a coroutine.
-*   **`sync`**: Runs the coroutine loop inline until completion (blocking).
+Ordem conceitual:
 
-### 6.2 Computer Units (CU) & Affinity
-*   **Spec**: 1 CU = 128MB RAM + 1 vCPU + 1 KV Storage.
-*   **Affinity**:
-    ```typescript
-    async<.cpu(1)> let audioTask = processAudio()
-    ```
-    Pins the coroutine to a specific OS thread/core.
-*   `process.cpu`: Access to CPU topology.
+1. parse, resolução, tipos, initialization e effects;
+2. ownership/borrow, captures, errors e estrutura de tasks;
+3. canonicalização no dialeto W sem apagar invariantes;
+4. seleção tardia de layout, ABI, allocation e calling convention;
+5. lowering de errors/tasks para controle de fluxo, frames e runtime calls;
+6. dialetos MLIR de apoio -> LLVM dialect -> LLVM IR -> nativo.
 
----
+O caminho EmitC recebe o dialeto W já verificado e aceita apenas um subset
+declarado. O protótipo começa por funções síncronas, scalars, structs conhecidas,
+controle de fluxo e calls. Features sem representação correta falham com
+diagnóstico; não mudam silenciosamente de semântica.
 
-## 5. Module System & Packages
+## Runtime
 
-### 5.1 Hierarchy
-*   `namespace` > `module` > `file`.
-*   Modules are Singletons. Importing `math` gives you the reference to the allocated `math` struct.
-*   **Global Access**: Modules can be referenced by their canonical name globally if configured.
+O runtime mínimo candidato fornece:
 
-### 5.2 Import Syntax
-```typescript
-import { http } from std        // Standard Lib
-include 'network' as net        // Include namespace
-import * as utils from 'utils'  // Namespace import
-import math from 'https://...'  // Deno-style URL import
-```
+- task control blocks e árvore de scopes;
+- executor concorrente e pool paralelo limitado;
+- wakeups/timers, cancelamento cooperativo, join e cleanup;
+- frames/continuations gerados pelo lowering;
+- allocation/destruction, panic, tracing e hooks de symbolization;
+- I/O adapter por plataforma e tratamento explícito de C bloqueante.
 
-### 5.3 Package Levels (GStreamer-like)
-1.  **std**: Level 1 - Core language support (Guaranteed).
-2.  **library**: Level 2 - Shared support (Language + Community).
-3.  **modules**: Level 3 - Community supported.
-4.  **packages**: Level 4 - Experimental/No guarantee.
+Isso não promete GC global, heap por módulo, thread por task, ausência de locks,
+event loop único ou uma tecnologia específica de I/O. ARC/shared, regiões,
+work-stealing e outras políticas permanecem abertas ou em pesquisa.
 
-### 5.4 Package Manager (`package.w`)
-Uses "Bash-style" syntax for declarative configuration.
-```typescript
-package
- .name "MyServer"
- .version "1.0.0"
+## Debug e observabilidade
 
-deps
- .add "http" "std"
- .add "utils" "github.com/user/utils" .hash "abc1234"
-```
+Locations são carregadas de tokens até LLVM/EmitC. O backend nativo deve produzir
+debug information do target e preservar inlining/source ranges na medida testada.
+Tasks precisam de stack lógica formada por task ID, parent scope e suspension
+site, pois continuations não correspondem sempre à pilha física.
 
----
+EmitC pode usar `#line` e sidecar versionado. Diagnostics textuais e estruturados,
+traces de passes e dumps HIR/MLIR reproduzíveis fazem parte da superfície de
+desenvolvimento. Fidelidade sob otimização é medida por testes, não presumida.
 
-## 7. Advanced Control Flow
+## C, ABI e artefatos
 
-### 7.1 The "Ultimate" Switch
-Designed to be the most flexible pattern matcher, inspired by Swift but more powerful.
-```typescript
-switch (value) {
-    case 1: ...                 // Literal
-    case 1..10: ...             // Range
-    case .success(let data): ... // Enum extraction
-    case is String: ...         // Type check
-    case ~= /regex/: ...        // Regex match
-    case {a: 1, b: _}: ...      // Struct pattern
-    default: ...
-}
-```
-*   **Multi-variable Switch**: `switch (var1, var2) { case (1, 2): ... }`
-*   **Handlers**: Passing functions to validate cases.
-*   **Interleave**: Mixing `do-while` with `switch` (Duff's Device style) for state machines.
+`foreign c` anuncia a fronteira unsafe e `@repr(c)` solicita layout compatível.
+Wrappers convertem nullable, `(ptr, len)`, allocator/deallocator, callbacks,
+status/errno, thread safety e chamadas bloqueantes para contratos W explícitos.
+Exports W para C usam headers/wrappers; não expõem layout interno instável.
 
-### 7.2 Snapshots
-Functions marked `snapshot` return deterministic/cached data. Used for:
-1.  **Testing**: Mocking complex backends.
-2.  **PGO**: Providing profile data for optimization.
-3.  **Dev**: Speeding up iteration.
-```typescript
-snapshot fn getUser() { return { name: "Mock" } }
-```
+A ABI W pública ainda está **aberta**. Artefatos experimentais registram target,
+runtime, toolchain, feature/profile e versão de metadata. O toolchain resolve
+packages, verifica lock/provenance e escolhe source/static/dynamic; o compilador
+recebe o grafo fechado e nunca consulta registries por conta própria.
 
----
+## Verificação
 
-## 8. Services & IPC
-*   **`service` Keyword**: Defines a contract for remote execution.
-*   **Broker**: The runtime includes a message broker.
-*   **Transport**: Can be in-memory (same process), pipe (same machine), or TCP (network).
-```typescript
-service Auth {
-    fn login(u: string, p: string): bool
-}
-// Usage
-await .service.call(.login("user", "pass"))
-```
+A estratégia mínima combina:
 
----
+- **golden:** CST, AST/HIR, diagnostics, formatter e IR por passe;
+- **negative:** sintaxe, tipos, ownership, effects, tasks e FFI inválidos;
+- **differential:** oracle semântico vs LLVM e, no subset, EmitC/C;
+- **runtime:** scheduler controlado, cancelamento, cleanup, races e shutdown;
+- **ABI:** harness C compilado separadamente e headers gerados;
+- **property/fuzz:** parser, serializers, layouts e pipelines de passes;
+- **target/build:** debug/release, otimização, instrumentation disponível e inputs
+  reproduzíveis.
 
-## 9. C Interoperability
-*   **`c_module`**: A block allowing raw C code.
-*   **ABI Compatibility**: W structs are standard C structs.
-*   **Header Gen**: The compiler emits `.h` files for all exported W symbols.
-*   **Pointers**: `int* a` syntax supported for low-level C interop.
+Golden de IR não basta para provar execução, e end-to-end não substitui verifier
+ou diagnóstico negativo preciso.
 
----
+## Bootstrap incremental
 
-## 10. Implementation Roadmap & Gaps
-To produce the W language, the following components are required:
+1. **Frontend:** 10–20 programas, EBNF de trabalho, CST, formatter e HIR snapshots.
+2. **Síncrono nativo:** `main`, scalars, controle, calls e lowering LLVM completo.
+3. **Semântica de valores:** structs/enums/options, typed errors, ownership,
+   cleanup e um harness C.
+4. **Tasks:** `async let`/`spawn let`, executor mínimo, cancelamento e um I/O
+   adapter.
+5. **Artefatos:** interfaces versionadas, build hermético, lock/cache e debug
+   metadata associados ao output.
 
-1.  **Grammar Definition (EBNF)**: *Missing*. Needs a formal grammar file for the parser (Lemon or Bison).
-2.  **Runtime Library (`libw`)**: *Missing*. Needs the C implementation of:
-    *   The Arena Allocator.
-    *   The Coroutine Scheduler.
-    *   The Hash Map (XXH3).
-3.  **Compiler Bootstrap**:
-    *   Phase 1: Write Transpiler in TypeScript or Python (easier to prototype).
-    *   Phase 2: Rewrite in W (Self-hosting).
-4.  **Standard Library**:
-    *   `std/io`: File/Console.
-    *   `std/net`: HTTP/TCP.
-    *   `std/mem`: Low-level memory access.
+Cada fatia termina em programas executáveis e negativos correspondentes.
+Self-hosting só é considerado depois de o pipeline e a linguagem justificarem o
+custo.
+
+## Decisões prioritárias e pesquisa
+
+Continuam **abertos**: posição de `async`, algoritmo de move, shared ownership,
+ABI de typed errors, parser normativo, papel do Tree-sitter, implementação do core
+MLIR, build do compilador, subset EmitC, lowering async e formato de módulos/ABI.
+A lista controlada está em [STATUS.md](STATUS.md).
+
+Continuam em **pesquisa**: tagged pointers/values, arenas por módulo, WC como IR
+pública, `fn<lang>`, wQL/wRPC/RestPC, V6/Computer Units, tree strings, GPU/HDL,
+snapshots/PGO e autotest por IA. O catálogo e critérios de promoção estão em
+[research/README.md](research/README.md); experimentos anteriores não são
+implementação do runtime nem substituem as provas propostas ali.
+
+## Índice canônico
+
+- [README.md](README.md): promessa, arquitetura curta e estado geral.
+- [STATUS.md](STATUS.md): decisões e maturidade.
+- [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md): experiência candidata ponta a ponta.
+- [spec/syntax.md](spec/syntax.md): sintaxe de trabalho.
+- [spec/types-and-memory.md](spec/types-and-memory.md): tipos, ownership e memória.
+- [spec/concurrency.md](spec/concurrency.md): tasks, cancelamento e runtime mínimo.
+- [spec/modules.md](spec/modules.md): imports, interfaces e instâncias de execução.
+- [design/compiler.md](design/compiler.md): frontend, IR, passes, backends e testes.
+- [tooling/README.md](tooling/README.md): VS Code/TextMate, Tree-sitter e caminho
+  de integração do highlighting no portal.
+- [design/memory-strategy.md](design/memory-strategy.md): lowering híbrido,
+  allocators, regiões, shared ownership e tagged representations.
+- [design/modules-and-runtime.md](design/modules-and-runtime.md): executor por
+  instância, calls, storage, capabilities e isolamento por target.
+- [design/resource-estimation.md](design/resource-estimation.md): lens de import,
+  custos de instância/operação, confiança, perfis e budgets.
+- [design/stdlib.md](design/stdlib.md): fronteiras, APIs, portabilidade e escopo v0
+  da biblioteca padrão.
+- [design/packages.md](design/packages.md): resolução, builds e supply chain.
+- [design/verification-and-releases.md](design/verification-and-releases.md):
+  payload reproduzível, manifests, attestations, builders e registry.
+- [ecosystem/services-and-protocols.md](ecosystem/services-and-protocols.md): pesquisa
+  de contratos e protocolos.
+- [research/README.md](research/README.md): hipóteses fora do núcleo v0.
+- [ROADMAP.md](ROADMAP.md): ordem das provas e critérios de saída.

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description" content="Estado atual do projeto W e vocabulário de maturidade." /><meta name="color-scheme" content="light dark" /><title>W Portal · Status</title><link rel="stylesheet" href="/styles.css" /><script src="/w-syntax.js" defer></script><script src="/app.js" defer></script></head>
+  <body class="directory-page">
+    <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+    <header class="topbar"><a class="brand" href="/" aria-label="W Portal — visão"><span class="brand-mark" aria-hidden="true">W</span><span class="brand-copy"><strong>W</strong><small>Portal</small></span></a><div class="draft-stamp"><span class="status-dot" aria-hidden="true"></span>Working Draft · 0.2</div><button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro"><span class="theme-icon" aria-hidden="true">◐</span><span data-theme-label>Tema</span></button></header>
+    <nav class="portal-nav" aria-label="Navegação principal"><a href="/">Visão</a><a href="/book">Livro</a><a href="/reference">Referência</a><a href="/playground">Playground</a><a href="/status" aria-current="page">Status</a></nav>
+    <div class="draft-banner" role="note"><strong>Snapshot do portal.</strong> O ledger canônico continua sendo <a href="/docs/STATUS.md">STATUS.md</a>.</div>
+    <main id="conteudo" class="directory-main">
+      <header class="directory-hero"><p class="eyebrow">Working Draft</p><h1>Status de W</h1><p>O design é substancial; a implementação ainda não começou. “Candidato” nunca significa “já funciona”.</p></header>
+      <section class="status-dashboard" aria-label="Estado das camadas">
+        <article><span class="badge decision">Direção</span><h2>Visão e princípios</h2><p>Base consolidada para continuar o desenho.</p></article>
+        <article><span class="badge proposal">Candidato</span><h2>Sintaxe e semântica</h2><p>Corpus coerente que ainda precisa de parser, testes e protótipos.</p></article>
+        <article><span class="badge open">Em aberto</span><h2>Frontend e runtime</h2><p>Arquitetura proposta; nenhum compilador ou runtime conforme existe.</p></article>
+        <article><span class="badge proposal">Pesquisa</span><h2>Extensões</h2><p>wQL, wRPC, V6, GPU e ideias adjacentes ficam fora do núcleo v0.</p></article>
+      </section>
+      <section class="status-explainer"><h2>Vocabulário que o portal usa</h2><dl>
+        <div><dt>Direção</dt><dd>Intenção estável do projeto; mudar exige revisar a visão.</dd></div>
+        <div><dt>Candidato</dt><dd>Escolha coerente usada nos exemplos; precisa de protótipo antes de ser normativa.</dd></div>
+        <div><dt>Em aberto</dt><dd>Problema delimitado com mais de uma alternativa legítima.</dd></div>
+        <div><dt>Pesquisa</dt><dd>Ideia preservada fora do caminho crítico da versão zero.</dd></div>
+        <div><dt>Rejeitado por enquanto</dt><dd>Não cabe no núcleo atual; pode voltar apenas com nova evidência.</dd></div>
+      </dl></section>
+      <section class="status-next"><p class="section-kicker">Norte imediato</p><h2>Provar uma fatia vertical pequena</h2><p>O caminho passa por corpus de programas, gramática, formatter, diagnósticos, HIR tipada, lowering mínimo, tasks estruturadas e build reproduzível. Consulte o <a href="/docs/ROADMAP.md">roadmap canônico</a> e o <a href="/docs/STATUS.md">ledger completo</a>.</p></section>
+    </main>
+    <footer><div class="footer-mark">W</div><div><strong>Status W</strong><p>Resumo visual; STATUS.md é canônico.</p></div><a href="/docs/STATUS.md">Abrir ledger</a></footer>
+  </body>
+</html>
