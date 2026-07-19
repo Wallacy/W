@@ -432,32 +432,6 @@
     }
   },
   {
-    "type": "attribute",
-    "named": true,
-    "fields": {
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "argument_list",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "binary_expression",
     "named": true,
     "fields": {
@@ -1376,17 +1350,7 @@
   {
     "type": "declaration_prefix",
     "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "attribute",
-          "named": true
-        }
-      ]
-    }
+    "fields": {}
   },
   {
     "type": "defer_statement",
@@ -1788,16 +1752,6 @@
           }
         ]
       }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "attribute",
-          "named": true
-        }
-      ]
     }
   },
   {
@@ -5013,10 +4967,6 @@
   },
   {
     "type": "??",
-    "named": false
-  },
-  {
-    "type": "@",
     "named": false
   },
   {

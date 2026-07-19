@@ -135,6 +135,22 @@ object Connection {
 
 Um `object` tem owner e identidade. Ele não ganha compartilhamento global implícito só por ser uma referência. `shared`/ARC é uma das questões abertas; o modelo inicial deve funcionar com ownership único, borrows e transferência.
 
+### Property behaviors: storage tipado, ainda em pesquisa
+
+W-O097 estuda generalizar patterns como lazy, observers, COW e inicialização
+tardia sem tornar o wrapper o tipo público da propriedade:
+
+```w
+// Hipótese visual; ainda não pertence à grammar.
+var target = 180_Celsius with Clamped(in: 30_Celsius...300_Celsius)
+```
+
+O compiler enxergaria storage, init, accessors, ownership e efeitos em HIR. O
+caller continuaria vendo `target: Celsius`. A forma `with`, o `var [behavior]` do
+Swift original, wrapper nominal e bloco próprio permanecem alternativas em
+[property behaviors](research/property-behaviors.md); nenhuma reabre annotations
+genéricas ou autoriza I/O oculto em field access.
+
 ### Enum: alternativas exaustivas
 
 ```w
@@ -445,17 +461,19 @@ fn cosine(value: f64): f64 {
 }
 ```
 
-Layout compatível é opt-in:
+A proposta atual de W-O044 coloca layout compatível dentro da fronteira:
 
 ```w
-@repr(c)
-struct Pixel {
-  red: u8
-  green: u8
-  blue: u8
-  alpha: u8
+foreign c {
+  struct Header {
+    kind: c.uint
+    size: c.size
+  }
 }
 ```
+
+Essa forma ainda está **Em aberto**; layout nativo opaco, ordem física declarada,
+`transparent struct`, layout W fixo e packed/adapters continuam sendo comparados.
 
 O compilador deve gerar/importar metadata suficiente para documentar:
 
@@ -475,7 +493,7 @@ fn<C> readProbeRaw(_ handle: c.ptr<Equipment>, _ probe: c.int): c.double
   from "native/equipment.c"
 ```
 
-Source externo, body inline, namespace de compilation unit e annotation/plugin
+Source externo, body inline, namespace de compilation unit e adapter declarado
 são comparados no [experimento multilíngue do restaurante](examples/restaurant/multilingual.md).
 Em qualquer spelling, o call site recebe tipos W e a receita fixa adapter,
 toolchain, flags, source digests e artefatos.

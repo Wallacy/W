@@ -18,13 +18,13 @@ uma candidata se tornar normativa.
 | formatter | largura preferida 120; horizontal se couber | outra largura antes da v1 · exceção documentada para fórmula | corpus formatado, diffs e leitura lado a lado |
 | labels | primeiro argumento posicional; seguintes nomeados | todos nomeados · todos posicionais + lint | tokens, leitura, refactor e autocomplete |
 | mutação | `mut fn` para receiver; `inout` para argumento explícito | `mut` como effect em toda função mutante | redundância, function types e diagnostics de borrow |
-| unidades | tipos `Quantity<si.Unit, f64>` e literals provisórios `180_Celsius` | sufixo próprio · annotation de tipo · wrapper nominal | parser, conversão, offsets, generics, ABI e zero overhead |
+| unidades | tipos `Quantity<si.Unit, f64>` e literals provisórios `180_Celsius` | sufixo próprio · declaração de unit · wrapper nominal | parser, conversão, offsets, generics, ABI e zero overhead |
 | exponenciação | multiplicação explícita em `flow * flow` | `flow ** 2` · `pow(flow, 2)` · APIs por família | precedência, dimensions, overflow e lowering |
 | ranges | quatro closures; `in` como membership; one-sided em switch patterns | producer lazy com step · `Interval` separado · unbounded como values | floats, iteration, count/last, zero allocation e diagnostics |
 | condição PID | helper com range patterns + `where` | expressão `||`/`&&` direta · tuple-pattern · combinador nomeado | intenção, duplicação do body, narrowing e HIR simples |
 | serviço | `object` privado + `protocol` exportado + `ServiceRef` | keyword `service` · IDL/codegen · object com metadata | lifecycle, error, call local/remota e capacidade de remover açúcar |
 | HTTP | `http`/`json` first-party | pacote oficial fora da std · somente transporte na std | portabilidade, TLS, codecs, tamanho e ritmo de evolução |
-| outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · annotation/plugin | migração, ABI, ownership, parser injection, debug, cache e provenance |
+| outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · adapter declarado | migração, ABI, ownership, parser injection, debug, cache e provenance |
 
 `.isOneOf` significa OR/membership. Um enum simples não pode ser simultaneamente
 dois cases. Sets/flags precisam de operações distintas como `hasAny` e `hasAll`.

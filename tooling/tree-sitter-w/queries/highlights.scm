@@ -66,9 +66,6 @@
   "where"
 ] @keyword
 
-(attribute "@" @attribute)
-(attribute name: (identifier) @attribute)
-
 (function_declaration name: (identifier) @function)
 (call_expression function: (identifier) @function.call)
 (call_expression

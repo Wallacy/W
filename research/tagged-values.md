@@ -131,7 +131,7 @@ O frontend e o HIR devem representar tipos lógicos, não o truque de bits escol
 - `Option<NonNullRef>` pode usar o ponteiro nulo como niche quando isso for válido internamente.
 - Um `Option<T>` sem niche usa o fallback equivalente a `{ tag, payload }`.
 - Nested options e valores cujo zero é válido não podem ser achatados de forma a perder casos.
-- Em `repr(C)`, persistência ou ABI versionada, o layout é o declarado pela fronteira, não o melhor niche local.
+- Em layout C, persistência ou ABI versionada, o layout é o declarado pela fronteira, não o melhor niche local.
 
 ### Erased container interno
 
@@ -212,7 +212,7 @@ Layout interno pode mudar entre targets, perfis e versões do compilador. Uma pa
 - plugins compilados por outra versão;
 - shared memory e IPC;
 - serialização/persistência;
-- símbolos com layout público ou `repr(C)`.
+- símbolos com layout público ou layout C.
 
 Essas fronteiras usam layout explícito e funções de marshal. Módulos que compartilham valores compactos precisam concordar por metadata versionada sobre o mesmo representation profile.
 
@@ -224,7 +224,7 @@ O primeiro artefato do experimento deve ser o fallback, não a variante compacta
 - preservar todos os valores e estados lógicos;
 - ter operações de encode/decode usadas como oracle diferencial;
 - separar type tag, payload, ownership e error state;
-- suportar `repr(C)` por wrappers/layouts explícitos;
+- suportar layout C por wrappers/fronteiras explícitos;
 - produzir o mesmo comportamento observável em debug, release e sanitizers;
 - aceitar objetos boxed quando um payload não cabe;
 - permitir que a otimização seja desligada por flag, target ou função sem alterar source;

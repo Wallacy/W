@@ -172,7 +172,7 @@ registrar, antes de entrar no MLIR:
 - efeitos `mut`, `async`, `throws E` e os efeitos adicionais que forem adotados;
 - error edges explícitas, sem depender de exception implícita;
 - scopes parent/child, captures, sendability e cancellation points de tasks;
-- requisitos `foreign c`, calling convention e `@repr(c)`.
+- requisitos `foreign c`, calling convention e layout da fronteira.
 
 Inference pode aliviar o source, mas não a IR. Uma decisão ainda aberta, como o
 algoritmo exato de last-use move ou `shared T`, deve aparecer como operação ou
@@ -237,10 +237,10 @@ de função e módulo. Antes de apagar uma abstração, o pipeline precisa prova
 7. captures de `spawn` satisfazem as propriedades de transferência/compartilhamento;
 8. cancellation preserva cleanup e não atravessa uma chamada C bloqueante sem
    adapter;
-9. layout público e `repr(c)` são compatíveis com o target declarado;
+9. layout público e fronteiras `foreign c` são compatíveis com o target declarado;
 10. operações dimensionais são válidas e conversões com escala/offset continuam explícitas;
 11. nenhuma otimização altera overflow, opcionais, rounding ou garantia numérica
-    entre profiles sem annotation/metadata source correspondente.
+    entre profiles sem permissão explícita no source/profile correspondente.
 
 Falha de verifier é bug do compilador e interrompe o pipeline. Erro de programa
 deve ter sido diagnosticado na HIR com código, mensagem, labels de source e, onde
@@ -316,8 +316,10 @@ aberta e deve ser medida junto a ownership e C wrappers.
 ## Compatibilidade C
 
 C é uma fronteira de direção, não um IR semântico universal. O frontend aceita
-declarações `foreign c` e tipos do namespace `c`; `@repr(c)` solicita layout C
-validado para o target. A metadata da fronteira registra ao menos:
+declarações `foreign c` e tipos do namespace `c`. A proposta W-O044 faz
+structs/enums/unions declarados dentro da fronteira solicitarem layout C validado
+para o target; a forma ainda está **Em aberto**. A metadata da fronteira registra
+ao menos:
 
 - target ABI, calling convention, header, símbolo e library;
 - nullable, `(ptr, len)`, owner/deallocator e lifetime de callbacks;
@@ -326,8 +328,8 @@ validado para o target. A metadata da fronteira registra ao menos:
 - varargs e tipos ABI-specific usados.
 
 Importar headers automaticamente e gerar bindings são ferramentas candidatas;
-annotations humanas continuam necessárias onde C não expressa ownership ou
-concorrência. Exportar W para C requer wrapper e header gerados que não exponham
+adapter declarations/overrides continuam necessárias onde C não expressa
+ownership ou concorrência. Exportar W para C requer wrapper e header gerados que não exponham
 representações internas instáveis. Testes de ABI compilam um harness C separado,
 em vez de comparar apenas texto ou tamanho estimado.
 
@@ -390,7 +392,7 @@ mesma semântica observável.
 
 - structs/enums/`T?`, narrowing e `throws E`/`try`;
 - definite initialization, move/borrow/`inout`, drop e `defer`;
-- uma fronteira C com `@repr(c)`, buffer e callback simples;
+- uma fronteira C com struct declarada no bloco, buffer e callback simples;
 - fallback de layout portátil e comparação inicial com EmitC no subset.
 
 **Saída:** positivos, negativos e harness C demonstram as invariantes, inclusive
@@ -456,7 +458,7 @@ e explica dependências de recompilação.
 |---|---|---|
 | parser normativo e papel do Tree-sitter | Em aberto | recuperação, edição incremental, manutenção e corpus diferencial |
 | implementação do core MLIR: C++/TableGen vs bindings | Em aberto | cobertura das APIs, pin de LLVM, portabilidade do build e velocidade de iteração |
-| algoritmo de moves e shared ownership | Em aberto | anotação em programas reais, cycles, FFI e custo em tasks |
+| algoritmo de moves e shared ownership | Em aberto | marcadores em programas reais, cycles, FFI e custo em tasks |
 | ABI de typed errors | Em aberto | benchmark de tagged result/status-out e wrappers C |
 | lowering de async | Em aberto | correctness de cleanup/cancelamento, debug, tamanho de frame e performance |
 | subset EmitC | Em aberto | equivalência, legibilidade C, targets atendidos e custo de manter dois caminhos |

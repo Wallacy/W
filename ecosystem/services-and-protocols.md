@@ -76,7 +76,7 @@ compatibilidade nem substitui regras de evolução.
 ### 3.2 O que fica de fora
 
 O contrato não cria banco, resolver, cache nem endpoint automaticamente. Storage
-SQLite/KV, annotations, middleware, autorização e deployment são adapters. Uma
+SQLite/KV, declarations, middleware, autorização e deployment são adapters. Uma
 operação local não se torna remota só porque está exportada, e imports de release
 não podem ser redirecionados para rede de forma implícita.
 

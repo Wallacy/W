@@ -48,7 +48,7 @@ identidade e observabilidade forem preservadas.
 
 | Degrau | Contrato no source | Lowering provável | Limite deliberado |
 |---|---|---|---|
-| 1. Stack/inline | values locais, `let`/`var`, move ou `copy` | registers, inline, stack, scalar replacement | layout não vira ABI sem `repr` |
+| 1. Stack/inline | values locais, `let`/`var`, move ou `copy` | registers, inline, stack, scalar replacement | layout não vira ABI sem fronteira explícita |
 | 2. Ownership estático | owner único, `ref`, `inout`, `take` | move paths, borrows, drops e escape analysis | inferência não cria alias nem muda transferência documentada |
 | 3. Regiões/arenas | bloco explícito ou inferido sem escape | bump/arena, cleanup por escopo e accounting | não é módulo, import ou `flush` global |
 | 4. Heap unique | identidade, tamanho dinâmico ou escape com um owner | allocation + `drop` determinístico | pode continuar stack/inline se equivalente |

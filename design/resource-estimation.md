@@ -98,7 +98,7 @@ peak sem elevar permanentemente o baseline da instância.
 ## Exemplo: restaurante
 
 O exemplo é deliberadamente pequeno e ilustrativo; os nomes de manifest e
-annotations de recurso abaixo são candidatos de tooling, não sintaxe já adotada.
+declarações de recurso abaixo são candidatos de tooling, não sintaxe já adotada.
 
 ```w
 import { KitchenApi } from restaurant.kitchen
@@ -345,8 +345,9 @@ linguagem/toolchain.
    restaurante desde o primeiro protótipo?
 2. **W-O029:** qual orçamento é mais valioso para validar cedo: memória por request,
    baseline de serviço, ou payload final?
-3. **W-O030:** você prefere annotations de resource no source público, no manifest/profile,
-   ou somente metadata inferida/gerada enquanto a sintaxe ainda amadurece?
+3. **W-O030:** você prefere uma declaração própria de resource no source público,
+   no manifest/profile, ou somente metadata inferida/gerada enquanto a sintaxe
+   ainda amadurece?
 4. **W-O031:** há um workload real além do restaurante que deve virar segundo corpus — por
    exemplo parser, servidor HTTP ou processamento de imagens?
 5. **W-O032:** em que nível um perfil local pode entrar em revisão/CI sem expor dados de

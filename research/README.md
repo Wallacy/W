@@ -32,6 +32,7 @@ Este arquivo descreve somente hipóteses ainda úteis e seus próximos experimen
 | Arenas/heaps por módulo | Pesquisa e questão aberta de regiões | allocator/região explícita ou runtime de serviço |
 | WC e EmitC | WC público em pesquisa; EmitC em aberto | backend inspecionável para um subset |
 | `fn<lang>` | Pesquisa pós-FFI C | ilha da aplicação + adapter de frontend |
+| [Property behaviors](property-behaviors.md) | Pesquisa em W-O097 | mecanismo tipado de storage/accessors, se preservar efeitos e ownership |
 | WLO/WLON | Pesquisa | literal/serialização canônica opcional |
 | wQL, wRPC e RestPC | Pesquisa pós-core | bibliotecas e contratos do ecossistema |
 | V6 e Computer Units | Pesquisa separada | runtime/serverless/isolate |
@@ -138,7 +139,7 @@ ownership e erros explícitos. Depois, implementar um adapter C e uma ilha inlin
 delimitada, com toolchain fixado na receita, e comparar o resultado com o mesmo
 source da aplicação em arquivo separado. O
 [experimento do equipamento do restaurante](../examples/restaurant/multilingual.md)
-mantém `foreign c`, body inline, `fn<C> from`, namespace e annotation/plugin lado
+mantém `foreign c`, body inline, `fn<C> from`, namespace e adapter declarado lado
 a lado sem promover nenhuma forma.
 
 ## WLO/WLON
