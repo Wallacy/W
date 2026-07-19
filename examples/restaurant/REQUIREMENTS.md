@@ -11,18 +11,22 @@ uma candidata se tornar normativa.
 
 | Tema | Forma usada no corpus | Alternativas ainda válidas | O que decide |
 |---|---|---|---|
-| std implícita | prelude T0 curada e congelada pela edição; namespaces sempre disponíveis | todo export único · somente namespaces + poucos nomes livres · import explícito | tokens, autocomplete, colisões, atualização de edição e capability visível |
-| impressão | `print(...)` | `io.print(...)` · import de `print` · açúcar fixo | scripts/TUI, efeitos inferidos e diagnóstico de authority |
+| std implícita | prelude T0 curada + poucos nomes T1 por edição; namespaces sempre disponíveis | todo export único · somente namespaces · tudo explícito | tokens, autocomplete, colisões, atualização de edição e capability visível |
+| impressão | `print(...)` como nome T1 curto | `io.print(...)` · import de `print` | scripts/TUI, efeitos inferidos e diagnóstico de authority |
 | visibilidade | privado por default + `export` | fields exportados individualmente · tipo opaco/factory · package visibility | invariantes, pattern matching, ABI e evolução |
 | múltiplas alternativas | `value in (a, b)` | `value.isOneOf(a, b)` · `value == a || value == b` · pattern alternativo | tokens, narrowing, lista estática e garantia de zero allocation |
 | formatter | largura preferida 120; horizontal se couber | outra largura antes da v1 · exceção documentada para fórmula | corpus formatado, diffs e leitura lado a lado |
 | labels | primeiro argumento posicional; seguintes nomeados | todos nomeados · todos posicionais + lint | tokens, leitura, refactor e autocomplete |
 | mutação | `mut fn` para receiver; `inout` para argumento explícito | `mut` como effect em toda função mutante | redundância, function types e diagnostics de borrow |
-| unidades | quantity literal delimitado `180[°C]`; corpus executável ainda usa `180_Celsius` | sufixo próprio · `Number<Unit>` · declaração longa/wrapper nominal | parser, conversão, offsets, generics, ABI e zero overhead |
-| exponenciação | `flow ** 2`; corpus executável mantém `flow * flow` até a grammar mudar | `pow(flow, 2)` · multiplicação explícita · APIs por família | precedência, dimensions, overflow e lowering |
+| unidades | forma canônica `180[degC]`; sugars `180C`/`180[°C]`; `64[KiB]`/`64KiB` | `Number<Unit>` · declaração longa/wrapper nominal | parser, prefixes SI/IEC, offsets, generics, ABI e zero overhead |
+| exponenciação | `flow ** 2` em W; `m/s^2` na subgramática de unidade | `pow(flow, 2)` · multiplicação explícita · APIs por família | precedência, dimensions, overflow e lowering |
 | ranges | quatro closures, `in`, `clamp` em closed range e `stride` separado | producer lazy com step · `Interval` separado · unbounded como values | floats, totalidade, iteration, count/last, zero allocation e diagnostics |
 | condição PID | helper com range patterns + `where` | expressão `||`/`&&` direta · tuple-pattern · combinador nomeado | intenção, duplicação do body, narrowing e HIR simples |
-| serviço | `object` privado + `protocol` exportado + `ServiceRef` | keyword `service` · IDL/codegen · object com metadata | lifecycle, error, call local/remota e capacidade de remover açúcar |
+| property behavior | `var Lazy heatProfile = ...` | wrapper nominal · accessor explícito · `by`/`with` históricos | init, get/set/modify, effects, exclusivity, layout e composição |
+| atomic | `var atomic completed: u64 = 0` | `Atomic<u64>` explícito · lock/serviço serial | shared mutation, ordering, target fallback e borrow do payload |
+| cancelamento | `cancel task, reason: .shutdown` | `task.cancel()` · cancelamento somente pelo scope | coerência async/spawn, tipos canceláveis, cleanup e join |
+| documentação/testes | `///`, fence `w test`, `test "..." for symbol` | `*.test.w` · tags JSDoc · DSL histórica `@`/`@@` | attachment, release stripping, compile-fail, capabilities e runner |
+| serviço | `service State as Api` + `ServiceRef` | object + descriptor explícito · IDL/codegen | lifecycle, error, call local/remota e capacidade de remover açúcar |
 | HTTP | `http`/`json` first-party | pacote oficial fora da std · somente transporte na std | portabilidade, TLS, codecs, tamanho e ritmo de evolução |
 | outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · adapter declarado | migração, ABI, ownership, parser injection, debug, cache e provenance |
 
@@ -64,15 +68,17 @@ ou comparações diretas.
 
 | Evidência no source | Obrigação |
 |---|---|
-| `export struct`, `export protocol`, object privado | construir interface de módulo sem expor storage/implementação acidentalmente |
+| `export struct`, `export protocol`, `service State as Api` privado | construir interface/descriptor sem expor storage/implementação acidentalmente |
 | mapa std da edição | resolver deterministicamente e registrar a origem de cada símbolo implícito |
 | `Temperature`, `Power`, `Energy` | normalizar dimensões, rejeitar operações inválidas e tratar temperatura absoluta/delta separadamente |
 | `Money` em minor units | overflow checked e rounding escolhido pelo domínio, nunca binary float implícito |
 | `copy jobs`, `take entries`, partial field moves | análise de move por path, borrow exclusivo e diagnostics de uso após move |
 | `async let`/`spawn let` | distinguir suspensão concorrente de transferência paralela e inferir `Send`/`Sync` |
+| `cancel task`, `var atomic` e `var Lazy` | verificar cancellability, ordering/borrow atômico e expansão de storage/accessors |
 | closures do sort/HTTP | inferir captures, ownership, lifetime, effects e sendability |
 | typed errors compostos | não injetar um error set em outro silenciosamente |
 | `print`, `http`, `json` | nome curto não apaga effect, capability, dependency ou custo |
+| `///`, doctest e `test ... for` | anexar ao símbolo, gerar grafo de teste e eliminar integralmente do release |
 
 ## HIR e lowering
 
@@ -134,11 +140,10 @@ permite testar matemática sem sensor e I/O sem duplicar o algoritmo.
 
 | Nível | Necessidade imediata | Não pressupõe |
 |---|---|---|
-| core | primitivos, option, typed errors, ownership, quantities no type system | HTTP, allocator específico ou threads |
-| portable std | String/Bytes/List, sort, Duration/Instant, Decimal/Money helpers, math | filesystem/socket/clock do host |
-| host adapters | terminal, timer, entropy/IDs, sockets e service host | mesma implementação em todo target |
-| first-party protocol | HTTP, JSON, observability e storage | promoção automática ao core ou carregamento no programa mínimo |
-| external packages | UI rica, banco, codecs especiais, BLAS/GPU | confiança sem lock/provenance |
+| T0 foundation | primitivos, option, typed errors, ownership, strings/collections/ranges puros | console, HTTP, allocator específico ou threads |
+| T1 systems | `print`/console, tasks, clocks, filesystem, process, TCP/UDP/DNS e adapters | mesma implementação em todo target |
+| T2 domains | HTTP/TLS, SI/information units, JSON, SQLite, numerics e TUI first-party | promoção automática ao core ou carregamento no programa mínimo |
+| packages externos | UI rica, banco/codecs especiais e integrações | confiança sem lock/provenance |
 
 HTTP no exemplo é uma hipótese de produto: ser “sem terceira parte” pode
 significar pacote first-party versionado junto ao toolchain, não necessariamente
@@ -160,3 +165,7 @@ usado.
 10. comparar o wrapper `foreign c` de `interop.w` com uma ilha inline `fn<C>` da
     própria aplicação; o adapter C deve produzir IR/object, diagnostics, source
     map e metadata sem fazer o parser W interpretar statements C.
+11. extrair docs/doctests/testes co-localizados, confirmar `compile-fail` por ID e
+    provar que nenhum byte do grafo de teste entra no payload release.
+12. baixar `var Lazy` e `var atomic`, incluindo negativos de init order, borrow do
+    payload atômico e mutação não-atômica por receiver compartilhado.

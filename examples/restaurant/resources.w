@@ -80,20 +80,20 @@ export enum OvenError: Error {
 // A lease é um capability owned local. Preaquecer suspende; release é cleanup
 // local e idempotente. O formato definitivo dessa API ainda é candidato.
 export protocol OvenLease {
-  fn preheat(): OvenReady async throws OvenError
+  async fn preheat(): OvenReady throws OvenError
   fn release(): Void
 }
 
 export protocol OvenLaneApi {
-  fn bake(batch: take BatterBatch): CakeLayer async throws OvenError
+  async fn bake(batch: take BatterBatch): CakeLayer throws OvenError
 }
 
 export protocol OvenPoolApi {
-  fn reserve(temperature: Int): OvenLease async throws OvenError
+  async fn reserve(temperature: Temperature): OvenLease throws OvenError
 }
 
 export protocol PantryApi {
-  fn fetchCake(plan: ref CakePlan): CakeIngredients async throws PantryError
-  fn fetchSoup(kind: SoupKind, portions: Int): SoupIngredients async throws PantryError
-  fn fetchSalad(kind: SaladKind, portions: Int): SaladIngredients async throws PantryError
+  async fn fetchCake(plan: ref CakePlan): CakeIngredients throws PantryError
+  async fn fetchSoup(kind: SoupKind, portions: Int): SoupIngredients throws PantryError
+  async fn fetchSalad(kind: SaladKind, portions: Int): SaladIngredients throws PantryError
 }

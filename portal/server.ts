@@ -21,6 +21,7 @@ const routes = new Map<string, { file: string; type: string }>([
   ["/README.md", { file: "README.md", type: "text/markdown; charset=utf-8" }],
   ["/examples/restaurant/README.md", { file: "../examples/restaurant/README.md", type: "text/markdown; charset=utf-8" }],
   ["/examples/restaurant/REQUIREMENTS.md", { file: "../examples/restaurant/REQUIREMENTS.md", type: "text/markdown; charset=utf-8" }],
+  ["/examples/restaurant/DB1_ASSAY.md", { file: "../examples/restaurant/DB1_ASSAY.md", type: "text/markdown; charset=utf-8" }],
   ["/examples/restaurant/domain.w", { file: "../examples/restaurant/domain.w", type: "text/plain; charset=utf-8" }],
   ["/examples/restaurant/resources.w", { file: "../examples/restaurant/resources.w", type: "text/plain; charset=utf-8" }],
   ["/examples/restaurant/menu.w", { file: "../examples/restaurant/menu.w", type: "text/plain; charset=utf-8" }],
@@ -43,8 +44,10 @@ const routes = new Map<string, { file: string; type: string }>([
   ["/corpus/schema.json", { file: "../corpus/corpus.schema.json", type: "application/schema+json; charset=utf-8" }],
   ["/corpus/diagnostics.schema.json", { file: "../corpus/diagnostics.schema.json", type: "application/schema+json; charset=utf-8" }],
   ["/docs/README.md", { file: "../README.md", type: "text/markdown; charset=utf-8" }],
+  ["/docs/ARCHITECTURE.md", { file: "../ARCHITECTURE.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/STATUS.md", { file: "../STATUS.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/DB1_REVIEW.md", { file: "../DB1_REVIEW.md", type: "text/markdown; charset=utf-8" }],
+  ["/docs/design/documentation-and-tests.md", { file: "../design/documentation-and-tests.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/LANGUAGE_TOUR.md", { file: "../LANGUAGE_TOUR.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/ROADMAP.md", { file: "../ROADMAP.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/spec/syntax.md", { file: "../spec/syntax.md", type: "text/markdown; charset=utf-8" }],
@@ -60,6 +63,7 @@ const routes = new Map<string, { file: string; type: string }>([
   ["/docs/design/stdlib.md", { file: "../design/stdlib.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/design/formatting.md", { file: "../design/formatting.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/design/numerics-and-quantities.md", { file: "../design/numerics-and-quantities.md", type: "text/markdown; charset=utf-8" }],
+  ["/docs/research/long-term-program.md", { file: "../research/long-term-program.md", type: "text/markdown; charset=utf-8" }],
 ]);
 
 const securityHeaders = {

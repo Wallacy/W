@@ -4,13 +4,13 @@
   // This is a deliberately small lexical fallback. It is not a W grammar and
   // must be replaced by the same Tree-sitter/WASM grammar used by editor tooling.
   const keywords = new Set([
-    "as", "async", "await", "break", "case", "catch", "const", "continue", "copy", "defer", "do", "else",
+    "as", "async", "atomic", "await", "break", "cancel", "case", "catch", "const", "continue", "copy", "defer", "do", "else",
     "enum", "export", "false", "fn", "for", "foreign", "from", "guard", "if", "import", "in", "inout",
-    "is", "let", "mut", "object", "panic", "protocol", "ref", "return", "spawn", "struct", "switch", "take",
-    "throw", "throws", "true", "try", "type", "var", "where", "while",
+    "is", "let", "mut", "object", "panic", "protocol", "ref", "return", "service", "spawn", "struct", "switch", "take",
+    "test", "throw", "throws", "true", "try", "type", "var", "where", "while",
   ]);
   const pairedDelimiters = { "(": ")", "[": "]", "{": "}" };
-  const operators = [">..<", ">..", "...", "..<", "=>", "??", "?.", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];
+  const operators = [">..<", ">..", "...", "..<", "=>", "??", "?.", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];
 
   function scan(source) {
     const tokens = [];
@@ -87,12 +87,19 @@
         continue;
       }
 
-      if (char === "r" && source[index + 1] === '"') {
-        advance(2);
+      if (char === "#") {
+        let hashCount = 0;
+        while (source[index + hashCount] === "#") hashCount += 1;
+        if (source[index + hashCount] !== '"') {
+          advance();
+          add("unknown", start, startLine, startColumn);
+          continue;
+        }
+        advance(hashCount + 1);
         let closed = false;
         while (index < source.length) {
-          if (source[index] === '"') {
-            advance();
+          if (source[index] === '"' && source.slice(index + 1, index + 1 + hashCount) === "#".repeat(hashCount)) {
+            advance(hashCount + 1);
             closed = true;
             break;
           }

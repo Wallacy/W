@@ -5,8 +5,8 @@
 Este exemplo top-down usa um restaurante para mostrar como W pretende tornar
 custos e ownership visíveis. Não existe compilador capaz de executar estes
 arquivos. As APIs `ServiceHost`, `ServiceRef`, `Mailbox` e os nomes de métodos
-são ilustrações candidatas; `service`, `worker`, `assistant` e `nanoservice` não
-são keywords adotadas.
+são ilustrações candidatas. `service` é o único açúcar adotado e baixa para
+object + descriptor; `worker`, `assistant` e `nanoservice` não são keywords.
 
 O mote continua sendo: **Prazer para humanos. Clareza para máquinas.** Uma
 operação pequena pode virar uma unidade fine-grained quando precisa de lifetime,
@@ -110,9 +110,9 @@ namespaces implícitos `http` e `json`. Os imports de aplicação continuam
 explícitos. `app.w` inicia ambos como children concorrentes; falha de uma
 interface cancela, reúne e limpa a outra antes de propagar.
 
-Esse source exercita [W-C016](../../STATUS.md), mas não encerra a decisão. O Book
-e [REQUIREMENTS.md](REQUIREMENTS.md) preservam as alternativas de prelude curada,
-mapa de nomes únicos e somente namespaces implícitos.
+Esse source exercita W-C016/W-C045: prelude T0 curada e poucos nomes T1 curtos,
+incluindo `print` quando o console existe. O Book e
+[REQUIREMENTS.md](REQUIREMENTS.md) preservam as alternativas avaliadas.
 
 ## Arquivos
 
@@ -135,6 +135,8 @@ mapa de nomes únicos e somente namespaces implícitos.
 - [`interop.w`](interop.w): raw ABI C privada e wrapper tipado de equipamento;
 - [`multilingual.md`](multilingual.md): ilha inline `fn<C>` para migração e as
   alternativas `from`, namespace, adapter e `foreign c`;
+- [`DB1_ASSAY.md`](DB1_ASSAY.md): ensaio integrado das decisões H01–H14 e pontos
+  que cada protótipo precisa provar;
 - [`REQUIREMENTS.md`](REQUIREMENTS.md): consequências para frontend, HIR,
   memória, runtime e alternativas ainda vivas.
 
@@ -158,13 +160,13 @@ executável quando abertos isoladamente.
 | compensação | estado de serviço externo não é desfeito implicitamente com a task |
 | std implícita | lookup congelado por edição; não concede capability nem esconde reachability |
 | `export` | top-level privado por default; interface explícita sem `public`/`private` redundantes |
-| quantidades | check dimensional candidato; literal e representação continuam em W-O036 |
+| quantidades | `[unit expression]` canônica; sufixos/Unicode são sugars de edição |
 | collections | ownership único e allocation/copy observáveis; placement físico pode ser otimizado |
 | outra linguagem | `foreign c` é baseline; `fn<lang>` continua pesquisa visível e comparável |
 
-O exemplo não escolhe sintaxe própria para `service`, política final de
-reentrância, escopo de singleton ou API definitiva de backpressure. Essas
-questões continuam abertas.
+O exemplo adota `service Name as Api`, turn fechado e mailbox bounded da DB1. O
+protótipo ainda precisa validar diagnostics, reentrância opt-in, scopes de host e
+API definitiva de backpressure; não existe singleton implícito.
 
 ## Contratos canônicos
 
@@ -175,6 +177,7 @@ questões continuam abertas.
 - [estimativa experimental de recursos](../../design/resource-estimation.md);
 - [formatação canônica](../../design/formatting.md);
 - [numéricos e quantidades](../../design/numerics-and-quantities.md);
+- [documentação e testes](../../design/documentation-and-tests.md);
 - [status e questões abertas](../../STATUS.md).
 
 O portal oferece uma leitura visual e um lexer local. Ele não substitui esses

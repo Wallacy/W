@@ -36,9 +36,9 @@ import { Temperature } from restaurant.units
 import { OrderApi, OrderError, OrderStage } from restaurant.order_service
 
 export protocol KitchenApi {
-  fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake async throws KitchenError
-  fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup async throws KitchenError
-  fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad async throws KitchenError
+  async fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake throws KitchenError
+  async fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup throws KitchenError
+  async fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad throws KitchenError
 }
 
 export enum KitchenError: Error {
@@ -50,7 +50,7 @@ export enum KitchenError: Error {
   order(OrderError)
 }
 
-fn moveOrder(order: ServiceRef<OrderApi>, to stage: OrderStage): Void async throws KitchenError {
+async fn moveOrder(order: ServiceRef<OrderApi>, to stage: OrderStage): Void throws KitchenError {
   do {
     return try await order.move(to: stage)
   } catch let error {
@@ -71,7 +71,7 @@ fn validateCake(request: CakeRequest): CakePlan throws KitchenError {
   )
 }
 
-fn reserveOven(temperature: Temperature, in ovens: ServiceRef<OvenPoolApi>): OvenLease async throws KitchenError {
+async fn reserveOven(temperature: Temperature, in ovens: ServiceRef<OvenPoolApi>): OvenLease throws KitchenError {
   do {
     return try await ovens.reserve(temperature)
   } catch let error {
@@ -79,7 +79,7 @@ fn reserveOven(temperature: Temperature, in ovens: ServiceRef<OvenPoolApi>): Ove
   }
 }
 
-fn preheatOven(lease: ref OvenLease): OvenReady async throws KitchenError {
+async fn preheatOven(lease: ref OvenLease): OvenReady throws KitchenError {
   do {
     return try await lease.preheat()
   } catch let error {
@@ -87,10 +87,10 @@ fn preheatOven(lease: ref OvenLease): OvenReady async throws KitchenError {
   }
 }
 
-fn fetchCakeIngredients(
+async fn fetchCakeIngredients(
   plan: ref CakePlan,
   from pantry: ServiceRef<PantryApi>,
-): CakeIngredients async throws KitchenError {
+): CakeIngredients throws KitchenError {
   do {
     return try await pantry.fetchCake(plan)
   } catch let error {
@@ -98,10 +98,10 @@ fn fetchCakeIngredients(
   }
 }
 
-fn fetchSoupIngredients(
+async fn fetchSoupIngredients(
   request: SoupRequest,
   from pantry: ServiceRef<PantryApi>,
-): SoupIngredients async throws KitchenError {
+): SoupIngredients throws KitchenError {
   do {
     return try await pantry.fetchSoup(request.kind, portions: request.portions)
   } catch let error {
@@ -109,10 +109,10 @@ fn fetchSoupIngredients(
   }
 }
 
-fn fetchSaladIngredients(
+async fn fetchSaladIngredients(
   request: SaladRequest,
   from pantry: ServiceRef<PantryApi>,
-): SaladIngredients async throws KitchenError {
+): SaladIngredients throws KitchenError {
   do {
     return try await pantry.fetchSalad(request.kind, portions: request.portions)
   } catch let error {
@@ -132,7 +132,7 @@ fn splitBatter(batter: take Batter): (BatterBatch, BatterBatch) {
   return (BatterBatch(value: copy batter), BatterBatch(value: take batter))
 }
 
-fn bakeLayer(batch: take BatterBatch, in lane: ServiceRef<OvenLaneApi>): CakeLayer async throws KitchenError {
+async fn bakeLayer(batch: take BatterBatch, in lane: ServiceRef<OvenLaneApi>): CakeLayer throws KitchenError {
   do {
     return try await lane.bake(take batch)
   } catch let error {
@@ -189,11 +189,11 @@ fn assembleSalad(ingredients: take SaladIngredients, portions: Int): Salad {
   return Salad(summary: DishSummary(kind: .salad, portions: portions, label: saladLabel(ingredients.kind)))
 }
 
-object KitchenState {
+service KitchenState as KitchenApi {
   pantry: ServiceRef<PantryApi>
   ovens: ServiceRef<OvenPoolApi>
 
-  mut fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup async throws KitchenError {
+  mut async fn makeSoup(request: SoupRequest, for order: ServiceRef<OrderApi>): Soup throws KitchenError {
     try await moveOrder(order, to: .preparing)
     let ingredients = try await fetchSoupIngredients(request, from: pantry)
     Task.checkCancellation()
@@ -202,7 +202,7 @@ object KitchenState {
     return soup
   }
 
-  mut fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad async throws KitchenError {
+  mut async fn makeSalad(request: SaladRequest, for order: ServiceRef<OrderApi>): Salad throws KitchenError {
     try await moveOrder(order, to: .preparing)
     let ingredients = try await fetchSaladIngredients(request, from: pantry)
     Task.checkCancellation()
@@ -211,7 +211,7 @@ object KitchenState {
     return salad
   }
 
-  mut fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake async throws KitchenError {
+  mut async fn makeCake(request: CakeRequest, for order: ServiceRef<OrderApi>): Cake throws KitchenError {
     // Sequencial: validar antes de consumir capacidade limitada.
     let plan = try validateCake(request)
     // reserve suspende de modo cancelável ou retorna overload; nunca drop.

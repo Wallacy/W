@@ -1,5 +1,5 @@
 // W Working Draft — pseudocódigo pedagógico, não executável.
-// Quantidades são types compile-time; a sintaxe de literal segue em W-O036.
+// Quantidades são types compile-time; `[unit]` é canônica e sufixos são sugars da edição.
 
 export type Temperature = Quantity<si.Kelvin, f64>
 export type TemperatureDelta = Quantity<si.KelvinDelta, f64>
@@ -26,14 +26,14 @@ export fn clampRatio(value: f64): Ratio {
 }
 
 export fn absolute(value: TemperatureDelta): TemperatureDelta {
-  if value < 0.0_KelvinDelta {
+  if value < 0[deltaK] {
     return -value
   }
   return value
 }
 
 export fn absoluteRate(value: TemperatureRate): TemperatureRate {
-  if value < 0.0_KelvinPerSecond {
+  if value < 0[deltaK/s] {
     return -value
   }
   return value

@@ -545,7 +545,7 @@ do {
                 </div>
                 <p class="card-summary">Filhos não escapam do escopo: conclusão, erro e cancelamento voltam ao pai.</p>
                 <div class="code-shell">
-                  <pre><code>fn dashboard(for id: UserId): Dashboard async throws ApiError {
+                  <pre><code>async fn dashboard(for id: UserId): Dashboard throws ApiError {
   async let profile = fetchProfile(id)
   async let activity = fetchActivity(id)
 
@@ -571,7 +571,7 @@ do {
                 </div>
                 <p class="card-summary">O programador pede capacidade paralela; o sistema escolhe workers, não o resultado.</p>
                 <div class="code-shell">
-                  <pre><code>fn sumBoth(values: [i64]): i64 async {
+                  <pre><code>async fn sumBoth(values: [i64]): i64 {
   let middle = values.count / 2
 
   spawn let left = sum(values[..middle])

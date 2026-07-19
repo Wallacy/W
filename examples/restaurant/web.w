@@ -19,7 +19,7 @@ fn decodeOrder(request: ref http.Request): MenuItem throws WebError {
   }
 }
 
-fn submitOrder(item: MenuItem, to restaurant: ServiceRef<RestaurantApi>): Receipt async throws WebError {
+async fn submitOrder(item: MenuItem, to restaurant: ServiceRef<RestaurantApi>): Receipt throws WebError {
   do {
     return try await restaurant.place(item)
   } catch let error {
@@ -27,10 +27,10 @@ fn submitOrder(item: MenuItem, to restaurant: ServiceRef<RestaurantApi>): Receip
   }
 }
 
-export fn handleRequest(
+export async fn handleRequest(
   request: http.Request,
   with restaurant: ServiceRef<RestaurantApi>,
-): http.Response async throws WebError {
+): http.Response throws WebError {
   if request.method == .get && request.path == "/health" {
     return http.Response.text("ok")
   }
@@ -44,7 +44,7 @@ export fn handleRequest(
   return http.Response.text("not found", status: .notFound)
 }
 
-export fn serveWeb(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void async throws WebError {
+export async fn serveWeb(address: http.Address, restaurant: ServiceRef<RestaurantApi>): Void throws WebError {
   do {
     return try await http.serve(address, handler: (request) => handleRequest(request, with: restaurant))
   } catch let error {

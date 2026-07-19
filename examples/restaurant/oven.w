@@ -31,6 +31,21 @@ export struct ThermalState {
   cavityRate: TemperatureRate
 }
 
+export struct HeatProfile {
+  emptyRampRate: TemperatureRate
+}
+
+fn deriveHeatProfile(model: ref ThermalModel): HeatProfile {
+  return HeatProfile(emptyRampRate: model.heaterPower / model.cavityCapacity)
+}
+
+// O behavior preserva `HeatProfile` como tipo lógico e só calcula no primeiro
+// acesso. Acesso concorrente e failure precisam seguir o contrato de Lazy.
+export object CalibratedOven {
+  model: ThermalModel
+  var Lazy heatProfile = deriveHeatProfile(model)
+}
+
 export struct ControllerConfig {
   proportional: f64
   integral: f64
@@ -60,19 +75,24 @@ export enum OvenControlError: Error {
 }
 
 export protocol OvenHardwareApi {
-  fn sample(): ThermalState async throws OvenControlError
-  fn apply(duty: Ratio): Void async throws OvenControlError
-  fn wait(during step: Duration): Void async throws OvenControlError
+  async fn sample(): ThermalState throws OvenControlError
+  async fn apply(duty: Ratio): Void throws OvenControlError
+  async fn wait(during step: Duration): Void throws OvenControlError
 }
 
+/// Retorna o setpoint recomendado para um sabor de bolo.
+///
+/// ```w test
+/// expect cakeSetpoint(.vanilla) == 180C
+/// ```
 export fn cakeSetpoint(flavor: CakeFlavor): Temperature {
   switch flavor {
     case .chocolate:
-      return 178.0_Celsius
+      return 178[degC]
     case .vanilla:
-      return 180.0_Celsius
+      return 180C
     case .carrot:
-      return 175.0_Celsius
+      return 347F
   }
 }
 
@@ -95,7 +115,7 @@ export fn predictStep(
   elapsed: Duration,
 ): ThermalState {
   let wallLoss = heatLoss(model.surface, transmittance: model.transmittance, inside: state.cavity, ambient: ambient)
-  let foodTransfer = model.coupling * (state.cavity - state.food) / 1.0_KelvinDelta
+  let foodTransfer = model.coupling * (state.cavity - state.food) / 1[deltaK]
   let cavityEnergy = (model.heaterPower * duty - wallLoss - foodTransfer) * elapsed
   let foodEnergy = foodTransfer * elapsed
   let nextCavity = state.cavity + cavityEnergy / model.cavityCapacity
@@ -155,7 +175,7 @@ export fn controlStep(
 
 // A espera é concorrente, não paralelismo de CPU. Cada iteração tem pontos de
 // suspensão, cancelamento e I/O visíveis; nenhum background task escapa.
-export fn regulateOven(
+export async fn regulateOven(
   hardware: ServiceRef<OvenHardwareApi>,
   model: ref ThermalModel,
   config: ref ControllerConfig,
@@ -163,7 +183,7 @@ export fn regulateOven(
   ambient: Temperature,
   step: Duration,
   timeout: Duration,
-): ThermalState async throws OvenControlError {
+): ThermalState throws OvenControlError {
   var controller = ControllerState(accumulatedError: 0.0, previousError: 0.0)
   var elapsed = Duration.zero
 
@@ -187,4 +207,10 @@ export fn regulateOven(
   }
 
   throw .timeout
+}
+
+test "setpoints usam pontos de temperatura equivalentes" for cakeSetpoint {
+  expect cakeSetpoint(.chocolate) == 178[degC]
+  expect cakeSetpoint(.vanilla) == 180[°C]
+  expect cakeSetpoint(.carrot) == 347F
 }
