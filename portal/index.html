@@ -46,7 +46,8 @@
 
     <div class="draft-banner" role="note">
       <strong>Documento vivo.</strong>
-      Esta página mostra uma direção de linguagem — não afirma que já exista um compilador W.
+      Esta página mostra uma direção de linguagem — não afirma que já exista um compilador W. A auditoria histórica
+      recuperou <a href="/docs/DB1_ADDENDUM.md">quatro famílias em aberto</a> antes do frontend.
     </div>
 
     <div class="page-shell">
@@ -1034,6 +1035,30 @@ let total = legacyTotal(items.raw, items.count)</code></pre>
                 <h3>Como especializar genéricos?</h3>
                 <p>Monomorfização, witness tables ou estratégia híbrida conforme fronteira ABI.</p>
                 <small>Tamanho, velocidade e incrementalidade importam.</small>
+              </article>
+              <article data-topics="concurrency executor isolation affinity thread group ui network compute spawn async">
+                <span>W-O100 · Execução</span>
+                <h3>Como escolher um domínio sem prometer uma thread?</h3>
+                <p>Isolamento serial, preferência de executor, afinidade e task group são contratos diferentes.</p>
+                <small>Comparar <code>async/spawn on</code>, descriptors e herança lexical.</small>
+              </article>
+              <article data-topics="systems module entry main fetch cli ui hid host profile event signal">
+                <span>W-O101 · Hosts</span>
+                <h3>Como ligar handlers comuns a entradas do ambiente?</h3>
+                <p>Slots versionados para processo, HTTP, UI e devices sem nomes mágicos ou contexto universal.</p>
+                <small>Comparar <code>entry</code>, <code>export</code> e manifest-only.</small>
+              </article>
+              <article data-topics="numeric matrix tensor ml ai shape dtype gpu simd autodiff linalg">
+                <span>W-O102 · Tensor/ML</span>
+                <h3>O que precisa acompanhar a notação de matriz?</h3>
+                <p>Shape, dtype, alias/view, broadcast, device, reductions e interoperabilidade observáveis.</p>
+                <small>O açúcar não pode esconder cópias ou transfers.</small>
+              </article>
+              <article data-topics="types generic const value parameter newtype refinement string inline layout">
+                <span>W-O103 · Tipos</span>
+                <h3>O que realmente significa <code>Type&lt;...&gt;</code>?</h3>
+                <p>Parâmetros declarados, refinements, identidade nominal e storage permanecem conceitos separados.</p>
+                <small>Evitar um registry de modificadores ad hoc.</small>
               </article>
               <article data-topics="systems ffi foreign c safety ponteiros baixo nível">
                 <span>Interop</span>

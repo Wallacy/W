@@ -72,6 +72,12 @@ O mapa canônico de trabalho é
 semântica, representação, runtime, stdlib, compilador, packages, distribuição e
 tooling em ordem de dependência.
 
+H01–H14 já foram ratificados. A auditoria integral do caderno histórico encontrou
+quatro omissões e mantém esta fase aberta em [DB1_ADDENDUM.md](DB1_ADDENDUM.md):
+W-O100 execution domains, W-O101 host entries, W-O102 tensor/ML e W-O103 value
+parameters/refinements. Nenhuma delas entra na grammar apenas por já possuir um
+sketch de comparação.
+
 ### Top-down
 
 - Escrever os mesmos casos em duas ou três alternativas quando a decisão for de
@@ -94,6 +100,8 @@ tooling em ordem de dependência.
 
 - todas as questões materiais têm ID em `STATUS.md` ou foram deliberadamente
   fundidas/rejeitadas com justificativa;
+- o crosswalk histórico cobre integralmente o blob de `Y/WIP.MD` e toda família
+  marcada parcial/lacuna ganhou destino explícito;
 - cada fatia S0–S15 cumpre os dez critérios de fechamento da DB1;
 - nenhuma feature necessária à v0 permanece apenas como **Pesquisa**;
 - exemplos, regras negativas e esboços de lowering não entram em contradição;
@@ -290,13 +298,15 @@ shared ownership, algoritmo de moves e ABI de typed errors são **Em aberto**.
 
 ## Fase 5 — Tasks estruturadas
 
-**Status:** semântica é **Candidato**; lowering, executor e nomes públicos de
-`Send`/`Sync` são **Em aberto**.
+**Status:** semântica base e nomes `Send`/`Sync` são **Candidato**; lowering e
+binding de execution domains de W-O100 são **Em aberto**.
 
 ### Top-down
 
 - Implementar `async let`, `spawn let`, `await`, join/cancel e captures mantendo
   a distinção entre concorrência e paralelismo.
+- Comparar executor default, `async/spawn on domain` e service/entry isolation
+  com UI serial, I/O concorrente e CPU paralelo, sem default runtime por módulo.
 - Adicionar um downloader/servidor pequeno, um workload CPU e negativos para
   child não consumido, capture inválida e mutação compartilhada.
 - Expor task ID, parent scope e source location de suspension em diagnostics e
@@ -318,6 +328,8 @@ shared ownership, algoritmo de moves e ABI de typed errors são **Em aberto**.
 - scheduler determinístico reproduz ordem e falhas com a mesma seed;
 - `async let` passa num executor de uma thread e `spawn let` passa com pool
   limitado, sem criar uma thread por task;
+- crossing de isolation registra hop e rejeita capture não-`Send`; remapear
+  executor no host não muda ordering nem semântica;
 - type checker rejeita todas as captures não-sendable e aliases mutáveis
   paralelos presentes na suite;
 - downloader/servidor e workload CPU encerram limpos e exibem árvore de tasks

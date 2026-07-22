@@ -1,6 +1,6 @@
 # Programa de pesquisa de longo prazo
 
-> **Status:** **Pesquisa**; não amplia a promessa de v0 · 19 de julho de 2026
+> **Status:** **Pesquisa**; não amplia a promessa de v0 · 21 de julho de 2026
 
 Este programa transforma ideias de longo prazo em hipóteses falsificáveis. A
 [arquitetura de longo prazo](../ARCHITECTURE.md) define as fronteiras estáveis; o
@@ -31,13 +31,13 @@ catálogo. Um benchmark do fornecedor é ponto de partida, não decisão W.
 | LT-02 | frontend e edição | parser normativo separado + TextMate/Tree-sitter IDE | CST compartilhada reduz drift sem piorar diagnostics | parser batch e incremental concordam em corpus válido/inválido e recovery edit-by-edit |
 | LT-03 | representação e memória | layouts convencionais, owner único e allocator do host | niches, tags, arenas ou ARC seletivo reduzem custo sem aparecer na semântica | implementação dual em x86_64/arm64, FFI e sanitizers, com fallback bit-for-bit observável |
 | LT-04 | texto e identificadores | `String` UTF-8 válido e identifiers ASCII canônicos | Unicode mais amplo pode ser seguro com profile, normalization e lints | UAX #15/#31/#39, confusable corpus, version pin e migração entre bundles |
-| LT-05 | tasks e scheduler | executor simples, scopes e cancelamento cooperativo | work stealing, I/O nativo e executors especializados melhoram throughput sem mudar ordering | scheduler determinístico de teste + três workloads + cleanup/cancel invariants |
-| LT-06 | services e durability | object/instance serial in-process e storage adapter explícito | fine-grained logical units podem ser co-located ou remotas com o mesmo contrato | local/IPC equivalentes em ordering, failure, backpressure e cancellation |
-| LT-07 | isolamento e capabilities | authority explícita + boundary de processo quando necessário | WASI/component boundaries ampliam portabilidade sandboxed | filesystem/rede negados por default, limits e escape threat model em dois hosts |
+| LT-05 | tasks, execution domains e scheduler | executor simples, scopes e cancelamento cooperativo | placement herdável e executors especializados melhoram throughput sem confundir isolation/affinity | scheduler determinístico + UI/I/O/CPU workloads + hops/cleanup/cancel invariants |
+| LT-06 | services, entries e durability | object/instance serial in-process, handler comum e storage adapter explícito | logical services e host entries podem ser co-located/remotos/adaptados sem mudar contrato | local/IPC/host adapters equivalentes em typing, ordering, failure, backpressure e cancellation |
+| LT-07 | host worlds, isolamento e capabilities | authority explícita + boundary de processo quando necessário | profiles WIT/WASI-like ampliam portabilidade e composition sandboxed | CLI/HTTP component com imports mínimos, denial tests, limits e escape threat model em dois hosts |
 | LT-08 | compiler, IR e bootstrap | seed C + HIR própria + LLVM nativo | MLIR acelera lowerings múltiplos sem dominar interfaces W | pin LLVM reproduzível, adapter isolado e upgrade ensaiado em duas revisões |
 | LT-09 | ABI e evolução | source-first e rebuild por toolchain exata | interfaces resilientes justificam distribuição binária seletiva | library v1/v2 e client antigo/novo em matriz de layout, generics, enums e errors |
 | LT-10 | SDK e portabilidade | T0 pequeno + T1 por capabilities | tiers explícitos preservam ergonomia sem mentir sobre targets | mesma API contract testada em Windows/POSIX e um profile limitado |
-| LT-11 | ciência e devices | numéricos escalares, quantities e CPU fallback | shapes/units/refinements orientam SIMD, linalg e GPU com diagnóstico melhor | kernel térmico CPU/SIMD/device, erro numérico e transfer cost publicados |
+| LT-11 | ciência, tensor/ML e devices | arrays/views, numéricos escalares, quantities e CPU fallback | shapes/units/refinements orientam linalg, autodiff, SIMD e GPU com diagnóstico melhor | shape corpus + kernel térmico + batched model CPU/SIMD/device; erro, compile e transfer cost publicados |
 | LT-12 | build e supply chain | lock, CAS, recipe e rebuild local | transparência e rebuilds independentes dão evidência útil sem score agregado | dois builders reproduzem payload; divergência, rollback e revogação são exercitados |
 | LT-13 | observabilidade e tooling | locations, diagnostics estruturados e debug symbols sidecar | task stacks, cost lens e explanations tornam abstrações auditáveis | source→HIR→machine mapping e uma falha async explicáveis em IDE/CLI |
 | LT-14 | IA e automação | formatter, schemas, docs/tests executáveis | agents produzem mudanças melhores consumindo fatos estruturados | benchmark versionado de tarefas com revisão humana, sem enviar source por default |
@@ -105,6 +105,47 @@ sandboxed. Eles não substituem o runtime nativo nem tornam capability enforceme
 automático. O experimento publica imports concedidos, limits, engine/toolchain,
 startup, cópias na boundary e equivalência com o corpus nativo suportado.
 
+### Execution domains sem “thread type”
+
+GCD mostra que uma queue serial não é uma thread; Swift separa serial executor
+de task executor preference. O experimento W-O100 mede essa mesma decomposição:
+
+- service/entry isolation continua obrigatória mesmo quando jobs usam outra
+  fonte de threads;
+- preference é herdada apenas pela árvore estruturada e pode ser remapeada pelo
+  host sem alterar ordering;
+- affinity aparece somente em profiles que realmente a exigem, como UI;
+- nomes `network`/`io` não selecionam backend nem número fixo de threads;
+- tracing registra hops, queue time, blocking e reason do executor escolhido.
+
+O gate compara executor único, dois pools especializados e um adapter de UI. A
+hipótese só vence se reduzir tail latency/contamination sem exigir markers no
+código comum ou criar deadlocks/priority inversions novos.
+
+### Entries como contrato de host
+
+W-O101 compara mapping `profile.slot = handler`, conformance e manifest-only.
+Cada alternativa gera o mesmo descriptor normalizado e adapters para native C e
+um world WASI. O corpus inclui process main/stdin/signal, HTTP e eventos UI/HID;
+profiles não suportados falham no build, nunca somem silenciosamente.
+
+Signals são capturados por código nativo async-signal-safe e convertidos em job.
+Contexts têm capabilities tipadas. O gate mede boilerplate, diagnostics,
+testabilidade, composition e se um package pode adicionar profile sem mudar o
+parser ou reservar keyword.
+
+### Tensor/ML como stack coerente
+
+W-O102 não será avaliado por screenshots de matrix literal. O experimento
+preserva o mesmo tensor lógico através de MLIR `tensor`/`shape`/`linalg`,
+bufferization e CPU/SIMD/device. Compara nested literal e sugar por `;`, `@` e
+APIs nomeadas, broadcast explícito/Array API e shapes estáticos/simbólicos.
+
+O gate inclui autodiff com gradient check, random seeded, dynamic-shape failure,
+view sem copy, sparse/quantized fixture e import/export StableHLO ou ONNX. Tempo
+de compile, allocation, transfer e kernel são métricas separadas; nenhuma GPU
+transfer pode aparecer como custo oculto de um operador.
+
 ### SQLite e estado durável
 
 SQLite oferece atomic commit e WAL úteis, mas storage continua adapter explícito.
@@ -165,6 +206,14 @@ com o custo anterior.
 - [Unicode security](https://www.unicode.org/reports/tr39/)
 - [WebAssembly Component Model](https://component-model.bytecodealliance.org/)
 - [WASI](https://wasi.dev/)
+- [Apple Dispatch Queues](https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html)
+- [Swift SE-0392 — Custom Actor Executors](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0392-custom-actor-executors.md)
+- [Swift SE-0417 — Task Executor Preference](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)
+- [WIT Worlds](https://component-model.bytecodealliance.org/design/worlds.html)
+- [MLIR tensor dialect](https://mlir.llvm.org/docs/Dialects/TensorOps/)
+- [MLIR linalg dialect](https://mlir.llvm.org/docs/Dialects/Linalg/)
+- [StableHLO specification](https://openxla.org/stablehlo/spec)
+- [ONNX IR](https://onnx.ai/onnx/repo-docs/IR.html)
 - [SQLite WAL](https://sqlite.org/wal.html)
 - [Rust editions](https://doc.rust-lang.org/edition-guide/editions/)
 - [Swift library evolution](https://www.swift.org/blog/library-evolution/)

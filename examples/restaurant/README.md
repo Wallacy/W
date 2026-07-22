@@ -8,6 +8,12 @@ arquivos. As APIs `ServiceHost`, `ServiceRef`, `Mailbox` e os nomes de métodos
 são ilustrações candidatas. `service` é o único açúcar adotado e baixa para
 object + descriptor; `worker`, `assistant` e `nanoservice` não são keywords.
 
+A auditoria de proveniência recuperou quatro famílias ainda abertas: domínios de
+execução, entries por profile de host, tensor/ML e parâmetros compile-time. Elas
+aparecem apenas na seção 9 do [ensaio DB1](DB1_ASSAY.md) e no
+[adendo canônico](../../DB1_ADDENDUM.md); os arquivos `.w` continuam representando
+somente a baseline ratificada.
+
 O mote continua sendo: **Prazer para humanos. Clareza para máquinas.** Uma
 operação pequena pode virar uma unidade fine-grained quando precisa de lifetime,
 estado, authority, isolamento lógico ou escala próprios. A boundary física

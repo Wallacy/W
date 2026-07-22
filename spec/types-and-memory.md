@@ -1,7 +1,7 @@
 # Tipos, valores e memória
 
 > **Status:** modelo candidato; precisa de implementação e provas por exemplo
-> **Data:** 18 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 O objetivo não é inventar um único truque de memória que resolva todos os programas. É oferecer uma semântica pequena e previsível que permita ao compilador escolher stack, ownership, regiões, ARC ou chamadas C sem mudar o que o source significa. A estratégia de implementação e seus critérios estão em [Estratégia híbrida de memória](../design/memory-strategy.md).
 
@@ -309,6 +309,71 @@ LLVM aceita [range metadata](https://llvm.org/docs/LangRef.html#range-metadata) 
 loads/calls e o passe [SROA](https://llvm.org/doxygen/SROA_8cpp.html) consegue
 eliminar/promover aggregates. A política de quando storage pode estreitar
 continua sendo verificada no dialeto W antes desses lowerings.
+
+## Aplicação de tipos e parâmetros compile-time
+
+> **Status:** **Em aberto** em [W-O103](../STATUS.md); a decomposição abaixo é
+> direção para impedir que uma única sintaxe esconda contratos incompatíveis.
+
+As formas históricas `String<length: 12>` e
+`String<dynamic, min: 123, max: 4321>` misturavam identidade, constraint,
+storage, validation e hints. W precisa tratar cada dimensão separadamente:
+
+| Intenção | Mecanismo |
+|---|---|
+| nova identidade nominal | `type X = T` |
+| mesmo tipo com nome alternativo | `alias X = T` |
+| subconjunto válido de valores | `where`/refinement |
+| família por tipo ou valor compile-time | declaration generic + `Type<...>` |
+| layout/capacity observável | tipo de storage dedicado |
+| parsing, máscara ou apresentação | codec/formatter/UI adapter |
+| capacidade esperada/perfil | constructor ou metadata de recursos, não type identity |
+
+A regra recomendada é que `<...>` nunca seja um modifier map aberto. O símbolo
+resolvido declara previamente o kind de cada argumento — tipo, constante e,
+se comprovado necessário, shape/effect dedicado. Um possível refined alias
+parametrizado seria:
+
+```w
+type BoundedString<const min: usize, const max: usize> =
+  String where value.scalars.count in min...max
+
+type RestaurantName = BoundedString<min: 1, max: 100>
+```
+
+`const` na declaração torna o parâmetro de valor inequívoco. Labels em generic
+arguments, como `min:`/`max:`, permanecem candidatos contra a forma posicional
+`BoundedString<1, 100>`. A lista usa vírgulas; agrupamento histórico com `;` fica
+rejeitado por enquanto porque não há uma divisão semântica estável para ele.
+
+Um `String` limitado precisa nomear a unidade (`bytes`, `scalars` ou
+`graphemes`); `length` sozinho é ambíguo. O refinement não altera por si só o
+layout canônico. Quando capacity/layout é observável, a API usa outro tipo:
+
+```w
+type ShortLabel = String where value.scalars.count <= 40
+let buffer: InlineString<capacity: 64>
+let text = String(reserving: 4096)
+```
+
+`InlineString` é uma família de representação; `ShortLabel` é identidade nominal
+com invariant; `reserving` é uma decisão da instância. O optimizer ainda pode
+especializar storage não escapante de `ShortLabel` pelas regras anteriores sem
+prometer essa representação em `sizeOf`, ABI ou FFI.
+
+Uma máscara de CPF e teclado numérico não pertencem ao tipo `String`. `CPF`
+valida o valor, um codec formata e um UI adapter escolhe input behavior. Isso
+evita que um tipo de domínio carregue policies de frontend num servidor.
+
+`fn<C>` usa angle brackets em posição keyword-led para delimitar uma ilha de
+implementação; não é generic application nem precedente para modifiers livres.
+O parser distingue os contextos antes da resolução sem lhes atribuir a mesma
+semântica.
+
+Fixed arrays e tensor shapes tornam value parameters potencialmente centrais à
+v0, mas exigem evaluator hermético, identity/ABI, specialization e diagnostics.
+As alternativas e o gate conjunto estão no
+[addendum DB1](../DB1_ADDENDUM.md#a04--value-parameters-refinements-e-newtypes).
 
 ## Layout, ABI e resilience
 

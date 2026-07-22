@@ -1,6 +1,6 @@
 # Fechamento da baseline de design
 
-> **Status:** **Candidato** · DB1 ratificada; ensaio de consistência em andamento · 19 de julho de 2026
+> **Status:** **Candidato** · H01–H14 ratificados; addendum W-O100–W-O103 em aberto · 21 de julho de 2026
 
 Este documento é o mapa de fechamento do W. O registro canônico do estado de
 cada escolha continua em [STATUS.md](STATUS.md); aqui as questões são ordenadas
@@ -64,18 +64,18 @@ quais layouts são observáveis e quais permanecem internos.
 | S1. Representação de valores | Quais layouts/niches/tags existem e qual fallback é obrigatório? | W-C029–W-C036, W-O018, W-O044–W-O045 | S0 | decisão de representação + matriz de targets |
 | S2. Ownership e memória | Como valores nascem, movem, compartilham, falham e morrem? | W-O002–W-O004, W-O016–W-O017, W-O052–W-O055 | S1 | modelo de memória e pseudocódigo de cleanup |
 | S3. Strings e Unicode | O que `String` armazena e quanto custam indexação, slices e interoperabilidade? | W-O014, W-O046–W-O048, W-O075 | S1–S2 | contrato completo de texto e literais |
-| S4. Sistema de tipos | Como generics, conformances, inference, refinements, closures, property behaviors e conversões compõem? | W-O035, W-O049–W-O053, W-O097 | S0–S3 | regras de tipos, inference e diagnostics |
+| S4. Sistema de tipos | Como generics, conformances, inference, refinements, closures, property behaviors e conversões compõem? | W-O035, W-O049–W-O053, W-O097, W-O103 | S0–S3 | regras de tipos, inference e diagnostics |
 | S5. Erros, efeitos e panic | Como falha recuperável, cancelamento, effects e falha irrecuperável atravessam scopes? | W-O005–W-O006, W-O033, W-O053–W-O054, W-O057 | S2–S4 | modelo unificado de exits e cleanup |
-| S6. Concorrência e paralelismo | O que `async`, `spawn`, tasks, groups, streams e scheduler prometem? | W-O001, W-O055–W-O064 | S2, S4–S5 | semântica de tasks + contrato do executor |
-| S7. Módulos, instâncias e serviços | Como código, estado, autoridade, localidade, durability e isolamento se relacionam? | W-O023–W-O027, W-O065–W-O073 | S2, S5–S6 | modelo de módulos/serviços e lifecycle |
+| S6. Concorrência e paralelismo | O que `async`, `spawn`, tasks, groups, streams e scheduler prometem? | W-O001, W-O055–W-O064, W-O100 | S2, S4–S5 | semântica de tasks + contrato do executor |
+| S7. Módulos, instâncias e serviços | Como código, estado, authority, locality, entrypoints, durability e isolation se relacionam? | W-O023–W-O027, W-O065–W-O073, W-O100–W-O101 | S2, S5–S6 | modelo de módulos/services/entries e lifecycle |
 | S8. Stdlib e I/O | Qual é o núcleo portátil e onde ficam blocking, adapters, dados e tiers do SDK? | W-O026, W-O074–W-O080, W-O098 | S3, S5–S7 | mapa da stdlib e contratos de capabilities |
-| S9. Numéricos e ciência | Como fórmulas preservam overflow, unidades, rounding, shapes e reprodutibilidade? | W-O036–W-O041, W-O049, W-O081–W-O082, W-O099 | S1, S4, S6 | modelo numérico e corpus científico |
+| S9. Numéricos e ciência | Como fórmulas preservam overflow, unidades, rounding, shapes e reprodutibilidade? | W-O036–W-O041, W-O049, W-O081–W-O082, W-O099, W-O102–W-O103 | S1, S4, S6 | modelo numérico e corpus científico/ML |
 | S10. C e ilhas multilíngues | Como FFI e `fn<lang>` preservam ownership, ABI, provenance e diagnóstico? | W-O042, W-O083–W-O084 | S1–S6 | contrato C primeiro + gate por linguagem |
 | S11. Frontend, IR e backend | Como a semântica chega a código nativo sem ser apagada cedo? | W-O007–W-O012, W-O064, W-O085, W-O089–W-O090 | S0–S10 | arquitetura implementável e interfaces dos passes |
 | S12. Build e packages | O que entra na identidade do artefato e como resolução/cache permanecem herméticos? | W-O013, W-O019, W-O087–W-O093 | S7–S11 | schemas, resolução e política de build |
 | S13. Verificação e distribuição | O que uma assinatura, rebuild, nota W e tier realmente comprovam? | W-O019–W-O022, W-O091–W-O093 | S11–S12 | modelo de evidência e threat model |
 | S14. Recursos e tooling | Como custos, budgets, diagnostics, testes e editores explicam a linguagem? | W-O028–W-O032, W-O095–W-O096 | S1–S13 | contrato do lens, corpus e tooling |
-| S15. Consistência da superfície | Todas as decisões formam uma linguagem pequena, ensinável e sem sinônimos acidentais? | W-O001, W-O015, W-O038–W-O041, W-O048, W-O086, W-O094 | S0–S14 | tour/cheatsheet normativos revisados do zero |
+| S15. Consistência da superfície | Todas as decisões formam uma linguagem pequena, ensinável e sem sinônimos acidentais? | W-O001, W-O015, W-O038–W-O041, W-O048, W-O086, W-O094, W-O100–W-O103 | S0–S14 | tour/cheatsheet normativos revisados do zero |
 
 As dependências não impedem anotar uma ideia posterior. Elas impedem promover
 uma escolha posterior usando como premissa algo que ainda está **Em aberto**.
@@ -91,11 +91,11 @@ antes aparecia sem ID:
 | valores/ABI | existentials/erasure interna, metadata de tipo, layout público, resilience, niches, tags e negociação de profile |
 | memória | OOM, panic/unwind, atomics, data races, captures e escape de closures |
 | texto | storage, mutabilidade, indexação, slicing, normalização, literais, interpolation e bundles Unicode |
-| tipos | promotions/casts, generics/conformance, specialization, inference, refinements e compile-time evaluation |
-| tasks | cancellation reason, handle, await múltiplo, erro primário, groups, backpressure, `Send`/`Sync`, streams e scheduler |
-| módulos/runtime | arquivos, init, visibility, cycles, local/remote calls, mailbox, durability, output gates e failure boundary |
+| tipos | promotions/casts, generics/conformance, value parameters, specialization, inference, refinements e compile-time evaluation |
+| tasks | cancellation reason, handle, await múltiplo, erro primário, task groups, executor/isolation/preference, backpressure, `Send`/`Sync`, streams e scheduler |
+| módulos/runtime | arquivos, init, visibility, cycles, entry/host profiles, local/remote calls, mailbox, durability, output gates e failure boundary |
 | stdlib | blocking, filesystem, clocks, randomness, collections, hashing, rede/TLS/HTTP e errors de adapters |
-| ciência | decimal/Money, units, strict/reproducible/fast numeric modes, arrays/tensors, aliases e devices |
+| ciência | decimal/Money, units, strict/reproducible/fast numeric modes, arrays/tensors, literals/operators, shapes, autodiff, interchange e devices |
 | interop | geração de wrappers C, adapter overrides, source maps e support matrix de `fn<lang>` |
 | compilador | parser normativo, MLIR core, async lowering, ABI W, generics cross-module, cache e incrementalidade |
 | produto | editions, profiles, conditional compilation, testes, lock/digest, multi-version, registry e policies |
@@ -123,13 +123,13 @@ antes aparecia sem ID:
 
 | Item | Estado |
 |---|---|
-| inventário atual | **Candidato**: 98 questões registradas — 97 ativas e W-O043 promovida; W-O034 continua reservado |
+| inventário atual | 102 questões registradas — 97 do inventário original com destino ratificado, W-O043 promovida e W-O100–W-O103 **Em aberto**; W-O034 continua reservado |
 | ordem de dependência | **Candidato**: S0–S15 |
-| revisão integral em lote | [DB1_REVIEW.md](DB1_REVIEW.md) foi ratificada com exceções e promovida a W-C037–W-C050 |
-| ensaio de consistência | restaurante DB1 precisa exercitar syntax, memory, tasks, units, std tiers, docs/tests e bootstrap assumptions juntos |
-| implementação após a DB1 | aguarda o double check do ensaio; depois começa pelo seed C e slices verticais |
+| revisão integral em lote | [DB1_REVIEW.md](DB1_REVIEW.md) foi ratificada com exceções; [DB1_ADDENDUM.md](DB1_ADDENDUM.md) corrige quatro omissões da auditoria histórica |
+| ensaio de consistência | restaurante DB1 precisa incorporar execution domains, host entries, tensor/ML e value parameters além das famílias H01–H14 |
+| implementação após a DB1 | aguarda ratificação do addendum e novo double-check; depois começa pelo seed C e slices verticais |
 | horizonte pós-v0 | seams em [ARCHITECTURE.md](ARCHITECTURE.md); hipóteses e gates em [research/long-term-program.md](research/long-term-program.md), fora do bloqueio da DB1 |
 
-O número de questões não mede qualidade nem obriga 98 features. Uma boa revisão
+O número de questões não mede qualidade nem obriga 102 features. Uma boa revisão
 pode fechar várias com uma única regra, fundir duplicatas ou retirar uma família
 inteira da v0. O requisito é que isso seja deliberado e rastreável.

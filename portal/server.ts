@@ -47,6 +47,7 @@ const routes = new Map<string, { file: string; type: string }>([
   ["/docs/ARCHITECTURE.md", { file: "../ARCHITECTURE.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/STATUS.md", { file: "../STATUS.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/DB1_REVIEW.md", { file: "../DB1_REVIEW.md", type: "text/markdown; charset=utf-8" }],
+  ["/docs/DB1_ADDENDUM.md", { file: "../DB1_ADDENDUM.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/design/documentation-and-tests.md", { file: "../design/documentation-and-tests.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/LANGUAGE_TOUR.md", { file: "../LANGUAGE_TOUR.md", type: "text/markdown; charset=utf-8" }],
   ["/docs/ROADMAP.md", { file: "../ROADMAP.md", type: "text/markdown; charset=utf-8" }],

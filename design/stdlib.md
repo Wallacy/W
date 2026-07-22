@@ -44,7 +44,7 @@ uma taxonomia ortogonal para aquilo que acompanha o SDK público:
 |---|---|---|
 | T0 · Foundation | independente de ambiente, pequeno e estável | options/errors, ranges, strings/bytes, collections fundamentais e algoritmos puros |
 | T1 · Systems | uso frequente e abstração de plataforma | console/`print`, tasks/sync, clocks, random, filesystem, process, TCP/UDP/DNS e codecs fundamentais |
-| T2 · Domains | first-party explícito, bundled e atualizável | HTTP/TLS, SI, decimal/Money, análise numérica, tensors, JSON, regex, SQLite e TUI |
+| T2 · Domains | first-party explícito, bundled e atualizável | HTTP/TLS, SI, decimal/Money, análise numérica, tensor/linalg, JSON, regex, SQLite e TUI |
 
 T0 não consulta OS, host, locale, clock, entropia ou outra condição ambiental.
 Uma operação que escreve, espera ou obtém autoridade é pelo menos T1, mesmo que
@@ -52,6 +52,19 @@ tenha nome curto. T0/T1/T2 não são níveis de privilégio, qualidade ou linkin
 acompanhar o SDK, mas somente reachability entra no artefato. T2 usa o mesmo
 manifest/lock dos packages para poder corrigir TLS, HTTP, timezone ou dados
 científicos sem amarrar sua cadence à edição da linguagem.
+
+Dentro de T2, distribuição oficial não exige a mesma maturidade. O candidato
+`tensor/linalg` cobre valores, views, shapes, reductions e CPU fallback; um
+subdomínio `ml` pode começar experimental com autodiff, models, quantization,
+sparse/sharding e device adapters. Ambos usam manifest/lock e rótulo de
+maturidade; “bundled” não torna uma API normativa nem disponível em todo target.
+O contrato detalhado está em
+[numéricos e ML](numerics-and-quantities.md#arrays-matrices-tensors-e-ml).
+
+Profiles de host para CLI/processo e adapters fundamentais são T1. HTTP fetch,
+UI events e HID podem ser T2/target packages que fornecem slots de entry
+versionados; adicionar um slot não adiciona keyword à linguagem. O binding source
+permanece **Em aberto** em [W-O101](../STATUS.md).
 
 O compiler pode conhecer a semântica de uma operação sem congelar sua
 representação. `Option`, errors, `String`, collections e task frames podem receber

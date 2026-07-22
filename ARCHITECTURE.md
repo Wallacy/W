@@ -1,7 +1,7 @@
 # Arquitetura de longo prazo do W
 
 > **Status:** **Direção** para separação de camadas; componentes concretos variam
-> entre **Candidato**, **Em aberto** e **Pesquisa** · 19 de julho de 2026
+> entre **Candidato**, **Em aberto** e **Pesquisa** · 21 de julho de 2026
 >
 > Compilador, runtime e stdlib ainda não existem. Este documento define fronteiras
 > que permitem construí-los e substituí-los sem transformar a primeira
@@ -21,7 +21,7 @@ mapa registra as fronteiras e compromissos que precisam sobreviver a v0.
 |---|---|---|
 | linguagem | source, tipos, efeitos, ownership e comportamento observável | detalhes de MLIR, allocator, scheduler ou SO |
 | implementação | frontend, HIR, verificadores, lowerings e backends | que sua AST/IR interna é formato público eterno |
-| execução | cleanup, tasks, I/O adapters, panic, tracing e serviços | um event loop, heap, thread model ou sandbox universal |
+| execução | cleanup, tasks, execution domains, host entry adapters, I/O, panic, tracing e serviços | um event loop, heap, thread model ou sandbox universal |
 | SDK | T0 foundation, T1 systems e T2 domains oficiais | disponibilidade idêntica em todo target |
 | build/package | resolução hermética, profiles, cache, recipes e artefatos | rede durante compilação ou estado não declarado do host |
 | distribuição | mirrors, updates, provenance, rebuilds e policies | que assinatura, reprodução e auditoria provam a mesma coisa |
@@ -77,6 +77,32 @@ distribuição binária têm custos próprios, não um checkbox global.
 Reachability remove componentes não usados. Um profile freestanding pode não ter
 T1, tasks ou services. Um host pode substituir adapters preservando o contrato.
 
+### Entry descriptor e mundo do host
+
+API W, handler, entry descriptor e product são interfaces separadas. O descriptor
+liga slots versionados de um host a funções comuns e registra signatures,
+effects, capabilities, isolation e lifecycle. O product escolhe o principal e o
+adapter nativo/WASI/test; nenhuma camada procura uma função por nome mágico.
+
+Um host world declara o que chama e o que fornece. Assim, CLI, HTTP, UI, HID e
+um component sandboxed podem compor a mesma linguagem sem acrescentar seus
+eventos como keywords. Contexts são capability types; um import de código nunca
+preenche sozinho um import de authority. A superfície candidata está em
+[módulos](spec/modules.md#entrypoints-e-profiles-de-host).
+
+### Tensor lógico, storage e device
+
+Shape/dtype e semântica numérica pertencem ao valor lógico; ownership/alias e
+views pertencem ao contrato de memória; strides/layout/address space pertencem à
+representação; device transfer e executor pertencem ao runtime/profile. Uma API
+ou lowering pode otimizar todas as camadas junto sem fingir que são o mesmo tipo
+de decisão.
+
+StableHLO/ONNX são formatos/adapters de interchange. MLIR tensor/linalg/vector e
+GPU são lowerings. Nenhum deles se torna a semântica source universal do W. A
+baseline CPU correta continua disponível quando model compiler, BLAS ou GPU não
+existirem. Veja [numéricos e ML](design/numerics-and-quantities.md#arrays-matrices-tensors-e-ml).
+
 ### Artefato, recipe e evidência
 
 Payload executável, envelope da plataforma, recipe, SBOM, provenance, assinatura
@@ -113,6 +139,10 @@ associáveis ao payload.
    versão usada e não mudam retroativamente dentro de uma edition/build recipe.
 10. Ferramentas de IA consomem os mesmos fatos estruturados que IDEs e humanos;
     sugestões nunca ganham authority especial sobre testes ou policies.
+11. Export W, handler, entry de host e principal de product nunca são inferidos
+    como sinônimos por coincidência de nome.
+12. Tensor operations não escondem host↔device transfer, materialização de view
+    ou mudança de guarantees numéricas.
 
 ## Perfis e matriz de suporte
 
@@ -198,7 +228,7 @@ política.
 
 | Horizonte | Resultado | O que permanece fora |
 |---|---|---|
-| H0 · contrato | DB1, corpus, formatter e diagnostics | performance e ABI pública |
+| H0 · contrato | H01–H14 + addendum W-O100–W-O103, corpus, formatter e diagnostics | performance e ABI pública |
 | H1 · toolchain nativa | seed, self-host, CPU nativo, C FFI, T0 e package local | registry e services distribuídos |
 | H2 · runtime produtivo | ownership completo, tasks, T1, debugger e profiles de target | ABI universal e serverless próprio |
 | H3 · ecossistema verificável | registry/mirrors, rebuilds, policies, SDK oficial e conformance | score mágico de segurança |

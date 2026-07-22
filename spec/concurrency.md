@@ -1,7 +1,7 @@
 # Concorrência, paralelismo e tasks
 
 > **Status:** semântica candidata; nenhum runtime conforme existe ainda
-> **Data:** 18 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 W trata **concorrência** e **paralelismo** como intenções diferentes, mas usa a mesma árvore estruturada para lifetime, errors e cancelamento.
 
@@ -15,6 +15,10 @@ W trata **concorrência** e **paralelismo** como intenções diferentes, mas usa
 | parallelism | possibilidade de dois trabalhos executarem ao mesmo tempo em recursos distintos |
 | suspension point | ponto em que uma task pode ceder seu executor sem bloquear a thread |
 | executor | política/runtime que agenda jobs em uma ou mais threads/loops/queues |
+| executor preference | placement herdável para jobs não isolados; não protege estado |
+| isolation domain | contexto que serializa ou restringe acesso a estado conforme um contrato |
+| affinity | exigência de executar numa thread/event loop/device particular do host |
+| task group | owner lexical de children, ordering, join, erro e backpressure; não é executor |
 | cancellation | solicitação cooperativa para terminar uma task e seus filhos |
 | join | espera estruturada pelo término e cleanup de um filho |
 
@@ -312,6 +316,53 @@ Configuração precisa ser hierárquica e consultável:
 - limite imposto pelo ambiente/cgroup/serverless.
 
 Afinidade a CPU específica é capability de plataforma e ferramenta de profiling, não semântica comum.
+
+### Isolation, preference e affinity
+
+A auditoria histórica recuperou [W-O100](../STATUS.md). Os antigos “thread
+groups” só podem voltar à superfície se preservarem quatro contratos distintos:
+
+- um `service`/entry pode **exigir isolation** para proteger seu estado;
+- uma task subtree pode **preferir um executor** para placement de trabalho não
+  isolado;
+- `spawn` declara **intenção paralela**, independentemente do nome do pool;
+- somente um host profile pode exigir **affinity** física, como a UI thread.
+
+Um módulo estático não possui nenhum desses recursos. Importá-lo não cria fila,
+thread ou hop. A instância/entry recebe o binding no descriptor; tasks recebem
+um executor do scope e podem, se W-O100 aceitar a sintaxe, fazer override local.
+
+Direção semântica para a comparação:
+
+1. o executor exigido por isolation prevalece sobre a preference do caller;
+2. cruzar isolation exige `await` e transferência válida mesmo num fast path;
+3. preference é herdada por `async let` e task groups estruturados, não por uma
+   task detached futura;
+4. um executor serial fornece exclusão lógica, não identidade permanente de
+   thread;
+5. remapear placement no deployment é permitido; remover isolation, ordering ou
+   `Send` não é;
+6. priority/QoS é hint até que um profile publique garantia mais forte.
+
+As formas abaixo são alternativas, não grammar aceita:
+
+```w
+async on network let response = fetchMenu()
+spawn on compute let forecast = buildForecast(take history)
+```
+
+`async on` significaria child concorrente com preference; `spawn on` só seria
+válido para um executor capaz de satisfazer a intenção paralela. Trabalho UI
+isolado deve normalmente aparecer como call ao owner:
+
+```w
+await renderer.show(forecast)
+```
+
+e não como `spawn on ui`, que confundiria paralelismo com um domínio serial.
+Declaração física apenas no manifest, `service/entry ... on domain`, defaults de
+profile e a forma histórica por módulo continuam comparadas em
+[DB1_ADDENDUM.md](../DB1_ADDENDUM.md#a01--domínios-de-execução).
 
 ## I/O
 

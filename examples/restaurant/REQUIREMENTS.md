@@ -29,6 +29,10 @@ uma candidata se tornar normativa.
 | serviço | `service State as Api` + `ServiceRef` | object + descriptor explícito · IDL/codegen | lifecycle, error, call local/remota e capacidade de remover açúcar |
 | HTTP | `http`/`json` first-party | pacote oficial fora da std · somente transporte na std | portabilidade, TLS, codecs, tamanho e ritmo de evolução |
 | outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · adapter declarado | migração, ABI, ownership, parser injection, debug, cache e provenance |
+| domínio de execução | call isolada via `await`; `async/spawn on domain` apenas no ensaio aberto | descriptor/manifest · parâmetro explícito de executor · herança lexical | isolamento versus placement, paralelismo, portabilidade, starvation e diagnostics |
+| entrypoint | descriptor tipado liga handlers comuns a slots de host | `entry` contextual · `export { ... }` · apenas manifest | colisões, testabilidade, profiles versionados, capabilities e adapters |
+| matrizes/tensores | arrays aninhados + `Matrix`/`matmul` como baseline | literal com `;` · operador `@` · métodos/operators distintos | shapes, promotion, broadcasting, aliasing, devices, autodiff e lowering |
+| parâmetros de valor | `<...>` somente quando o tipo declara os parâmetros | refinamento direto · parâmetros posicionais · tipo dedicado por caso | kinds, inferência, diagnostics, ABI, layout e custo de monomorphization |
 
 `in (a, b)` significa OR/membership finito e baixa para comparações estáticas.
 `.isOneOf` preserva a mesma leitura como alternativa. Um enum simples não pode
@@ -74,6 +78,10 @@ ou comparações diretas.
 | `Money` em minor units | overflow checked e rounding escolhido pelo domínio, nunca binary float implícito |
 | `copy jobs`, `take entries`, partial field moves | análise de move por path, borrow exclusivo e diagnostics de uso após move |
 | `async let`/`spawn let` | distinguir suspensão concorrente de transferência paralela e inferir `Send`/`Sync` |
+| preferência de executor e call isolada | separar placement, isolamento, afinidade e paralelismo; verificar herança e hops |
+| descriptor de entry | validar slots contra um profile de host versionado sem tornar o handler magicamente público |
+| tensor com shape/dtype/device | provar shapes e promotion, tornar transfers/copies observáveis e rejeitar broadcast ambíguo |
+| generic value/refinement/layout | kind-check de argumentos compile-time e preservar identidade, invariante e representação separadamente |
 | `cancel task`, `var atomic` e `var Lazy` | verificar cancellability, ordering/borrow atômico e expansão de storage/accessors |
 | closures do sort/HTTP | inferir captures, ownership, lifetime, effects e sendability |
 | typed errors compostos | não injetar um error set em outro silenciosamente |
@@ -89,7 +97,10 @@ W precisa preservar pelo menos:
 - tipo dimensional normalizado e unidade/literal original para diagnostics;
 - overflow, rounding, strict/reproducible/fast floating-point mode;
 - árvore de tasks, join order, cancelamento, captures e intenção `spawn`;
+- isolamento, preferência de executor, afinidade exigida e hops entre domínios;
 - call local versus `ServiceRef`, typed error e suspension point;
+- slots de entry resolvidos contra profile, handler e capabilities requeridas;
+- parâmetros compile-time normalizados, shape/dtype/device e regras de alias/broadcast;
 - effect/capability, símbolo std resolvido e provenance da edição;
 - allocations/copies candidatas, escape e região possível;
 - interfaces exportadas separadas de ABI C e contrato RPC.
@@ -125,12 +136,14 @@ O corpus exige um runtime pequeno, mas real:
 1. task tree lexical e frames para `async let`;
 2. executor de I/O/timers para forno, terminal e HTTP;
 3. executor CPU limitado para `spawn let`, sem uma thread por child;
-4. cancel token, join determinístico e cleanup antes de propagar erro;
-5. mailbox limitada, service turn e backpressure;
-6. `ServiceRef` com call local/remota observável, serialization somente quando a
+4. registry lógico de domains que não promete a mesma thread física e mantém
+   isolamento, preferência e afinidade como fatos distintos;
+5. cancel token, join determinístico e cleanup antes de propagar erro;
+6. mailbox limitada, service turn e backpressure;
+7. `ServiceRef` com call local/remota observável, serialization somente quando a
    boundary física exigir;
-7. logical stack trace que atravesse await/service call;
-8. scheduler determinístico de teste e injection de clock/hardware.
+8. logical stack trace que atravesse await/service call;
+9. scheduler determinístico de teste e injection de clock/hardware.
 
 `planning.w` e `billing.w` provam que lógica comum não precisa do runtime async.
 `oven.w` separa `predictStep`/`controlStep` puros de `regulateOven`; essa fronteira
@@ -142,7 +155,8 @@ permite testar matemática sem sensor e I/O sem duplicar o algoritmo.
 |---|---|---|
 | T0 foundation | primitivos, option, typed errors, ownership, strings/collections/ranges puros | console, HTTP, allocator específico ou threads |
 | T1 systems | `print`/console, tasks, clocks, filesystem, process, TCP/UDP/DNS e adapters | mesma implementação em todo target |
-| T2 domains | HTTP/TLS, SI/information units, JSON, SQLite, numerics e TUI first-party | promoção automática ao core ou carregamento no programa mínimo |
+| T2 domains | HTTP/TLS, SI/information units, JSON, SQLite, tensor/linalg, numerics e TUI first-party | promoção automática ao core ou carregamento no programa mínimo |
+| T2 experimental | autodiff, model interchange, sparse/shard e kernels especializados | estabilidade junto à edição da linguagem ou semântica escondida de device |
 | packages externos | UI rica, banco/codecs especiais e integrações | confiança sem lock/provenance |
 
 HTTP no exemplo é uma hipótese de produto: ser “sem terceira parte” pode
@@ -169,3 +183,5 @@ usado.
     provar que nenhum byte do grafo de teste entra no payload release.
 12. baixar `var Lazy` e `var atomic`, incluindo negativos de init order, borrow do
     payload atômico e mutação não-atômica por receiver compartilhado.
+13. comparar W-O100–W-O103 no ensaio do adendo antes de adicionar qualquer token
+    novo ao parser/highlighter; cada promoção gera corpus positivo e negativo.

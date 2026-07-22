@@ -1,11 +1,20 @@
-# Revisão integral da Baseline de Design 1
+# Revisão integral do inventário original da Baseline de Design 1
 
-> **Status:** **Candidato** · ratificada com exceções · 19 de julho de 2026
+> **Status:** **Candidato** · ratificada com exceções · auditada em 21 de julho de 2026
 
 Este documento responde de uma vez ao inventário original de questões abertas do
 W. [STATUS.md](STATUS.md) continua sendo a autoridade. A revisão humana aceitou
 H01–H14 com as exceções registradas abaixo; as escolhas foram promovidas a
 **Candidato**, não a implementação ou compatibilidade normativa.
+
+## Limite de completude descoberto depois da ratificação
+
+A auditoria linha a linha de `Y/WIP.MD` mostrou que o inventário original não era
+exaustivo. Domínios de execução, bindings de entrypoints, a superfície tensor/ML
+e parâmetros de valor/type modifiers não haviam sido comparados como famílias
+próprias. Eles agora são W-O100–W-O103 e permanecem **Em aberto** no
+[addendum de proveniência](DB1_ADDENDUM.md). As decisões H01–H14 abaixo não foram
+revogadas; apenas a antiga alegação de cobrir toda pergunta material foi corrigida.
 
 ## Ratificação recebida
 

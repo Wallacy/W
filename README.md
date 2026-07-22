@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 19 de julho de 2026**
+> **Working Draft · 21 de julho de 2026**
 > **Prazer para humanos. Clareza para máquinas.**
 
 W é uma proposta de linguagem de sistemas nativa, segura e agradável de escrever. Ela combina a familiaridade de C, a legibilidade de Swift e TypeScript e um modelo explícito para memória, efeitos, concorrência e paralelismo.
@@ -120,7 +120,7 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 | Camada | Estado atual |
 |---|---|
 | Visão e princípios | direção consolidada |
-| Baseline de design | DB1 ratificada como candidata; ensaio integrado do restaurante em revisão |
+| Baseline de design | H01–H14 ratificados como candidatos; auditoria recuperou W-O100–W-O103 antes da alegação de completude |
 | Sintaxe apresentada aqui | proposta de trabalho |
 | Tipos, erros e ownership | modelo candidato; precisa de protótipos |
 | Concorrência estruturada e paralelismo | semântica candidata; runtime ainda inexistente |
@@ -138,8 +138,9 @@ MLIR é a infraestrutura de IR, passes e lowering. Não substitui o frontend, o 
 O vocabulário normativo usado em toda a documentação está em [STATUS.md](STATUS.md).
 O inventário e a ordem de fechamento estão em
 [DESIGN_CLOSURE.md](DESIGN_CLOSURE.md). A proposta de fechamento de todas as
-questões e o formulário único de ratificação estão em
-[DB1_REVIEW.md](DB1_REVIEW.md).
+questões originalmente catalogadas está em [DB1_REVIEW.md](DB1_REVIEW.md); o
+[addendum de proveniência](DB1_ADDENDUM.md) registra as quatro famílias que a
+auditoria posterior encontrou fora daquela revisão.
 
 ## Como explorar
 
@@ -156,8 +157,10 @@ questões e o formulário único de ratificação estão em
   positivos/negativos, snapshots de CST e classificação do subset executável.
 - Consulte o [fechamento da baseline](DESIGN_CLOSURE.md) para ver todas as
   pendências e a ordem em que serão decididas antes da implementação.
-- Use a [revisão integral da DB1](DB1_REVIEW.md) para aceitar os defaults H01–H14
-  em lote e registrar somente as exceções.
+- Use a [revisão do inventário original da DB1](DB1_REVIEW.md) para consultar os
+  defaults H01–H14 já ratificados e suas exceções.
+- Use o [addendum da DB1](DB1_ADDENDUM.md) para comparar execution domains,
+  host entrypoints, tensor/ML e parâmetros compile-time recuperados do WIP.
 - Leia [LANGUAGE_TOUR.md](LANGUAGE_TOUR.md) para percorrer a sintaxe e o comportamento do programa.
 - Leia [VISION.md](VISION.md) para entender público, princípios, não objetivos e opções de posicionamento.
 - Consulte [techspec.md](techspec.md) para a arquitetura técnica resumida.
@@ -180,12 +183,15 @@ questões e o formulário único de ratificação estão em
 - Veja [research/README.md](research/README.md) e o
   [programa de longo prazo](research/long-term-program.md) antes de promover uma
   hipótese a requisito.
+- Para conferir se uma ideia antiga ganhou destino ou foi perdida, consulte a
+  [auditoria semântica integral de `Y/WIP.MD`](../Y/W/WIP-audit.md).
 - Veja [ROADMAP.md](ROADMAP.md) para a sequência de protótipos.
 
 ## Norte imediato
 
-A DB1 foi ratificada; antes de implementar o frontend, o restaurante precisa fazer
-o double-check integrado da superfície e registrar qualquer contradição real. Em
+H01–H14 foram ratificados, mas a auditoria de proveniência reabriu quatro famílias
+materiais. Antes de implementar o frontend, o addendum precisa ser ratificado e o
+restaurante precisa fazer um novo double-check integrado da superfície. Em
 seguida, a primeira fatia vertical implementável será:
 
 1. dez a vinte programas que definam a experiência desejada;
