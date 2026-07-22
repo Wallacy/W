@@ -1,12 +1,16 @@
 # Proveniência do catálogo de pesquisa do W
 
-> **Arquivo histórico · 19 de julho de 2026**
+> **Arquivo histórico · 21 de julho de 2026**
 
 Este documento mantém fora da árvore publicável `W/` a ligação entre pesquisas
 atuais e os cadernos que as originaram. Ele não é especificação nem decisão. Os
 caminhos abaixo existem nesta árvore histórica; o inventário byte a byte está em
 [consolidation-manifest.md](consolidation-manifest.md) e os links externos em
 [historical-references.md](historical-references.md).
+
+A auditoria integral por família, incluindo itens cobertos, parciais e ausentes,
+está em [WIP-audit.md](WIP-audit.md). Este arquivo curto continua sendo apenas o
+índice das pesquisas que possuem protótipos ou documentos satélite.
 
 | Tema | Fontes de origem |
 |---|---|
@@ -22,6 +26,10 @@ caminhos abaixo existem nesta árvore histórica; o inventário byte a byte est�
 | SQLite/storage | seção “Storage” de `Y/WIP.MD`; `Y/_w_/WC.MD`; `TK/wQL.MD` |
 | GPU/HDL | perguntas e exemplos OpenCL, OpenMP, HIP, CUDA, Bend e HDL em `Y/WIP.MD`/`Y/_w_/WC.MD` |
 | snapshots, PGO e autotests | trechos `snapshot`, `.test.w`, `.debug.w`, `profile`, PGO e `.w/.autotest` de `Y/WIP.MD` |
+| executors/queues por módulo, instância e task | `Y/WIP.MD:470-472`, `723-734`, `2402-2450`, `2561-2624`, `2703-2776`, `3958-3999` |
+| entrypoints e host events | `Y/WIP.MD:136-138`, `1224-1258`, `1481-1535`, `1718-1760`, `3167-3210` |
+| type modifiers e tipos parametrizados por valores | `Y/WIP.MD:1549-1568`, `1678-1706`, `2778-2806`, `3824-3835` |
+| matrices/tensors/ML | accelerators, SIMD/GPU e ciência em `Y/WIP.MD:1694`, `2157`, `3064-3069`, `3353-3362`; a notação matricial foi acrescentada como nova hipótese, não encontrada pronta no caderno |
 
 ## Protocolos e framing
 
