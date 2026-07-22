@@ -223,10 +223,10 @@ fica para adapters/dados realmente dinâmicos.
 
 `Tensor` é o valor lógico. `TensorView` é um borrow com metadata de shape,
 strides, offset e address space. Layout row/column-major, tiles e packing só
-entram na identidade pública quando uma ABI/kernel exige; otherwise são escolhas
+entram na identidade pública quando uma ABI/kernel exige; caso contrário, são escolhas
 de bufferization/optimizer explicáveis.
 
-### Literals de matrix
+### Literais de matriz
 
 Nested arrays contextuais formam a baseline de menor sintaxe:
 
@@ -252,7 +252,15 @@ let transform = try Matrix.from(rows: [[1.0, 0.0, 10.0], [0.0, 1.0, 20.0]])
 statement terminator opcional e no antigo MultiRange. Só vira sugar candidata
 depois de um corpus científico e teste de parser/formatter.
 
-### Operators e broadcasting
+O parentesco precisa ser documentado com precisão. MATLAB usa `;` para terminar
+uma linha do array, mas também para separar commands e suprimir output fora dele;
+W consideraria somente o significado local ao literal. Julia usa `;` como
+concatenação vertical e repete semicolons para dimensões superiores. Copiar essa
+família inteira tornaria whitespace/pontuação parte demais do shape; a proposta W
+fica em linhas 2D e usa nested arrays/constructors para rank N enquanto o corpus
+não provar uma extensão melhor.
+
+### Operadores e broadcasting
 
 | Intenção | Candidato inicial | Alternativas |
 |---|---|---|
@@ -267,6 +275,11 @@ ser uma view/fusão sem copy, mas também mascara eixo errado e multiplica traba
 por isso começa explícito. O corpus ML decide se a regra Array API merece sugar.
 `@` separa produto linear de `*` elementwise sem introduzir toda a família `.*`,
 mas permanece uma recomendação, não decisão ratificada.
+
+Julia oferece um operador pontuado para cada operação e funde broadcast chains;
+isso é poderoso, mas também torna broadcast implícito parte ampla da linguagem.
+W preserva `*`/`.*` como alternativa, sem assumi-la antes de medir erros de eixo,
+fusão, diagnostics e custo de uma forma explícita.
 
 ### Ownership e copies
 
@@ -395,4 +408,7 @@ em vez de apagar cedo as garantias num C intermediário.
 - [OpenXLA: StableHLO specification](https://openxla.org/stablehlo/spec)
 - [Python Array API: `matmul`](https://data-apis.org/array-api/2023.12/API_specification/generated/array_api.matmul.html)
 - [ONNX: IR specification](https://onnx.ai/onnx/repo-docs/IR.html)
+- [MATLAB: `;` como separador de command e linha de array](https://www.mathworks.com/help/matlab/ref/semicolon.html)
+- [Julia: array literals e concatenação multidimensional](https://docs.julialang.org/en/v1/manual/arrays/)
+- [Julia: operadores pontuados e broadcasting](https://docs.julialang.org/en/v1/manual/mathematical-operations/)
 - [LLVM: constrained floating-point intrinsics](https://llvm.org/docs/LangRef.html#constrained-floating-point-intrinsics)

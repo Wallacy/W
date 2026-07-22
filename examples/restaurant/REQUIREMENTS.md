@@ -29,10 +29,11 @@ uma candidata se tornar normativa.
 | serviço | `service State as Api` + `ServiceRef` | object + descriptor explícito · IDL/codegen | lifecycle, error, call local/remota e capacidade de remover açúcar |
 | HTTP | `http`/`json` first-party | pacote oficial fora da std · somente transporte na std | portabilidade, TLS, codecs, tamanho e ritmo de evolução |
 | outra linguagem | `foreign c` para ABI; body inline para o primeiro `fn<C>` | `fn<C> from` · namespace `C::unit` · adapter declarado | migração, ABI, ownership, parser injection, debug, cache e provenance |
-| domínio de execução | call isolada via `await`; `async/spawn on domain` apenas no ensaio aberto | descriptor/manifest · parâmetro explícito de executor · herança lexical | isolamento versus placement, paralelismo, portabilidade, starvation e diagnostics |
-| entrypoint | descriptor tipado liga handlers comuns a slots de host | `entry` contextual · `export { ... }` · apenas manifest | colisões, testabilidade, profiles versionados, capabilities e adapters |
+| domínio de execução | call isolada via `await`; placement apenas no ensaio aberto | `async/spawn on .domain` · `async/spawn<.domain>` · descriptor/manifest · API explícita | isolamento versus placement, paralelismo, portabilidade, starvation e diagnostics |
+| entrypoint | descriptor tipado liga handlers comuns a slots de host | `entry { statements }` para default único · binding para closure · conformance · apenas manifest | colisões, testabilidade, profiles versionados, capabilities e adapters |
 | matrizes/tensores | arrays aninhados + `Matrix`/`matmul` como baseline | literal com `;` · operador `@` · métodos/operators distintos | shapes, promotion, broadcasting, aliasing, devices, autodiff e lowering |
-| parâmetros de valor | `<...>` somente quando o tipo declara os parâmetros | refinamento direto · parâmetros posicionais · tipo dedicado por caso | kinds, inferência, diagnostics, ABI, layout e custo de monomorphization |
+| parâmetros de valor | `<...>` somente quando o tipo declara os parâmetros | `T where P` · `T(where: P)` · `T<where: (P)>`/`T<where(P)>` · labels/posicionais · tipo dedicado | kinds, fase/comptime, inferência, diagnostics, ABI, layout e monomorphization |
+| closures | `(args) => expression/block` como baseline provisória | `fn(args) {}` · `{ args in ... }` · block contextual | ambiguidade, captures, lifetime, effects, C callbacks e sendability |
 
 `in (a, b)` significa OR/membership finito e baixa para comparações estáticas.
 `.isOneOf` preserva a mesma leitura como alternativa. Um enum simples não pode
@@ -183,5 +184,6 @@ usado.
     provar que nenhum byte do grafo de teste entra no payload release.
 12. baixar `var Lazy` e `var atomic`, incluindo negativos de init order, borrow do
     payload atômico e mutação não-atômica por receiver compartilhado.
-13. comparar W-O100–W-O103 no ensaio do adendo antes de adicionar qualquer token
-    novo ao parser/highlighter; cada promoção gera corpus positivo e negativo.
+13. comparar W-O100–W-O103 e a dependência W-O052 no ensaio do adendo antes de
+    adicionar qualquer token novo ao parser/highlighter; cada promoção gera corpus
+    positivo e negativo.

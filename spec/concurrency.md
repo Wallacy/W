@@ -347,13 +347,18 @@ Direção semântica para a comparação:
 As formas abaixo são alternativas, não grammar aceita:
 
 ```w
-async on network let response = fetchMenu()
-spawn on compute let forecast = buildForecast(take history)
+async on .network let response = fetchMenu()
+spawn on .compute let forecast = buildForecast(take history)
+
+async<.network> let response = fetchMenu()
+spawn<.compute> let forecast = buildForecast(take history)
 ```
 
-`async on` significaria child concorrente com preference; `spawn on` só seria
-válido para um executor capaz de satisfazer a intenção paralela. Trabalho UI
-isolado deve normalmente aparecer como call ao owner:
+`async on`/`async<...>` significariam child concorrente com preference;
+`spawn on`/`spawn<...>` só seriam válidos para executor capaz de satisfazer a
+intenção paralela. A forma angular é keyword-led e o head declara o kind do
+argumento; não é generic nem modifier map livre. Trabalho UI isolado deve
+normalmente aparecer como call ao owner:
 
 ```w
 await renderer.show(forecast)

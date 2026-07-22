@@ -215,6 +215,26 @@ entry Restaurant {
 }
 ```
 
+Para um product cujo profile exponha exatamente um slot default, a forma mínima
+abaixo também está **Em aberto**:
+
+```w
+entry {
+  print("Hello World")
+}
+```
+
+Ela desugaria para um handler privado com a assinatura completa do slot default;
+não executa no import e não procura `main` por nome. Se o profile não declarar um
+default único, o compiler exige `profile.slot = handler`. Um entry anônimo não
+mistura statements com bindings. Context, exit e errors da forma curta ainda
+precisam de regra antes de ela entrar na grammar.
+
+O nome diferencia as duas produções sem heurística: `entry { ... }` é sempre um
+body de handler default; `entry Nome { ... }` é sempre um descriptor de bindings.
+Logo, `x = y` dentro do body curto continua sendo assignment comum, não um slot
+inferido pela forma do lado esquerdo.
+
 Esse bloco é uma lista de bindings de declaração, portanto não usa vírgulas. O
 lado esquerdo resolve um slot versionado que fixa assinatura, effects, lifecycle,
 executor/isolation e capabilities; o lado direito resolve uma função normal. A
@@ -254,8 +274,8 @@ principal por adapter e gera `main`, `WinMain`, export WASI ou harness de teste
 conforme o target. Isso elimina a obrigação de escrever um `main` C em toda
 compilation unit sem obrigar cada unidade a ser uma library física.
 
-`export { declarations }`, `entry { declarations }`, mapping, conformance e
-manifest-only estão comparados com seus custos em
+`entry { statements }`, `export { declarations }`, `entry { declarations }`,
+mapping, conformance e manifest-only estão comparados com seus custos em
 [DB1_ADDENDUM.md](../DB1_ADDENDUM.md#a02--entrypoints-e-profiles-de-host).
 
 ## Instância de execução explícita
