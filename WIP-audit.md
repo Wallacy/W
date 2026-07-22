@@ -1,8 +1,8 @@
 # Auditoria semântica de `Y/WIP.MD`
 
-> **Arquivo histórico · 21 de julho de 2026**  
+> **Arquivo histórico · 21 de julho de 2026**
 > **Fonte auditada:** blob Git `5b8f5e230ef63705173632fdad2de08a9fff4370`
-> (`4.035` linhas)  
+> (`4.035` linhas)
 > **Baseline comparada:** `W/` no commit `7505201`
 
 Este documento responde a uma pergunta diferente do inventário byte a byte: não
