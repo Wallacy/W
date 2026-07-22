@@ -1,7 +1,7 @@
 # Visão de produto do W
 
 > **Status:** direção de produto com escolhas de posicionamento ainda abertas
-> **Data:** 18 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 ## A promessa
 
@@ -33,6 +33,8 @@ O público inicial é a pessoa que:
 - gosta da proximidade e do ecossistema de C, mas quer defaults seguros;
 - aprecia a legibilidade de Swift e TypeScript, mas precisa gerar código nativo;
 - escreve serviços, CLIs, runtimes, bibliotecas, ferramentas, áudio/vídeo, jogos ou software embarcado;
+- transporta fórmulas, simulações, álgebra linear ou modelos ML entre notebook,
+  CPU, SIMD e aceleradores sem aceitar um runtime opaco como única opção;
 - precisa combinar I/O concorrente com trabalho paralelo sem escolher uma biblioteca diferente para cada modelo;
 - quer inspecionar custo, ownership, efeitos e artefatos sem escrever toda a mecânica manualmente;
 - valoriza uma toolchain first-party e uma supply chain verificável.
@@ -89,6 +91,13 @@ compiler e o runtime podem co-localizar, agrupar, inline ou baixar uma call para
 um fast path quando preservam ordering, falha, cancelamento e observabilidade.
 Complexidade do sistema deve ser absorvida por poucas invariantes previsíveis,
 não devolvida ao source como uma coleção de knobs.
+
+### 12. Açúcar de domínio precisa revelar um modelo completo
+
+Notação agradável para unidades, matrizes ou modelos só é uma vantagem quando
+shape, precisão, promoção, cópias, device e efeitos continuam previsíveis. W não
+deve adicionar um operador isolado para parecer científica: a superfície curta
+precisa baixar a contratos tipados, inspecionáveis e interoperáveis.
 
 ## Não objetivos da versão zero
 

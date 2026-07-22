@@ -1,7 +1,7 @@
 # Arquitetura de módulos e runtime de instâncias
 
 > **Status:** arquitetura candidata para experimentos; não é uma implementação
-> **Data:** 19 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 Este documento transforma a semântica de
 [spec/modules.md](../spec/modules.md) em componentes, boundaries e experimentos.
@@ -221,8 +221,10 @@ interface:
 serviceType       identidade + versão/schema
 implementation    digest + compatibility key
 scope             process | request | keyed(...) | deployment-specific
-entrypoints        operations/events tipados
+operations         API tipada oferecida por ServiceRef
+hostEntries        slots externos ligados a handlers, quando aplicável
 concurrency        serial; reentrancy policy; mailbox policy
+execution          isolation + executor requirement/preference + affinity
 capabilities       handles/grants mínimos
 resources          memory, CPU, I/O, calls, deadlines
 storage            none | adapter + schema/migration
@@ -233,6 +235,46 @@ observability      logs, metrics, traces e redaction
 Source pode fornecer defaults verificáveis, mas deployment limita autoridade e
 resources. Um pacote não aumenta grants de uma aplicação apenas por declarar que
 os deseja.
+
+### Descriptor de entry e descriptor de service
+
+Nem todo entry cria uma instância stateful e nem toda operation de service é um
+evento do host. A representação normalizada separa:
+
+```text
+EntryDescriptor
+  profile           package identity + version + contract fingerprint
+  profileSlot       resolved symbol (`process.main`, `http.fetch`, ...)
+  handlerSymbol     função W tipada
+  lifecycle         root task, deadline, completion/output contract
+  execution         isolation/executor/affinity requirements
+  capabilities      context type + grants exigidos
+
+ServiceDescriptor
+  serviceType       API/identity/state schema
+  operations        methods acessíveis por ServiceRef
+  instancePolicy    scope, key, mailbox, turn, failure, durability
+  execution         isolation + physical binding substituível
+```
+
+Um adapter pode materializar ambos no mesmo objeto/processo, mas a regra *as-if*
+preserva os contratos. A forma source `entry { profile.slot = handler }` é a
+recomendação ainda **Em aberto** de W-O101; a arquitetura não depende da
+pontuação escolhida.
+
+### Binding de execution domain
+
+W-O100 acrescenta quatro campos semanticamente diferentes:
+
+- `requiredIsolation`: exclusão/actor-like state rule que o host não remove;
+- `executorPreference`: placement herdável que o host pode mapear;
+- `parallelIntent`: criado por `spawn`, exige capacity e `Send`;
+- `hostAffinity`: requirement como main/UI thread ou device queue.
+
+O descriptor usa nomes/handles lógicos. A configuração física decide pools,
+queues, thread count, QoS e backend de I/O dentro dos limites do host. Um module
+artifact nunca recebe implicitamente esses campos; apenas uma instância, entry ou
+task subtree possui binding runtime.
 
 ## Instance manager e identidade
 
@@ -673,6 +715,10 @@ host publicado.
 | objeto por módulo no backend inicial | **Candidato** (implementação) | link simples e cache; sem virar ABI pública |
 | toda compilation unit como library | **Rejeitado por enquanto** | restringe linking sem oferecer isolamento |
 | instance keyed/process | **Candidato** | routing, geração e restart determinísticos |
+| entry descriptor separado de export/service API | **Direção** | native/WASI/test adapters com mesmo type contract |
+| syntax `entry { profile.slot = handler }` | **Em aberto** | corpus CLI/HTTP/signal/UI e comparação com conformance/manifest-only |
+| execution domain em service/entry/task, nunca import | **Direção** | verifier de isolation/preference/affinity e tracing de hops |
+| syntax `async/spawn on domain` e `service/entry ... on` | **Em aberto** | UI/I/O/CPU workloads sem micro-scheduling ou meaning drift |
 | strand closed-turn default | **Candidato** | três workloads; deadlock/latency/ergonomia |
 | reentrância explícita/input gates | **Pesquisa** | invariantes de ownership e benchmark |
 | mailbox bounded | **Candidato** | overload e cancellation property tests |
@@ -707,6 +753,10 @@ host publicado.
 9. [W-O027](../STATUS.md): “Nanoservice” deve sobreviver como nome público ou apenas como lente interna?
    Que propriedade mínima — state keyed, lifecycle, capability ou failure
    boundary — justifica criar uma unidade em vez de manter uma função/object?
+10. [W-O100](../STATUS.md): execution domains devem ser nomeados no source ou
+    apenas no descriptor/manifest, e quais overrides locais merecem `on`?
+11. [W-O101](../STATUS.md): o mapping `entry { profile.slot = handler }` deve ser
+    a baseline ou conformance/manifest-only preserva a mesma clareza com menos core?
 
 ## Fontes primárias
 
@@ -718,6 +768,11 @@ host publicado.
 - [Wasmtime — Security](https://docs.wasmtime.dev/security.html)
 - [Cloudflare — apresentação do `workerd` e nanoservices](https://blog.cloudflare.com/workerd-open-source-workers-runtime/)
 - [Cloudflare — repositório `workerd`](https://github.com/cloudflare/workerd)
+- [Apple — Dispatch Queues](https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html)
+- [Swift SE-0392 — Custom Actor Executors](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0392-custom-actor-executors.md)
+- [Swift SE-0417 — Task Executor Preference](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)
+- [WebAssembly Component Model — WIT Worlds](https://component-model.bytecodealliance.org/design/worlds.html)
+- [WASI 0.3 worlds](https://wasi.dev/releases/wasi-p3)
 
 ## Inspiração não normativa
 

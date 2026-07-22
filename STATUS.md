@@ -1,6 +1,6 @@
 # Status e registro de decisões
 
-> **Working Draft · 19 de julho de 2026**
+> **Working Draft · 21 de julho de 2026**
 
 Este documento impede que uma hipótese exploratória seja lida como promessa. Ele
 é o índice de maturidade do design, não uma especificação formal.
@@ -92,7 +92,7 @@ Nenhum item neste arquivo é uma garantia de compatibilidade, pois ainda não ex
 | W-C047 | H11: importer Clang e adapters formam a fronteira C; `fn<C>` inline/from é a primeira ilha multilíngue | outra linguagem só entra com parser, runtime, ABI, toolchain e provenance herméticos comprovados |
 | W-C048 | H12: manifest compila para modelo canônico, CBOR determinístico, digests tagged, builders independentes e policy no consumidor | registry publica fatos e bytes imutáveis; assinatura não simula reprodução ou auditoria inexistente |
 | W-C049 | H13: lens separa facts/estimates/measurements; `w test` une unit/doc/compile-fail/property/fuzz | `///` Markdown, doctests e testes co-localizados pertencem ao grafo de teste, nunca ao payload release |
-| W-C050 | H14: a DB1 fecha uma rota pública completa sem exigir que cada otimização esteja pronta no primeiro slice | implementação pode ser incremental, mas cada feature pública já possui baseline e boundary de extensão |
+| W-C050 | H14: a DB1 fecha a rota pública catalogada em H01–H14 sem exigir que cada otimização esteja pronta no primeiro slice | implementação pode ser incremental; a auditoria posterior de proveniência acrescentou W-O100–W-O103 antes de uma alegação de completude máxima |
 
 ## Inventário de questões da DB1 ratificada
 
@@ -102,6 +102,11 @@ Os IDs W-O continuam estáveis e pesquisáveis, mas a revisão humana de
 alternativas que motivaram a decisão; ela não significa que os 97 itens continuam
 **Em aberto**. W-O034 permanece reservado e W-O043 já havia sido promovida antes
 da revisão em lote.
+
+A [auditoria integral do WIP](../Y/W/WIP-audit.md), feita depois da ratificação,
+encontrou quatro famílias materiais fora deste inventário. Elas são registradas
+separadamente em W-O100–W-O103; as respostas H01–H14 continuam candidatas, mas a
+DB1 não volta a ser chamada de exaustiva enquanto o addendum estiver aberto.
 
 | ID | Questão | Alternativas a prototipar | Teste de decisão |
 |---|---|---|---|
@@ -203,12 +208,25 @@ da revisão em lote.
 | W-O098 | qual contrato separa os tiers T0/T1/T2 do SDK? | foundation/prelude · systems/capabilities · domains oficiais; tudo bundled mas apenas reachability-linked | estabilidade, disponibilidade por target, cadence de segurança, imports implícitos, tamanho e expectativa do usuário |
 | W-O099 | qual escopo científico oficial acompanha SI no T2? | SI completo + análise numérica · também symbolic algebra · apenas units/quantities e packages independentes | dimensional analysis, offsets, tolerância/erro, versão dos dados, compile time, tamanho e não prometer prova matemática |
 
+## Questões recuperadas pela auditoria de proveniência
+
+> **Estado:** **Em aberto**. A análise e o questionário conjunto estão em
+> [DB1_ADDENDUM.md](DB1_ADDENDUM.md).
+
+| ID | Questão recuperada | Alternativas a comparar | Teste de decisão |
+|---|---|---|---|
+| W-O100 | como modules, services, entries e tasks se ligam a domínios de execução sem confundir isolation, executor preference, affinity e task group? | descriptor/manifest only · `service/entry ... on domain` · `async/spawn on executor` · default de módulo/profile | UI serial, I/O concorrente e CPU paralelo no mesmo app; hops, `Send`, blocking, determinismo, portability e tracing |
+| W-O101 | como o source liga funções comuns a entrypoints tipados de um host e como o build seleciona o principal? | `entry { profile.slot = handler }` · declarations dentro de `entry` · conformance a profile · manifest-only · nomes mágicos | main/CLI, HTTP, signal, UI/HID, múltiplos products, adapters C/WASI e testes sem lookup por nome |
+| W-O102 | qual superfície de matrices/tensors/ML preserva shape, aliases, números e custo de device? | nested literals · `[row; row]` · constructor; `@`/`matmul` · `*`/`.*`; broadcast explícito/implícito; ranked/static/dynamic shapes | matmul/batch/autodiff, erro de shape, view sem cópia, reproducibility, CPU/SIMD/device e StableHLO/ONNX |
+| W-O103 | o que pode aparecer em `Type<...>` e como parâmetros de valor se relacionam a newtype, refinement, layout e hints? | const/value generics declarados · modifier map por tipo · aliases refinados concretos · storage types dedicados · labels em generic args | bounded String/fixed array/tensor shape, overload/type identity, ABI, evaluator hermético, diagnostics e otimização de storage |
+
 ## Questões promovidas
 
 | Questão original | Estado atual | Decisões candidatas |
 |---|---|---|
 | W-O043 | **Candidato** | W-C030 e W-C033–W-C035: sem `Any` público, existential explícito, witnesses mínimos e reflection por conformance/reachability |
 | W-O001–W-O099, exceto W-O034 reservado e W-O043 acima | **Candidato**/**Pesquisa** conforme a matriz | W-C037–W-C050 e a [matriz individual](DB1_REVIEW.md#matriz-exaustiva-das-questões) registram cada destino; gates empíricos continuam em Pesquisa sem reabrir a baseline |
+| W-O100–W-O103 | **Em aberto** | famílias omitidas da revisão H01–H14; recomendações e alternativas em [DB1_ADDENDUM.md](DB1_ADDENDUM.md) |
 
 ## Pesquisa ativa
 

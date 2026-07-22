@@ -2,9 +2,11 @@
 
 > **Status:** candidato para double-check humano · pseudocódigo não executável
 
-Este ensaio força as decisões H01–H14 a conviverem num único programa. Ele não
-substitui os módulos do restaurante: mostra as formas canônicas, os açúcares e as
-alternativas que precisam chegar ao primeiro corpus antes do frontend.
+Este ensaio força as decisões H01–H14 do inventário original a conviverem num
+único programa. Ele não substitui os módulos do restaurante: mostra as formas
+canônicas, os açúcares e as alternativas que precisam chegar ao primeiro corpus.
+A auditoria posterior recuperou W-O100–W-O103; os sketches da seção 9 são
+deliberadamente não normativos e precisam ser ratificados antes do frontend.
 
 ## 1. Módulo, visibilidade e documentação
 
@@ -214,6 +216,84 @@ e lock como inputs. A mesma receita precisa produzir o mesmo payload; debug e
 attestation são sidecars vinculados por digest. Binário reproduzido, assinatura,
 análise de segurança e policy do consumidor são fatos separados.
 
+## 9. Ensaio do adendo recuperado
+
+> **Em aberto:** os quatro fragmentos abaixo são instrumentos de comparação, não
+> sintaxe aceita pelo parser, formatter ou highlighter.
+
+### Domínio de execução sem thread física prometida
+
+```w
+// Alternativa A: preferência explícita na criação do filho.
+async on network let menu = fetchMenu()
+spawn on compute let forecast = forecastDemand(history)
+
+// Um service isolado faz o hop na call; `spawn` não vira sinônimo de fila serial.
+await renderer.show(snapshot)
+```
+
+`network` e `compute` são nomes lógicos resolvidos pelo produto. A primeira linha
+pede progresso concorrente num executor adequado a I/O; a segunda pede trabalho
+paralelo num pool limitado. `renderer` possui isolamento serial, não uma promessa
+de mesma thread do sistema. Descriptor no manifest e binding no service continuam
+alternativas à cláusula `on`.
+
+### Handlers comuns ligados a um profile de host
+
+```w
+async fn run(args: Array<String>, ctx: ProcessContext): ExitCode { ... }
+async fn fetch(request: Request, ctx: HttpContext): Response { ... }
+async fn readCommand(line: String, ctx: CliContext): Void { ... }
+async fn pointer(event: PointerEvent, ctx: UiContext): Void { ... }
+
+entry Restaurant {
+  process.main = run
+  http.fetch = fetch
+  process.stdinLine = readCommand
+  ui.pointer = pointer
+}
+```
+
+O bloco é um descriptor de bindings, não um record literal; por isso não usa
+vírgulas. Os handlers continuam funções W ordinárias e testáveis. `entry` como
+keyword contextual, `export { fetch ... }` e bindings apenas no manifest são as
+três superfícies preservadas. Slots são namespaced e versionados pelo profile;
+`Context` é uma família de capabilities tipadas, não uma sacola dinâmica.
+
+### Matriz operacional e tensor de previsão
+
+```w
+// Baseline explícita: arrays aninhados + API nomeada.
+let transition = Matrix([[0.82, 0.18], [0.24, 0.76]])
+let nextDemand = matmul(transition, demand)
+
+// Açúcares a comparar, não gramática aceita.
+let compact = [0.82, 0.18; 0.24, 0.76]
+let batchPrediction = features @ weights + bias.broadcast(to: .rows)
+```
+
+O corpus só promove o açúcar se também conseguir expressar shape estático e
+dinâmico, dtype/promotion, views e aliasing, device, broadcasting, reductions,
+random reproduzível e interoperabilidade. Transferência CPU/GPU deve ser
+explícita. Autodiff pertence primeiro a um módulo T2 experimental.
+
+### Newtype, refinement e parâmetro compile-time separados
+
+```w
+type BoundedString<const min: usize, const max: usize> =
+  String where value.scalars.count in min...max
+
+type RestaurantName = BoundedString<min: 1, max: 100>
+type TicketLabel = InlineString<capacity: 32>
+```
+
+`RestaurantName` tem identidade nominal e invariante; `BoundedString` declara
+parâmetros de valor; `InlineString` escolhe representação. Isso evita fazer
+`String<size; 1000>` significar simultaneamente tamanho, capacity, unidade de
+contagem e layout. Argumentos rotulados por vírgula, posicionais e refinamento
+sem generic wrapper continuam no teste; ponto e vírgula fica rejeitado por
+enquanto.
+
 ## Matriz do double-check
 
 | Bundle | Evidência integrada | O que ainda precisa de protótipo |
@@ -233,10 +313,21 @@ análise de segurança e policy do consumidor são fatos separados.
 | H13 | `///`, doctest, `test ... for` e lens de custo | runner, compile-fail, fuzz e measurements |
 | H14 | todas as features têm baseline/boundary | nenhum protótipo pode reabrir sem evidência |
 
+O adendo adiciona outra matriz de revisão, ainda sem ratificação:
+
+| Questão | Evidência top-down | O que decide |
+|---|---|---|
+| W-O100 | `async/spawn on` e call a renderer isolado | isolamento, herança, starvation, afinidade e portabilidade |
+| W-O101 | descriptor de `process.main`/`http.fetch`/eventos | grammar, profiles versionados, capabilities e adapters de host |
+| W-O102 | forecast por matriz/tensor | shapes, promotion, aliasing, device, autodiff e lowerings interoperáveis |
+| W-O103 | `BoundedString`/`InlineString` | kind system, labels, runtime checks, layout e diagnostics |
+
 ## Resultado esperado da revisão
 
 A DB1 não exige que cada otimização esteja pronta, mas exige que não haja um vazio
-semântico escondido. Uma objeção ao ensaio deve apontar: exemplo que não pode ser
-baixado, runtime surpreendente, regra impossível de verificar, ambiguidade de
-parser/tooling ou ergonomia humana pior. Esse feedback reabre somente a decisão
-afetada e ganha corpus positivo/negativo correspondente.
+semântico escondido. H01–H14 estão ratificadas; W-O100–W-O103 não estão. Uma
+objeção ao ensaio deve apontar: exemplo que não pode ser baixado, runtime
+surpreendente, regra impossível de verificar, ambiguidade de parser/tooling ou
+ergonomia humana pior. Esse feedback reabre somente a decisão afetada e ganha
+corpus positivo/negativo correspondente. A análise completa está no
+[adendo da DB1](../../DB1_ADDENDUM.md).

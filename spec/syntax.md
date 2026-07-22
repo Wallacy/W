@@ -1,7 +1,7 @@
 # Sintaxe de trabalho
 
 > **Status:** candidata; destinada a corpus, parser e formatter
-> **Data:** 18 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 Este documento reduz as alternativas de sintaxe a uma baseline coerente. Ele
 ainda não é uma gramática normativa. Toda forma abaixo precisa virar exemplo
@@ -519,6 +519,13 @@ protocol ref return service spawn struct switch take test throw throws true try 
 
 `atomic`, `cancel` e `test` são contextuais: continuam disponíveis como identifiers
 fora das posições de modifier/statement/declaration em que a gramática os reconhece.
+
+Os sketches recuperados pela auditoria não ampliam esta lista. Em particular,
+`entry`, `on`, argumentos genéricos rotulados e o separador `;` em literals de
+matriz pertencem a W-O100–W-O103 e continuam **Em aberto**. O portal pode mostrá-los
+em blocos marcados como experimento, mas parser, formatter, Tree-sitter e extensão
+VS Code não devem tratá-los como sintaxe W antes da ratificação do
+[adendo da DB1](../DB1_ADDENDUM.md).
 
 `self` e `this` ainda precisam de uma única regra. A preferência é `self` para receiver de valor/objeto e o nome do módulo para namespace, evitando dois pronomes contextuais.
 

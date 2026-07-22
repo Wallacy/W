@@ -7,10 +7,11 @@
     <nav class="portal-nav" aria-label="Navegação principal"><a href="/">Visão</a><a href="/book">Livro</a><a href="/reference">Referência</a><a href="/playground">Playground</a><a href="/status" aria-current="page">Status</a></nav>
     <div class="draft-banner" role="note"><strong>Snapshot do portal.</strong> O ledger canônico continua sendo <a href="/docs/STATUS.md">STATUS.md</a>.</div>
     <main id="conteudo" class="directory-main">
-      <header class="directory-hero"><p class="eyebrow">Working Draft</p><h1>Status de W</h1><p>O design é substancial e o frontend experimental começou; compilador e runtime ainda não existem. “Candidato” nunca significa semântica congelada.</p></header>
+      <header class="directory-hero"><p class="eyebrow">Working Draft</p><h1>Status de W</h1><p>O design é substancial, mas a auditoria do WIP recuperou quatro famílias ainda abertas. O parser estrutural é apenas um experimento; compilador e runtime ainda não existem. “Candidato” nunca significa semântica congelada.</p></header>
       <section class="status-dashboard" aria-label="Estado das camadas">
         <article><span class="badge decision">Direção</span><h2>Visão e princípios</h2><p>Base consolidada para continuar o desenho.</p></article>
         <article><span class="badge proposal">Candidato</span><h2>Sintaxe e corpus</h2><p>12 positivos e 11 negativos passam pelo parser estrutural; revisão e formatter ainda faltam.</p></article>
+        <article><span class="badge open">Em aberto</span><h2>Adendo DB1</h2><p>Execução, entries, tensores/ML e parâmetros compile-time aguardam revisão humana conjunta.</p></article>
         <article><span class="badge open">Em aberto</span><h2>Frontend e runtime</h2><p>CST experimental existe; AST/HIR, compilador e runtime conforme ainda não.</p></article>
         <article><span class="badge proposal">Pesquisa</span><h2>Extensões</h2><p>wQL, wRPC, V6, GPU e ideias adjacentes ficam fora do núcleo v0.</p></article>
       </section>
@@ -21,7 +22,7 @@
         <div><dt>Pesquisa</dt><dd>Ideia preservada fora do caminho crítico da versão zero.</dd></div>
         <div><dt>Rejeitado por enquanto</dt><dd>Não cabe no núcleo atual; pode voltar apenas com nova evidência.</dd></div>
       </dl></section>
-      <section class="status-next"><p class="section-kicker">Norte imediato</p><h2>Fechar o contrato do frontend</h2><p>Revise o <a href="/corpus/README.md">corpus w.corpus/1</a>; depois entram formatter, diagnósticos estruturados, AST/HIR, lowering mínimo, tasks e build reproduzível. Consulte o <a href="/docs/ROADMAP.md">roadmap canônico</a> e o <a href="/docs/STATUS.md">ledger completo</a>.</p></section>
+      <section class="status-next"><p class="section-kicker">Norte imediato</p><h2>Ratificar o adendo antes do frontend</h2><p>Revise em uma rodada as questões <a href="/docs/DB1_ADDENDUM.md">W-O100–W-O103</a>. Depois, os candidatos escolhidos entram no restaurante, no corpus e somente então no contrato de AST/HIR. Consulte o <a href="/docs/ROADMAP.md">roadmap canônico</a> e o <a href="/docs/STATUS.md">ledger completo</a>.</p></section>
     </main>
     <footer><div class="footer-mark">W</div><div><strong>Status W</strong><p>Resumo visual; STATUS.md é canônico.</p></div><a href="/docs/STATUS.md">Abrir ledger</a></footer>
   </body>

@@ -1,7 +1,7 @@
 # Arquitetura do compilador W
 
 > **Status:** Working Draft; direção arquitetural com detalhes candidatos
-> **Data:** 19 de julho de 2026
+> **Data:** 21 de julho de 2026
 > **Implementação:** ainda não existe um compilador conforme
 
 Este documento descreve como transformar a semântica candidata de W em um
@@ -159,7 +159,8 @@ A HIR é a última representação conveniente para diagnósticos de source e a
 primeira em que todos os contratos semânticos precisam estar explícitos. Ela deve
 registrar, antes de entrar no MLIR:
 
-- tipos resolvidos, substitutions genéricas e constraints de layout/ABI;
+- tipos resolvidos, substitutions genéricas, argumentos de tipo/valor com seus
+  kinds e constraints de layout/ABI;
 - símbolo resolvido, módulo de origem e edição que autorizou cada lookup std
   implícito, sem perder effect/capability ou reachability;
 - categorias `struct`, `object`, `enum`, protocol/existential e refinement;
@@ -174,6 +175,11 @@ registrar, antes de entrar no MLIR:
 - efeitos `mut`, `async`, `throws E` e os efeitos adicionais que forem adotados;
 - error edges explícitas, sem depender de exception implícita;
 - scopes parent/child, captures, sendability e cancellation points de tasks;
+- isolamento, preferência de executor, afinidade exigida e hops entre domínios;
+- descriptor de entry, identidade/versão/fingerprint do profile, slot de host,
+  handler e capabilities requeridas;
+- shape, dtype, promotion, layout lógico, alias/view, device e broadcasting de
+  arrays/tensores quando presentes;
 - requisitos `foreign c`, calling convention e layout da fronteira.
 
 Inference pode aliviar o source, mas não a IR. Uma decisão ainda aberta, como o
@@ -190,11 +196,12 @@ Famílias mínimas candidatas:
 
 | Família | Informação preservada |
 |---|---|
-| tipos e valores | value/object/enum/option/result, refinement provado, layout ainda abstrato |
-| numéricos | dimensões/units, overflow, rounding, strict/reproducible/fast math e shapes adotados |
+| tipos e valores | value/object/enum/option/result, argumentos compile-time, refinement provado, layout ainda abstrato |
+| numéricos/tensores | dimensões/units, overflow, rounding, math mode, shape/dtype/device, alias e broadcast adotados |
 | ownership | criação, borrow, `inout`, move, copy, drop e fim de lifetime |
 | controle e efeitos | calls tipadas, branches, `throws`, panic, cleanup e `defer` |
-| tasks | scope, child concorrente, spawn paralelo, await, cancel, join e captures |
+| tasks | scope, child concorrente, spawn paralelo, await, cancel, join, captures, isolation/preference/affinity |
+| host | entry descriptor, profile/slot versionado, handler e capabilities |
 | memória | allocas/allocations abstratas, regiões candidatas e destruição |
 | ABI | exports, imports C, repr, calling convention e metadata de ownership |
 | source | locations, cadeia de inline/callsite e origem de código gerado |
@@ -255,12 +262,13 @@ invariante até o passe responsável por consumi-la.
 
 | Estágio | Passes/análises principais | Pós-condição |
 |---|---|---|
-| HIR | resolução, type/refinement check, definite initialization, efeitos | programa semanticamente tipado ou diagnostics |
+| HIR | resolução, kind/type/refinement/shape check, definite initialization, efeitos | programa semanticamente tipado ou diagnostics |
 | W alto nível | construção de scopes, ownership/borrow check, capture e Send/Sync, error/cancel edges | invariantes de linguagem verificadas |
 | W canônico | desugaring de option/result/patterns, monomorphization candidata, cleanup explícito | semântica ainda independente de layout |
-| representação | data layout, enum/option layout, stack/heap/region, ABI e calling convention | representações escolhidas com fallback |
-| tasks e errors | scopes para frames/continuations, result/control flow, runtime calls | parent/child, cleanup e erro preservados |
-| MLIR comum | `func`, `scf`/`cf`, `arith`, `math`, `vector`/`linalg`, memória e outros dialetos aplicáveis | nenhuma operação W sem lowering definido |
+| representação | data/tensor layout, enum/option layout, stack/heap/region/device, ABI e calling convention | representações escolhidas com fallback |
+| tasks, domains e errors | scopes para frames/continuations, isolation/preference/affinity, result/control flow | parent/child, hops, cleanup e erro preservados |
+| host adapter | validar e baixar slots do entry profile a ABI/component/launcher do target | entry descriptor consumido sem tornar handlers mágicos |
+| MLIR comum | `func`, `scf`/`cf`, `arith`, `math`, `tensor`/`shape`, `vector`/`linalg`/`gpu` e memória aplicáveis | nenhuma operação W sem lowering definido |
 | LLVM | conversão ao LLVM dialect, legalização por target, tradução a LLVM IR | módulo verificável pelo backend |
 | nativo | otimização, codegen, link e metadata | artefato associado aos inputs do build |
 
@@ -298,11 +306,13 @@ facilitar portabilidade e inspeção. Isso não congela a ABI pública de W.
 Responsabilidades candidatas:
 
 - task control block, árvore parent/child e handles one-shot;
-- executor concorrente single-thread e pool paralelo limitado;
+- executores lógicos concorrentes/seriais e pool paralelo limitado, sem prometer
+  uma thread física estável;
 - wakeups, timers, cancelamento cooperativo, join e cleanup;
 - frames/continuations produzidos pelo lowering;
 - alocação, panic e hooks de destruction necessários ao código gerado;
 - adapter de I/O por plataforma e executor para foreign calls bloqueantes;
+- adapters de host gerados a partir de profiles/entries versionados;
 - tracing de task/scope, crash metadata e integração com symbolization.
 
 O runtime não implica GC global, heap por módulo, uma thread por task, event loop
@@ -494,6 +504,9 @@ e explica dependências de recompilação.
 | algoritmo de moves e shared ownership | Em aberto | marcadores em programas reais, cycles, FFI e custo em tasks |
 | ABI de typed errors | Em aberto | benchmark de tagged result/status-out e wrappers C |
 | lowering de async | Em aberto | correctness de cleanup/cancelamento, debug, tamanho de frame e performance |
+| domínios de execução | Em aberto | isolamento, herança, hops, starvation, afinidade estrita e fallback por target |
+| entries/profiles de host | Em aberto | adapters nativo/WASI/teste, versionamento de slot e capability least-authority |
+| tensor/ML e parâmetros compile-time | Em aberto | corpus de shape/alias/device, interoperabilidade e custo de specialization |
 | subset EmitC | Em aberto | equivalência, legibilidade C, targets atendidos e custo de manter dois caminhos |
 | ABI/interface W | Em aberto | evolução compatível de tipos, generics, ownership e metadata |
 | tagged values, GPU e WC público | Pesquisa | fallback primeiro, testes por target e ganho medido |

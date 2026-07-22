@@ -1,7 +1,7 @@
 # Um passeio pela linguagem W
 
 > **Status:** sintaxe e semântica candidatas para prototipação
-> **Data:** 18 de julho de 2026
+> **Data:** 21 de julho de 2026
 > **Importante:** exemplos dourados de design, ainda não código executável.
 
 Este passeio começa pela experiência que queremos e desce gradualmente até memória, tasks e C. Quando uma escolha ainda não está madura, o texto diz isso em vez de fingir que já existe uma especificação.
@@ -19,6 +19,12 @@ não é keyword e não esconde I/O: compiler/LSP ainda mostram origem, effect,
 capability e reachability. A prelude T0 permanece pura e independente do
 ambiente; todo export std único, somente namespaces e import explícito ficam como
 alternativas registradas em [W-O026](STATUS.md).
+
+`main` é o handler ordinário da forma CLI mínima, não uma exigência de que todo
+módulo possua um ponto de entrada. W-O101 compara um descriptor tipado que liga
+handlers a profiles de host (`process.main`, `http.fetch`, eventos de UI/device),
+um bloco `export` e configuração apenas no manifest. Nenhuma dessas superfícies
+faz parte da gramática candidata antes da revisão do [adendo DB1](DB1_ADDENDUM.md).
 
 Arquivos usam UTF-8. Quebra de linha encerra a maior parte das declarações; `;` é aceito apenas onde for necessário interoperar ou colocar statements na mesma linha — a decisão de aceitá-lo como estilo geral ainda será testada pelo formatter.
 
@@ -197,6 +203,11 @@ Na proposta de layout da DB1, `type UserId = u64` cria identidade nominal e
 preserva o storage de `u64`; `alias NativeSize = c.size` cria somente um segundo
 nome. Isso substitui `transparent struct` no caso comum de newtype, sem afirmar
 que qualquer struct W possui ABI C.
+
+W-O103 estende essa separação: `<...>` só aplica parâmetros que um tipo declarou;
+`where` preserva invariantes; `type` cria identidade nominal; um tipo como
+`InlineString` torna layout observável. Isso mantém `String<size; 1000>` como
+alternativa histórica, não como um modificador genérico já escolhido.
 
 ## 5. Ausência não é um conjunto de sentinelas
 
@@ -448,6 +459,11 @@ Dados enviados a `spawn` precisam ser owned/movidos, imutavelmente compartilháv
 
 Executors, QoS, afinidade, número de threads e IO backend são configuração/runtime. A linguagem não promete que `spawn` cria uma pthread nem que `async` vive em um event loop específico.
 
+A auditoria recuperou a ideia de “thread groups”. W-O100 agora separa domínio de
+isolamento, preferência de executor, afinidade e task group; `async on network` e
+`spawn on compute` são somente superfícies para o próximo ensaio. Um módulo
+estático nunca adquire uma thread por ser importado.
+
 ```w
 async let response = socket.read() // concorrência e suspensão
 spawn let result = compress(data)  // paralelismo de CPU
@@ -551,7 +567,9 @@ O modelo acima implica um runtime pequeno, mas não trivial:
 
 - alocação/destruição e suporte opcional a regiões/shared values;
 - scheduler de tasks, timers, cancelamento e executors;
+- registry de domínios lógicos e hops de isolamento, se W-O100 for ratificada;
 - adapters de I/O por plataforma;
+- adapters gerados para profiles/entries de host, se W-O101 for ratificada;
 - panic/diagnostics e stack/source mapping;
 - metadata de módulos, ABI e capabilities;
 - primitives de sincronização usadas por bibliotecas.
@@ -571,5 +589,10 @@ Esses podem ser lowerings ou políticas onde medição justifique.
 ## 15. Antes de chamar isso de linguagem
 
 Cada snippet deste tour deve virar um arquivo em `examples/`, um caso do parser, uma árvore esperada e um teste do formatter. Depois, as invariantes de tipo/ownership/tasks devem ser testadas no HIR e apenas então baixadas para MLIR.
+
+Os sketches de domínios, entries, tensor/ML e parâmetros compile-time permanecem
+concentrados no [adendo DB1](DB1_ADDENDUM.md) e no
+[ensaio do restaurante](examples/restaurant/DB1_ASSAY.md) até a ratificação em
+lote; eles não devem vazar silenciosamente para o highlighter ou o parser.
 
 Até isso acontecer, este documento é a maquete navegável do W: concreta o suficiente para discutir, honesta o suficiente para mudar.

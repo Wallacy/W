@@ -1,6 +1,7 @@
 # Numéricos, quantidades e computação científica
 
 > **Status:** Candidato + Pesquisa · DB1
+> **Data:** 21 de julho de 2026
 
 W pretende cobrir desde controle de equipamento até trabalhos acadêmicos sem
 transformar o core numa coleção de frameworks. O primeiro corpus é o modelo
@@ -167,6 +168,180 @@ que simplificação simbólica ou prova matemática já são contratos estáveis
 | `Array<T, Shape>`/tensor | pacote + lowering | shape, strides, views, aliases e device |
 | sparse/dataframe/table | pacotes | formatos, nullability, streaming e memória |
 
+## Arrays, matrices, tensors e ML
+
+> **Status:** direção de camadas; superfície **Em aberto** em
+> [W-O102](../STATUS.md), sobre o modelo de W-O082 e os value parameters de
+> W-O103.
+
+### O contrato que importa
+
+Notação matricial sozinha não cria uma linguagem de ML. O modelo precisa manter
+até o lowering:
+
+- rank e shape estáticos, simbólicos e dinâmicos;
+- element type, promotions, rounding, overflow e quantization;
+- ownership, mutation, aliases, views, offset, strides e layout;
+- broadcasting, reductions e ordem numérica;
+- dense, sparse e sharded tensors;
+- device/address space e transfer cost;
+- autodiff, random e reproducibility;
+- import/export de model IR sem reduzir W a esse IR.
+
+### Camadas
+
+| Camada | Conteúdo proposto |
+|---|---|
+| T0 | `Array<T>`, fixed/inline array a decidir, `Slice<T>`/borrowed view, bounds e iteration |
+| T2 `tensor` | `Tensor`, `TensorView`, shapes, slicing, reductions, linalg, CPU/SIMD e device protocol |
+| T2 experimental `ml` | autodiff, optimizers, graphs/models, quantization, sparse/sharding e interchange |
+| compiler | shape/refinement facts, fusion, vectorization, bufferization e target lowering |
+
+O T2 pode ser oficial e bundled sem fazer tensor parte da grammar ou de todo
+runtime. O core oferece generics/value parameters, refinements, ownership e
+operators; a biblioteca e os protocols fornecem o domínio.
+
+### Shape e tipo lógico
+
+Sketch dependente de W-O103:
+
+```w
+fn classify<const batch: usize>(
+  input: ref Tensor<f32, [batch, 784]>,
+  weights: ref Tensor<f32, [784, 128]>,
+): Tensor<f32, [batch, 128]> {
+  // ...
+}
+```
+
+O candidato é preservar rank conhecido para kernels compilados e permitir
+extents estáticos, símbolos ou valores validados na entrada. Uma conversão de
+buffer/shape dinâmico é fallible e estabelece o proof; operações posteriores
+com shapes compatíveis não repetem checks. A alternativa mínima é
+`Tensor<f32, rank: 2>` com constraints locais; `Tensor<f32>` totalmente unranked
+fica para adapters/dados realmente dinâmicos.
+
+`Tensor` é o valor lógico. `TensorView` é um borrow com metadata de shape,
+strides, offset e address space. Layout row/column-major, tiles e packing só
+entram na identidade pública quando uma ABI/kernel exige; otherwise são escolhas
+de bufferization/optimizer explicáveis.
+
+### Literals de matrix
+
+Nested arrays contextuais formam a baseline de menor sintaxe:
+
+```w
+let transform: Matrix<f32, 2, 3> = [
+  [1.0, 0.0, 10.0],
+  [0.0, 1.0, 20.0],
+]
+```
+
+O expected type exige rectangularidade e converte os elementos. As alternativas
+continuam documentadas:
+
+```w
+// Sugar MATLAB/Julia-like; Em aberto
+let transform = [1.0, 0.0, 10.0; 0.0, 1.0, 20.0]
+
+// API explícita; não exige grammar especial
+let transform = try Matrix.from(rows: [[1.0, 0.0, 10.0], [0.0, 1.0, 20.0]])
+```
+
+`;` é atraente em matrix 2D, mas não generaliza rank N e já aparece como
+statement terminator opcional e no antigo MultiRange. Só vira sugar candidata
+depois de um corpus científico e teste de parser/formatter.
+
+### Operators e broadcasting
+
+| Intenção | Candidato inicial | Alternativas |
+|---|---|---|
+| elementwise | `+ - * / **` com shape igual; scalar expansion total | métodos ou operators pontuados |
+| matrix/tensor contraction | `a @ b`, sugar de `matmul(a, b)` | `*` linalg + `.*` elementwise; apenas API nomeada |
+| broadcast entre shapes | `broadcast(to:)` explícito no primeiro corte | trailing-dimension implícito no estilo Array API |
+| transpose/permutation | APIs `transpose`/`permuted` | `.T` ou postfix futuro |
+| Einstein contraction | `einsum`/`contract` T2 com spec compile-time | DSL de índices no core |
+
+Scalar expansion é total e pouco ambígua. Broadcast de shapes diferentes pode
+ser uma view/fusão sem copy, mas também mascara eixo errado e multiplica trabalho;
+por isso começa explícito. O corpus ML decide se a regra Array API merece sugar.
+`@` separa produto linear de `*` elementwise sem introduzir toda a família `.*`,
+mas permanece uma recomendação, não decisão ratificada.
+
+### Ownership e copies
+
+- `Tensor` owned é move-first; mutation exige exclusividade.
+- slicing retorna `TensorView` borrowed por default; `copy()` materializa.
+- shared mutable storage usa tipo/policy explícito, não COW invisível.
+- `spawn` move, usa shared immutable ou mantém borrow sob join provado.
+- output allocation é observável no lens; destination/in-place APIs podem
+  eliminar allocation quando exclusivity e shapes permitirem.
+- broadcast, transpose e reshape documentam quando são views e quando precisam
+  materializar.
+
+### Devices e execução
+
+Transfer host↔device não pode surgir por causa de um operador local. Device,
+executor e allocator são capabilities relacionadas, mas diferentes:
+
+```w
+let deviceModel = try await model.to(device)
+let deviceBatch = try await batch.to(device)
+spawn on device let logits = deviceModel(deviceBatch)
+let result = await logits
+```
+
+Esse sketch depende de W-O100. Se um device não satisfizer a intenção paralela
+de `spawn`, uma API async de submit pode ser correta; em nenhum caso compilation
+latency, transfer ou synchronization ficam invisíveis no tooling/trace.
+
+### Autodiff, random e modelos
+
+Autodiff começa como transformação explícita e tipada, sem annotation universal:
+
+```w
+let (loss, gradients) = valueAndGrad(lossFor)(parameters, batch)
+```
+
+O pacote declara operações differentiable, mutation/alias rules, branches não
+diferenciáveis e unsupported errors. Random usa generator/capability com seed
+observável. Um model graph é biblioteca/IR, não a única forma de executar uma
+função tensor W.
+
+StableHLO e ONNX são adapters de interchange. StableHLO é especialmente útil
+para operação ML portátil; ONNX para modelos/ecossistema. Nenhum deles consegue
+representar sozinho toda a linguagem de systems, ownership, services e effects.
+
+### Lowering
+
+```text
+W Tensor HIR
+  → shape/refinement + ownership/alias + numeric mode
+  → MLIR tensor/shape/linalg
+  → vector | sparse/quant/shard | bufferization/memref
+  → CPU/SIMD/BLAS | gpu/SPIR-V/vendor adapter
+```
+
+O dialect W retém error semantics, copy/materialization, device transfers e
+strict/reproducible/fast mode até um passe conseguir prová-los. O dialect
+`linalg` já modela operations estruturadas e lowering para loops, vector ou
+library calls; `tensor` não substitui bufferization e `gpu` ainda exige device
+management no runtime/adapters.
+
+### Corpus mínimo antes de promover W-O102
+
+1. matmul com shape error estático e dinâmico;
+2. batched inference com extent simbólico;
+3. slice/view sem copy e materialização explícita;
+4. reduction nos modos strict/reproducible/fast;
+5. autodiff pequeno com gradient check;
+6. CPU escalar, SIMD e um device com tolerances declaradas;
+7. import/export StableHLO ou ONNX com unsupported-op diagnostic;
+8. benchmark separando compile, transfer, allocation e kernel.
+
+As escolhas humanas sobre literal, operators, broadcast e tiers estão reunidas
+no [addendum DB1](../DB1_ADDENDUM.md#a03--matrices-tensors-e-ml).
+
 ### Operadores de fórmula
 
 Na gramática geral, `^` é bitwise XOR e `**` é exponenciação. `**` associa à
@@ -211,4 +386,13 @@ em vez de apagar cedo as garantias num C intermediário.
 - [MLIR: dialect `math`](https://mlir.llvm.org/docs/Dialects/MathOps/)
 - [MLIR: dialect `vector`](https://mlir.llvm.org/docs/Dialects/Vector/)
 - [MLIR: dialect `linalg`](https://mlir.llvm.org/docs/Dialects/Linalg/)
+- [MLIR: dialect `tensor`](https://mlir.llvm.org/docs/Dialects/TensorOps/)
+- [MLIR: dialect `shape`](https://mlir.llvm.org/docs/Dialects/ShapeDialect/)
+- [MLIR: dialect `gpu`](https://mlir.llvm.org/docs/Dialects/GPU/)
+- [MLIR: dialect `sparse_tensor`](https://mlir.llvm.org/docs/Dialects/SparseTensorOps/)
+- [MLIR: dialect `quant`](https://mlir.llvm.org/docs/Dialects/QuantDialect/)
+- [MLIR: dialect `shard`](https://mlir.llvm.org/docs/Dialects/Shard/)
+- [OpenXLA: StableHLO specification](https://openxla.org/stablehlo/spec)
+- [Python Array API: `matmul`](https://data-apis.org/array-api/2023.12/API_specification/generated/array_api.matmul.html)
+- [ONNX: IR specification](https://onnx.ai/onnx/repo-docs/IR.html)
 - [LLVM: constrained floating-point intrinsics](https://llvm.org/docs/LangRef.html#constrained-floating-point-intrinsics)

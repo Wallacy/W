@@ -72,13 +72,13 @@
           <p>W é uma proposta de linguagem de sistemas nativa. Seu norte combina prazer de uso com previsibilidade: falha, suspensão, mutação, transferência e paralelismo devem aparecer no contrato ou no ponto em que acontecem.</p>
           <div class="status-callout"><span class="badge decision">Direção</span><p>Os princípios são a base de trabalho. Sintaxe, semântica e arquitetura continuam em diferentes graus de maturidade.</p></div>
           <p>Leia cada exemplo com o rótulo correto. <strong>Direção</strong> é uma intenção estável; <strong>Candidato</strong> é uma baseline coerente ainda não provada; <strong>Em aberto</strong> conserva alternativas legítimas. Hoje não existe compilador, runtime ou stdlib W implementado.</p>
-          <p class="canonical-links">Continue nas fontes: <a href="/docs/README.md">visão do projeto</a> · <a href="/docs/STATUS.md">registro de status</a> · <a href="/docs/DB1_REVIEW.md">revisão integral da DB1</a>.</p>
+          <p class="canonical-links">Continue nas fontes: <a href="/docs/README.md">visão do projeto</a> · <a href="/docs/STATUS.md">registro de status</a> · <a href="/docs/DB1_REVIEW.md">revisão original da DB1</a> · <a href="/docs/DB1_ADDENDUM.md">adendo recuperado</a>.</p>
         </article>
 
         <article class="book-chapter" id="primeiro-programa" data-book-section>
           <p class="chapter-number">Capítulo 2</p>
           <h2>Primeiro programa</h2>
-          <p>Um programa começa com uma função <code>main</code>. A DB1 usa uma prelude T0 pura, pequena e congelada pela edição; nomes T1 muito comuns, como <code>print</code>, podem ser curtos sem esconder capability. Dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
+          <p>Um programa CLI mínimo começa com uma função <code>main</code>; módulos importáveis não precisam dela. A ligação de outros hosts a handlers permanece aberta em W-O101. A DB1 usa uma prelude T0 pura, pequena e congelada pela edição; nomes T1 muito comuns, como <code>print</code>, podem ser curtos sem esconder capability. Dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
           <div class="code-shell"><pre><code>fn main() {
   print("Olá, W!")
 }</code></pre></div>
@@ -155,6 +155,7 @@ edit(inout value)
 store(take value) // value não está mais disponível</code></pre></div>
           <p>Shared ownership, ARC e regions ainda exigem protótipos. A direção é segurança sem dangling pointers ou data races; a estratégia exata de memória compartilhada permanece <strong>Em aberto</strong>.</p>
           <div class="decision-box"><strong>Layout e ABI · Proposta DB1</strong><p>Structs W comuns têm layout opaco entre builds, mas consultável por <code>sizeOf</code>, <code>alignOf</code> e <code>w explain layout</code>. Tipos em <code>foreign c</code> adotam a ABI C do target; <code>type UserId = u64</code> cria um newtype nominal sem storage adicional e <code>alias</code> cria apenas um sinônimo. A v0 pública inclui <code>packed</code>/<code>aligned</code> seguros para hardware e formatos exatos, sem congelar uma ABI W universal. Ordem física default, <code>transparent struct</code> e <code>fixed struct</code> permanecem alternativas.</p></div>
+          <div class="decision-box"><strong>Aplicação de tipos · Em aberto W-O103</strong><p><code>String&lt;size; 1000&gt;</code> misturava quatro conceitos históricos: identidade nominal, refinamento, parâmetro compile-time e escolha de storage. A proposta os separa: <code>type RestaurantName = String where value.scalars.count in 1...100</code> cria identidade e invariante; um tipo que declare parâmetros pode usar <code>&lt;...&gt;</code>; <code>InlineString</code> expressa layout. Argumentos rotulados por vírgula, forma posicional e um único construtor refinado permanecem alternativas. O ponto e vírgula não é candidato atual.</p></div>
           <p class="canonical-links">Contrato candidato: <a href="/docs/spec/types-and-memory.md">ownership, regiões e FFI</a>.</p>
         </article>
 
@@ -169,6 +170,7 @@ let page = try await (user, feed)
 spawn let digest = hash(take bytes)
 let value = await digest</code></pre></div>
           <p>Ambos vivem numa árvore estruturada: o scope possui os filhos, propaga cancelamento e não termina antes de join e cleanup. O executor pode usar event loop, pool ou outra política; nenhuma dessas estratégias está implementada hoje.</p>
+          <div class="decision-box"><strong>Domínios de execução · Em aberto W-O100</strong><p>O antigo “thread group” foi decomposto em isolamento serial, preferência de executor, afinidade e task group. Um módulo estático não possui thread. A superfície a comparar inclui <code>async on network</code>, <code>spawn on compute</code> e descritores fora do source; uma chamada a um service isolado continua <code>await renderer.show(...)</code>. O compilador não promete a mesma thread física, e <code>spawn</code> conserva o significado de paralelismo.</p></div>
           <p class="canonical-links">Semântica: <a href="/docs/spec/concurrency.md">tasks, cancelamento e executores</a>.</p>
         </article>
 
@@ -208,6 +210,7 @@ async fn main(host: inout ServiceHost): Void throws CatalogAppError {
   let catalog = try await startCatalog(inout host)
   let items = try await loadItems(catalog)
 }</code></pre></div>
+          <div class="decision-box"><strong>Entradas por host · Em aberto W-O101</strong><p>Funções comuns continuam sendo exportadas com <code>export</code>; um descritor separado liga handlers a slots versionados como <code>process.main</code>, <code>http.fetch</code> ou <code>ui.pointer</code>. O bloco é um mapa de declarações, portanto não precisa de vírgulas. <code>entry Restaurant { ... }</code>, um bloco <code>export { ... }</code> e configuração apenas no manifest permanecem candidatos; <code>Context</code> deve ser uma capability tipada, não uma sacola universal.</p></div>
           <p class="canonical-links">Leia os contratos dedicados: <a href="../spec/modules.md">spec/modules.md</a> · <a href="../design/modules-and-runtime.md">design/modules-and-runtime.md</a>. O primeiro é semântico; o segundo descreve arquitetura candidata, não implementação disponível.</p>
         </article>
 
@@ -317,9 +320,10 @@ let (_, _) = try await (terminal, web)</code></pre></div>
             <div class="decision-box"><strong>Serviço · Proposta DB1</strong><p><code>service</code> é açúcar próprio sobre object + descriptor, com <code>ServiceRef</code> sempre async. Object/protocol explícitos e metadata sem keyword permanecem alternativas; placement local/remoto nunca é escondido pelo import.</p></div>
             <div class="decision-box"><strong>Atomic e cancel · Candidato DB1</strong><p><code>var atomic count: u64</code> infere storage <code>Atomic&lt;u64&gt;</code>; <code>cancel task</code> é statement contextual e cooperativo. APIs explícitas continuam disponíveis para ordering e tipos canceláveis comuns.</p></div>
             <div class="decision-box"><strong>Docs e testes · Candidato DB1</strong><p><code>///</code> contém Markdown/doctests e <code>test "..." for symbol</code> mantém casos pequenos junto da API. <code>*.test.w</code> continua para casos grandes; nenhum teste executa ao importar ou entra no release.</p></div>
+            <div class="decision-box"><strong>Tensores e ML · Em aberto W-O102</strong><p>Açúcar de matriz só entra junto de shape, dtype/promotion, alias/view, device, broadcasting, reductions e interoperabilidade. A baseline de comparação é o literal aninhado; <code>[a, b; c, d]</code>, operador <code>@</code> e <code>matmul(a, b)</code> permanecem candidatos. Transferência CPU/GPU deve ser explícita, e autodiff fica numa camada experimental T2 antes de tocar o core.</p></div>
           </div>
 
-          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/DB1_ASSAY.md">ensaio integrado H01–H14</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
+          <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/DB1_ASSAY.md">ensaio integrado H01–H14 + ponte do adendo</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
           <p class="canonical-links">Contratos: <a href="/docs/spec/concurrency.md">concorrência estruturada</a> · <a href="/docs/spec/modules.md">módulos e std implícita</a> · <a href="/docs/design/numerics-and-quantities.md">numéricos e quantidades</a> · <a href="/docs/design/documentation-and-tests.md">documentação e testes</a> · <a href="/docs/design/formatting.md">formatter</a> · <a href="/docs/DB1_REVIEW.md#h05--ranges-si-e-computação-científica">default DB1 e alternativas</a>.</p>
         </article>
 

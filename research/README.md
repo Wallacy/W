@@ -1,7 +1,7 @@
 # Catálogo de pesquisa do W
 
 > **Status:** Working Draft
-> **Data:** 2026-07-19
+> **Data:** 2026-07-21
 
 ## Propósito
 
@@ -41,6 +41,8 @@ preservam a história e o próximo experimento de cada ideia original.
 | wQL, wRPC e RestPC | Pesquisa pós-core | bibliotecas e contratos do ecossistema |
 | V6 e Computer Units | Pesquisa separada | runtime/serverless/isolate |
 | Numéricos, units, arrays e lowerings científicos | Direção + Pesquisa | core numérico, stdlib e pacotes/lowerings |
+| Execution domains e host entry profiles | W-O100–W-O101 Em aberto | runtime/descriptor sem module thread implícita |
+| Tensor/ML e value parameters | W-O102–W-O103 Em aberto | T2 oficial + suporte geral de tipos/optimizer |
 
 ## Hipóteses de pesquisa
 
@@ -54,6 +56,10 @@ preservam a história e o próximo experimento de cada ideia original.
 | GPU e HDL | Pesquisa pós-pipeline CPU | lowering/target especializado | portabilidade e semânticas de memória distintas | um kernel puro com baseline CPU e fallback |
 | Snapshots, PGO e autotests | Pesquisa de tooling | testes executáveis e profiling | oracle circular, dados frágeis ou privados | doc-test e snapshot explícito antes de PGO/IA |
 | Unidades e computação científica | Pesquisa com corpus térmico | fórmulas verificáveis e target CPU eficiente | feature soup, float não reproduzível e ABI difícil | type-check dimensional + lowering escalar do forno em dois targets |
+| execution domains especializados | W-O100 Em aberto | UI/I/O/CPU previsíveis e menos pool contamination | thread affinity acidental, micro-scheduling e priority inversion | um app com UI serial, network I/O e CPU pool sob scheduler determinístico |
+| host entry profiles | W-O101 Em aberto | CLI/HTTP/UI/device componíveis sem nomes mágicos | keyword list crescente, context ambient e adapter-dependent behavior | mesmo descriptor em native C, WASI e harness in-process |
+| tensor/ML first-party | W-O102 Em aberto + LT-11 | shapes, ownership e deployment num único pipeline | syntax demo sem ecosystem, hidden copies/transfers e backend lock-in | batched model com shape negatives, CPU/SIMD/device e StableHLO/ONNX adapter |
+| value parameters/type applications | W-O103 Em aberto | fixed arrays, bounded domains e tensor shapes gerais | evaluator/ABI/generics complexos ou modifier registry ad hoc | fixed array + bounded String + symbolic tensor com mesma regra de `<...>` |
 
 ## Tagged values e tagged pointers
 

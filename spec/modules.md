@@ -2,7 +2,7 @@
 
 > **Status:** direção consolidada e semântica candidata para protótipos; a
 > sintaxe de serviços ainda está em aberto
-> **Data:** 19 de julho de 2026
+> **Data:** 21 de julho de 2026
 
 Este documento separa três conceitos que não podem compartilhar a mesma
 semântica:
@@ -175,6 +175,88 @@ módulos não fazem parte da semântica candidata.
 O executável começa num entrypoint explícito, inicialmente `main`. Um host de
 serviços registra e inicia instâncias por API ou metadata de deployment. Isso
 evita um grafo de inicializadores implícitos cuja ordem dependa do linker.
+
+## Entrypoints e profiles de host
+
+> **Status:** separação conceitual é **Direção**; binding source é **Em aberto**
+> em [W-O101](../STATUS.md).
+
+A palavra “entrypoint” não pode fundir quatro interfaces:
+
+| Interface | Papel |
+|---|---|
+| export W | símbolo acessível a outro módulo/package W |
+| handler | função comum, tipada e testável |
+| entry descriptor | binding entre um slot de host e um handler |
+| product/deployment | seleção de principal, profiles, capabilities e adapters |
+
+`export fn fetch` não torna a função automaticamente um HTTP handler. Da mesma
+forma, um handler pode permanecer privado ao módulo e ser alcançável somente pelo
+descriptor. O runtime nunca procura `main`, `fetch`, `mouse` ou outro nome por
+reflexão/convenção.
+
+A forma recomendada para prototipar W-O101 é um mapping tipado:
+
+```w
+async fn run(context: ref process.Context): ExitCode throws AppError {
+  // ...
+}
+
+async fn handleRequest(
+  request: take http.Request,
+  context: ref http.Context,
+): http.Response throws HttpAppError {
+  // ...
+}
+
+entry Restaurant {
+  process.main = run
+  http.fetch = handleRequest
+}
+```
+
+Esse bloco é uma lista de bindings de declaração, portanto não usa vírgulas. O
+lado esquerdo resolve um slot versionado que fixa assinatura, effects, lifecycle,
+executor/isolation e capabilities; o lado direito resolve uma função normal. A
+forma ainda não entra na grammar até competir com declarations dentro de
+`entry`, conformance a protocols/profiles e manifest-only.
+
+Slots possuem identidade de símbolo, versão e fingerprint do contrato no
+SDK/package resolvido pelo lockfile; não são strings globais. O nome curto no
+source é um alias. O adapter selecionado pelo product precisa implementar o
+profile exato ou declarar uma conversão compatível, evitando mudança silenciosa
+de ABI/capability ao atualizar o host.
+
+Profiles são extensíveis e namespaced, não uma lista eterna de keywords:
+
+```w
+entry DesktopRestaurant {
+  process.main = runDesktop
+  process.signal = handleSignal
+  ui.pointer = handlePointer
+  ui.keyboard = handleKeyboard
+  device.hid = handleHid
+}
+```
+
+`Context` é uma capability tipada, não um dicionário ambiente universal. Um
+profile pode oferecer argumentos, stdio, request streams, deadline, cancellation
+e bindings concedidos; filesystem, network, clock, random e storage continuam
+capabilities rastreáveis. Um profile CLI define se `stdin` é bytes, texto ou
+linhas — `cli(stdin)` não escolhe framing implicitamente.
+
+Signals do SO exigem adapter: o handler nativo faz apenas captura
+async-signal-safe e agenda um evento tipado. Código W normal nunca executa
+diretamente no contexto restrito do signal.
+
+Um package pode fornecer vários descriptors/products. O build escolhe um start
+principal por adapter e gera `main`, `WinMain`, export WASI ou harness de teste
+conforme o target. Isso elimina a obrigação de escrever um `main` C em toda
+compilation unit sem obrigar cada unidade a ser uma library física.
+
+`export { declarations }`, `entry { declarations }`, mapping, conformance e
+manifest-only estão comparados com seus custos em
+[DB1_ADDENDUM.md](../DB1_ADDENDUM.md#a02--entrypoints-e-profiles-de-host).
 
 ## Instância de execução explícita
 

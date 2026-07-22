@@ -1,7 +1,7 @@
 # Mapa técnico do W
 
 > **Status:** Working Draft; resumo executivo, não especificação normativa
-> **Data:** 19 de julho de 2026
+> **Data:** 21 de julho de 2026
 > **Implementação:** compilador, runtime e stdlib ainda não existem
 
 Este documento é a porta de entrada técnica do W. Ele mostra as camadas, o estado
@@ -38,17 +38,17 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 |---|---|---|---|
 | experiência | custos importantes visíveis, forma canônica e semântica igual em debug/release | direção | [README](README.md), [tour](LANGUAGE_TOUR.md) |
 | source | UTF-8, `fn`, `const`/`let`/`var`, tipos e efeitos explícitos | candidata | [sintaxe](spec/syntax.md) |
-| tipos | value/object/enum/protocol, `T?`, typed errors e refinements | candidata | [tipos e memória](spec/types-and-memory.md) |
+| tipos | value/object/enum/protocol, `T?`, typed errors, refinements e aplicação generic | candidata; value parameters W-O103 abertos | [tipos e memória](spec/types-and-memory.md) |
 | ownership | owner único, borrows locais, `ref`/`inout`/`take`/`copy`, destruição determinística | candidata; inference/shared abertos | [tipos e memória](spec/types-and-memory.md) |
-| tasks | `async let` concorrente, `spawn let` paralelo, scopes, join e cancelamento | candidata; lowering/runtime abertos | [concorrência](spec/concurrency.md) |
+| tasks | `async let` concorrente, `spawn let` paralelo, scopes, join e cancelamento | candidata; lowering e execution domains W-O100 abertos | [concorrência](spec/concurrency.md) |
 | frontend | CST recuperável, AST e HIR tipada; EBNF/parser normativo por definir | Em aberto | [compilador](design/compiler.md), [sintaxe](spec/syntax.md) |
 | IR/backend | dialeto W/MLIR, lowerings, LLVM dialect/IR e código nativo | direção arquitetural; operações candidatas | [compilador](design/compiler.md) |
-| runtime | tasks, executors, timers, cancelamento, I/O adapters, panic e tracing | modelo candidato; implementação inexistente | [concorrência](spec/concurrency.md), [compilador](design/compiler.md) |
+| runtime | tasks, isolation/executors, host entries, timers, cancelamento, I/O, panic e tracing | modelo candidato; bindings W-O100–W-O101 abertos | [concorrência](spec/concurrency.md), [módulos](spec/modules.md) |
 | stdlib/SDK | T0 independente de ambiente; T1 systems/`print`; T2 domains, com mapa implícito por edição | candidata DB1; inventário por prototipar | [biblioteca padrão](design/stdlib.md), [revisão DB1](DB1_REVIEW.md#h09--sdk-t0t1t2-e-capabilities) |
-| numéricos | overflow explícito, quantities canônicas `[unit]`, sugars de edição, modos float e lowerings científicos | candidata + pesquisa de lowerings | [numéricos e quantidades](design/numerics-and-quantities.md) |
+| numéricos/ML | overflow explícito, quantities `[unit]`, modos float; tensor/shape/linalg/device T2 | baseline numérica candidata; superfície tensor W-O102 aberta | [numéricos e quantidades](design/numerics-and-quantities.md) |
 | docs/testes | `///` Markdown, doctests, `test ... for` e runner único | candidata DB1; implementação inexistente | [documentação e testes](design/documentation-and-tests.md) |
 | C | `foreign c`, wrappers e metadata de ownership/concurrency | direção; ABI/layout detalhados abertos | [tour](LANGUAGE_TOUR.md), [tipos e memória](spec/types-and-memory.md) |
-| módulos/instâncias | módulo estático sem lifecycle; `service`/worker explícito para estado, eventos e calls | direção + runtime candidato | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
+| módulos/instâncias | módulo estático sem lifecycle; service state e entry/host binding explícitos | direção + runtime candidato; syntax entry aberta | [módulos](spec/modules.md), [runtime de instâncias](design/modules-and-runtime.md) |
 | análise de recursos | delta de artefato por import; baseline de instância e peak de operação separados | direção de transparência; tooling em pesquisa | [estimativa de recursos](design/resource-estimation.md) |
 | packages/builds | manifest declarativo, lock, cache content-addressed e verificação independente | direção/design em elaboração | [packages](design/packages.md) |
 | serviços/protocolos | contratos, wRPC, wQL, RestPC e codecs sobre o core | pesquisa de ecossistema | [serviços e protocolos](ecosystem/services-and-protocols.md) |
@@ -58,11 +58,14 @@ a semântica interna da linguagem. Veja [arquitetura do compilador](design/compi
 A HIR tipada explicita, mesmo quando o source permite inference:
 
 - tipo, initialization state e refinements provados por caminho;
+- kinds e valores compile-time de generic applications, inclusive shape facts;
 - owner, borrows, move/copy, exclusividade e ordem de destruction;
 - `mut`, `async`, `throws E`, error edges e cleanup por `defer`;
 - dimensões/unidades, rounding, overflow e permissões floating-point;
 - símbolo std resolvido, effect/capability e edição que autorizou o lookup;
 - scopes parent/child, captures, sendability, await/join e cancelamento;
+- required isolation, executor preference, parallel intent, host affinity e entry slot;
+- tensor shape/strides/alias, materialization, device transfer e numeric mode;
 - layout público, calling convention e requisitos da fronteira `foreign c`.
 
 O dialeto W mantém essas propriedades até passes específicos verificarem que não
