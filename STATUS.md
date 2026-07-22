@@ -1,6 +1,6 @@
 # Status e registro de decisões
 
-> **Working Draft · 21 de julho de 2026**
+> **Working Draft · 22 de julho de 2026**
 
 Este documento impede que uma hipótese exploratória seja lida como promessa. Ele
 é o índice de maturidade do design, não uma especificação formal.
@@ -159,7 +159,7 @@ DB1 não volta a ser chamada de exaustiva enquanto o addendum estiver aberto.
 | W-O049 | quais conversions, promotions e casts numéricos são implícitos? | somente widening comprovado · nenhum cast implícito cross-family · regras contextuais limitadas | overflow, generics, units, literals, SIMD e portabilidade |
 | W-O050 | qual modelo de generics e conformances entra na v0? | monomorphization · dictionaries · híbrido; `protocol`/traits explícitos | compile time, code size, dynamic linking, diagnostics e specialization |
 | W-O051 | qual é o limite de inference, refinements e avaliação compile-time? | subset decidível · solver limitado por budget · predicates somente runtime fora do subset | termination, mensagens locais, build hermético e expressão matemática útil |
-| W-O052 | qual sintaxe e representação governam captures e closures que escapam? | lista explícita `copy/ref/take/weak` · inferência com diagnostics · closure object uniforme | lifetime, alocação, callbacks C, `async`/`spawn` e cycles |
+| W-O052 | qual sintaxe, inferência e representação governam closures e captures que escapam? | `(args) => body` · `fn(args) { body }` · `{ args in body }` · block contextual; capture list `copy/ref/take/weak` ou inferência com diagnostics | ambiguidade com blocks/return types, lifetime, alocação, callbacks C, `async`/`spawn` e cycles |
 | W-O053 | qual é a política para falha de alocação fora de um budget declarado? | `throws AllocError` em APIs alocantes · panic/abort por profile · allocator fallible explícito | cleanup, containers, FFI, overcommit e código que não pode recuperar |
 | W-O054 | o que `panic` faz e W suporta unwind entre frames? | abort por default · unwind W-only · policy por deployment sem cruzar FFI | destructors, locks, tasks, binary size, C++ exceptions e isolamento de serviço |
 | W-O055 | qual modelo de memória e superfície de atomics W expõe? | atomics na stdlib com orders explícitas · subset seguro + `unsafe` avançado · apenas primitives de runtime na v0 | data races, LLVM mapping, target support, reclamation e diagnostics |
@@ -215,10 +215,10 @@ DB1 não volta a ser chamada de exaustiva enquanto o addendum estiver aberto.
 
 | ID | Questão recuperada | Alternativas a comparar | Teste de decisão |
 |---|---|---|---|
-| W-O100 | como modules, services, entries e tasks se ligam a domínios de execução sem confundir isolation, executor preference, affinity e task group? | descriptor/manifest only · `service/entry ... on domain` · `async/spawn on executor` · default de módulo/profile | UI serial, I/O concorrente e CPU paralelo no mesmo app; hops, `Send`, blocking, determinismo, portability e tracing |
-| W-O101 | como o source liga funções comuns a entrypoints tipados de um host e como o build seleciona o principal? | `entry { profile.slot = handler }` · declarations dentro de `entry` · conformance a profile · manifest-only · nomes mágicos | main/CLI, HTTP, signal, UI/HID, múltiplos products, adapters C/WASI e testes sem lookup por nome |
-| W-O102 | qual superfície de matrices/tensors/ML preserva shape, aliases, números e custo de device? | nested literals · `[row; row]` · constructor; `@`/`matmul` · `*`/`.*`; broadcast explícito/implícito; ranked/static/dynamic shapes | matmul/batch/autodiff, erro de shape, view sem cópia, reproducibility, CPU/SIMD/device e StableHLO/ONNX |
-| W-O103 | o que pode aparecer em `Type<...>` e como parâmetros de valor se relacionam a newtype, refinement, layout e hints? | const/value generics declarados · modifier map por tipo · aliases refinados concretos · storage types dedicados · labels em generic args | bounded String/fixed array/tensor shape, overload/type identity, ABI, evaluator hermético, diagnostics e otimização de storage |
+| W-O100 | como modules, services, entries e tasks se ligam a domínios de execução sem confundir isolation, executor preference, affinity e task group? | descriptor/manifest only · `service/entry ... on domain` · `async/spawn on executor` · `async/spawn<.domain>` · default de módulo/profile | UI serial, I/O concorrente e CPU paralelo no mesmo app; hops, `Send`, blocking, determinismo, portability e tracing |
+| W-O101 | como o source liga funções comuns a entrypoints tipados de um host e como o build seleciona o principal? | `entry { profile.slot = handler }` · `entry { statements }` para o slot default único · handler inline/closure · conformance a profile · manifest-only · nomes mágicos | hello world, main/CLI, HTTP, signal, UI/HID, múltiplos products, adapters C/WASI e testes sem lookup por nome |
+| W-O102 | qual superfície de matrizes/tensors/ML preserva shape, aliases, números e custo de device? | nested literals · `[row; row]` · constructor; `@`/`matmul` · `*`/`.*`; broadcast explícito/implícito; ranked/static/dynamic shapes | matmul/batch/autodiff, erro de shape, view sem cópia, reproducibility, CPU/SIMD/device e StableHLO/ONNX |
+| W-O103 | o que pode aparecer em `Type<...>` e como parâmetros de valor se relacionam a newtype, refinement, layout, fase e hints? | const/value generics declarados · `T where predicate` · `T(where: predicate)` · operador reservado `T<where: (predicate)>`/`T<where(predicate)>` · modifier map por tipo · storage types dedicados · `comptime` ortogonal | bounded String/fixed array/tensor shape, parsing de `>` em predicates, compile-time proof vs runtime validation, overload/type identity, ABI, evaluator hermético e diagnostics |
 
 ## Questões promovidas
 
@@ -226,7 +226,8 @@ DB1 não volta a ser chamada de exaustiva enquanto o addendum estiver aberto.
 |---|---|---|
 | W-O043 | **Candidato** | W-C030 e W-C033–W-C035: sem `Any` público, existential explícito, witnesses mínimos e reflection por conformance/reachability |
 | W-O001–W-O099, exceto W-O034 reservado e W-O043 acima | **Candidato**/**Pesquisa** conforme a matriz | W-C037–W-C050 e a [matriz individual](DB1_REVIEW.md#matriz-exaustiva-das-questões) registram cada destino; gates empíricos continuam em Pesquisa sem reabrir a baseline |
-| W-O100–W-O103 | **Em aberto** | famílias omitidas da revisão H01–H14; recomendações e alternativas em [DB1_ADDENDUM.md](DB1_ADDENDUM.md) |
+| W-O100 | **Semântica aceita; superfície em aberto** | módulo não possui thread/isolation implícita; task group, executor preference, isolation e affinity são fatos distintos; `on`, forma angular e descriptor continuam no [adendo](DB1_ADDENDUM.md) |
+| W-O101–W-O103 | **Em aberto** | famílias omitidas da revisão H01–H14; recomendações e alternativas em [DB1_ADDENDUM.md](DB1_ADDENDUM.md) |
 
 ## Pesquisa ativa
 

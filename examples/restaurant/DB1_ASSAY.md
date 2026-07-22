@@ -224,9 +224,13 @@ análise de segurança e policy do consumidor são fatos separados.
 ### Domínio de execução sem thread física prometida
 
 ```w
-// Alternativa A: preferência explícita na criação do filho.
-async on network let menu = fetchMenu()
-spawn on compute let forecast = forecastDemand(history)
+// Alternativa A: relação contextual.
+async on .network let menu = fetchMenu()
+spawn on .compute let forecast = forecastDemand(history)
+
+// Alternativa B: aplicação contextual ao head.
+async<.network> let menu = fetchMenu()
+spawn<.compute> let forecast = forecastDemand(history)
 
 // Um service isolado faz o hop na call; `spawn` não vira sinônimo de fila serial.
 await renderer.show(snapshot)
@@ -236,7 +240,8 @@ await renderer.show(snapshot)
 pede progresso concorrente num executor adequado a I/O; a segunda pede trabalho
 paralelo num pool limitado. `renderer` possui isolamento serial, não uma promessa
 de mesma thread do sistema. Descriptor no manifest e binding no service continuam
-alternativas à cláusula `on`.
+alternativas à cláusula `on`; `<.domain>` recupera a família visual do WIP sem
+transformar o domínio em thread física ou generic parameter.
 
 ### Handlers comuns ligados a um profile de host
 
@@ -252,6 +257,11 @@ entry Restaurant {
   process.stdinLine = readCommand
   ui.pointer = pointer
 }
+
+// Açúcar para product com exatamente um slot default.
+entry {
+  print("Hello World")
+}
 ```
 
 O bloco é um descriptor de bindings, não um record literal; por isso não usa
@@ -259,6 +269,9 @@ vírgulas. Os handlers continuam funções W ordinárias e testáveis. `entry` c
 keyword contextual, `export { fetch ... }` e bindings apenas no manifest são as
 três superfícies preservadas. Slots são namespaced e versionados pelo profile;
 `Context` é uma família de capabilities tipadas, não uma sacola dinâmica.
+O entry curto sintetiza um handler privado; ele não executa no import, não mistura
+statements com bindings e falha se o profile não tiver um default único. A
+ausência do nome distingue o body curto do descriptor nominal sem heurística.
 
 ### Matriz operacional e tensor de previsão
 
@@ -285,14 +298,24 @@ type BoundedString<const min: usize, const max: usize> =
 
 type RestaurantName = BoundedString<min: 1, max: 100>
 type TicketLabel = InlineString<capacity: 32>
+
+// Quatro spellings do mesmo refinement, ainda em comparação.
+type ShortA = String where value.scalars.count <= 40
+type ShortB = String(where: value.scalars.count <= 40)
+type ShortC = String<where: (value.scalars.count <= 40)>
+type ShortD = String<where(value.scalars.count <= 40)>
 ```
+
+`ShortD` é a preferência técnica provisória entre as angulares: delimita o
+predicate sem parecer constructor runtime e não abre um modifier map por tipo.
 
 `RestaurantName` tem identidade nominal e invariante; `BoundedString` declara
 parâmetros de valor; `InlineString` escolhe representação. Isso evita fazer
 `String<size; 1000>` significar simultaneamente tamanho, capacity, unidade de
 contagem e layout. Argumentos rotulados por vírgula, posicionais e refinamento
 sem generic wrapper continuam no teste; ponto e vírgula fica rejeitado por
-enquanto.
+enquanto. `comptime` continua separado: a declaração cria o tipo durante a
+compilação, mas um valor dinâmico ainda precisa de `try ShortLabel(input)`.
 
 ## Matriz do double-check
 
@@ -317,10 +340,10 @@ O adendo adiciona outra matriz de revisão, ainda sem ratificação:
 
 | Questão | Evidência top-down | O que decide |
 |---|---|---|
-| W-O100 | `async/spawn on` e call a renderer isolado | isolamento, herança, starvation, afinidade e portabilidade |
-| W-O101 | descriptor de `process.main`/`http.fetch`/eventos | grammar, profiles versionados, capabilities e adapters de host |
+| W-O100 | `async/spawn on`, forma angular e call a renderer isolado | isolamento, herança, starvation, afinidade e portabilidade |
+| W-O101 | descriptor de slots, closure e `entry` default curto | grammar, profiles versionados, capabilities, captures e adapters de host |
 | W-O102 | forecast por matriz/tensor | shapes, promotion, aliasing, device, autodiff e lowerings interoperáveis |
-| W-O103 | `BoundedString`/`InlineString` | kind system, labels, runtime checks, layout e diagnostics |
+| W-O103 | `BoundedString`/`InlineString` + quatro refinements | kind system, labels, comptime/runtime checks, layout e diagnostics |
 
 ## Resultado esperado da revisão
 

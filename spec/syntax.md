@@ -225,7 +225,18 @@ items.map((item) => {
 })
 ```
 
-Captures que mudam lifetime ou atravessam `spawn` precisam ser visíveis no type checker. A sintaxe de capture list (`copy`, `ref`, `take`, `weak`) permanece aberta e não deve ser inferida da pontuação de C++ por acidente.
+`(args) => expression/block` é apenas a baseline atual. `fn(args) { body }`,
+Swift-like `{ args in body }` e block contextual permanecem em
+[W-O052](../STATUS.md). `(): { body }` não é candidato inicial porque `:` já
+introduz return type/labels e o `{...}` seguinte pode ser lido como type, record
+ou body. Uma forma curta de `entry` não cria por consequência outra closure
+syntax. A recomendação técnica provisória mantém `(args) => body`: seus limites
+são locais e o parser não precisa decidir pelo contexto se `{...}` é block ou
+closure.
+
+Captures que mudam lifetime ou atravessam `spawn` precisam ser visíveis no type
+checker. A sintaxe de capture list (`copy`, `ref`, `take`, `weak`) permanece
+aberta e não deve ser inferida da pontuação de C++ por acidente.
 
 ## Declarações de tipo
 
@@ -521,7 +532,8 @@ protocol ref return service spawn struct switch take test throw throws true try 
 fora das posições de modifier/statement/declaration em que a gramática os reconhece.
 
 Os sketches recuperados pela auditoria não ampliam esta lista. Em particular,
-`entry`, `on`, argumentos genéricos rotulados e o separador `;` em literals de
+`entry`, `on`, aplicações keyword-led como `spawn<.compute>`, argumentos
+genéricos rotulados, o type operator `where:` e o separador `;` em literals de
 matriz pertencem a W-O100–W-O103 e continuam **Em aberto**. O portal pode mostrá-los
 em blocos marcados como experimento, mas parser, formatter, Tree-sitter e extensão
 VS Code não devem tratá-los como sintaxe W antes da ratificação do

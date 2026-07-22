@@ -1,7 +1,7 @@
 # Um passeio pela linguagem W
 
 > **Status:** sintaxe e semântica candidatas para prototipação
-> **Data:** 21 de julho de 2026
+> **Data:** 22 de julho de 2026
 > **Importante:** exemplos dourados de design, ainda não código executável.
 
 Este passeio começa pela experiência que queremos e desce gradualmente até memória, tasks e C. Quando uma escolha ainda não está madura, o texto diz isso em vez de fingir que já existe uma especificação.
@@ -9,8 +9,27 @@ Este passeio começa pela experiência que queremos e desce gradualmente até me
 ## 1. Primeiro programa
 
 ```w
-fn main() {
+entry {
   print("Hello, W!")
+}
+```
+
+Essa é a forma curta em estudo na W-O101, não gramática ratificada. Ela só é
+válida quando o product/profile possui exatamente um slot default e é expandida
+para um handler privado com a assinatura completa desse slot. Não executa durante
+um import, não procura `main` pelo nome e não pode misturar statements com bindings.
+O nome é o discriminador: `entry { ... }` é body; `entry Nome { ... }` é descriptor.
+Quando lifecycle, context ou múltiplos slots importam, a forma completa permanece
+visível:
+
+```w
+fn run(context: ref process.Context): ExitCode {
+  print("Hello, W!")
+  return .success
+}
+
+entry Hello {
+  process.main = run
 }
 ```
 
@@ -20,11 +39,11 @@ capability e reachability. A prelude T0 permanece pura e independente do
 ambiente; todo export std único, somente namespaces e import explícito ficam como
 alternativas registradas em [W-O026](STATUS.md).
 
-`main` é o handler ordinário da forma CLI mínima, não uma exigência de que todo
-módulo possua um ponto de entrada. W-O101 compara um descriptor tipado que liga
-handlers a profiles de host (`process.main`, `http.fetch`, eventos de UI/device),
-um bloco `export` e configuração apenas no manifest. Nenhuma dessas superfícies
-faz parte da gramática candidata antes da revisão do [adendo DB1](DB1_ADDENDUM.md).
+`run` é uma função ordinária, não uma exigência de que todo módulo possua um ponto
+de entrada. W-O101 compara o entry curto, um descriptor tipado que liga handlers
+a profiles de host (`process.main`, `http.fetch`, eventos de UI/device), um bloco
+`export` e configuração apenas no manifest. Nenhuma dessas superfícies foi
+ratificada antes da revisão do [adendo DB1](DB1_ADDENDUM.md).
 
 Arquivos usam UTF-8. Quebra de linha encerra a maior parte das declarações; `;` é aceito apenas onde for necessário interoperar ou colocar statements na mesma linha — a decisão de aceitá-lo como estilo geral ainda será testada pelo formatter.
 
@@ -205,9 +224,12 @@ nome. Isso substitui `transparent struct` no caso comum de newtype, sem afirmar
 que qualquer struct W possui ABI C.
 
 W-O103 estende essa separação: `<...>` só aplica parâmetros que um tipo declarou;
-`where` preserva invariantes; `type` cria identidade nominal; um tipo como
-`InlineString` torna layout observável. Isso mantém `String<size; 1000>` como
-alternativa histórica, não como um modificador genérico já escolhido.
+um refinement preserva invariantes; `type` cria identidade nominal; um tipo como
+`InlineString` torna layout observável. O corpus compara `T where predicate`,
+`T(where: predicate)`, `T<where: (predicate)>` e `T<where(predicate)>`; nenhuma
+grafia cria um modifier map aberto. A última é a preferência técnica angular por
+enquanto. `comptime` é uma questão separada: pode exigir avaliação durante a
+compilação, mas input dinâmico ainda requer validação runtime.
 
 ## 5. Ausência não é um conjunto de sentinelas
 
@@ -460,9 +482,10 @@ Dados enviados a `spawn` precisam ser owned/movidos, imutavelmente compartilháv
 Executors, QoS, afinidade, número de threads e IO backend são configuração/runtime. A linguagem não promete que `spawn` cria uma pthread nem que `async` vive em um event loop específico.
 
 A auditoria recuperou a ideia de “thread groups”. W-O100 agora separa domínio de
-isolamento, preferência de executor, afinidade e task group; `async on network` e
-`spawn on compute` são somente superfícies para o próximo ensaio. Um módulo
-estático nunca adquire uma thread por ser importado.
+isolamento, preferência de executor, afinidade e task group; `async on .network`,
+`spawn on .compute` e `spawn<.compute>` são superfícies alternativas para o
+próximo ensaio. A forma angular é contextual ao head, não generic ou promessa de
+thread física. Um módulo estático nunca adquire uma thread por ser importado.
 
 ```w
 async let response = socket.read() // concorrência e suspensão

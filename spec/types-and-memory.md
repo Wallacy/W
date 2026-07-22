@@ -329,9 +329,10 @@ storage, validation e hints. W precisa tratar cada dimensão separadamente:
 | parsing, máscara ou apresentação | codec/formatter/UI adapter |
 | capacidade esperada/perfil | constructor ou metadata de recursos, não type identity |
 
-A regra recomendada é que `<...>` nunca seja um modifier map aberto. O símbolo
-resolvido declara previamente o kind de cada argumento — tipo, constante e,
-se comprovado necessário, shape/effect dedicado. Um possível refined alias
+A regra comum é que `<...>` nunca seja um modifier map aberto. O símbolo resolvido
+declara previamente o kind de cada argumento — tipo, constante e, se comprovado
+necessário, shape/effect dedicado. Um `where:` angular, se escolhido, será um
+único type operator reservado pelo compiler. Um possível refined alias
 parametrizado seria:
 
 ```w
@@ -340,6 +341,20 @@ type BoundedString<const min: usize, const max: usize> =
 
 type RestaurantName = BoundedString<min: 1, max: 100>
 ```
+
+Quatro superfícies de refinement permanecem **Em aberto**:
+
+```w
+type ShortA = String where value.scalars.count <= 40
+type ShortB = String(where: value.scalars.count <= 40)
+type ShortC = String<where: (value.scalars.count <= 40)>
+type ShortD = String<where(value.scalars.count <= 40)>
+```
+
+A forma postfix tem menos grammar, a forma com `()` parece uma construção runtime
+e as angulares exigem parsing contextual ou delimiter para que operators `>` não
+se confundam com o fechamento. A forma `where(...)` reduz pontuação; a forma
+`where: (...)` preserva a aparência de argumento rotulado.
 
 `const` na declaração torna o parâmetro de valor inequívoco. Labels em generic
 arguments, como `min:`/`max:`, permanecem candidatos contra a forma posicional
@@ -364,6 +379,12 @@ prometer essa representação em `sizeOf`, ABI ou FFI.
 Uma máscara de CPF e teclado numérico não pertencem ao tipo `String`. `CPF`
 valida o valor, um codec formata e um UI adapter escolhe input behavior. Isso
 evita que um tipo de domínio carregue policies de frontend num servidor.
+
+Refinement é definido em compile time, mas isso não obriga o valor refinado a ser
+conhecido nessa fase. Literais/constants podem ser provados pelo compiler; input
+dinâmico usa construção fallible e check runtime. Um possível `comptime` exige a
+avaliação de uma expressão durante a compilação e pertence a [W-O051](../STATUS.md);
+ele não substitui validation em boundaries runtime.
 
 `fn<C>` usa angle brackets em posição keyword-led para delimitar uma ilha de
 implementação; não é generic application nem precedente para modifiers livres.

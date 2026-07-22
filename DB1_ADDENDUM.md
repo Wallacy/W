@@ -1,7 +1,7 @@
 # Addendum de proveniência à Baseline de Design 1
 
 > **Status:** **Em aberto** · W-O100–W-O103
-> **Data:** 21 de julho de 2026
+> **Data:** 22 de julho de 2026
 
 A revisão H01–H14 fechou coerentemente as 97 questões então catalogadas, mas a
 auditoria integral de [`Y/WIP.MD`](../Y/W/WIP-audit.md) encontrou quatro famílias
@@ -12,7 +12,7 @@ As quatro famílias são:
 
 1. domínios/executors de execução e sua relação com modules, services e tasks;
 2. entrypoints orientados a eventos e profiles de host;
-3. a superfície de matrices/tensors/ML, além de apenas listar `Tensor` no T2;
+3. a superfície de matrizes/tensors/ML, além de apenas listar `Tensor` no T2;
 4. aplicação de tipos com `<...>`, parâmetros compile-time e sua relação com
    newtypes, refinements e storage.
 
@@ -27,7 +27,7 @@ ratificação humana em lote.
 | W-O100 · execução | executor é recurso lógico; isolation pertence a service/entry; tasks podem herdar ou selecionar placement | executor ≠ thread; task group ≠ executor; affinity ≠ serialização |
 | W-O101 · entries | `entry` liga funções comuns a slots versionados de um host profile; build escolhe o start principal | `export` W ≠ entry de host; signal handler ≠ código executado no contexto do signal |
 | W-O102 · tensor/ML | arrays/views no T0, tensor/linalg no T2; shape preservado; nested literal primeiro; transfer, broadcast e modo numérico observáveis | notação matricial ≠ stack ML; tensor lógico ≠ buffer/layout/device |
-| W-O103 · parâmetros/refinements | `<...>` recebe somente argumentos declarados de tipo/valor; `where` restringe valores; `type` cria identidade; storage usa tipo próprio | `String<...>` não é newtype, hint, validator e layout ao mesmo tempo |
+| W-O103 · parâmetros/refinements | `<...>` recebe somente argumentos declarados de tipo/valor; um predicado de refinement restringe valores; `type` cria identidade; storage usa tipo próprio | `String<...>` não é newtype, hint, validator e layout ao mesmo tempo |
 
 ## A01 · Domínios de execução
 
@@ -50,6 +50,10 @@ usa uma quantidade dinâmica delas.
 | executor preference | placement herdável para trabalho não isolado | proteção de memória ou prioridade garantida |
 | affinity | requisito raro de host/device para uma thread/CPU/event loop | fairness, throughput ou isolamento por si só |
 | priority/QoS | informação de scheduling ou latency class | deadline ou ordem total garantida |
+
+> **Decisão parcial de 22 de julho:** a decomposição acima foi aceita como direção
+> semântica. W-O100 continua aberta para decidir a superfície `on`, angular ou
+> descriptor e como services/entries declaram isolation.
 
 Essa separação é compatível com a lição de Swift: um serial executor fornece
 isolamento; uma task executor preference fornece threads/placement e é herdada
@@ -83,16 +87,28 @@ async let menu = loadMenu()
 spawn let forecast = buildForecast(take history)
 ```
 
-Quando placement realmente importa, a forma compacta recuperada seria:
+Quando placement realmente importa, duas grafias compactas merecem o corpus:
 
 ```w
-async on network let menu = loadMenu()
-spawn on compute let forecast = buildForecast(take history)
+// Relação lida como frase.
+async on .network let menu = loadMenu()
+spawn on .compute let forecast = buildForecast(take history)
+
+// Aplicação contextual ao head, recuperando a ideia `spawn<group>` do WIP.
+async<.network> let menu = loadMenu()
+spawn<.compute> let forecast = buildForecast(take history)
 ```
 
-`on` seria contextual. `async on network` cria um child concorrente com executor
-preference; `spawn on compute` pede capacidade paralela. Um call a estado UI não
-precisa de um spawn artificial:
+`on` seria contextual. Na forma angular, o head `async`/`spawn` declara que o
+argumento é uma `ExecutorPreference`; `.network`/`.compute` são members do profile,
+não keywords globais. Isso não torna o construct generic nem aceita um modifier
+map livre. A forma angular é compacta e coesa com `fn<C>`, mas pode incentivar
+modifier soup; `on` é semanticamente legível, mas acrescenta a relação infixa que
+causou desconforto humano. Placement dinâmico continua sendo API explícita.
+
+As duas formas preservam o mesmo contrato: `async` cria um child concorrente com
+preference e `spawn` pede capacidade paralela. Um call a estado UI não precisa de
+um spawn artificial:
 
 ```w
 await renderer.show(forecast)
@@ -123,6 +139,7 @@ service Renderer as RenderApi on ui {
 | somente manifest/descriptor | source portátil e deployment controla recursos | requirement pode ficar distante da API | **Candidato** para definição física |
 | `service/entry ... on domain` | isolation/locality visível perto do owner | acrescenta sintaxe e nome precisa ser resolvido | **Candidato** para açúcar |
 | `async/spawn on executor` | override local curto e herdável | pode ser abusado como micro-scheduling | **Candidato** somente em ponto de custo real |
+| `async/spawn<.executor>` | evita `on`, head declara o kind e recupera o WIP | pontuação extra e risco de transformar `<...>` em canal universal de knobs | **Em aberto** |
 | default por módulo | poucas palavras e recupera o WIP literalmente | import passa a sugerir lifecycle/placement; tests e múltiplas instâncias divergem | **Rejeitado por enquanto** como isolation |
 | preference default do package/profile | tuning sem mudar API | comportamento indireto e risco de performance cliff | **Pesquisa** com tooling obrigatório |
 | afinidade de CPU no source comum | controle low-level | não portátil, piora scheduling e vira promessa ABI/runtime | **Rejeitado por enquanto** fora de profile expert |
@@ -184,6 +201,53 @@ entry Restaurant {
   process.signal = handleSignal
 }
 ```
+
+### Entry anônimo e programa mínimo
+
+O binding explícito é adequado quando existem vários slots, mas seria um custo
+alto demais para o primeiro programa. Esta forma é uma alternativa legítima:
+
+```w
+entry {
+  print("Hello World")
+}
+```
+
+Ela não significa “execute statements durante import” nem procura uma função
+`main`. O product/profile precisa oferecer exatamente um slot default — em um
+programa CLI, normalmente `process.main` — e o compiler sintetiza um handler
+privado com a assinatura completa daquele slot. Se não houver default único, o
+diagnóstico exige `profile.slot = handler`. O bloco anônimo não pode misturar
+statements e bindings.
+
+A ausência do nome é o discriminador gramatical: `entry { ... }` contém somente
+o body do handler default; `entry Nome { ... }` contém somente bindings de slots.
+Assim, um assignment comum dentro do body não precisa ser distinguido de um
+binding de host por resolução semântica ou heurística do parser.
+
+Essa regra mantém lifecycle explícito pela palavra `entry`, mas ainda deixa duas
+políticas abertas: se um body `Void` implica saída bem-sucedida e como argumentos,
+context e errors ficam disponíveis sem criar variáveis ambientes mágicas.
+
+O exemplo com closure torna outra pergunta visível. A baseline atual de função
+anônima é `(args) => body`, portanto a forma coerente seria:
+
+```w
+entry {
+  process.main = (context: ref process.Context) => {
+    print("Hello World")
+    return .success
+  }
+}
+```
+
+`(): { ... }` não é candidata inicial: `:` já introduz return type e labels, e
+`{...}` depois dela poderia ser lido como type/record ou body. `fn(...) { ... }`,
+Swift-like `{ args in ... }` e um block contextual continuam em [W-O052](STATUS.md).
+O açúcar `entry { statements }` não depende de escolher uma segunda closure syntax.
+Do ponto de vista do frontend, `(args) => body` permanece a recomendação inicial:
+é uma expressão delimitada, separa parâmetros do body e não exige decidir pelo
+contexto se qualquer `{ ... }` é block ou closure.
 
 O bloco é uma lista de bindings declarativos, não um record literal; portanto não
 precisa de vírgulas. Cada lado esquerdo resolve um slot versionado com assinatura,
@@ -255,6 +319,8 @@ não exige transformar fisicamente toda compilation unit em `.a`, `.so` ou DLL.
 |---|---|---|---|
 | `export { fn fetch... }` | compacta e semelhante a Worker JS | mistura visibility, body e lifecycle; vírgulas ficam ambíguas | **Rejeitado por enquanto** como entry |
 | `entry { fn fetch... }` | tudo perto e responde à ideia histórica | handlers deixam de parecer funções normais/reutilizáveis | **Em aberto** |
+| `entry { statements }` para um único slot default | hello world pequeno e lifecycle ainda explícito | depende do product/profile e precisa definir context, exit e errors | **Em aberto**; candidato forte para script/CLI |
+| `entry { profile.slot = closure }` | handler local sem nome auxiliar | assinatura/captures podem ficar densas e não há reutilização | **Em aberto** com W-O052 |
 | `entry { profile.slot = handler }` | separa contrato, handler e host; slots extensíveis | acrescenta descriptor e qualified names | **Candidato**; recomendação inicial |
 | `entry App as ProcessMain, HttpFetch` | conformance familiar e type-safe | pode exigir object/namespace artificial | **Candidato** alternativo |
 | manifest-only | nenhuma syntax nova | refactor/diagnostic fica distante do código | **Candidato** para principal/placement, não único binding |
@@ -451,11 +517,12 @@ Misturar essas dimensões num “modifier registry” por tipo tornaria overload
 ABI, equality, generic specialization, serialization e diagnostics dependentes
 de opções que parecem metadata.
 
-### Regra recomendada para angle brackets
+### Regra comum às superfícies candidatas
 
 `Type<...>` é aplicação de um declaration generic. Cada posição tem kind conhecido
 pelo símbolo resolvido: tipo, valor compile-time ou eventualmente effect/shape
-dedicado. Não existe um mapa aberto de modifiers que todo tipo interpreta.
+dedicado. Se W adotar `where:` dentro de `<...>`, ele será um único operador de
+tipo reservado pelo compiler, não um mapa aberto que cada tipo interpreta.
 
 Sketch de declaração:
 
@@ -467,6 +534,29 @@ type RestaurantName = BoundedString<min: 1, max: 100>
 type CPF = String where value.scalars.count == 11 && cpf.isValid(value)
 ```
 
+O desconforto com o `where` postfix revela quatro superfícies diferentes para a
+mesma semântica, todas ainda **Em aberto**:
+
+```w
+type ShortA = String where value.scalars.count <= 40
+type ShortB = String(where: value.scalars.count <= 40)
+type ShortC = String<where: (value.scalars.count <= 40)>
+type ShortD = String<where(value.scalars.count <= 40)>
+```
+
+`ShortA` tem a grammar menor, mas o scope visual de `where` piora em tipos
+aninhados. `ShortB` usa a leitura familiar de constructor e delimitadores claros,
+mas parece uma call runtime. `ShortC` localiza a constraint e preserva a família
+angular desejada. O parser contextual consegue distinguir o operador relacional
+`>` quando ainda há um operando à direita, mas parênteses produzem uma fronteira
+mais simples para formatter, diagnostics e futuros operadores angulares. A forma
+menos carregada `String<where(value.scalars.count <= 40)>` também entra no corpus.
+Entre as angulares, essa última é a preferência técnica provisória: a fase de tipo
+fica explícita, o predicate possui delimitadores próprios e `where` é um único
+operador reservado que baixa para um tipo refinado no HIR. Isso não autoriza
+`String<qualquerModifier: ...>`; argumentos comuns continuam dependentes da
+declaração do tipo.
+
 O uso com labels é candidato porque acompanha calls W e torna dois `usize`
 legíveis. A forma posicional `BoundedString<1, 100>` continua alternativa. Uma
 lista usa vírgula; `String<size;1000>` e grupos separados por `;` ficam
@@ -475,6 +565,24 @@ lista usa vírgula; `String<size;1000>` e grupos separados por `;` ficam
 `length` sozinho também é insuficiente para `String`. A constraint precisa nomear
 bytes, Unicode scalars ou grapheme clusters. Um limite lógico não muda o layout
 canônico: o optimizer ainda pode compactar storage não observável sob W-C032.
+
+### Definição, prova e validação são fases diferentes
+
+Nenhuma dessas grafias diz que todo valor existe em compile time. A declaração
+define o predicate enquanto o compiler constrói o tipo; a aplicação pode ser
+provada estaticamente ou validada em runtime:
+
+```w
+const title: ShortLabel = "W"       // prova durante a compilação
+let title = try ShortLabel(input)   // validação runtime na boundary
+```
+
+`comptime` é uma questão ortogonal de [W-O051](STATUS.md): ele serviria para
+exigir que uma expressão seja avaliada durante a compilação, como
+`let table = comptime buildTable()`. Aplicá-lo ao refinement inteiro seria errado,
+porque valores vindos de rede, arquivo ou usuário ainda precisam ser validados.
+O predicate usa um subset puro, hermético e total; o ponto de construção decide
+se a prova foi estática ou se um check fallible permanece.
 
 ### Por que `String` não deve receber todos os knobs
 
@@ -520,6 +628,8 @@ os contextos sem lhes dar a mesma semântica.
 | Alternativa | Vantagem | Custo | Posição inicial |
 |---|---|---|---|
 | value parameters declarados + `where` | geral, tipado e otimizável | exige const evaluator/generics | **Candidato**; recomendação inicial |
+| `T(where: predicate)` reservado em type position | delimitador claro e leitura de constructor | parece runtime call e mistura parenteses de tipo/valor | **Em aberto** |
+| `T<where: (predicate)>` ou `T<where(predicate)>` como operador universal fechado | coeso com `<...>` contextual e scope local | interação com `>` exige parsing contextual ou delimiter; adiciona uma forma compiler-reserved | **Em aberto** |
 | modifier map livre em todo `Type<...>` | muito compacto | semântica ad hoc, ABI/overload e diagnostics frágeis | **Rejeitado por enquanto** |
 | apenas aliases nominais concretos | frontend menor | duplica tipos bounded e limita shapes/fixed arrays | **Candidato** mínimo de bootstrap |
 | dedicated types (`InlineString`, `Matrix`) | custos físicos visíveis | mais nomes na biblioteca | **Candidato** recomendado para layout observável |
@@ -530,40 +640,52 @@ os contextos sem lhes dar a mesma semântica.
 
 ### W-O100 · execução
 
-1. Você aceita que um módulo nunca tenha isolation/thread implícita e que o
-   equivalente moderno da ideia histórica viva em `service`, `entry` e task?
-2. Quer nomes lógicos de executor no source (`async/spawn on compute`) ou prefere
-   deixar qualquer placement não isolado apenas no descriptor/manifest?
+1. **Respondida: sim.** Um módulo nunca tem isolation/thread implícita; o
+   equivalente moderno da ideia histórica vive em `service`, `entry` e task.
+2. Quer nomes lógicos no source com `async/spawn on .compute`, com
+   `async/spawn<.compute>`, ou prefere placement não isolado apenas no
+   descriptor/manifest?
 3. `service/entry ... on ui` é um açúcar desejável, ou o tipo do handle/host já
    torna a exigência suficientemente clara?
 
 ### W-O101 · entries
 
-4. Entre as alternativas, `entry { profile.slot = handler }` deve ser a baseline?
-5. Profiles devem ser extensíveis/versionados por packages (`http.fetch`,
+4. `entry { statements }` deve desugar para o único slot default do product/profile
+   em programas pequenos, sem permitir mistura com bindings?
+5. Entre as formas completas, `entry { profile.slot = handler }` deve ser a baseline?
+6. Profiles devem ser extensíveis/versionados por packages (`http.fetch`,
    `ui.keyboard`) em vez de uma lista de nomes reservados pela linguagem?
-6. Um product pode expor vários profiles simultaneamente, com apenas um `start`
+7. Um product pode expor vários profiles simultaneamente, com apenas um `start`
    principal por adapter nativo?
 
 ### W-O102 · tensor/ML
 
-7. Nested arrays contextuais bastam como baseline e `[a, b; c, d]` fica como
+8. Nested arrays contextuais bastam como baseline e `[a, b; c, d]` fica como
    sugar a medir, ou a notação matricial deve entrar desde a v0 pública?
-8. Você prefere `@` + `matmul` para produto matricial e `*` elementwise, ou a
+9. Você prefere `@` + `matmul` para produto matricial e `*` elementwise, ou a
    família MATLAB/Julia `*`/`.*`?
-9. Broadcasting entre shapes diferentes e host↔device transfer devem começar
+10. Broadcasting entre shapes diferentes e host↔device transfer devem começar
    explícitos, mesmo com mais tokens?
-10. Faz sentido separar T2 `tensor/linalg` estável de T2 `ml/autodiff/models`
+11. Faz sentido separar T2 `tensor/linalg` estável de T2 `ml/autodiff/models`
     experimental, ambos distribuídos oficialmente?
 
 ### W-O103 · tipos parametrizados
 
-11. Parâmetros compile-time de valor são centrais o bastante para a v0, cobrindo
+12. Parâmetros compile-time de valor são centrais o bastante para a v0, cobrindo
     fixed arrays, bounded strings e tensor shapes?
-12. Generic arguments de valor devem aceitar labels canônicos, como
+13. Generic arguments de valor devem aceitar labels canônicos, como
     `BoundedString<min: 1, max: 100>`?
-13. Você aceita manter `String` único e usar refinements/dedicated storage types,
-    em vez de transformar todo knob em `String<...>`?
+14. Qual refinement surface merece o corpus principal: `T where predicate`,
+    `T(where: predicate)`, `T<where: (predicate)>`, `T<where(predicate)>` ou outra
+    forma?
+15. W precisa de `comptime` em expression position na v0, além de `const` e value
+    parameters, ou isso pode esperar pelo experimento W-O051?
+
+### W-O052 · closures, por dependência
+
+16. A baseline `(args) => expression/block` deve permanecer, ou `fn(args) {}`,
+    `{ args in ... }` ou block contextual é mais coerente com entries e trailing
+    closures?
 
 Responder em lote permite atualizar `STATUS.md` sem uma sequência de decisões
 locais que se contradigam.
@@ -595,8 +717,16 @@ locais que se contradigam.
 - [OpenXLA — StableHLO specification](https://openxla.org/stablehlo/spec)
 - [Python Array API — `matmul`](https://data-apis.org/array-api/2023.12/API_specification/generated/array_api.matmul.html)
 - [ONNX — IR specification](https://onnx.ai/onnx/repo-docs/IR.html)
+- [MATLAB — `;` em commands e linhas de arrays](https://www.mathworks.com/help/matlab/ref/semicolon.html)
+- [Julia — array literals e concatenação multidimensional](https://docs.julialang.org/en/v1/manual/arrays/)
+- [Julia — operadores pontuados e broadcasting](https://docs.julialang.org/en/v1/manual/mathematical-operations/)
 
 ### Tipos parametrizados e constraints
 
 - [Rust Reference — generic/const parameters](https://doc.rust-lang.org/reference/items/generics.html)
 - [Ada 2022 Reference Manual — scalar constraints e static subtypes](https://docs.adacore.com/live/wave/arm22/html/arm22/arm22-4-9.html)
+- [Zig Language Reference — `comptime`](https://ziglang.org/documentation/master/#comptime)
+
+### Closures
+
+- [The Swift Programming Language — Closures](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/closures/)

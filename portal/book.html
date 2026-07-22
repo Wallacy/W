@@ -78,9 +78,20 @@
         <article class="book-chapter" id="primeiro-programa" data-book-section>
           <p class="chapter-number">Capítulo 2</p>
           <h2>Primeiro programa</h2>
-          <p>Um programa CLI mínimo começa com uma função <code>main</code>; módulos importáveis não precisam dela. A ligação de outros hosts a handlers permanece aberta em W-O101. A DB1 usa uma prelude T0 pura, pequena e congelada pela edição; nomes T1 muito comuns, como <code>print</code>, podem ser curtos sem esconder capability. Dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
-          <div class="code-shell"><pre><code>fn main() {
+          <p>W-O101 compara um programa mínimo <code>entry { print("Hello, W!") }</code> com a forma completa que liga um handler comum a <code>process.main</code>; nenhuma delas torna todo módulo executável ou procura <code>main</code> por nome. A DB1 usa uma prelude T0 pura, pequena e congelada pela edição; nomes T1 muito comuns, como <code>print</code>, podem ser curtos sem esconder capability. Dependências da aplicação continuam usando imports lógicos. Manifest e lockfile resolvem ambos sem espalhar URLs e hashes pelo source.</p>
+          <div class="code-shell"><pre><code>// Açúcar em estudo para o slot default único.
+entry {
   print("Olá, W!")
+}
+
+// Forma completa quando o contrato precisa ficar visível.
+fn run(context: ref process.Context): ExitCode {
+  print("Olá, W!")
+  return .success
+}
+
+entry Hello {
+  process.main = run
 }</code></pre></div>
           <p>Arquivos são UTF-8. Quebras de linha encerram a maior parte das declarações. Essas formas são exemplos dourados de design: você pode estudá-las e editá-las no playground, mas ainda não executá-las.</p>
           <div class="try-next"><strong>Experimente:</strong> <a href="/playground?example=hello">abra este exemplo no Playground</a> e observe os tokens reconhecidos.</div>
@@ -155,7 +166,7 @@ edit(inout value)
 store(take value) // value não está mais disponível</code></pre></div>
           <p>Shared ownership, ARC e regions ainda exigem protótipos. A direção é segurança sem dangling pointers ou data races; a estratégia exata de memória compartilhada permanece <strong>Em aberto</strong>.</p>
           <div class="decision-box"><strong>Layout e ABI · Proposta DB1</strong><p>Structs W comuns têm layout opaco entre builds, mas consultável por <code>sizeOf</code>, <code>alignOf</code> e <code>w explain layout</code>. Tipos em <code>foreign c</code> adotam a ABI C do target; <code>type UserId = u64</code> cria um newtype nominal sem storage adicional e <code>alias</code> cria apenas um sinônimo. A v0 pública inclui <code>packed</code>/<code>aligned</code> seguros para hardware e formatos exatos, sem congelar uma ABI W universal. Ordem física default, <code>transparent struct</code> e <code>fixed struct</code> permanecem alternativas.</p></div>
-          <div class="decision-box"><strong>Aplicação de tipos · Em aberto W-O103</strong><p><code>String&lt;size; 1000&gt;</code> misturava quatro conceitos históricos: identidade nominal, refinamento, parâmetro compile-time e escolha de storage. A proposta os separa: <code>type RestaurantName = String where value.scalars.count in 1...100</code> cria identidade e invariante; um tipo que declare parâmetros pode usar <code>&lt;...&gt;</code>; <code>InlineString</code> expressa layout. Argumentos rotulados por vírgula, forma posicional e um único construtor refinado permanecem alternativas. O ponto e vírgula não é candidato atual.</p></div>
+          <div class="decision-box"><strong>Aplicação de tipos · Em aberto W-O103</strong><p><code>String&lt;size; 1000&gt;</code> misturava quatro conceitos históricos: identidade nominal, refinamento, parâmetro compile-time e escolha de storage. A decomposição permanece; a superfície do refinement não. O corpus agora compara <code>T where predicate</code>, <code>T(where: predicate)</code>, <code>T&lt;where: (predicate)&gt;</code> e <code>T&lt;where(predicate)&gt;</code>. A última é a preferência técnica angular: delimita o predicado e seria um operador de tipo reservado, não um modifier map livre. <code>comptime</code> é ortogonal: constantes podem ser provadas ao compilar, enquanto input dinâmico continua usando construção fallible e validação runtime.</p></div>
           <p class="canonical-links">Contrato candidato: <a href="/docs/spec/types-and-memory.md">ownership, regiões e FFI</a>.</p>
         </article>
 
@@ -170,7 +181,7 @@ let page = try await (user, feed)
 spawn let digest = hash(take bytes)
 let value = await digest</code></pre></div>
           <p>Ambos vivem numa árvore estruturada: o scope possui os filhos, propaga cancelamento e não termina antes de join e cleanup. O executor pode usar event loop, pool ou outra política; nenhuma dessas estratégias está implementada hoje.</p>
-          <div class="decision-box"><strong>Domínios de execução · Em aberto W-O100</strong><p>O antigo “thread group” foi decomposto em isolamento serial, preferência de executor, afinidade e task group. Um módulo estático não possui thread. A superfície a comparar inclui <code>async on network</code>, <code>spawn on compute</code> e descritores fora do source; uma chamada a um service isolado continua <code>await renderer.show(...)</code>. O compilador não promete a mesma thread física, e <code>spawn</code> conserva o significado de paralelismo.</p></div>
+          <div class="decision-box"><strong>Domínios de execução · Em aberto W-O100</strong><p>O antigo “thread group” foi decomposto em isolamento serial, preferência de executor, afinidade e task group. Um módulo estático não possui thread. A superfície compara <code>async on .network</code>, <code>spawn&lt;.compute&gt;</code> e descriptors fora do source. A forma angular é keyword-led e recupera a família visual de <code>fn&lt;C&gt;</code>, sem transformar o domínio em generic ou thread física. Uma chamada a um service isolado continua <code>await renderer.show(...)</code>.</p></div>
           <p class="canonical-links">Semântica: <a href="/docs/spec/concurrency.md">tasks, cancelamento e executores</a>.</p>
         </article>
 
@@ -210,7 +221,7 @@ async fn main(host: inout ServiceHost): Void throws CatalogAppError {
   let catalog = try await startCatalog(inout host)
   let items = try await loadItems(catalog)
 }</code></pre></div>
-          <div class="decision-box"><strong>Entradas por host · Em aberto W-O101</strong><p>Funções comuns continuam sendo exportadas com <code>export</code>; um descritor separado liga handlers a slots versionados como <code>process.main</code>, <code>http.fetch</code> ou <code>ui.pointer</code>. O bloco é um mapa de declarações, portanto não precisa de vírgulas. <code>entry Restaurant { ... }</code>, um bloco <code>export { ... }</code> e configuração apenas no manifest permanecem candidatos; <code>Context</code> deve ser uma capability tipada, não uma sacola universal.</p></div>
+          <div class="decision-box"><strong>Entradas por host · Em aberto W-O101</strong><p>Funções comuns continuam sendo exportadas com <code>export</code>; um descriptor separado liga handlers a slots versionados como <code>process.main</code>, <code>http.fetch</code> ou <code>ui.pointer</code>. Quando o product possui exatamente um slot default, <code>entry { print("Hello World") }</code> pode sintetizar um handler privado. A ausência do nome diferencia esse body de <code>entry Nome { slot = handler }</code>, sem heurística. Ele não executa no import nem depende de lookup pelo nome <code>main</code>. Mapping completo, handler inline, conformance e manifest-only continuam alternativas; <code>Context</code> permanece capability tipada.</p></div>
           <p class="canonical-links">Leia os contratos dedicados: <a href="../spec/modules.md">spec/modules.md</a> · <a href="../design/modules-and-runtime.md">design/modules-and-runtime.md</a>. O primeiro é semântico; o segundo descreve arquitetura candidata, não implementação disponível.</p>
         </article>
 
@@ -320,7 +331,9 @@ let (_, _) = try await (terminal, web)</code></pre></div>
             <div class="decision-box"><strong>Serviço · Proposta DB1</strong><p><code>service</code> é açúcar próprio sobre object + descriptor, com <code>ServiceRef</code> sempre async. Object/protocol explícitos e metadata sem keyword permanecem alternativas; placement local/remoto nunca é escondido pelo import.</p></div>
             <div class="decision-box"><strong>Atomic e cancel · Candidato DB1</strong><p><code>var atomic count: u64</code> infere storage <code>Atomic&lt;u64&gt;</code>; <code>cancel task</code> é statement contextual e cooperativo. APIs explícitas continuam disponíveis para ordering e tipos canceláveis comuns.</p></div>
             <div class="decision-box"><strong>Docs e testes · Candidato DB1</strong><p><code>///</code> contém Markdown/doctests e <code>test "..." for symbol</code> mantém casos pequenos junto da API. <code>*.test.w</code> continua para casos grandes; nenhum teste executa ao importar ou entra no release.</p></div>
-            <div class="decision-box"><strong>Tensores e ML · Em aberto W-O102</strong><p>Açúcar de matriz só entra junto de shape, dtype/promotion, alias/view, device, broadcasting, reductions e interoperabilidade. A baseline de comparação é o literal aninhado; <code>[a, b; c, d]</code>, operador <code>@</code> e <code>matmul(a, b)</code> permanecem candidatos. Transferência CPU/GPU deve ser explícita, e autodiff fica numa camada experimental T2 antes de tocar o core.</p></div>
+            <div class="decision-box"><strong>Tensores e ML · Em aberto W-O102</strong><div class="code-shell"><pre><code>let matrix = [1.0, 2.0; 3.0, 4.0]
+let scaled = matrix * 0.5
+let projected = matrix @ vector</code></pre></div><p>O <code>;</code> encerra uma linha 2D no estilo <a href="https://www.mathworks.com/help/matlab/ref/semicolon.html">MATLAB</a>; W não herda sua função de suprimir output. <a href="https://docs.julialang.org/en/v1/manual/arrays/">Julia</a> generaliza semicolons para concatenação e dimensões maiores, mas W mantém rank N em nested arrays/constructors até o corpus justificar algo além do 2D. <code>@</code> versus a família Julia <code>*</code>/<code>.*</code> permanece aberto. Shape, dtype, alias/view, device, broadcast, reductions e transfers continuam observáveis; autodiff começa em T2 experimental.</p></div>
           </div>
 
           <div class="try-next"><strong>Explore o exemplo:</strong> <a href="/examples/restaurant/README.md">narrativa</a> · <a href="/examples/restaurant/DB1_ASSAY.md">ensaio integrado H01–H14 + ponte do adendo</a> · <a href="/examples/restaurant/REQUIREMENTS.md">requisitos e todas as alternativas</a> · <a href="/playground?example=restaurantOven">modelo do forno</a> · <a href="/playground?example=restaurantPlanning">scheduler</a> · <a href="/playground?example=restaurantInterfaces">TUI + HTTP</a>.</div>
