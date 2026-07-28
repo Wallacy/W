@@ -1,40 +1,47 @@
-// W Working Draft — pseudocódigo pedagógico, não executável.
-// Quantidades são types compile-time; `[unit]` é canônica e sufixos são sugars da edição.
+// Physical and fictional units used by the Last Light.
 
-export type Temperature = Quantity<si.Kelvin, f64>
-export type TemperatureDelta = Quantity<si.KelvinDelta, f64>
-export type TemperatureRate = Quantity<si.KelvinPerSecond, f64>
-export type Area = Quantity<si.SquareMeter, f64>
-export type Mass = Quantity<si.Kilogram, f64>
-export type MassFlow = Quantity<si.KilogramPerSecond, f64>
-export type Pressure = Quantity<si.Pascal, f64>
-export type Power = Quantity<si.Watt, f64>
-export type Energy = Quantity<si.Joule, f64>
-export type ThermalCapacity = Quantity<si.JoulePerKelvin, f64>
-export type ThermalTransmittance = Quantity<si.WattPerSquareMeterKelvin, f64>
-export type FlowResistance = Quantity<si.PascalSecondSquaredPerKilogramSquared, f64>
-export type Ratio = f64 where self >= 0.0 && self <= 1.0
+import std.si
+import std.iec
 
-export fn clampRatio(value: f64): Ratio {
-  if value < 0.0 {
-    return 0.0
-  }
-  if value > 1.0 {
-    return 1.0
-  }
-  return value
+export dimension Applause
+export unit clap: Applause
+export unit ovation = 1_000<clap>
+
+export unit smoot = 1.7018<si.m>
+export unit kiloSmoot = 1_000<smoot>
+
+export unit degC = Unit.affine(
+  reference: si.K,
+  scale: 1,
+  offset: 27315 / 100,
+)
+
+export unit degF = Unit.affine(
+  reference: si.K,
+  scale: 5 / 9,
+  offset: 45967 / 180,
+)
+
+export type Temperature = Quantity<si.Temperature, f64>
+export type TemperatureDelta = Quantity<si.TemperatureDelta, f64>
+export type Power = Quantity<si.Power, f64>
+export type Energy = Quantity<si.Energy, f64>
+export type Duration = Quantity<si.Duration, f64>
+export type Distance = Quantity<si.Length, f64>
+export type MemorySize = Quantity<iec.Information, u64>
+
+export const serviceTemperature = 180<degC>
+export const calibrationDistance = 2<smoot>
+export const applauseThreshold = 3<ovation>
+export const commandLimit = 64<KiB>
+
+export fn energy(power: Power, during duration: Duration): Energy {
+  return power * duration
 }
 
-export fn absolute(value: TemperatureDelta): TemperatureDelta {
-  if value < 0[deltaK] {
-    return -value
-  }
-  return value
-}
-
-export fn absoluteRate(value: TemperatureRate): TemperatureRate {
-  if value < 0[deltaK/s] {
-    return -value
-  }
-  return value
+export fn temperatureDifference(
+  from lower: Temperature,
+  to upper: Temperature,
+): TemperatureDelta {
+  return upper - lower
 }
