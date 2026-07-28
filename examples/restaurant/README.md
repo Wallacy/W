@@ -13,9 +13,10 @@ integrada de [DESIGN.md](../../DESIGN.md).
 
 ```text
 LastLight entry
-  → Comanda de Íon
+  → parser streaming da Comanda de Íon
   → Salão Prisma
   → Cozinha de Maré Fria
+  → controle PID do forno
   → Brigada do Cometa Manso
   → Oráculo de Mesas
   → Sonda de Aroma
@@ -32,10 +33,14 @@ owner e estado observável.
 | Arquivo | Responsabilidade |
 |---|---|
 | `domain.w` | newtypes, refinements, enums e errors |
+| `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `units.w` | SI, dimensão e units customizadas |
+| `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `hardware.w` | fronteira C, layout e deallocator |
-| `restaurant.w` | services, tasks, memória, cobrança e compensação |
+| `billing.w` | Money, idempotência, existential, opaque return e behavior |
+| `dining.w` | serial turn, backpressure, applause e resposta |
+| `restaurant.w` | integração de services, tasks, ownership e compensação |
 | `app.w` | CLI, HTTP, Context e entries |
 
 Esses arquivos usam a forma líder da DB2. A versão DB1 está no
@@ -80,7 +85,7 @@ Aceite:
 
 ### 3.4 Cozinha de Maré Fria
 
-Famílias: units lineares, afins e customizadas.
+Famílias: units lineares, afins e customizadas, ranges e controle PID.
 
 Aceite:
 
@@ -88,6 +93,8 @@ Aceite:
 - `Power * Duration` produz Energy;
 - point menos point produz delta;
 - point mais point falha;
+- `switch` com range e `where` preserva a regra anti-windup;
+- `clamp` prova que o `DutyCycle` refinado está em `0.0...1.0`;
 - `{unit}` e `[unit]` aparecem somente no corpus comparativo;
 - lowering sem reflection remove metadata de unit.
 
@@ -118,13 +125,16 @@ Aceite:
 
 ### 3.7 Conta da Aurora Tardia
 
-Famílias: decimal/Money, errors, idempotência e compensação.
+Famílias: Money, errors, idempotência, property behavior, existential e opaque
+return.
 
 Aceite:
 
 - Currency diferente exige conversion explícita;
 - rounding policy é parte da operação;
 - overflow não usa binary float;
+- `Versioned` não concede atomicidade fora do serial turn;
+- `some PricingPolicy` converte para `any PricingPolicy` sem perder o valor;
 - falha após captura executa um refund idempotente uma vez;
 - retry mutante só ocorre com idempotency key.
 
@@ -138,12 +148,13 @@ Aceite:
 - shape estático inválido falha no type checker;
 - shape dinâmico inválido retorna error;
 - broadcast diferente de scalar é explícito;
+- `tensor[i, j]` acessa um elemento sem uma view intermediária;
 - view não copia;
 - device transfer aparece no source/trace.
 
 ### 3.9 Sonda de Aroma
 
-Famílias: `foreign c`, unsafe, layout, pointer e cleanup.
+Famílias: `foreign c`, `fn<C>`, unsafe, layout, pointer e cleanup.
 
 Aceite:
 
@@ -171,7 +182,7 @@ Famílias: parser, budgets, streams e resource lens.
 
 Aceite:
 
-- buffer máximo é enforced antes de growth;
+- o limite do buffer é verificado antes da expansão;
 - estimates mostram intervalo e confiança;
 - medição runtime não vira garantia global;
 - cancellation e deadline não vazam chunks.
@@ -189,6 +200,23 @@ Aceite:
 - trace explica task tree, service hops, allocations e resultado;
 - toda falha preparada termina com owners e scopes fechados.
 
+### 3.13 Contrato estático fechado
+
+Famílias: generics, refinements, units, domínio de execução e frontend inline.
+
+Aceite:
+
+- `BoundedText<min: 1, max: 120>` resolve slots nomeados declarados;
+- `String where (...)` e `String<where: (...)>` produzem o mesmo refinement HIR;
+- `spawn on .compute` e `spawn<domain: .compute>` produzem o mesmo task contract;
+- `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
+- um slot repetido produz diagnostic antes do type-check normal;
+- um case abreviado ambíguo nunca escolhe um slot por ordem.
+
+As grafias angulares são contrafactuais. Os arquivos `.w` continuam na líder
+DB2. A análise normativa está na seção 3 de
+[DESIGN.md](../../DESIGN.md#31-hipótese-de-contrato-estático-fechado).
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -196,8 +224,10 @@ O Book deve mostrar pares lado a lado:
 | Tema | Forma líder | Contrafactual |
 |---|---|---|
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn on .compute let x = ...` | `spawn<.compute> let x = ...` |
-| refinement | `T where (predicate)` | `T<where(predicate)>` |
+| domain | `spawn on .compute let x = ...` | `spawn<domain: .compute> let x = ...` |
+| domain curto | `spawn on .compute let x = ...` | `spawn<.compute> let x = ...` |
+| refinement | `T where (predicate)` | `T<where: (predicate)>` |
+| frontend inline | `fn<C>` | `fn<lang: .c>` |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import std.http as http` | `import http as http from std.http` |
@@ -214,4 +244,4 @@ Cada arquivo DB2 precisa passar:
 4. corpus negativo por feature;
 5. type-check quando a fase correspondente existir;
 6. runtime test ou oracle explícito quando houver lowering;
-7. versão equivalente no Book.
+7. origem e revision disponíveis para geração do Book após o design freeze.

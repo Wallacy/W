@@ -5,12 +5,26 @@ export type OrderId = u64
 export type GuestCount = u16 where (value in 1...4096)
 export type Probability = f64 where (value in 0.0...1.0)
 export type BasisPoints = u16 where (value in 0...10_000)
+export type BoundedText<const min: usize, const max: usize> =
+  String where (value.scalars.count in min...max)
+export type GuestName = BoundedText<min: 1, max: 120>
+export type DishLabel = BoundedText<min: 1, max: 80>
 
 export enum Course {
   nebulaBroth
   photonSouffle
   quietSalad
   horizonCake
+
+  static fn fromOrdinal(value: usize): Course {
+    return switch value {
+      case 0: .nebulaBroth
+      case 1: .photonSouffle
+      case 2: .quietSalad
+      case 3: .horizonCake
+      case _: panic("Course ordinal outside the closed enum")
+    }
+  }
 }
 
 export enum ServiceStage {
@@ -24,7 +38,7 @@ export enum ServiceStage {
 
 export struct Guest {
   id: GuestId
-  name: String
+  name: GuestName
 }
 
 export struct Order {
@@ -38,7 +52,7 @@ export struct Order {
 export struct Dish {
   orderId: OrderId
   course: Course
-  label: String
+  label: DishLabel
 }
 
 export struct Receipt {

@@ -1,14 +1,32 @@
 // Host bindings for CLI and HTTP.
 
 import std.http
+import { Command, CommandError, decodeCommand } from restaurant.command
 import { Order } from restaurant.domain
 import { RestaurantApi, RestaurantError } from restaurant.restaurant
 import { commandLimit } from restaurant.units
 
 export enum AppError: Error {
+  command(CommandError)
   decode(DecodeError)
   restaurant(RestaurantError)
   response(ResponseError)
+}
+
+async fn dispatch(command: take Command, restaurant: ServiceRef<RestaurantApi>): String throws AppError {
+  return switch command {
+    case .place(let order):
+      let receipt = try await restaurant.place(take order)
+      "Comanda ${receipt.orderId}: ${receipt.total}"
+    case .status(let orderId):
+      let stage = try await restaurant.status(orderId)
+      "Comanda ${orderId}: ${stage}"
+    case .cancel(let orderId):
+      let stage = try await restaurant.cancel(orderId)
+      "Comanda ${orderId}: ${stage}"
+    case .shutdown:
+      "Encerramento solicitado."
+  }
 }
 
 async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
@@ -16,9 +34,8 @@ async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppEr
   print("Restaurante Última Luz pronto.")
 
   for line in ctx.stdin.lines(limit: commandLimit) {
-    let order = try OrderCommand.decode(line).order()
-    let receipt = try await restaurant.place(take order)
-    print("Comanda ${receipt.orderId}: ${receipt.total}")
+    let command = try decodeCommand(line)
+    print(try await dispatch(take command, restaurant: restaurant))
   }
 
   return .success
@@ -26,9 +43,9 @@ async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppEr
 
 async fn readCommand(line: String, ctx: CliContext): Void throws AppError {
   let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
-  let order = try OrderCommand.decode(line).order()
-  let receipt = try await restaurant.place(take order)
-  try await ctx.stdout.write("${receipt}\n")
+  let command = try decodeCommand(line)
+  let output = try await dispatch(take command, restaurant: restaurant)
+  try await ctx.stdout.write("${output}\n")
 }
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {

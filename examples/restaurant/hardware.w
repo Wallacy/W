@@ -29,7 +29,15 @@ export struct ProbeSample {
   temperature: Temperature
 }
 
-export object AromaProbe {
+export protocol AromaProbeApi {
+  async fn sample(): ProbeSample throws ProbeError
+}
+
+unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
+  return status;
+}
+
+export service AromaProbeService as AromaProbeApi {
   handle: c.ptr<ll_probe>?
 
   deinit {
@@ -38,11 +46,11 @@ export object AromaProbe {
     }
   }
 
-  mut fn read(): ProbeSample throws ProbeError {
+  mut async fn sample(): ProbeSample throws ProbeError {
     guard let handle = handle else throw .closed
 
     var raw: ll_sample
-    let status = unsafe { ll_probe_read(handle, inout raw) }
+    let status = unsafe { legacyProbeStatus(ll_probe_read(handle, inout raw)) }
     guard status == 0 else throw .readFailed(status: status)
     guard raw.aroma.isFinite && raw.kelvin.isFinite else throw .nonFinite
 
