@@ -16,9 +16,11 @@ let byte = b'\n'
 let rawPath = #"C:\last-light\${literal}"#
 
 export service LastLightRestaurant as RestaurantApi {
-  let pantry: ServiceRef<PantryApi>
+  pantry: ServiceRef<PantryApi>
   var Lazy calibration = loadCalibration()
   var atomic completed: u64 = 0
+
+  static fn serviceName(): String { return "last-light" }
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     async on .network let stock = pantry.reserve(order.course)

@@ -641,7 +641,7 @@
       "required": false,
       "types": [
         {
-          "type": "parameter_list",
+          "type": "behavior_parameter_list",
           "named": true
         }
       ]
@@ -713,6 +713,47 @@
         },
         {
           "type": "type_parameters",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "behavior_parameter",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "behavior_parameter_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "behavior_parameter",
           "named": true
         }
       ]
@@ -3798,7 +3839,7 @@
     "named": true,
     "fields": {
       "index": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
@@ -7750,6 +7791,10 @@
   },
   {
     "type": "spawn",
+    "named": false
+  },
+  {
+    "type": "static",
     "named": false
   },
   {
