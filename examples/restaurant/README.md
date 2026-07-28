@@ -1,190 +1,217 @@
-# O restaurante W
+# Restaurante Última Luz
 
-> **Working Draft · pseudocódigo de design · não executável**
+> **Status:** corpus experimental da DB2 · 27 de julho de 2026
 
-Este exemplo top-down usa um restaurante para mostrar como W pretende tornar
-custos e ownership visíveis. Não existe compilador capaz de executar estes
-arquivos. As APIs `ServiceHost`, `ServiceRef`, `Mailbox` e os nomes de métodos
-são ilustrações candidatas. `service` é o único açúcar adotado e baixa para
-object + descriptor; `worker`, `assistant` e `nanoservice` não são keywords.
+O Restaurante Última Luz serve a última janela observável antes do encerramento
+do turno cósmico. O cenário é original. Ele usa escala astronômica e humor
+burocrático sem copiar personagens, frases ou eventos de outra obra.
 
-A auditoria de proveniência recuperou quatro famílias ainda abertas: domínios de
-execução, entries por profile de host, tensor/ML e parâmetros compile-time. Elas
-aparecem apenas na seção 9 do [ensaio DB1](DB1_ASSAY.md) e no
-[adendo canônico](../../DB1_ADDENDUM.md); os arquivos `.w` continuam representando
-somente a baseline ratificada.
+O ensaio não prova que a linguagem está implementada. Ele pressiona a forma
+integrada de [DESIGN.md](../../DESIGN.md).
 
-O mote continua sendo: **Prazer para humanos. Clareza para máquinas.** Uma
-operação pequena pode virar uma unidade fine-grained quando precisa de lifetime,
-estado, authority, isolamento lógico ou escala próprios. A boundary física
-continua sendo escolha explícita do profile/trust domain. Isso não transforma
-toda função em RPC e não esconde uma call remota atrás de uma chamada local.
-
-## A história de cima para baixo
+## 1. Rota completa
 
 ```text
-cliente
-  → TUI e HTTP concorrem sobre a mesma `RestaurantApi`
-  → front desk serializa a authority mutável de pedidos
-  → salão abre pedidos keyed sem compartilhar `inout` entre children
-  → menu escolhe um fluxo com switch
-  → OrderApi encontra/cria uma instância keyed por OrderId
-  → a instância serializa o estado do pedido
-  → KitchenApi recebe uma call tipada, suspensível e falível
-  → assistants são child tasks estruturadas
-  → cozinhas independentes recebem trabalho paralelo com spawn
-  → conclusão ou erro atualiza o pedido; cancelamento fecha a árvore
+LastLight entry
+  → Comanda de Íon
+  → Salão Prisma
+  → Cozinha de Maré Fria
+  → Brigada do Cometa Manso
+  → Oráculo de Mesas
+  → Sonda de Aroma
+  → Conta da Aurora Tardia
+  → resposta HTTP/TUI
 ```
 
-Uma seta entre instâncias representa custo observável: `try await`, typed error,
-deadline/cancelamento e backpressure. O exemplo nunca pressupõe que os serviços
-estão no mesmo processo.
+O gate final se chama **Turno do Horizonte Violeta**. Uma falha injetada em cada
+seta não pode deixar task, lease, buffer, mailbox item ou pagamento vivo sem
+owner e estado observável.
 
-Nem toda seta é async. `oven.w`, `refrigeration.w`, `planning.w` e `billing.w`
-contêm cálculo, loops, branches e mutação local deliberada. Async/await fica nas
-boundaries que realmente esperam I/O, timers ou outra instância.
+## 2. Mapa de source
 
-## “Make a Cake” como pipeline
+| Arquivo | Responsabilidade |
+|---|---|
+| `domain.w` | newtypes, refinements, enums e errors |
+| `units.w` | SI, dimensão e units customizadas |
+| `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
+| `hardware.w` | fronteira C, layout e deallocator |
+| `restaurant.w` | services, tasks, memória, cobrança e compensação |
+| `app.w` | CLI, HTTP, Context e entries |
 
-O bolo percorre estágios deliberadamente legíveis:
+Esses arquivos usam a forma líder da DB2. A versão DB1 está no
+[arquivo histórico](../../../Y/W/archive/db1-2026-07-27/examples/restaurant/).
 
-```text
-validar → admitir pedido → reservar ingredientes → preparar
-        → assar → decorar → embalar → concluir
-```
+## 3. Casos e oracles
 
-- validar e admitir são sequenciais: o próximo estágio depende do anterior;
-- forno e despensa podem progredir concorrentemente durante espera com
-  `async let`;
-- lotes independentes podem assar em cozinhas/cozinheiros diferentes com
-  `spawn let`;
-- assistants continuam filhos do handler: retorno antecipado não deixa tarefas
-  destacadas;
-- mailbox limitada aplica backpressure; overload não vira drop silencioso;
-- cancelamento é cooperativo e `defer`/destruição executam cleanup;
-- errors permanecem tipados e calls entre instâncias usam `try await`.
-- boundaries convertem `OrderError`/`KitchenError` explicitamente no error set do
-  menu; a ergonomia final dessa composição continua em
-  [W-O033](../../STATUS.md).
+### 3.1 Pórtico de Nácar
 
-## Uma mesa inteira
+Famílias: entry, host profile, imports e capabilities.
 
-`dining_room.w` amplia o bolo para uma mesa de aniversário. As três instâncias
-de pedido são abertas sequencialmente porque `ServiceHost` entra como `inout` e
-não pode ser capturado por três children simultâneos. Depois de obter handles
-independentes, bolo, sopa e salada progridem concorrentemente:
+Aceite:
 
-```w
-let cakeOrder = try await openMenuOrder(request.cake.orderId, on: inout orders)
-let soupOrder = try await openMenuOrder(request.soup.orderId, on: inout orders)
-let saladOrder = try await openMenuOrder(request.salad.orderId, on: inout orders)
+- `entry { ... }` só funciona com um default slot único;
+- `entry LastLight` liga slots tipados;
+- importar `app` não executa um handler;
+- Context não concede filesystem ou network ausentes.
 
-async let cake = prepareMenuCake(request.cake, for: cakeOrder, in: kitchen)
-async let soup = prepareMenuSoup(request.soup, for: soupOrder, in: kitchen)
-async let salad = prepareMenuSalad(request.salad, for: saladOrder, in: kitchen)
-let (cake, soup, salad) = try await (cake, soup, salad)
-```
+### 3.2 Comanda de Íon
 
-Se um child falha, a estrutura lexical cancela e reúne os irmãos. Isso não
-reverte automaticamente `OrderState`, pois essas instâncias têm lifecycle
-externo ao scope. `cancelBirthdayTable` deixa a compensação explícita; como
-integrá-la automaticamente a cleanup assíncrono continua uma decisão de runtime,
-não uma promessa escondida pelo exemplo.
+Famílias: String, parsing streaming, spans e typed errors.
 
-## Equipamento e cálculo
+Aceite:
 
-O forno agora possui um modelo térmico e um controlador PID. A fórmula pura
-separa potência, energia, temperatura e tempo; a função `regulateOven` adiciona
-sensor, actuator, espera e cancelamento somente na boundary de hardware:
+- qualquer partição dos chunks produz a mesma AST;
+- um frame acima de 64 KiB falha antes da alocação integral;
+- erro informa byte range e scalar range;
+- recovery encontra a próxima comanda;
+- cancelamento libera o buffer parcial.
 
-```w
-let wallLoss = surface * transmittance * (inside - ambient)
-let cavityEnergy = (heaterPower * duty - wallLoss - foodTransfer) * elapsed
-let nextCavity = cavity + cavityEnergy / cavityCapacity
-```
+### 3.3 Hóspede das Órbitas Claras
 
-A refrigeração testa perda térmica, fluxo e queda de pressão. O scheduler ordena
-jobs por deadline e atribui cada um à lane menos carregada; billing calcula
-subtotal, serviço e imposto em minor units, com rounding explícito. Os quatro
-casos pressionam numéricos, collections e memória automática sem fingir que toda
-função é apenas um wrapper de `async`.
+Famílias: newtype, refinement, value parameter e conversão.
 
-## Duas interfaces, um lifecycle
+Aceite:
 
-`terminal.w` usa `print` e `readLine` sem import std explícito. `web.w` usa os
-namespaces implícitos `http` e `json`. Os imports de aplicação continuam
-explícitos. `app.w` inicia ambos como children concorrentes; falha de uma
-interface cancela, reúne e limpa a outra antes de propagar.
+- `GuestId` não é `OrderId`;
+- `GuestCount` inválido em literal falha no compile time;
+- input dinâmico usa `try GuestCount(value)`;
+- refined-to-base é implícito;
+- layout materializado continua o do base type.
 
-Esse source exercita W-C016/W-C045: prelude T0 curada e poucos nomes T1 curtos,
-incluindo `print` quando o console existe. O Book e
-[REQUIREMENTS.md](REQUIREMENTS.md) preservam as alternativas avaliadas.
+### 3.4 Cozinha de Maré Fria
 
-## Arquivos
+Famílias: units lineares, afins e customizadas.
 
-- [`domain.w`](domain.w): requests, pratos, IDs e recibos como values;
-- [`units.w`](units.w): aliases dimensionais provisórios e helpers sem runtime;
-- [`oven.w`](oven.w): balanço térmico, PID e loop cancelável de hardware;
-- [`refrigeration.w`](refrigeration.w): carga térmica, pressão, fluxo e compressor;
-- [`resources.w`](resources.w): capabilities tipadas de despensa, forno e lanes;
-- [`planning.w`](planning.w): scheduler guloso determinístico de lotes;
-- [`billing.w`](billing.w): dinheiro exato, imposto e rounding de domínio;
-- [`menu.w`](menu.w): menu exaustivo, conversão de errors e roteamento top-down;
-- [`order_service.w`](order_service.w): instância keyed por pedido e estado
-  serial candidato;
-- [`kitchen.w`](kitchen.w): pipelines dos três pratos, child tasks e paralelismo;
-- [`dining_room.w`](dining_room.w): fan-out estruturado de uma mesa completa;
-- [`front_desk.w`](front_desk.w): facade serial e visibilidade por `export`;
-- [`terminal.w`](terminal.w): TUI com std implícita;
-- [`web.w`](web.w): handler e servidor HTTP sem framework externo;
-- [`app.w`](app.w): lifecycle concorrente de TUI + HTTP;
-- [`interop.w`](interop.w): raw ABI C privada e wrapper tipado de equipamento;
-- [`multilingual.md`](multilingual.md): ilha inline `fn<C>` para migração e as
-  alternativas `from`, namespace, adapter e `foreign c`;
-- [`DB1_ASSAY.md`](DB1_ASSAY.md): ensaio integrado das decisões H01–H14 e pontos
-  que cada protótipo precisa provar;
-- [`REQUIREMENTS.md`](REQUIREMENTS.md): consequências para frontend, HIR,
-  memória, runtime e alternativas ainda vivas.
+Aceite:
 
-Os arquivos repetem o aviso de Working Draft para não parecerem corpus
-executável quando abertos isoladamente.
+- `m`, `smoot`, `K`, `degC` e `clap` resolvem pelo import;
+- `Power * Duration` produz Energy;
+- point menos point produz delta;
+- point mais point falha;
+- `{unit}` e `[unit]` aparecem somente no corpus comparativo;
+- lowering sem reflection remove metadata de unit.
 
-## O que este exemplo ensina — e o que não decide
+### 3.5 Brigada do Cometa Manso
 
-| Ideia | Leitura neste exemplo |
-| --- | --- |
-| módulo | unidade estática; import não cria instância nem concede autoridade |
-| instância por pedido | API candidata com `.key(order.id)` e policy serial |
-| `ServiceRef<Api>` | handle conceitual; toda call usa `try await` |
-| error sets compostos | helpers com `do`/`catch`; `try` não faz injeção implícita |
-| `async let` | child concorrente, útil enquanto forno/despensa esperam |
-| `spawn let` | intenção paralela para lotes independentes e dados transferidos |
-| `take` de fields | dry/wet/icing exercitam partial moves; a regra final segue em [W-O002](../../STATUS.md) |
-| `inout` | impede abrir pedidos concorrentes sobre a mesma authority mutável |
-| mailbox | limitada; aguarda vaga ou falha com error tipado |
-| cleanup | pertence ao scope e ocorre em sucesso, error ou cancelamento |
-| compensação | estado de serviço externo não é desfeito implicitamente com a task |
-| std implícita | lookup congelado por edição; não concede capability nem esconde reachability |
-| `export` | top-level privado por default; interface explícita sem `public`/`private` redundantes |
-| quantidades | `[unit expression]` canônica; sufixos/Unicode são sugars de edição |
-| collections | ownership único e allocation/copy observáveis; placement físico pode ser otimizado |
-| outra linguagem | `foreign c` é baseline; `fn<lang>` continua pesquisa visível e comparável |
+Famílias: `async`, `spawn`, domains, ownership e cancelamento.
 
-O exemplo adota `service Name as Api`, turn fechado e mailbox bounded da DB1. O
-protótipo ainda precisa validar diagnostics, reentrância opt-in, scopes de host e
-API definitiva de backpressure; não existe singleton implícito.
+Aceite:
 
-## Contratos canônicos
+- stock e telemetria progridem concorrentemente;
+- planejamento solicita paralelismo;
+- o scope aguarda todos os filhos;
+- falha cancela irmãos;
+- cada lease executa cleanup uma vez;
+- capture não-Send em `spawn` falha.
 
-- [sintaxe de trabalho](../../spec/syntax.md);
-- [concorrência estruturada](../../spec/concurrency.md);
-- [módulos, imports e instâncias](../../spec/modules.md);
-- [arquitetura candidata de módulos/runtime](../../design/modules-and-runtime.md);
-- [estimativa experimental de recursos](../../design/resource-estimation.md);
-- [formatação canônica](../../design/formatting.md);
-- [numéricos e quantidades](../../design/numerics-and-quantities.md);
-- [documentação e testes](../../design/documentation-and-tests.md);
-- [status e questões abertas](../../STATUS.md).
+### 3.6 Salão Prisma
 
-O portal oferece uma leitura visual e um lexer local. Ele não substitui esses
-documentos e não compila W.
+Famílias: service, serial turn, mailbox, hop e backpressure.
+
+Aceite:
+
+- a mesma `ServiceRef` funciona local e remotamente;
+- toda call usa `await`;
+- o trace mostra hop e queue wait;
+- mailbox cheia aguarda ou retorna Overload;
+- closed turn impede reentrância durante `await`.
+
+### 3.7 Conta da Aurora Tardia
+
+Famílias: decimal/Money, errors, idempotência e compensação.
+
+Aceite:
+
+- Currency diferente exige conversion explícita;
+- rounding policy é parte da operação;
+- overflow não usa binary float;
+- falha após captura executa um refund idempotente uma vez;
+- retry mutante só ocorre com idempotency key.
+
+### 3.8 Oráculo de Mesas
+
+Famílias: value generics, shape, tensor, `@` e numeric mode.
+
+Aceite:
+
+- shape compatível compila;
+- shape estático inválido falha no type checker;
+- shape dinâmico inválido retorna error;
+- broadcast diferente de scalar é explícito;
+- view não copia;
+- device transfer aparece no source/trace.
+
+### 3.9 Sonda de Aroma
+
+Famílias: `foreign c`, unsafe, layout, pointer e cleanup.
+
+Aceite:
+
+- size/alignment confere com C no target;
+- status e null viram errors tipados;
+- NaN não atravessa a wrapper sem policy;
+- o deallocator original executa uma vez;
+- panic não faz unwind através de C.
+
+### 3.10 Despensa Selada
+
+Famílias: package, lock, digest, mirror e capability.
+
+Aceite:
+
+- lock fixa source e artifact;
+- mirror diferente entrega os mesmos bytes;
+- bytes diferentes falham antes do build;
+- tool target sem network não consegue abrir network;
+- SBOM distingue build tool de runtime dependency.
+
+### 3.11 Reserva em Fragmentos
+
+Famílias: parser, budgets, streams e resource lens.
+
+Aceite:
+
+- buffer máximo é enforced antes de growth;
+- estimates mostram intervalo e confiança;
+- medição runtime não vira garantia global;
+- cancellation e deadline não vazam chunks.
+
+### 3.12 Turno do Horizonte Violeta
+
+Famílias: todas.
+
+Aceite:
+
+- um product seleciona `entry LastLight`;
+- CLI e HTTP chegam ao mesmo service;
+- parser, units, tensor, C, billing e resposta ficam alcançáveis;
+- build `--locked` produz o mesmo payload;
+- trace explica task tree, service hops, allocations e resultado;
+- toda falha preparada termina com owners e scopes fechados.
+
+## 4. Alternativas visuais obrigatórias
+
+O Book deve mostrar pares lado a lado:
+
+| Tema | Forma líder | Contrafactual |
+|---|---|---|
+| unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
+| domain | `spawn on .compute let x = ...` | `spawn<.compute> let x = ...` |
+| refinement | `T where (predicate)` | `T<where(predicate)>` |
+| matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
+| closure | `(x) => body` | `fn(x) { body }` |
+| namespace import | `import std.http as http` | `import http as http from std.http` |
+
+Preferência visual não é medida antes das tarefas de leitura e correção.
+
+## 5. Gate para uma implementação
+
+Cada arquivo DB2 precisa passar:
+
+1. Tree-sitter sem error node;
+2. formatter duas vezes sem diff;
+3. highlighter com keywords e units corretas;
+4. corpus negativo por feature;
+5. type-check quando a fase correspondente existir;
+6. runtime test ou oracle explícito quando houver lowering;
+7. versão equivalente no Book.
