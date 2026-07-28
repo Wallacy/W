@@ -1,17 +1,38 @@
 // Shape-aware planning for the Oráculo de Mesas.
 
 import std.tensor
-import { Course, Probability } from restaurant.domain
+import { Course, Order, Probability } from restaurant.domain
+import { KitchenPlan, Recipe } from restaurant.kitchen
 
 export enum OracleError: Error {
   invalidShape(ShapeError)
   nonFiniteScore
   emptyBatch
+  missingRecipe(Course)
 }
 
 export struct Forecast<const tables: usize, const courses: usize> {
   demand: Tensor<f32, shape: [tables, courses]>
-  confidence: Tensor<f32, shape: [tables, courses]>
+  confidence: Tensor<Probability, shape: [tables, courses]>
+}
+
+export protocol OracleApi {
+  async fn plan(order: ref Order): KitchenPlan throws OracleError
+}
+
+extension Order {
+  fn oracleFeatures(): Tensor<f32, shape: [1, 8]> {
+    return [[
+      guests.toF32(),
+      course.ordinal.toF32(),
+      notes?.scalars.count.toF32() ?? 0.0,
+      guest.name.scalars.count.toF32(),
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+    ]]
+  }
 }
 
 fn normalized<const rows: usize, const columns: usize>(
@@ -36,6 +57,25 @@ export fn forecast<const tables: usize, const features: usize, const courses: us
   let confidence = demand.map((value) => try Probability(value))
 
   return Forecast(demand: demand, confidence: confidence)
+}
+
+export service TableOracle as OracleApi {
+  weights: Tensor<f32, shape: [8, 4]>
+  recipes: Map<Course, Recipe>
+
+  async fn plan(order: ref Order): KitchenPlan throws OracleError {
+    let prediction = try forecast(order.oracleFeatures(), weights: weights)
+    let courseIndex = prediction.demand[0].argmax(mode: .reproducible)
+    let course = Course.fromOrdinal(courseIndex)
+    guard let recipe = recipes[course] else throw .missingRecipe(course)
+
+    return KitchenPlan(
+      recipe: recipe,
+      minimumAroma: prediction.confidence[0, courseIndex],
+      duration: recipe.duration,
+      energyBudget: recipe.energyBudget,
+    )
+  }
 }
 
 test "matrix contraction preserves the declared shape" for forecast {
