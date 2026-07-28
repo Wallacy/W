@@ -8,7 +8,7 @@
 Este documento responde a uma pergunta diferente do inventário byte a byte: não
 apenas “o arquivo foi preservado?”, mas **cada família de ideia ainda possui um
 destino rastreável?** Ele é um índice de proveniência, não uma especificação. Os
-estados vigentes continuam em [`W/STATUS.md`](../../W/STATUS.md).
+estados vigentes continuam em [`W/DESIGN.md`](../../W/DESIGN.md).
 
 ## Método
 
@@ -57,7 +57,8 @@ exaustiva nas **alternativas**. Quatro famílias exigiram reabertura explícita:
 
 Isso não invalida as escolhas H01–H14 já ratificadas. Invalida apenas a frase de
 que elas cobriam **todas** as perguntas materiais do caderno. O addendum
-publicável está em [`W/DB1_ADDENDUM.md`](../../W/DB1_ADDENDUM.md).
+publicável está no
+[`arquivo DB1`](archive/db1-2026-07-27/DB1_ADDENDUM.md).
 
 ## Mapa integral por família
 
@@ -163,6 +164,6 @@ o mesmo. Ela deve:
 1. conferir `git hash-object -- Y/WIP.MD` contra o blob no cabeçalho;
 2. revisar apenas novos commits ou famílias marcadas **Parcial/Lacuna**;
 3. atualizar primeiro este crosswalk histórico;
-4. registrar uma questão em `W/STATUS.md` antes de apresentar uma nova forma
+4. registrar uma decisão ou alternativa em `W/DESIGN.md` antes de apresentar uma nova forma
    como candidata no Book, no restaurante ou na grammar;
 5. nunca usar a repetição de uma ideia no caderno como voto decisório.

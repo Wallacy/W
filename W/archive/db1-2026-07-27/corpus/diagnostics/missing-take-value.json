@@ -1,0 +1,27 @@
+{
+  "schema": "w.diagnostics/1",
+  "case": "missing-take-value",
+  "source": "negative/07-missing-take-value.w",
+  "diagnostics": [
+    {
+      "code": "W-SYN-0007",
+      "severity": "error",
+      "message": "expected a value after take",
+      "primary": {
+        "start": {
+          "row": 1,
+          "column": 10,
+          "byte": 22
+        },
+        "end": {
+          "row": 1,
+          "column": 14,
+          "byte": 26
+        }
+      },
+      "parser": {
+        "kind": "ERROR"
+      }
+    }
+  ]
+}

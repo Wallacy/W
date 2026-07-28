@@ -1,0 +1,28 @@
+{
+  "schema": "w.diagnostics/1",
+  "case": "missing-if-condition",
+  "source": "negative/03-missing-if-condition.w",
+  "diagnostics": [
+    {
+      "code": "W-SYN-0003",
+      "severity": "error",
+      "message": "expected a condition after if",
+      "primary": {
+        "start": {
+          "row": 1,
+          "column": 4,
+          "byte": 16
+        },
+        "end": {
+          "row": 1,
+          "column": 4,
+          "byte": 16
+        }
+      },
+      "parser": {
+        "kind": "MISSING",
+        "expectedNode": "true"
+      }
+    }
+  ]
+}

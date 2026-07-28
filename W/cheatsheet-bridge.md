@@ -15,13 +15,6 @@ bun run start
 
 Depois acesse `http://localhost:3000`.
 
-Use os seguintes documentos como autoridade:
-
-- [STATUS.md](../../W/STATUS.md) para distinguir decisões, candidatos e pesquisa;
-- [LANGUAGE_TOUR.md](../../W/LANGUAGE_TOUR.md) para a apresentação legível da sintaxe;
-- [spec/syntax.md](../../W/spec/syntax.md) para o rascunho sintático;
-- [spec/types-and-memory.md](../../W/spec/types-and-memory.md) e
-  [spec/concurrency.md](../../W/spec/concurrency.md) para comportamento e runtime.
-
-A interface visual é uma projeção desses documentos. Quando houver conflito, a
-spec e o registro de decisões vencem.
+Use [`W/DESIGN.md`](../../W/DESIGN.md) como autoridade para o estado atual. Ele
+reúne linguagem, runtime, SDK, compilador, packages, tooling, plano e
+alternativas. A interface visual é uma projeção desse contrato.
