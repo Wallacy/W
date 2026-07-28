@@ -11,6 +11,7 @@ export enum AppError: Error {
   decode(DecodeError)
   restaurant(RestaurantError)
   response(ResponseError)
+  service(ServiceFailure)
 }
 
 async fn dispatch(command: take Command, restaurant: ServiceRef<RestaurantApi>): String throws AppError {

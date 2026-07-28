@@ -16,13 +16,17 @@ export struct Forecast<const tables: usize, const courses: usize> {
   confidence: Tensor<Probability, shape: [tables, courses]>
 }
 
-export protocol OracleApi {
-  async fn plan(order: ref Order): KitchenPlan throws OracleError
+export struct PlanningRequest {
+  features: Tensor<f32, shape: [1, 8]>
 }
 
-extension Order {
-  fn oracleFeatures(): Tensor<f32, shape: [1, 8]> {
-    return [[
+export protocol OracleApi {
+  async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError
+}
+
+export fn planningRequest(order: ref Order): PlanningRequest {
+  return PlanningRequest(
+    features: [[
       guests.toF32(),
       course.ordinal.toF32(),
       notes?.scalars.count.toF32() ?? 0.0,
@@ -31,8 +35,8 @@ extension Order {
       0.0,
       0.0,
       1.0,
-    ]]
-  }
+    ]],
+  )
 }
 
 fn normalized<const rows: usize, const columns: usize>(
@@ -63,8 +67,8 @@ export service TableOracle as OracleApi {
   weights: Tensor<f32, shape: [8, 4]>
   recipes: Map<Course, Recipe>
 
-  async fn plan(order: ref Order): KitchenPlan throws OracleError {
-    let prediction = try forecast(order.oracleFeatures(), weights: weights)
+  async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError {
+    let prediction = try forecast(request.features, weights: weights)
     let courseIndex = prediction.demand[0].argmax(mode: .reproducible)
     let course = Course.fromOrdinal(courseIndex)
     guard let recipe = recipes[course] else throw .missingRecipe(course)

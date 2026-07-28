@@ -604,8 +604,12 @@ let task = capture(take model, ref cache) (input) => {
 ```
 
 Captures são inferidos. `capture(...)` substitui a inferência nos casos
-importantes. Os modos são `copy`, `ref`, `take` e `weak`. `inout` não pode
-escapar de um scope síncrono.
+importantes. Os modos são `copy`, `ref`, `take` e `weak`. Uma closure armazenada
+não captura `inout`.
+
+Um child estruturado pode manter um borrow exclusivo passado como `inout`. O
+owner e o task frame precisam ficar estáveis. O parent não acessa o valor antes
+do join. Um runtime owner ou `SharedTask` não recebe esse borrow.
 
 `(args) => body` é a única forma de closure da DB2. `{ args in body }` e
 `fn(args) { body }` ficam como alternativas de corpus.
@@ -1110,6 +1114,10 @@ enum AppError: Error {
 
 Duas rotas possíveis tornam a conversão ambígua e exigem `do`/`catch`.
 
+Uma boundary tipada pode acrescentar outro error effect fechado. `ServiceRef`
+acrescenta `ServiceFailure`, por exemplo. `try` converte cada effect por uma rota
+única. A função caller continua declarando um único error set nominal.
+
 ### 11.2 Panic e OOM
 
 `panic` informa uma invariante quebrada. O profile encerra a isolation boundary.
@@ -1158,50 +1166,192 @@ destructor.
 
 ## 12. Concorrência, paralelismo e execução
 
-### 12.1 Três intenções
+### 12.1 Vocabulário e eixos independentes
+
+| Termo | Significado em W |
+|---|---|
+| task | unidade lógica com lifetime, resultado e estado de cancelamento |
+| child | task owned por um scope ou runtime owner explícito |
+| concorrência | progresso intercalado; não exige execução simultânea |
+| paralelismo | trabalhos podem executar ao mesmo tempo em recursos distintos |
+| suspension point | ponto onde a task pode ceder o executor |
+| executor | runtime que agenda jobs em threads, loops, queues ou devices |
+| preference | placement herdável; não protege estado |
+| isolation | exclusão lógica que protege estado |
+| affinity | exigência física do host, como uma UI thread |
+| join | consumo estruturado do resultado e do cleanup de um child |
+
+W separa quatro eixos:
+
+1. a árvore de lifetime define ownership, join e cancelamento;
+2. `async` e `spawn` definem intenção de execução;
+3. `on` define preference de placement;
+4. service, entry e profile definem isolation ou affinity.
+
+Um executor não cria isolation por existir. Um executor serial pode atender mais
+de uma isolation boundary. Uma boundary pode migrar entre threads.
+
+O [JEP 525](https://openjdk.org/jeps/525) usa uma árvore de tasks para preservar
+lifetime e observabilidade. W aplica a estrutura no type checker. Ela não é
+somente uma convenção de biblioteca.
+
+### 12.2 Quatro formas de executar
 
 ```w
-let value = calculate()                  // chamada atual
-async let menu = fetchMenu()             // filho concorrente
-spawn let plan = optimize(menu)          // filho paralelo
+let digest = hash(data)
+let menu = try await fetchMenu()
+async let stock = pantry.reserve(order)
+spawn on .compute let plan = optimize(take snapshot)
 ```
 
-Uma função async precisa de `await`, `async let` ou `spawn let`. W não cria uma
-Promise/Future silenciosa.
+| Forma | Início | Intenção | Resultado |
+|---|---|---|---|
+| call síncrona | agora | execução atual | valor ou error |
+| `await` direto | agora | suspender o caller | valor ou error |
+| `async let` | na declaração | child concorrente | `Task<T, E>` |
+| `spawn let` | na declaração | child com intenção paralela | `Task<T, E>` |
 
-`Task<T, E>` é lexical, linear e one-shot. `SharedTask<T, E>` é uma construção
-explícita para múltiplos observers.
+Uma chamada async precisa de `await`, `async let` ou `spawn let`. W não cria uma
+Promise/Future silenciosa. `async let` não promete outro core. `spawn let`
+autoriza e solicita capacidade paralela.
 
-### 12.2 Scope e falha
+O runtime pode executar um `spawn` inline para limitar oversubscription. Ele deve
+preservar os suspension points e as regras de alias. O programa não pode usar
+simultaneidade como resultado sem synchronization explícita.
 
-- todo filho pertence ao scope criador;
-- o scope faz join antes de sair;
-- erro ou saída antecipada solicita cancelamento dos filhos restantes;
-- o erro primário segue a ordem lexical do join;
-- erros adicionais ficam anexos e observáveis;
-- uma API de agregação retorna todos os resultados quando isso é a intenção.
+### 12.3 `Task` e ownership
 
-### 12.3 Cancelamento
+`Task<T, E>` é lexical, linear e one-shot. O estado conceitual é:
+
+```text
+created → scheduled → running → success(T) | error(E) | canceled
+```
+
+As regras são:
+
+1. cada child pertence ao scope criador;
+2. o scope não termina antes do cleanup de todos os children;
+3. `await` consome o handle e move um resultado owned;
+4. `cancel` solicita cancelamento, mas não consome o handle;
+5. retorno antecipado cancela e faz join dos children restantes;
+6. esquecer ou destruir o handle não destaca a task;
+7. o compiler diagnostica um handle sem consumo.
+
+Um segundo `await` é inválido. `SharedTask<T, E>` é explícito e guarda o outcome
+para vários observers. O scope produtor continua sendo o único owner de
+cancelamento. Um observer não recebe autoridade para cancelar por possuir acesso
+ao resultado.
+
+W não possui task “detached” sem owner. Trabalho que ultrapassa o scope lexical
+precisa de um owner runtime explícito. Entries, service instances e supervisors
+podem exercer esse papel. O owner deve definir shutdown, deadline e trace.
+
+### 12.4 Join, erro e outcome
+
+`try await task` consome o handle:
+
+- success move o valor para o caller;
+- error propaga `E`;
+- canceled propaga o exit de cancelamento.
+
+Uma API explícita expõe todos os outcomes sem transformar cancelamento em `E`:
 
 ```w
-cancel task
-cancel task, reason: .shutdown
+let outcome: TaskOutcome<Menu, MenuError> = await task.outcome()
 ```
 
-Cancelamento é um exit separado de `E`. Ele é cooperativo. Pontos de suspensão,
-I/O cancel-aware e `Task.checkCancellation()` observam o sinal. Cleanup ainda
-executa. W não usa cancelamento assíncrono de thread.
+`TaskOutcome<T, E>` possui `.success(T)`, `.error(E)` e `.canceled(Cancellation)`.
+Panic não é um outcome recuperável. Ele encerra a isolation boundary conforme a
+seção 11.
 
-### 12.4 Domínios de execução
+Um join de tuple usa ordem lexical:
 
 ```w
-async on .network let menu = fetchMenu()
-spawn on .compute let plan = optimize(menu)
+let (stock, plan) = try await (stock, plan)
 ```
 
-`on` informa uma preferência de executor estática do profile. Ele não promete
-uma thread física, affinity ou isolation. O profile define os domínios, limites
-e fallback. `spawn` em um domínio estritamente serial é erro.
+O runtime observa `stock` antes de selecionar o outcome de `plan`. Uma falha
+posterior não cancela um child lexicalmente anterior que ainda pode definir o
+error primário. Depois da seleção, o scope cancela os children restantes e
+aguarda o cleanup.
+
+Erros de siblings e cleanup ficam anexos ao error primário. Eles aparecem em
+trace e diagnostics. APIs `collect` retornam todos os outcomes. APIs `race`
+declaram que completion order faz parte do resultado.
+
+### 12.5 Cancelamento
+
+```w
+cancel report
+cancel batch, reason: .shutdown
+```
+
+Cancelamento é uma solicitação idempotente. Ele não usa `pthread_cancel` e não
+faz unwind assíncrono de foreign frames.
+
+Uma task observa o sinal:
+
+- antes e depois de um suspension point;
+- em I/O que aceita cancelamento;
+- em uma boundary de task group;
+- em `Task.checkCancellation()` para loops longos.
+
+O cancelamento do parent propaga para descendants. Cancelar um child não cancela
+siblings, salvo policy explícita do group. Um deadline cria o mesmo sinal com
+metadata de causa.
+
+O motivo serve a policy e observabilidade. O programa não deve usar a ordem de
+dois motivos concorrentes como dado de domínio. O trace mantém todos os sinais e
+sua causalidade.
+
+Cancelamento não é rollback. Uma operação externa deve declarar um commit point
+ou um outcome desconhecido. Antes do commit, o adapter pode garantir ausência de
+efeito. Depois do commit, cleanup não desfaz o efeito sem compensação explícita.
+
+**Líder DB2:** cancellation safety é uma propriedade da operação e de seu estado.
+Não existe um marker público `CancelSafe`. O verifier usa ownership, cleanup,
+commit points e metadata do adapter. Uma API que não informa o contrato recebe a
+policy conservadora.
+
+### 12.6 Isolation, preference, paralelismo e affinity
+
+| Contrato | Owner | Pode ser remapeado? | Protege estado? |
+|---|---|---:|---:|
+| required isolation | service/entry | não pode ser removido | sim |
+| executor preference | task subtree | sim | não |
+| parallel intent | `spawn`/parallel group | limitado pelo host | não |
+| host affinity | profile/adapter | somente por target compatível | pode compor |
+
+```w
+async on .network let catalog = fetchCatalog()
+spawn on .compute let plan = optimize(take snapshot)
+```
+
+`on` seleciona uma preference estática do profile. Ele não promete thread,
+affinity ou isolation. O profile define domínios, capacity e fallback.
+
+A resolução usa esta ordem:
+
+1. required isolation e host affinity precisam ser compatíveis;
+2. a preference explícita substitui a herdada;
+3. a preference herdada substitui o default do profile;
+4. o callee isolado sempre executa em sua isolation boundary.
+
+Uma call por `ServiceRef` não muda o placement do callee. Aplicar `on` ao child
+caller só muda o trabalho não isolado do child. `async let` e task groups herdam
+a preference. Um future owner runtime precisa declará-la de novo.
+
+`spawn` em um domínio estritamente serial é error. Trabalho UI deve chamar o
+owner isolado:
+
+```w
+await renderer.show(plan)
+```
+
+`spawn on .ui` confundiria affinity serial com paralelismo.
+
+A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
+executor preference de actor isolation. W mantém essa separação na HIR.
 
 Seleção dinâmica usa API:
 
@@ -1209,75 +1359,188 @@ Seleção dinâmica usa API:
 let task = Task.spawn(on: executor, operation: work)
 ```
 
-`spawn<domain: .compute>` e `spawn<.compute>` ficam preservados como
-alternativas. A primeira forma explicita um slot estático. A segunda depende de
-inferência contextual. `on` continua líder porque nomeia a relação de placement.
+`spawn<domain: .compute>` e `spawn<.compute>` ficam como **Alternativa**. `on`
+continua **Líder DB2** porque nomeia a relação de placement.
 
-### 12.5 Grupos, streams e backpressure
+### 12.7 Mobilidade e captures
 
-Task groups dinâmicos são lexicais e bounded. Criar um filho quando o limite foi
-atingido aguarda capacity ou retorna um error de policy. Não existe fila
-dinâmica ilimitada implícita.
-
-Async streams usam pull por default. Channels são tipos separados, bounded e
-declaram ordering, demand e ownership de cada elemento.
-
-### 12.6 Mobilidade, atomics e shared state
-
-W precisa provar duas propriedades diferentes em uma fronteira concorrente:
+W prova duas propriedades em uma fronteira concorrente:
 
 | Propriedade | Pergunta |
 |---|---|
 | `transferable` | o owner ou acesso exclusivo pode mudar de domínio? |
 | `shareable` | referências ao mesmo valor podem ser usadas por domínios paralelos? |
 
-`shareable` implica `transferable`. O inverso não é verdade. Um buffer mutável com
-owner único pode ser movido para um filho e deixar de existir para o parent. Ele
-não pode ser compartilhado sem synchronization. Um recurso preso a uma thread
-pode não satisfazer nenhuma propriedade.
+As propriedades são independentes. Um buffer mutável com owner único pode ser
+`transferable` sem ser `shareable`. Um recurso com cleanup preso ao domínio de
+origem pode expor uma view `shareable` sem transferir o owner. Um tipo comum pode
+provar ambas.
+
+| Capture | Prova mínima |
+|---|---|
+| `take value` | `transferable(value)` |
+| value copiado | cópia independente e `transferable` |
+| `ref value` | `shareable(value)` e lifetime dentro do scope |
+| `inout value` | acesso exclusivo transferido; parent fica bloqueado |
+| `ServiceRef<P>` | handle `shareable`; state não cruza |
+
+Um child que continua na mesma isolation boundary pode acessar state isolado. Um
+child que sai da boundary precisa de snapshot, copy ou move. `spawn` nunca
+captura state mutável de uma service instance.
+
+Structs, enums, tuples e closures derivam mobilidade de fields ou captures. Raw
+pointers, thread-local state e destructors affine são locais por default.
+`Pinned<T>`, `shared T` e pointer C não ganham mobilidade pelo nome.
 
 O [Rust Reference](https://doc.rust-lang.org/reference/special-types-and-traits.html)
-separa `Send` de `Sync`. A proposta
-[SE-0302 do Swift](https://www.swift.org/swift-evolution/#SE-0302) usa `Sendable`
-para transfer e para referências internamente sincronizadas. O
-[memory model do Go](https://go.dev/ref/mem) não possui um marker equivalente e
-depende de synchronization e race detection. W mantém as duas provas estáticas,
-mas não adota os nomes de Rust como API.
+separa `Send` de `Sync`. A
+[SE-0302](https://www.swift.org/swift-evolution/#SE-0302) usa `Sendable` para
+transfer e referências sincronizadas. W mantém duas provas, mas não usa os nomes
+de Rust como API.
 
-**Líder DB2:** essas propriedades são predicates intrínsecos, derivados pelo
-compiler. Elas não são protocols públicos chamados `Send` e `Sync`. Os nomes
-lowercase aparecem em diagnostics, HIR e interfaces geradas. Código comum não
-declara nenhuma annotation.
+**Líder DB2:** `transferable` e `shareable` são predicates intrínsecos. Código
+comum não declara annotations. Uma prova manual sempre é `unsafe`.
 
-O compiler verifica a operação, não só o tipo:
+O compiler infere o predicate exigido pelo body generic e o grava na interface
+do módulo. Documentation gerada mostra o contrato. Adicionar um predicate
+inferido a uma API publicada é uma mudança de compatibilidade. O author pode
+fixar o contrato no source com `where (transferable(T))` ou
+`where (shareable(T))`. Essas formas são predicates, não traits para conformar.
 
-- mover um owner ou borrow exclusivo para `spawn` exige `transferable`;
-- capturar um borrow compartilhado em `spawn` exige `shareable` e lifetime
-  contido no scope;
-- uma chamada de service exige argumentos e resultados `transferable`;
-- `ServiceRef<T>` é `shareable` porque o handle cruza a fronteira, não o estado;
-- `Pinned<T>`, `shared T` e pointer C não ganham mobilidade pelo nome.
+**Alternativa:** `<mobility: .transferable>` mantém o contrato explícito, mas cria
+outro uso de `<>`. Marker protocols públicos ficam rejeitados por enquanto.
 
-Structs, enums, tuples e closures derivam mobilidade a partir de seus campos ou
-captures. Raw pointers, thread-local state e recursos com destructor affine são
-locais por default. Wrappers de atomics, locks, services e FFI podem estabelecer
-uma prova adicional. Uma prova manual sempre é `unsafe` e precisa declarar
-invariantes de mutation, destruction e callback.
+### 12.8 Task groups e backpressure
 
-**Pesquisa:** uma API generic pública pode precisar escrever a prova. O líder de
-corpus é `where (transferable(T))` ou `where (shareable(T))`. Os contracts
-`<mobility: .transferable>` e marker protocols públicos ficam como alternativas.
-Funções private podem inferir a restrição. Uma interface pública não pode ganhar
-ou perder a restrição por causa de uma mudança invisível em sua implementação.
+Estrutura estática usa `async let` ou `spawn let`. Coleções dinâmicas usam
+`TaskGroup`. O primeiro SDK oferece:
 
-`var atomic value` baixa para `Atomic<T>`. Operações comuns são sequentially
-consistent. Memory orders mais fracas exigem métodos explícitos. Shared mutable
-state usa atomics, locks ou uma isolation boundary. Ele não nasce de alias
-normal.
+```w
+let pages = try await TaskGroup.concurrentMap(
+  take requests,
+  limit: 16,
+  ordering: .input,
+  using: fetchPage,
+)
+
+let mixtures = try await TaskGroup.parallelMap(
+  take jobs,
+  limit: 8,
+  ordering: .input,
+  on: .compute,
+  using: mixJob,
+)
+```
+
+`concurrentMap` usa children concorrentes. `parallelMap` adiciona intenção
+paralela e as provas de mobilidade. As duas APIs cancelam trabalho restante no
+primeiro error selecionado pela ordem declarada.
+
+As variantes `concurrentCollect` e `parallelCollect` retornam
+`Array<TaskOutcome<T, E>>`. Elas não cancelam por error da aplicação.
+
+Defaults:
+
+- `limit` controla children ativos;
+- o buffer de admissão também usa `limit`;
+- producer suspende quando o buffer está cheio;
+- `.input` preserva a ordem do input;
+- `.completion` declara resultado dependente do scheduler;
+- o profile pode reduzir `limit`, mas não criar uma fila ilimitada;
+- cancellation fecha producer, children e resultados não consumidos.
+
+Uma builder API futura precisa declarar memória por item, deadline, fairness e
+policy de overload. O runtime nunca cria uma thread por item por default.
+
+### 12.9 Streams e channels
+
+**Direção:** `Stream<T, E>` usa pull. `next()` é async e move um elemento para o
+consumer. Cancelar ou destruir o consumer fecha o producer scope.
+
+Prefetch é explícito e bounded. Ordering, watermark e ownership fazem parte do
+constructor. `yield` não entra na grammar antes de o verifier representar esses
+contratos.
+
+`Channel<T>` é um tipo separado. `send` move `T`. `receive` devolve ownership.
+Capacity zero cria rendezvous. Capacity positiva é bounded. Ordering é FIFO por
+sender, salvo policy mais forte.
+
+### 12.10 Memory model, atomics e locks
+
+Safe W não permite data races. Um programa sem data race observa uma ordem
+sequencialmente consistente, salvo atomics com order mais fraca. Race conditions
+de domínio ainda podem existir.
+
+Uma data race dentro de `unsafe` viola o contrato de safety. Sanitizer profiles
+devem detectá-la quando o target permite. O optimizer não precisa preservar um
+resultado para source que viola esse contrato.
+
+`var atomic value` baixa para `Atomic<T>`:
+
+- read, write e read-modify-write comuns usam sequential consistency;
+- methods nomeados escolhem acquire, release ou relaxed;
+- `ref value` empresta `Atomic<T>`, nunca `ref T`;
+- `inout` do payload é inválido;
+- `atomic` não compõe com outro behavior sem regra específica.
+
+T1 fornece `Mutex<T>`, `RwLock<T>`, condition, once e barrier. Services,
+message passing e immutable snapshots continuam preferidos para state maior.
+
+### 12.11 FFI, blocking calls e callbacks
+
+Uma foreign function possui metadata verificada:
+
+- thread-safe ou serializada;
+- reentrant ou non-reentrant;
+- blocking ou non-blocking;
+- callback executor ou thread;
+- suporte a cancelamento;
+- ownership de buffers;
+- global state e signal safety.
+
+Sem metadata, o importer usa a policy conservadora. Uma call blocking exige um
+adapter ou uma isolation boundary dedicada. Enviar a call para um blocking pool
+não torna o código cancel-safe.
+
+Um callback estrangeiro cria um job em executor conhecido. Ele não retoma uma
+task arbitrária em qualquer thread. Raw pointers capturados continuam locais até
+um wrapper `unsafe` provar mobilidade e lifetime.
+
+### 12.12 HIR, lowering e runtime mínimo
+
+A HIR preserva:
+
+- task scope, parent, kind, start e join;
+- outcome, error edges, cancellation e cleanup;
+- captures, borrows e mobilidade;
+- isolation, preference, parallel intent e affinity;
+- deadline, budget e causal trace.
+
+Somente depois dos verifiers o lowering usa o
+[dialeto Async do MLIR](https://mlir.llvm.org/docs/Dialects/AsyncDialect/) ou
+[LLVM coroutines](https://llvm.org/docs/Coroutines.html). Essas ferramentas
+modelam tokens, groups e frames. Elas não definem a semântica W de lifetime,
+cancelamento ou error primário.
+
+O runtime mínimo possui:
+
+- task control block e árvore parent/child;
+- executor concorrente single-thread;
+- pool paralelo bounded;
+- wakeups, timers e uma integração I/O por plataforma de teste;
+- cancellation state, cleanup e memory reclamation;
+- task IDs, logical stack e trace.
+
+O primeiro runtime não precisa de work stealing sofisticado, filas todas
+lock-free, remote tasks, QoS completa ou GPU.
+
+Testes usam scheduler, clock, entropy e I/O injetáveis. O scheduler registra e
+reproduz decisões. O corpus explora joins, cancel points, overload, drain e
+falha. Instrumentação não pode mudar ordering.
 
 ## 13. Módulos de execução, services e entries
 
-### 13.1 Service
+### 13.1 Service e closed turn
 
 ```w
 export service DiningRoom as DiningRoomApi {
@@ -1289,17 +1552,46 @@ export service DiningRoom as DiningRoomApi {
 }
 ```
 
-O default é um turn serial e fechado. `await` não permite que outro handler da
-mesma instância observe estado intermediário. Outras instâncias podem progredir.
+**Líder DB2:** cada instance usa um turn serial e fechado. Um handler externo
+executa do início ao fim. `await` não admite outro handler da mesma instance.
+Outras instances podem progredir.
 
-Uma `ServiceRef<P>` sempre exige `await`, mesmo quando a instância está no mesmo
-processo. O trace informa se houve hop. O compilador/runtime pode co-localizar e
-fundir chamadas com a regra *as-if*.
+Completions retomam o handler pelo strand lógico. O strand pode migrar entre
+threads. Serial não significa affinity.
 
-Mailbox é bounded. Saturação aguarda capacity ou retorna overload conforme o
-contrato. O runtime nunca descarta uma mensagem silenciosamente.
+Dentro do handler:
 
-Uma falha lógica da instância não é uma sandbox de memória. Código não confiável
+- chamadas internas síncronas usam call normal;
+- `async let` cria children do handler;
+- `spawn` usa somente snapshots ou valores transferidos;
+- state mutável da instance não cruza `spawn`;
+- cleanup termina antes do próximo turn.
+
+Uma self-call por `ServiceRef` é error. O compiler detecta o caso estático. O
+runtime detecta o caso dinâmico antes de enqueue.
+
+Closed turn mantém invariantes locais, mas cria head-of-line blocking. Uma
+operação `cancel()` enfileirada não interrompe o turn ativo. APIs que precisam de
+controle simultâneo devem usar request cancellation, turns curtos ou um
+supervisor explícito.
+
+Instances keyed fornecem paralelismo natural entre keys. Calls para a mesma key
+continuam seriais. Uma instance `.process` com handler longo é um caso
+adversarial de head-of-line blocking, não o modelo recomendado para todo
+serviço. Se status ou controle precisam progredir durante uma operação longa, o
+handler divide o trabalho em turns curtos ou entrega a operação a um owner
+runtime supervisionado. Essa divisão não torna o state da instance reentrant.
+
+O modelo difere dos actors reentrant da
+[SE-0306](https://www.swift.org/swift-evolution/#SE-0306). Esses actors admitem
+interleaving em `await`. W prefere previsibilidade no default.
+
+**Pesquisa:** input gates e reentrância explícita podem aumentar throughput.
+Eles precisam invalidar borrows e revalidar invariantes. Os
+[input gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
+são evidência útil, mas não definem a semântica W.
+
+Uma falha lógica da instance não cria sandbox de memória. Código não confiável
 exige processo, OS sandbox ou Wasm.
 
 ### 13.2 Entry
@@ -1325,78 +1617,183 @@ entry LastLight {
 }
 ```
 
-O nome diferencia as duas produções. `entry { ... }` é um handler curto.
-`entry Name { ... }` é um descriptor de bindings. Bindings não usam vírgula.
+`entry { ... }` é um handler curto. `entry Name { ... }` é um descriptor de
+bindings. Bindings não usam vírgula.
 
 Slots são símbolos tipados e versionados do profile. O build escolhe um
-descriptor por product e gera `main`, `WinMain`, WASI export ou harness. Importar
-o módulo não registra nem executa o entry.
+descriptor por product. Importar o módulo não registra nem executa o entry.
 
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
 
 ### 13.3 Unidade lógica e packing físico
 
-Service/instância é uma unidade lógica endereçável. Ela pode ter identity,
+Uma service instance é uma unidade lógica endereçável. Ela pode ter identity,
 lifecycle, state, mailbox, quotas, capabilities e trace próprios. Ela não exige
 processo, thread, library ou conexão próprios.
 
 O runtime pode:
 
-- co-localizar instâncias;
+- co-localizar instances;
 - agrupar mailboxes;
 - inlinear uma call local;
-- usar um fast path sem serialização;
-- distribuir instâncias entre executors ou processos;
-- mover uma instância entre hosts quando o adapter permite.
+- usar fast path sem serialização;
+- distribuir instances entre executors ou processos;
+- mover uma instance quando o adapter permite.
 
-A regra *as-if* preserva ordering, errors, cancelamento, deadline, capability,
-identity e observabilidade. Fine-grained compute é um modelo lógico. O toolchain
-mede se a granularidade física cria overhead excessivo.
+A regra *as-if* preserva ordering, errors, cancellation, deadline, capability,
+identity e observabilidade. O toolchain mede o custo da granularidade física.
 
-### 13.4 Descriptor e instance manager
+### 13.4 Descriptor, identity e lifecycle
 
-Um descriptor de instância registra:
+Um descriptor registra:
 
 - implementação e protocol exportado;
 - scope de identity: process, key, request ou deployment;
-- execution domain;
-- mailbox policy;
-- capabilities;
-- durable adapter;
-- restart policy;
-- resource budget e observabilidade.
+- required isolation;
+- executor preference;
+- parallel intent permitido;
+- host affinity;
+- mailbox, capabilities e resource budgets;
+- durable adapter, restart policy e observabilidade.
 
-O instance manager mantém estados explícitos: declared, starting, running,
-draining, stopped e failed. Startup e shutdown podem falhar. Import não altera
-essa máquina.
+Um módulo estático não possui esses campos. Importar não cria instance, thread,
+queue ou authority.
 
-### 13.5 Calls, ordering e falha distribuída
+Identity é:
 
-Uma call tipada possui call ID, caller, callee, deadline, cancellation ID,
-capabilities e payload. A API local e remota usa o mesmo error set de domínio.
-Falhas de transporte, protocol e autorização continuam categorias separadas.
+```text
+InstanceId = (service type, scope, logical key)
+Generation = (InstanceId, generation number)
+```
 
-Retry de operação mutante nunca é implícito. Idempotência pode autorizar uma
-policy. Queda depois do envio pode produzir resultado desconhecido; W não promete
-exactly-once sem protocolo e storage adequados.
+O instance manager mantém:
 
-Uma capability remota é um handle tipado. Ela não é uma URL livre nem um nome
-global. Importar a interface não cria o handle.
+```text
+declared → starting → ready → draining → stopped
+               │         │         │
+               └─────────┴─────────┴→ failed → starting(new generation)
+```
 
-### 13.6 Estado durável
+`starting` não aceita calls. `ready` aceita até os limites. `draining` rejeita
+novas calls e conclui ou cancela roots até o deadline. `failed` invalida state,
+borrows, pointers e task frames da geração. Restart sempre cria outra geração.
 
-Durability é um adapter explícito. Um handler declara a transação, o ponto de
-commit e a relação entre state e outputs. A baseline não presume que todo state
-é durável.
+Uma `ServiceRef<P>` mantém identity e authority. Ela pode resolver a geração
+ativa conforme a policy. Ela nunca expõe um pointer para state da instance.
 
-SQLite é o primeiro adapter oficial provável porque oferece transações, operação
-local e boa portabilidade. Ele não é a semântica universal. Memory, files, KV
-remoto e engines especializadas podem implementar o mesmo contrato.
+### 13.5 Mailbox, admission e ordering
 
-Output gates e alarms/timers duráveis continuam em pesquisa. O protótipo precisa
-definir cancelamento antes, durante e depois do commit.
+Uma mailbox é limitada por três quotas:
 
-### 13.7 Capabilities e sandbox
+1. itens;
+2. bytes reservados;
+3. trabalho em voo.
+
+O descriptor fixa máximos. Deployment pode reduzir os valores. Ele não pode
+expandir um limite que afeta uma garantia do programa.
+
+Admission segue:
+
+```text
+resolve → validate schema/capability/deadline → reserve quota → enqueue
+        → execute root → release quota → outcome
+```
+
+Validação de frame, profundidade e deadline ocorre antes de allocation grande.
+A call normal aguarda capacity com cancellation. Uma API `tryCall` retorna
+overload sem esperar. Drain rejeita antes de reservar quota.
+
+Ordering default é FIFO por `(sender, instance)` na admissão. Não existe ordem
+global entre senders. Priority não pode causar starvation silencioso.
+
+### 13.6 Structured calls e falhas
+
+Uma call transporta:
+
+```text
+callId, parentCallId, serviceId, generationHint, operationId, schemaVersion,
+deadline, cancellationId, callerCapability, payload
+```
+
+`ServiceRef<P>` sempre exige `await`, inclusive no mesmo processo. O callee
+mantém required isolation. O trace informa hop ou fast path.
+
+Uma interface de service não aceita `ref` ou `inout` para state do caller.
+Payloads usam value, `take` ou capability handles. Results também precisam ser
+`transferable`. O fast path não enfraquece essa regra.
+
+Um method `throws E` chamado por `ServiceRef` possui dois error effects:
+
+1. `E`, para error da aplicação;
+2. `ServiceFailure`, para a boundary.
+
+`ServiceFailure` representa somente a boundary:
+
+| Case | Significado | Retry seguro por default? |
+|---|---|---|
+| `overload` | admission recusada antes do efeito | sim, com backoff e deadline |
+| `draining` | generation não aceita calls novas | não; resolver a instance de novo |
+| `unavailable` | destino não aceitou a call | somente por policy explícita |
+| `unauthorized` | capability não autoriza a operação | não |
+| `incompatibleSchema` | caller e callee não negociaram schema | não |
+| `callCycle` | ancestry formaria ciclo closed-turn | não |
+| `unknownOutcome(effectId)` | entrega ou efeito ocorreu, mas não foi confirmado | só com idempotência |
+
+Deadline e cancellation produzem `TaskOutcome.canceled`. Eles não são
+`ServiceFailure`. O `try` pode injetar cada error effect em um case único do
+error set do caller:
+
+```w
+enum RestaurantError: Error {
+  dining(DiningRoomError)
+  service(ServiceFailure)
+}
+```
+
+O runtime propaga `parentCallId`. Se uma call estruturada retorna a uma instance
+closed-turn que já está em sua ancestry, o runtime retorna `callCycle`. Ele não
+espera um deadlock conhecido. Ciclos que atravessam sistemas sem metadata ainda
+exigem deadline.
+
+Retry mutante nunca é implícito. Idempotência ou deduplication podem autorizar
+uma policy. Queda depois da entrega pode retornar `unknownOutcome`. W não promete
+exactly-once sem protocol e storage adequados.
+
+Uma API explícita `CallOutcome<T, E>` permite inspecionar `success(T)`,
+`application(E)`, `canceled(Cancellation)` e `boundary(ServiceFailure)`. O
+`try await` comum propaga os effects.
+
+O fast path pode mover valores quando ABI e trust domain conferem. Ele ainda
+preserva await, mobility, quotas, ordering, cancellation, errors e tracing.
+
+Uma capability remota é um handle tipado. Ela não é uma URL livre. Importar a
+interface não cria o handle.
+
+**Pesquisa:** dependent calls podem usar um `CallPipeline` explícito para reduzir
+round trips. O pipeline preserva capability lifetime, quotas, cancellation,
+failure e `unknownOutcome`. Ele não muda `ServiceRef` para uma Promise lazy. O
+[promise pipelining de Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
+é evidência útil para o protótipo, não uma decisão de syntax.
+
+### 13.7 Estado durável e gates
+
+Durability é um adapter explícito. Um handler declara transação, commit point e
+a relação entre state e outputs. A baseline não presume state durável.
+
+SQLite é o primeiro adapter oficial provável. Ele oferece transações, operação
+local e portabilidade. Ele não é a semântica universal. Memory, files, remote KV
+e engines especializadas podem implementar o contrato.
+
+O baseline confirma o commit antes de liberar uma response. Um outbox
+transacional é a alternativa para mensagens.
+
+**Pesquisa:** um output gate pode reter outputs até confirmar writes. Se a write
+falhar, o runtime descarta os outputs. O protótipo precisa provar causalidade,
+limites, backpressure e cancelamento. Os
+[output gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
+são uma referência, não uma decisão automática.
+
+### 13.8 Capabilities e sandbox
 
 O contrato portátil usa capabilities tipadas para filesystem, network, clock,
 random, process, environment, storage e devices. A enforcement boundary depende
@@ -1404,32 +1801,37 @@ do target:
 
 - type system e HIR dentro do programa;
 - processo/OS sandbox para código nativo não confiável;
-- Wasm/component boundary para isolamento portátil quando compatível;
-- seccomp, namespaces, sandbox-exec ou job objects como defense-in-depth local.
+- Wasm/component boundary quando compatível;
+- seccomp, namespaces, sandbox-exec ou job objects como defense-in-depth.
 
-Seccomp não pode proteger “cada módulo importado”. Um módulo não é uma boundary
-física, e um filtro de syscall não controla memory safety dentro do processo.
+Seccomp não protege “cada módulo importado”. Um módulo não é uma boundary
+física. Um filtro de syscall não controla memory safety dentro do processo.
 
-### 13.8 Wasm e playground
+### 13.9 Wasm e playground
 
 Wasm é um target e uma boundary possível. Ele não transforma W em substituto de
 JavaScript. O playground compila um subset para Wasm e usa imports/exports
 tipados do host. DOM, network e storage só existem quando o profile concede.
 
-### 13.9 Observabilidade
+### 13.10 Observabilidade e teste
 
-Cada task, service call e instance pode fornecer:
+Cada task, call e instance registra:
 
-- trace/span e causalidade;
-- queue wait, execution time e suspension time;
-- allocation/budget facts;
+- trace/span, parent e causalidade;
+- queue, execution e suspension time;
+- allocation e budget facts;
 - hop local/remoto;
-- cancellation e error primário/adicional;
+- cancellation e errors primário/adicionais;
+- instance ID, generation e call outcome;
 - logical stack e source mapping;
-- identity de build, module e package.
+- build, module e package identity.
 
-Logs humanos são projeções. Eventos estruturados possuem schema e limites de
-privacidade.
+Logs humanos são projeções. Eventos estruturados possuem schema. Payloads,
+secrets e capability tokens são redigidos.
+
+O scheduler de teste injeta clock, entropy, storage e decisões de execução. Ele
+reproduz ordering, overload, drain, panic e restart. Packing físico diferente
+precisa passar o mesmo oracle observável.
 
 ## 14. Prelude e SDK
 
@@ -1455,7 +1857,9 @@ T1 contém:
 - console e `print`;
 - process, environment, filesystem e paths;
 - clock, calendar, timezone e random;
-- tasks, synchronization e blocking adapters;
+- Task, TaskOutcome, TaskGroup, Stream e Channel;
+- synchronization, executors e blocking adapters;
+- ServiceRef, ServiceFailure e service host APIs;
 - TCP, UDP, TLS e DNS;
 - crypto, codecs, JSON e FFI C;
 - storage e observabilidade básicas.
@@ -2437,13 +2841,15 @@ entry
   → parser streaming de comanda
   → compiler de cardápio restrito a bootstrap.w0
   → Restaurant service
-  → async stock + spawn planning
+  → async calls com payloads owned
+  → parallelMap bounded da brigada
   → controle PID com ranges e units
   → tensor de previsão
   → sensor C + fn<C>
   → grafo shared/weak + callback pinned
   → pricing + billing idempotente
   → DiningRoom service
+  → mailbox, ServiceFailure e cycle oracle
   → HTTP/TUI response
   → cleanup, trace e provenance
 ```
@@ -2590,21 +2996,27 @@ services, units, tensors e packages não ampliam a base de recovery.
 
 - async state machine;
 - `async let`, `spawn let` e domains;
-- linear Task, task groups e cancellation;
+- linear Task, `TaskOutcome` e cancellation;
+- `concurrentMap`/`parallelMap` bounded;
+- blocking adapter e callback scheduling;
+- HIR verificada antes do lowering async;
 - executor cooperativo e pool paralelo bounded;
 - deterministic test executor.
 
-Saída: restaurante executa I/O concorrente e planejamento paralelo com cleanup.
+Saída: restaurante executa I/O concorrente e lotes paralelos com ordering,
+backpressure e cleanup reproduzíveis.
 
 ### 26.8 Fase 6 — services e host entries
 
 - `entry` e host profiles;
 - service instance manager;
-- serial turn, mailbox e ServiceRef;
+- closed turn, generation e drain;
+- mailbox com três quotas;
+- `ServiceFailure`, cycle detection e `ServiceRef`;
 - tracing e local fast path;
 - process/Wasm boundary experimental.
 
-Saída: CLI e HTTP usam o mesmo service e exibem hops/queues.
+Saída: CLI e HTTP exibem hops, queues, overload, cycle e restart.
 
 ### 26.9 Fase 7 — packages e SDK
 
@@ -2631,8 +3043,8 @@ Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
 | memória | `shared`, arena e allocator compõem sem surpresa? | benchmarks, cycles, FFI e cancellation |
-| tasks | lowering preserva erro, cleanup e mobilidade? | testes diferenciais e stress |
-| services | closed turn evita races sem deadlock inaceitável? | três workloads e trace |
+| tasks | lowering preserva join, cancelamento e mobilidade? | testes diferenciais e scheduler reproduzível |
+| services | closed turn, admission e cycle são previsíveis? | três workloads, failure injection e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
@@ -2797,6 +3209,27 @@ experimentar”, não “decisão irreversível”.
 | D2-114 | cláusula estática | `where`/`on` no source, record comum na HIR | toda propriedade dentro de `<...>` |
 | D2-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
 | D2-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda a DB2 |
+| D2-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
+| D2-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
+| D2-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
+| D2-120 | outcome de task | success/error/canceled; panic encerra boundary | cancel em `E`; panic como Result |
+| D2-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
+| D2-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
+| D2-123 | resolução de domain | isolation/affinity vencem preference | `on` substitui isolation |
+| D2-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
+| D2-125 | stream/channel | pull e capacity bounded; `yield` adiado | generator unbounded |
+| D2-126 | memory model | safe W data-race-free; DRF-SC salvo atomics explícitos | race definida em safe code |
+| D2-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
+| D2-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
+| D2-129 | lifecycle de instance | identity + generation; restart invalida state anterior | reuse de pointers/frames |
+| D2-130 | admission | quotas de itens, bytes e in-flight | unbounded; limite só por item |
+| D2-131 | falha de call | `E` e `ServiceFailure` são effects separados | transporte dentro de todo `E` |
+| D2-132 | call cycle | ancestry causal rejeita ciclo closed-turn conhecido | esperar somente deadline |
+| D2-133 | output durável | commit confirmado ou outbox; output gate em pesquisa | gate inferido na v0 |
+| D2-134 | scheduler de teste | clock/I/O/schedule injetáveis e replay | teste somente por timing real |
+| D2-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
+| D2-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
+| D2-137 | RPC encadeado | `CallPipeline` explícito em pesquisa | toda `ServiceRef` vira Promise lazy |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

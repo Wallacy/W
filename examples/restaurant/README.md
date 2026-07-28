@@ -1,6 +1,6 @@
 # Restaurante Última Luz
 
-> **Status:** corpus experimental da DB2 · 27 de julho de 2026
+> **Status:** corpus experimental da DB2 · 28 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
 do turno cósmico. O cenário é original. Ele usa escala astronômica e humor
@@ -19,6 +19,7 @@ LastLight entry
   → Cozinha de Maré Fria
   → controle PID do forno
   → Brigada do Cometa Manso
+  → Observatório do Cometa Paciente
   → Oráculo de Mesas
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
@@ -43,6 +44,7 @@ owner e estado observável.
 | `hardware.w` | fronteira C, layout e deallocator |
 | `memory.w` | shared/weak, borrow suspenso, pinning e callback C |
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
+| `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -110,9 +112,10 @@ Famílias: `async`, `spawn`, domains, ownership e cancelamento.
 Aceite:
 
 - stock e telemetria progridem concorrentemente;
-- planejamento solicita paralelismo;
+- calls por `ServiceRef` não escolhem o domínio do callee;
+- mistura local solicita paralelismo em `.compute`;
 - o scope aguarda todos os filhos;
-- falha cancela irmãos;
+- join seleciona o error pela ordem lexical;
 - cada lease executa cleanup uma vez;
 - capture local em `spawn` falha quando não pode ser transferida ou compartilhada.
 
@@ -125,8 +128,17 @@ Aceite:
 - a mesma `ServiceRef` funciona local e remotamente;
 - toda call usa `await`;
 - o trace mostra hop e queue wait;
-- mailbox cheia aguarda ou retorna Overload;
-- closed turn impede reentrância durante `await`.
+- mailbox limita itens, bytes e trabalho em voo;
+- mailbox cheia aguarda ou retorna `ServiceFailure.overload`;
+- error da aplicação e `ServiceFailure` são effects distintos;
+- service payload usa value, `take` ou capability, nunca borrow do caller;
+- `PlanningRequest` e `PaymentProof` tornam essa cópia explícita;
+- call A → B → A conhecida retorna `callCycle`;
+- closed turn impede reentrância durante `await`;
+- `cancel(orderId)` enfileirado não interrompe um turn ativo;
+- a instance `.process` do ensaio expõe head-of-line blocking de propósito;
+- instances keyed permitem progresso paralelo entre pedidos, mas não na mesma key;
+- um futuro `CallPipeline` deve reduzir round trips sem ocultar calls ou effects.
 
 ### 3.7 Conta da Aurora Tardia
 
@@ -166,6 +178,8 @@ Aceite:
 - size/alignment confere com C no target;
 - status e null viram errors tipados;
 - NaN não atravessa a wrapper sem policy;
+- metadata informa blocking, thread safety e callback executor;
+- call blocking usa adapter ou uma isolation boundary dedicada;
 - o deallocator original executa uma vez;
 - panic não faz unwind através de C.
 
@@ -258,7 +272,7 @@ Aceite:
 - a ordem de iteração do Map não influencia a symbol table emitida;
 - o source não depende de task, service, tensor, unit, behavior ou tagging;
 - uma instruction depois de `serve` falha antes da emissão;
-- o seed preserva typed errors, move e drop.
+- o seed preserva typed errors, move e drop;
 - o ensaio cresce pelos gates SH0–SH7 antes de declarar self-host completo.
 
 Cobertura atual:
@@ -269,6 +283,35 @@ Cobertura atual:
 | SH2–SH3 | parcial: AST, symbols, errors, collections, move e drop |
 | SH4 | parcial: bytecode e symbol table determinísticos, ainda sem HIR W |
 | SH5–SH7 | não implementados |
+
+### 3.16 Observatório do Cometa Paciente
+
+Famílias: task group, backpressure, ordering, cancellation e atomic metrics.
+
+Aceite:
+
+- `parallelMap` mantém no máximo `limit` children ativos;
+- o buffer de admissão também usa `limit`;
+- `.input` devolve resultados na ordem dos jobs;
+- `parallelCollect` preserva todos os outcomes;
+- cancelar o batch fecha producer e children;
+- cada job move ownership para um child;
+- `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
+- um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
+- `TaskOutcome` distingue success, application error e cancellation.
+
+Timeline mínima:
+
+| Evento | Estado observável |
+|---|---|
+| jobs 0 e 1 entram | dois children ativos; job 2 aguarda capacity |
+| job 1 termina primeiro | resultado 1 fica retido por `.input` |
+| job 0 termina | resultados 0 e 1 ficam disponíveis; job 2 entra |
+| parent cancela | producer fecha; children restantes recebem o sinal |
+| scope sai | todos os cleanups terminaram; nenhum job ficou detached |
+
+O scheduler de teste deve reproduzir essa timeline por um schedule ID. Outro
+packing físico precisa produzir o mesmo resultado quando ordering é `.input`.
 
 ## 4. Alternativas visuais obrigatórias
 

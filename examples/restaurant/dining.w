@@ -1,6 +1,6 @@
 // Serial-turn dining room with bounded admission and observable applause.
 
-import { IdempotencyKey, Payment } from restaurant.billing
+import { PaymentProof } from restaurant.billing
 import { Dish, Money, Receipt } from restaurant.domain
 import { ApplauseLevel, applauseThreshold } from restaurant.units
 
@@ -23,17 +23,18 @@ export enum DiningRoomError: Error {
   paymentIncomplete
   audienceUnavailable
   insufficientApplause(found: ApplauseLevel, required: ApplauseLevel)
+  service(ServiceFailure)
 }
 
 export protocol AudienceApi {
-  async fn measure(dish: ref Dish): ApplauseLevel throws DiningRoomError
+  async fn measure(dish: take Dish): ApplauseLevel throws DiningRoomError
 }
 
 export protocol DiningRoomApi {
-  async fn serve(dish: take Dish, payment: ref Payment): Receipt throws DiningRoomError
+  async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError
 }
 
-fn paymentCanServe(payment: ref Payment): Bool {
+fn paymentCanServe(payment: ref PaymentProof): Bool {
   return payment.state == .captured
 }
 
@@ -41,7 +42,7 @@ export service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = Map()
 
-  mut async fn serve(dish: take Dish, payment: ref Payment): Receipt throws DiningRoomError {
+  mut async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError {
     guard paymentCanServe(payment) else throw .paymentIncomplete
     guard let tableId = tables.first(where: (entry) => entry.value.state == .available)?.key else throw .full
 
@@ -50,20 +51,20 @@ export service PrismDiningRoom as DiningRoomApi {
       tables[tableId].state = .available
     }
 
-    async on .device let measuredApplause = audience.measure(dish)
+    let orderId = dish.orderId
+    async let measuredApplause = audience.measure(take dish)
     let applause = try await measuredApplause
     guard applause >= applauseThreshold else {
       throw .insufficientApplause(found: applause, required: applauseThreshold)
     }
 
-    return Receipt(orderId: dish.orderId, total: payment.amount, traceId: Trace.current.id)
+    return Receipt(orderId: orderId, total: payment.amount, traceId: Trace.current.id)
   }
 }
 
 test "an authorization cannot enter the dining room" for paymentCanServe {
-  let payment = Payment(
-    id: 10,
-    key: try IdempotencyKey("order:10:capture"),
+  let payment = PaymentProof(
+    paymentId: 10,
     amount: Money(minorUnits: 4_242, currency: .cr),
     state: .authorized,
   )

@@ -16,6 +16,7 @@ import {
   paymentKey,
   quote,
   refundKey,
+  servingProof,
 } from restaurant.billing
 import { DiningRoomApi, DiningRoomError } from restaurant.dining
 import { AromaProbeApi, ProbeError } from restaurant.hardware
@@ -28,7 +29,7 @@ import {
   expectedEnergy,
   mix,
 } from restaurant.kitchen
-import { OracleApi, OracleError } from restaurant.oracle
+import { OracleApi, OracleError, planningRequest } from restaurant.oracle
 
 export enum RestaurantError: Error {
   domain(DomainError)
@@ -39,7 +40,7 @@ export enum RestaurantError: Error {
   kitchen(KitchenError)
   billing(BillingError)
   dining(DiningRoomError)
-  overload
+  service(ServiceFailure)
 }
 
 export protocol RestaurantApi {
@@ -68,10 +69,11 @@ async fn prepareDish(
   oracle: ServiceRef<OracleApi>,
   probe: ServiceRef<AromaProbeApi>,
 ): Dish throws RestaurantError {
-  async on .network let stock = pantry.reserve(order.course, guests: order.guests)
-  async on .device let telemetry = ovens.telemetry()
-  async on .device let aromaSample = probe.sample()
-  spawn on .compute let schedule = oracle.plan(order)
+  let planning = planningRequest(order)
+  async let stock = pantry.reserve(order.course, guests: order.guests)
+  async let telemetry = ovens.telemetry()
+  async let aromaSample = probe.sample()
+  async let schedule = oracle.plan(take planning)
 
   let (stock, telemetry, aromaSample, schedule) = try await (stock, telemetry, aromaSample, schedule)
   defer async {
@@ -91,9 +93,13 @@ async fn prepareDish(
     throw .kitchen(.energyBudgetExceeded(found: projectedEnergy, limit: schedule.energyBudget))
   }
 
-  let lease = try await ovens.acquire(schedule.recipe.target, schedule: schedule)
+  let lease = try await ovens.acquire(schedule.recipe.target, duration: schedule.duration)
   defer async {
-    await lease.close()
+    do {
+      try await lease.close()
+    } catch error {
+      Trace.current.recordCleanupError(error)
+    }
   }
 
   async let preheat = lease.preheat()
@@ -137,17 +143,19 @@ export service LastLightRestaurant as RestaurantApi {
 
     let amount = try quote(priceTable, course: dish.course)
     let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
+    let proof = servingProof(payment)
+    let refundIdempotencyKey = refundKey(payment.id)
     defer async {
       if state.stage != .completed {
         do {
-          let _ = try await billing.refund(payment, idempotencyKey: refundKey(payment.id))
+          let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
         } catch error {
           Trace.current.recordCleanupError(error)
         }
       }
     }
 
-    let receipt = try await diningRoom.serve(take dish, payment: payment)
+    let receipt = try await diningRoom.serve(take dish, payment: proof)
     try move(inout state, to: .completed)
     state.receipt = .some(receipt)
     orders[receipt.orderId] = state
