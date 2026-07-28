@@ -19,6 +19,12 @@ export struct Payment {
   state: PaymentState
 }
 
+export struct PaymentProof {
+  paymentId: PaymentId
+  amount: Money
+  state: PaymentState
+}
+
 export enum BillingError: Error {
   domain(DomainError)
   missingPrice(Course)
@@ -26,6 +32,7 @@ export enum BillingError: Error {
   gatewayUnavailable
   unknownOutcome(PaymentId)
   invalidTransition(from: PaymentState, to: PaymentState)
+  service(ServiceFailure)
 }
 
 export behavior Versioned<Value> for Value {
@@ -87,14 +94,18 @@ export fn refundKey(paymentId: PaymentId): IdempotencyKey {
   return try IdempotencyKey("payment:${paymentId}:refund")
 }
 
+export fn servingProof(payment: ref Payment): PaymentProof {
+  return PaymentProof(paymentId: payment.id, amount: payment.amount, state: payment.state)
+}
+
 export protocol PaymentGatewayApi {
   async fn capture(amount: Money, idempotencyKey: IdempotencyKey): Payment throws BillingError
-  async fn refund(payment: ref Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
+  async fn refund(payment: take Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
 }
 
 export protocol BillingApi {
   async fn capture(amount: Money, idempotencyKey: IdempotencyKey): Payment throws BillingError
-  async fn refund(payment: ref Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
+  async fn refund(payment: take Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
 }
 
 export service BillingLedger as BillingApi {
@@ -112,14 +123,14 @@ export service BillingLedger as BillingApi {
     return payment
   }
 
-  mut async fn refund(payment: ref Payment, idempotencyKey key: IdempotencyKey): Payment throws BillingError {
+  mut async fn refund(payment: take Payment, idempotencyKey key: IdempotencyKey): Payment throws BillingError {
     if let prior = payments[key] {
       if prior.state == .refunded {
         return prior
       }
     }
 
-    let refunded = try await gateway.refund(payment, idempotencyKey: key)
+    let refunded = try await gateway.refund(take payment, idempotencyKey: key)
     payments[key] = refunded
     return refunded
   }

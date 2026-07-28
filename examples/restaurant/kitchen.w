@@ -55,6 +55,7 @@ export enum PantryError: Error {
   unavailable(Ingredient)
   insufficient(found: u32, required: u32)
   reservationExpired(ReservationId)
+  service(ServiceFailure)
 }
 
 export enum OvenError: Error {
@@ -103,7 +104,7 @@ export protocol OvenLeaseApi {
 
 export protocol OvenApi {
   async fn telemetry(): OvenTelemetry throws OvenError
-  async fn acquire(target: Temperature, schedule: ref KitchenPlan): any OvenLeaseApi throws OvenError
+  async fn acquire(target: Temperature, duration: Duration): ServiceRef<OvenLeaseApi> throws OvenError
 }
 
 export struct PidController {
@@ -150,7 +151,7 @@ export fn expectedEnergy(telemetry: ref OvenTelemetry, during duration: Duration
   return energy(telemetry.power * telemetry.duty, during: duration)
 }
 
-export fn mix(ingredients: take Array<Ingredient>, recipe: ref Recipe): Mixture throws KitchenError {
+export fn mix(ingredients: ref Array<Ingredient>, recipe: ref Recipe): Mixture throws KitchenError {
   guard !ingredients.isEmpty else throw .emptyStock
   return Mixture(course: recipe.course, mass: ingredients.totalMass(), homogeneity: ingredients.homogeneity())
 }

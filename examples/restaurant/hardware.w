@@ -17,6 +17,9 @@ foreign c from "last_light_probe.h" {
   fn ll_probe_close(probe: c.ptr<ll_probe>)
 }
 
+// Binding metadata classifies ll_probe_read as blocking. The device adapter
+// runs it outside service and cooperative executor threads.
+
 export enum ProbeError: Error {
   closed
   readFailed(status: c.int)
