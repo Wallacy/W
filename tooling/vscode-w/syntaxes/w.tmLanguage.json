@@ -130,7 +130,7 @@
         },
         {
           "name": "keyword.operator.w",
-          "match": "\\b(?:any|as|get|init|is|modify|on|set|some|storage|where)\\b"
+          "match": "\\b(?:any|as|get|init|is|modify|set|some|storage)\\b"
         }
       ]
     },

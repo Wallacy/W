@@ -91,12 +91,10 @@
   "in"
   "init"
   "modify"
-  "on"
   "set"
   "some"
   "storage"
   "true"
-  "where"
 ] @keyword
 
 (function_declaration name: (identifier) @function)

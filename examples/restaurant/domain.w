@@ -2,13 +2,18 @@
 
 export type GuestId = u64
 export type OrderId = u64
-export type GuestCount = u16 where (value in 1...4096)
-export type Probability = f64 where (value in 0.0...1.0)
-export type BasisPoints = u16 where (value in 0...10_000)
-export type BoundedText<const min: usize, const max: usize> =
-  String where (value.scalars.count in min...max)
-export type GuestName = BoundedText<min: 1, max: 120>
-export type DishLabel = BoundedText<min: 1, max: 80>
+export type GuestCount = u16<(1...4096)>
+export type Probability = f64<(0.0...1.0)>
+export type BasisPoints = u16<(0...10_000)>
+export struct TextBounds {
+  min: usize
+  max: usize
+}
+
+export type BoundedText<const bounds: TextBounds> =
+  String<(value.scalars.count in bounds.min...bounds.max)>
+export type GuestName = BoundedText<{min: 1, max: 120}>
+export type DishLabel = BoundedText<{min: 1, max: 80}>
 
 export enum Course {
   nebulaBroth

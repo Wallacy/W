@@ -100,7 +100,7 @@ Aceite:
 - `Power * Duration` produz Energy;
 - point menos point produz delta;
 - point mais point falha;
-- `switch` com range e `where` preserva a regra anti-windup;
+- `switch` com range e `if` preserva a regra anti-windup;
 - `clamp` prova que o `DutyCycle` refinado está em `0.0...1.0`;
 - `{unit}` e `[unit]` aparecem somente no corpus comparativo;
 - lowering sem reflection remove metadata de unit.
@@ -180,6 +180,10 @@ Aceite:
 - NaN não atravessa a wrapper sem policy;
 - metadata informa blocking, thread safety e callback executor;
 - call blocking usa adapter ou uma isolation boundary dedicada;
+- o parser W mantém o body `fn<C>` opaco;
+- o body scanner C encontra o fechamento sem interpretar statements como W;
+- o adapter C gera façade C e static archive reproduzível;
+- funções do mesmo adapter compartilham uma foreign unit;
 - o deallocator original executa uma vez;
 - panic não faz unwind através de C.
 
@@ -226,18 +230,20 @@ Famílias: generics, refinements, units, domínio de execução e frontend inlin
 
 Aceite:
 
-- `BoundedText<min: 1, max: 120>` resolve slots nomeados declarados;
-- `String where (...)` e `String<where: (...)>` produzem o mesmo refinement HIR;
-- `spawn on .compute` e `spawn<domain: .compute>` produzem o mesmo task contract;
+- `BoundedText<{min: 1, max: 120}>` passa um static record tipado;
+- `u16<(1...4096)>` expande para `value in 1...4096`;
+- `String<(value.scalars.count <= 40)>` mantém o receiver explícito;
+- `Array<u8><(value.count <= 64)>` refina um generic já aplicado;
+- `spawn<.compute>` e `spawn<domain: .compute>` produzem o mesmo task contract;
 - `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
+- `<(...)>`, `<{...}>` e `<[...]>` preservam expression, record e list;
 - um slot repetido produz diagnostic antes do type-check normal;
 - um case abreviado só preenche o slot primário declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
 
-As grafias angulares são contrafactuais. Os arquivos `.w` continuam na líder
-DB2. A análise normativa está na seção 3 de
-[DESIGN.md](../../DESIGN.md#31-hipótese-de-contrato-estático-fechado).
+As formas `where` e `on` permanecem no corpus contrafactual. A análise normativa
+está na [seção 3 de DESIGN.md](../../DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
 
 ### 3.14 Arquivo de Ecos
 
@@ -320,9 +326,12 @@ O Book deve mostrar pares lado a lado:
 | Tema | Forma líder | Contrafactual |
 |---|---|---|
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn on .compute let x = ...` | `spawn<domain: .compute> let x = ...` |
-| domain curto | `spawn on .compute let x = ...` | `spawn<.compute> let x = ...` |
-| refinement | `T where (predicate)` | `T<where: (predicate)>` |
+| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
+| domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` |
+| refinement | `T<(predicate)>` | `T where (predicate)` |
+| receiver | `String<(value.count <= 40)>` | `String<(.count <= 40)>` |
+| static record | `<{name: value}>` | extensão universal de tipo |
+| static list | `<[a, b]>` ordenada | set implícito de constraints |
 | frontend inline | `fn<C>` | `fn<lang: .c>` |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
