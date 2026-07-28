@@ -1,0 +1,57 @@
+0:0  - 7:0    source_file
+0:0  - 2:1      foreign_declaration
+0:0  - 0:7        "foreign"
+0:8  - 0:9        language: identifier `c`
+0:10 - 0:14       "from"
+0:15 - 0:23       source: string_literal `\"math.h\"`
+0:24 - 0:25       "{"
+1:2  - 1:37       function_declaration
+1:2  - 1:4          "fn"
+1:5  - 1:8          name: identifier `cos`
+1:8  - 1:27         parameters: parameter_list
+1:8  - 1:9            "("
+1:9  - 1:26           parameter
+1:9  - 1:10             "_"
+1:11 - 1:16             name: identifier `value`
+1:16 - 1:17             ":"
+1:18 - 1:26             type: type
+1:18 - 1:26               base: type_name
+1:18 - 1:19                 name: type_identifier `c`
+1:19 - 1:20                 "."
+1:20 - 1:26                 member: type_identifier `double`
+1:26 - 1:27           ")"
+1:27 - 1:28         ":"
+1:29 - 1:37         return_type: type
+1:29 - 1:37           base: type_name
+1:29 - 1:30             name: type_identifier `c`
+1:30 - 1:31             "."
+1:31 - 1:37             member: type_identifier `double`
+2:0  - 2:1        "}"
+4:0  - 6:1      function_declaration
+4:0  - 4:2        "fn"
+4:3  - 4:9        name: identifier `cosine`
+4:9  - 4:21       parameters: parameter_list
+4:9  - 4:10         "("
+4:10 - 4:20         parameter
+4:10 - 4:15           name: identifier `value`
+4:15 - 4:16           ":"
+4:17 - 4:20           type: type
+4:17 - 4:20             base: type_name
+4:17 - 4:20               name: type_identifier `f64`
+4:20 - 4:21         ")"
+4:21 - 4:22       ":"
+4:23 - 4:26       return_type: type
+4:23 - 4:26         base: type_name
+4:23 - 4:26           name: type_identifier `f64`
+4:27 - 6:1        body: block
+4:27 - 4:28         "{"
+5:2  - 5:19         return_statement
+5:2  - 5:8            "return"
+5:9  - 5:19           call_expression
+5:9  - 5:12             function: identifier `cos`
+5:12 - 5:19             arguments: argument_list
+5:12 - 5:13               "("
+5:13 - 5:18               argument
+5:13 - 5:18                 value: identifier `value`
+5:18 - 5:19               ")"
+6:0  - 6:1          "}"

@@ -87,6 +87,12 @@ O novo resumo promove a fatos ideias que as fontes tratavam como alternativas, e
 
 Em 18 de julho de 2026 começa a reconstrução de `W/` com uma regra diferente: separar visão, escolhas candidatas, questões abertas e pesquisa. O objetivo não é apagar as ideias antigas, mas impedir que uma hipótese seja confundida com promessa atual.
 
+Em 27 de julho de 2026, a DB2 reúne linguagem, runtime, SDK, compilador,
+packages, distribuição, tooling, plano e alternativas em
+[`W/DESIGN.md`](../../W/DESIGN.md). Os documentos distribuídos da DB1 passam
+para [`Y/W/archive/db1-2026-07-27/`](archive/db1-2026-07-27/). Essa mudança reduz
+fontes concorrentes sem apagar a proveniência.
+
 ## Documentação e testes no próprio source
 
 `Y/WIP.MD`, linhas históricas em torno de 1914–2003, já propunha testes ao lado da
@@ -94,10 +100,11 @@ função, arquivos `file.test.w`, remoção dos testes do artefato release e res
 de vocabulário inspirado em JSDoc. A notação explorada incluía `//@(2,1) == 3`,
 `@a` para argumentos e `@@` para resultado, além de ideias de debug inline.
 
-A DB1 preserva a intenção, não essa DSL: a versão atual usa comentários `///`
+A DB1 preservou a intenção, não essa DSL: sua fotografia usa comentários `///`
 Markdown, fences `w test`, declaração contextual `test "..." for symbol` e os
-mesmos testes em `*.test.w`. O contrato está em
-[`W/design/documentation-and-tests.md`](../../W/design/documentation-and-tests.md).
+mesmos testes em `*.test.w`. A fotografia está em
+[`documentation-and-tests.md`](archive/db1-2026-07-27/design/documentation-and-tests.md);
+o contrato atual está em [`W/DESIGN.md`](../../W/DESIGN.md).
 As formas `@`/`@@`, execução de debug embutida e snapshots remotos continuam
 históricas até demonstrarem uma necessidade que a sintaxe atual não cubra.
 
@@ -139,8 +146,8 @@ que permitiram conferir a restauração.
 | [`TK/`](../../TK) | wQL, RestQL, V6, strings e outros projetos relacionados | projetos satélite; só entram no núcleo por decisão explícita |
 | histórico de `W/cheatsheet.md` | grande catálogo de sintaxe possível | recuperar exemplos, nunca importar todos como uma linguagem coerente |
 | histórico de `W/techspec.md` | pesquisa de tagged representation | base para research e testes target-specific |
-| [`W/VISION.md`](../../W/VISION.md) | promessa e princípios atuais | autoridade para direção de produto |
-| [`W/STATUS.md`](../../W/STATUS.md) | estado de cada escolha atual | autoridade para distinguir Direção, Candidato, Em aberto e Pesquisa |
+| [`W/DESIGN.md`](../../W/DESIGN.md) | design e registro D2 atuais | única autoridade para o estado corrente |
+| [`arquivo DB1`](archive/db1-2026-07-27/) | documentos canônicos anteriores | auditoria e alternativas históricas |
 
 Comandos úteis para consultar material substituído:
 
@@ -156,18 +163,17 @@ git log --follow -- W/cheatsheet.md
 
 Quando documentos discordarem, a autoridade não é determinada apenas pela idade, pelo tamanho ou por ser o arquivo mais recente. A ordem é:
 
-1. uma decisão aceita e identificada em `W/design/decisions/`, quando existir;
-2. o estado registrado em [`W/STATUS.md`](../../W/STATUS.md);
-3. a especificação e os exemplos canônicos atuais, sempre limitados pelo status de Working Draft;
-4. [`W/VISION.md`](../../W/VISION.md), apenas para direção de produto e princípios;
-5. os cadernos históricos, o histórico Git e os spikes, como provenance e alternativas.
+1. [`W/DESIGN.md`](../../W/DESIGN.md), para estado, contrato e alternativas;
+2. os exemplos, portal e tooling atuais, como projeções verificáveis do design;
+3. o arquivo DB1, os cadernos históricos, o histórico Git e os spikes, como
+   provenance e alternativas.
 
 Regras adicionais:
 
 - uma frase de um resumo gerado não prevalece sobre uma fonte que registra alternativas;
 - código experimental prova que uma pergunta foi investigada, não que a solução está correta;
 - aparecer repetidamente aumenta a relevância histórica de uma ideia, não seu status normativo;
-- promover pesquisa exige exemplos coerentes, semântica, teste e plano de lowering conforme `STATUS.md`;
+- promover pesquisa exige exemplos coerentes, semântica, teste e plano de lowering conforme `W/DESIGN.md`;
 - se a origem de uma afirmação não puder ser localizada, ela deve ser marcada como reconstrução ou hipótese.
 
 Assim, a documentação atual pode evoluir sem reescrever o passado e o passado pode continuar útil sem governar acidentalmente a linguagem.
