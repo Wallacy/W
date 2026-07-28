@@ -529,7 +529,7 @@ obrigatório do constructor ou do instance descriptor.
 ### 7.2 Funções
 
 ```w
-export unsafe async fn update<T: Send>(
+export unsafe async fn update(
   order: inout Order,
   with event: take Event,
 ): Receipt throws UpdateError {
@@ -840,9 +840,9 @@ soluções:
 - um owner de lifecycle, como service ou request scope.
 
 O compiler pode remover retains e releases quando prova owner único. Um handle
-que cruza `spawn` usa contagem thread-safe e exige que o conteúdo satisfaça
-`Send` e `Sync`. A implementação pode usar contagem local somente quando prova
-que o handle não cruza uma fronteira paralela.
+`shared T` que cruza `spawn` usa contagem thread-safe e exige que `T` seja
+`shareable`. A implementação pode usar contagem local somente quando prova que o
+handle não cruza uma fronteira paralela.
 
 Overflow de contador nunca faz wrap. Ele encerra a isolation boundary antes de
 perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
@@ -1074,7 +1074,7 @@ behavior Lazy<Value> for Value {
 
 A primeira implementação aceita somente `init`, `get`, `set` e `modify`
 síncronos e sem `throws`. Um accessor que suspende, faz rede ou bloqueia exige
-uma API nomeada. Behavior não concede `Send`, `Sync` ou atomicidade.
+uma API nomeada. Behavior não concede mobilidade ou atomicidade.
 
 Composição v0 usa um behavior composto nomeado. Lista por vírgula e nesting
 arbitrário ficam como alternativas até que ordem, exclusivity e drop tenham uma
@@ -1222,10 +1222,53 @@ dinâmica ilimitada implícita.
 Async streams usam pull por default. Channels são tipos separados, bounded e
 declaram ordering, demand e ownership de cada elemento.
 
-### 12.6 Atomics e shared state
+### 12.6 Mobilidade, atomics e shared state
 
-`Send` e `Sync` são protocols derivados pelo compilador. Conformance manual
-exige `unsafe`.
+W precisa provar duas propriedades diferentes em uma fronteira concorrente:
+
+| Propriedade | Pergunta |
+|---|---|
+| `transferable` | o owner ou acesso exclusivo pode mudar de domínio? |
+| `shareable` | referências ao mesmo valor podem ser usadas por domínios paralelos? |
+
+`shareable` implica `transferable`. O inverso não é verdade. Um buffer mutável com
+owner único pode ser movido para um filho e deixar de existir para o parent. Ele
+não pode ser compartilhado sem synchronization. Um recurso preso a uma thread
+pode não satisfazer nenhuma propriedade.
+
+O [Rust Reference](https://doc.rust-lang.org/reference/special-types-and-traits.html)
+separa `Send` de `Sync`. A proposta
+[SE-0302 do Swift](https://www.swift.org/swift-evolution/#SE-0302) usa `Sendable`
+para transfer e para referências internamente sincronizadas. O
+[memory model do Go](https://go.dev/ref/mem) não possui um marker equivalente e
+depende de synchronization e race detection. W mantém as duas provas estáticas,
+mas não adota os nomes de Rust como API.
+
+**Líder DB2:** essas propriedades são predicates intrínsecos, derivados pelo
+compiler. Elas não são protocols públicos chamados `Send` e `Sync`. Os nomes
+lowercase aparecem em diagnostics, HIR e interfaces geradas. Código comum não
+declara nenhuma annotation.
+
+O compiler verifica a operação, não só o tipo:
+
+- mover um owner ou borrow exclusivo para `spawn` exige `transferable`;
+- capturar um borrow compartilhado em `spawn` exige `shareable` e lifetime
+  contido no scope;
+- uma chamada de service exige argumentos e resultados `transferable`;
+- `ServiceRef<T>` é `shareable` porque o handle cruza a fronteira, não o estado;
+- `Pinned<T>`, `shared T` e pointer C não ganham mobilidade pelo nome.
+
+Structs, enums, tuples e closures derivam mobilidade a partir de seus campos ou
+captures. Raw pointers, thread-local state e recursos com destructor affine são
+locais por default. Wrappers de atomics, locks, services e FFI podem estabelecer
+uma prova adicional. Uma prova manual sempre é `unsafe` e precisa declarar
+invariantes de mutation, destruction e callback.
+
+**Pesquisa:** uma API generic pública pode precisar escrever a prova. O líder de
+corpus é `where (transferable(T))` ou `where (shareable(T))`. Os contracts
+`<mobility: .transferable>` e marker protocols públicos ficam como alternativas.
+Funções private podem inferir a restrição. Uma interface pública não pode ganhar
+ou perder a restrição por causa de uma mudança invisível em sua implementação.
 
 `var atomic value` baixa para `Atomic<T>`. Operações comuns são sequentially
 consistent. Memory orders mais fracas exigem métodos explícitos. Shared mutable
@@ -1397,7 +1440,8 @@ T0 contém:
 - tipos primitivos, Option, Result e Error;
 - String, Array, Map, Set, Range e views;
 - Slice, `Pinned<T>`, AllocationError e allocator hooks;
-- protocols de igualdade, hash, iteração, ownership, Send e Sync;
+- protocols de igualdade, hash e iteração;
+- intrinsics de ownership e dos predicates `transferable`/`shareable`;
 - operações puras de texto, collection e matemática básica;
 - intrinsics necessários para memória segura e compile time.
 
@@ -1691,8 +1735,8 @@ fn read(sensor: ref SensorHandle): Sample throws SensorError {
 }
 ```
 
-`unsafe fn` move essa obrigação para o caller. Conformance manual a `Send` ou
-`Sync` também exige unsafe.
+`unsafe fn` move essa obrigação para o caller. Uma prova manual de
+`transferable` ou `shareable` também exige `unsafe`.
 
 O importer v0 aceita funções, enums, structs simples, opaque types, pointers,
 arrays e callbacks com context. Varargs, bitfields e unions exigem wrapper ou
@@ -1783,7 +1827,7 @@ detalhes puramente sintáticos. HIR registra:
 - initialization, ownership, borrow e drop edges;
 - pointer provenance, address capture, pin e allocation origin;
 - errors, cancellation, panic e cleanup scopes;
-- task parent/child, sendability e execution preference;
+- task parent/child, mobilidade e execution preference;
 - effects/capabilities;
 - layout/ABI boundaries;
 - source map, diagnostic origin e expansion de sugars.
@@ -1863,6 +1907,11 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | entry | forma curta para `process.main` |
 | host | argv, filesystem, path, environment declarado e process adapter |
 | build | modules herméticos, interface serializada e output determinístico |
+
+O fechamento é uma propriedade do conjunto, não uma lista de syntax isolada.
+Cada tipo e função usados por `compiler/core-w0` precisam estar no profile ou em
+T0. Cada dependência de T0 usada pelo core também precisa ser expressável em W0.
+O teste de fechamento compila o core sem carregar `compiler/extended`.
 
 Closures com capture podem entrar quando reduzirem o compiler sem ampliar muito
 o seed. O primeiro source W0 pode usar loops e funções nomeadas.
@@ -2510,6 +2559,33 @@ Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
 Saída: o core W compila o próprio source sem tasks, services ou packages.
 
+#### 26.6.1 Gates internos do self-host
+
+O self-host não começa no primeiro build completo. Cada gate adiciona somente a
+capacidade necessária para o gate seguinte.
+
+| Gate | Capacidade mínima de W | Prova |
+|---|---|---|
+| SH0 | bytes, UTF-8, source locations, lexer e diagnostics | tokeniza o próprio source |
+| SH1 | parser, recovery, AST, modules, imports e names | cria a própria AST de forma estável |
+| SH2 | scalars, aggregates, enums, generics e type checking | verifica os módulos do core |
+| SH3 | initialization, move, borrow, drop, errors e collections | constrói HIR sem GC |
+| SH4 | HIR tipada, verifier, serialization e deterministic order | round-trip preserva a HIR |
+| SH5 | C ABI, filesystem, argv, path, environment e backend adapter | gera um compiler executável |
+| SH6 | recipes herméticas, stages A/B/C e comparação normalizada | recompila o mesmo source |
+| SH7 | seed C por toolchains diversos e recipe de recovery | reproduz a rota auditável |
+
+Todos os gates usam allocation fallible. Nenhum gate depende de clock, random,
+locale, ordem de `Map` ou variável de environment não declarada. SH5 é o menor
+ponto que permite dizer “W compila W”. SH6 prova convergência. SH7 reduz a
+confiança necessária no seed.
+
+Em SH5, o parser self-hosted reconhece toda a grammar congelada da DB2. Ele pode
+emitir um diagnostic de profile para semantics que ainda não possuem lowering.
+As fases seguintes adicionam esses verificadores e lowerings ao compiler
+self-hosted. O source de `compiler/core-w0` continua restrito a W0. Assim, tasks,
+services, units, tensors e packages não ampliam a base de recovery.
+
 ### 26.7 Fase 5 — tasks
 
 - async state machine;
@@ -2555,12 +2631,12 @@ Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
 | memória | `shared`, arena e allocator compõem sem surpresa? | benchmarks, cycles, FFI e cancellation |
-| tasks | lowering preserva erro, cleanup e sendability? | testes diferenciais e stress |
+| tasks | lowering preserva erro, cleanup e mobilidade? | testes diferenciais e stress |
 | services | closed turn evita races sem deadlock inaceitável? | três workloads e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
-| self-host | W0 fecha e stages são auditáveis? | mini compiler, builds diversos e diff de outputs |
+| self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |
 
 ### 26.12 Checkpoint por fase
 
@@ -2649,7 +2725,7 @@ experimentar”, não “decisão irreversível”.
 | D2-042 | cancelamento | statement cooperativo | method only; async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | D2-044 | atomics | seq-cst default, orders explícitas | C-like default; lock implicit |
-| D2-045 | Send/Sync | protocols derivados | annotations; runtime checks |
+| D2-045 | mobilidade | `transferable`/`shareable` derivados | `Send`/`Sync` públicos; runtime checks |
 | D2-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
 | D2-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
 | D2-048 | mailbox | bounded com backpressure | drop; unbounded |
@@ -2720,6 +2796,7 @@ experimentar”, não “decisão irreversível”.
 | D2-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após DB2 completa |
 | D2-114 | cláusula estática | `where`/`on` no source, record comum na HIR | toda propriedade dentro de `<...>` |
 | D2-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
+| D2-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda a DB2 |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
