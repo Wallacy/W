@@ -137,4 +137,4 @@ Em particular:
 - um benchmark sem versão de toolchain, flags, input e baseline não decide a stdlib;
 - um spike C não define sozinho a semântica visível de W;
 - pesquisa preservada pode inspirar lowering target-specific, mas sempre precisa
-  de fallback portável conforme [`W/STATUS.md`](../../../W/STATUS.md).
+  de fallback portável conforme [`W/DESIGN.md`](../../../W/DESIGN.md).
