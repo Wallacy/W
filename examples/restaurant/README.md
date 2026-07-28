@@ -114,7 +114,7 @@ Aceite:
 - o scope aguarda todos os filhos;
 - falha cancela irmãos;
 - cada lease executa cleanup uma vez;
-- capture não-Send em `spawn` falha.
+- capture local em `spawn` falha quando não pode ser transferida ou compartilhada.
 
 ### 3.6 Salão Prisma
 
@@ -233,7 +233,8 @@ Aceite:
 
 - children mantêm descendants vivos e o parent fraco não forma ciclo forte;
 - `upgrade()` retorna ausência depois do último shared owner;
-- cruzar `spawn` exige conteúdo `Send` e `Sync`;
+- mover ownership por `spawn` exige `transferable`;
+- compartilhar um borrow por `spawn` exige `shareable`;
 - um borrow após `await` só compila com owner e task frame estáveis;
 - mover ou substituir o owner durante esse borrow falha;
 - `Pinned<T>` pode mudar de endereço sem mover o `T`;
@@ -258,6 +259,16 @@ Aceite:
 - o source não depende de task, service, tensor, unit, behavior ou tagging;
 - uma instruction depois de `serve` falha antes da emissão;
 - o seed preserva typed errors, move e drop.
+- o ensaio cresce pelos gates SH0–SH7 antes de declarar self-host completo.
+
+Cobertura atual:
+
+| Gate | Estado do ensaio |
+|---|---|
+| SH0–SH1 | parcial: lexer e parser da DSL, ainda não do source W |
+| SH2–SH3 | parcial: AST, symbols, errors, collections, move e drop |
+| SH4 | parcial: bytecode e symbol table determinísticos, ainda sem HIR W |
+| SH5–SH7 | não implementados |
 
 ## 4. Alternativas visuais obrigatórias
 
