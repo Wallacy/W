@@ -203,6 +203,11 @@ Essa hipótese não cria um mapa universal de modifiers. Um head só aceita slot
 que sua declaração ou o compilador publicou. Cada slot aparece no máximo uma
 vez. Um argumento omitido precisa ter default ou inferência inequívoca.
 
+“Contrato estático” é um nome útil na HIR. A documentação de source usa
+“aplicação estática” enquanto W não tiver preconditions e postconditions. Isso
+evita confundir `<...>` com Design by Contract ou com o contrato completo de
+ownership de uma API.
+
 Uma representação possível no compilador self-hosted é:
 
 ```w
@@ -262,20 +267,29 @@ callers. O experimento de
 [named type arguments do Scala 3](https://docs.scala-lang.org/scala3/reference/experimental/named-typeargs-spec.html)
 documenta o mesmo custo.
 
-Um case abreviado pode preencher um slot quando somente um enum compatível
-possui aquele case:
+Um schema pode declarar um slot posicional primário:
 
 ```w
-spawn<.io, .parallel> let report = reconcile()
+spawn<.io> let report = reconcile()
 ```
 
-Essa forma permanece **Pesquisa**. Adicionar outro slot com um enum compatível
-pode tornar source antigo ambíguo. `spawn` já informa paralelismo, portanto
-`.parallel` também repete informação.
+Essa forma permanece **Pesquisa**. O compilador não procura um slot pelo nome do
+case. O head precisa publicar qual slot é primário. A adição de outro slot não
+pode reinterpretar source anterior. `spawn` já informa paralelismo, portanto o
+schema não precisa de um slot `TaskKind`.
 
-Se o shorthand for aceito, um schema só pode expor um slot não nomeado por enum
-type. Dois slots do mesmo enum exigem labels. Duas ocorrências do mesmo slot
-sempre produzem diagnostic.
+As aplicações estáticas públicas seguem estas regras adicionais:
+
+1. Parâmetros de tipo posicionais continuam naturais em `Array<u8>` e
+   `Map<K, V>`.
+2. Um valor usa label quando a função do valor não é evidente pelo head.
+3. Um enum case sem label só preenche o slot primário declarado pelo schema.
+4. Dois slots do mesmo kind não usam inferência por nome de case.
+5. Um slot repetido é sempre erro.
+6. A ordem canônica pertence ao schema, não ao call site.
+
+Essa regra permite representar os argumentos como enums e records no compiler
+self-hosted. Ela não transforma `<...>` num mapa aberto de modifiers.
 
 ### 3.2 Formas angulares em avaliação
 
@@ -285,7 +299,7 @@ sempre produzem diagnostic.
 | frontend inline | `fn<C>` | `fn<lang: .c>` | o label explica o papel de `C` |
 | domínio | `spawn on .compute` | `spawn<domain: .compute>` | `on` lê como relação; `<>` escala para mais slots |
 | domínio abreviado | — | `spawn<.compute>` | curto, mas depende de inferência contextual |
-| refinement | `f64 where (predicate)` | `f64<where: (predicate)>` | postfix lê como restrição; angular agrupa o contrato |
+| refinement | `f64 where (predicate)` | `f64<where: (predicate)>` | postfix restringe; angular agrupa |
 | unit literal | `9.81<m/s^2>` | `9.81<unit: m/s^2>` | o label não acrescenta informação no slot único |
 
 `where` possui três usos relacionais: refinement, generic constraint e case
@@ -299,6 +313,36 @@ antes de trocar a líder.
 `on` informa placement sem expor uma policy record. A forma angular cresce
 melhor se tasks ganharem vários slots estáticos. Policies runtime, como deadline
 e executor escolhido pelo usuário, continuam em APIs normais.
+
+Uniformidade interna não exige uniformidade gráfica. `where` e `on` são
+cláusulas relacionais. `<...>` aplica argumentos ao head. As três formas podem
+produzir o mesmo record HIR sem ter a mesma grammar.
+
+Essa diferença também reduz o bootstrap:
+
+- o parser reconhece `where` até o fim de uma expressão de tipo ou pattern;
+- o parser reconhece `on` somente entre a intenção de task e o binding;
+- o parser de `<...>` usa o schema do head depois da construção da AST;
+- o type checker, não o lexer, resolve slots, defaults e enum cases.
+
+`T<where: (...)>` faz sentido somente se `where` virar uma propriedade pública
+do tipo. Hoje o predicate restringe um tipo já formado.
+`spawn<domain: .compute>` faz sentido como aplicação estática, mas `spawn`
+possui apenas um slot estático útil na DB2. `on` continua mais curto e informa a
+relação.
+
+| Critério | `where` / `on` | `<slot: value>` |
+|---|---|---|
+| leitura sem schema | nomeia a relação | exige conhecer o head |
+| vários argumentos | não escala como record | escala com labels e defaults |
+| predicate com `<`/`>` | recovery simples | disputa visual com o delimitador |
+| HIR e self-host | normaliza para record | normaliza para o mesmo record |
+| evolução | keyword mantém o papel | renomear slot quebra source |
+| uso por modelos | forma comum e localizada | label reduz ambiguidade rara |
+
+O gate reabre `spawn<domain: ...>` se `spawn` adquirir dois slots estáticos
+públicos que não sejam redundantes. Deadline, budget runtime, prioridade
+dinâmica e executor value não contam para esse gate.
 
 **Líder DB2:** manter `where`, `async/spawn on`, `fn<C>` e unit sem label.
 
@@ -673,43 +717,149 @@ explícitos. O mesmo princípio permite `T` para `any P` quando `T: P`.
 
 ## 9. Memória, layout e alocação
 
-### 9.1 Modelo semântico
+### 9.1 Quatro contratos separados
+
+W separa quatro contratos:
+
+1. **Semântica:** owner, move, copy, borrow, shared, cleanup e erro.
+2. **Lowering:** escape, placement, task frame, drop edge e specialization.
+3. **Representação:** stack, register, heap, arena, niche, tag e allocator.
+4. **Host:** quota, isolation boundary, telemetry e policy de OOM.
+
+Somente o primeiro contrato define o significado normal do programa. Os outros
+podem mudar por target ou profile sem alterar o resultado observável.
 
 Todo valor que exige cleanup possui um owner. O compilador controla
-inicialização, move, borrow, escape e drop. Stack, heap, register, arena e
-pointer tag são escolhas de representação.
+inicialização, move, borrow, escape e drop. A escada semântica é:
 
-A escada da DB2 é:
-
-1. valor inline ou promovido para register;
+1. valor `Copy`;
 2. owner único com drop determinístico;
 3. borrow `ref` ou `inout`;
-4. região lexical/arena quando o lifetime comum é útil;
-5. `shared T` para múltiplos owners reais;
+4. região lexical quando muitos valores possuem o mesmo lifetime;
+5. `shared T` quando existem múltiplos owners reais;
 6. owner de service para estado serializado por instância;
-7. ponteiro manual somente na fronteira unsafe/FFI.
+7. ponteiro manual somente em `unsafe` ou FFI.
 
-Nenhum assignment escolhe silenciosamente entre move, ARC e arena. O tipo e a
-assinatura determinam a operação.
+Nenhum assignment escolhe silenciosamente entre move, reference counting e
+arena. O tipo e a assinatura determinam a operação.
 
-### 9.2 Owner único e shared
+### 9.2 Owner único, move e borrow
 
-`object`, buffers e resources são move-first. Last-use inference remove
-marcadores no caminho comum. `take` continua obrigatório quando a API exige
-transferência.
+`object`, buffer e resource são move-first. Last-use inference move um valor
+move-only quando nenhum caminho posterior o usa. `take` continua obrigatório
+quando a assinatura exige transferência:
 
-`shared T` é a forma de múltiplos owners. A implementação portátil usa reference
-counting. `weak T?` quebra ciclos. O compilador pode eliminar retains/releases
-quando prova ownership. Cruzar `spawn` exige contador thread-safe e `T: Send`.
+```w
+fn inspect(value: ref Recipe)
+fn replace(value: inout Recipe)
+fn enqueue(value: take Recipe)
+```
 
-ARC não é o default universal. Um valor sem compartilhamento não paga pelo
-shared ownership.
+As regras são:
 
-### 9.3 Regiões
+- `ref T` permite leitura compartilhada;
+- `inout T` cria acesso exclusivo durante a call;
+- um borrow nunca estende o lifetime do owner;
+- um move invalida o binding em todos os caminhos que o executam;
+- joins de controle exigem o mesmo estado de inicialização;
+- partial move de field não existe na DB2;
+- destructuring move o aggregate inteiro e inicializa novos bindings;
+- reatribuição avalia o novo valor antes de destruir o valor anterior.
 
-Região agrupa lifetimes; budget limita recursos. Eles são conceitos diferentes.
+O frontend calcula lifetimes por uso e controle de fluxo. O source não contém
+annotations de lifetime. Quando a prova falha, o diagnostic mostra o owner, o
+borrow, o uso conflitante e a menor correção conhecida.
+
+Um borrow pode permanecer vivo após `await` somente quando o compiler prova:
+
+1. que o owner permanece válido;
+2. que owner e borrow ocupam storage estável antes da suspensão;
+3. que o owner não é movido ou substituído;
+4. que não existe acesso mutável conflitante;
+5. que cancelamento também encerra o borrow.
+
+O compiler pode colocar os valores no mesmo task frame. Se não puder provar
+essas condições, ele exige ownership, copy ou uma API de pinning. Um raw pointer
+não contorna essa regra.
+
+### 9.3 Pinning e valores sensíveis ao endereço
+
+A maioria dos valores W pode mudar de endereço. Pinning só existe quando uma API
+depende de endereço estável, como uma callback C persistente, uma estrutura
+self-referential ou um task frame que contém borrows internos.
+
+Task frames gerados pelo compiler ficam estáveis enquanto uma suspensão exigir
+isso. Essa escolha não aparece no source e não exige annotation.
+
+**Líder DB2:** a API pública inicial usa um tipo de biblioteca, não keyword:
+
+```w
+let state = try Pinned.make(take callbackState)
+
+unsafe { register_callback(state.asOpaqueCPtr()) }
+```
+
+`Pinned.make` aloca storage estável e pode falhar. `Pinned<T>` pode mudar de
+endereço; o `T` apontado por ele não pode. O raw pointer só é válido enquanto o
+owner `Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um
+segundo owner.
+
+**Pesquisa:** os nomes `PinnedRef<T>`, `PinnedMut<T>` e `withMut` para borrows
+scoped ainda precisam de corpus. O contrato já é fixo:
+
+- pinning não é ownership compartilhado;
+- pinning não prova alias, validade ou thread safety;
+- drop ocorre antes de o storage estável ser reutilizado;
+- projection para um field pinned precisa de prova do compiler ou `unsafe`;
+- um tipo comum não paga por pinning.
+
+O modelo segue a separação usada pela
+[API `Pin` do Rust](https://doc.rust-lang.org/std/pin/): estabilidade de endereço
+é um contrato de API para valores sensíveis ao endereço, não uma propriedade de
+todo ponteiro.
+
+### 9.4 `shared`, `weak` e ciclos
+
+`shared T` cria múltiplos owners. A implementação portátil usa reference
+counting. `weak T?` não mantém o valor vivo. `upgrade()` retorna `shared T?`.
+
+```w
+object MenuSection {
+  title: String
+  parent: weak MenuSection?
+  children: Array<shared MenuSection>
+}
+```
+
+W não possui cycle collector por default. Um ciclo forte precisa de uma destas
+soluções:
+
+- uma aresta `weak`;
+- remoção ou `close` explícito;
+- uma região que destrói o grafo;
+- um owner de lifecycle, como service ou request scope.
+
+O compiler pode remover retains e releases quando prova owner único. Um handle
+que cruza `spawn` usa contagem thread-safe e exige que o conteúdo satisfaça
+`Send` e `Sync`. A implementação pode usar contagem local somente quando prova
+que o handle não cruza uma fronteira paralela.
+
+Overflow de contador nunca faz wrap. Ele encerra a isolation boundary antes de
+perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
+de o storage ser reutilizado.
+
+`ServiceRef<T>` não é `shared T`. O host controla o lifecycle da instance. Um
+handle de service mantém identity e capability, não ownership direto do estado.
+
+`w explain ownership` mostra retains, releases, possíveis ciclos e a razão de
+uma contagem atômica. Isso é evidence de tooling, não prova global de ausência
+de ciclo.
+
+### 9.5 Regiões
+
+Região agrupa lifetimes. Budget limita recursos. Eles são conceitos diferentes.
 A primeira implementação oferece uma API de arena. Uma forma de bloco continua
-experimental:
+**Pesquisa**:
 
 ```w
 region request(limit: 64<MiB>) {
@@ -718,63 +868,181 @@ region request(limit: 64<MiB>) {
 }
 ```
 
-Um valor não escapa da região por borrow. Um move para fora só é permitido
-quando o tipo e a operação transferem storage corretamente. Filhos async que
-usam a região precisam terminar antes do bloco.
+Um borrow não escapa da região. Um move para fora só ocorre quando a operação
+transfere storage para outro owner. Um objeto com `deinit` entra numa lista de
+drop da região; plain data pode usar bulk release.
 
-### 9.4 Allocator
+Todo filho async que usa a região termina antes do bloco. Cancelamento faz join
+dos filhos, executa drops em ordem inversa e só então libera o storage. Uma
+região não concede um budget de CPU, file descriptor ou network.
+
+### 9.6 Allocator e origem
 
 O profile portátil começa com o allocator do sistema. O host pode selecionar
-mimalloc ou outro allocator compatível. A seleção participa da recipe e do
-profile de performance; ela não muda ownership nem a API do programa.
+mimalloc ou outro allocator compatível. A seleção participa da recipe, do
+artifact fingerprint e do profile de performance. Ela não altera ownership.
 
-Um resource estrangeiro mantém seu deallocator. W nunca chama `free` num pointer
-de origem desconhecida.
+[mimalloc](https://github.com/microsoft/mimalloc) permanece uma opção forte para
+benchmark. Sua portabilidade, heaps separados e modos de segurança justificam o
+teste. Nenhum benchmark autoriza torná-lo universal sem matriz de target,
+sanitizer, override, unload e cross-thread free.
 
-Alocações que precisam de recovery usam uma API fallible ou uma região com
-budget. OOM geral encerra a isolation boundary conforme a seção de panic.
+Cada allocation possui uma origem lógica:
 
-### 9.5 Layout e ABI
+```text
+origin = allocator identity + instance + deallocator contract
+```
 
-Layout W comum é opaco entre builds. O compilador pode reorder fields privados,
+A origem pode ficar no owner, num control block ou numa side table. Ela não
+precisa ocupar bits do pointer. Move preserva a origem. FFI preserva o
+deallocator estrangeiro. W nunca chama `free` num pointer de origem
+desconhecida.
+
+Alocações que precisam de recovery usam API fallible ou uma região com budget.
+OOM geral encerra a isolation boundary conforme a seção de panic.
+
+### 9.7 Provenance, pointer e address
+
+Um pointer não é somente um número. Ele carrega um endereço e a autorização para
+acessar uma allocation durante um intervalo. Essa autorização inclui alcance,
+lifetime e mutabilidade.
+
+As regras de W são:
+
+- `ref`, `inout`, `Slice` e views seguras preservam provenance;
+- `c.ptr<T>` só permite dereference, arithmetic ou cast em `unsafe`;
+- offset válido permanece na mesma allocation;
+- comparar endereços não prova que dois pointers possuem a mesma provenance;
+- converter pointer em address não transfere autoridade;
+- converter um integer arbitrário em pointer não recria provenance;
+- null de C entra em W como `c.ptr<T>?` ou wrapper tipado.
+
+**Pesquisa:** `Address` será um valor inteiro próprio para logging, hashing e
+comparação. `address(of:)` não retorna um pointer dereferenceable. Uma API
+separada e `unsafe` poderá expor provenance somente para adapters que realmente
+recebem essa autoridade do host.
+
+Essa direção acompanha a distinção entre endereço e provenance descrita pela
+[documentação de pointers do Rust](https://doc.rust-lang.org/stable/std/ptr/) e
+pela [LLVM LangRef](https://llvm.org/docs/LangRef.html#ptrtoaddr-to-instruction).
+O lowering usa operações que preservam a distinção. Ele não faz round-trip
+pointer-integer por conveniência.
+
+### 9.8 Layout, addressability e ABI
+
+Layout W comum é opaco entre builds. O compiler pode reorder fields privados,
 usar niches, eliminar aggregates ou especializar storage não escapante.
 
 Layout observável exige uma fronteira:
 
 - `foreign c` para ABI C;
-- schema explícito para wire/persistência;
-- profile/fingerprint para ABI W binária;
-- tipo de storage dedicado para capacity/alignment observável.
+- schema explícito para wire ou persistência;
+- profile e fingerprint para ABI W binária;
+- tipo de storage dedicado para capacity ou alignment observável.
+
+Obter address, criar `ref`/`inout`, exportar por ABI ou persistir bytes cria uma
+barreira de representação. O compiler não compacta o storage atrás de um proxy
+com write-back oculto.
 
 `packed` e `aligned` são modifiers de layout seguros e restritos. Eles não são
 annotations genéricas. Unaligned access nunca produz uma referência W normal.
 
-### 9.6 Tagged values
+### 9.9 Seleção de representação
 
-Niches convencionais são a primeira otimização. Low-bit e high-bit tags só
-entram quando o target, allocator, sanitizer e pointer authentication permitem.
+A HIR mantém tipo lógico, ownership, provenance e layout boundary. Um passe
+tardio recebe:
 
-Regras:
+- data layout e ABI do target;
+- address width e alignment provados;
+- visibility e profile dos módulos;
+- allocator e runtime capabilities;
+- sanitizer, debugger e hardening ativos;
+- range, niche e escape proofs.
 
-- `Option<ref T>` não aloca;
-- o tamanho exato depende do profile;
-- `f64` não perde bits;
-- `Int` não perde range;
-- FFI nunca observa uma representação tagged W;
-- capability pointers e targets sem bits livres usam fallback expandido;
-- tooling explica quando um box/tag foi usado.
+O passe escolhe uma destas classes:
 
-Tagged address não participa do source e não é requisito do modelo de memória.
+| Classe | Uso | Promessa |
+|---|---|---|
+| portátil | tag e payload explícitos | funciona em todo target suportado |
+| niche | null e bit patterns inválidos | não muda valores válidos |
+| low-bit | alignment interno provado | somente storage não exposto |
+| high-bit | tagged address ou NaN boxing | pesquisa target-specific |
 
-### 9.7 Destruição
+`Option<ref T>` não aloca. O tamanho exato depende do profile. A
+[null pointer optimization do Rust](https://doc.rust-lang.org/core/option/#representation)
+e os [extra inhabitants do ABI Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeLayout.rst)
+demonstram a utilidade de niches. W não copia suas garantias de ABI sem declarar
+uma fronteira equivalente.
+
+Tags de endereço não provam owner, lifetime, thread safety ou validade. Elas
+podem guardar metadata imutável ou ajudar instrumentação. Reference count,
+generation mutável e deallocator permanecem fora dos bits de endereço.
+
+As seguintes garantias não dependem do profile:
+
+- `f64` preserva todos os bits e valores;
+- integers preservam o range declarado;
+- FFI recebe representação C canônica;
+- capability pointers usam sua representação nativa;
+- fallback expandido produz o mesmo resultado;
+- nenhum source pede `compact` ou tagged address.
+
+### 9.10 Negociação, hardening e instrumentação
+
+Cada object W registra o profile de representação usado nas interfaces
+compiladas. O linker só compartilha ABI W quando fingerprints compatíveis
+conferem. Caso contrário, recompila do source, usa adapter canônico ou rejeita o
+link.
+
+Hardening e diagnóstico têm precedência sobre compactação opcional. ASan,
+HWASan, TSan, MTE, pointer authentication, debugger e profiler podem desativar
+tags de W sem alterar semântica.
+
+Essa precedência é necessária porque:
+
+- o [Tagged Address ABI do Linux](https://docs.kernel.org/arch/arm64/tagged-address-abi.html)
+  possui enablement por thread e exceções de syscall;
+- o [MTE do Linux](https://docs.kernel.org/arch/arm64/memory-tagging-extension.html)
+  usa tags e granules próprios;
+- [pointer authentication no LLVM](https://llvm.org/docs/PointerAuth.html) usa
+  bits não utilizados e invariantes de IR;
+- [CHERI](https://ctsrd-cheri.github.io/cheri-c-programming/background/cheri-capabilities.html)
+  usa capabilities mais largas e uma tag de validade fora dos bytes normais.
+
+Uma otimização de high-bit não pode ser inferida somente pelo nome da CPU. O
+processo, OS, allocator, ABI e toolchain precisam confirmar a capacidade.
+
+Testes diferenciais executam o mesmo corpus em profile portátil e compacto.
+Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
+
+### 9.11 Destruição e recuperação de storage
 
 - locals são destruídos na ordem inversa da inicialização;
-- fields owned morrem com o owner;
-- `deinit` não usa `throws`;
+- fields owned morrem em ordem inversa da inicialização completa;
+- branches mantêm drop state explícito na HIR;
+- `deinit` é síncrono e não usa `throws`;
 - `defer` cobre todas as saídas estruturadas;
 - cancelamento executa cleanup;
 - panic não continua numa boundary parcialmente destruída;
-- foreign callbacks registram owner, context e destroy function.
+- foreign callbacks registram owner, context e destroy function;
+- o valor shared morre após o último owner; o control block morre após o último
+  weak handle;
+- pinned storage executa drop antes de perder estabilidade de endereço.
+
+O compiler pode eliminar drop flags depois de provar definite initialization.
+Ele não remove um cleanup observável.
+
+### 9.12 Explicação e medição
+
+`w explain memory` separa fatos, estimates e medições:
+
+- owner, move, borrow e drop são fatos semânticos;
+- stack, heap, region e tag são escolhas do artifact;
+- tamanho importado e peak runtime são estimates;
+- allocator calls, resident bytes e retain count são medições.
+
+Uma lens de import pode estimar código, static data e peak memory. Ela não
+publica um único número como previsão de runtime universal.
 
 ## 10. Property behaviors
 
@@ -1128,6 +1396,7 @@ T0 contém:
 
 - tipos primitivos, Option, Result e Error;
 - String, Array, Map, Set, Range e views;
+- Slice, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash, iteração, ownership, Send e Sync;
 - operações puras de texto, collection e matemática básica;
 - intrinsics necessários para memória segura e compile time.
@@ -1429,6 +1698,28 @@ O importer v0 aceita funções, enums, structs simples, opaque types, pointers,
 arrays e callbacks com context. Varargs, bitfields e unions exigem wrapper ou
 override explícito. Cada allocation mantém o deallocator de origem.
 
+O importer não declara uma interface segura só porque conseguiu ler o header.
+Uma wrapper W restabelece os contratos ausentes:
+
+| Forma C | Forma segura W quando provada |
+|---|---|
+| nullable pointer | `T?`, `ref T?` ou owner opcional |
+| pointer + length | `Slice<T>` ou `Array<T>` |
+| out pointer | return value ou `inout` scoped |
+| status code | `throws Error` |
+| callback + context | closure e owner de registration |
+| allocation + destroy | owner que preserva o deallocator |
+
+Uma call síncrona pode criar um pointer scoped a partir de `inout`. A assinatura
+C não pode armazená-lo. Uma callback que persiste usa storage pinned e um
+destroy callback. O adapter registra se a função captura somente address,
+provenance de leitura ou provenance de escrita.
+
+`c.ptr<T>` preserva a provenance recebida da fronteira. `address(of:)`, quando
+existir, não substitui o pointer original. Um `c.ptr<T>` criado de integer sem
+authority do host não pode ser dereferenced em W seguro nem receber uma
+provenance inventada pelo lowering.
+
 ### 18.2 `fn<Language>`
 
 ```w
@@ -1490,6 +1781,7 @@ detalhes puramente sintáticos. HIR registra:
 - símbolos, generics, constraints e overload escolhido;
 - tipo, conversion e numeric policy;
 - initialization, ownership, borrow e drop edges;
+- pointer provenance, address capture, pin e allocation origin;
 - errors, cancellation, panic e cleanup scopes;
 - task parent/child, sendability e execution preference;
 - effects/capabilities;
@@ -1536,17 +1828,132 @@ Um target freestanding pode usar somente `core`.
 
 ### 19.5 Bootstrap
 
-O seed portátil usa C11, CMake e Ninja. Ele compila o primeiro subset W. O
-compilador se torna self-hosted cedo. Versões posteriores usam uma versão W
-anterior e mantêm o seed C como rota de auditoria.
+**Direção:** o compiler principal fica self-hosted antes de tasks, services,
+tensors e package registry. O bootstrap possui um perfil source próprio,
+`bootstrap.w0`. Ele é W normal com uma lista menor de features.
 
-MLIR fica atrás de um adapter C estreito. C++ e TableGen podem implementar o
-dialeto sem contaminar toda a base self-hosted. EmitC não define a semântica de
-W.
+O seed portátil usa C11, CMake e Ninja. Ele aceita `bootstrap.w0` e emite C11
+portátil. Esse emitter existe somente para bootstrap, auditoria e recovery. O
+backend normal continua W/MLIR.
 
-O seed é validado em dois compiladores C e dois targets comuns. Builds em estágios
-comparam outputs e preservam divergências. Dependable C informa a matriz e o
-estilo do seed; ele não é um dialeto nem autoriza undefined behavior.
+MLIR fica atrás de um adapter C estreito e versionado. C++ e TableGen podem
+implementar dialects e passes. Tipos C++/MLIR não entram na HIR W. A
+[C API do MLIR](https://mlir.llvm.org/docs/CAPI/) é low-level e não possui
+garantia de estabilidade; por isso o bundle fixa sua revisão e testa o adapter.
+
+#### 19.5.1 Fechamento mínimo de `bootstrap.w0`
+
+O subset precisa expressar um lexer, parser, type checker, HIR, diagnostics,
+serializer e driver. Ele também precisa chamar o backend pelo adapter C.
+
+| Família | Capacidade mínima |
+|---|---|
+| source | UTF-8, comentários, módulos, imports e visibility |
+| bindings | `const`, `let`, `var`, assignment e definite initialization |
+| controle | `if`, `guard`, `switch`, loops, break, continue e return |
+| funções | funções livres, methods, `static fn`, labels, recursion e calls indiretas |
+| tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
+| protocols | requisitos para dispatch estático; sem existential |
+| números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
+| dados | String, views, Slice, ByteBuffer, Array, Map, Set e Range de T0 |
+| generics | type parameters, constraints simples e monomorphization |
+| memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
+| falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
+| C | opaque type, scalar, struct, pointer, function e callback + context |
+| entry | forma curta para `process.main` |
+| host | argv, filesystem, path, environment declarado e process adapter |
+| build | modules herméticos, interface serializada e output determinístico |
+
+Closures com capture podem entrar quando reduzirem o compiler sem ampliar muito
+o seed. O primeiro source W0 pode usar loops e funções nomeadas.
+
+O profile impõe três regras de determinismo:
+
+1. Iteração de `Map` ou `Set` não define ordem de output.
+2. Output ordenado usa `Array`, sort explícito ou uma collection ordenada.
+3. Clock, random, locale e environment não entram sem input declarado.
+
+Estas features não pertencem ao fechamento mínimo:
+
+- `async`, `spawn`, service e entries que não são `process.main`;
+- `shared`, `weak`, region pública e tagged address;
+- property behavior;
+- units, tensors, GPU e SIMD explícito;
+- existential `any`/`some`, refinements, const generics e contracts de valor;
+- `fn<Language>` inline;
+- package registry, portal, LSP e debugger;
+- reflection, macro e annotation.
+
+O compiler escrito em W0 pode reconhecer, verificar e baixar essas features. Ele
+não precisa usá-las no próprio source. Isso mantém o seed pequeno sem criar uma
+segunda linguagem.
+
+#### 19.5.2 Camadas do compiler
+
+O source fica dividido por dependência:
+
+```text
+compiler/core-w0
+  source + syntax + AST + HIR + types + diagnostics + driver
+
+compiler/backend-adapter
+  ABI C fixada para MLIR/LLVM
+
+compiler/extended
+  passes, tooling e adapters que podem usar W além de W0
+```
+
+`compiler/core-w0` permanece compilável pelo seed. `compiler/extended` pode
+usar a versão estável anterior de W. Um módulo extended não pode ser necessário
+para reconstruir o core.
+
+O SDK de bootstrap contém somente T0 e os adapters T1 listados na tabela. Ele
+não executa scripts de package. Seus arquivos, flags e environment são inputs
+da recipe.
+
+#### 19.5.3 Estágios
+
+```text
+C compiler
+  → w-seed-c
+  → stage A: w-bootstrap, compilado de W0 para C
+  → stage B: w, compilado por w-bootstrap via MLIR
+  → stage C: w, recompilado pelo stage B
+  → stage D: repetição hermética ou rota diversa
+```
+
+O stage C precisa compilar o mesmo source que produziu o stage B. O projeto
+compara:
+
+- AST, HIR e interfaces normalizadas;
+- objects e payload quando todos os inputs estão capturados;
+- diagnostics e testes do corpus;
+- diferenças de target metadata em sidecars separados.
+
+Igualdade entre stages detecta drift, mas não elimina por si só o problema de
+trusting trust. A rota de release de alta confiança usa
+[diverse double-compiling](https://dwheeler.com/trusting-trust/) com builds do
+seed por toolchains C diversos e recipes publicadas.
+
+O modelo de stage segue uma prática conhecida em compilers self-hosted. O
+[Rust compiler](https://rustc-dev-guide.rust-lang.org/building/bootstrapping/what-bootstrapping-does.html)
+separa stage 0 e recompila o compiler. O
+[Go toolchain](https://go.dev/doc/install/source) usa uma versão Go anterior e
+preserva o compiler Go 1.4 escrito em C como rota longa de bootstrap.
+
+#### 19.5.4 Evolução e recovery
+
+Uma release W `N` compila o core de `N + 1` dentro de uma janela publicada. Uma
+mudança que quebra essa janela exige uma ponte source ou um novo seed versionado.
+O seed antigo não precisa aceitar toda edição futura.
+
+O seed é validado com Clang, GCC e MSVC quando o target permitir. Pelo menos uma
+rota usa warnings máximos e sanitizers disponíveis. Dependable C informa a
+matriz; ele não é um dialect e não autoriza undefined behavior.
+
+O comando futuro `w bootstrap explain` lista stages, compiler parents, source
+digests, adapters, environment e pontos de convergência. Um artifact sem essa
+recipe pode funcionar, mas não recebe o estado “bootstrap reproduzido”.
 
 ### 19.6 Incrementalidade
 
@@ -1940,6 +2347,10 @@ Uma pesquisa só avança quando possui:
 | Família | Classe DB2 | Motivo |
 |---|---|---|
 | owner único, borrow e whole-value move | **Possível agora** | análise e lowering conhecidos |
+| provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
+| pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
+| `Pinned<T>` público | **Provável** | contrato claro; FFI persistente precisa de protótipo |
+| `shared` + `weak` sem cycle collector | **Provável** | RC é conhecido; tooling de ciclos precisa de avaliação |
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
@@ -1953,6 +2364,7 @@ Uma pesquisa só avança quando possui:
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
 | tensors ranked, `@` e views | **Provável T2** | MLIR ajuda; API e device model precisam de protótipo |
 | tagged pointers e high-bit addresses | **Pesquisa** | target-specific e sem vantagem sem benchmark |
+| `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
 | mimalloc universal | **Pesquisa** | profile possível; default exige matriz de targets |
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
 | seccomp por módulo importado | **Rejeitado** | import não é uma security boundary |
@@ -1974,11 +2386,13 @@ O gate final é o **Turno do Horizonte Violeta**:
 ```text
 entry
   → parser streaming de comanda
+  → compiler de cardápio restrito a bootstrap.w0
   → Restaurant service
   → async stock + spawn planning
   → controle PID com ranges e units
   → tensor de previsão
   → sensor C + fn<C>
+  → grafo shared/weak + callback pinned
   → pricing + billing idempotente
   → DiningRoom service
   → HTTP/TUI response
@@ -1986,7 +2400,8 @@ entry
 ```
 
 Uma injeção de falha em cada seta não pode deixar task, lease, buffer, mailbox
-item ou pagamento sem estado observável.
+item, shared owner, callback ou pagamento sem estado observável. O compiler de
+cardápio precisa continuar dentro do fechamento W0.
 
 O ensaio detalhado está no
 [Restaurante Última Luz](examples/restaurant/README.md).
@@ -2023,6 +2438,7 @@ O corpus compara, no mínimo:
 - `spawn on .compute` contra `spawn<domain: .compute>` e `spawn<.compute>`;
 - refinement postfix contra `T<where: (...)>`;
 - `fn<C>` contra `fn<lang: .c>`;
+- slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
 - import de namespace compacto contra a forma DB1 com `from`.
@@ -2068,9 +2484,10 @@ Saída: `w check` verifica o subset síncrono do restaurante.
 - dialeto W/MLIR e verifiers;
 - arithmetic/control lowering;
 - LLVM/native e runtime core;
-- seed C gera e executa o primeiro programa.
+- seed C aceita o primeiro `bootstrap.w0` e emite C11;
+- corpus diferencial entre o caminho seed-C e W/MLIR.
 
-Saída: payload determinístico para programas síncronos.
+Saída: payload determinístico para programas síncronos nos dois caminhos.
 
 ### 26.5 Fase 3 — memória, errors e C
 
@@ -2082,7 +2499,18 @@ Saída: payload determinístico para programas síncronos.
 
 Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
-### 26.6 Fase 4 — tasks
+### 26.6 Fase 4 — bootstrap e self-host
+
+- fechar o profile `bootstrap.w0`;
+- escrever `compiler/core-w0` em W;
+- fixar o adapter C para MLIR;
+- gerar stages A, B e C;
+- comparar HIR, interfaces, payloads e diagnostics;
+- publicar a recipe de recovery pelo seed.
+
+Saída: o core W compila o próprio source sem tasks, services ou packages.
+
+### 26.7 Fase 5 — tasks
 
 - async state machine;
 - `async let`, `spawn let` e domains;
@@ -2092,7 +2520,7 @@ Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
 Saída: restaurante executa I/O concorrente e planejamento paralelo com cleanup.
 
-### 26.7 Fase 5 — services e host entries
+### 26.8 Fase 6 — services e host entries
 
 - `entry` e host profiles;
 - service instance manager;
@@ -2102,7 +2530,7 @@ Saída: restaurante executa I/O concorrente e planejamento paralelo com cleanup.
 
 Saída: CLI e HTTP usam o mesmo service e exibem hops/queues.
 
-### 26.8 Fase 6 — packages e SDK
+### 26.9 Fase 7 — packages e SDK
 
 - package parser, resolver, lock e CAS;
 - builds `--locked`/offline;
@@ -2112,18 +2540,17 @@ Saída: CLI e HTTP usam o mesmo service e exibem hops/queues.
 
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 
-### 26.9 Fase 7 — ciência, self-host e extração
+### 26.10 Fase 8 — ciência e extração
 
 - units/refinements completos;
 - tensor CPU e `@`;
-- self-host W;
 - rebuild em estágios;
 - suíte de conformidade;
 - decisão sobre mover W para repository próprio.
 
 Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 
-### 26.10 Gates
+### 26.11 Gates
 
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
@@ -2133,9 +2560,9 @@ Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
-| self-host | seed e stages são auditáveis? | builds diversos e diff de outputs |
+| self-host | W0 fecha e stages são auditáveis? | mini compiler, builds diversos e diff de outputs |
 
-### 26.11 Checkpoint por fase
+### 26.12 Checkpoint por fase
 
 Cada checkpoint executa:
 
@@ -2163,6 +2590,8 @@ Cada checkpoint executa:
 | scalar literal | lacuna | `'x'` e `b'x'` |
 | modules multi-file | DB1 ratificada, spec divergente | manifest é source of truth |
 | resolver/digest | DB1 ratificada, docs divergentes | contrato consolidado |
+| pointer tagging | mecanismo de memória candidato | otimização de representação com fallback |
+| bootstrap | seed C e self-host cedo | profile W0 fechado antes de tasks |
 
 Estas mudanças são experimentais. A fotografia completa da DB1 continua
 acessível no
@@ -2271,13 +2700,26 @@ experimentar”, não “decisão irreversível”.
 | D2-093 | GPU/HDL | lowerings posteriores | requisito da v0 |
 | D2-094 | custom operators | rejeitado | precedência e operators do usuário |
 | D2-095 | annotations/macros | rejeitado na v0 | `@annotations`; macro AST universal |
-| D2-096 | portal | gerar das fontes após design freeze; protótipo congelado | manter páginas manuais; escolher Astro agora |
-| D2-097 | contrato `<...>` | aplicação estática com schema fechado por head | slots nomeados universais; enum cases sem labels; modifier map aberto |
+| D2-096 | portal | gerar após design freeze; protótipo congelado | páginas manuais; escolher Astro agora |
+| D2-097 | aplicação `<...>` | schema estático fechado por head | slots universais; cases sem labels; mapa aberto |
 | D2-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
 | D2-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
 | D2-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
-| D2-101 | recurso async | `defer async` explícito; obrigação linear em pesquisa | async destructor; `using await`; lint somente |
-| D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `static fn` sem receiver | `self` explícito; inferir static; função livre somente |
+| D2-101 | recurso async | `defer async`; obrigação linear em pesquisa | async destructor; `using await`; lint |
+| D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `static fn` sem receiver | `self`; inferir static; função livre |
+| D2-103 | camadas de memória | semântica separada de lowering, representação e host | tag ou allocator como semântica |
+| D2-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
+| D2-105 | pinning | interno sem annotation; `Pinned<T>` para storage estável | keyword universal; raw pointer |
+| D2-106 | ciclos shared | `weak`, close, região ou lifecycle owner; sem collector default | cycle collector universal |
+| D2-107 | pointer provenance | address separado; round-trip não restaura authority | pointer como integer |
+| D2-108 | origem de allocation | owner/control block/side table preserva deallocator | bits do pointer obrigatórios |
+| D2-109 | compactação | portátil → niche → low-bit; high-bit em pesquisa | tagged address obrigatório |
+| D2-110 | hardening | sanitizer, PAC, MTE e capability têm precedência | compactação vence o profile |
+| D2-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
+| D2-112 | seed output | W0 para C11, backend normal W/MLIR | MLIR completo no seed; C como backend público |
+| D2-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após DB2 completa |
+| D2-114 | cláusula estática | `where`/`on` no source, record comum na HIR | toda propriedade dentro de `<...>` |
+| D2-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
