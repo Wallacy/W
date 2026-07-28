@@ -39,7 +39,7 @@ Para instalação local persistente, gere um `.vsix` em uma cópia ou diretório
 temporário e instale-o pelo VS Code:
 
 ```powershell
-$wVsix = Join-Path $env:TEMP "w-language-0.0.5.vsix"
+$wVsix = Join-Path $env:TEMP "w-language-0.0.6.vsix"
 npx --yes @vscode/vsce package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```

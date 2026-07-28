@@ -72,6 +72,7 @@
   "ref"
   "shared"
   "spawn"
+  "static"
   "take"
   "throws"
   "try"
@@ -104,6 +105,7 @@
   function: (member_expression property: (identifier) @function.method.call))
 
 (parameter name: (identifier) @variable.parameter)
+(behavior_parameter name: (identifier) @variable.parameter)
 (closure_parameter name: (identifier) @variable.parameter)
 (argument label: (identifier) @variable.parameter)
 

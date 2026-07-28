@@ -122,7 +122,7 @@
         },
         {
           "name": "keyword.effect.w",
-          "match": "\\b(?:async|atomic|await|panic|spawn|throws|try|unsafe)\\b"
+          "match": "\\b(?:async|atomic|await|panic|spawn|static|throws|try|unsafe)\\b"
         },
         {
           "name": "keyword.other.ownership.w",

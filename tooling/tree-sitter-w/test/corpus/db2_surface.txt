@@ -191,6 +191,7 @@ fn classify<const batch: usize>(
   weights: ref Tensor<f32, shape: [8, 4]>,
 ): Tensor<f32, shape: [batch, 4]> {
   let logits = input @ weights
+  let first = logits[0, 0]
   return switch batch {
     case 0: logits
     case _: logits
@@ -262,6 +263,13 @@ fn classify<const batch: usize>(
         (binary_expression
           (identifier)
           (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (index_expression
+          (identifier)
+          (number_literal)
+          (number_literal)))
       (return_statement
         (switch_expression
           (identifier)
@@ -274,3 +282,127 @@ fn classify<const batch: usize>(
             (pattern)
             (expression_statement
               (identifier))))))))
+
+==================
+DB2 property behavior accessors
+==================
+
+behavior Versioned<Value> for Value {
+  storage var current: Value
+  storage var revision: u64 = 0
+  initialValue
+
+  init {
+    current = initialValue()
+  }
+
+  get {
+    return current
+  }
+
+  mut set(newValue) {
+    current = newValue
+    revision += 1
+  }
+}
+
+---
+
+(source_file
+  (behavior_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (behavior_storage_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_storage_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))
+      (behavior_value_declaration
+        (identifier))
+      (behavior_accessor
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (call_expression
+                (identifier)
+                (argument_list))))))
+      (behavior_accessor
+        (block
+          (return_statement
+            (identifier))))
+      (behavior_accessor
+        (behavior_parameter_list
+          (behavior_parameter
+            (identifier)))
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (identifier)))
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal))))))))
+
+==================
+DB2 static and mutable receivers
+==================
+
+struct Counter {
+  value: u64
+
+  static fn zero(): Counter {
+    return Counter(value: 0)
+  }
+
+  mut fn increment() {
+    value += 1
+  }
+}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)
+                  (number_literal)))))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal))))))))

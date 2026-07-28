@@ -54,6 +54,7 @@ const MODIFIER_KEYWORDS = [
   "ref",
   "shared",
   "spawn",
+  "static",
   "take",
   "throws",
   "try",
@@ -199,6 +200,7 @@ module.exports = grammar({
     function_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
+        optional("static"),
         optional("unsafe"),
         optional("mut"),
         optional("async"),
@@ -419,8 +421,15 @@ module.exports = grammar({
       seq(
         optional("mut"),
         field("kind", choice("init", "get", "set", "modify")),
-        optional($.parameter_list),
+        optional($.behavior_parameter_list),
         field("body", $.block),
+      ),
+    behavior_parameter_list: ($) =>
+      seq("(", commaSep($.behavior_parameter), optional(","), ")"),
+    behavior_parameter: ($) =>
+      seq(
+        field("name", $.identifier),
+        optional(seq(":", field("type", $.type))),
       ),
 
     entry_declaration: ($) =>
@@ -751,7 +760,16 @@ module.exports = grammar({
     optional_member_expression: ($) =>
       prec.left(15, seq(field("object", $._expression), "?.", field("property", $.identifier))),
     index_expression: ($) =>
-      prec.left(15, seq(field("object", $._expression), "[", field("index", $._expression), "]")),
+      prec.left(
+        15,
+        seq(
+          field("object", $._expression),
+          "[",
+          commaSep1(field("index", $._expression)),
+          optional(","),
+          "]",
+        ),
+      ),
 
     closure_expression: ($) =>
       prec.right(seq($.closure_parameters, "=>", choice($._expression, $.block))),
