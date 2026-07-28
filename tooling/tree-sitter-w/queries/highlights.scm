@@ -7,6 +7,8 @@
   (string_literal)
   (raw_string_literal)
   (multiline_string_literal)
+  (scalar_literal)
+  (byte_literal)
 ] @string
 
 [
@@ -18,7 +20,12 @@
 (boolean_literal) @boolean
 
 [
+  "alias"
+  "behavior"
+  "dimension"
   "enum"
+  "entry"
+  "extension"
   "fn"
   "foreign"
   "object"
@@ -27,6 +34,7 @@
   "struct"
   "test"
   "type"
+  "unit"
 ] @keyword.type
 
 [
@@ -36,6 +44,7 @@
   "catch"
   "continue"
   "defer"
+  "deinit"
   "do"
   "else"
   "for"
@@ -51,26 +60,41 @@
   "async"
   "atomic"
   "await"
+  "capture"
   "const"
   "copy"
   "export"
   "inout"
   "let"
   "mut"
+  "package"
   "panic"
   "ref"
+  "shared"
   "spawn"
   "take"
   "throws"
   "try"
+  "unsafe"
   "var"
+  "weak"
 ] @keyword.modifier
 
 [
   "as"
+  "any"
+  "false"
   "from"
+  "get"
   "import"
   "in"
+  "init"
+  "modify"
+  "on"
+  "set"
+  "some"
+  "storage"
+  "true"
   "where"
 ] @keyword
 
@@ -86,6 +110,8 @@
 (type_identifier) @type
 
 (type_parameter name: (type_identifier) @type.parameter)
+(dimension_declaration name: (type_identifier) @type)
+(unit_declaration name: (identifier) @constant)
 (enum_case name: (identifier) @constant)
 (enum_literal case: (identifier) @constant)
 (enum_pattern case: (identifier) @constant)
@@ -98,7 +124,7 @@
 
 [
   "=" "+=" "-=" "*=" "/=" "%="
-  "+" "-" "*" "**" "/" "%"
+  "+" "-" "*" "**" "/" "%" "@"
   "<<" ">>" "..." "..<" ">.." ">..<"
   "<" "<=" ">" ">=" "==" "!=" "is"
   "&" "^" "|" "&&" "||" "??"
@@ -106,5 +132,5 @@
   "is"
 ] @operator
 
-["(" ")" "[" "]" "{" "}"] @punctuation.bracket
+["(" ")" "[" "]" "{" "}" "<" ">"] @punctuation.bracket
 ["," ":" ";" "."] @punctuation.delimiter

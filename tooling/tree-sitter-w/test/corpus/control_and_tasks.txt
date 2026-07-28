@@ -108,36 +108,37 @@ async fn convert(): Receipt throws MenuError {
       base: (type_name
         name: (type_identifier)))
     body: (block
-      (switch_statement
-        value: (identifier)
-        (switch_case
-          pattern: (pattern
-            (enum_pattern
-              case: (identifier)
-              (pattern
-                (identifier))))
-          (return_statement
-            (unary_expression
-              operand: (unary_expression
-                operand: (call_expression
-                  function: (identifier)
-                  arguments: (argument_list
-                    (argument
-                      value: (identifier))))))))
-        (switch_case
-          pattern: (pattern
-            (enum_pattern
-              case: (identifier)
-              (pattern
-                (identifier))))
-          (return_statement
-            (unary_expression
-              operand: (unary_expression
-                operand: (call_expression
-                  function: (identifier)
-                  arguments: (argument_list
-                    (argument
-                      value: (identifier)))))))))))
+      (expression_statement
+        (switch_expression
+          value: (identifier)
+          (switch_case
+            pattern: (pattern
+              (enum_pattern
+                case: (identifier)
+                (pattern
+                  (identifier))))
+            (return_statement
+              (unary_expression
+                operand: (unary_expression
+                  operand: (call_expression
+                    function: (identifier)
+                    arguments: (argument_list
+                      (argument
+                        value: (identifier))))))))
+          (switch_case
+            pattern: (pattern
+              (enum_pattern
+                case: (identifier)
+                (pattern
+                  (identifier))))
+            (return_statement
+              (unary_expression
+                operand: (unary_expression
+                  operand: (call_expression
+                    function: (identifier)
+                    arguments: (argument_list
+                      (argument
+                        value: (identifier))))))))))))
   (function_declaration
     name: (identifier)
     parameters: (parameter_list)
@@ -334,34 +335,35 @@ fn shouldAccumulate(raw: f64, error: f64): Bool {
       (type_name
         (type_identifier)))
     (block
-      (switch_statement
-        (identifier)
-        (switch_case
-          (pattern
-            (range_pattern
-              (number_literal)
-              (number_literal)))
-          (return_statement
-            (boolean_literal)))
-        (switch_case
-          (pattern
-            (range_pattern
-              (number_literal)))
-          (binary_expression
-            (identifier)
-            (number_literal))
-          (return_statement
-            (boolean_literal)))
-        (switch_case
-          (pattern
-            (range_pattern
-              (number_literal)))
-          (binary_expression
-            (identifier)
-            (number_literal))
-          (return_statement
-            (boolean_literal)))
-        (switch_case
-          (pattern)
-          (return_statement
-            (boolean_literal)))))))
+      (expression_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (range_pattern
+                (number_literal)
+                (number_literal)))
+            (return_statement
+              (boolean_literal)))
+          (switch_case
+            (pattern
+              (range_pattern
+                (number_literal)))
+            (binary_expression
+              (identifier)
+              (number_literal))
+            (return_statement
+              (boolean_literal)))
+          (switch_case
+            (pattern
+              (range_pattern
+                (number_literal)))
+            (binary_expression
+              (identifier)
+              (number_literal))
+            (return_statement
+              (boolean_literal)))
+          (switch_case
+            (pattern)
+            (return_statement
+              (boolean_literal))))))))

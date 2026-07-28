@@ -674,8 +674,11 @@
   .w-token-keyword { color: var(--syntax-keyword); font-weight: 750; }
   .w-token-identifier { color: var(--syntax-identifier); }
   .w-token-string { color: var(--syntax-string); }
+  .w-token-scalar,
+  .w-token-byte { color: var(--syntax-string); }
   .w-token-string-incomplete { color: var(--syntax-warning); text-decoration: wavy underline; text-underline-offset: 0.18em; }
   .w-token-number { color: var(--syntax-number); }
+  .w-token-quantity { color: var(--syntax-number); font-weight: 650; }
   .w-token-comment { color: var(--syntax-comment); font-style: italic; }
   .w-token-doc-comment { color: var(--syntax-doc-comment); font-style: italic; }
   .w-token-comment-incomplete { color: var(--syntax-warning); font-style: italic; text-decoration: wavy underline; text-underline-offset: 0.18em; }

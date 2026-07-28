@@ -10,7 +10,7 @@ depende do file icon theme ativo: o VS Code só usa o ícone default quando o te
 permite language mode icons e não possui associação mais específica para `.w`.
 
 > **Status: Candidato.** A gramática é uma ajuda visual alinhada a
-> `W/spec/syntax.md` e aos exemplos do restaurante; não
+> `W/DESIGN.md` e aos exemplos do restaurante; não
 > define nem valida a linguagem.
 
 ## O que cobre
@@ -39,7 +39,7 @@ Para instalação local persistente, gere um `.vsix` em uma cópia ou diretório
 temporário e instale-o pelo VS Code:
 
 ```powershell
-$wVsix = Join-Path $env:TEMP "w-language-0.0.4.vsix"
+$wVsix = Join-Path $env:TEMP "w-language-0.0.5.vsix"
 npx --yes @vscode/vsce package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```
