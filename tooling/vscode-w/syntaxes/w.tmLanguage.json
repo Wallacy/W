@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#strings" },
+    { "include": "#units" },
     { "include": "#numbers" },
     { "include": "#keywords" },
     { "include": "#declarations" },
@@ -38,6 +39,14 @@
     "strings": {
       "patterns": [
         {
+          "name": "constant.character.byte.w",
+          "match": "b'(?:[ -&(-~]|\\\\(?:x[0-9A-Fa-f]{2}|[\\\\'nrt0]))'"
+        },
+        {
+          "name": "constant.character.scalar.w",
+          "match": "'(?:[^'\\\\\\r\\n]|\\\\.)'"
+        },
+        {
           "name": "string.quoted.triple.w",
           "begin": "\\\"\\\"\\\"",
           "end": "\\\"\\\"\\\"",
@@ -56,6 +65,20 @@
             { "name": "constant.character.escape.w", "match": "\\\\(?:[\\\"\\\\nrt0]|u\\{[0-9A-Fa-f]+\\})" },
             { "include": "#interpolation" }
           ]
+        }
+      ]
+    },
+    "units": {
+      "patterns": [
+        {
+          "name": "meta.quantity.w",
+          "match": "(-?[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?)(<)([^>\\r\\n]+)(>)",
+          "captures": {
+            "1": { "name": "constant.numeric.w" },
+            "2": { "name": "punctuation.definition.unit.begin.w" },
+            "3": { "name": "support.type.unit.w" },
+            "4": { "name": "punctuation.definition.unit.end.w" }
+          }
         }
       ]
     },
@@ -91,30 +114,30 @@
       "patterns": [
         {
           "name": "keyword.control.w",
-          "match": "\\b(?:break|cancel|case|catch|continue|defer|do|else|for|guard|if|in|return|switch|throw|while)\\b"
+          "match": "\\b(?:break|cancel|case|catch|continue|defer|deinit|do|else|for|guard|if|in|return|switch|throw|while)\\b"
         },
         {
           "name": "keyword.declaration.w",
-          "match": "\\b(?:const|enum|export|fn|foreign|from|import|let|mut|object|protocol|service|struct|test|type|var)\\b"
+          "match": "\\b(?:alias|behavior|const|dimension|entry|enum|export|extension|fn|foreign|from|import|let|object|package|protocol|service|struct|test|type|unit|var)\\b"
         },
         {
           "name": "keyword.effect.w",
-          "match": "\\b(?:async|atomic|await|panic|spawn|throws|try)\\b"
+          "match": "\\b(?:async|atomic|await|panic|spawn|throws|try|unsafe)\\b"
         },
         {
           "name": "keyword.other.ownership.w",
-          "match": "\\b(?:copy|inout|ref|take)\\b"
+          "match": "\\b(?:capture|copy|inout|ref|shared|take|weak)\\b"
         },
         {
           "name": "keyword.operator.w",
-          "match": "\\b(?:as|is|where)\\b"
+          "match": "\\b(?:any|as|get|init|is|modify|on|set|some|storage|where)\\b"
         }
       ]
     },
     "declarations": {
       "patterns": [
         {
-          "match": "\\b(fn|struct|object|enum|protocol|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(alias|behavior|dimension|entry|fn|struct|object|enum|extension|protocol|type|unit)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.declaration.w" },
             "2": { "name": "entity.name.type.w" }
@@ -126,7 +149,7 @@
       "patterns": [
         {
           "name": "support.type.builtin.w",
-          "match": "\\b(?:Bool|Void|String|Error|Any|Never|Type|Int|UInt|Float|Double|i(?:8|16|32|64|128|size)|u(?:8|16|32|64|128|size)|f(?:32|64))\\b"
+          "match": "\\b(?:Bool|Void|String|UnicodeScalar|Error|Never|Type|Int|UInt|Float|Double|i(?:8|16|32|64|128|size)|u(?:8|16|32|64|128|size)|f(?:16|32|64))\\b"
         },
         {
           "name": "entity.name.type.w",
@@ -146,7 +169,7 @@
       "patterns": [
         {
           "name": "keyword.operator.w",
-          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%=!<>~&^|?-]"
+          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%@=!<>~&^|?-]"
         }
       ]
     }

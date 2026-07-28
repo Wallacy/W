@@ -4,10 +4,12 @@
   // This is a deliberately small lexical fallback. It is not a W grammar and
   // must be replaced by the same Tree-sitter/WASM grammar used by editor tooling.
   const keywords = new Set([
-    "as", "async", "atomic", "await", "break", "cancel", "case", "catch", "const", "continue", "copy", "defer", "do", "else",
-    "enum", "export", "false", "fn", "for", "foreign", "from", "guard", "if", "import", "in", "inout",
-    "is", "let", "mut", "object", "panic", "protocol", "ref", "return", "service", "spawn", "struct", "switch", "take",
-    "test", "throw", "throws", "true", "try", "type", "var", "where", "while",
+    "alias", "any", "as", "async", "atomic", "await", "behavior", "break", "cancel", "capture", "case", "catch",
+    "const", "continue", "copy", "defer", "deinit", "dimension", "do", "else", "entry", "enum", "export", "extension",
+    "false", "fn", "for", "foreign", "from", "get", "guard", "if", "import", "in", "inout", "is", "let", "modify",
+    "mut", "object", "on", "package", "panic", "protocol", "ref", "return", "service", "set", "shared", "some",
+    "spawn", "struct", "switch", "take", "test", "throw", "throws", "true", "try", "type", "unit", "unsafe", "var",
+    "weak", "where", "while",
   ]);
   const pairedDelimiters = { "(": ")", "[": "]", "{": "}" };
   const operators = [">..<", ">..", "...", "..<", "=>", "??", "?.", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];
@@ -68,6 +70,28 @@
         }
         add(closed ? kind : "comment-incomplete", start, startLine, startColumn);
         if (!closed) notes.push({ tone: "warning", text: `Linha ${startLine}: comentário de bloco sem fechamento.` });
+        continue;
+      }
+
+      if (char === "'" || (char === "b" && source[index + 1] === "'")) {
+        const kind = char === "b" ? "byte" : "scalar";
+        if (kind === "byte") advance();
+        advance();
+        let closed = false;
+        while (index < source.length && source[index] !== "\n") {
+          if (source[index] === "\\") {
+            advance();
+            if (index < source.length) advance();
+          } else if (source[index] === "'") {
+            advance();
+            closed = true;
+            break;
+          } else {
+            advance();
+          }
+        }
+        add(closed ? kind : "string-incomplete", start, startLine, startColumn);
+        if (!closed) notes.push({ tone: "warning", text: `Linha ${startLine}: literal ${kind} sem fechamento.` });
         continue;
       }
 
@@ -134,7 +158,9 @@
       const number = rest.match(/^(?:0[xX][\dA-Fa-f](?:_?[\dA-Fa-f])*|0[bB][01](?:_?[01])*|\d(?:[\d_]*\d)?(?:\.\d(?:[\d_]*\d)?)?(?:[eE][+-]?\d(?:[\d_]*\d)?)?)/u);
       if (number) {
         advance(number[0].length);
-        add("number", start, startLine, startColumn);
+        const unit = source.slice(index).match(/^<[\p{L}\p{N}_°./*^()+-]+>/u);
+        if (unit) advance(unit[0].length);
+        add(unit ? "quantity" : "number", start, startLine, startColumn);
         continue;
       }
 
@@ -152,7 +178,7 @@
         continue;
       }
 
-      if ("+-*/%=!<>~&^|?".includes(char)) {
+      if ("+-*/%=!<>~&^|?@".includes(char)) {
         advance();
         add("operator", start, startLine, startColumn);
         continue;

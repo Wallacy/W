@@ -1,41 +1,79 @@
 <!doctype html>
 <html lang="pt-BR" data-theme="light">
-  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="description" content="Mapa da referência canônica da linguagem W." /><meta name="color-scheme" content="light dark" /><title>W Portal · Referência</title><link rel="stylesheet" href="/styles.css" /><script src="/w-syntax.js" defer></script><script src="/app.js" defer></script></head>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Mapa da referência canônica da linguagem W." />
+    <meta name="color-scheme" content="light dark" />
+    <title>W Portal · Referência</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/w-syntax.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
   <body class="directory-page">
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
-    <header class="topbar"><a class="brand" href="/" aria-label="W Portal — visão"><span class="brand-mark" aria-hidden="true">W</span><span class="brand-copy"><strong>W</strong><small>Portal</small></span></a><div class="draft-stamp"><span class="status-dot" aria-hidden="true"></span>Working Draft · 0.2</div><button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro"><span class="theme-icon" aria-hidden="true">◐</span><span data-theme-label>Tema</span></button></header>
-    <nav class="portal-nav" aria-label="Navegação principal"><a href="/">Visão</a><a href="/book">Livro</a><a href="/reference" aria-current="page">Referência</a><a href="/playground">Playground</a><a href="/status">Status</a></nav>
-    <div class="draft-banner" role="note"><strong>Fonte vence resumo.</strong> Em caso de conflito, use o documento canônico e confira seu estado.</div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="W Portal — visão">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span class="brand-copy"><strong>W</strong><small>Portal</small></span>
+      </a>
+      <div class="draft-stamp"><span class="status-dot" aria-hidden="true"></span>Working Draft · 0.3</div>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Usar tema escuro">
+        <span class="theme-icon" aria-hidden="true">◐</span><span data-theme-label>Tema</span>
+      </button>
+    </header>
+    <nav class="portal-nav" aria-label="Navegação principal">
+      <a href="/">Visão</a><a href="/book">Livro</a><a href="/reference" aria-current="page">Referência</a>
+      <a href="/playground">Playground</a><a href="/status">Status</a>
+    </nav>
+    <div class="draft-banner" role="note">
+      <strong>Uma fonte de verdade.</strong> Em caso de conflito, use <a href="/docs/DESIGN.md">DESIGN.md</a>.
+    </div>
     <main id="conteudo" class="directory-main">
-      <header class="directory-hero"><p class="eyebrow">Mapa canônico</p><h1>Referência</h1><p>O portal orienta a leitura; os Markdown abaixo possuem os fatos de linguagem e arquitetura.</p></header>
-      <section class="reference-group" aria-labelledby="start-title"><h2 id="start-title">Comece pelo mapa</h2><div class="reference-grid">
-        <a class="reference-card" href="/docs/README.md"><span class="badge decision">Direção</span><h3>README de W</h3><p>Visão, arquitetura em uma linha e ordem de exploração.</p><code>../README.md</code></a>
-        <a class="reference-card" href="/docs/STATUS.md"><span class="badge decision">Canônico</span><h3>Status e decisões</h3><p>Vocabulário, candidatos e questões abertas prioritárias.</p><code>../STATUS.md</code></a>
-        <a class="reference-card" href="/docs/DB1_REVIEW.md"><span class="badge proposal">Ratificada</span><h3>Revisão original da DB1</h3><p>Defaults candidatos e exceções humanas para as 97 questões do inventário original.</p><code>../DB1_REVIEW.md</code></a>
-        <a class="reference-card" href="/docs/DB1_ADDENDUM.md"><span class="badge open">Em aberto</span><h3>Adendo recuperado da DB1</h3><p>Uma rodada única para domínios de execução, entradas por host, tensores/ML e parâmetros compile-time.</p><code>../DB1_ADDENDUM.md · W-O100–W-O103</code></a>
-        <a class="reference-card" href="/docs/ARCHITECTURE.md"><span class="badge decision">Longo prazo</span><h3>Arquitetura do sistema</h3><p>Fronteiras entre linguagem, runtime, SDK, build, distribuição, tooling e evolução.</p><code>../ARCHITECTURE.md</code></a>
-        <a class="reference-card" href="/docs/LANGUAGE_TOUR.md"><span class="badge proposal">Candidato</span><h3>Passeio pela linguagem</h3><p>Exemplos dourados que alimentam o Livro.</p><code>../LANGUAGE_TOUR.md</code></a>
-      </div></section>
-      <section class="reference-group" aria-labelledby="spec-title"><h2 id="spec-title">Semântica candidata</h2><div class="reference-grid">
-        <a class="reference-card" href="/docs/spec/syntax.md"><h3>Sintaxe</h3><p>Tokens, bindings, funções, controle, ownership e FFI no source.</p><code>../spec/syntax.md</code></a>
-        <a class="reference-card" href="/docs/spec/types-and-memory.md"><h3>Tipos e memória</h3><p>Categorias, options, strings, ownership, regions e raw pointers.</p><code>../spec/types-and-memory.md</code></a>
-        <a class="reference-card" href="/docs/spec/concurrency.md"><h3>Concorrência</h3><p>Tasks estruturadas, paralelismo, cancelamento e executor.</p><code>../spec/concurrency.md</code></a>
-        <a class="reference-card" href="/docs/spec/modules.md"><h3>Módulos e services</h3><p>Namespaces, unidades de build e contratos runtime separados.</p><code>../spec/modules.md</code></a>
-      </div></section>
-      <section class="reference-group" aria-labelledby="design-title"><h2 id="design-title">Arquitetura e produto</h2><div class="reference-grid">
-        <a class="reference-card" href="/docs/design/compiler.md"><h3>Compilador</h3><p>Frontend, HIR, MLIR, lowerings e fatias verticais propostas.</p><code>../design/compiler.md</code></a>
-        <a class="reference-card" href="/docs/design/modules-and-runtime.md"><h3>Módulos e runtime</h3><p>Arquitetura candidata para services, workers e lifecycle.</p><code>../design/modules-and-runtime.md</code></a>
-        <a class="reference-card" href="/docs/design/packages.md"><h3>Packages</h3><p>Manifest, lock, cache, provenance, SBOM e reprodutibilidade.</p><code>../design/packages.md</code></a>
-        <a class="reference-card" href="/docs/design/stdlib.md"><h3>Biblioteca padrão</h3><p>Fronteiras, camadas, capabilities e escopo mínimo v0.</p><code>../design/stdlib.md</code></a>
-        <a class="reference-card" href="/docs/design/formatting.md"><span class="badge proposal">Candidato</span><h3>Formatter</h3><p>Largura 120, forma horizontal/vertical e checks de canonicalização.</p><code>../design/formatting.md</code></a>
-        <a class="reference-card" href="/docs/design/numerics-and-quantities.md"><span class="badge open">Pesquisa</span><h3>Numéricos, quantidades e tensores</h3><p>Unidades, floating point, shapes, operações tensoriais e lowerings científicos/ML.</p><code>../design/numerics-and-quantities.md</code></a>
-        <a class="reference-card" href="/examples/restaurant/REQUIREMENTS.md"><span class="badge proposal">Top-down</span><h3>Requisitos do restaurante</h3><p>Alternativas e consequências para frontend, HIR, memória e runtime.</p><code>../examples/restaurant/REQUIREMENTS.md</code></a>
-        <a class="reference-card" href="/examples/restaurant/DB1_ASSAY.md"><span class="badge proposal">Double-check</span><h3>Ensaio integrado da DB1</h3><p>H01–H14 convivendo num cenário único antes do frontend.</p><code>../examples/restaurant/DB1_ASSAY.md</code></a>
-        <a class="reference-card" href="/docs/design/documentation-and-tests.md"><span class="badge proposal">Candidato</span><h3>Documentação e testes</h3><p>Comentários <code>///</code>, doctests, testes co-localizados e runner único.</p><code>../design/documentation-and-tests.md</code></a>
-        <a class="reference-card" href="/corpus/README.md"><span class="badge proposal">Candidato</span><h3>Corpus de contrato</h3><p>12 positivos, 11 negativos, outputs futuros e snapshots determinísticos de CST.</p><code>../corpus/manifest.json · w.corpus/1</code></a>
-        <a class="reference-card" href="/docs/research/long-term-program.md"><span class="badge open">Pesquisa</span><h3>Programa de longo prazo</h3><p>Quinze trilhas com baseline, hipótese, gate, fallback e ondas de execução.</p><code>../research/long-term-program.md</code></a>
-      </div></section>
+      <header class="directory-hero">
+        <p class="eyebrow">Mapa canônico</p>
+        <h1>Referência</h1>
+        <p>O portal orienta a leitura. Um documento Markdown possui todo o design atual.</p>
+      </header>
+      <section class="reference-group" aria-labelledby="canonical-title">
+        <h2 id="canonical-title">Estado atual</h2>
+        <div class="reference-grid">
+          <a class="reference-card" href="/docs/DESIGN.md">
+            <span class="badge decision">Canônico</span>
+            <h3>Design integral</h3>
+            <p>Linguagem, memória, execução, SDK, compilador, packages, distribuição, tooling, plano e 96 decisões.</p>
+            <code>../DESIGN.md</code>
+          </a>
+          <a class="reference-card" href="/docs/README.md">
+            <span class="badge decision">Entrada</span>
+            <h3>README de W</h3>
+            <p>Escopo, maturidade e ordem de leitura.</p>
+            <code>../README.md</code>
+          </a>
+          <a class="reference-card" href="/examples/restaurant/README.md">
+            <span class="badge proposal">Ensaio visual</span>
+            <h3>Restaurante Última Luz</h3>
+            <p>Casos integrados, oracles e alternativas para revisar a superfície.</p>
+            <code>../examples/restaurant/README.md</code>
+          </a>
+        </div>
+      </section>
+      <section class="reference-group" aria-labelledby="source-title">
+        <h2 id="source-title">Sources do ensaio</h2>
+        <div class="reference-grid">
+          <a class="reference-card" href="/examples/restaurant/domain.w"><h3>Domínio</h3><p>Tipos, refinements, errors e transições.</p><code>domain.w</code></a>
+          <a class="reference-card" href="/examples/restaurant/units.w"><h3>Unidades</h3><p>SI, IEC e unidades customizadas.</p><code>units.w</code></a>
+          <a class="reference-card" href="/examples/restaurant/oracle.w"><h3>Oráculo</h3><p>Shapes, tensores, value generics e <code>@</code>.</p><code>oracle.w</code></a>
+          <a class="reference-card" href="/examples/restaurant/hardware.w"><h3>Hardware</h3><p>ABI C, raw pointers, unsafe e cleanup.</p><code>hardware.w</code></a>
+          <a class="reference-card" href="/examples/restaurant/restaurant.w"><h3>Service</h3><p>Tasks, domains, serial turn, memória e compensação.</p><code>restaurant.w</code></a>
+          <a class="reference-card" href="/examples/restaurant/app.w"><h3>Entradas</h3><p>CLI, HTTP, signals, Context e descriptor.</p><code>app.w</code></a>
+        </div>
+      </section>
     </main>
-    <footer><div class="footer-mark">W</div><div><strong>Referência W</strong><p>Links diretos aos documentos que possuem as decisões.</p></div><a href="/status">Ver status</a></footer>
+    <footer>
+      <div class="footer-mark">W</div>
+      <div><strong>Referência W</strong><p>Um contrato atual, uma projeção visual e um ensaio integrado.</p></div>
+      <a href="/docs/DESIGN.md">Abrir o design</a>
+    </footer>
   </body>
 </html>

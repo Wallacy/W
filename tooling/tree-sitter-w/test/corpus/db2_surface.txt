@@ -1,0 +1,276 @@
+==================
+DB2 units refinements and imports
+==================
+
+import std.si
+import std.tensor as tensor
+import { Quantity } from std.units
+
+export dimension Applause
+export unit clap: Applause
+export unit ovation = 1_000<clap>
+
+export type Ratio = f64 where (value in 0.0...1.0)
+export type Buffer<const count: usize> = [u8; count]
+
+---
+
+(source_file
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier))
+    (identifier))
+  (import_statement
+    (named_imports
+      (import_item
+        (identifier)))
+    (module_path
+      (identifier)
+      (identifier)))
+  (dimension_declaration
+    (declaration_prefix)
+    (type_identifier))
+  (unit_declaration
+    (declaration_prefix)
+    (identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (unit_declaration
+    (declaration_prefix)
+    (identifier)
+    (quantity_literal))
+  (type_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (parenthesized_expression
+      (binary_expression
+        (identifier)
+        (binary_expression
+          (number_literal)
+          (number_literal)))))
+  (type_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (fixed_array_type
+        (type
+          (type_name
+            (type_identifier)))
+        (identifier)))))
+
+==================
+DB2 domains unsafe and entries
+==================
+
+unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint {
+  return unsafe { c_checksum(data) }
+}
+
+async fn prepare(): Dish {
+  async on .network let stock = fetchStock()
+  spawn on .compute let plan = calculatePlan()
+  defer async { await stock.close() }
+  return await cook(stock, plan: plan)
+}
+
+entry LastLight {
+  process.main = run
+  http.fetch = fetch
+}
+
+---
+
+(source_file
+  (function_declaration
+    (language_tag
+      (identifier))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (block
+      (return_statement
+        (unsafe_expression
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (enum_literal
+          (identifier))
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (binding_declaration
+        (enum_literal
+          (identifier))
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (defer_statement
+        (block
+          (expression_statement
+            (unary_expression
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (argument_list))))))
+      (return_statement
+        (unary_expression
+          (call_expression
+            (identifier)
+            (argument_list
+              (argument
+                (identifier))
+              (argument
+                (identifier)
+                (identifier))))))))
+  (entry_declaration
+    (type_identifier)
+    (entry_binding
+      (module_path
+        (identifier)
+        (identifier))
+      (identifier))
+    (entry_binding
+      (module_path
+        (identifier)
+        (identifier))
+      (identifier))))
+
+==================
+DB2 tensors and switch expressions
+==================
+
+fn classify<const batch: usize>(
+  input: ref Tensor<f32, shape: [batch, 8]>,
+  weights: ref Tensor<f32, shape: [8, 4]>,
+): Tensor<f32, shape: [batch, 4]> {
+  let logits = input @ weights
+  return switch batch {
+    case 0: logits
+    case _: logits
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))
+            (type_argument
+              (identifier)
+              (static_argument_value
+                (static_array_literal
+                  (identifier)
+                  (number_literal)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))
+            (type_argument
+              (identifier)
+              (static_argument_value
+                (static_array_literal
+                  (number_literal)
+                  (number_literal))))))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (static_array_literal
+              (identifier)
+              (number_literal))))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (return_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (number_literal))
+            (expression_statement
+              (identifier)))
+          (switch_case
+            (pattern)
+            (expression_statement
+              (identifier))))))))

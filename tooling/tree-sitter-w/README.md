@@ -4,9 +4,8 @@
 > compilador W.
 
 Esta pasta contém a gramática estrutural executável que deve alimentar
-highlighting, navegação, folds e futuras projeções para editores. A baseline é
-[`W/spec/syntax.md`](../../spec/syntax.md); decisões e ambiguidades continuam em
-[`W/STATUS.md`](../../STATUS.md), especialmente W-O007 e W-O008.
+highlighting, navegação, folds e futuras projeções para editores. A baseline e
+as alternativas estão em [`W/DESIGN.md`](../../DESIGN.md).
 
 Tree-sitter é a única gramática **sintática** mantida neste experimento. Uma
 extensão VS Code pode derivar uma projeção TextMate para fallback lexical, mas
@@ -23,9 +22,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
-- nove casos estruturais internos e o
-  [corpus compartilhado](../../corpus/README.md), com 12 positivos e 11
-  negativos versionados.
+- casos estruturais internos, incluindo a superfície integrada da DB2.
 
 O corpus usa snippets autocontidos para que compiler, formatter, portal e
 extensão possam futuramente reutilizar os mesmos fixtures. Os arquivos do
@@ -41,7 +38,6 @@ npm install
 npm run generate
 npm test
 npm run parse:restaurant
-npm run corpus
 ```
 
 Ou execute todos os checks:
@@ -50,8 +46,8 @@ Ou execute todos os checks:
 npm run check
 ```
 
-`npm run check` também executa o corpus compartilhado. O CLI está fixado em
-`tree-sitter-cli` 0.26.11. Após `generate`, `src/` e o
+`npm run check` executa o corpus interno e o smoke test do restaurante. O CLI
+está fixado em `tree-sitter-cli` 0.26.11. Após `generate`, `src/` e o
 parser C gerado tornam a gramática consumível sem copiar regras para outro
 lexer. Um binding Node nativo é responsabilidade do consumidor e não é exigido
 para gerar/testar esta pasta.
@@ -79,8 +75,8 @@ neste corte. Eles só devem entrar depois de
   corte reconhece a forma canônica de um hash;
 - patterns e captures de closure estão apenas no subset mínimo; annotations não
   pertencem à v0;
-- parser normativo e compartilhamento de CST seguem gates de protótipo; a DB1
-  fixou `async fn` e mantém esta gramática como projeção de tooling.
+- parser normativo e compartilhamento de CST seguem gates de protótipo; esta
+  gramática continua uma projeção de tooling.
 
 Quando uma forma mudar, altere nesta ordem: decisão canônica, `grammar.js`,
 corpus, queries e consumidores gerados. Não mantenha uma lista de sintaxe

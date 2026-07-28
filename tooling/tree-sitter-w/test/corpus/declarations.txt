@@ -33,7 +33,7 @@ protocol Drawable {
       (identifier)
       (identifier)))
   (import_statement
-    items: (namespace_import
+    items: (legacy_namespace_import
       name: (identifier)
       alias: (identifier))
     module: (module_path
@@ -132,9 +132,10 @@ foreign c from "sqlite3.h" {
               name: (type_identifier)
               member: (type_identifier))
             (type_arguments
-              (type
-                base: (type_name
-                  name: (type_identifier)))))))
+              (type_argument
+                (type
+                  base: (type_name
+                    name: (type_identifier))))))))
       return_type: (type
         base: (type_name
           name: (type_identifier)

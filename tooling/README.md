@@ -5,17 +5,16 @@
 > existem.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
-semântica. A autoridade continua em [spec/syntax.md](../spec/syntax.md) e no
-[registro de decisões](../STATUS.md); nenhum highlighter aceita ou rejeita um
-programa em nome da linguagem.
+semântica. A autoridade continua em [DESIGN.md](../DESIGN.md); nenhum
+highlighter aceita ou rejeita um programa em nome da linguagem.
 
 ## Duas camadas, uma só gramática sintática
 
 | Camada | Papel imediato | Limite |
 |---|---|---|
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
-| [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; não é o parser normativo enquanto W-O007/W-O008 estiverem abertas |
-| [Corpus](../corpus/README.md) | manifest, positivos/negativos e snapshots de CST compartilhados | outputs são contratos; execução W ainda não existe |
+| [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
+| Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
@@ -41,11 +40,11 @@ W/MLIR e LLVM. Queries Tree-sitter são excelentes para seleção estrutural de
 tooling; usá-las como substituição textual de código esconderia validação
 semântica e source locations justamente onde W promete previsibilidade.
 
-Fixtures devem convergir para um corpus compartilhado. Toda construção nova
-entra primeiro na especificação/status, depois em um caso positivo e, quando
-estrutural, num negativo correspondente. Só então atualiza queries, TextMate e
-portal. Comparar cores pixel a pixel não é um oracle; comparar tokens essenciais,
-nós e ausência de divergência silenciosa é.
+Fixtures devem convergir para o corpus Tree-sitter até o frontend normativo
+existir. Toda construção nova entra primeiro em `DESIGN.md`, depois em um caso
+positivo e, quando estrutural, num negativo correspondente. Só então atualiza
+queries, TextMate e portal. Comparar cores pixel a pixel não é um oracle;
+comparar tokens essenciais, nós e ausência de divergência silenciosa é.
 
 ## Papel recomendado do Tree-sitter
 
@@ -76,9 +75,7 @@ integrações de editor.
    essa pasta e pressionar `F5`.
 2. Para desenvolver o parser incremental, use os comandos documentados em
    [tooling/tree-sitter-w/README.md](tree-sitter-w/README.md).
-3. Para validar o contrato compartilhado, rode `bun run runner.ts` em
-   [`../corpus/`](../corpus/README.md).
-4. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
+3. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
    playground identifica explicitamente qual engine de highlight está ativa.
 
 ## Caminho até o browser

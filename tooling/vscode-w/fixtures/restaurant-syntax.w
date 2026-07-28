@@ -1,54 +1,48 @@
-/// Fixture lexical: não é um programa completo nem define a gramática W.
-import { io, Url } from std.net
-import kitchen as restaurantKitchen from restaurant.kitchen
+/// Fixture lexical da superfície integrada. Não é um programa executável.
+import std.http
+import { Order } from restaurant.domain
+import std.tensor as tensor
 
-struct Recipe<T> {
-  name: String
-  style: CakeStyle
-  portions: u16
-  temperature: f64
-  ingredients: T
-}
+export type GuestCount = u16 where (value in 1...4096)
 
-enum KitchenError: Error {
-  unavailable
-  invalidRecipe(String)
-}
+dimension Applause
+unit clap: Applause
+unit ovation = 1_000<clap>
 
-enum CakeStyle {
-  plain
-  layered
-}
+const serviceTemperature = 180<degC>
+const commandLimit = 64<KiB>
+let scalar = 'W'
+let byte = b'\n'
+let rawPath = #"C:\last-light\${literal}"#
 
-const maxCooks = 1_024
-let endpoint = Url("https://restaurant.example/${maxCooks}")
-let rawPath = #"C:\kitchen\${literal}"#
-let note = """
-  Cake service: candidate source.
-  """
+export service LastLightRestaurant as RestaurantApi {
+  let pantry: ServiceRef<PantryApi>
+  var Lazy calibration = loadCalibration()
+  var atomic completed: u64 = 0
 
-fn inspect(recipe: ref Recipe<String>): Bool {
-  return recipe.portions > 0 && recipe.name != ""
-}
+  mut async fn place(order: take Order): Receipt throws RestaurantError {
+    async on .network let stock = pantry.reserve(order.course)
+    spawn on .compute let plan = optimize(order)
+    let (stock, plan) = try await (stock, plan)
 
-async fn makeCake(recipe: take Recipe<String>, oven: inout Oven): Cake throws KitchenError {
-  guard inspect(recipe) else {
-    throw .invalidRecipe("A recipe needs portions")
-  }
-
-  async let preheated = oven.preheat(to: recipe.temperature)
-  async let icing = prepareIcing(for: recipe.name)
-  let (readyOven, readyIcing) = try await (preheated, icing)
-
-  switch recipe.style {
-    case .layered:
-      spawn let left = bake(take copy recipe, in: readyOven.left)
-      spawn let right = bake(take recipe, in: readyOven.right)
-      let layers = try await (left, right)
-      return try await assemble(layers, with: readyIcing)
-    case .plain:
-      return try await bake(take recipe, in: readyOven)
+    defer async { await stock.release() }
+    return try await cook(take order, stock: stock, plan: plan)
   }
 }
 
-// 0xff_u8, 0b1010, 3.141_592_f64, .none, true, false, value?.name ?? "Cake"
+fn score(
+  observations: ref Tensor<f32, shape: [2, 3]>,
+  weights: ref Tensor<f32, shape: [3, 4]>,
+): Tensor<f32, shape: [2, 4]> {
+  return observations @ weights
+}
+
+foreign c from "last_light_probe.h" {
+  type ll_probe
+  fn ll_probe_close(probe: c.ptr<ll_probe>)
+}
+
+entry LastLight {
+  process.main = run
+  http.fetch = fetch
+}
