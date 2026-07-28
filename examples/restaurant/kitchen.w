@@ -7,7 +7,7 @@ import { Duration, Energy, Mass, Power, Temperature, energy } from restaurant.un
 
 export type ReservationId = u64
 export type OvenId = u16
-export type DutyCycle = f64 where (value in 0.0...1.0)
+export type DutyCycle = f64<(0.0...1.0)>
 
 export enum Ingredient {
   cometFlour
@@ -118,8 +118,8 @@ export struct PidController {
 fn integralMayAdvance(rawDuty: f64, error: f64): Bool {
   return switch rawDuty {
     case 0.0...1.0: true
-    case ..<0.0 where error > 0.0: true
-    case 1.0>.. where error < 0.0: true
+    case ..<0.0 if error > 0.0: true
+    case 1.0>.. if error < 0.0: true
     case _: false
   }
 }

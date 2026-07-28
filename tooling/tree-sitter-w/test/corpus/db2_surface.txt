@@ -10,8 +10,15 @@ export dimension Applause
 export unit clap: Applause
 export unit ovation = 1_000<clap>
 
-export type Ratio = f64 where (value in 0.0...1.0)
+export type Ratio = f64<(0.0...1.0)>
 export type Buffer<const count: usize> = [u8; count]
+export type SmallBytes = Array<u8><(value.count <= 64)>
+
+fn inspectStaticPayloads() {
+  let predicate = ContractProbe<(value.count > 0 && value.count <= 64)>()
+  let record = ContractProbe<{mode: .strict, retries: 0}>()
+  let pipeline = ContractProbe<[.parse, .verify, .lower]>()
+}
 
 ---
 
@@ -50,13 +57,13 @@ export type Buffer<const count: usize> = [u8; count]
     (type_identifier)
     (type
       (type_name
-        (type_identifier)))
-    (parenthesized_expression
-      (binary_expression
-        (identifier)
-        (binary_expression
-          (number_literal)
-          (number_literal)))))
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (contract_expression_argument
+            (binary_expression
+              (number_literal)
+              (number_literal)))))))
   (type_declaration
     (declaration_prefix)
     (type_identifier)
@@ -71,7 +78,84 @@ export type Buffer<const count: usize> = [u8; count]
         (type
           (type_name
             (type_identifier)))
-        (identifier)))))
+        (identifier))))
+  (type_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (contract_expression_argument
+            (binary_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (number_literal)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (contract_expression_argument
+                (binary_expression
+                  (binary_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (number_literal))
+                  (binary_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (number_literal))))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (static_record_literal
+                (identifier)
+                (static_argument_value
+                  (enum_literal
+                    (identifier)))
+                (identifier)
+                (static_argument_value
+                  (number_literal)))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (static_array_literal
+                (static_argument_value
+                  (enum_literal
+                    (identifier)))
+                (static_argument_value
+                  (enum_literal
+                    (identifier)))
+                (static_argument_value
+                  (enum_literal
+                    (identifier))))))
+          (argument_list))))))
 
 ==================
 DB2 domains unsafe and entries
@@ -81,9 +165,13 @@ unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint {
   return unsafe { c_checksum(data) }
 }
 
+unsafe fn<lang: .c> namedChecksum(data: c.ptr<c.uchar>): c.uint {
+  return unsafe { c_checksum(data) }
+}
+
 async fn prepare(): Dish {
-  async on .network let stock = fetchStock()
-  spawn on .compute let plan = calculatePlan()
+  async<.network> let stock = fetchStock()
+  spawn<.compute> let plan = calculatePlan()
   defer async { await stock.close() }
   return await cook(stock, plan: plan)
 }
@@ -128,6 +216,38 @@ entry LastLight {
                   (argument
                     (identifier))))))))))
   (function_declaration
+    (language_tag
+      (enum_literal
+        (identifier)))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (block
+      (return_statement
+        (unsafe_expression
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (identifier))))))))))
+  (function_declaration
     (identifier)
     (parameter_list)
     (type
@@ -135,16 +255,18 @@ entry LastLight {
         (type_identifier)))
     (block
       (binding_declaration
-        (enum_literal
-          (identifier))
+        (task_contract
+          (enum_literal
+            (identifier)))
         (pattern
           (identifier))
         (call_expression
           (identifier)
           (argument_list)))
       (binding_declaration
-        (enum_literal
-          (identifier))
+        (task_contract
+          (enum_literal
+            (identifier)))
         (pattern
           (identifier))
         (call_expression
@@ -224,8 +346,10 @@ fn classify<const batch: usize>(
               (identifier)
               (static_argument_value
                 (static_array_literal
-                  (identifier)
-                  (number_literal)))))))
+                  (static_argument_value
+                    (identifier))
+                  (static_argument_value
+                    (number_literal))))))))
       (parameter
         (identifier)
         (type
@@ -240,8 +364,10 @@ fn classify<const batch: usize>(
               (identifier)
               (static_argument_value
                 (static_array_literal
-                  (number_literal)
-                  (number_literal))))))))
+                  (static_argument_value
+                    (number_literal))
+                  (static_argument_value
+                    (number_literal)))))))))
     (type
       (type_name
         (type_identifier))
@@ -254,8 +380,10 @@ fn classify<const batch: usize>(
           (identifier)
           (static_argument_value
             (static_array_literal
-              (identifier)
-              (number_literal))))))
+              (static_argument_value
+                (identifier))
+              (static_argument_value
+                (number_literal)))))))
     (block
       (binding_declaration
         (pattern

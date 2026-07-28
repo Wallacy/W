@@ -148,6 +148,8 @@ Contextual vocabulary remains usable as names
 fn inspect(service: ServiceRef): Bool {
   let worker = service
   let nanoservice = worker
+  let on = worker
+  let where = on
   return true
 }
 
@@ -166,6 +168,14 @@ fn inspect(service: ServiceRef): Bool {
       (type_name
         (type_identifier)))
     (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
       (binding_declaration
         (pattern
           (identifier))

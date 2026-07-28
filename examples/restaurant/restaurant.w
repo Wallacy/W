@@ -103,7 +103,7 @@ async fn prepareDish(
   }
 
   async let preheat = lease.preheat()
-  spawn on .compute let mixture = mix(stock.ingredients, recipe: schedule.recipe)
+  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
 
   let ready = try await preheat
   let mixture = try await mixture

@@ -3,7 +3,7 @@ import std.http
 import { Order } from restaurant.domain
 import std.tensor as tensor
 
-export type GuestCount = u16 where (value in 1...4096)
+export type GuestCount = u16<(1...4096)>
 
 dimension Applause
 unit clap: Applause
@@ -23,8 +23,8 @@ export service LastLightRestaurant as RestaurantApi {
   static fn serviceName(): String { return "last-light" }
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
-    async on .network let stock = pantry.reserve(order.course)
-    spawn on .compute let plan = optimize(order)
+    async<.network> let stock = pantry.reserve(order.course)
+    spawn<.compute> let plan = optimize(order)
     let (stock, plan) = try await (stock, plan)
 
     defer async { await stock.release() }

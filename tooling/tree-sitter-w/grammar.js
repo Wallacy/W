@@ -74,12 +74,10 @@ const OTHER_KEYWORDS = [
   "init",
   "is",
   "modify",
-  "on",
   "set",
   "some",
   "storage",
   "true",
-  "where",
 ];
 
 // Keep this inventory next to the grammar. Highlight projections should use the
@@ -214,7 +212,15 @@ module.exports = grammar({
         choice(field("body", $.block), optional(";")),
       ),
 
-    language_tag: ($) => seq("<", field("language", $.identifier), ">"),
+    language_tag: ($) =>
+      seq(
+        "<",
+        choice(
+          field("language", $.identifier),
+          seq("lang", ":", field("language", $.enum_literal)),
+        ),
+        ">",
+      ),
 
     parameter_list: ($) => seq("(", commaSep($.parameter), optional(","), ")"),
     parameter: ($) =>
@@ -332,12 +338,6 @@ module.exports = grammar({
         optional($.type_parameters),
         "=",
         field("value", $.type),
-        optional(
-          seq(
-            "where",
-            field("predicate", $._expression),
-          ),
-        ),
         optional(";"),
       ),
 
@@ -514,7 +514,7 @@ module.exports = grammar({
           choice(
             seq(
               field("base", $.type_name),
-              optional($.type_arguments),
+              repeat($.type_arguments),
             ),
             field("base", $.tuple_type),
             field("base", $.fixed_array_type),
@@ -529,6 +529,8 @@ module.exports = grammar({
       seq("<", commaSep1($.type_argument), optional(","), ">"),
     type_argument: ($) =>
       choice(
+        $.contract_expression_argument,
+        $.static_record_literal,
         $.type,
         $.number_literal,
         seq(
@@ -539,16 +541,35 @@ module.exports = grammar({
       ),
     static_argument_value: ($) =>
       choice(
+        $.contract_expression_argument,
+        $.static_record_literal,
+        prec(1, $.identifier),
         $.type,
         $.number_literal,
         $.boolean_literal,
         $.string_literal,
+        $.enum_literal,
         $.static_array_literal,
+      ),
+    contract_expression_argument: ($) =>
+      seq("(", field("expression", $._expression), ")"),
+    static_record_literal: ($) =>
+      seq(
+        "{",
+        commaSep(
+          seq(
+            field("name", $.identifier),
+            ":",
+            field("value", $.static_argument_value),
+          ),
+        ),
+        optional(","),
+        "}",
       ),
     static_array_literal: ($) =>
       seq(
         "[",
-        commaSep(choice($.identifier, $.number_literal, $.static_array_literal)),
+        commaSep($.static_argument_value),
         optional(","),
         "]",
       ),
@@ -582,11 +603,10 @@ module.exports = grammar({
 
     binding_declaration: ($) =>
       seq(
-        optional(field("task_kind", choice("async", "spawn"))),
         optional(
           seq(
-            "on",
-            field("execution_domain", $.enum_literal),
+            field("task_kind", choice("async", "spawn")),
+            optional(field("task_contract", $.task_contract)),
           ),
         ),
         field("kind", choice("let", "var")),
@@ -595,6 +615,22 @@ module.exports = grammar({
         optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
         optional(";"),
+      ),
+    task_contract: ($) =>
+      seq(
+        "<",
+        commaSep1(
+          choice(
+            field("primary", $.enum_literal),
+            seq(
+              field("label", $.identifier),
+              ":",
+              field("value", $.static_argument_value),
+            ),
+          ),
+        ),
+        optional(","),
+        ">",
       ),
 
     return_statement: ($) =>
@@ -629,7 +665,7 @@ module.exports = grammar({
       seq(
         "case",
         field("pattern", $.pattern),
-        optional(seq("where", field("guard", $._expression))),
+        optional(seq("if", field("guard", $._expression))),
         ":",
         repeat($._statement),
       ),
@@ -741,6 +777,10 @@ module.exports = grammar({
         token.immediate("<"),
         commaSep1(
           choice(
+            $.contract_expression_argument,
+            $.static_record_literal,
+            $.static_array_literal,
+            $.enum_literal,
             $.type,
             seq(
               field("label", $.identifier),

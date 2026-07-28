@@ -168,202 +168,233 @@ Estas regras limitam todas as escolhas da DB2:
 14. Uma assinatura não substitui reprodução, auditoria ou platform signing.
 15. Recursos para máquinas também devem ajudar pessoas ou ferramentas comuns.
 
-## 3. Orçamento de símbolos
+## 3. Contratos estáticos e orçamento de símbolos
 
-Cada delimitador possui uma função mental principal:
+Cada delimitador mantém uma função mental principal:
 
 | Forma | Função principal na DB2 | Exemplos |
 |---|---|---|
-| `{...}` | corpo, scope ou descriptor | função, tipo, `entry`, `service`, `unsafe` |
-| `(...)` | chamada, parâmetros, agrupamento ou product literal | `cook(order)`, `(x: 1, y: 2)` |
-| `[...]` | coleção, mapa, indexação, slice ou shape | `[1, 2]`, `map[key]`, `[T; 16]` |
-| `<...>` | aplicação estática conhecida pelo head | `Array<u8>`, `fn<C>`, `9.81<m/s^2>` |
+| `{...}` | corpo, scope ou record delimitado por contexto | função, `entry`, `<{...}>` |
+| `(...)` | chamada, parâmetros, agrupamento ou expressão estática | `cook(order)`, `<(value > 0)>` |
+| `[...]` | coleção, indexação, shape ou lista estática | `[1, 2]`, `map[key]`, `<[.a, .b]>` |
+| `<...>` | contrato estático fechado, conhecido pelo head | `Array<u8>`, `spawn<.compute>`, `fn<C>` |
 | `:` | introduz um contrato associado | tipo, return, label, field ou case body |
-| `=` | define ou atualiza um valor/binding | binding, assignment, alias, slot |
+| `=` | define ou atualiza um valor ou binding | binding, assignment, alias ou slot |
 | `.` | qualificação, member ou case abreviado | `std.http`, `value.count`, `.none` |
 | `=>` | separa parâmetros e corpo de closure | `(item) => transform(item)` |
-| `where` | restringe a forma anterior | refinement, generic constraint, case guard |
-| `on` | seleciona preferência de execução | `spawn on .compute let plan = ...` |
-| `@` | contração matricial | `features @ weights` |
+| `if` | introduz condição ou guard runtime | `case ..<0 if error > 0` |
+| `@` | faz contração matricial | `features @ weights` |
 
-`<...>` marca uma aplicação estática conhecida pelo elemento à esquerda. Um
-número aceita uma expressão de unidade. Um tipo aceita seus parâmetros
-declarados. `fn<C>` aceita uma tag de frontend registrada.
+`<...>` é o envelope único para informação estática local. O elemento à
+esquerda é o head. O head publica um schema fechado com slots, tipos, defaults e
+cardinalidade.
 
-Chaves não representam units, sets ou object literals. Essa restrição mantém
-chaves como um sinal forte de scope.
+`where` e `on` deixam de ser keywords da forma líder. Eles continuam registrados
+como alternativas históricas.
 
-### 3.1 Hipótese de contrato estático fechado
+### 3.1 Formas do payload estático
 
-**Pesquisa.** Uma interpretação mais geral pode chamar `<...>` de cláusula de
-contrato estático. Cada elemento à esquerda fornece um schema fechado. O schema
-declara slots, tipos, defaults e cardinalidade.
+O delimitador interno informa a categoria do payload. Ele não define sozinho a
+semântica:
 
-Essa hipótese não cria um mapa universal de modifiers. Um head só aceita slots
-que sua declaração ou o compilador publicou. Cada slot aparece no máximo uma
+| Forma | Payload | Regra |
+|---|---|---|
+| `<T>` | tipo, valor const ou case primário | o schema identifica o kind |
+| `<name: value>` | argumento nomeado | o nome pertence à interface source |
+| `<(expression)>` | uma expressão compile-time | o head decide como usar o resultado |
+| `<{name: value}>` | um record compile-time | fields não criam storage no head |
+| `<[a, b]>` | uma lista compile-time ordenada | a lista não vira set implicitamente |
+
+Exemplos da forma líder:
+
+```w
+Array<u8>
+Tensor<f32, shape: [8, 4]>
+
+type Port = u16<(1...65_535)>
+type FixedCode = String<(value.graphemes.count == 10)>
+type SmallBuffer = Array<u8><(value.count <= 64)>
+
+struct Bounds {
+  min: usize
+  max: usize
+}
+
+type BoundedString<const bounds: Bounds> =
+  String<(value.scalars.count in bounds.min...bounds.max)>
+type Label = BoundedString<{min: 1, max: 40}>
+
+spawn<.compute> let plan = optimize(take snapshot)
+unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
+```
+
+Em um tipo, um payload Boolean é um refinement predicate. O nome `value`
+representa o valor refinado. Um range no slot primário é sugar para
+`value in range`. Portanto, `u16<(1...65_535)>` e
+`u16<(value in 1...65_535)>` possuem a mesma HIR.
+
+Um tipo generic já aplicado recebe o refinement em outro envelope.
+`Array<u8><(value.count <= 64)>` não mistura o element type com o predicate.
+
+`String<(.graphemes.count == 10)>` permanece **Alternativa**. A forma curta
+economiza um nome. Ela também conflita com a leitura de `.case`. A forma líder
+usa `value`.
+
+`Animal<Dog>` aplica `Dog` ao schema de `Animal`. A forma não cria inheritance.
+Se o parâmetro exige um protocol, o type checker verifica a conformance
+declarada pelo head.
+
+`<{...}>` é um static record. Ele não significa extension, inheritance, union ou
+storage adicional. `<[...]>` é uma static list ordenada. Ele não representa uma
+lista de constraints sem um schema que declare essa ordem.
+
+### 3.2 Schema fechado e HIR
+
+Um head aceita somente os slots que publicou. Cada slot aparece no máximo uma
 vez. Um argumento omitido precisa ter default ou inferência inequívoca.
 
-“Contrato estático” é um nome útil na HIR. A documentação de source usa
-“aplicação estática” enquanto W não tiver preconditions e postconditions. Isso
-evita confundir `<...>` com Design by Contract ou com o contrato completo de
-ownership de uma API.
-
-Uma representação possível no compilador self-hosted é:
+Uma representação possível no compiler self-hosted é:
 
 ```w
 enum StaticArgument {
   typeValue(TypeId)
   constValue(ConstValue)
   enumCase(EnumCaseId)
+  adapter(LanguageAdapterId)
   unit(UnitExpression)
-  predicate(PredicateId)
+  expression(ConstExpressionId)
+  record(StaticRecordId)
+  list(StaticListId)
 }
 
 struct StaticSlot {
   name: Symbol
   kind: StaticKind
   defaultValue: ConstValue?
+  primary: Bool
 }
 
 struct StaticContract {
   head: StaticHead
-  slots: Array<StaticSlot>
+  arguments: Array<StaticArgument>
 }
 ```
 
-`SourceLanguage`, `TaskKind` e `ExecutionDomain` são enums fechados na HIR. O
-compilador não representa esses valores como strings ou nomes livres.
+`ExecutionDomain` e outros cases de profile são enums fechados. `C` e `Rust`
+resolvem para uma `LanguageAdapterId` fixada no lock. A HIR guarda identity,
+version e digest do adapter. Ela não guarda uma string livre.
 
-O frontend pode normalizar açúcares diferentes para records e enums desse
-modelo. A HIR não precisa preservar uma construção especial para cada grafia:
+O frontend normaliza a superfície para records tipados:
 
 ```text
-f64 where (value in 0.0...1.0)
-  → TypeContract(base: f64, refinement: predicate)
+u16<(1...65_535)>
+  → TypeContract(base: u16, refinement: value in 1...65_535)
 
-spawn on .compute let plan = optimize(order)
+spawn<.compute> let plan = optimize(order)
   → TaskContract(kind: .parallel, domain: .compute)
 
-unsafe fn<C> checksum(...)
-  → FunctionContract(language: .c, safety: .unsafe)
+unsafe fn<Rust> checksum(...)
+  → ForeignFunctionContract(language: .rust, abi: .c, safety: .unsafe)
 ```
-
-Essa normalização separa a ergonomia do source da estrutura interna. O
-self-host não exige que toda propriedade interna apareça dentro de `<...>`.
 
 Os contratos estáticos seguem estas regras:
 
 1. O head declara um schema fechado.
 2. O evaluator aceita somente valores compile-time herméticos.
-3. Um slot nomeado faz parte da interface source.
-4. O formatter usa a ordem declarada pelo schema.
-5. Argumentos posicionais precedem argumentos nomeados.
-6. `w explain` mostra defaults, inferências e a forma normalizada.
-7. Nenhum slot concede authority, memory safety ou capability implicitamente.
+3. O formatter usa a ordem declarada pelo schema.
+4. Argumentos posicionais precedem argumentos nomeados.
+5. Um case sem label preenche somente o slot primário.
+6. A adição de um slot não reinterpreta source anterior.
+7. `w explain` mostra defaults, inferências e a HIR normalizada.
+8. Nenhum slot concede authority, memory safety ou capability.
 
-Nomes de argumentos melhoram leitura e permitem omitir parâmetros inferidos.
-Eles também criam compatibilidade source. Renomear um slot público quebra seus
-callers. O experimento de
+Nomes de argumentos melhoram a leitura. Eles também fazem parte da
+compatibilidade source. O experimento de
 [named type arguments do Scala 3](https://docs.scala-lang.org/scala3/reference/experimental/named-typeargs-spec.html)
-documenta o mesmo custo.
+mostra esse custo.
 
-Um schema pode declarar um slot posicional primário:
+`spawn` publica `domain` como slot primário. Por isso, `spawn<.compute>` é a
+forma líder. `spawn<domain: .compute>` permanece **Alternativa** para corpus e
+diagnostics.
+
+### 3.3 Refinement, composição e layout
+
+As operações abaixo permanecem distintas:
+
+| Intenção | Forma líder | Muda storage? |
+|---|---|---:|
+| restringir valores | `T<(predicate)>` | não |
+| criar identidade nominal | `type X = T` | não por default |
+| criar sinônimo | `alias X = T` | não |
+| adicionar methods ou conformance | `extension X { ... }` | não |
+| adicionar fields | `struct X { value: T ... }` | sim |
+| representar um de vários cases | `enum X { a(A) b(B) }` | conforme layout do enum |
+| sobrepor storage C | `foreign c union` ou wrapper `unsafe` | sim e explícito |
+
+Uma extension nunca adiciona storage. Herança de implementação não entra na
+DB2. Um safe sum usa `enum`. Uma C union sobrepõe bytes e pertence à fronteira
+de layout. Essas operações não usam `<{...}>`.
+
+**Pesquisa:** `A | B` pode representar um anonymous sum. `A & B` pode
+representar protocol composition ou structural intersection. Nenhuma forma
+recebe layout ou subtyping implícito antes de um protótipo.
+
+O [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html)
+usa `A | B` para escolha e `A & B` para composição estrutural. Uma C union
+sobrepõe storage. W não mistura os dois modelos.
+
+**Pesquisa:** `{field: value}` pode virar um anonymous record literal runtime.
+A forma precisa distinguir value struct de `object` com identidade. Ela também
+precisa recuperar errors perto de blocks. O static record de `<{...}>` não
+depende dessa decisão.
+
+Um head futuro pode publicar um static record como configuração. Nesse caso,
+`T<{...}>` aplica o schema de `T`. Ele não cria uma extensão universal.
+
+### 3.4 Funções e listas de contratos
+
+`fn<C>` usa o slot primário `language`. `fn<lang: .c>` permanece
+**Alternativa**. Um futuro slot `abi` pode compor com o primeiro sem mudar seu
+significado.
+
+`fn<(...)>`, `fn<{...}>` e `fn<[...]>` não ganham significado por simetria. O
+compiler rejeita a forma quando o schema de `fn` não publica o slot
+correspondente.
+
+Generic parameters continuam declarados. Um protocol constraint usa o contrato
+associado por `:`:
 
 ```w
-spawn<.io> let report = reconcile()
+fn encode<T: Serializable>(value: ref T): Bytes
 ```
 
-Essa forma permanece **Pesquisa**. O compilador não procura um slot pelo nome do
-case. O head precisa publicar qual slot é primário. A adição de outro slot não
-pode reinterpretar source anterior. `spawn` já informa paralelismo, portanto o
-schema não precisa de um slot `TaskKind`.
+**Pesquisa:** `T<[P, Q]>` pode listar constraints. A forma é curta, mas `[]`
+sugere ordem. Protocol constraints normalmente não possuem ordem. Um composite
+protocol nomeado continua a baseline.
 
-As aplicações estáticas públicas seguem estas regras adicionais:
+### 3.5 Parsing, formatter e gate
 
-1. Parâmetros de tipo posicionais continuam naturais em `Array<u8>` e
-   `Map<K, V>`.
-2. Um valor usa label quando a função do valor não é evidente pelo head.
-3. Um enum case sem label só preenche o slot primário declarado pelo schema.
-4. Dois slots do mesmo kind não usam inferência por nome de case.
-5. Um slot repetido é sempre erro.
-6. A ordem canônica pertence ao schema, não ao call site.
+Parênteses fecham a expressão antes do `>` externo. Essa regra reduz conflitos
+com `<`, `>`, `<=`, `>=` e generic nesting.
 
-Essa regra permite representar os argumentos como enums e records no compiler
-self-hosted. Ela não transforma `<...>` num mapa aberto de modifiers.
+O parser constrói o payload antes de consultar o schema. O type checker resolve
+slot, kind, default e case. O formatter não remove `value` de predicates.
 
-### 3.2 Formas angulares em avaliação
+O corpus precisa verificar:
 
-| Tema | Líder DB2 | Candidato de contrato | Observação |
-|---|---|---|---|
-| tipo e shape | `Tensor<f32, shape: [8, 4]>` | igual | já possui slots declarados |
-| frontend inline | `fn<C>` | `fn<lang: .c>` | o label explica o papel de `C` |
-| domínio | `spawn on .compute` | `spawn<domain: .compute>` | `on` lê como relação; `<>` escala para mais slots |
-| domínio abreviado | — | `spawn<.compute>` | curto, mas depende de inferência contextual |
-| refinement | `f64 where (predicate)` | `f64<where: (predicate)>` | postfix restringe; angular agrupa |
-| unit literal | `9.81<m/s^2>` | `9.81<unit: m/s^2>` | o label não acrescenta informação no slot único |
+1. recovery depois de delimitadores incompletos;
+2. nesting de generic e refinement;
+3. comparação dentro de `<(...)>`;
+4. static records e lists;
+5. diagnostics que nomeiam head e slot;
+6. leitura humana e por modelos sem consulta à HIR.
 
-`where` possui três usos relacionais: refinement, generic constraint e case
-guard. A forma postfix mantém essa família visível. Ela também evita conflito
-visual entre o fechamento `>` e comparações dentro do predicate.
+**Líder DB2:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
+literal sem label.
 
-`<where: (...)>` mantém toda a identidade do tipo em uma expressão compacta. Ele
-também compõe bem dentro de outro generic. O corpus deve comparar as duas formas
-antes de trocar a líder.
-
-`on` informa placement sem expor uma policy record. A forma angular cresce
-melhor se tasks ganharem vários slots estáticos. Policies runtime, como deadline
-e executor escolhido pelo usuário, continuam em APIs normais.
-
-Uniformidade interna não exige uniformidade gráfica. `where` e `on` são
-cláusulas relacionais. `<...>` aplica argumentos ao head. As três formas podem
-produzir o mesmo record HIR sem ter a mesma grammar.
-
-Essa diferença também reduz o bootstrap:
-
-- o parser reconhece `where` até o fim de uma expressão de tipo ou pattern;
-- o parser reconhece `on` somente entre a intenção de task e o binding;
-- o parser de `<...>` usa o schema do head depois da construção da AST;
-- o type checker, não o lexer, resolve slots, defaults e enum cases.
-
-`T<where: (...)>` faz sentido somente se `where` virar uma propriedade pública
-do tipo. Hoje o predicate restringe um tipo já formado.
-`spawn<domain: .compute>` faz sentido como aplicação estática, mas `spawn`
-possui apenas um slot estático útil na DB2. `on` continua mais curto e informa a
-relação.
-
-| Critério | `where` / `on` | `<slot: value>` |
-|---|---|---|
-| leitura sem schema | nomeia a relação | exige conhecer o head |
-| vários argumentos | não escala como record | escala com labels e defaults |
-| predicate com `<`/`>` | recovery simples | disputa visual com o delimitador |
-| HIR e self-host | normaliza para record | normaliza para o mesmo record |
-| evolução | keyword mantém o papel | renomear slot quebra source |
-| uso por modelos | forma comum e localizada | label reduz ambiguidade rara |
-
-O gate reabre `spawn<domain: ...>` se `spawn` adquirir dois slots estáticos
-públicos que não sejam redundantes. Deadline, budget runtime, prioridade
-dinâmica e executor value não contam para esse gate.
-
-**Líder DB2:** manter `where`, `async/spawn on`, `fn<C>` e unit sem label.
-
-**Pesquisa:** implementar uma única representação HIR de contrato estático.
-Comparar as grafias angulares antes de congelar a gramática.
-
-### 3.3 Gate para trocar a forma líder
-
-Uma grafia angular só substitui `where`, `on` ou a tag curta quando cumprir
-todos estes critérios:
-
-1. Leitores explicam o efeito sem consultar o schema.
-2. Uma edição incorreta recebe um diagnostic que nomeia o slot.
-3. O parser recupera depois de `<`, `>`, `<=` e generic nesting incompletos.
-4. O formatter produz uma forma única sem esconder argumentos.
-5. A adição de um slot não muda o significado de source existente.
-6. Humanos e modelos corrigem o mesmo erro com menos tentativas.
-
-O corpus usa três escalas: uma linha, uma assinatura nested e um módulo
-completo. Token count é uma métrica secundária. Clareza semântica e estabilidade
-de edição têm prioridade.
+**Alternativa:** preservar `where`, `on` e receiver implícito no corpus
+comparativo. Slots primários nomeados continuam aceitos para comparação e
+diagnostics. O formatter emite a forma curta quando o schema não é ambíguo.
 
 ## 4. Superfície integrada
 
@@ -374,7 +405,7 @@ import { Request, Response } from std.http
 import std.tensor as tensor
 
 export type OrderId = u64
-export type Ratio = f64 where (value in 0.0...1.0)
+export type Ratio = f64<(0.0...1.0)>
 
 export enum KitchenError: Error {
   unavailable
@@ -395,8 +426,8 @@ export service Kitchen as KitchenApi {
   var atomic completed: u64 = 0
 
   mut async fn prepare(order: take Order): Dish throws KitchenError {
-    async on .network let stock = checkStock(order)
-    spawn on .compute let plan = optimizePlan(order)
+    async<.network> let stock = checkStock(order)
+    spawn<.compute> let plan = optimizePlan(order)
 
     let (stock, plan) = try await (stock, plan)
     return try await execute(stock, plan: plan)
@@ -664,16 +695,17 @@ Não existem `null`, `undefined`, `uninitialized` ou `empty` universais.
 type GuestId = u64
 alias VisitorId = GuestId
 
-type Ratio = f64 where (value in 0.0...1.0)
+type Ratio = f64<(0.0...1.0)>
 
 type BoundedString<const min: usize, const max: usize> =
-  String where (value.scalars.count in min...max)
+  String<(value.scalars.count in min...max)>
 
 type ShortLabel = BoundedString<min: 1, max: 40>
 ```
 
-`where (...)` restringe a declaração anterior. Ele não é um argumento runtime e
-não ocupa `<...>`. Parênteses delimitam o predicate.
+`<(...)>` aplica um refinement estático ao tipo completo. Um range no slot
+primário inclui `value in` por sugar. Outros predicates usam `value`
+explicitamente.
 
 Um literal válido pode ser provado em compile time. Um valor runtime usa um
 construtor fallible:
@@ -687,10 +719,14 @@ Refined-to-base é implícito. Base-to-refined é fallible. O refinement não mu
 layout canônico em structs, ABI, FFI, persistência ou borrows. O optimizer pode
 estreitar register, SIMD e storage interno não escapante e depois reestender.
 
-As formas `T(where: predicate)`, `T<where: (...)>` e `T<where(...)>` continuam no
-registro de alternativas. A seção 3.2 trata `T<where: (...)>` como candidato de
-contrato fechado. As outras formas misturam construção e refinement sem declarar
-essa relação.
+A [Ada Reference Manual](https://docs.adacore.com/live/wave/arm22/pdf/arm22/arm-22.pdf)
+também separa um subtype restringido por range do base type. O trabalho sobre
+[Liquid Types](https://escholarship.org/uc/item/0vx7j8zc) trata refinements como
+predicates verificáveis. W usa esses precedentes sem adotar seu source syntax.
+
+As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
+continuam como **Alternativa**. A forma líder mantém o predicate dentro do
+contrato estático sem criar um slot chamado `where`.
 
 ### 8.4 Generics
 
@@ -1185,7 +1221,7 @@ W separa quatro eixos:
 
 1. a árvore de lifetime define ownership, join e cancelamento;
 2. `async` e `spawn` definem intenção de execução;
-3. `on` define preference de placement;
+3. o contrato `<.domain>` define preference de placement;
 4. service, entry e profile definem isolation ou affinity.
 
 Um executor não cria isolation por existir. Um executor serial pode atender mais
@@ -1201,7 +1237,7 @@ somente uma convenção de biblioteca.
 let digest = hash(data)
 let menu = try await fetchMenu()
 async let stock = pantry.reserve(order)
-spawn on .compute let plan = optimize(take snapshot)
+spawn<.compute> let plan = optimize(take snapshot)
 ```
 
 | Forma | Início | Intenção | Resultado |
@@ -1323,12 +1359,12 @@ policy conservadora.
 | host affinity | profile/adapter | somente por target compatível | pode compor |
 
 ```w
-async on .network let catalog = fetchCatalog()
-spawn on .compute let plan = optimize(take snapshot)
+async<.network> let catalog = fetchCatalog()
+spawn<.compute> let plan = optimize(take snapshot)
 ```
 
-`on` seleciona uma preference estática do profile. Ele não promete thread,
-affinity ou isolation. O profile define domínios, capacity e fallback.
+`<.domain>` seleciona uma preference estática do profile. Ele não promete
+thread, affinity ou isolation. O profile define domínios, capacity e fallback.
 
 A resolução usa esta ordem:
 
@@ -1337,9 +1373,9 @@ A resolução usa esta ordem:
 3. a preference herdada substitui o default do profile;
 4. o callee isolado sempre executa em sua isolation boundary.
 
-Uma call por `ServiceRef` não muda o placement do callee. Aplicar `on` ao child
-caller só muda o trabalho não isolado do child. `async let` e task groups herdam
-a preference. Um future owner runtime precisa declará-la de novo.
+Uma call por `ServiceRef` não muda o placement do callee. O contrato do child
+caller só muda seu trabalho não isolado. `async let` e task groups herdam a
+preference. Um future owner runtime precisa declará-la de novo.
 
 `spawn` em um domínio estritamente serial é error. Trabalho UI deve chamar o
 owner isolado:
@@ -1348,7 +1384,7 @@ owner isolado:
 await renderer.show(plan)
 ```
 
-`spawn on .ui` confundiria affinity serial com paralelismo.
+`spawn<.ui>` confundiria affinity serial com paralelismo.
 
 A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
 executor preference de actor isolation. W mantém essa separação na HIR.
@@ -1356,11 +1392,11 @@ executor preference de actor isolation. W mantém essa separação na HIR.
 Seleção dinâmica usa API:
 
 ```w
-let task = Task.spawn(on: executor, operation: work)
+let task = Task.spawn(executor: executor, operation: work)
 ```
 
-`spawn<domain: .compute>` e `spawn<.compute>` ficam como **Alternativa**. `on`
-continua **Líder DB2** porque nomeia a relação de placement.
+`spawn<.compute>` é **Líder DB2**. O slot `domain` é primário e fechado.
+`spawn<domain: .compute>` e `spawn on .compute` ficam como **Alternativa**.
 
 ### 12.7 Mobilidade e captures
 
@@ -1404,8 +1440,8 @@ comum não declara annotations. Uma prova manual sempre é `unsafe`.
 O compiler infere o predicate exigido pelo body generic e o grava na interface
 do módulo. Documentation gerada mostra o contrato. Adicionar um predicate
 inferido a uma API publicada é uma mudança de compatibilidade. O author pode
-fixar o contrato no source com `where (transferable(T))` ou
-`where (shareable(T))`. Essas formas são predicates, não traits para conformar.
+fixar o contrato no source com um predicate de tipo explícito. A forma dessa
+constraint continua em **Pesquisa**. Ela não cria traits para conformar.
 
 **Alternativa:** `<mobility: .transferable>` mantém o contrato explícito, mas cria
 outro uso de `<>`. Marker protocols públicos ficam rejeitados por enquanto.
@@ -1423,11 +1459,10 @@ let pages = try await TaskGroup.concurrentMap(
   using: fetchPage,
 )
 
-let mixtures = try await TaskGroup.parallelMap(
+let mixtures = try await TaskGroup.parallelMap<.compute>(
   take jobs,
   limit: 8,
   ordering: .input,
-  on: .compute,
   using: mixJob,
 )
 ```
@@ -1917,7 +1952,8 @@ temperature in 30<degC>...300<degC>
 ```
 
 O tuple depois de `in` é um conjunto finito intrínseco. Flags usam `hasAny` e
-`hasAll`. `where` refina um pattern; ele não substitui `&&` em um `if`.
+`hasAll`. Um `case` usa `if` para adicionar um guard. O guard não substitui
+`&&` em outra expressão Boolean.
 
 Somente tipos discretos/strideable podem iterar um Range. Outros usam
 `stride`. `clamp` exige um intervalo fechado.
@@ -2172,22 +2208,114 @@ provenance inventada pelo lowering.
 
 ```w
 unsafe fn<C> legacyChecksum(data: c.ptr<const c.uchar>, size: c.size): c.uint {
-  // body C hermético
+  uint32_t hash = 2166136261u;
+  for (size_t i = 0; i < size; ++i) {
+    hash = (hash ^ data[i]) * 16777619u;
+  }
+  return hash;
 }
 ```
 
-A assinatura usa tipos W/C conhecidos pela fronteira. O body é entregue ao
-frontend C fixado pela receita. Includes, flags, target, diagnostics, source map
-e provenance são inputs declarados.
+`fn<Language>` contém source da própria aplicação. Ele não importa uma library
+externa. A intenção é igual à de inline assembly, mas o body pertence a uma
+linguagem completa.
 
-`fn<C>` é uma ilha da aplicação, como inline assembly, não uma importação de
-biblioteca externa. Um frontend adicional só entra quando possui parser,
-toolchain, ABI, runtime, ownership adapter e lowering herméticos. Gerar LLVM IR
-não basta para tornar duas linguagens compatíveis.
+`C` é o adapter de bootstrap reservado. Outro nome resolve por um adapter
+declarado no manifest e fixado no lock. O mesmo alias não pode resolver para
+adapters diferentes dentro do product.
 
-`fn<lang: .c>` é o candidato nomeado do contrato estático. Ele explica o papel do
-argumento e permite um futuro slot de ABI sem criar uma annotation aberta.
-`fn<C>` continua líder até o corpus comparar leitura, edição e diagnostics.
+O parser W lê a assinatura e delimita o body. Ele preserva os bytes internos como
+source opaco. O adapter registrado faz lex, parse, type-check e code generation.
+O parser W nunca interpreta C, Rust ou outra linguagem como um subset W.
+
+O adapter também fornece um body scanner. O scanner encontra o delimitador final
+segundo as regras lexicais da linguagem externa. Ele não entrega sua AST ao
+parser W. Sem o adapter, a ferramenta preserva bytes, mas informa que não pode
+validar o fechamento da ilha.
+
+**Alternativa:** um raw body com fence hash permite recovery sem adapter. O
+corpus deve comparar a forma braced com `#{...}#` antes do design freeze.
+
+O builder agrupa as funções por:
+
+- adapter e versão de toolchain;
+- target, ABI e profile;
+- runtime e dependency graph;
+- compilation unit declarada.
+
+O adapter gera uma declaration equivalente na linguagem de destino. Ele também
+gera uma façade com C ABI para cada símbolo W. O artefato preferido é uma static
+system library ou um conjunto de object files. O conteúdo não vira “C”. A façade
+somente usa a ABI C do target.
+
+Essa diferença é importante para Rust. Um `staticlib` Rust inclui suas
+dependencies e partes do runtime. Várias `staticlib` Rust podem colidir. O
+builder agrupa ilhas Rust compatíveis em uma crate e uma unidade de link. A
+[Rust Reference](https://doc.rust-lang.org/reference/linkage.html) documenta
+essas propriedades.
+
+Somente os símbolos da façade ficam visíveis. O builder gera nomes com package,
+module, function e contract digest. A link recipe usa export list ou mecanismo
+equivalente do target.
+
+A fronteira aceita somente carriers com layout e ownership definidos:
+
+| Valor W | Carrier da façade |
+|---|---|
+| scalar C compatível | valor C correspondente |
+| slice ou String view | pointer, length e lifetime scoped |
+| owned buffer | pointer, length, capacity e função de drop |
+| enum fechado | tag e payload com layout declarado |
+| `throws E` | status e out value, ou result struct ABI |
+| callback | function pointer, context e destroy function |
+
+Rich W types não atravessam diretamente. O compiler gera wrappers W antes e
+depois da façade. Um borrow não vira owner. Um panic ou exception não atravessa
+a boundary sem um ABI e uma policy explícitos.
+
+Um refinement usa o carrier do base type. Inputs já possuem a prova W. Outputs
+são validados antes de recuperar o refined type. Uma falha segue o error contract
+da wrapper.
+
+Cada adapter recebe:
+
+- body inline ou source separado da aplicação;
+- assinatura W já reduzida a carriers suportados;
+- target triple, data layout, sysroot e capabilities;
+- imports, flags e dependencies fixados;
+- regra de panic, exception, blocking e callback;
+- symbol names e source map solicitados.
+
+O [guia de cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html)
+mostra que target triple, sysroot, include paths e library paths não podem vir
+do host por acidente.
+
+O adapter devolve:
+
+- object files, static archive ou outro artefato permitido pelo target;
+- symbol manifest e libraries nativas exigidas;
+- diagnostics mapeados para o source W;
+- dependencies descobertas e seus digests;
+- metadata de effects, ownership e concurrency;
+- provenance completa da invocação.
+
+O recipe fixa todos esses inputs. O builder não executa um comando livre
+fornecido pelo package. Um adapter é uma tool target hermética e versionada.
+
+A linguagem externa não precisa usar LLVM ou MLIR. Ela precisa produzir um
+artefato compatível com o linker e a façade do target. Compartilhar LLVM pode
+habilitar link-time optimization. Isso não prova ABI, layout, runtime ou
+ownership. A
+[MLIR Dialect Conversion](https://mlir.llvm.org/docs/DialectConversion/)
+também exige conversões e regras de legalidade explícitas.
+
+O primeiro adapter é C. Rust, Zig, C++ e Fortran são candidatos naturais quando
+o toolchain gera objects para o mesmo target. JS, TypeScript e outras linguagens
+com runtime entram somente se um adapter AOT fornecer runtime e artefato
+herméticos.
+
+`fn<C>` é **Líder DB2**. `fn<lang: .c>` permanece **Alternativa**. Um source
+separado com `from` e compilation units nomeadas permanecem **Pesquisa**.
 
 ## 19. Compilador e bootstrap
 
@@ -2514,6 +2642,8 @@ manual invalida o arquivo.
 - static linkage é preferido quando compatível;
 - build scripts não recebem rede ou filesystem irrestrito;
 - code generation é uma tool target hermética;
+- adapters `fn<Language>` são tool targets fixadas, não shell commands livres;
+- cada foreign unit possui source digest, toolchain, target, ABI e symbol manifest;
 - cache é content-addressed;
 - recipe fixa toolchain, target, profile, inputs e environment permitido;
 - CBOR determinístico é a representação canônica inicial;
@@ -2808,7 +2938,8 @@ Uma pesquisa só avança quando possui:
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
-| schema fechado de contrato estático | **Possível agora** | AST/HIR simples; grafia pública ainda exige corpus |
+| schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
+| static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
@@ -2822,7 +2953,8 @@ Uma pesquisa só avança quando possui:
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
 | seccomp por módulo importado | **Rejeitado** | import não é uma security boundary |
 | sandbox portátil por process/Wasm | **Provável** | depende do host, mas preserva o contrato |
-| `fn<Rust>`/`fn<Swift>` | **Pesquisa** | toolchain/runtime/ABI maiores que C |
+| `fn<C>` com static archive | **Provável** | depende primeiro da façade C e do build hermético |
+| `fn<Rust>`/`fn<Swift>` | **Pesquisa** | toolchain, runtime, ABI e agrupamento são maiores que C |
 | álgebra simbólica completa no core | **Rejeitado** | package T2 experimental preserva evolução |
 | custom operators e precedência do usuário | **Rejeitado** | piora parser, tooling e previsibilidade |
 | macros/annotations universais | **Rejeitado** | cria uma segunda linguagem e hidden behavior |
@@ -2890,8 +3022,9 @@ Métricas de modelos:
 O corpus compara, no mínimo:
 
 - units `<>` contra `[]`;
-- `spawn on .compute` contra `spawn<domain: .compute>` e `spawn<.compute>`;
-- refinement postfix contra `T<where: (...)>`;
+- `spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`;
+- `T<(predicate)>` contra `T where (predicate)` e receiver implícito;
+- static record/list contra interpretações universais de extension e constraints;
 - `fn<C>` contra `fn<lang: .c>`;
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
@@ -2918,6 +3051,7 @@ Saída: toda forma implementada possui contrato, alternativa e teste.
 - recursive-descent/Pratt;
 - EBNF;
 - CST/recovery;
+- contratos estáticos com expression, record e list payloads;
 - formatter idempotente;
 - Tree-sitter e semantic highlight projetados do corpus.
 
@@ -2950,7 +3084,8 @@ Saída: payload determinístico para programas síncronos nos dois caminhos.
 - borrows, drop e defer;
 - typed errors e panic boundary;
 - allocator hooks;
-- `foreign c`, unsafe e wrappers.
+- `foreign c`, unsafe e wrappers;
+- primeiro adapter `fn<C>` com body opaco e static archive.
 
 Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
@@ -2973,11 +3108,11 @@ capacidade necessária para o gate seguinte.
 | Gate | Capacidade mínima de W | Prova |
 |---|---|---|
 | SH0 | bytes, UTF-8, source locations, lexer e diagnostics | tokeniza o próprio source |
-| SH1 | parser, recovery, AST, modules, imports e names | cria a própria AST de forma estável |
+| SH1 | parser, recovery, AST, static contracts, modules, imports e names | cria a própria AST de forma estável |
 | SH2 | scalars, aggregates, enums, generics e type checking | verifica os módulos do core |
 | SH3 | initialization, move, borrow, drop, errors e collections | constrói HIR sem GC |
 | SH4 | HIR tipada, verifier, serialization e deterministic order | round-trip preserva a HIR |
-| SH5 | C ABI, filesystem, argv, path, environment e backend adapter | gera um compiler executável |
+| SH5 | C ABI, foreign units, filesystem, argv, path, environment e backend adapter | gera um compiler executável |
 | SH6 | recipes herméticas, stages A/B/C e comparação normalizada | recompila o mesmo source |
 | SH7 | seed C por toolchains diversos e recipe de recovery | reproduz a rota auditável |
 
@@ -2995,7 +3130,7 @@ services, units, tensors e packages não ampliam a base de recovery.
 ### 26.7 Fase 5 — tasks
 
 - async state machine;
-- `async let`, `spawn let` e domains;
+- `async<.domain> let`, `spawn<.domain> let` e inheritance de preference;
 - linear Task, `TaskOutcome` e cancellation;
 - `concurrentMap`/`parallelMap` bounded;
 - blocking adapter e callback scheduling;
@@ -3068,8 +3203,8 @@ Cada checkpoint executa:
 |---|---|---|
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
 | namespace import | `import name as alias from path` | `import path [as alias]` |
-| refinement | `T where predicate`, com alternativas | `T where (predicate)` |
-| execution preference | superfície aberta | `async/spawn on .domain` |
+| refinement | `T where predicate`, com alternativas | `T<(predicate)>` |
+| execution preference | superfície aberta | `async/spawn<.domain>` |
 | entry | superfície aberta | forma curta + descriptor tipado |
 | tensors | nested baseline, operadores abertos | nested + `@`, broadcast explícito |
 | value generics | aberto | `const` parameters e labels declarados |
@@ -3080,6 +3215,8 @@ Cada checkpoint executa:
 | resolver/digest | DB1 ratificada, docs divergentes | contrato consolidado |
 | pointer tagging | mecanismo de memória candidato | otimização de representação com fallback |
 | bootstrap | seed C e self-host cedo | profile W0 fechado antes de tasks |
+| static contract | aplicações pontuais | envelope `<...>` fechado por head |
+| ilha multilíngue | `fn<lang>` em pesquisa | adapter externo, façade C e static archive |
 
 Estas mudanças são experimentais. A fotografia completa da DB1 continua
 acessível no
@@ -3106,7 +3243,7 @@ experimentar”, não “decisão irreversível”.
 | D2-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | D2-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
 | D2-013 | alias | `alias X = T` | `typealias`; context-dependent `type` |
-| D2-014 | refinement | `T where (predicate)` | `T<where: (predicate)>`; `T(where:)` |
+| D2-014 | refinement | `T<(predicate)>`; range como sugar | `T where (...)`; receiver implícito; `T(where:)` |
 | D2-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
 | D2-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
 | D2-017 | opaque return | `some P` | existential; generic nomeado |
@@ -3131,7 +3268,7 @@ experimentar”, não “decisão irreversível”.
 | D2-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
 | D2-037 | concorrência | `async let` | Future/Promise; task API somente |
 | D2-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
-| D2-039 | execution domain | `async/spawn on .domain` | `<domain: .name>`; `<.name>`; descriptor-only |
+| D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name`; descriptor-only |
 | D2-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
 | D2-042 | cancelamento | statement cooperativo | method only; async thread cancellation |
@@ -3164,7 +3301,7 @@ experimentar”, não “decisão irreversível”.
 | D2-069 | prelude | pequena, edition-frozen | toda std implícita; nada implícito |
 | D2-070 | print | T1 contextual ao host | T0 intrinsic; `io.print` obrigatório |
 | D2-071 | C | `foreign c` + unsafe wrapper | C superset; generated bridge only |
-| D2-072 | inline language | `fn<C>` primeiro | `fn<lang: .c>`; library import; multi-language v0 |
+| D2-072 | inline language | `fn<C>` com adapter externo | `fn<lang: .c>`; library import; multi-language v0 |
 | D2-073 | parser | recursive-descent/Pratt + EBNF | generated parser; Tree-sitter compiler |
 | D2-074 | editor parser | Tree-sitter projection | compiler CST compartilhada |
 | D2-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
@@ -3189,7 +3326,7 @@ experimentar”, não “decisão irreversível”.
 | D2-094 | custom operators | rejeitado | precedência e operators do usuário |
 | D2-095 | annotations/macros | rejeitado na v0 | `@annotations`; macro AST universal |
 | D2-096 | portal | gerar após design freeze; protótipo congelado | páginas manuais; escolher Astro agora |
-| D2-097 | aplicação `<...>` | schema estático fechado por head | slots universais; cases sem labels; mapa aberto |
+| D2-097 | aplicação `<...>` | contrato fechado por head e payload tipado | slots universais; mapa aberto |
 | D2-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
 | D2-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
 | D2-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
@@ -3206,7 +3343,7 @@ experimentar”, não “decisão irreversível”.
 | D2-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
 | D2-112 | seed output | W0 para C11, backend normal W/MLIR | MLIR completo no seed; C como backend público |
 | D2-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após DB2 completa |
-| D2-114 | cláusula estática | `where`/`on` no source, record comum na HIR | toda propriedade dentro de `<...>` |
+| D2-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
 | D2-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
 | D2-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda a DB2 |
 | D2-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
@@ -3215,7 +3352,7 @@ experimentar”, não “decisão irreversível”.
 | D2-120 | outcome de task | success/error/canceled; panic encerra boundary | cancel em `E`; panic como Result |
 | D2-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
 | D2-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
-| D2-123 | resolução de domain | isolation/affinity vencem preference | `on` substitui isolation |
+| D2-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
 | D2-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
 | D2-125 | stream/channel | pull e capacity bounded; `yield` adiado | generator unbounded |
 | D2-126 | memory model | safe W data-race-free; DRF-SC salvo atomics explícitos | race definida em safe code |
@@ -3230,6 +3367,12 @@ experimentar”, não “decisão irreversível”.
 | D2-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
 | D2-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
 | D2-137 | RPC encadeado | `CallPipeline` explícito em pesquisa | toda `ServiceRef` vira Promise lazy |
+| D2-138 | payload angular | `()`, `{}` e `[]` são expression, record e list | três operadores universais |
+| D2-139 | extensão de tipo | refinement, extension, struct, enum e C union separados | `T<{...}>` universal |
+| D2-140 | foreign artifact | unit agrupada, archive/object e façade C | archive por função; C source obrigatório |
+| D2-141 | foreign parser | body opaco entregue ao adapter da linguagem | parser W interpreta subset externo |
+| D2-142 | foreign delimiter | body braced com scanner do adapter | raw fence hash; parser W conhece strings externas |
+| D2-143 | language tag | `LanguageAdapterId` fixada no lock | enum eterno no compiler; string ou command livre |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

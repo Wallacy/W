@@ -3,7 +3,7 @@
 import { Course, Currency, DomainError, Money, OrderId } from restaurant.domain
 
 export type PaymentId = u64
-export type IdempotencyKey = String where (value.scalars.count in 8...128)
+export type IdempotencyKey = String<(value.scalars.count in 8...128)>
 
 export enum PaymentState {
   authorized

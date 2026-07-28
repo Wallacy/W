@@ -55,8 +55,8 @@ export async fn mixPair(
   left: take MixingJob,
   right: take MixingJob,
 ): (MixingResult, MixingResult) throws BrigadeError {
-  spawn on .compute let leftResult = mixJob(take left)
-  spawn on .compute let rightResult = mixJob(take right)
+  spawn<.compute> let leftResult = mixJob(take left)
+  spawn<.compute> let rightResult = mixJob(take right)
   return try await (leftResult, rightResult)
 }
 
@@ -68,11 +68,10 @@ export async fn mixBatch(
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
 
-  return try await TaskGroup.parallelMap(
+  return try await TaskGroup.parallelMap<.compute>(
     take jobs,
     limit: parallelism,
     ordering: .input,
-    on: .compute,
     using: mixJob,
   )
 }
@@ -85,11 +84,10 @@ export async fn inspectEveryFailure(
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
 
-  return await TaskGroup.parallelCollect(
+  return await TaskGroup.parallelCollect<.compute>(
     take jobs,
     limit: parallelism,
     ordering: .input,
-    on: .compute,
     using: mixJob,
   )
 }
