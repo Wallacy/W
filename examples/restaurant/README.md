@@ -14,12 +14,15 @@ integrada de [DESIGN.md](../../DESIGN.md).
 ```text
 LastLight entry
   → parser streaming da Comanda de Íon
+  → compiler W0 do Cardápio de Fótons
   → Salão Prisma
   → Cozinha de Maré Fria
   → controle PID do forno
   → Brigada do Cometa Manso
   → Oráculo de Mesas
   → Sonda de Aroma
+  → Arquivo de Ecos shared/weak
+  → Sino de Encerramento pinned
   → Conta da Aurora Tardia
   → resposta HTTP/TUI
 ```
@@ -38,6 +41,8 @@ owner e estado observável.
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `hardware.w` | fronteira C, layout e deallocator |
+| `memory.w` | shared/weak, borrow suspenso, pinning e callback C |
+| `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -196,6 +201,7 @@ Aceite:
 - um product seleciona `entry LastLight`;
 - CLI e HTTP chegam ao mesmo service;
 - parser, units, tensor, C, billing e resposta ficam alcançáveis;
+- shared graph, pinned callback e W0 compiler ficam alcançáveis;
 - build `--locked` produz o mesmo payload;
 - trace explica task tree, service hops, allocations e resultado;
 - toda falha preparada termina com owners e scopes fechados.
@@ -211,11 +217,47 @@ Aceite:
 - `spawn on .compute` e `spawn<domain: .compute>` produzem o mesmo task contract;
 - `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
 - um slot repetido produz diagnostic antes do type-check normal;
-- um case abreviado ambíguo nunca escolhe um slot por ordem.
+- um case abreviado só preenche o slot primário declarado pelo schema;
+- um case ambíguo nunca escolhe um slot por ordem;
+- deadline e executor runtime não entram no contrato angular.
 
 As grafias angulares são contrafactuais. Os arquivos `.w` continuam na líder
 DB2. A análise normativa está na seção 3 de
 [DESIGN.md](../../DESIGN.md#31-hipótese-de-contrato-estático-fechado).
+
+### 3.14 Arquivo de Ecos
+
+Famílias: owner único, shared, weak, borrow suspenso, provenance e pinning.
+
+Aceite:
+
+- children mantêm descendants vivos e o parent fraco não forma ciclo forte;
+- `upgrade()` retorna ausência depois do último shared owner;
+- cruzar `spawn` exige conteúdo `Send` e `Sync`;
+- um borrow após `await` só compila com owner e task frame estáveis;
+- mover ou substituir o owner durante esse borrow falha;
+- `Pinned<T>` pode mudar de endereço sem mover o `T`;
+- a lease mantém o bell e o callback state vivos até unsubscribe;
+- unsubscribe ocorre antes de liberar o callback state;
+- converter pointer em address não permite reconstruir um pointer seguro;
+- profiles portátil e compacto produzem o mesmo resultado.
+
+### 3.15 Cardápio de Fótons
+
+Famílias: bootstrap, lexer, parser, AST, collections, ownership e output
+determinístico.
+
+Aceite:
+
+- `menu_compiler.w` usa somente o profile `bootstrap.w0`;
+- o profile inclui tudo que o source do compiler pequeno usa;
+- retirar qualquer capacidade W0 produz um diagnostic ligado ao fechamento;
+- seed-C e W/MLIR emitem o mesmo bytecode e symbol table;
+- duas compilações com a mesma recipe produzem os mesmos bytes;
+- a ordem de iteração do Map não influencia a symbol table emitida;
+- o source não depende de task, service, tensor, unit, behavior ou tagging;
+- uma instruction depois de `serve` falha antes da emissão;
+- o seed preserva typed errors, move e drop.
 
 ## 4. Alternativas visuais obrigatórias
 
