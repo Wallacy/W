@@ -173,6 +173,7 @@ vigente das famílias que ainda estavam parciais.
 | texto, bytes e strings nativas | `W/DESIGN.md` 16 e D2-210–225 | **Líder DB2** com alternativas históricas rastreadas |
 | collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
 | ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
+| compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
 
 ### Resultado da revisão de collections
 
@@ -227,6 +228,36 @@ serializado ou protegido. Panic exige uma fault boundary física, como process,
 instância Wasm ou compartment com teardown próprio. Essa separação evita
 prometer recovery in-process para um service que compartilha address space.
 
+### Resultado da revisão de compile-time
+
+O caderno propunha `comptime someFunc(...)` e conversão do resultado para WLO.
+A intenção foi preservada com `const fn` e `const`. O evaluator produz
+ConstValue tipado. Ele não serializa source nem reparseia WLO.
+
+`comptime expression` continua como **Alternativa**. A baseline usa um binding
+`const` porque ele exige avaliação e nomeia o resultado. `const fn` continua
+callable em runtime e não consegue detectar a fase.
+
+O caderno propunha `type(regex)` e funções que constroem tipos. Essa forma foi
+**Rejeitada por enquanto**. Um tipo mantém identidade declarada. Uma `const fn`
+de parse ou um refinement valida literals em compile time e inputs em runtime.
+
+Static maps e tabelas continuam preservados. ConstValue guarda pares em ordem
+lógica e não guarda hash ou layout. O backend pode escolher switch, tabela
+ordenada ou perfect hash sem mudar a semântica.
+
+A proposta `profile someFunc(...)` usava a execução anterior como novo literal.
+Essa forma foi **Rejeitada por enquanto**. PGO pode orientar otimização somente
+quando a recipe registra o profile. Ele não altera const, tipo ou interface.
+
+As formas `#include`, `#if` e `#define` não entram em W. Target facts usam
+`w.target`. Outros inputs usam módulos gerados por tool targets herméticas.
+`#embed` continua **Pesquisa** no build, não authority do evaluator.
+
+O seed C e o core W0 implementam CE0. Quotas de steps, heap, call depth e result
+impedem loops infinitos e expansão sem limite. O evaluator usa a semântica do
+target e nunca executa FFI ou código nativo do host.
+
 ## Alternativas que não devem desaparecer de novo
 
 As seguintes formas não são candidatas atuais, mas precisam continuar
@@ -242,6 +273,7 @@ pesquisáveis porque registram uma intenção humana legítima:
 - `sync`, `yield` e `fork module`;
 - optional operators como `?+`;
 - config de função `fn<config>` distinta de `fn<lang>`;
+- `comptime expression` e `const { ... }` para pipelines sem binding;
 - autotest gerado, PGO, snapshots e live debug;
 - WLO/WLON, SQL-like queries, wRPC e Computer Units.
 
