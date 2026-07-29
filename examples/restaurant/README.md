@@ -20,6 +20,7 @@ LastLight entry
   → controle PID do forno
   → Brigada do Cometa Manso
   → Observatório do Cometa Paciente
+  → Placar da Improbabilidade Residual
   → Oráculo de Mesas
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
@@ -63,6 +64,7 @@ owner e estado observável.
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
+| `synchronization.w` | atomics, memory orders, CAS e locks scoped |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -269,6 +271,39 @@ não IDs de threads. Ele move um buffer único, compartilha um snapshot, atualiz
 um atomic e chama uma ServiceRef. O resultado deve ser idêntico. Casos negativos
 usam destructor affine, allocator local, raw pointer, object mutável sem
 synchronization e uma view que escapa do scope.
+
+### 3.5.2 Placar da Improbabilidade Residual
+
+Famílias: data-race freedom, happens-before, atomics, CAS e locks scoped.
+
+Aceite:
+
+- `var atomic value: T` baixa para `Atomic<T>`;
+- load, store e compound update comuns usam `.sequential`;
+- orders mais fracas usam contratos como `load<.acquire>()`;
+- load rejeita `.release`, e store rejeita `.acquire`;
+- `+=` é uma read-modify-write checked;
+- `value = value + 1` é rejeitado como load e store separados;
+- `Bool`, integers e enums sem payload podem usar storage atomic;
+- compare-exchange devolve `.exchanged` ou `.mismatch`;
+- weak compare-exchange permite falha espúria somente quando o nome informa;
+- CAS não prova reclamation nem elimina ABA;
+- `Atomic<T>` não promete lock-freedom;
+- `lockFree: true` falha no build quando o target não oferece a garantia;
+- `ref atomicValue` obtém `ref Atomic<T>`, nunca `ref T`;
+- `Mutex.withLock` não deixa borrow ou guard escapar;
+- `AsyncMutex.withLock` suspende na aquisição, não dentro da closure;
+- cancellation durante a espera não executa a closure;
+- state de um closed turn não recebe atomic ou lock sem outra razão;
+- RCU e cache isolation continuam tipos ou contratos especializados.
+
+O oracle executa litmus tests de publication, store buffering e
+compare-exchange. Ele repete os testes com uma, duas e quatro threads. O profile
+também força o fallback não lock-free e executa TSan.
+
+Failure injection cobre cancellation antes e depois da aquisição async. O trace
+confirma que cada critical section libera o lock uma vez. Benchmarks separam
+latency sem contenção, contenção na mesma cache line e counters particionados.
 
 ### 3.6 Salão Prisma
 
@@ -967,6 +1002,12 @@ O Book deve mostrar pares lado a lado:
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
 | reserva textual | `tryReserve(minimumBytes:)` | capacity property e growth factor fixo |
 | esvaziar texto | `clear()` / `reset()` / `takeAll()` | `clear(keepingCapacity: Bool)` |
+| storage atômico | `var atomic value: T` | wrapper obrigatório ou behavior `Atomic` |
+| order atômica | `load<.acquire>()` | `load(order:)` runtime e relaxed default |
+| compare-exchange | enum result e orders estáticas | Boolean e combinações runtime |
+| lock | `withLock` scoped | `lock`/`unlock` manual ou guard público |
+| lock de task | aquisição async, closure sync | guard mantido através de `await` |
+| RCU | tipo especializado após prova de reclamation | policy automática por property |
 
 Preferência visual não é medida antes das tarefas de leitura e correção.
 

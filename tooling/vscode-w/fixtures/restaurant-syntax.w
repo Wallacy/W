@@ -105,10 +105,14 @@ struct ServiceFlow {
   }
 }
 
+object FixtureMetrics {
+  var atomic completed: u64 = 0
+}
+
 export service LastLightRestaurant as RestaurantApi {
   pantry: ServiceRef<PantryApi>
   var Lazy calibration = loadCalibration()
-  var atomic completed: u64 = 0
+  var completed: u64 = 0
 
   static fn serviceName(): String { return "last-light" }
 

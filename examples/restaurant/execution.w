@@ -19,11 +19,11 @@ export object BrigadeMetrics: CompletionMetric {
   export init() {}
 
   fn recordCompletion() {
-    completed += 1
+    completed.saturatingAdd<.relaxed>(1)
   }
 
   completionCount: u64 {
-    get => completed
+    get => completed.load<.relaxed>()
   }
 }
 
