@@ -2620,6 +2620,22 @@ alias WorkStage =
 `WorkStage` aceita somente os três cases listados. `alias` preserva a identidade
 do refinement. Um `type` criaria outra identidade nominal.
 
+O head define o significado do argumento estático. A mesma forma visual não
+torna todos os contratos equivalentes:
+
+```w
+// `StagePath` declara uma StaticList. A ordem e a repetição são significativas.
+let path: StagePath<[.accepted, .preparing, .completed]>
+
+// `ServiceStage` declara um case-set. A ordem não é significativa.
+let stage: ServiceStage<[.preparing, .serving]> = .preparing
+```
+
+`StagePath<[.accepted, .preparing]>` e
+`StagePath<[.preparing, .accepted]>` são tipos diferentes.
+`ServiceStage<[.preparing, .serving]>` e
+`ServiceStage<[.serving, .preparing]>` são o mesmo tipo.
+
 O subset preserva members e conformances do enum base. Por exemplo,
 `ServiceFault<[.delayed]>` continua atendendo a `Error`. O subset restringe
 valores possíveis. Ele não declara uma segunda conformance.
@@ -2653,6 +2669,24 @@ fn nextWorkStage(inventoryReady: Bool): WorkStage {
   }
 }
 ```
+
+O contrato também pode descrever uma única transição:
+
+```w
+alias StageAfterAccepted =
+  ServiceStage<[.reserving, .cancelled]>
+
+fn routeAcceptedOrder(canReserve: Bool): StageAfterAccepted {
+  return switch canReserve {
+    case true: .reserving
+    case false: .cancelled
+  }
+}
+```
+
+O código chamador não precisa defender contra `.accepted`, `.preparing`, `.serving` ou
+`.completed`. Se o retorno ganhar `.preparing`, cada `switch` explícito sobre o
+resultado precisa decidir como tratar esse case.
 
 Cada `return` precisa pertencer ao conjunto. Este retorno falha:
 
@@ -2692,6 +2726,24 @@ fn isCooking(stage: WorkStage): Bool {
 Nesse exemplo, `_` trata explicitamente qualquer ampliação. O compiler não exige
 um novo braço.
 
+O subset também restringe argumentos. Uma função pode aceitar somente estados
+nos quais uma operação faz sentido:
+
+```w
+alias CancellableStage =
+  ServiceStage<[.accepted, .reserving, .preparing]>
+
+fn requestCancellation(stage: CancellableStage): CancelRequest {
+  return CancelRequest(stage: stage)
+}
+
+requestCancellation(.preparing)
+requestCancellation(.completed) // error: completed is outside CancellableStage
+```
+
+Ampliar o subset de um parâmetro é compatível com o código chamador existente.
+Reduzi-lo é uma mudança major.
+
 Cases com payload mantêm seu payload:
 
 ```w
@@ -2715,6 +2767,28 @@ fn describe<T: Display>(outcome: ContinuingOutcome<T>): String {
 O primeiro envelope aplica `T`. O segundo restringe os cases. Essa regra também
 se aplica a `Result<T, E><[.success]>`, embora uma API nonthrowing deva retornar
 `T` diretamente.
+
+Um enum com payload substitui estados paralelos que poderiam divergir:
+
+```w
+enum OvenReading {
+  stable(Temperature)
+  warming(current: Temperature, target: Temperature)
+  failed(OvenFault)
+}
+
+alias UsableReading = OvenReading<[.stable, .warming]>
+
+fn requestedHeat(reading: UsableReading): Temperature {
+  return switch reading {
+    case .stable(let temperature): temperature
+    case .warming(_, let target): target
+  }
+}
+```
+
+Essa forma é preferível a `isFailed: Bool`, `temperature: Temperature?` e
+`fault: OvenFault?`. Cada case constrói somente o payload que ele exige.
 
 Um subset com um case preserva o payload sem criar um wrapper:
 
@@ -2763,6 +2837,63 @@ fn prepare(stage: ServiceStage): String? {
 
 Depois do guard, `stage` possui o fact de `WorkStage`. A HIR pode chamar
 `instruction` sem check runtime. O binding source continua `ServiceStage`.
+
+Cada braço de `switch` também recebe um fact mais preciso:
+
+```w
+fn prepareInstruction(stage: ServiceStage<[.preparing]>): String
+
+fn continueService(stage: ServiceStage): String {
+  return switch stage {
+    case .accepted: "Reserve a timeline"
+    case .reserving: "Reserve ingredients"
+    case .preparing: prepareInstruction(stage)
+    case .serving: "Serve the guest"
+    case .completed: "Archive the order"
+    case .cancelled: "Release the ingredients"
+  }
+}
+```
+
+No braço `.preparing`, `stage` possui o case-set
+`ServiceStage<[.preparing]>`. O compiler pode passá-lo para
+`prepareInstruction` sem conversão checked.
+
+Um case curto exige um expected enum type:
+
+```w
+let stage: WorkStage = .preparing
+let base = ServiceStage.preparing
+let ambiguous = .preparing // error: no expected enum type
+```
+
+`EnumName.case` resolve uma colisão. `.case` nunca escolhe um enum por ordem de
+imports ou por frequência.
+
+Membership é a forma curta para testar mais de um case:
+
+```w
+if stage in (.preparing, .serving) {
+  recordKitchenActivity()
+}
+```
+
+W não adiciona `stage.is(.preparing, .serving)`. Para um enum comum, o valor
+possui um case por vez. Um teste AND entre cases distintos seria sempre falso.
+Um conjunto simultâneo usa `Set<Access>` ou um futuro tipo compacto de flags,
+em vez de mudar a semântica de enum:
+
+```w
+enum Access {
+  read
+  write
+  admin
+}
+
+let access = Set([Access.read, .write])
+expect access.contains(.read)
+expect !access.contains(.admin)
+```
 
 Uma variável declarada como subset nunca aceita outro case:
 
@@ -2830,12 +2961,85 @@ refinement do payload:
 alias SmallDelay = Duration<(0...30<s>)>
 ```
 
+A baseline também não possui álgebra de case-set no source. Escreva e nomeie o
+conjunto resultante:
+
+```w
+alias KitchenStage =
+  ServiceStage<[.reserving, .preparing, .serving]>
+```
+
+Formas como `ActiveStage - [.accepted]` e
+`CancellableStage & WorkStage` permanecem **Alternativa**. A HIR já usa união,
+interseção e diferença de case-sets para flow analysis, mas a API pública não
+precisa expor essa álgebra na DB2.
+
 O
 [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
 demonstra narrowing e exhaustividade sobre discriminated unions. A
 [documentação de enums do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations/)
 exige switch exaustivo. W combina essas propriedades com um case-set explícito
 na interface.
+
+#### 8.6.2 Quando usar enum
+
+Use enum quando o domínio contém uma escolha fechada. Cada case pode exigir um
+payload diferente:
+
+```w
+enum PackageVerification {
+  unverified
+  reproducible(ArtifactDigest)
+  audited(artifact: ArtifactDigest, report: SecurityReportId, grade: SecurityGrade)
+  rejected(VerificationFault)
+}
+```
+
+Esse valor não permite um pacote simultaneamente `unverified` e `audited`. O
+payload de auditoria também não existe no case `unverified`.
+
+Uma fronteira pode publicar um subset:
+
+```w
+alias TrustedVerification =
+  PackageVerification<[.reproducible, .audited]>
+
+fn selectForProduction(status: TrustedVerification): ArtifactDigest {
+  return switch status {
+    case .reproducible(let digest): digest
+    case .audited(let digest, _, _): digest
+  }
+}
+```
+
+O exemplo acima também mostra um limite: dados necessários em mais de um case
+devem estar em cada payload relevante ou em um member total.
+
+Use outro contrato quando a estrutura do problema for diferente:
+
+| Necessidade | Contrato | Exemplo |
+|---|---|---|
+| todos os fields coexistem | `struct` | `Receipt { orderId, total, traceId }` |
+| implementações externas podem crescer | `protocol` | `DishFactory` |
+| várias opções podem estar ativas | `Set<T>` ou flags | `Set([.read, .write])` |
+| um scalar possui limites | refinement | `GuestCount = u16<(1...4096)>` |
+| a ordem compile-time importa | `StaticList<T>` | `StagePath<[.accepted, .completed]>` |
+| uma alternativa fechada está ativa | `enum` | `OvenReading.stable(180)` |
+| uma API conhece menos alternativas | enum subset | `OvenReading<[.stable, .warming]>` |
+
+Adicionar um case a um enum exportado pode invalidar switches exaustivos. Um
+domínio que precisa aceitar variantes de terceiros deve usar protocol ou um
+envelope versionado:
+
+```w
+protocol PaymentProvider {
+  async fn authorize(request: PaymentRequest): PaymentAuthorization
+}
+```
+
+Não use um case `.custom(any PaymentProvider)` para fingir que um enum fechado
+é uma extensão aberta, a menos que o fechamento externo seja uma decisão
+explícita do protocol de wire.
 
 ### 8.7 Generics
 
@@ -8232,6 +8436,10 @@ experimentar”, não “decisão irreversível”.
 | D2-320 | rest ownership | value/ref/take; sem `inout`; cleanup por elemento | ownership apagado; inout dinâmico |
 | D2-321 | C varargs | adapter unsafe tipado ou `c.vaList`; rest W não cruza ABI | mapear rest diretamente; promotions implícitas |
 | D2-322 | formas type-level adiadas | property path, GAT e heterogeneous packs continuam Pesquisa | incluir no W0; reflection por string |
+| D2-323 | resolução de enum case | `.case` exige expected enum; `Enum.case` resolve colisão | escolher por import, frequência ou ranking |
+| D2-324 | sequência e case-set | o head decide: `StagePath<[...]>` preserva ordem; `Enum<[...]>` normaliza conjunto | tratar toda static list como conjunto |
+| D2-325 | enum e flags | enum representa uma alternativa; simultaneidade usa Set ou tipo de flags separado | enum com semântica AND/OR contextual |
+| D2-326 | álgebra de case-set | somente na HIR; source nomeia a lista resultante | operadores públicos de union/intersection/difference na DB2 |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

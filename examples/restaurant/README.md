@@ -583,6 +583,11 @@ Famílias: enum case subsets, payloads, flow narrowing, layout e evolução de A
 Aceite:
 
 - `ServiceStage<[.reserving, .preparing, .serving]>` exclui `.cancelled`;
+- `StagePath<[...]>` mantém ordem; `ServiceStage<[...]>` normaliza um conjunto;
+- `StageAfterAccepted` permite somente `.reserving` ou `.cancelled`;
+- `CancellableStage` impede pedidos de cancelamento após `.completed`;
+- `RestaurantApi.cancel` retorna somente `CancelledStage`;
+- `TerminalStage` exige um `switch` com `.completed` e `.cancelled`;
 - a ordem source da lista não muda a identidade do subset;
 - um retorno fora do conjunto falha no type checker;
 - `switch` exige somente os cases possíveis;
@@ -593,11 +598,16 @@ Aceite:
 - um enum generic aplica o subset em um segundo envelope;
 - um subset de um case preserva o payload sem unwrap implícito;
 - payloads dos cases mantidos continuam disponíveis;
+- `UsableOvenReading` mantém payloads diferentes de `.stable` e `.warming`;
 - `throws Enum<[...]>` restringe `throw` e a exhaustividade de `catch`;
+- `.case` exige expected enum type; `EnumName.case` resolve colisões;
+- membership com `in` testa alternativas; enum comum não representa flags;
 - o subset não cria wrapper nem layout público novo.
 
 O fixture negativo deve retornar `.cancelled` como `WorkStage`. Outro fixture
 deve adicionar `.cancelled` ao alias e omitir esse case em `workInstruction`.
+Outros fixtures devem passar `.completed` a `requestCancellation` e retornar
+`.preparing` de `routeAcceptedOrder` sem ampliar `StageAfterAccepted`.
 
 ### 3.26 Arquivo dos Nomes que Não Sobrevivem ao Universo
 

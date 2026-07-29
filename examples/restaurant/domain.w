@@ -41,6 +41,9 @@ export enum ServiceStage {
   cancelled
 }
 
+export alias CancelledStage =
+  ServiceStage<[.cancelled]>
+
 export enum PartySize {
   intimate
   regular
