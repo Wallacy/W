@@ -40,9 +40,9 @@ Os estados usados são:
 | linguagem | 5–8 | source, módulos, funções, closures, tipos e conversões |
 | segurança semântica | 9–11 | memória, layout, behaviors, errors, panic, OOM e cleanup |
 | execução | 12–13 | tasks, paralelismo, domains, services, entries, estado e sandbox |
-| SDK e domínios | 14–18 | tiers, numéricos, units, texto, collections, tensors, C e ilhas de linguagem |
-| implementação e produto | 19–23 | frontend, MLIR, runtime, bootstrap, packages, releases, tooling e pesquisas |
-| validação e sequência | 24–28 | ensaio integrado, revisão, roadmap, delta DB1 e registro de alternativas |
+| SDK e domínios | 14–19 | tiers, numéricos, texto, tensors, performance, C e ilhas de linguagem |
+| implementação e produto | 20–24 | frontend, runtime, packages, tooling, pesquisas e viabilidade |
+| validação e sequência | 25–29 | ensaio integrado, revisão, roadmap, delta DB1 e decisões |
 
 Leia o bloco que contém a dúvida e depois use o ID D2 correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
@@ -2053,8 +2053,8 @@ livres são a baseline.
 return type oculta um tipo concreto único:
 
 ```w
-fn render(value: some Displayable): String
-// Equivale a: fn render<T: Displayable>(value: T): String
+fn render(value: some Display): String
+// Equivale a: fn render<T: Display>(value: T): String
 
 fn activePolicy(): some PricingPolicy {
   return StandardPricing()
@@ -2068,8 +2068,8 @@ um nome generic usado uma única vez. A forma possui precedente nos
 Extensions não adicionam storage:
 
 ```w
-extension Dish: Displayable {
-  fn display(): String { ... }
+extension Dish: Display {
+  fn write(to output: inout StringBuilder): () { ... }
 }
 ```
 
@@ -2589,6 +2589,21 @@ let current = try Ratio(input)
 Refined-to-base é implícito. Base-to-refined é fallible. O refinement não muda o
 layout canônico em structs, ABI, FFI, persistência ou borrows. O optimizer pode
 estreitar register, SIMD e storage interno não escapante e depois reestender.
+
+Uma expressão pode inicializar um refinement sem `try` quando os fatos estáticos
+provam o predicate. Isso não é uma conversão runtime:
+
+```w
+type Small = Int<(1...128)>
+type Pair = Int<(2...256)>
+
+fn pair(left: Small, right: Small): Pair {
+  return left + right
+}
+```
+
+Se a prova é `unknown`, o programa usa o constructor fallible. Uma annotation
+ou build profile não substitui a prova.
 
 A [Ada Reference Manual](https://docs.adacore.com/live/wave/arm22/pdf/arm22/arm-22.pdf)
 também separa um subtype restringido por range do base type. O trabalho sobre
@@ -6286,6 +6301,27 @@ disponibilidade universal em todo target.
 **Exemplo:** `u8.max + 1` causa panic. `u8.max.wrappingAdd(1)` produz zero de
 forma explícita.
 
+**Líder DB2:** `Int` é um integer signed de 64 bits. `UInt` é unsigned de 64
+bits. `isize` e `usize` usam a largura de address do target. Código que precisa
+de outra largura usa `i8`...`i128` ou `u8`...`u128`.
+
+```w
+let guests: Int = 42       // i64 semântico
+let byteOffset: usize = 42 // largura do target
+let sample: i16 = 42
+```
+
+`Int` fixo mantém overflow, serialização e refinements iguais em targets de 32
+e 64 bits. O optimizer pode usar uma largura interna menor e reestender na
+boundary. Um target de 32 bits ainda precisa implementar a semântica de 64 bits.
+
+```w
+type SmallCount = Int<(1...128)>
+```
+
+`Int` com largura do target e literal default `i32` permanecem
+**Alternativa**. `BigInt` pertence a T2; ele não é o tipo de literal default.
+
 - literal inteiro sem contexto usa `Int`;
 - literal decimal sem contexto usa `f64`;
 - o expected type pode especializar um literal representável;
@@ -6439,17 +6475,26 @@ tornar a representação curta ou COW parte da linguagem.
 `String` não possui `length`, `count` ou subscript direto. O programa escolhe
 uma destas unidades:
 
-| Forma | Elemento | Custo de `count` |
-|---|---|---|
-| `text.bytes` | `u8` da codificação UTF-8 | O(1) |
-| `text.scalars` | `UnicodeScalar` | O(n), salvo cache invisível |
-| `text.graphemes` | grapheme cluster estendido | O(n), salvo cache invisível |
+| Forma | Elemento | `count` | Percurso |
+|---|---|---:|---:|
+| `text.bytes` | `u8` da codificação UTF-8 | O(1) | O(bytes) |
+| `text.scalars` | `UnicodeScalar` | O(bytes) | O(bytes percorridos) |
+| `text.graphemes` | grapheme cluster estendido | O(bytes) | O(bytes percorridos) |
 
 ```w
 let sign = "A🇧🇷e\u{301}"
 expect sign.bytes.count == 12
 expect sign.scalars.count == 5
 expect sign.graphemes.count == 3
+```
+
+`text.bytes` é uma view read-only, inclusive quando o owner possui acesso
+exclusivo. Nenhuma API safe altera um byte isolado e cria UTF-8 inválido.
+
+```w
+var sign = "A🇧🇷"
+sign.bytes[0] = 0xff_u8 // Erro: a view de bytes é read-only.
+sign.append("!")        // Válido: a operação preserva UTF-8.
 ```
 
 `UnicodeScalar` é `Copy`. Ele contém um scalar Unicode válido e nunca contém
@@ -6466,6 +6511,25 @@ for grapheme in sign.graphemes {
 }
 ```
 
+Um valor owned que exige um único grapheme usa `String` refinado. O refinement
+não cria um tipo `Character` escondido.
+
+```w
+type MenuGlyph = String<(.graphemes.count == 1)>
+
+let planet: MenuGlyph = "🪐"
+let invalid = try MenuGlyph("ab") // Falha: dois graphemes.
+```
+
+Um único grapheme não possui limite universal de bytes ou scalars. Por isso,
+`MenuGlyph` não autoriza storage inline por si só. Um limite de bytes precisa
+estar no contrato quando a capacidade física importa.
+
+```w
+type CompactGlyph =
+  String<(.graphemes.count == 1 && .bytes.count <= 32)>
+```
+
 ### 16.2 Views, índices e slices
 
 `StringView` empresta uma subsequência UTF-8 contígua. `String`, `StringView` e
@@ -6477,12 +6541,37 @@ fn firstWord(line: ref String): StringView? {
 }
 ```
 
+`StringView` e `Grapheme` são valores `Copy` read-only ligados ao lifetime do
+source. Um literal usado diretamente como `StringView` pode apontar para static
+data e não exige allocation.
+
+```w
+let prompt: StringView = "End of service"
+let owned: String = prompt.toString() // A materialização é explícita.
+```
+
 `text.bytes[usize]` tem acesso aleatório O(1). As views de scalar e grapheme não
 aceitam um ordinal em subscript. Isso evita esconder uma busca O(n).
 
 ```w
 let firstByte: u8 = text.bytes[0]
 let secondScalar = text.scalars.element(at: 1) // busca explícita O(n)
+```
+
+As operações de índice publicam o custo:
+
+| Operação | Bytes | Scalars ou graphemes |
+|---|---:|---:|
+| `start` e `end` | O(1) | O(1) |
+| `index(after:)` | O(1) | O(bytes do elemento) |
+| `index(i, offsetBy: n)` | O(1) | O(bytes atravessados) |
+| `distance(from:to:)` | O(1) | O(bytes atravessados) |
+| slice com índices válidos | O(1) | O(1) |
+
+```w
+let start = text.graphemes.start
+let third = text.graphemes.index(start, offsetBy: 2)
+let traversed = text.graphemes.distance(from: start, to: third)
 ```
 
 `ScalarIndex` e `GraphemeIndex` pertencem ao source que os criou. O type checker
@@ -6507,6 +6596,21 @@ let view: StringView = try text.view(bytes: 1..<4)
 let owned: String = view.toString()
 ```
 
+Uma falha de boundary informa qual extremidade é inválida. O offset é contado
+em bytes desde o início do mesmo source.
+
+```w
+enum Utf8BoundaryError: Error {
+  outOfBounds(offset: usize)
+  startInsideScalar(offset: usize)
+  endInsideScalar(offset: usize)
+}
+
+let flag = "🇧🇷"
+let invalid = try flag.view(bytes: 1..<flag.bytes.count)
+// Falha: `.startInsideScalar(offset: 1)`.
+```
+
 Uma mutação invalida views e índices. O borrow normalmente rejeita a mutação.
 Um adapter unsafe deve restabelecer a mesma regra.
 
@@ -6514,6 +6618,28 @@ Um adapter unsafe deve restabelecer a mesma regra.
 let view = text.scalars[start..<end]
 text.append("!") // Erro: `view` mantém um borrow ativo.
 print(view)
+```
+
+Índices do mesmo owner podem terminar seu borrow na própria operação de edição.
+Isso permite localizar e substituir sem converter offsets para integers. A
+mutação começa depois da avaliação do range. O range não pode ser usado depois.
+
+```w
+var title = "Last Light"
+let start = title.scalars.index(title.scalars.start, offsetBy: 5)
+let end = title.scalars.end
+title.replace(scalars: start..<end, with: "Course")
+expect title == "Last Course"
+
+print(start) // Erro: a edição invalidou o índice.
+```
+
+Uma replacement view que empresta o mesmo owner mantém um alias ativo. O
+programa materializa o replacement ou usa outro source.
+
+```w
+let suffix = title.scalars[start..<end]
+title.replace(scalars: start..<end, with: suffix) // Erro: alias ativo.
 ```
 
 ### 16.3 `Bytes` e conversão UTF-8
@@ -6537,9 +6663,79 @@ let text = try String.fromUtf8(encoded)
 let repaired = String.replacingInvalidUtf8(encoded)
 ```
 
-`String.fromUtf8` empresta `Bytes` ou `Slice<u8>`. Ele informa o primeiro byte
-inválido. A forma `replacingInvalidUtf8` substitui sequências inválidas por
-U+FFFD. W não faz essa substituição de forma implícita.
+As três conversões principais tornam ownership e allocation visíveis:
+
+| Forma | Resultado | Custo e owner |
+|---|---|---|
+| `StringView.fromUtf8(ref bytes)` | view validada | O(bytes), sem cópia |
+| `String.fromUtf8(ref bytes)` | `String` | O(bytes), copia |
+| `String.adoptingUtf8(take bytes)` | outcome owned | O(bytes), pode reutilizar o buffer |
+
+As formas borrowed aceitam `Bytes` e `Slice<u8>`. A forma adopting exige
+`Bytes`, pois um slice não possui seu allocation.
+
+```w
+let borrowed = try StringView.fromUtf8(payload)
+let copied = try String.fromUtf8(payload)
+
+let adopted = String.adoptingUtf8(take ownedPayload)
+let text = switch adopted {
+  case .text(let value): value
+  case .invalid(let bytes, let error): recover(bytes, after: error)
+}
+```
+
+`adoptingUtf8` consome `Bytes`. A implementação pode reutilizar o buffer, mas
+essa escolha não é uma garantia de layout. Uma falha devolve os mesmos bytes:
+
+```w
+enum Utf8Adoption {
+  text(String)
+  invalid(Bytes, Utf8Error)
+}
+```
+
+`Utf8Error.offset` aponta para o início da primeira maximal subpart inválida.
+`length` informa os bytes dessa subpart. `reason` não depende do decoder usado.
+
+```w
+enum Utf8Reason {
+  invalidLeadingByte
+  invalidContinuation
+  overlongEncoding
+  surrogate
+  outOfRange
+  unexpectedEnd
+}
+
+struct Utf8Error: Error {
+  offset: usize
+  length: usize
+  reason: Utf8Reason
+}
+```
+
+A classificação usa esta precedência no primeiro offset que não pode ser
+convertido:
+
+| Prefixo | Motivo |
+|---|---|
+| `C0..C1`, `E0 80..9F` ou `F0 80..8F` | `.overlongEncoding` |
+| `ED A0..BF` | `.surrogate` |
+| `F4 90..BF` ou `F5..FF` | `.outOfRange` |
+| `80..BF` quando um leader era esperado | `.invalidLeadingByte` |
+| leader válido seguido por byte incompatível | `.invalidContinuation` |
+| prefixo válido ainda incompleto em `finish` | `.unexpectedEnd` |
+
+```w
+let overlong = String.fromUtf8(b"\xC0\xAF")
+// error: offset 0, length 1, reason `.overlongEncoding`
+```
+
+`String.fromUtf8` para no primeiro erro. A forma
+`replacingInvalidUtf8` substitui cada maximal subpart inválida por um U+FFFD.
+Ela nunca consome uma subsequência UTF-8 válida adjacente. W não repara texto de
+forma implícita.
 
 ```w
 let invalid = b"\x66\x6f\x80"
@@ -6547,10 +6743,55 @@ let invalid = b"\x66\x6f\x80"
 do {
   let _ = try String.fromUtf8(invalid)
   panic("invalid UTF-8 was accepted")
-} catch .invalidByte(let offset) {
-  expect offset == 2
+} catch error {
+  expect error.offset == 2
+  expect error.length == 1
+  expect error.reason == .invalidLeadingByte
 }
+
+let repaired = String.replacingInvalidUtf8(b"\xF0\x80\x80A")
+expect repaired == "���A"
 ```
+
+O decoder incremental preserva uma sequência parcial entre chunks. Ele mantém
+no máximo três bytes pendentes. Somente `finish()` classifica uma sequência
+pendente como `.unexpectedEnd`. O offset continua relativo ao início do stream.
+
+```w
+var decoder = Utf8Decoder()
+try decoder.push(b"table \xF0\x9F")
+try decoder.push(b"\xAA\x90")
+let label = try (take decoder).finish()
+expect label == "table 🪐"
+```
+
+`Utf8RepairDecoder` aplica a mesma regra de maximal subpart sem lançar
+`Utf8Error`.
+
+```w
+var decoder = Utf8RepairDecoder()
+decoder.push(b"\xE1\x80")
+let repaired = (take decoder).finish()
+expect repaired == "�"
+```
+
+UTF-8 não possui byte order. As APIs core preservam um U+FEFF inicial como
+conteúdo. Um adapter de arquivo ou protocolo só remove a assinatura quando sua
+policy nomeada permite.
+
+```w
+expect try String.fromUtf8(b"\xEF\xBB\xBFmenu") == "\u{FEFF}menu"
+
+let source = try TextFile.decode(
+  payload,
+  encoding: .utf8,
+  signature: .consumeIfPresent,
+)
+```
+
+Essas regras seguem a
+[definição de maximal subpart do Unicode 17](https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-3/)
+e a [orientação de BOM do Unicode](https://www.unicode.org/faq/utf_bom.html).
 
 ### 16.4 Construção e concatenação
 
@@ -6559,6 +6800,39 @@ diferentes. Cada valor atende ao protocol `Display`.
 
 ```w
 let message = "Order ${order.id} has ${order.guests} guests"
+```
+
+`Display.write` grava num sink. O default `display()` cria um builder e retorna
+um `String`. A interpolação baixa para um único builder e chama `write` para
+cada segmento. Ela não exige um `String` intermediário por campo.
+
+```w
+protocol Display {
+  fn write(to output: inout StringBuilder): ()
+}
+
+extension Display {
+  fn display(): String {
+    var output = StringBuilder()
+    write(to: output)
+    return (take output).finish()
+  }
+}
+```
+
+Uma implementação escreve diretamente:
+
+```w
+extension Course: Display {
+  fn write(to output: inout StringBuilder): () {
+    output.append(switch self {
+      case .nebulaBroth: "Nebula broth"
+      case .photonSouffle: "Photon soufflé"
+      case .quietSalad: "Quiet salad"
+      case .horizonCake: "Horizon cake"
+    })
+  }
+}
 ```
 
 `+` cria um novo `String`. `+=` e `append` mutam um `String` exclusivo.
@@ -6693,6 +6967,37 @@ Unicode version: 17.0.0
 Grapheme profile: UAX29-C1-1
 ```
 
+O semantic fingerprint contém a edição Unicode, os digests das tabelas e os
+profiles usados. Um refinement avaliado com essas tabelas usa o mesmo
+fingerprint.
+
+```w
+type OneGlyph = String<(.graphemes.count == 1)>
+
+$ w explain unicode OneGlyph
+Unicode version: 17.0.0
+Tables digest: sha256:...
+Refinement profile: UAX29-C1-1
+```
+
+Uma atualização de Unicode pode mudar boundaries de grapheme para texto ainda
+não segmentado. Ela não muda os bytes persistidos. Índices não podem ser
+persistidos porque emprestam um source e uma edição.
+
+```w
+store.put("name", value: copy guest.name)
+store.put("index", value: graphemeIndex) // Erro: índice emprestado.
+```
+
+Normalização possui estabilidade própria, mas case folding, spoof detection e
+segmentação continuam versionados. Nenhuma dessas operações é aplicada a uma
+`String` por padrão.
+
+```w
+let folded = input.caseFolded(profile: .default)
+let report = unicode.security.checkIdentifier(input)
+```
+
 O bundle também fixa normalização e regras de identificadores. A baseline usa
 [UAX #15](https://www.unicode.org/reports/tr15/),
 [UAX #29](https://www.unicode.org/reports/tr29/),
@@ -6731,6 +7036,16 @@ nenhum componente `.` ou `..`.
 
 ```w
 let source = try PackagePath("src/restaurant/menu.w")
+```
+
+Dois nomes que normalizam para o mesmo `PackagePath` são uma colisão. O package
+reader rejeita o segundo antes de extrair ou compilar arquivos.
+
+```w
+let first = try PackagePath("menu/é.w")
+let second = try PackagePath("menu/e\u{301}.w")
+expect first == second
+// Um archive que contém ambos falha com `PackagePathCollision`.
 ```
 
 Codecs T1 convertem formatos externos. Locale do processo nunca muda a
@@ -6800,6 +7115,16 @@ O compiler pode escolher storage especializado para um refinement quando a
 escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
 A hipótese de tree string permanece em `Y/W` porque favorece compartilhamento,
 mas aumenta metadata e indireções no caso comum.
+
+O tipo de contagem determina a prova disponível. Um limite de bytes limita
+storage diretamente. Um limite de scalars fornece um limite conservador de
+quatro bytes por scalar. Um limite de graphemes não fornece limite de bytes.
+
+```w
+type PacketLabel = String<(.bytes.count <= 64)>      // até 64 bytes
+type ScalarLabel = String<(.scalars.count <= 64)>   // até 256 bytes
+type VisualLabel = String<(.graphemes.count <= 64)> // bytes sem limite finito
+```
 
 Os sketches históricos `min`, `max`, `expected`, `mask` e `inputType` não viram
 knobs universais de `String`. Refinement define invariants. Reserva define uma
@@ -7452,11 +7777,375 @@ Regras:
 - reduction declara a policy numérica;
 - autodiff é transformação tipada de biblioteca/IR, não annotation.
 
+Um element refinement não é preservado automaticamente por `@`. O resultado
+usa o carrier do elemento, salvo quando a API declara outro result type.
+
+```w
+type Signal = Int<(1...128)>
+
+let samples: Matrix<Signal, rows: 16, columns: 64>
+let weights: Matrix<Signal, rows: 64, columns: 8>
+let scores: Matrix<Int, rows: 16, columns: 8> = samples @ weights
+```
+
+Integer `@` preserva overflow verificado. Float `@` usa o mode `.strict`.
+`tensor.matmul` expõe accumulator e outro mode quando o programa precisa mudar
+esses contratos. A seção 18 define as otimizações permitidas.
+
 StableHLO e ONNX são adapters. Eles não definem a semântica completa de W.
 
-## 18. FFI, unsafe e ilhas de linguagem
+## 18. Performance e custo
 
-### 18.1 Fronteira C
+### 18.1 Contrato
+
+Performance não muda a semântica da linguagem. Um profile otimizado precisa
+preservar:
+
+- valor e tipo lógico;
+- panic, error, cancellation e cleanup observáveis;
+- ordem de effects;
+- ownership, aliasing e provenance;
+- policy numérica;
+- ABI, persistência e FFI declaradas.
+
+**Exemplo:** `-O3` não transforma overflow verificado em wrap. Ele pode remover
+o check somente quando prova que o overflow é impossível.
+
+```w
+type SmallCount = Int<(1...128)>
+
+fn doubled(value: SmallCount): Int {
+  return value + value // fato: resultado em 2...256
+}
+```
+
+O resultado de `doubled` é o mesmo em todos os profiles. Um profile pode usar
+uma operação estreita e reestender o valor antes de uma boundary. Outro pode
+usar a largura de `Int`.
+
+O source declara invariants e intenção. Ele não escolhe instruções. SIMD,
+unrolling, inlining, fusion, storage compression e library dispatch são
+decisões do artifact. Uma API que precisa de layout, device ou policy numérica
+os declara com tipos ou argumentos próprios.
+
+```w
+let exact = left @ right
+let approximate = tensor.matmul(left, right, mode: .fast)
+```
+
+Uma recipe idêntica produz os mesmos bytes do artifact. Outra versão do
+compiler ou outro target pode escolher instruções diferentes. A recipe inclui
+compiler, target, CPU features, profile, PGO input e semantic bundles.
+
+### 18.2 Fatos de prova
+
+A HIR mantém `ProofFacts` separados do tipo lógico e do layout. O conjunto
+inicial inclui:
+
+| Fato | Origem típica | Uso |
+|---|---|---|
+| intervalo inteiro | refinement, comparison, range ou `switch` | checks, largura e SIMD |
+| nonzero | refinement ou guard | remover check de divisão |
+| enum case-set | subset ou flow narrowing | exhaustividade e branch elimination |
+| comprimento | array, string refinement ou const parameter | bounds e reserva |
+| shape e stride | Tensor type ou view | fusion, tiling e bounds |
+| alignment | allocation e layout interno | vector load e low bits |
+| alias e escape | owner, `ref`, `inout` e capture | vectorização e stack/region |
+| float class | guard explícito | remover branches; nunca ativa fast math |
+| unit e scale | tipo de unit | eliminar conversões estáticas |
+
+```w
+fn ratio(total: Int, count: Int): Int {
+  guard count != 0 else return 0
+  return total / count // o caminho possui o fato `count != 0`
+}
+```
+
+Facts surgem de tipos, refinements, controle de fluxo, enum subsets,
+const values, ownership e target. O programador não escreve annotations de
+otimização.
+
+```w
+fn label(stage: ServiceStage): String {
+  guard let active = try? WorkStage(stage) else return "terminal"
+
+  return switch active {
+    case .reserving: "reserve"
+    case .preparing: "prepare"
+    case .serving: "serve"
+  }
+}
+```
+
+Um predicate arbitrário continua válido como invariant, mas o optimizer usa
+somente fatos que consegue extrair e verificar. Não entender um predicate
+reduz performance; não altera correção.
+
+```w
+type TaxId = String<(
+  .scalars.count == 11 && TaxIdRules.isValid(value)
+)>
+
+// O compiler conhece `scalars.count == 11`.
+// Ele não deduz fatos internos de `TaxIdRules` sem uma regra verificada.
+```
+
+O passe inicial normaliza intervalos, case-sets, equalities, congruences,
+comprimentos, shapes e relações de alias. Passes posteriores podem descartar um
+fato somente quando também descartam toda transformação que depende dele.
+
+### 18.3 Refinements, largura e storage
+
+Um refinement não muda o carrier público. Ele pode mudar quatro escolhas
+internas independentes:
+
+1. largura da operação;
+2. largura do accumulator;
+3. largura da lane SIMD;
+4. largura do storage não escapante.
+
+**Exemplo:** dois valores `Int<(1...128)>` exigem oito bits unsigned para cada
+operando. O produto exige 14 bits. A soma de 64 produtos exige 21 bits.
+
+| Expressão | Intervalo provado | Bits mínimos sem sinal |
+|---|---:|---:|
+| `value` | 1...128 | 8 |
+| `left * right` | 1...16_384 | 14 |
+| soma de 64 produtos | 64...1_048_576 | 21 |
+
+```w
+type FlavorSignal = Int<(1...128)>
+
+let samples: Matrix<FlavorSignal, rows: 16, columns: 64>
+let weights: Matrix<FlavorSignal, rows: 64, columns: 8>
+let score: Matrix<Int, rows: 16, columns: 8> = samples @ weights
+```
+
+O lowering pode carregar lanes de oito bits, multiplicar em 16 bits e acumular
+em 32 bits. O resultado continua `Int`. Se uma dimensão ou um intervalo não
+provar o limite, o compiler usa a largura base ou mantém checks.
+
+A aritmética de intervalos inclui overflow na própria análise. Para
+`[a, b] + [c, d]`, o fato candidato é `[a+c, b+d]`. Para multiplicação, o
+compiler verifica os quatro produtos dos extremos. Se um cálculo de prova
+excede a precisão ou a quota, o resultado vira `unknown`.
+
+```w
+fn combine(left: SmallCount, right: SmallCount): Int<(2...256)> {
+  return left + right // a conversão para o refinement é provada.
+}
+```
+
+Um valor runtime sem essa prova continua a usar construção fallible:
+
+```w
+let bounded = try Int<(2...256)>(input)
+```
+
+Storage especializado só pode aparecer quando não cruza uma boundary de
+layout. Fields de structs com layout canônico, ABI, FFI, persistência,
+reflection física e address exposure usam o carrier declarado.
+
+```w
+struct PublicReading {
+  value: Int<(1...128)> // layout de Int no struct
+}
+
+fn local(values: take Array<Int<(1...128)>>): Int {
+  // O buffer pode usar storage estreito se não escapar e o cost model aprovar.
+  return values.sum()
+}
+```
+
+Uma compressão interna precisa considerar unpack, alignment, vector width,
+cache e code size. Menos bytes não é sempre mais rápido. `w explain
+performance` informa quando o compiler recusa a compressão.
+
+### 18.4 Texto e collections
+
+Texto possui custos que fazem parte da API:
+
+| Operação | Custo sem cache obrigatório | Allocation |
+|---|---:|---:|
+| `bytes.count` | O(1) | não |
+| byte access | O(1) | não |
+| scalar ou grapheme ordinal | O(bytes atravessados) | não |
+| equality diferente cedo | O(prefixo comum) | não |
+| normalização | O(bytes) | resultado owned |
+| `String.fromUtf8` | O(bytes) | copia |
+| `StringView.fromUtf8` | O(bytes) | não copia |
+| `String.adoptingUtf8` | O(bytes) | pode reutilizar |
+| `left + right` | O(bytes do resultado) | resultado owned |
+
+**Exemplo:** um parser usa bytes para localizar ASCII estrutural e cria views
+somente depois de validar boundaries.
+
+```w
+fn commandName(line: ref String): StringView throws Utf8BoundaryError {
+  let separator = line.bytes.firstIndex(of: b' ') ?? line.bytes.count
+  return try line.view(bytes: 0..<separator)
+}
+```
+
+A implementação pode validar UTF-8 com SIMD, manter um fast path ASCII e criar
+caches de índices. Essas escolhas são invisíveis e limitadas pelo profile. Uma
+String não volta a ser validada a cada iteração porque sua construção já prova
+UTF-8 válido.
+
+Refinements de texto oferecem provas diferentes:
+
+```w
+type WireName = String<(.bytes.count <= 64)>
+type ScalarName = String<(.scalars.count <= 64)>
+type DisplayName = String<(.graphemes.count <= 64)>
+```
+
+`WireName` prova até 64 bytes. `ScalarName` prova até 256 bytes.
+`DisplayName` não prova um limite estático finito de bytes. O optimizer não converte
+contagem visual em capacidade física.
+
+`StringBuilder` é o caminho de custo previsível para construção. Interpolation
+usa um builder único. Uma sequência longa de `+` pode receber um diagnostic de
+performance, mas mantém o mesmo significado.
+
+```w
+var report = StringBuilder(reservingBytes: orders.count * 48)
+for ref order in orders {
+  report.append("Order ${order.id}\n")
+}
+let text = (take report).finish()
+```
+
+### 18.5 Matrizes, SIMD e devices
+
+Shape estático elimina validações de dimensão e fornece trip counts para tiling
+e vectorização.
+
+```w
+fn transform<const rows: usize>(
+  input: ref Tensor<f32, shape: [rows, 64]>,
+  weights: ref Tensor<f32, shape: [64, 8]>,
+): Tensor<f32, shape: [rows, 8]> {
+  return input @ weights
+}
+```
+
+O borrow model fornece alias facts. Dois inputs `ref` não podem ser tratados
+como disjuntos sem prova adicional. Um output novo é disjunto. Um `inout`
+exclusivo não possui outro alias acessível durante a call.
+
+```w
+fn scale(values: inout Tensor<f32, shape: [128]>, factor: f32): () {
+  values *= factor // a exclusividade permite vectorização in-place.
+}
+```
+
+Para integers, `@` usa a semântica de operações verificadas. O compiler pode
+usar um accumulator mais largo. Ele remove checks intermediários somente quando
+prova que cada prefixo lógico cabe no carrier. Um check final basta para uma
+redução monotônica com esse fato. Nos demais casos, o lowering preserva os
+checks por etapa. Uma API explícita escolhe outro accumulator:
+
+```w
+let score: Matrix<i32, rows: 16, columns: 8> =
+  tensor.matmul<i32>(samples, weights: weights, mode: .strict)
+```
+
+O `@` de float usa `.strict`: mesma ordem lógica de redução e nenhuma
+reassociação ou contração que mude rounding. `mode: .fast` autoriza
+reassociation, FMA e kernels aproximados conforme um profile publicado.
+`mode: .reproducible` usa um algoritmo versionado para obter o mesmo resultado
+nos targets que declaram suporte.
+
+```w
+let strict = observations @ weights
+let fast = tensor.matmul(observations, weights: weights, mode: .fast)
+let stable = tensor.matmul(observations, weights: weights, mode: .reproducible)
+```
+
+Um modo numérico não é uma build flag global. O tipo de resultado não esconde a
+policy usada. Trace e `w explain performance` registram kernel, layout,
+accumulator, vector width e device.
+
+Transferência de device permanece explícita. Fusion pode eliminar um
+intermediate lógico, mas não pode inserir uma transferência oculta.
+
+```w
+let deviceWeights = try weights.to(device)
+let deviceInput = try input.to(device)
+let result = try tensor.matmul(deviceInput, weights: deviceWeights)
+let hostResult = try result.to(.host)
+```
+
+MLIR `linalg`, `vector`, `shape`, `tensor` e `gpu` preservam estrutura útil para
+essas transformações. LLVM recebe range e alias facts somente depois que a HIR
+W verifica sua validade.
+
+### 18.6 Observação, PGO e budgets
+
+`w explain performance` separa fato, decisão, estimativa e medição:
+
+```text
+$ w explain performance restaurant.oracle::forecast
+fact: shape [16, 64] @ [64, 8]
+fact: element range 1...128
+decision: 8-bit loads, 16-bit multiply, 32-bit accumulator
+decision: vector width 256 bits
+missed: tensor fusion crosses an observable allocation budget
+estimate: 8.5 KiB read, 512 B written
+measurement: absent
+```
+
+Uma optimization record possui IDs estáveis, source spans e motivos para
+aplicar ou recusar um passe. O editor pode mostrar esse record sem prometer uma
+instrução específica.
+
+PGO é um build input declarado por digest. Ele pode orientar branch layout,
+inlining, specialization e code placement. Ele não pode mudar overload,
+const evaluation, refinement, public interface ou resultado.
+
+```w
+profiles: [
+  {
+    name: "release"
+    optimize: .speed
+    targetCpu: "x86-64-v3"
+    pgoUse: "sha256:..."
+  },
+]
+```
+
+O proof engine possui quotas determinísticas para tempo, memória e tamanho de
+facts. Intervalos, case-sets, shapes e aliasing formam a baseline. SMT geral e
+autotuning que executa código durante o build permanecem **Pesquisa**.
+
+Benchmarks de promoção registram:
+
+- target, CPU, OS, compiler e profile;
+- cold e warm execution;
+- latency distribution e throughput;
+- allocations, peak memory, code size e compile time;
+- dataset e digest;
+- baseline e intervalo de ruído.
+
+Uma otimização entra no default somente quando melhora sua matriz alvo sem
+alterar oracles semânticos. Fallback e differential tests continuam
+obrigatórios.
+
+Fontes primárias:
+
+- [LLVM `range` metadata](https://llvm.org/docs/LangRef.html#range-metadata)
+  representa intervalos de integer e vectors;
+- [MLIR Vector](https://mlir.llvm.org/docs/Dialects/Vector/) preserva operações
+  n-dimensionais para lowering retargetable;
+- [MLIR Linalg](https://mlir.llvm.org/docs/Dialects/Linalg/) preserva estrutura
+  de loops para tiling e library dispatch;
+- o [modelo UTF-8 de Swift](https://www.swift.org/blog/utf8-string/) demonstra
+  validation na criação, fast paths e storage unificado.
+
+## 19. FFI, unsafe e ilhas de linguagem
+
+### 19.1 Fronteira C
 
 ```w
 foreign c from "sensor.h" {
@@ -7509,7 +8198,7 @@ existir, não substitui o pointer original. Um `c.ptr<T>` criado de integer sem
 authority do host não pode ser dereferenced em W seguro nem receber uma
 provenance inventada pelo lowering.
 
-### 18.2 `fn<Language>`
+### 19.2 `fn<Language>`
 
 ```w
 unsafe fn<C> legacyChecksum(data: c.ptr<const c.uchar>, size: c.size): c.uint {
@@ -7622,9 +8311,9 @@ herméticos.
 `fn<C>` é **Líder DB2**. `fn<lang: .c>` permanece **Alternativa**. Um source
 separado com `from` e compilation units nomeadas permanecem **Pesquisa**.
 
-## 19. Compilador e bootstrap
+## 20. Compilador e bootstrap
 
-### 19.1 Planos do sistema
+### 20.1 Planos do sistema
 
 | Plano | Responsabilidade |
 |---|---|
@@ -7639,7 +8328,7 @@ separado com `from` e compilation units nomeadas permanecem **Pesquisa**.
 Governança atravessa todos os planos. Uma implementação não transforma sua AST,
 ABI interna ou scheduler em semântica pública por acidente.
 
-### 19.2 Pipeline
+### 20.2 Pipeline
 
 ```text
 UTF-8 source
@@ -7674,7 +8363,7 @@ detalhes puramente sintáticos. HIR registra:
 
 Um verifier rejeita HIR incompleta antes do lowering.
 
-### 19.3 Dialeto W/MLIR
+### 20.3 Dialeto W/MLIR
 
 **Exemplo:** um move validado vira uma operação W de ownership antes de qualquer
 bufferization ou lowering para LLVM.
@@ -7691,7 +8380,7 @@ Passes só apagam uma distinção depois de prová-la. O lowering pode usar:
 
 MLIR bytecode é cache do toolchain, não formato público eterno.
 
-### 19.4 ABI e runtime
+### 20.4 ABI e runtime
 
 **Exemplo:** `fn(Int): Int` pode mudar calling convention entre builds. Somente
 `unsafe fn<abi: .c>` promete a ABI C.
@@ -7716,7 +8405,7 @@ fingerprint. ABI W só é aceita quando a chave completa confere.
 
 Um target freestanding pode usar somente `core`.
 
-### 19.5 Bootstrap
+### 20.5 Bootstrap
 
 **Direção:** o compiler principal fica self-hosted antes de tasks, services,
 tensors e package registry. O bootstrap possui um perfil source próprio,
@@ -7731,7 +8420,7 @@ implementar dialects e passes. Tipos C++/MLIR não entram na HIR W. A
 [C API do MLIR](https://mlir.llvm.org/docs/CAPI/) é low-level e não possui
 garantia de estabilidade; por isso o bundle fixa sua revisão e testa o adapter.
 
-#### 19.5.1 Fechamento mínimo de `bootstrap.w0`
+#### 20.5.1 Fechamento mínimo de `bootstrap.w0`
 
 O subset precisa expressar um lexer, parser, type checker, HIR, diagnostics,
 serializer e driver. Ele também precisa chamar o backend pelo adapter C.
@@ -7788,7 +8477,7 @@ O compiler escrito em W0 pode reconhecer, verificar e baixar essas features. Ele
 não precisa usá-las no próprio source. Isso mantém o seed pequeno sem criar uma
 segunda linguagem.
 
-#### 19.5.2 Camadas do compiler
+#### 20.5.2 Camadas do compiler
 
 O source fica dividido por dependência:
 
@@ -7811,7 +8500,7 @@ O SDK de bootstrap contém somente T0 e os adapters T1 listados na tabela. Ele
 não executa scripts de package. Seus arquivos, flags e environment são inputs
 da recipe.
 
-#### 19.5.3 Estágios
+#### 20.5.3 Estágios
 
 ```text
 C compiler
@@ -7841,7 +8530,7 @@ separa stage 0 e recompila o compiler. O
 [Go toolchain](https://go.dev/doc/install/source) usa uma versão Go anterior e
 preserva o compiler Go 1.4 escrito em C como rota longa de bootstrap.
 
-#### 19.5.4 Evolução e recovery
+#### 20.5.4 Evolução e recovery
 
 **Exemplo:** se stage C falhar, a recipe recompila `compiler/core-w0` com o seed
 C fixado e compara a HIR normalizada.
@@ -7858,7 +8547,7 @@ O comando futuro `w bootstrap explain` lista stages, compiler parents, source
 digests, adapters, environment e pontos de convergência. Um artifact sem essa
 recipe pode funcionar, mas não recebe o estado “bootstrap reproduzido”.
 
-### 19.6 Incrementalidade
+### 20.6 Incrementalidade
 
 **Exemplo:** alterar o corpo privado de `parseLine` não recompila importers
 quando a interface serializada permanece igual.
@@ -7870,7 +8559,7 @@ módulo. Instâncias generics e outputs de passes possuem chaves próprias.
 Um cache miss afeta performance, não resultado. A ferramenta registra o motivo
 do miss. Ela não usa timestamps como identidade.
 
-### 19.7 Diagnostics e debug
+### 20.7 Diagnostics e debug
 
 **Exemplo:** um use-after-move informa o move original, o uso inválido e um
 fix-it que propõe `copy` somente quando o tipo atende a `Copy`.
@@ -7882,7 +8571,7 @@ Debug symbols ficam em sidecar removível. Logical task stacks e source maps de
 `fn<Language>` preservam a origem. Remover debug não remove reflection solicitada
 nem muda o payload executável além das sections declaradas.
 
-### 19.8 Targets e profiles
+### 20.8 Targets e profiles
 
 Uma linha de suporte declara architecture, operating environment, ABI, profile,
 SDK capabilities, compiler/runtime version, status e test evidence.
@@ -7898,9 +8587,9 @@ SDK capabilities, compiler/runtime version, status e test evidence.
 Tier não mede a segurança de um programa. Um target estreito pode ser correto
 sem oferecer rede, threads, dynamic linking ou Unicode completo.
 
-## 20. Packages, builds e releases
+## 21. Packages, builds e releases
 
-### 20.1 Manifest e resolução
+### 21.1 Manifest e resolução
 
 `package.w` usa um subset data-only. Ele aceita records, lists, strings,
 numbers, size literals, booleans e enum values. Ele não executa imports, loops,
@@ -7939,6 +8628,13 @@ package {
   build: {
     network: .deny
     environment: []
+    profiles: [
+      {
+        name: "release"
+        optimize: .speed
+        targetCpu: "portable"
+      },
+    ]
     constEval: {
       steps: 1_000_000
       heap: 64MiB
@@ -7970,7 +8666,7 @@ O lock registra versões, digests, origem imutável, grafo, features, target,
 profile, artifact key, toolchain, provenance e snapshot de metadata. Alteração
 manual invalida o arquivo.
 
-### 20.2 Build
+### 21.2 Build
 
 **Exemplo:** `w build --locked` recebe target, profile, flags, environment
 declarado e lockfile como inputs da recipe.
@@ -7996,7 +8692,7 @@ Mesma fonte, recipe e ambiente fixado devem produzir o mesmo payload bit a bit.
 Data, commit, paths, locale, timezone, seeds e environment são inputs explícitos
 ou são removidos.
 
-### 20.3 Verificação
+### 21.3 Verificação
 
 **Exemplo:** dois builders reproduzem o mesmo payload e publicam recipes,
 toolchains e sidecars de provenance separados.
@@ -8030,7 +8726,7 @@ Metadata deve suportar delegação, threshold, expiração, rotação, revogaç�
 proteção contra rollback/freeze. TUF e Sigstore são integrações preferidas, não
 keywords nem raízes universais.
 
-### 20.4 Registry, mirrors e estado de segurança
+### 21.4 Registry, mirrors e estado de segurança
 
 **Exemplo:** uma versão pode ser `reproduced` e ainda possuir um advisory de
 segurança aberto. Os estados não se substituem.
@@ -8052,7 +8748,7 @@ O portal mostra eixos separados:
 “Verificado” sempre informa qual eixo e qual policy. Uma estrela agregada não é
 evidência técnica.
 
-### 20.5 Scripts e supply chain
+### 21.5 Scripts e supply chain
 
 **Exemplo:** um build script sem capability de rede não baixa um binary durante
 CI.
@@ -8064,7 +8760,7 @@ CAS e na provenance.
 Dependências transitivas não recebem capabilities do app. Build-time tools e
 runtime dependencies aparecem como relações distintas no SBOM.
 
-### 20.6 CLI
+### 21.6 CLI
 
 ```text
 w resolve
@@ -8083,7 +8779,7 @@ w cache import <bundle>
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
 
-### 20.7 Evolução e governança
+### 21.7 Evolução e governança
 
 **Exemplo:** o registry pode marcar uma versão como yanked. Ele não troca os
 bytes associados ao mesmo digest.
@@ -8100,9 +8796,9 @@ Identidade do nome W, domínio, executable e trademark precisa de validação an
 do lançamento público. A frase “A última linguagem que você vai precisar
 aprender” fica como alternativa de marca; não é promessa técnica.
 
-## 21. Tooling e interface para máquinas
+## 22. Tooling e interface para máquinas
 
-### 21.1 Tooling humano
+### 22.1 Tooling humano
 
 - `w fmt` produz a forma canônica de 120 colunas;
 - `w check` não gera artefato final;
@@ -8152,7 +8848,7 @@ comparado depois do freeze com um gerador mínimo. A escolha depende de build
 hermético, output estático, acessibilidade, dependências, tempo de build e
 facilidade de remover o framework.
 
-### 21.2 Documentação e testes
+### 22.2 Documentação e testes
 
 `///` documenta a próxima declaração. Fences `w test` são doctests. Testes
 co-localizados usam:
@@ -8170,7 +8866,7 @@ no release payload.
 O runner produz um grafo reproduzível. Snapshot e golden são arquivos explícitos
 e revisáveis. IA pode propor testes em diff; ela não substitui o oracle aceito.
 
-### 21.3 Lens de recursos
+### 22.3 Lens de recursos
 
 **Exemplo:** o editor mostra `+0 B static, <=4 KiB peak` ao lado de um import
 quando a análise possui bounds provados.
@@ -8191,7 +8887,7 @@ pode ser provado. Budgets são contratos separados.
 Feedback medido pode melhorar estimates locais. Ele é opt-in, vinculado à recipe
 e não envia source/dados sem consentimento.
 
-### 21.4 Interface para modelos
+### 22.4 Interface para modelos
 
 **Exemplo:** um modelo recebe diagnostic JSON com move original, uso inválido,
 tipo e fix-it. Ele não precisa inferir esses fatos de uma mensagem livre.
@@ -8211,7 +8907,7 @@ Contagem de tokens depende do tokenizer. A DB2 mede vários modelos antes de
 trocar uma keyword por pontuação. Compile success, testes e edit distance têm
 mais peso que token count isolado.
 
-### 21.5 Diagnostics estruturados
+### 22.5 Diagnostics estruturados
 
 Um diagnostic possui identidade estável e dados antes de possuir prosa. A saída
 JSONL canônica contém:
@@ -8304,12 +9000,12 @@ O schema toma como precedentes a saída
 e o [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.pdf).
 W mantém um schema interno menor e produz LSP ou SARIF por adapter.
 
-## 22. Protocolos e pesquisas de ecossistema
+## 23. Protocolos e pesquisas de ecossistema
 
 Nenhum item desta seção reserva keyword. Cada hipótese usa os contratos do core
 e pode evoluir como package separado.
 
-### 22.1 Contrato tipado e wRPC
+### 23.1 Contrato tipado e wRPC
 
 **Exemplo:** `ServiceRef<MenuApi>.lookup(id)` preserva request, response, error,
 deadline e cancellation no schema de transporte.
@@ -8325,7 +9021,7 @@ metadata, payload e tamanho validado antes da alocação.
 Retry mutante não é implícito. Deadline/cancelamento não promete rollback.
 Falhas de aplicação, transporte, codec, protocol e autorização são distintas.
 
-### 22.2 JSON, WLO e wStruct
+### 23.2 JSON, WLO e wStruct
 
 **Exemplo:** um adapter JSON rejeita field desconhecido quando o schema usa modo
 strict. WLO não muda essa regra por syntax.
@@ -8337,7 +9033,7 @@ strict. WLO não muda essa regra por syntax.
 WLO precisa de grammar menor que W, canonical bytes, limits e fuzzing. wStruct
 não serializa pointers, padding ou handles crus. Ambos precisam de fallback.
 
-### 22.3 wQL e RestPC
+### 23.3 wQL e RestPC
 
 **Exemplo:** uma query de pedidos precisa declarar paginação, limites, auth,
 cache e error mapping antes de virar API oficial.
@@ -8357,7 +9053,7 @@ RestPC é um profile HTTP/JSON:
 Ele não finge que toda operação é um resource. Typed errors e HTTP status são
 camadas distintas. GraphQL, SQL e OpenAPI não são compatibilidade automática.
 
-### 22.4 V6 e Computer Units
+### 23.4 V6 e Computer Units
 
 **Exemplo:** uma Computer Unit pode virar uma service instance. Ela não recebe
 wire format ou deployment implícitos.
@@ -8366,7 +9062,7 @@ V6 continua pesquisa de runtime/host serverless. Computer Unit é uma instância
 com entrypoints, limits e capabilities. Esses conceitos podem hospedar services
 W, mas não definem a linguagem, wRPC ou o package manager.
 
-### 22.5 Tree strings
+### 23.5 Tree strings
 
 **Exemplo:** um protótipo compara árvore compacta com `String` + parser em tamanho,
 lookup, edição e interoperabilidade.
@@ -8375,7 +9071,7 @@ Tree strings continuam uma estrutura especializada para interning, índices ou
 edição. `String` público permanece UTF-8 contíguo. Codec e ABI observam o valor
 lógico, não a representação experimental.
 
-### 22.6 GPU, HDL, PGO e geração assistida
+### 23.6 GPU, HDL, PGO e geração assistida
 
 **Exemplo:** um kernel tensor pode baixar para GPU quando o device atende ao
 contrato. O mesmo source mantém fallback CPU correto.
@@ -8387,7 +9083,7 @@ verificação; não é lowering automático de código CPU.
 PGO, snapshots e casos gerados por IA são artefatos de tooling. Seed, workload,
 provenance e oracle são explícitos. Nenhum deles muda a semântica source.
 
-### 22.7 Gate de promoção
+### 23.7 Gate de promoção
 
 **Exemplo:** `fn<Rust>` não entra na linguagem até reproduzir archive, façade C,
 diagnostics e cleanup em dois targets.
@@ -8401,7 +9097,7 @@ Uma pesquisa só avança quando possui:
 5. impacto em parser, formatter, metadata e packages;
 6. decisão registrada por diff e teste.
 
-## 23. Classificação de viabilidade
+## 24. Classificação de viabilidade
 
 | Família | Classe DB2 | Motivo |
 |---|---|---|
@@ -8413,6 +9109,8 @@ Uma pesquisa só avança quando possui:
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
+| UTF-8 incremental e maximal subpart | **Possível agora** | estado máximo de três bytes e algoritmo Unicode versionado |
+| adoção de `Bytes` por `String` | **Provável** | owner transfer é claro; reuse depende do allocator/layout |
 | Bytes, paths nativos e C strings distintos | **Possível agora** | fronteiras conhecidas; conversões preservam perda e terminador |
 | graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
 | `InlineString` com layout público | **Pesquisa** | benefício depende de target, ABI e benchmark contra SSO invisível |
@@ -8442,10 +9140,18 @@ Uma pesquisa só avança quando possui:
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
+| interval, case-set, shape e alias facts na HIR | **Possível agora** | análises conhecidas; fallback conserva checks e largura |
+| remoção de checks por prova verificada | **Possível agora** | range e control-flow facts possuem lowering direto |
+| largura de operação e SIMD por refinement | **Provável** | precisa preservar overflow, accumulator e cost model por target |
+| storage estreito não escapante | **Provável** | exige boundary analysis, repacking e benchmark de cache/code size |
+| optimization record e `w explain performance` | **Possível agora** | facts e decisões já existem nos passes; schema precisa ser estável |
+| theorem prover ou SMT geral no build | **Pesquisa** | custo, diagnostics e reproducibility não fecham a baseline |
 | property behaviors | **Provável** | expansão HIR é viável; composição ainda precisa de teste |
 | obrigação linear de async close | **Pesquisa** | evita leak oculto; receiver e cancellation precisam de protótipo |
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
 | tensors ranked, `@` e views | **Provável T2** | MLIR ajuda; API e device model precisam de protótipo |
+| integer tensor com accumulator inferido por range | **Provável T2** | prova é conhecida; panic, widening e kernel dispatch exigem corpus |
+| float matrix modes strict/fast/reproducible | **Provável T2** | cada mode precisa de oracle numérico e matriz de targets |
 | niches de null e bit pattern inválido | **Possível agora** | validity facts e fallback explícito fecham a semântica |
 | low-bit interno por alignment provado | **Provável** | exige lowering de provenance e corpus de FFI, atomics e sanitizer |
 | high-bit addresses e NaN boxing | **Pesquisa** | dependem de target, processo e tooling; não integram o profile portátil |
@@ -8465,7 +9171,7 @@ Uma pesquisa só avança quando possui:
 | custom operators e precedência do usuário | **Rejeitado** | piora parser, tooling e previsibilidade |
 | macros/annotations universais | **Rejeitado** | cria uma segunda linguagem e hidden behavior |
 
-## 24. Ensaio do restaurante cósmico
+## 25. Ensaio do restaurante cósmico
 
 O corpus DB2 usa um restaurante original de escala cósmica. Ele não copia
 personagens, frases ou eventos de outra obra. O humor vem de situações técnicas:
@@ -8499,7 +9205,7 @@ cardápio precisa continuar dentro do fechamento W0.
 O ensaio detalhado está no
 [Restaurante Última Luz](examples/restaurant/README.md).
 
-## 25. Protocolo de revisão
+## 26. Protocolo de revisão
 
 **Exemplo:** pessoas e modelos corrigem o mesmo erro de ownership no restaurante
 antes de informar preferência pela syntax.
@@ -8558,12 +9264,12 @@ O corpus compara, no mínimo:
 - nested matrix contra `;`;
 - import de namespace compacto contra a forma DB1 com `from`.
 
-## 26. Plano de implementação
+## 27. Plano de implementação
 
 Cada fase entrega um corte vertical, tests e uma demonstração reproduzível no
 corpus ou na CLI. O portal gerado começa somente depois do design freeze.
 
-### 26.1 Fase -1 — design e corpus
+### 27.1 Fase -1 — design e corpus
 
 **Exemplo:** cada forma líder possui um caso positivo, um negativo e uma
 alternativa preservada.
@@ -8575,7 +9281,7 @@ alternativa preservada.
 
 Saída: toda forma implementada possui contrato, alternativa e teste.
 
-### 26.2 Fase 0 — lexer, parser e formatter
+### 27.2 Fase 0 — lexer, parser e formatter
 
 **Exemplo:** `parse → format → parse` de `callables.w` produz árvores
 equivalentes e nenhum error node.
@@ -8593,7 +9299,7 @@ equivalentes e nenhum error node.
 
 Saída: parse/format/parse estável e diagnostics preparados.
 
-### 26.3 Fase 1 — AST, nomes e tipos
+### 27.3 Fase 1 — AST, nomes e tipos
 
 **Exemplo:** `w check` rejeita um overload por tipo antes de existir backend.
 
@@ -8612,26 +9318,29 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;
+- `ProofFacts` para intervalos, case-sets, comprimentos, shapes e flow;
 - interface compilada inicial.
 
 Saída: `w check` verifica o subset síncrono do restaurante.
 
-### 26.4 Fase 2 — HIR, MLIR e executável nativo
+### 27.4 Fase 2 — HIR, MLIR e executável nativo
 
 **Exemplo:** o mesmo programa aritmético gera HIR equivalente pelo seed C e pelo
 frontend self-hosted.
 
 - HIR tipada;
+- propagation de facts, eliminação de checks e optimization record;
 - witnesses sintetizados e descriptors alcançáveis;
 - dialeto W/MLIR e verifiers;
 - arithmetic/control lowering;
+- String UTF-8, views, decoder incremental e maximal-subpart tests;
 - LLVM/native e runtime core;
 - seed C aceita o primeiro `bootstrap.w0` e emite C11;
 - corpus diferencial entre o caminho seed-C e W/MLIR.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
 
-### 26.5 Fase 3 — memória, errors e C
+### 27.5 Fase 3 — memória, errors e C
 
 **Exemplo:** um callback C com context executa cleanup uma vez em success, error
 e cancelamento.
@@ -8647,7 +9356,7 @@ e cancelamento.
 
 Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
-### 26.6 Fase 4 — bootstrap e self-host
+### 27.6 Fase 4 — bootstrap e self-host
 
 - fechar o profile `bootstrap.w0`;
 - escrever `compiler/core-w0` em W;
@@ -8658,7 +9367,7 @@ Saída: sanitizers e corpus negativo não encontram dangling/double drop.
 
 Saída: o core W compila o próprio source sem tasks, services ou packages.
 
-#### 26.6.1 Gates internos do self-host
+#### 27.6.1 Gates internos do self-host
 
 O self-host não começa no primeiro build completo. Cada gate adiciona somente a
 capacidade necessária para o gate seguinte.
@@ -8685,7 +9394,7 @@ As fases seguintes adicionam esses verificadores e lowerings ao compiler
 self-hosted. O source de `compiler/core-w0` continua restrito a W0. Assim, tasks,
 services, units, tensors e packages não ampliam a base de recovery.
 
-### 26.7 Fase 5 — tasks
+### 27.7 Fase 5 — tasks
 
 **Exemplo:** `mixPair` cancela o sibling após erro e aguarda ambos os children
 antes de sair do scope.
@@ -8704,7 +9413,7 @@ antes de sair do scope.
 Saída: restaurante executa I/O concorrente e lotes paralelos com ordering,
 backpressure e cleanup reproduzíveis.
 
-### 26.8 Fase 6 — services e host entries
+### 27.8 Fase 6 — services e host entries
 
 **Exemplo:** `entry LastLight` valida `process.main` e `http.fetch` contra o
 profile do host.
@@ -8719,7 +9428,7 @@ profile do host.
 
 Saída: CLI e HTTP exibem hops, queues, overload, cycle e restart.
 
-### 26.9 Fase 7 — packages e SDK
+### 27.9 Fase 7 — packages e SDK
 
 **Exemplo:** CI recompila um package público pela recipe e compara o digest antes
 de marcar a versão como reproduced.
@@ -8732,20 +9441,21 @@ de marcar a versão como reproduced.
 
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 
-### 26.10 Fase 8 — ciência e extração
+### 27.10 Fase 8 — ciência e extração
 
 **Exemplo:** `Matrix<2, 3> @ Matrix<3, 4>` baixa para CPU e mantém shape
 `Matrix<2, 4>`.
 
 - units/refinements completos;
-- tensor CPU e `@`;
+- tensor CPU, `@`, accumulators e modes numéricos;
+- SIMD por range, storage estreito experimental e `w explain performance`;
 - rebuild em estágios;
 - suíte de conformidade;
 - decisão sobre mover W para repository próprio.
 
 Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 
-### 26.11 Gates
+### 27.11 Gates
 
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
@@ -8754,10 +9464,11 @@ Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 | services | closed turn, admission e cycle são previsíveis? | três workloads, failure injection e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
+| performance | facts aceleram sem mudar semântica ou layout público? | differential oracles, optimization records e benchmarks |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
 | self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |
 
-### 26.12 Checkpoint por fase
+### 27.12 Checkpoint por fase
 
 **Exemplo:** uma fase não fecha quando seus testes passam, mas `git diff --check`
 ou o corpus negativo falha.
@@ -8772,7 +9483,7 @@ Cada checkpoint executa:
 6. atualização deste documento;
 7. commit pequeno com resultado e limitações.
 
-## 27. Mudanças da DB1 para a DB2
+## 28. Mudanças da DB1 para a DB2
 
 | Tema | DB1 | Líder DB2 |
 |---|---|---|
@@ -8799,7 +9510,7 @@ acessível no
 [arquivo histórico](../Y/W/archive/db1-2026-07-27/README.md) e no histórico do
 Git.
 
-## 28. Registro de decisões e alternativas
+## 29. Registro de decisões e alternativas
 
 Esta tabela é o checklist de revisão humana. **Líder** significa “implementar e
 experimentar”, não “decisão irreversível”.
@@ -9017,19 +9728,19 @@ experimentar”, não “decisão irreversível”.
 | D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
 | D2-210 | semântica de String | owned, contíguo, UTF-8 válido e mutable por acesso exclusivo | tree/rope default; UTF-16; COW contract |
 | D2-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
-| D2-212 | elementos de texto | `UnicodeScalar` Copy e `Grapheme` borrowed; sem `Character` universal | Character owned; scalar chamado Char |
-| D2-213 | índices de texto | byte usa `usize`; scalar/grapheme usam índices borrowed do source | ordinal em subscript; índice universal |
+| D2-212 | elementos de texto | `UnicodeScalar` Copy e `Grapheme` borrowed; owned usa String refinado | Character owned; scalar chamado Char |
+| D2-213 | índices de texto | origem borrowed, custo visível e uso terminal em edição | ordinal em subscript; índice universal |
 | D2-214 | slices de texto | byte slice é `Slice<u8>`; byte range para StringView é fallible | arredondar boundary; slice sempre String |
 | D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
-| D2-216 | conversão UTF-8 | validação e reparo explícitos; erro informa byte offset | replacement implícito; locale codec default |
-| D2-217 | construção de String | interpolation canônica; `+` aloca; `+=` muta; builder para volume | concat adjacente; conversão universal implícita |
+| D2-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes D2-358–362 | replacement implícito; locale codec default |
+| D2-217 | construção de String | interpolation usa builder e `Display.write`; `+` aloca; `+=` muta | concat adjacente; String intermediário por campo |
 | D2-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
 | D2-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
 | D2-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
-| D2-221 | bundle Unicode | edição fixa UAX #15/#29/#31 e UTS #39 em tabelas testadas | versão do host; ICU obrigatório |
-| D2-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos | paths sempre String; bytes portáveis do OS |
+| D2-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
+| D2-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
 | D2-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
-| D2-224 | storage textual | refinement não fixa layout; `InlineString` permanece Pesquisa | capacity em String; SSO observável |
+| D2-224 | storage textual | refinement não fixa layout; byte/scalar/grapheme provam bounds distintos | capacity em String; SSO observável |
 | D2-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
 | D2-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
 | D2-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
@@ -9162,6 +9873,32 @@ experimentar”, não “decisão irreversível”.
 | D2-354 | fairness | eventual sob tasks bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica |
 | D2-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
 | D2-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
+| D2-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
+| D2-358 | conversão UTF-8 | view valida sem copiar; String copia; adoption consome e devolve bytes no erro | cópia implícita em todas; zero-copy prometido |
+| D2-359 | erro UTF-8 | offset, maximal-subpart length e reason estáveis | byte inválido apenas; mensagem livre; decoder-dependent |
+| D2-360 | reparo UTF-8 | um U+FFFD por maximal subpart; nunca implícito | um por byte; descartar bytes; replacement configurável global |
+| D2-361 | UTF-8 incremental | até três bytes pendentes; `finish` decide incomplete; offset do stream | validar cada chunk isolado; buffer sem limite |
+| D2-362 | BOM UTF-8 | core preserva U+FEFF; adapter nomeado aplica policy | remover sempre; preservar sempre em todo protocolo |
+| D2-363 | índices de texto | origem emprestada, custo visível e uso terminal em edição | integer offset universal; índice persistível |
+| D2-364 | grapheme owned | `String<(.graphemes.count == 1)>`; sem `Character` | tipo Character universal; Grapheme owned implícito |
+| D2-365 | interpolação | um StringBuilder + `Display.write`; `display()` é conveniência | String intermediário por campo; concatenação implícita |
+| D2-366 | edição Unicode | bundle e digests no semantic fingerprint; índices não persistem | versão do sistema; boundary congelada no valor |
+| D2-367 | PackagePath | NFC e colisão normalizada rejeitada | nomes distintos por bytes; escolher o primeiro |
+| D2-368 | semântica de performance | profiles preservam valor, panic, effects, ownership e numeric policy | release muda overflow/float; optimizer como semântica |
+| D2-369 | facts de otimização | `ProofFacts` na HIR para interval, case-set, length, shape, alignment e alias | annotations de usuário; confiar só no backend |
+| D2-370 | predicate opaco | invariant válido; optimizer usa somente fatos extraídos e verificados | SMT obrigatório; ignorar todo predicate |
+| D2-371 | largura interna | operation, accumulator, SIMD lane e storage são escolhas separadas | menor tipo único para tudo; carrier sempre obrigatório |
+| D2-372 | resultado refinado | expressão provada satisfaz expected refinement sem check; caso geral é fallible | `try` mesmo com prova; narrowing runtime implícito |
+| D2-373 | storage estreito | somente não escapante e após cost model; boundaries usam carrier | layout menor público por refinement; nunca comprimir |
+| D2-374 | custo de texto | complexidade por bytes e unidade explícita; caches/ASCII/SIMD invisíveis | `length` O(1) universal; cache obrigatório no layout |
+| D2-375 | integer `@` | checked semantics; widening interno ou accumulator explícito | wrap; accumulator sempre igual ao elemento |
+| D2-376 | float `@` | strict default; fast e reproducible por mode explícito | fast global em release; operator dependente do target |
+| D2-377 | device e fusion | transfer explícita; fusion pode apagar intermediário, não mover device | auto-transfer; toda operação materializa |
+| D2-378 | PGO | input por digest só orienta optimization | muda const/interface; profile implícito da máquina |
+| D2-379 | explicação de performance | facts, decisions, estimates, measurements e missed reasons separados | assembly como única explicação; número exato universal |
+| D2-380 | proof budget | quotas determinísticas; interval/case-set/shape/alias baseline; SMT em Pesquisa | solver sem limite; timeout como resultado semântico |
+| D2-381 | gate de otimização | benchmark reproduzível + differential oracle + fallback | microbenchmark único; otimização sem profile portátil |
+| D2-382 | largura de `Int` | `Int`/`UInt` têm 64 bits; `isize`/`usize` seguem address width | Int segue target; literal default `i32`; BigInt default |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

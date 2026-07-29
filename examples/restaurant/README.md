@@ -50,6 +50,7 @@ owner e estado observável.
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
+| `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `memory.w` | ownership, enum subset, niches, pinning e callback C |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
@@ -113,7 +114,15 @@ Aceite:
 - Bytes, scalars e graphemes produzem contagens independentes.
 - Índices de scalar e grapheme não escondem busca ordinal.
 - Normalização não altera `==` sem uma call explícita.
-- `String.fromUtf8` falha no byte inválido exato.
+- `String.fromUtf8` informa offset, tamanho e razão do primeiro erro.
+- reparo usa uma U+FFFD por maximal subpart inválida.
+- decoder incremental preserva até três bytes entre chunks.
+- somente `finish()` classifica uma sequência parcial como incompleta.
+- `StringView.fromUtf8` valida sem copiar.
+- adoção consome o buffer e o devolve quando a validação falha.
+- core UTF-8 preserva U+FEFF; somente um adapter nomeado consome a assinatura.
+- uma edição pode usar índices do owner na última operação que os usa.
+- um grapheme não implica limite finito de bytes.
 - `CString` rejeita NUL interno.
 - `Path` nativo converte para `Utf8Path` de forma fallible.
 - `PackagePath` mantém uma forma portátil separada.
@@ -213,6 +222,8 @@ Aceite:
 - `tensor[i, j]` acessa um elemento sem uma view intermediária;
 - view não copia;
 - device transfer aparece no source/trace.
+- refinements de elemento podem estreitar loads, multiplies e accumulators;
+- float `@` não ativa reassociation ou FMA sem um mode explícito.
 
 ### 3.9 Sonda de Aroma
 
@@ -719,6 +730,30 @@ Aceite:
 O scheduler adversarial usa uma única CPU lógica, inverte a ordem de todos os
 children e suspende um nested group quando o budget está cheio. O programa deve
 terminar com o mesmo resultado e sem criar um worker adicional.
+
+### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
+
+Famílias: refinement, facts de range, enum subset, texto, SIMD e tensor.
+
+Aceite:
+
+- `FlavorSignal = Int<(1...128)>` mantém o carrier de `Int`;
+- `FlavorSignal + FlavorSignal` prova o intervalo `2...256`;
+- a conversão do resultado para `FlavorPair` não executa um check runtime;
+- uma call externa ou um field com layout canônico recebe o carrier completo;
+- storage estreito só aparece em valores ou buffers que não escapam;
+- 8-bit loads, 16-bit multiply e 32-bit accumulation preservam o resultado;
+- `ActiveStage` remove os cases terminais e torna o switch exaustivo;
+- `WireName` prova 64 bytes;
+- `ScalarName` prova no máximo 256 bytes;
+- `DisplayName` não prova um limite estático de bytes;
+- `w explain performance` separa fato, decisão, estimate e measurement;
+- desligar toda especialização produz os mesmos valores, errors e panic.
+
+O oracle diferencial executa `flavorScore` com lowering portátil, vector,
+storage estreito desativado e storage estreito ativado. Cada execução precisa
+produzir o mesmo tensor e o mesmo overflow. O benchmark registra target, CPU,
+dataset, allocations, code size e intervalo de ruído.
 
 ## 4. Alternativas visuais obrigatórias
 
