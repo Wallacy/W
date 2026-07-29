@@ -239,6 +239,30 @@ fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws Allocation
   }
 }
 
+protocol Stream<Item, Failure: Error> {
+  mut async fn next(): Item? throws Failure
+}
+
+async fn drainOrders(
+  input: take Channel<Order><.receive>,
+): () {
+  var orders = take input
+
+  for await order in orders {
+    serve(take order)
+  }
+}
+
+async fn inspectLines<E: Error>(
+  source: take some Stream<view String, E>,
+): () throws E {
+  var lines = take source
+
+  for try await line in lines {
+    inspect(line)
+  }
+}
+
 foreign c from "last_light_probe.h" {
   type ll_probe
   fn ll_probe_close(probe: c.ptr<ll_probe>)

@@ -5339,8 +5339,9 @@ fn map<U, E: Error>(
 ): Array<U> throws E
 ```
 
-Quando `E` é `Never`, o compiler especializa a função como nonthrowing. W não
-precisa de `rethrows`.
+Quando `E` é `Never`, o compiler especializa a função como nonthrowing. Como
+bottom type, `Never` satisfaz a posição genérica `E: Error` sem criar um error
+value ou uma conformance runtime. W não precisa de `rethrows`.
 
 Um error concreto é um enum fechado que atende a `Error`. Seus cases carregam
 dados estruturados. Uma mensagem de texto não é obrigatória:
@@ -6162,19 +6163,454 @@ não mudam `spawn`, ownership ou ordering.
 
 ### 12.9 Streams e channels
 
-**Exemplo:** `Channel<Event>(capacity: 64)` aplica backpressure no item 65 até
-existir espaço ou cancelamento.
+`Stream` e `Channel` resolvem problemas diferentes:
 
-**Direção:** `Stream<T, E>` usa pull. `next()` é async e move um elemento para o
-consumer. Cancelar ou destruir o consumer fecha o producer scope.
+- `Stream` descreve consumo pull, assíncrono e single-pass;
+- `Channel` transfere ownership entre producers e um consumer;
+- uma mailbox transporta calls de service, authority, deadline e outcomes.
 
-Prefetch é explícito e bounded. Ordering, watermark e ownership fazem parte do
-constructor. `yield` não entra na grammar antes de o verifier representar esses
-contratos.
+Um tipo não substitui os outros. O runtime pode compartilhar uma primitive de
+fila entre eles sem compartilhar a semântica pública.
 
-`Channel<T>` é um tipo separado. `send` move `T`. `receive` devolve ownership.
-Capacity zero cria rendezvous. Capacity positiva é bounded. Ordering é FIFO por
-sender, salvo policy mais forte.
+#### 12.9.1 Contrato de `Stream`
+
+**Líder DB2:** `Stream<Item, Failure>` é um protocol pull com um único cursor:
+
+```w
+export protocol Stream<Item, Failure: Error> {
+  mut async fn next(): Item? throws Failure
+}
+```
+
+`next()` suspende até produzir um item, terminar ou falhar. Cada item owned é
+movido para o consumer. `.none` termina o stream. Depois de devolver `.none` ou
+lançar `Failure`, toda chamada futura devolve `.none`. Um producer que precisa
+continuar depois de um erro produz `Result<Item, Failure>` como item; ele não
+usa o error effect terminal.
+
+`Failure = Never` torna o stream nonthrowing. A especialização elimina `try`:
+
+```w
+async fn announce<S: Stream<Announcement, Never>>(source: take S) {
+  var announcements = take source
+
+  for await announcement in announcements {
+    print(announcement.title)
+  }
+}
+```
+
+Um stream fallible usa a ordem canônica `for try await`:
+
+```w
+async fn audit<S: Stream<AuditEvent, AuditError>>(
+  source: take S,
+): () throws AuditError {
+  var events = take source
+
+  for try await event in events {
+    inspect(event)
+  }
+}
+```
+
+O loop obtém acesso exclusivo ao cursor durante cada chamada a `next()`. A
+forma explícita é equivalente:
+
+```w
+while let event = try await events.next() {
+  inspect(event)
+}
+```
+
+Um `break` deixa um stream nomeado parcialmente consumido. Destruir um stream
+temporário ou deixar seu owner sair de escopo solicita cancelamento ao producer.
+Não existe uma chamada implícita a `await` no destructor. Um producer
+estruturado pertence ao scope que criou o stream; esse scope não termina antes
+de o producer concluir seu cleanup. Um tipo que exige close assíncrono também
+oferece uma operação consuming própria, usada com `defer async`.
+
+Esta forma mantém uma única abstração pública. Adapters como `map`, `filter` e
+`take` devolvem `some Stream<..., ...>`. Eles não exigem classes públicas como
+`AsyncMapStream`. `any Stream<..., ...>` continua uma erasure explícita, com
+indirection e possível allocation.
+
+A proposta de
+[AsyncSequence de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0298-asyncsequence.md)
+também usa `next() async throws -> Element?`, torna o fim estável e preserva os
+tipos concretos dos adapters para permitir otimização. W remove a separação
+obrigatória entre sequence e iterator: `Stream` é sempre single-pass.
+
+#### 12.9.2 Views em streams
+
+`view` não é um tipo utilitário chamado `StringView`. Ele é o access mode
+genérico de uma projeção borrowed. Por isso, um stream pode declarar um item
+borrowed:
+
+```w
+async fn indexMenu<E: Error>(
+  source: take some Stream<view String, E>,
+): () throws E {
+  var lines = take source
+
+  for try await line in lines {
+    index(line)
+  }
+}
+```
+
+Neste caso, a interface registra o stream como origem da view. A view pode viver
+durante o body da iteração. Enquanto ela está viva, o programa não chama
+`next()` de novo se essa chamada puder reutilizar ou alterar o mesmo storage.
+Ela não escapa para uma task detached, um channel ou um owner com lifetime
+maior.
+
+Esta regra preserva três conceitos:
+
+| Forma | Promessa |
+|---|---|
+| `ref T` | leitura do place completo |
+| `view T` | leitura de uma projeção com provenance |
+| `let value: T` profundamente imutável | fato inferido quando todo o grafo permite a prova |
+
+W não adiciona `Readonly<T>`, `Immutable<T>`, `StringView` ou `ArrayView`.
+Interior mutation, capabilities e aliases `shared` impedem que um wrapper
+universal prometa imutabilidade profunda. A seção 16.2 fecha os descriptors,
+lifetimes e limites das views.
+
+#### 12.9.3 Endpoint e topologia de `Channel`
+
+**Líder DB2:** o channel básico é MPSC: vários senders e um receiver. A criação
+devolve endpoints distintos:
+
+```w
+let (ordersOut, ordersIn) = Channel<Order>.open(capacity: 64)
+```
+
+Os tipos inferidos são:
+
+```w
+ordersOut: Channel<Order><.send>
+ordersIn: Channel<Order><.receive>
+```
+
+`Channel<T>` sem o contract de endpoint aparece somente como namespace de
+`open`. Não existe um valor runtime bidirecional.
+
+`Channel<T><.send>` é um handle shareable e move-first. `copy ordersOut` cria
+outro producer e torna o retain visível. `Channel<T><.receive>` é move-only,
+transferable e não shareable. Assim, duas tasks não podem receber o mesmo item.
+
+`T` precisa atender a `T<(.transferable)>`. Um payload borrowed, inclusive
+`view T`, não atende ao requisito:
+
+```w
+let line: view String = command.scalars[0..<4]
+let _ = Channel<view String>.open(capacity: 1) // Erro: payload borrowed.
+```
+
+Um caller materializa a projeção ou envia um owner:
+
+```w
+let (textOut, _) = Channel<String>.open(capacity: 1)
+try await textOut.send(line.materialize())
+```
+
+Separar endpoints fecha authority de close e evita que um valor bidirecional
+seja copiado por acidente. A
+[MPSC bounded de Tokio](https://docs.rs/tokio/latest/tokio/sync/mpsc/)
+também usa handles separados, backpressure e um receiver único. W acrescenta
+move explícito, enum subsets e facts de mobilidade.
+
+#### 12.9.4 Envio, recebimento e recuperação do owner
+
+Um envio normal suspende até obter admission. Ele move o item somente no ponto
+de commit:
+
+```w
+try await ordersOut.send(take order)
+let received: Order? = await ordersIn.receive()
+```
+
+O SDK declara um error fechado:
+
+```w
+export enum ChannelSendError<T>: Error {
+  full(T)
+  closed(T)
+}
+```
+
+`send` pode produzir somente `.closed`. `trySend` pode produzir os dois cases:
+
+```w
+extension<T> Channel<T><.send> {
+  async fn send(
+    value: take T,
+  ): () throws ChannelSendError<T><[.closed]>
+
+  fn trySend(
+    value: take T,
+  ): () throws ChannelSendError<T>
+}
+
+extension<T> Channel<T><.receive> {
+  async fn receive(): T?
+  fn close()
+}
+```
+
+O error devolve ownership ao caller:
+
+```w
+do {
+  try await ordersOut.send(take order)
+} catch .closed(let returnedOrder) {
+  storeForTomorrow(take returnedOrder)
+}
+```
+
+Se `send` é cancelado antes do commit, nenhum item entra no channel. O item
+permanece no frame cancelado e executa seu cleanup uma vez. Se o commit ocorreu,
+o receiver possui o direito de receber ou descartar o item; o sender não observa
+um falso cancelamento.
+
+`receive()` devolve `.none` somente quando o channel está fechado e todos os
+itens aceitos foram drenados. `Channel<T><.receive>` também atende a
+`Stream<T, Never>`, portanto o consumer comum usa `for await`.
+
+```w
+async fn serveAll(input: take Channel<Order><.receive>) {
+  var orders = take input
+
+  for await order in orders {
+    serve(take order)
+  }
+}
+```
+
+Cancellation de um `receive` ainda não comprometido remove o waiter e deixa o
+item na fila. Depois do commit, o task frame possui o item e faz seu cleanup se
+a task terminar.
+
+#### 12.9.5 Reserva de capacity
+
+`reserve()` aguarda admission sem construir ou mover o item:
+
+```w
+let permit = try await ordersOut.reserve()
+let order = prepareSynchronously()
+try (take permit).send(take order)
+```
+
+As assinaturas são:
+
+```w
+export enum ChannelClosed: Error {
+  closed
+}
+
+extension<T> Channel<T><.send> {
+  async fn reserve(): ChannelPermit<T> throws ChannelClosed
+}
+
+extension<T> ChannelPermit<T> {
+  take fn send(
+    value: take T,
+  ): () throws ChannelSendError<T><[.closed]>
+}
+```
+
+O item ainda não existe durante `reserve()`. Por isso, `ChannelClosed` não
+carrega payload e é separado de `ChannelSendError<T>`.
+
+`ChannelPermit<T>` é move-only. Ele representa uma vaga ou, com capacity zero,
+um receiver já pareado. Destruir um permit não usado devolve a vaga. Cancellation
+antes do retorno de `reserve()` remove o waiter. Cancellation depois do retorno
+executa o cleanup do permit.
+
+Um close gracioso não revoga permits já emitidos. O receiver os drena ou espera
+que sejam descartados. Destruir o receiver é abortivo; nesse caso,
+`permit.send` devolve o item em `.closed`.
+
+Manter um permit através de outro `await` reduz capacity e pode criar
+head-of-line blocking. O resource lens registra a duração, e o lint avisa por
+default. Uma restrição de tipo que proíba suspension com permit vivo permanece
+**Pesquisa**; ela precisa tratar adapters foreign e false positives.
+
+O mecanismo segue a função dos permits documentados por
+[Tokio](https://docs.rs/tokio/latest/tokio/sync/mpsc/struct.Sender.html):
+cancelar a espera perde a posição na fila, e destruir o permit libera a vaga.
+W mantém o item fora da espera e preserva seu ownership.
+
+#### 12.9.6 Capacity e backpressure
+
+**Exemplo:** `Channel<Event>.open(capacity: 64)` aceita até 64 itens ou
+permits. O item 65 aguarda uma vaga.
+
+Capacity é obrigatória:
+
+- `capacity: 0` cria rendezvous;
+- `capacity: N`, com `N > 0`, mantém no máximo `N` itens ou permits aceitos;
+- o item `N + 1` aguarda capacity ou cancellation;
+- a DB2 não oferece channel unbounded.
+
+Um channel limita a fila. Ele não limita o número de tasks suspensas que tentam
+enviar. `TaskGroup.limit`, budgets do execution domain e a estrutura lexical
+limitam esses frames.
+
+Capacity conta itens, não o tamanho transitivo de cada grafo. O resource lens
+mostra separadamente:
+
+- storage da fila;
+- itens retidos e tamanhos conhecidos;
+- payload dinâmico não mensurável estaticamente;
+- senders em espera;
+- permits;
+- high-water mark.
+
+Uma mailbox de service continua a primitive para quotas simultâneas de itens,
+bytes e trabalho em voo. Um `WeightedChannel<T>` com função de peso permanece
+**Pesquisa**. Uma callback de peso não pode ocultar allocation, erro ou custo
+não determinístico.
+
+#### 12.9.7 Ordering, fairness e cancellation
+
+O channel usa uma fila FIFO de admission:
+
+1. sends sequenciais pelo mesmo endpoint preservam a ordem do source;
+2. sends concorrentes não possuem ordem total sem outro edge;
+3. depois da admission, o receiver observa a ordem dos tickets;
+4. cancelar um waiter remove seu ticket;
+5. `trySend` não ultrapassa waiters já enfileirados.
+
+Fairness promete ausência de starvation quando o receiver progride e o
+scheduler atende os tasks. Ela não promete a mesma ordem entre sends
+concorrentes em targets diferentes. O trace registra tickets para replay e
+diagnóstico; o resultado de domínio não depende desses números.
+
+Os pontos lineares são:
+
+| Operação | Commit |
+|---|---|
+| `send` | item ocupa uma vaga ou conclui o rendezvous |
+| `trySend` | chamada aceita o item |
+| `reserve` | permit recebe uma vaga ou receiver |
+| `receive` | ownership do item entra no consumer |
+| `close` | admission de novos sends e permits é proibida |
+
+#### 12.9.8 Close e lifetime
+
+O lifecycle é explícito e monotônico:
+
+```text
+open → closing → drained
+  └────────────→ aborted
+```
+
+- destruir o último sender inicia `closing`;
+- `receiver.close()` inicia `closing` e rejeita admission nova;
+- o receiver ainda obtém itens e permits já aceitos;
+- depois do drain, `receive()` devolve `.none` para sempre;
+- destruir o receiver causa `aborted`, descarta o buffer e acorda waiters;
+- senders não possuem uma operação que fecha globalmente um channel copiado.
+
+`receiver.close()` é idempotente. W não possui channel `nil`, send em channel
+não inicializado ou panic por close duplicado.
+
+#### 12.9.9 Memory ordering
+
+**Exemplo:** writes que preparam `order` antes de `send` são visíveis quando
+`receive` devolve esse owner.
+
+Um commit de `send` acontece antes de o `receive` correspondente devolver o
+item. O receiver observa writes sequenciadas antes do envio.
+
+Em rendezvous, o pareamento também acontece antes de `send` concluir. Em um
+buffer de capacity `C`, liberar a vaga no receive `k` acontece antes do send
+`k + C` que usa essa vaga concluir. O commit de `close` acontece antes de um
+receive devolver `.none`.
+
+Estas regras seguem a função de sincronização descrita no
+[memory model de Go](https://go.dev/ref/mem), mas W ainda exige ownership,
+atomic ou outra forma verificada para qualquer state compartilhado fora do
+payload.
+
+#### 12.9.10 Buffering de streams
+
+Um stream não faz prefetch por default. `buffer(capacity:)` é um adapter
+explícito e bounded:
+
+```w
+let buffered = telemetry.buffer(capacity: 8)
+```
+
+O adapter cria um producer estruturado e um channel interno. O fim, o primeiro
+error terminal e cancellation fecham o mesmo scope. A ordem é preservada. Um
+adapter paralelo declara `limit` e `ordering: .input | .completion`, como
+`TaskGroup`.
+
+Low e high watermarks são policies de wake-up e batching. Elas não mudam a
+capacity nem o ownership. A ideia histórica `stream<watermark: ...>` permanece
+registrada em `Y/WIP.MD`; ela não entra na assinatura antes de um benchmark
+mostrar valor portátil.
+
+`yield` e `yield*` permanecem **Pesquisa**. Antes dessa sugar, o verifier deve
+representar:
+
+- ownership do item;
+- view borrowed do frame do producer;
+- close e async cleanup;
+- erro terminal;
+- cancellation durante suspension;
+- capacity e ordering.
+
+Um producer implementa `next()` como state machine ou usa um channel enquanto
+esses contratos não estiverem fechados no IR.
+
+#### 12.9.11 Topologias distintas
+
+Uma opção de mode em `Channel` não deve esconder semânticas incompatíveis:
+
+| Necessidade | Tipo candidato | Regra |
+|---|---|---|
+| vários producers, um consumer | `Channel<T>` | baseline MPSC |
+| vários workers dividem itens | `WorkQueue<T>` | cada item vai para um worker; **Pesquisa** |
+| cada subscriber recebe uma cópia | `Broadcast<T>` | exige duplicação ou sharing e lag policy; **Pesquisa** |
+| observar somente o valor mais novo | `Watch<T>` | intermediários podem sumir; **Pesquisa** |
+| um resultado | `Task<T, E>` | já pertence à structured concurrency |
+| call local ou remota | mailbox de service | schema, authority, deadline e boundary outcome |
+
+MPMC, broadcast e watch não são contracts como `<.parallel>` sobre a mesma API.
+Eles mudam loss, ordering, close, slow-consumer policy e mobilidade.
+
+A implementação de `Channel` pode usar ring buffer, queue segmentada, mutex ou
+atomics. `lockFree` não faz parte da promessa. O profile mede throughput,
+latency, contention e allocation antes de selecionar uma implementação por
+target.
+
+#### 12.9.12 Oracle
+
+**Exemplo:** dois balcões enviam pedidos para um maître único enquanto o
+scheduler cancela cada operação antes e depois do commit.
+
+O ensaio do restaurante verifica:
+
+- dois producers e um consumer com capacity 0, 1 e 64;
+- fechamento pelo último sender e close gracioso pelo receiver;
+- receiver abortivo com itens e permits pendentes;
+- recuperação do item em `.full` e `.closed`;
+- cancellation antes e depois de cada commit;
+- FIFO por sender e ausência de ordem presumida entre senders;
+- `trySend` sem bypass;
+- stream owned, stream de `view String` e erro terminal;
+- adapter bounded sem producer órfão;
+- uma, duas e quatro worker threads;
+- TSan, leak sanitizer e allocation fault injection.
+
+O scheduler virtual explora os interleavings pequenos. Invariantes verificam
+que cada item termina exatamente em um receiver, um error que o devolve ou um
+cleanup. Nenhum item some entre esses estados.
 
 ### 12.10 Memory model, atomics e locks
 
@@ -6208,7 +6644,9 @@ W cria edges de happens-before nestas operações:
 |---|---|
 | initialization e capture/transfer do parent | início do child |
 | conclusão do child | retorno de `await` ou join |
-| `Channel.send` | `receive` que obtém o item |
+| commit de `Channel.send` | `receive` que obtém o item |
+| `Channel.receive` que libera uma vaga | próximo `send` que usa essa vaga |
+| commit de `Channel.close` | `receive` que observa `.none` |
 | envio de call por `ServiceRef` | início do turn que recebe o payload |
 | unlock | próxima aquisição do mesmo lock |
 | atomic release | atomic acquire que observa essa release |
@@ -6217,8 +6655,9 @@ Mover um valor pelo channel não exige atomic dentro do valor. O sender perde
 ownership, e o receiver recebe o owner depois do edge.
 
 ```w
-await channel.send(take order)
-let ownedOrder = await channel.receive()
+let (ordersOut, ordersIn) = Channel<Order>.open(capacity: 1)
+try await ordersOut.send(take order)
+let ownedOrder = await ordersIn.receive()
 ```
 
 Cancelamento não publica user state por si só. Um programa usa join, channel,
@@ -10535,6 +10974,11 @@ Uma pesquisa só avança quando possui:
 | universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
 | schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
 | capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
+| `Stream<Item, Failure>` single-pass | **Possível agora** | cursor mutável, Optional terminal e error effect possuem lowering direto |
+| `for try await` | **Possível agora** | sugar local para `next()`; borrow do cursor e effects permanecem visíveis |
+| `Channel<T>` MPSC bounded | **Provável** | ownership e estados estão fechados; fairness, cancellation e custo exigem protótipo |
+| permits de channel | **Provável** | capability linear fecha capacity; close e suspension longa exigem oracle |
+| MPMC, broadcast, watch e weighted channel | **Pesquisa** | loss, fan-out, lag e accounting não cabem no contrato MPSC |
 | `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
 | data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
 | `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
@@ -10957,7 +11401,7 @@ experimentar”, não “decisão irreversível”.
 | D2-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em D2-424–429 | `Send`/`Sync` públicos; runtime checks |
 | D2-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
 | D2-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
-| D2-048 | mailbox | bounded com backpressure | drop; unbounded |
+| D2-048 | mailbox | bounded por itens, bytes e trabalho em voo; detalhes em D2-458–472 não mudam a call boundary | drop; unbounded; tratar como channel local |
 | D2-049 | entry curto | default slot único | main mágico; manifest-only |
 | D2-050 | entry composto | descriptor de slots tipados | handlers inline; conformance |
 | D2-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
@@ -11034,7 +11478,7 @@ experimentar”, não “decisão irreversível”.
 | D2-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
 | D2-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
 | D2-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
-| D2-125 | stream/channel | pull e capacity bounded; `yield` adiado | generator unbounded |
+| D2-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em D2-454–472 | generator unbounded; channel bidirecional universal |
 | D2-126 | memory model | safe W data-race-free; edges fechados e DRF-SC salvo orders explícitas | race definida em safe code; somente “thread-safe” nominal |
 | D2-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
 | D2-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
@@ -11158,7 +11602,7 @@ experimentar”, não “decisão irreversível”.
 | D2-246 | Result | enum T0 success/error para storage e composição | Result implícito só em debug; exceptions abertas |
 | D2-247 | `try` | propaga `throws E` ou `Result<T,E>`; cada closure é outro effect scope | postfix `?` para ambos; propagação implícita |
 | D2-248 | error type | enum fechado e estruturado; `throws E` sempre tipado | throws sem tipo; string obrigatória |
-| D2-249 | effect polymorphism | generic `E: Error`; `Never` especializa como nonthrowing | keyword `rethrows`; erasure universal |
+| D2-249 | effect polymorphism | generic `E: Error`; bottom `Never` é aceito e especializa como nonthrowing | keyword `rethrows`; erasure universal |
 | D2-250 | catch | ordem lexical, guard e exaustividade no contexto nonthrowing | ranking de catches; catch implícito |
 | D2-251 | uso de valores | todo valor non-unit/non-Never deve ser usado ou descartado com `let _` | annotation must-use; ignorar Result |
 | D2-252 | lowering de error | tagged result e cleanup edges; trace sidecar não observável | host exception unwind; sem trace estruturado |
@@ -11350,7 +11794,7 @@ experimentar”, não “decisão irreversível”.
 | D2-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
 | D2-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
 | D2-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
-| D2-441 | happens-before | task start/join, channel, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
+| D2-441 | happens-before | task start/join, channel em D2-467, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
 | D2-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
 | D2-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
 | D2-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential` | argumento runtime; suffix por método; relaxed default |
@@ -11363,6 +11807,25 @@ experimentar”, não “decisão irreversível”.
 | D2-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
 | D2-452 | RwLock e RCU | tipos T1 especializados em Pesquisa; service/channel/snapshot lideram state maior | policy automática por property; RCU default universal |
 | D2-453 | contenção | explanation record mostra lowering, lock-free e waits; cache isolation em Pesquisa | prometer performance por `atomic`; padding universal |
+| D2-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
+| D2-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
+| D2-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
+| D2-457 | item borrowed de stream | `Stream<view T, E>` registra o stream como origem e impede outro `next` conflitante | família `TView`; view transferable; proibir todo item borrowed |
+| D2-458 | topologia de channel | MPSC bounded com endpoints separados | bidirecional copiável; MPMC default; unbounded |
+| D2-459 | endpoint de channel | `Channel<T><.send>` shareable move-first e `<.receive>` único move-only | `Sender<T>`/`Receiver<T>` nominais; direção dinâmica |
+| D2-460 | payload de channel | `T<(.transferable)>` owned; borrow e `view` são rejeitados | cópia implícita; raw pointer; lifetime runtime |
+| D2-461 | falha de envio | `ChannelSendError<T>` devolve owner; `send` usa subset `.closed` | panic; Boolean; perder item em erro |
+| D2-462 | capacity | obrigatória; zero é rendezvous; positiva limita itens + permits; sem unbounded DB2 | default zero; hint elástico; fila ilimitada |
+| D2-463 | permit | reserva linear sem item; drop libera; close gracioso honra permit aceito | construir item antes de esperar sempre; reservation invisível |
+| D2-464 | cancellation de channel | commit linear; antes dele não envia, depois dele receiver possui; waiter sai da fila | resultado ambíguo; rollback do item recebido |
+| D2-465 | ordering de channel | FIFO de admission, ordem por sender e sem total order concorrente; `trySend` não ultrapassa | ordem global determinística; fairness não especificada |
+| D2-466 | close de channel | último sender ou receiver.close faz drain; drop do receiver aborta; sem close global no sender | close por qualquer producer; sentinel; panic em close duplicado |
+| D2-467 | happens-before de channel | send→receive, slot liberado→send admitido e close→fim observado | somente ownership; fence manual pelo usuário |
+| D2-468 | buffering de stream | nenhum prefetch default; adapter bounded com scope estruturado | watermark na assinatura; buffer ilimitado; producer detached |
+| D2-469 | `yield` | adiado até IR provar borrow, cleanup, erro, cancellation e capacity | generator define semântica; callback oculto |
+| D2-470 | outras topologias | `WorkQueue`, `Broadcast`, `Watch` e weighted channel permanecem tipos pesquisados | um `Channel<mode: ...>` muda loss e fan-out |
+| D2-471 | implementation de channel | target escolhe ring, segmentos, mutex ou atomics; lock-free não é contrato | algoritmo único no ABI; tagged pointer obrigatório |
+| D2-472 | accounting de channel | lens separa storage, itens, payload desconhecido, waiters, permits e watermark medido | capacity promete bytes transitivos; número único exato |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

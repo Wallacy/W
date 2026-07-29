@@ -835,10 +835,12 @@ module.exports = grammar({
       ),
     if_statement: ($) =>
       prec.right(seq("if", choice($.optional_binding, $._expression), $.block, optional(seq("else", choice($.if_statement, $.block))))),
-    while_statement: ($) => seq("while", $._expression, $.block),
+    while_statement: ($) =>
+      seq("while", choice($.optional_binding, $._expression), $.block),
     for_statement: ($) =>
       seq(
         "for",
+        optional($._asynchronous_iteration_effects),
         optional(field("ownership", choice("ref", "inout", "copy"))),
         field("pattern", $.pattern),
         "in",
@@ -1049,6 +1051,8 @@ module.exports = grammar({
         13,
         seq("try", token.immediate("?"), field("operand", $._expression)),
       ),
+
+    _asynchronous_iteration_effects: (_) => seq(optional("try"), "await"),
 
     optional_propagation_expression: ($) =>
       prec.left(17, seq(field("value", $._expression), token.immediate("?"))),

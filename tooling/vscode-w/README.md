@@ -20,7 +20,8 @@ permite language mode icons e não possui associação mais específica para `.w
 - números decimais, binários, octais, hexadecimais, expoentes e sufixos;
 - declarations, `init`, computed properties, keywords e tipos;
 - patterns de struct com `...`;
-- efeitos `async`, `await`, `spawn`, `try` e `throws`;
+- efeitos `async`, `await`, `spawn`, `try` e `throws`, inclusive
+  `for try await`;
 - storage modifier `atomic` separado dos efeitos;
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
@@ -44,7 +45,7 @@ Para instalação local persistente, gere um `.vsix` em uma cópia ou diretório
 temporário e instale-o pelo VS Code:
 
 ```powershell
-$wVsix = Join-Path $env:TEMP "w-language-0.0.20.vsix"
+$wVsix = Join-Path $env:TEMP "w-language-0.0.21.vsix"
 npx --yes @vscode/vsce package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```
