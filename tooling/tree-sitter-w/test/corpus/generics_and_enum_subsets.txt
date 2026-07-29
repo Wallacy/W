@@ -1,0 +1,425 @@
+==================
+Generic protocols and enum subsets
+==================
+
+protocol Source<Item> {
+  fn first(): ref Item?
+}
+
+protocol Counted {
+  fn count(): usize
+}
+
+protocol Catalog<Item>: Source<Item> & Counted {}
+
+struct Shelf<T> {
+  values: Array<T>
+}
+
+extension<T: Display & Equatable> Shelf<T>: Catalog {
+  alias Item = T
+
+  fn first(): ref T? {
+    return values.first
+  }
+
+  fn count(): usize {
+    return values.count
+  }
+}
+
+enum Stage {
+  accepted
+  preparing
+  serving
+  cancelled
+}
+
+alias WorkStage = Stage<[.preparing, .serving]>
+
+enum Outcome<T> {
+  ready(T)
+  delayed(u32)
+  cancelled
+}
+
+alias Continuing<T> = Outcome<T><[.ready, .delayed]>
+alias Ready<T> = Outcome<T><[.ready]>
+
+enum Fault: Error {
+  delayed(u32)
+  universeEnded
+}
+
+alias RecoverableFault = Fault<[.delayed]>
+
+struct StagePath<const _ stages: StaticList<Stage>> {
+  id: usize
+}
+
+struct Tile<const rows: usize, const columns: usize> {
+  pixels: [u8; rows * columns]
+}
+
+fn render<T: Display & Equatable, S: Source<T>>(source: ref S): String? {
+  guard let ref item = source.first() else return .none
+  return item.display()
+}
+
+fn reserve(): WorkStage throws RecoverableFault
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (primary_associated_types
+      (type_identifier))
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier))))))
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier))))))
+  (protocol_declaration
+    (type_identifier)
+    (primary_associated_types
+      (type_identifier))
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))
+        (type_arguments
+          (type_argument
+            (type
+              (type_name
+                (type_identifier)))))
+        (type_name
+          (type_identifier))))
+    (protocol_body))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))))
+    (type_body
+      (alias_declaration
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (member_expression
+              (identifier)
+              (identifier)))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (member_expression
+              (identifier)
+              (identifier)))))))
+  (enum_declaration
+    (type_identifier)
+    (enum_body
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (enum_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (enum_body
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier)))))
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier)))))
+      (enum_case
+        (identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (enum_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (enum_body
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier)))))
+      (enum_case
+        (identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (fixed_array_type
+            (type
+              (type_name
+                (type_identifier)))
+            (binary_expression
+              (identifier)
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_name
+            (type_identifier))))
+      (type_parameter
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (guard_statement
+        (optional_binding
+          (identifier)
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list)))
+        (return_statement
+          (contextual_member_expression
+            (identifier))))
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))))
+
+==================
+Comma does not compose conformances
+==================
+
+protocol Left {}
+protocol Right {}
+
+struct Invalid: Left, Right {}
+
+fn later(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body))
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body))
+  (struct_declaration
+    (type_identifier)
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))))
+    (ERROR
+      (identifier))
+    (type_body))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))

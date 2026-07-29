@@ -6,9 +6,31 @@ import std.tensor as tensor
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
 
-struct StagePath<const stages: StaticList<ServiceStage>> {
+struct StagePath<const _ stages: StaticList<ServiceStage>> {
   orderId: OrderId
 }
+
+protocol Source<Item> {
+  fn first(): ref Item?
+}
+
+protocol Catalog<Item>: Source<Item> & Counted {}
+
+extension<T: Display & Equatable> Shelf<T>: Catalog {
+  alias Item = T
+  fn first(): ref T? { return values.first }
+}
+
+alias WorkStage =
+  ServiceStage<[.reserving, .preparing, .serving]>
+
+alias ContinuingOutcome<T> =
+  KitchenOutcome<T><[.ready, .delayed]>
+
+alias RecoverableServiceFault =
+  ServiceFault<[.ingredientsMissing, .delayed]>
+
+fn reserveCourse(): WorkStage throws RecoverableServiceFault
 
 type SensorCallback =
   unsafe fn<abi: .c>(c.ptr<void>, c.int): ()

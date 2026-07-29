@@ -42,6 +42,8 @@ owner e estado observável.
 | `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
 | `collections.w` | arrays, slices, iteration, Map/Set, hashing e stable sort |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
+| `generics.w` | primary associated types, constraints, inference e witnesses |
+| `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -552,6 +554,49 @@ guest?.visits += 1         // W-OPTION-0004: optional mutation
 let guest = guests[id]!    // W-PARSE-0001: force unwrap does not exist
 ```
 
+### 3.24 Catálogo das Prateleiras Recursivas
+
+Famílias: generics, primary associated types, protocol composition, inference e
+conditional conformance.
+
+Aceite:
+
+- `Source<Item>` fixa um associated type por conformance;
+- `Catalog<Item>: Source<Item> & Counted` compõe requirements sem ordem;
+- `extension<T: Display & Equatable>` declara constraints antes do uso;
+- `alias Item = T` fornece o witness de forma explícita;
+- `firstEquals` infere `T` e `S` pelos argumentos;
+- o body generic usa somente members declarados pelas constraints;
+- o call site não escolhe uma conformance por import ou ranking;
+- a interface registra generic HIR e witness IDs;
+- monomorphization e shared lowering preservam a mesma semântica.
+
+O fixture negativo deve criar duas conditional conformances que se sobrepõem.
+O compiler deve mostrar as duas heads e uma instantiation que pertence às duas.
+
+### 3.25 Corredor dos Futuros que Ainda Podem Acontecer
+
+Famílias: enum case subsets, payloads, flow narrowing, layout e evolução de API.
+
+Aceite:
+
+- `ServiceStage<[.reserving, .preparing, .serving]>` exclui `.cancelled`;
+- a ordem source da lista não muda a identidade do subset;
+- um retorno fora do conjunto falha no type checker;
+- `switch` exige somente os cases possíveis;
+- adicionar um case ao retorno torna um switch explícito nonexhaustive;
+- `_` continua uma decisão explícita de aceitar a ampliação;
+- subset para enum base ou superset é conversão implícita;
+- enum base para subset usa `try` ou `try?`;
+- um enum generic aplica o subset em um segundo envelope;
+- um subset de um case preserva o payload sem unwrap implícito;
+- payloads dos cases mantidos continuam disponíveis;
+- `throws Enum<[...]>` restringe `throw` e a exhaustividade de `catch`;
+- o subset não cria wrapper nem layout público novo.
+
+O fixture negativo deve retornar `.cancelled` como `WorkStage`. Outro fixture
+deve adicionar `.cancelled` ao alias e omitir esse case em `workInstruction`.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -564,6 +609,8 @@ O Book deve mostrar pares lado a lado:
 | refinement | `T<(predicate)>` | `T where (predicate)` |
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
+| enum subset | `ServiceStage<[.preparing, .serving]>` | enum base + guard runtime |
+| protocol composition | `T: Display & Equatable` | postfix `where`; static list de protocols |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
 | receiver consuming | `take fn` + `(take value).method()` | consumo implícito e free function |
 | falha consuming | owner termina em success, error e cancellation | restaurar owner no `catch` |

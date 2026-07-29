@@ -608,7 +608,7 @@ enum Stage {
   serve
 }
 
-struct StagePlan<const stages: StaticList<Stage>> {
+struct StagePlan<const _ stages: StaticList<Stage>> {
   id: usize
 }
 
