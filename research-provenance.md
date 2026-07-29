@@ -30,6 +30,7 @@ está em [WIP-audit.md](WIP-audit.md). Este arquivo curto continua sendo apenas 
 | entrypoints e host events | `Y/WIP.MD:136-138`, `1224-1258`, `1481-1535`, `1718-1760`, `3167-3210` |
 | type modifiers e tipos parametrizados por valores | `Y/WIP.MD:1549-1568`, `1678-1706`, `2778-2806`, `3824-3835` |
 | matrices/tensors/ML | accelerators, SIMD/GPU e ciência em `Y/WIP.MD:1694`, `2157`, `3064-3069`, `3353-3362`; a notação matricial foi acrescentada como nova hipótese, não encontrada pronta no caderno |
+| callables, captures e callbacks | `Y/WIP.MD:805-835`, `1404-1477`, `2181-2233`, `3577-3654`; a DB2 substitui `CallbackType` por `fn`, `some fn` e `any fn` |
 
 ## Protocolos e framing
 

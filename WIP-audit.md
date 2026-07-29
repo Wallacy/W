@@ -53,12 +53,32 @@ exaustiva nas **alternativas**. Quatro famílias exigiram reabertura explícita:
 | domínios/grupos de execução | `470–472`, `723–734`, `2402–2450`, `2561–2624`, `2703–2776`, `3958–3999` | executors foram citados, mas o vínculo module/service/task e a distinção entre isolation, preference e affinity não foram comparados | `W-O100` |
 | conjuntos de entrypoints e host profiles | `136–138`, `1224–1258`, `1481–1535`, `1718–1760`, `3167–3210` | profiles tipados foram afirmados sem uma superfície source ou alternativas de binding | `W-O101` |
 | matrizes/tensors/ML | `1694`, `2157`, `3064–3069`, `3353–3362` e a intenção científica dispersa | `Tensor` apareceu apenas como item T2; literals, shapes, operadores, broadcasting, devices, autodiff e interchange não foram avaliados | `W-O102` + `W-O082` |
-| aplicação de tipos, parâmetros de valor e “type modifiers” | `1549–1568`, `1678–1706`, `2778–2806`, `3824–3835` | refinements e newtypes foram definidos, mas a alternativa `Type<...>` histórica não foi classificada por semântica | `W-O103` + `W-O050/051` |
+| aplicação de tipos, parâmetros de valor e “type modifiers” | `1549–1568`, `1678–1706`, `2778–2806`, `3824–3835` | refinements e newtypes foram definidos, mas a alternativa `Type<...>` histórica não foi classificada por semântica | `W/DESIGN.md` 3 e D2-097/114/138/200 |
 
 Isso não invalida as escolhas H01–H14 já ratificadas. Invalida apenas a frase de
 que elas cobriam **todas** as perguntas materiais do caderno. O addendum
 publicável está no
 [`arquivo DB1`](archive/db1-2026-07-27/DB1_ADDENDUM.md).
+
+### Conferência contra a DB2 em 29 de julho de 2026
+
+A conferência comparou todas as famílias deste mapa com `W/DESIGN.md`. Nenhuma
+família ficou sem destino. Os itens abaixo exigiram atualização ou continuam
+deliberadamente abertos:
+
+| Intenção histórica | Destino DB2 | Estado |
+|---|---|---|
+| `CallbackType`, function pointer e ambiente capturado | 7.5 e D2-192–199 | separado em `fn`, `some fn` e `any fn` |
+| named index e arrays estáticos de modifiers | 3.1 e D2-200 | `StaticList<T>` ordenada; índice runtime rejeitado |
+| operador matricial | 17 e D2-201 | `@` fechado para ranks 1 e 2 |
+| handlers arbitrários em patterns | 5.4 e D2-207 | **Pesquisa** até existir protocolo de pattern |
+| `fork module`, hot reload e live patch | 22.6 | **Pesquisa** fora do caminho crítico |
+| signals, mouse, keyboard e HID | 13.4 e 13.5 | slots de host tipados, sem keywords por evento |
+| GPU, SIMD e HDL | 17 e 22.6 | T2 e **Pesquisa** por backend |
+| GUI, TUI e immediate mode | 14.3 e profiles de host | T2; nenhuma GUI universal |
+
+As formas históricas continuam neste arquivo e no caderno. A tabela registra
+destino, não aprovação.
 
 ## Mapa integral por família
 
@@ -74,8 +94,8 @@ publicável está no
 | operators customizados/opcionais | `2262–2288`, `3637–3640` | declaração de operadores e família `?+`, `?-`, etc. | `spec/types-and-memory.md` mantém APIs explícitas antes de novos operadores | **Superado** por enquanto; faltava apenas esta ligação histórica |
 | ranges, progressões e multirange | `3404–3520` | quatro closures, step, produtor lazy, membership, bounds e zip de progressões | `W-C027/028/041`, `W-O041`, `design/numerics-and-quantities.md` | **Coberto**; `MultiRange` vira composição/zip, não tipo assumido |
 | promoção numérica, overflow e Unum | `3522–3541`, `3911–3931` | widening automático, intermediários maiores, float alternativo | `W-C006/007/031`, `W-O037/039/049` | **Coberto**; Unum permanece **Pesquisa** sem compromisso |
-| newtypes, refinements e limites | `1549–1568`, `1678–1706`, `2778–2806`, `3824–3835` | `String<...>`, bounds, masks, hints de storage e `typeDef` | `spec/types-and-memory.md`, `W-O050/051/103` | **Parcial → recuperado** |
-| captures, closure lifetime e callbacks | `805–835`, `1404–1477`, `2181–2210`, `3577–3635` | captures fracas/fortes/cópia/ref, callback contexto e escape | `W-O052`, `spec/types-and-memory.md` | **Coberto**; pontuação `|...|` segue alternativa, não decisão |
+| newtypes, refinements e limites | `1549–1568`, `1678–1706`, `2778–2806`, `3824–3835` | `String<...>`, bounds, masks, hints de storage, named index e `typeDef` | `W/DESIGN.md` 3, 8.6 e D2-200 | **Recuperado**; `StaticList<T>` preserva ordem sem criar índice runtime |
+| captures, closure lifetime e callbacks | `805–835`, `1404–1477`, `2181–2210`, `3577–3635` | captures fracas/fortes/cópia/ref, callback contexto e escape | `W/DESIGN.md` 7.5, D2-192–199 e D2-208/209 | **Recuperado**; `fn`/`some fn`/`any fn` separam pointer, ambiente, owner e drop |
 | protocols, inheritance e vtables | `3007–3063` | protocols Swift-like, associated storage, vtable C e composição | `W-C003/033/034`, `W-O050`, `spec/types-and-memory.md` | **Coberto** |
 | comptime e type builders | `2860–2963`, `3226–3267` | avaliação compile-time, types construídos e profile data | `W-O013/051`, `design/compiler.md` | **Coberto**; builders arbitrários seguem **Pesquisa** |
 
