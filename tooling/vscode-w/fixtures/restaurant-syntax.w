@@ -143,6 +143,21 @@ fn firstOrder(values: ref Array<Order>): ref Order? {
   return .some(first)
 }
 
+fn visibleOrders(values: ref Array<Order>): view Array<Order> {
+  return values[1..<values.count]
+}
+
+fn reprioritize(
+  values: inout Array<Order>,
+): inout view Array<Order> {
+  let inout pending: view Array<Order> = values[1..<values.count]
+  return pending
+}
+
+fn commandWord(source: ref String): view String throws Utf8BoundaryError {
+  return try source.view(bytes: 0..<4)
+}
+
 fn optionalGuestName(input: ref String): GuestName? {
   return try? GuestName(input)
 }

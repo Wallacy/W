@@ -61,6 +61,7 @@ const MODIFIER_KEYWORDS = [
   "try",
   "unsafe",
   "var",
+  "view",
   "weak",
 ];
 
@@ -635,7 +636,12 @@ module.exports = grammar({
     type: ($) =>
       prec.right(
         seq(
-          optional(field("qualifier", choice("any", "some", "shared", "weak", "ref", "inout"))),
+          optional(
+            field(
+              "qualifier",
+              choice("any", "some", "shared", "weak", "ref", "inout", "view", seq("inout", "view")),
+            ),
+          ),
           $._type_core,
           repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
@@ -644,7 +650,7 @@ module.exports = grammar({
     non_borrowed_type: ($) =>
       prec.right(
         seq(
-          optional(field("qualifier", choice("any", "some", "shared", "weak"))),
+          optional(field("qualifier", choice("any", "some", "shared", "weak", "view"))),
           $._type_core,
           repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
@@ -1102,7 +1108,7 @@ module.exports = grammar({
         seq(
           field("object", $._expression),
           "[",
-          commaSep1(field("index", $._expression)),
+          commaSep1(field("index", choice($._expression, $.one_sided_range_expression))),
           optional(","),
           "]",
         ),

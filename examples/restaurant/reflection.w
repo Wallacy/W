@@ -32,7 +32,7 @@ export fn reservationKeyInfo(): ref reflect.TypeInfo {
 
 export fn reflectedName(
   value: ref any reflect.Reflectable,
-): StringView {
+): view String {
   let ref info = reflect.info(of: value)
   return info.name
 }
