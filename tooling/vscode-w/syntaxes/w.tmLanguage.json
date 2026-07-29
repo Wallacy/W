@@ -10,6 +10,7 @@
     { "include": "#keywords" },
     { "include": "#declarations" },
     { "include": "#types" },
+    { "include": "#members" },
     { "include": "#constants" },
     { "include": "#operators" }
   ],
@@ -96,6 +97,7 @@
             { "include": "#numbers" },
             { "include": "#keywords" },
             { "include": "#types" },
+            { "include": "#members" },
             { "include": "#constants" },
             { "include": "#operators" }
           ]
@@ -114,7 +116,7 @@
       "patterns": [
         {
           "name": "keyword.control.w",
-          "match": "\\b(?:break|cancel|case|catch|continue|defer|deinit|do|else|for|guard|if|in|return|switch|throw|while)\\b"
+          "match": "\\b(?:break|case|catch|continue|defer|deinit|do|else|for|guard|if|in|return|switch|throw|while)\\b"
         },
         {
           "name": "keyword.declaration.w",
@@ -154,6 +156,14 @@
         {
           "name": "entity.name.type.w",
           "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "members": {
+      "patterns": [
+        {
+          "name": "variable.other.member.w",
+          "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*"
         }
       ]
     },

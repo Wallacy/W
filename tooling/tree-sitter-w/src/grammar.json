@@ -587,7 +587,7 @@
                   "name": "language",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "enum_literal"
+                    "name": "contextual_member_expression"
                   }
                 }
               ]
@@ -1240,6 +1240,10 @@
               },
               {
                 "type": "SYMBOL",
+                "name": "alias_declaration"
+              },
+              {
+                "type": "SYMBOL",
                 "name": "deinit_declaration"
               }
             ]
@@ -1261,8 +1265,21 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "function_declaration"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "function_declaration"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "associated_type_requirement"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "associated_const_requirement"
+              }
+            ]
           }
         },
         {
@@ -1290,6 +1307,14 @@
               {
                 "type": "SYMBOL",
                 "name": "function_declaration"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "const_declaration"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "alias_declaration"
               }
             ]
           }
@@ -1297,6 +1322,101 @@
         {
           "type": "STRING",
           "value": "}"
+        }
+      ]
+    },
+    "associated_type_requirement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "type"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_type_identifier"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": ":"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "constraint",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "type"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ";"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "associated_const_requirement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "const"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "FIELD",
+          "name": "type",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ";"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -2874,7 +2994,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "enum_literal"
+          "name": "contextual_member_expression"
         },
         {
           "type": "SYMBOL",
@@ -3111,27 +3231,35 @@
           "value": "("
         },
         {
-          "type": "SEQ",
+          "type": "CHOICE",
           "members": [
             {
-              "type": "SYMBOL",
-              "name": "type"
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "type"
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "STRING",
+                        "value": ","
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "type"
+                      }
+                    ]
+                  }
+                }
+              ]
             },
             {
-              "type": "REPEAT",
-              "content": {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "STRING",
-                    "value": ","
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "type"
-                  }
-                ]
-              }
+              "type": "BLANK"
             }
           ]
         },
@@ -3219,10 +3347,6 @@
         {
           "type": "SYMBOL",
           "name": "continue_statement"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "cancel_statement"
         },
         {
           "type": "SYMBOL",
@@ -3411,7 +3535,7 @@
                   "name": "primary",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "enum_literal"
+                    "name": "contextual_member_expression"
                   }
                 },
                 {
@@ -3458,7 +3582,7 @@
                         "name": "primary",
                         "content": {
                           "type": "SYMBOL",
-                          "name": "enum_literal"
+                          "name": "contextual_member_expression"
                         }
                       },
                       {
@@ -3600,68 +3724,6 @@
         {
           "type": "STRING",
           "value": "continue"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "STRING",
-              "value": ";"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        }
-      ]
-    },
-    "cancel_statement": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "cancel"
-        },
-        {
-          "type": "FIELD",
-          "name": "task",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_expression"
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "STRING",
-                  "value": ","
-                },
-                {
-                  "type": "STRING",
-                  "value": "reason"
-                },
-                {
-                  "type": "STRING",
-                  "value": ":"
-                },
-                {
-                  "type": "FIELD",
-                  "name": "reason",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "_expression"
-                  }
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
         },
         {
           "type": "CHOICE",
@@ -4399,6 +4461,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "unit_literal"
+        },
+        {
+          "type": "SYMBOL",
           "name": "parenthesized_expression"
         },
         {
@@ -4415,7 +4481,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "enum_literal"
+          "name": "contextual_member_expression"
         },
         {
           "type": "SYMBOL",
@@ -5589,7 +5655,7 @@
                 },
                 {
                   "type": "SYMBOL",
-                  "name": "enum_literal"
+                  "name": "contextual_member_expression"
                 },
                 {
                   "type": "SYMBOL",
@@ -5648,7 +5714,7 @@
                       },
                       {
                         "type": "SYMBOL",
-                        "name": "enum_literal"
+                        "name": "contextual_member_expression"
                       },
                       {
                         "type": "SYMBOL",
@@ -6179,6 +6245,19 @@
         }
       ]
     },
+    "unit_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "("
+        },
+        {
+          "type": "STRING",
+          "value": ")"
+        }
+      ]
+    },
     "parenthesized_expression": {
       "type": "SEQ",
       "members": [
@@ -6473,7 +6552,7 @@
         }
       ]
     },
-    "enum_literal": {
+    "contextual_member_expression": {
       "type": "PREC",
       "value": 16,
       "content": {
@@ -6485,7 +6564,7 @@
           },
           {
             "type": "FIELD",
-            "name": "case",
+            "name": "member",
             "content": {
               "type": "SYMBOL",
               "name": "identifier"
@@ -6644,6 +6723,10 @@
       "_type_identifier",
       "_expression",
       "closure_parameter"
+    ],
+    [
+      "tuple_type",
+      "unit_literal"
     ]
   ],
   "precedences": [],

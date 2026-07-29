@@ -90,7 +90,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -166,6 +166,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -233,7 +237,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -309,6 +313,10 @@
           "named": true
         },
         {
+          "type": "unit_literal",
+          "named": true
+        },
+        {
           "type": "unit_suffix_literal",
           "named": true
         },
@@ -360,7 +368,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -433,6 +441,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -512,7 +524,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -588,11 +600,67 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
           {
             "type": "unsafe_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "associated_const_requirement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "associated_type_requirement",
+    "named": true,
+    "fields": {
+      "constraint": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_identifier",
             "named": true
           }
         ]
@@ -820,7 +888,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -893,6 +961,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -964,7 +1036,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -1037,6 +1109,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -1200,7 +1276,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -1273,6 +1349,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -1400,7 +1480,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -1476,6 +1556,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -1501,10 +1585,6 @@
         },
         {
           "type": "break_statement",
-          "named": true
-        },
-        {
-          "type": "cancel_statement",
           "named": true
         },
         {
@@ -1611,7 +1691,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -1687,253 +1767,7 @@
             "named": true
           },
           {
-            "type": "unit_suffix_literal",
-            "named": true
-          },
-          {
-            "type": "unsafe_expression",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "cancel_statement",
-    "named": true,
-    "fields": {
-      "reason": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "array_literal",
-            "named": true
-          },
-          {
-            "type": "assignment_expression",
-            "named": true
-          },
-          {
-            "type": "binary_expression",
-            "named": true
-          },
-          {
-            "type": "boolean_literal",
-            "named": true
-          },
-          {
-            "type": "byte_literal",
-            "named": true
-          },
-          {
-            "type": "call_expression",
-            "named": true
-          },
-          {
-            "type": "capture_expression",
-            "named": true
-          },
-          {
-            "type": "closure_expression",
-            "named": true
-          },
-          {
-            "type": "enum_literal",
-            "named": true
-          },
-          {
-            "type": "generic_application_expression",
-            "named": true
-          },
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "index_expression",
-            "named": true
-          },
-          {
-            "type": "map_literal",
-            "named": true
-          },
-          {
-            "type": "member_expression",
-            "named": true
-          },
-          {
-            "type": "multiline_string_literal",
-            "named": true
-          },
-          {
-            "type": "number_literal",
-            "named": true
-          },
-          {
-            "type": "optional_member_expression",
-            "named": true
-          },
-          {
-            "type": "panic_expression",
-            "named": true
-          },
-          {
-            "type": "parenthesized_expression",
-            "named": true
-          },
-          {
-            "type": "quantity_literal",
-            "named": true
-          },
-          {
-            "type": "raw_string_literal",
-            "named": true
-          },
-          {
-            "type": "scalar_literal",
-            "named": true
-          },
-          {
-            "type": "size_literal",
-            "named": true
-          },
-          {
-            "type": "string_literal",
-            "named": true
-          },
-          {
-            "type": "switch_expression",
-            "named": true
-          },
-          {
-            "type": "tuple_expression",
-            "named": true
-          },
-          {
-            "type": "unary_expression",
-            "named": true
-          },
-          {
-            "type": "unit_suffix_literal",
-            "named": true
-          },
-          {
-            "type": "unsafe_expression",
-            "named": true
-          }
-        ]
-      },
-      "task": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "array_literal",
-            "named": true
-          },
-          {
-            "type": "assignment_expression",
-            "named": true
-          },
-          {
-            "type": "binary_expression",
-            "named": true
-          },
-          {
-            "type": "boolean_literal",
-            "named": true
-          },
-          {
-            "type": "byte_literal",
-            "named": true
-          },
-          {
-            "type": "call_expression",
-            "named": true
-          },
-          {
-            "type": "capture_expression",
-            "named": true
-          },
-          {
-            "type": "closure_expression",
-            "named": true
-          },
-          {
-            "type": "enum_literal",
-            "named": true
-          },
-          {
-            "type": "generic_application_expression",
-            "named": true
-          },
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "index_expression",
-            "named": true
-          },
-          {
-            "type": "map_literal",
-            "named": true
-          },
-          {
-            "type": "member_expression",
-            "named": true
-          },
-          {
-            "type": "multiline_string_literal",
-            "named": true
-          },
-          {
-            "type": "number_literal",
-            "named": true
-          },
-          {
-            "type": "optional_member_expression",
-            "named": true
-          },
-          {
-            "type": "panic_expression",
-            "named": true
-          },
-          {
-            "type": "parenthesized_expression",
-            "named": true
-          },
-          {
-            "type": "quantity_literal",
-            "named": true
-          },
-          {
-            "type": "raw_string_literal",
-            "named": true
-          },
-          {
-            "type": "scalar_literal",
-            "named": true
-          },
-          {
-            "type": "size_literal",
-            "named": true
-          },
-          {
-            "type": "string_literal",
-            "named": true
-          },
-          {
-            "type": "switch_expression",
-            "named": true
-          },
-          {
-            "type": "tuple_expression",
-            "named": true
-          },
-          {
-            "type": "unary_expression",
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -2080,7 +1914,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -2153,6 +1987,10 @@
         },
         {
           "type": "unary_expression",
+          "named": true
+        },
+        {
+          "type": "unit_literal",
           "named": true
         },
         {
@@ -2283,7 +2121,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -2359,6 +2197,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -2378,6 +2220,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "contextual_member_expression",
+    "named": true,
+    "fields": {
+      "member": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -2426,7 +2284,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -2499,6 +2357,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -2665,6 +2527,14 @@
       "required": false,
       "types": [
         {
+          "type": "alias_declaration",
+          "named": true
+        },
+        {
+          "type": "const_declaration",
+          "named": true
+        },
+        {
           "type": "enum_case",
           "named": true
         },
@@ -2772,22 +2642,6 @@
     }
   },
   {
-    "type": "enum_literal",
-    "named": true,
-    "fields": {
-      "case": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "enum_pattern",
     "named": true,
     "fields": {
@@ -2854,7 +2708,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -2927,6 +2781,10 @@
         },
         {
           "type": "unary_expression",
+          "named": true
+        },
+        {
+          "type": "unit_literal",
           "named": true
         },
         {
@@ -3049,7 +2907,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -3122,6 +2980,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -3217,7 +3079,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -3290,6 +3152,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -3564,11 +3430,11 @@
       "required": false,
       "types": [
         {
-          "type": "contract_expression_argument",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contract_expression_argument",
           "named": true
         },
         {
@@ -3631,15 +3497,15 @@
           "named": true
         },
         {
-          "type": "cancel_statement",
-          "named": true
-        },
-        {
           "type": "capture_expression",
           "named": true
         },
         {
           "type": "closure_expression",
+          "named": true
+        },
+        {
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -3652,10 +3518,6 @@
         },
         {
           "type": "do_statement",
-          "named": true
-        },
-        {
-          "type": "enum_literal",
           "named": true
         },
         {
@@ -3759,6 +3621,10 @@
           "named": true
         },
         {
+          "type": "unit_literal",
+          "named": true
+        },
+        {
           "type": "unit_suffix_literal",
           "named": true
         },
@@ -3818,7 +3684,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -3899,6 +3765,10 @@
         },
         {
           "type": "unary_expression",
+          "named": true
+        },
+        {
+          "type": "unit_literal",
           "named": true
         },
         {
@@ -4019,7 +3889,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4092,6 +3962,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -4141,7 +4015,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4217,6 +4091,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -4237,7 +4115,7 @@
         "required": true,
         "types": [
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4315,7 +4193,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4388,6 +4266,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -4437,7 +4319,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4510,6 +4392,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -4580,7 +4466,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4653,6 +4539,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -4810,7 +4700,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -4883,6 +4773,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -4938,7 +4832,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -5011,6 +4905,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -5092,7 +4990,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -5165,6 +5063,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -5287,7 +5189,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -5363,6 +5265,10 @@
           "named": true
         },
         {
+          "type": "unit_literal",
+          "named": true
+        },
+        {
           "type": "unit_suffix_literal",
           "named": true
         },
@@ -5420,6 +5326,14 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "associated_const_requirement",
+          "named": true
+        },
+        {
+          "type": "associated_type_requirement",
+          "named": true
+        },
         {
           "type": "function_declaration",
           "named": true
@@ -5550,7 +5464,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -5623,6 +5537,10 @@
         },
         {
           "type": "unary_expression",
+          "named": true
+        },
+        {
+          "type": "unit_literal",
           "named": true
         },
         {
@@ -5773,11 +5691,11 @@
           "named": true
         },
         {
-          "type": "contract_expression_argument",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contract_expression_argument",
           "named": true
         },
         {
@@ -5927,7 +5845,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -6003,6 +5921,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -6033,10 +5955,6 @@
         },
         {
           "type": "break_statement",
-          "named": true
-        },
-        {
-          "type": "cancel_statement",
           "named": true
         },
         {
@@ -6123,7 +6041,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -6199,6 +6117,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -6239,7 +6161,7 @@
         "required": false,
         "types": [
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           }
         ]
@@ -6333,7 +6255,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -6409,6 +6331,10 @@
           "named": true
         },
         {
+          "type": "unit_literal",
+          "named": true
+        },
+        {
           "type": "unit_suffix_literal",
           "named": true
         },
@@ -6470,7 +6396,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -6543,6 +6469,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -6608,7 +6538,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -6684,6 +6614,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -6726,7 +6660,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "type",
@@ -6862,6 +6796,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "alias_declaration",
+          "named": true
+        },
         {
           "type": "const_declaration",
           "named": true
@@ -7043,7 +6981,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -7116,6 +7054,10 @@
           },
           {
             "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
             "named": true
           },
           {
@@ -7233,7 +7175,7 @@
             "named": true
           },
           {
-            "type": "enum_literal",
+            "type": "contextual_member_expression",
             "named": true
           },
           {
@@ -7309,6 +7251,10 @@
             "named": true
           },
           {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
             "type": "unit_suffix_literal",
             "named": true
           },
@@ -7329,6 +7275,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "unit_literal",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "unsafe_expression",
@@ -7390,7 +7341,7 @@
           "named": true
         },
         {
-          "type": "enum_literal",
+          "type": "contextual_member_expression",
           "named": true
         },
         {
@@ -7463,6 +7414,10 @@
         },
         {
           "type": "unary_expression",
+          "named": true
+        },
+        {
+          "type": "unit_literal",
           "named": true
         },
         {
@@ -7685,10 +7640,6 @@
     "named": true
   },
   {
-    "type": "cancel",
-    "named": false
-  },
-  {
     "type": "capture",
     "named": false
   },
@@ -7856,10 +7807,6 @@
   {
     "type": "raw_string_literal",
     "named": true
-  },
-  {
-    "type": "reason",
-    "named": false
   },
   {
     "type": "ref",

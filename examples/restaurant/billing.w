@@ -3,7 +3,7 @@
 import { Course, Currency, DomainError, Money, OrderId } from restaurant.domain
 
 export type PaymentId = u64
-export type IdempotencyKey = String<(value.scalars.count in 8...128)>
+export type IdempotencyKey = String<(.scalars.count in 8...128)>
 
 export enum PaymentState {
   authorized
@@ -143,4 +143,6 @@ test "pricing keeps currency and integer minor units" for quote {
 
   expect value.currency == Currency.cr
   expect value.minorUnits == 4_242
+  expect Money.zeroCredits.minorUnits == 0
+  expect Money.fromMajor(42, currency: .cr).minorUnits == 4_200
 }

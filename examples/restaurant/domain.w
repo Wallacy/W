@@ -11,7 +11,7 @@ export struct TextBounds {
 }
 
 export type BoundedText<const bounds: TextBounds> =
-  String<(value.scalars.count in bounds.min...bounds.max)>
+  String<(.scalars.count in bounds.min...bounds.max)>
 export type GuestName = BoundedText<{min: 1, max: 120}>
 export type DishLabel = BoundedText<{min: 1, max: 80}>
 
@@ -75,6 +75,12 @@ export enum Currency {
 export struct Money {
   minorUnits: i128
   currency: Currency
+
+  export const zeroCredits = Money(minorUnits: 0, currency: .cr)
+
+  export static fn fromMajor(value: i64, currency: Currency): Money {
+    return Money(minorUnits: i128(value) * 100, currency: currency)
+  }
 }
 
 export enum DomainError: Error {

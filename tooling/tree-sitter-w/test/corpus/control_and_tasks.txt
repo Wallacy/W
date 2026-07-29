@@ -163,8 +163,8 @@ async fn convert(): Receipt throws MenuError {
           (block
             (throw_statement
               (call_expression
-                function: (enum_literal
-                  case: (identifier))
+                function: (contextual_member_expression
+                  member: (identifier))
                 arguments: (argument_list
                   (argument
                     value: (identifier)))))))))))

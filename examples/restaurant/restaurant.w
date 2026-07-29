@@ -50,16 +50,16 @@ export protocol RestaurantApi {
 }
 
 struct OrderState {
-  stage: ServiceStage
-  receipt: Receipt?
-}
+  var stage: ServiceStage
+  var receipt: Receipt?
 
-fn move(state: inout OrderState, to next: ServiceStage) throws DomainError {
-  guard canMove(from: state.stage, to: next) else {
-    throw .invalidTransition(from: state.stage, to: next)
+  mut fn advance(to next: ServiceStage): self throws DomainError {
+    guard canMove(from: stage, to: next) else {
+      throw .invalidTransition(from: stage, to: next)
+    }
+
+    stage = next
   }
-
-  state.stage = next
 }
 
 async fn prepareDish(
@@ -124,10 +124,10 @@ export service LastLightRestaurant as RestaurantApi {
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let orderId = order.id
     var state = OrderState(stage: .accepted, receipt: .none)
-    try move(inout state, to: .reserving)
+    try state.advance(to: .reserving)
     orders[orderId] = state
 
-    try move(inout state, to: .preparing)
+    try state.advance(to: .preparing)
     orders[orderId] = state
 
     let dish = try await prepareDish(
@@ -138,7 +138,7 @@ export service LastLightRestaurant as RestaurantApi {
       probe: probe,
     )
 
-    try move(inout state, to: .serving)
+    try state.advance(to: .serving)
     orders[orderId] = state
 
     let amount = try quote(priceTable, course: dish.course)
@@ -156,7 +156,7 @@ export service LastLightRestaurant as RestaurantApi {
     }
 
     let receipt = try await diningRoom.serve(take dish, payment: proof)
-    try move(inout state, to: .completed)
+    try state.advance(to: .completed)
     state.receipt = .some(receipt)
     orders[receipt.orderId] = state
     completedOrders += 1
@@ -170,7 +170,7 @@ export service LastLightRestaurant as RestaurantApi {
 
   mut async fn cancel(orderId: OrderId): ServiceStage throws RestaurantError {
     guard var state = orders[orderId] else throw .domain(.unknownOrder(orderId))
-    try move(inout state, to: .cancelled)
+    try state.advance(to: .cancelled)
     orders[orderId] = state
     return state.stage
   }

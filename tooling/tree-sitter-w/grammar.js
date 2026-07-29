@@ -21,7 +21,6 @@ const DECLARATION_KEYWORDS = [
 
 const CONTROL_KEYWORDS = [
   "break",
-  "cancel",
   "case",
   "catch",
   "continue",
@@ -131,6 +130,7 @@ module.exports = grammar({
     [$._expression, $.closure_parameter],
     [$._type_identifier, $._expression],
     [$._type_identifier, $._expression, $.closure_parameter],
+    [$.tuple_type, $.unit_literal],
   ],
 
   rules: {
@@ -217,7 +217,7 @@ module.exports = grammar({
         "<",
         choice(
           field("language", $.identifier),
-          seq("lang", ":", field("language", $.enum_literal)),
+          seq("lang", ":", field("language", $.contextual_member_expression)),
         ),
         ">",
       ),
@@ -299,13 +299,53 @@ module.exports = grammar({
             $.field_declaration,
             $.function_declaration,
             $.const_declaration,
+            $.alias_declaration,
             $.deinit_declaration,
           ),
         ),
         "}",
       ),
-    protocol_body: ($) => seq("{", repeat($.function_declaration), "}"),
-    enum_body: ($) => seq("{", repeat(choice($.enum_case, $.function_declaration)), "}"),
+    protocol_body: ($) =>
+      seq(
+        "{",
+        repeat(
+          choice(
+            $.function_declaration,
+            $.associated_type_requirement,
+            $.associated_const_requirement,
+          ),
+        ),
+        "}",
+      ),
+    enum_body: ($) =>
+      seq(
+        "{",
+        repeat(
+          choice(
+            $.enum_case,
+            $.function_declaration,
+            $.const_declaration,
+            $.alias_declaration,
+          ),
+        ),
+        "}",
+      ),
+
+    associated_type_requirement: ($) =>
+      seq(
+        "type",
+        field("name", $._type_identifier),
+        optional(seq(":", field("constraint", $.type))),
+        optional(";"),
+      ),
+    associated_const_requirement: ($) =>
+      seq(
+        "const",
+        field("name", $.identifier),
+        ":",
+        field("type", $.type),
+        optional(";"),
+      ),
 
     field_declaration: ($) =>
       seq(
@@ -548,7 +588,7 @@ module.exports = grammar({
         $.number_literal,
         $.boolean_literal,
         $.string_literal,
-        $.enum_literal,
+        $.contextual_member_expression,
         $.static_array_literal,
       ),
     contract_expression_argument: ($) =>
@@ -581,7 +621,7 @@ module.exports = grammar({
         field("count", choice($.identifier, $.number_literal)),
         "]",
       ),
-    tuple_type: ($) => seq("(", commaSep1($.type), optional(","), ")"),
+    tuple_type: ($) => seq("(", commaSep($.type), optional(","), ")"),
 
     block: ($) => seq("{", repeat($._statement), "}"),
     _statement: ($) =>
@@ -597,7 +637,6 @@ module.exports = grammar({
         $.do_statement,
         $.break_statement,
         $.continue_statement,
-        $.cancel_statement,
         $.expression_statement,
       ),
 
@@ -621,7 +660,7 @@ module.exports = grammar({
         "<",
         commaSep1(
           choice(
-            field("primary", $.enum_literal),
+            field("primary", $.contextual_member_expression),
             seq(
               field("label", $.identifier),
               ":",
@@ -638,13 +677,6 @@ module.exports = grammar({
     throw_statement: ($) => seq("throw", $._expression, optional(";")),
     break_statement: (_) => seq("break", optional(";")),
     continue_statement: (_) => seq("continue", optional(";")),
-    cancel_statement: ($) =>
-      seq(
-        "cancel",
-        field("task", $._expression),
-        optional(seq(",", "reason", ":", field("reason", $._expression))),
-        optional(";"),
-      ),
     defer_statement: ($) => seq("defer", optional("async"), $.block),
     guard_statement: ($) => seq("guard", choice($.optional_binding, $._expression), "else", choice($.block, $._statement)),
     if_statement: ($) =>
@@ -719,11 +751,12 @@ module.exports = grammar({
         $.capture_expression,
         $.unsafe_expression,
         $.switch_expression,
+        $.unit_literal,
         $.parenthesized_expression,
         $.tuple_expression,
         $.array_literal,
         $.map_literal,
-        $.enum_literal,
+        $.contextual_member_expression,
         $.quantity_literal,
         $.unit_suffix_literal,
         $.size_literal,
@@ -780,7 +813,7 @@ module.exports = grammar({
             $.contract_expression_argument,
             $.static_record_literal,
             $.static_array_literal,
-            $.enum_literal,
+            $.contextual_member_expression,
             $.type,
             seq(
               field("label", $.identifier),
@@ -833,6 +866,7 @@ module.exports = grammar({
     closure_parameters: ($) => seq("(", commaSep($.closure_parameter), optional(","), ")"),
     closure_parameter: ($) => seq(field("name", $.identifier), optional(seq(":", field("type", $.type)))),
 
+    unit_literal: (_) => seq("(", ")"),
     parenthesized_expression: ($) => seq("(", $._expression, ")"),
     tuple_expression: ($) =>
       seq(
@@ -847,7 +881,8 @@ module.exports = grammar({
     array_literal: ($) => seq("[", commaSep($._expression), optional(","), "]"),
     map_literal: ($) => seq("[", commaSep1($.map_entry), optional(","), "]"),
     map_entry: ($) => seq(field("key", $._expression), ":", field("value", $._expression)),
-    enum_literal: ($) => prec(16, seq(".", field("case", $.identifier))),
+    contextual_member_expression: ($) =>
+      prec(16, seq(".", field("member", $.identifier))),
 
     quantity_literal: (_) =>
       token(

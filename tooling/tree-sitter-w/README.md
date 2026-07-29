@@ -17,7 +17,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - imports lógicos, aliases e exports;
 - `fn`, parâmetros rotulados, generics, `async fn`/`throws` e blocos;
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
-- bindings/behaviors, ownership, `try`/`await`, `async let`, `spawn let` e `cancel`;
+- bindings/behaviors, ownership, `try`/`await`, `async let`, `spawn let` e `Task.cancel()`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;

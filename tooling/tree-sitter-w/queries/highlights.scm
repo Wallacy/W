@@ -39,7 +39,6 @@
 
 [
   "break"
-  "cancel"
   "case"
   "catch"
   "continue"
@@ -110,10 +109,13 @@
 (type_identifier) @type
 
 (type_parameter name: (type_identifier) @type.parameter)
+(associated_type_requirement name: (type_identifier) @type)
+(associated_const_requirement name: (identifier) @constant)
+(const_declaration name: (identifier) @constant)
 (dimension_declaration name: (type_identifier) @type)
 (unit_declaration name: (identifier) @constant)
 (enum_case name: (identifier) @constant)
-(enum_literal case: (identifier) @constant)
+(contextual_member_expression member: (identifier) @property)
 (enum_pattern case: (identifier) @constant)
 
 (field_declaration name: (identifier) @property)

@@ -97,6 +97,6 @@ export async fn closeBeforeTheLastCourse(
   parallelism: usize,
 ): TaskOutcome<Array<MixingResult>, BrigadeError> {
   async let batch = mixBatch(take jobs, parallelism: parallelism)
-  cancel batch, reason: .shutdown
+  batch.cancel(reason: .shutdown)
   return await batch.outcome()
 }
