@@ -24,6 +24,7 @@ LastLight entry
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
   → Sino de Encerramento pinned
+  → Região Temporária do Cardápio
   → Recepção callable do Último Maitre
   → Conta da Aurora Tardia
   → resposta HTTP/TUI
@@ -54,6 +55,7 @@ owner e estado observável.
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `memory.w` | ownership, enum subset, niches, pinning e callback C |
+| `allocation.w` | placement, allocator, arena, budget e rehome |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
@@ -789,6 +791,36 @@ lowering MLIR. Para floats, ele compara bits das operações strict, classes IEE
 signed zero e total order. Modes `fast` são avaliados por bounds próprios e não
 participam do oracle bit-exact de `.strict`.
 
+### 3.33 Região Temporária do Cardápio
+
+Famílias: placement, allocator, arena, budget, escape e OOM.
+
+Aceite:
+
+- um local síncrono fixo que não escapa não usa o allocator geral;
+- `object` não implica heap;
+- somente calls com `using: staging` usam a região;
+- `tryReserve` falha antes de consumir os elementos;
+- cada string duplicada mantém a origem da região;
+- `rehome` move storage independente e realoca somente storage dependente;
+- uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
+- `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
+- o budget cobra alignment, padding e growth retido;
+- `.budgetExceeded` não vira `.outOfMemory`;
+- drop executa em ordem inversa da construção concluída;
+- um child paralelo não compartilha a arena default;
+- `Arena.fixed` não pede storage ao OS;
+- o snapshot retornado não depende da região temporária;
+- `w check memory --require no-general-allocation` mostra a call chain que viola
+  o profile.
+
+O oracle executa `stageMenu` com um allocator de falha injetada em cada
+allocation. Antes de `rehome`, toda falha limpa os valores pela região. Durante
+`rehome`, toda falha limpa source e destino parcial uma vez. Depois do success,
+destruir a região não altera o snapshot. O teste repete com allocator do sistema,
+buffer fixo e profile mimalloc. Os valores e drops são os mesmos; somente
+measurements podem mudar.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -833,6 +865,8 @@ O Book deve mostrar pares lado a lado:
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import std.http as http` | `import http as http from std.http` |
+| região | `region request(using:, limit:)` | somente `Arena` manual |
+| view | `view String` (**Pesquisa**) | `StringView` provisório e `Readonly<T>` profundo |
 
 Preferência visual não é medida antes das tarefas de leitura e correção.
 

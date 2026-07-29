@@ -2069,7 +2069,7 @@ Extensions não adicionam storage:
 
 ```w
 extension Dish: Display {
-  fn write(to output: inout StringBuilder): () { ... }
+  fn write(to output: inout String): () { ... }
 }
 ```
 
@@ -4458,6 +4458,58 @@ O compiler pode colocar os valores no mesmo task frame. Se não puder provar
 essas condições, ele exige ownership, copy ou uma API de pinning. Um raw pointer
 não contorna essa regra.
 
+#### 9.2.1 Placement e alocação inferida
+
+Ownership não escolhe um endereço. O compiler escolhe register, stack, static
+storage, task frame, arena ou allocator conforme escape, tamanho e target.
+Source comum não recebe annotation de placement.
+
+**Garantia DB2:** uma função síncrona não causa alocação no allocator geral
+somente para guardar um local de tamanho fixo que não escapa. Register pressure
+pode criar um stack spill. Ela não autoriza boxing no heap.
+
+```w
+fn scale(sample: Sample): Sample {
+  let adjusted = Sample(x: sample.x * 2.0, y: sample.y * 2.0)
+  return adjusted // Nenhuma alocação geral é necessária.
+}
+```
+
+`struct` e `object` também não significam heap. `object` define identity e
+encapsulation. O owner pode ficar inline, no stack, num task frame, numa arena
+ou numa allocation própria. Expor um endereço cria uma barreira de
+representação, mas não exige heap. `pin` é necessário somente quando o endereço
+precisa permanecer estável.
+
+Containers dinâmicos, `shared`, pinning e task creation podem solicitar storage.
+A interface compilada registra uma obrigação de alocação quando a operação pode
+usar o allocator geral. Essa obrigação não aparece como annotation no source.
+Ela alimenta diagnostics, budgets e `w explain memory`.
+
+```text
+w explain memory restaurant.app::run
+  dynamic: String growth at app.w:39
+  dynamic: task frame at app.w:33
+  elided: temporary Order at app.w:38
+```
+
+O optimizer pode eliminar ou combinar allocations quando o programa não observa
+identity, endereço, falha recuperável, budget, drop ou deallocator. Uma operação
+fallible feita contra um allocator ou budget explícito é observável. O optimizer
+não pode mover sua cobrança para fora dessa boundary.
+
+Um product pode exigir que todo o grafo alcançável de um entry não use o
+allocator geral:
+
+```text
+w check memory --require no-general-allocation restaurant.embedded
+```
+
+O gate usa HIR e link graph. Ele não depende de annotation em cada função. Uma
+task frame, um `shared` control block ou growth dinâmico sem allocator fixo
+produz diagnostic com a call chain. Essa prova não limita stack por si. Um
+profile freestanding também declara stack e task-frame budgets.
+
 ### 9.3 Pinning e valores sensíveis ao endereço
 
 A maioria dos valores W pode mudar de endereço. Pinning só existe quando uma API
@@ -4532,6 +4584,30 @@ object MenuSection {
 }
 ```
 
+`share` cria o primeiro shared owner. A operação é uma função intrinsic T0,
+sempre fallible, porque pode criar um control block:
+
+```w
+let root = try share(
+  MenuSection(title: "Dinner", parent: .none, children: []),
+  using: memory,
+)
+let observer = copy root
+let parent = root.weak()
+```
+
+Um temporary não usa `take`. Promover um owner existente exige
+`share(take value, using:)`. A forma sem `using` usa o allocator default. W não
+converte um owner único para `shared T` somente por expected type ou parâmetro.
+
+`shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
+retain visível no source. `upgrade()` é a única operação que cria um shared owner
+a partir de `weak`. Uma função pode mover seu último shared handle sem retain.
+
+O compiler pode co-alocar temporary e control block ou remover contagem quando
+prova owner único. `share` ainda preserva failure, allocator e origem. Um valor
+que depende de uma arena mais curta precisa de `rehome` antes da promoção.
+
 W não possui cycle collector por default. Um ciclo forte precisa de uma destas
 soluções:
 
@@ -4559,25 +4635,127 @@ de ciclo.
 ### 9.5 Regiões
 
 Região agrupa lifetimes. Budget limita recursos. Eles são conceitos diferentes.
-A primeira implementação oferece uma API de arena. Uma forma de bloco continua
-**Pesquisa**:
+`Arena` é a capacidade de alocação. `region` é a boundary lexical que possui essa
+capacidade.
+
+**Líder DB2:** o bloco cria uma arena, liga seu lifetime ao nome e fecha a arena
+em todas as saídas:
 
 ```w
-region request(limit: 64<MiB>) {
-  let document = try parse(payload, in: request)
+region request(using: ctx.memory, limit: 64<MiB>) {
+  let document = try parse(payload, using: request)
   respond(document)
 }
 ```
 
-Um borrow não escapa da região. Um move para fora só ocorre quando a operação
-transfere storage para outro owner. Um objeto com `deinit` entra numa lista de
-drop da região; plain data pode usar bulk release.
+O argumento `using` é opcional. Quando ele não existe, a região usa o allocator
+default fixado pelo product. `limit` é obrigatório na DB2. O nome `request`
+aceita os mesmos lugares que esperam um `Allocator` borrowed. Ele não é uma
+variável global nem um allocator thread-local.
 
-Todo filho async que usa a região termina antes do bloco. Cancelamento faz join
-dos filhos, executa drops em ordem inversa e só então libera o storage. Uma
-região não concede um budget de CPU, file descriptor ou network.
+Somente uma operação com `using: request` usa a região. O compiler não move
+silenciosamente todos os locais do bloco para a arena:
+
+```w
+region request(limit: 64<MiB>) {
+  let header = RequestHeader(...)                    // placement inferido
+  let tree = try Json.parse(payload, using: request) // storage da região
+}
+```
+
+Uma `Arena` é move-only e não é `shareable` por default. Um child paralelo usa
+uma arena filha exclusiva:
+
+```w
+region request(limit: 64<MiB>) {
+  let imageMemory = try request.child(limit: 16<MiB>)
+  spawn let image = decodeImage(payload, using: take imageMemory)
+  inspect(try await image)
+}
+```
+
+O child precisa terminar antes do fim da região. Cancelamento faz join dos
+children antes de liberar o storage. A arena default não recebe allocations
+concorrentes. Um allocator sincronizado é outro tipo e declara esse custo.
+
+Um valor que contém storage da região não escapa por return, field com lifetime
+maior, `shared` owner ou task detached. Um valor independente e inline pode
+escapar. A operação consuming `rehome` faz a transferência explícita:
+
+```w
+fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
+  region scratch(using: memory, limit: 8<MiB>) {
+    let parsed = try Menu.parse(payload, using: scratch)
+    return try (take parsed).rehome(using: memory)
+  }
+}
+```
+
+`rehome` move fields independentes e realoca somente o storage que ainda depende
+da região. Como todo receiver consuming, uma falha também consome o source. A
+operação limpa o source e qualquer destino parcial antes de propagar o error. Uma
+variante `attemptRehome` pode devolver o source num outcome quando o caller
+precisa de retry. Adoção sem cópia só ocorre quando o allocator de destino
+declara transferência de origem compatível.
+
+Plain data usa bulk release. Um valor com `deinit` entra num drop ledger. O
+cleanup usa a ordem inversa da construção concluída, não a ordem de conclusão de
+tasks. Growth numa arena monotônica pode reservar um bloco novo e manter o bloco
+antigo até o fim da região.
+
+O budget lógico cobra tamanho solicitado após alignment, inclusive padding,
+growth abandonado e drop metadata. Ele não inclui metadata privada do allocator
+upstream. Isso torna `BudgetExceeded` reproduzível para a mesma execução. O host
+pode medir e limitar bytes residentes separadamente.
+
+`Arena` também existe como API T0. Ela permite bootstrap e código sem a syntax
+`region`:
+
+```w
+var storage: [u8; 64<KiB>] = [0; 64<KiB>]
+var scratch = Arena.fixed(inout storage)
+let tokens = try lex(source, using: scratch)
+scratch.clear()
+```
+
+`Arena.fixed` nunca solicita storage ao OS. `clear` executa os drops registrados
+e reinicia a capacidade. Ele é erro enquanto um borrow ou valor dependente da
+arena permanece vivo.
+
+**Alternativas preservadas:** usar somente a API `Arena`, inferir uma região por
+escape analysis ou marcar cada tipo com lifetime. A forma de bloco lidera porque
+torna budget e cleanup visíveis sem annotations por valor. O W0 implementa a API
+primeiro; a syntax pode baixar para a mesma API depois.
 
 ### 9.6 Allocator e origem
+
+`Allocator` é uma capability opaca de T0. Código safe pode passá-la a APIs
+allocating. Somente runtime, FFI e adapters `unsafe` implementam a operação raw
+de allocate, resize e deallocate.
+
+```w
+fn decode(payload: ref Bytes, using memory: ref Allocator): Document throws AllocationError {
+  var nodes = Array<Node>(using: memory)
+  try nodes.tryReserve(minimumCapacity: 128)
+  return try parseNodes(payload, into: nodes)
+}
+```
+
+O owner criado com um allocator não pode sobreviver a ele. A HIR registra essa
+relação de provenance. O source não escreve lifetime. Um container mantém a
+origem necessária para resize e drop; ele não consulta um default novo depois.
+
+O allocator default é fixado pelo product e pelo host adapter. Ele não muda
+durante uma call, thread ou module import. Uma API sem `using` usa esse default:
+
+```w
+var names = Array<String>()              // allocator default do product
+var local = Array<String>(using: memory) // allocator explícito
+```
+
+Alocação e growth normais podem causar panic `.outOfMemory`. A forma `try*`
+retorna `AllocationError` e mantém o valor anterior quando falha. Uma API
+explícita nunca converte `BudgetExceeded` em OOM.
 
 O profile portátil começa com o allocator do sistema. O host pode selecionar
 mimalloc ou outro allocator compatível. A seleção participa da recipe, do
@@ -4587,6 +4765,26 @@ artifact fingerprint e do profile de performance. Ela não altera ownership.
 benchmark. Sua portabilidade, heaps separados e modos de segurança justificam o
 teste. Nenhum benchmark autoriza torná-lo universal sem matriz de target,
 sanitizer, override, unload e cross-thread free.
+
+W chama o allocator selecionado por sua API. Ele não depende de override global
+de `malloc` quando código estrangeiro pode misturar origens. As regras de heap e
+thread do mimalloc variam por versão. O profile fixa versão e configuration e
+declara separadamente onde allocate e free podem ocorrer. O modo secure adiciona
+mitigations; ele não promete memory safety.
+
+| Profile de allocator | Uso |
+|---|---|
+| `system` | baseline portátil e integração estrangeira |
+| `mimalloc` | candidato de performance após benchmark |
+| `mimalloc-secure` | candidato de hardening com custo medido |
+| `fixed` | buffer fornecido pelo host; nenhuma allocation do OS |
+
+O modelo de arenas pre-reservadas do
+[mimalloc](https://microsoft.github.io/mimalloc/group__arenas.html) pode ajudar
+um host fixed. Os
+[heaps do mimalloc](https://microsoft.github.io/mimalloc/group__heap.html)
+mostram por que mobilidade de allocate e free precisa ser uma propriedade do
+profile, não uma suposição pelo nome do allocator.
 
 Cada allocation possui uma origem lógica:
 
@@ -4599,8 +4797,28 @@ precisa ocupar bits do pointer. Move preserva a origem. FFI preserva o
 deallocator estrangeiro. W nunca chama `free` num pointer de origem
 desconhecida.
 
+Zero-sized values não solicitam storage. Alignment precisa ser uma potência de
+dois suportada pelo allocator. Soma ou multiplicação de tamanho que excede
+`usize` falha antes da call raw. Uma allocation family sempre usa seu
+deallocator correspondente; o optimizer não troca famílias através de uma
+fronteira observável.
+
+Safe W nunca lê bytes sem inicialização. Isso não exige zerar toda allocation.
+Typed construction e definite initialization gravam cada valor antes da leitura.
+Uma API que precisa de zero declara a operação:
+
+```w
+let bitmap = try Bytes(repeating: 0_u8, count: size, using: memory)
+```
+
+Somente `unsafe MaybeUninit<T>` expõe storage sem inicialização. Um profile pode
+zerar storage ao alocar ou liberar por hardening, mas essa policy não muda o
+valor de um programa safe. O mimalloc `zalloc` é uma implementação possível para
+uma call que promete zero; ele não é o default semântico de toda allocation.
+
 Alocações que precisam de recovery usam API fallible ou uma região com budget.
-OOM geral encerra a fault boundary conforme a seção de panic.
+OOM geral encerra a fault boundary conforme a seção de panic. `w explain memory`
+mostra allocator, origem, escape, stack estimate e motivo de cada allocation.
 
 ### 9.7 Provenance, pointer e address
 
@@ -5270,15 +5488,34 @@ let snapshot = try menu.tryDuplicate()
 
 `tryReserve` retorna `Result<(), AllocationError>`. `tryDuplicate` retorna
 `Result<T, AllocationError>`. Elas não alteram o valor quando falham.
-`AllocationError` informa a classe e o allocator, mas não promete a quantidade
-global de memória livre.
+As duas formas aceitam `using:` quando o caller precisa escolher o allocator.
+`AllocationError` possui cases estáveis:
+
+```w
+enum AllocationError: Error {
+  outOfMemory
+  budgetExceeded(BudgetExceeded)
+  sizeOverflow
+  invalidLayout(size: usize, alignment: usize)
+  unsupportedAlignment(usize)
+}
+```
+
+O diagnostic pode anexar allocator e origem como evidence local. Essa evidence
+não faz parte de equality, serialization ou resultado reproduzível. O erro
+`outOfMemory` não promete a quantidade global de memória livre.
 
 `BudgetExceeded` é diferente de OOM. Ele informa que uma quota conhecida foi
 atingida:
 
 ```w
-let frame = try arena.allocate(bytes: size) // pode devolver BudgetExceeded
+let frame = try Bytes(repeating: 0_u8, count: size, using: arena)
+// A falha pode ser `.budgetExceeded(...)`.
 ```
+
+Uma arena cobra o span alinhado antes de publicar storage. Uma falha de budget
+não altera offset, drop ledger ou container. Um allocator upstream ainda pode
+devolver `.outOfMemory` antes de o budget lógico terminar.
 
 OOM durante emissão de error ou cleanup escala para panic. W não possui um
 handler universal de emergência em source.
@@ -6276,7 +6513,7 @@ console, clock ou filesystem.
 T0 contém:
 
 - tipos primitivos, numeric modes/errors, `TotalFloat`, Option, Result e Error;
-- String, StringView, Bytes, StringBuilder, Array, Map, Set, Range e views;
+- String, StringView, Bytes, Array, Map, Set, Range e views;
 - Slice, `pin`, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
@@ -6861,6 +7098,53 @@ type CompactGlyph =
 
 ### 16.2 Views, índices e slices
 
+W separa quatro conceitos que outras APIs chamam de “imutável”:
+
+| Forma | Garantia |
+|---|---|
+| `let T` | o binding não recebe outro valor |
+| `ref T` | acesso read-only a um place completo |
+| view | descriptor borrowed de uma projeção |
+| tipo sem operação mutating | a interface pública não oferece mutation |
+
+Nenhuma forma promete imutabilidade transitiva de um grafo com atomics,
+capabilities ou aliases `shared`. W não adiciona um wrapper universal
+`Readonly<T>`. Essa forma esconderia interior mutation e não resolveria
+ownership.
+
+**Líder de pesquisa:** substituir nomes especializados como `StringView`,
+`Slice<T>` e `MutableSlice<T>` por um access mode genérico:
+
+```w
+fn firstWord(line: ref String): view String?
+fn serve(orders: view Array<Order>)
+fn reprioritize(orders: inout view Array<Order>)
+```
+
+`view T` seria `Copy`, read-only e ligado ao owner. `inout view T` seria
+exclusivo, move-only e permitiria mutation dos elementos, mas não mudança de
+shape ou capacity. `ref T` continuaria um borrow do place completo. Assim, uma
+view de `String` preservaria UTF-8, uma view de `Array<T>` preservaria
+contiguidade e uma view de `Tensor` poderia publicar shape e strides.
+
+O termo genérico não pode apagar fatos de custo. A interface compilada precisa
+registrar element type, index model, contiguidade, mutabilidade e provenance.
+Nem todo tipo recebe uma view automaticamente.
+
+Esta mudança ainda não é DB2. O corpus precisa fechar:
+
+1. a declaration que permite a um tipo publicar sua forma de view;
+2. a composição de `ref`, `inout` e `view` sem modifier ambíguo;
+3. ABI de descriptors contíguos e strided;
+4. lookup de methods que exigem owner ou capacity;
+5. conversão C de pointer + length;
+6. diagnostics de escape e invalidation.
+
+Até esse gate, os nomes concretos abaixo continuam como candidato executável.
+Se `view T` vencer, a migração será direta: `StringView` vira `view String`,
+`Slice<T>` vira `view Array<T>` ou `view Bytes`, e `MutableSlice<T>` vira
+`inout view Array<T>`. W não manterá as duas superfícies públicas.
+
 `StringView` empresta uma subsequência UTF-8 contígua. `String`, `StringView` e
 `Grapheme` oferecem as views válidas para seu conteúdo.
 
@@ -7131,20 +7415,21 @@ diferentes. Cada valor atende ao protocol `Display`.
 let message = "Order ${order.id} has ${order.guests} guests"
 ```
 
-`Display.write` grava num sink. O default `display()` cria um builder e retorna
-um `String`. A interpolação baixa para um único builder e chama `write` para
-cada segmento. Ela não exige um `String` intermediário por campo.
+`Display.write` grava no `String` de destino. O default `display()` cria esse
+destino e o retorna. A interpolação baixa para uma única operação de construção
+e chama `write` para cada segmento. Ela não exige um `String` intermediário por
+campo.
 
 ```w
 protocol Display {
-  fn write(to output: inout StringBuilder): ()
+  fn write(to output: inout String): ()
 }
 
 extension Display {
   fn display(): String {
-    var output = StringBuilder()
-    write(to: output)
-    return (take output).finish()
+    var output = String()
+    write(to: inout output)
+    return output
   }
 }
 ```
@@ -7153,7 +7438,7 @@ Uma implementação escreve diretamente:
 
 ```w
 extension Course: Display {
-  fn write(to output: inout StringBuilder): () {
+  fn write(to output: inout String): () {
     output.append(switch self {
       case .nebulaBroth: "Nebula broth"
       case .photonSouffle: "Photon soufflé"
@@ -7165,7 +7450,7 @@ extension Course: Display {
 ```
 
 `+` cria um novo `String`. `+=` e `append` mutam um `String` exclusivo.
-Os operadores aceitam somente `String`. Uma view usa builder, interpolation
+Os operadores aceitam somente `String`. Uma view usa `append`, interpolation
 ou `toString()`. W não converte números ou objetos nesses operadores.
 
 ```w
@@ -7174,18 +7459,19 @@ greeting += ", universe"
 let question = greeting + "?"
 ```
 
-`StringBuilder` torna alocação e custo explícitos em loops ou construções
-grandes. O formatter pode sugerir o builder para uma cadeia de `+`.
+`String` mantém sua capacidade de storage. `String(reservingBytes:)` torna a
+reserva explícita em loops ou construções grandes. O formatter pode sugerir
+reserva e `append` para uma cadeia de `+`.
 
 ```w
-var output = StringBuilder(reservingBytes: rows.count * 32)
+var output = String(reservingBytes: rows.count * 32)
 
 for row in rows {
   output.append(row.name)
   output.append("\n")
 }
 
-let report = (take output).finish()
+let report = output
 ```
 
 W não concatena literais adjacentes. W também não concatena valores separados
@@ -7522,6 +7808,7 @@ insert/remove no meio têm O(n):
 
 ```w
 var courses = Array<Course>()
+var staged = Array<Course>(using: request)
 courses.reserve(minimumCapacity: 16)
 courses.append(.broth)
 courses.insert(.cake, at: 0)
@@ -7530,12 +7817,17 @@ expect courses == [.cake, .broth]
 
 A estratégia de crescimento e o valor exato de `capacity` não fazem parte da
 semântica, da igualdade ou da ABI. `reserve` segue a policy normal de OOM.
-`tryReserve` retorna falha recuperável:
+`tryReserve` retorna falha recuperável e oferece a strong failure guarantee:
 
 ```w
-try buffer.tryReserve(minimumCapacity: packetSize)
-expect buffer.count == oldCount // quando a reserva falha
+let required = try usize.checkedAdd(buffer.count, packetSize)
+try buffer.tryReserve(minimumCapacity: required)
+buffer.append(take packet) // não cresce antes de `required`
 ```
+
+Após uma reserva suficiente, `append` não aloca até atingir essa capacidade.
+Isso mantém o owner do elemento no caller quando a reserva falha. Um array
+criado com `using` preserva esse allocator em todo growth e drop.
 
 O subscript por índice faz bounds check e panic quando o contrato local foi
 violado. `get` representa input fallible:
@@ -8371,16 +8663,18 @@ type DisplayName = String<(.graphemes.count <= 64)>
 `DisplayName` não prova um limite estático finito de bytes. O optimizer não converte
 contagem visual em capacidade física.
 
-`StringBuilder` é o caminho de custo previsível para construção. Interpolation
-usa um builder único. Uma sequência longa de `+` pode receber um diagnostic de
-performance, mas mantém o mesmo significado.
+`String(reservingBytes:)` e `append` formam o caminho público de custo previsível
+para construção. Interpolation escreve num único `String` de destino. A
+implementação pode usar um buffer interno, mas esse buffer não é outro tipo
+público. Uma sequência longa de `+` pode receber um diagnostic de performance,
+mas mantém o mesmo significado.
 
 ```w
-var report = StringBuilder(reservingBytes: orders.count * 48)
+var report = String(reservingBytes: orders.count * 48)
 for ref order in orders {
   report.append("Order ${order.id}\n")
 }
-let text = (take report).finish()
+let text = report
 ```
 
 ### 18.5 Matrizes, SIMD e devices
@@ -8804,7 +9098,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | primary associated types, composition e dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
-| dados | String, StringView, Bytes, StringBuilder, Slice, Array, Map, Set e Range de T0 |
+| dados | String, StringView, Bytes, Slice, Array, Map, Set e Range de T0 |
 | generics | type parameters, constraints, inference fechada, coherence e monomorphization |
 | memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
@@ -9475,6 +9769,10 @@ Uma pesquisa só avança quando possui:
 | provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
 | pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
 | `pin` e `Pinned<T>` públicos | **Provável** | contrato claro; FFI persistente precisa de protótipo |
+| placement local sem annotation | **Possível agora** | escape e frame analysis conservadores fornecem fallback stack |
+| gate sem allocator geral | **Provável** | call graph e allocation facts são conhecidos; FFI exige summary |
+| `Arena` T0 e bloco `region` | **Provável** | lifetime lexical e bulk release são conhecidos; async e rehome exigem corpus |
+| allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
 | `shared` + `weak` sem cycle collector | **Provável** | RC é conhecido; tooling de ciclos precisa de avaliação |
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
@@ -9538,7 +9836,8 @@ Uma pesquisa só avança quando possui:
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
 | QoS na syntax de `spawn` | **Pesquisa** | policy não pode parecer garantia de ordering ou deadline |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
-| mimalloc universal | **Pesquisa** | profile possível; default exige matriz de targets |
+| mimalloc como profile | **Provável** | API e build são conhecidos; versão, targets e foreign mix exigem benchmark |
+| mimalloc universal | **Rejeitado por enquanto** | origem estrangeira, versão e targets impedem um default sem evidência |
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
 | seccomp por módulo importado | **Rejeitado** | import não é uma security boundary |
 | sandbox portátil por process/Wasm | **Provável** | depende do host, mas preserva o contrato |
@@ -9924,9 +10223,9 @@ experimentar”, não “decisão irreversível”.
 | D2-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | D2-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | D2-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| D2-025 | shared | `shared T` + `weak` | ARC implícito; region-only |
-| D2-026 | region | API primeiro, bloco experimental | region annotations; heap por módulo |
-| D2-027 | allocator | system portable, profile substituível | mimalloc universal; allocator por import |
+| D2-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; region-only |
+| D2-026 | region | `region name(using:, limit:)` lidera e baixa para `Arena`; W0 implementa API primeiro | lifetime annotations; heap por módulo; API sem bloco |
+| D2-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | D2-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
 | D2-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
 | D2-030 | tagged values | otimização invisível com fallback | tagged address obrigatório; annotation |
@@ -10116,7 +10415,7 @@ experimentar”, não “decisão irreversível”.
 | D2-214 | slices de texto | byte slice é `Slice<u8>`; byte range para StringView é fallible | arredondar boundary; slice sempre String |
 | D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
 | D2-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes D2-358–362 | replacement implícito; locale codec default |
-| D2-217 | construção de String | interpolation usa builder e `Display.write`; `+` aloca; `+=` muta | concat adjacente; String intermediário por campo |
+| D2-217 | construção de String | interpolation usa um `String` de destino e `Display.write`; `+` aloca; `+=` muta | builder público; concat adjacente; String intermediário por campo |
 | D2-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
 | D2-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
 | D2-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
@@ -10264,7 +10563,7 @@ experimentar”, não “decisão irreversível”.
 | D2-362 | BOM UTF-8 | core preserva U+FEFF; adapter nomeado aplica policy | remover sempre; preservar sempre em todo protocolo |
 | D2-363 | índices de texto | origem emprestada, custo visível e uso terminal em edição | integer offset universal; índice persistível |
 | D2-364 | grapheme owned | `String<(.graphemes.count == 1)>`; sem `Character` | tipo Character universal; Grapheme owned implícito |
-| D2-365 | interpolação | um StringBuilder + `Display.write`; `display()` é conveniência | String intermediário por campo; concatenação implícita |
+| D2-365 | interpolação | um `String` de destino + `Display.write`; `display()` é conveniência | builder público; String intermediário por campo; concatenação implícita |
 | D2-366 | edição Unicode | bundle e digests no semantic fingerprint; índices não persistem | versão do sistema; boundary congelada no valor |
 | D2-367 | PackagePath | NFC e colisão normalizada rejeitada | nomes distintos por bytes; escolher o primeiro |
 | D2-368 | semântica de performance | profiles preservam valor, panic, effects, ownership e numeric policy | release muda overflow/float; optimizer como semântica |
@@ -10302,6 +10601,20 @@ experimentar”, não “decisão irreversível”.
 | D2-400 | saída de pinning | sem `unpin` na DB2; drop in-place; `intoValue` com proof token em Pesquisa | unpin seguro irrestrito; unpin keyword unsafe |
 | D2-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
 | D2-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
+| D2-403 | construção de String | capacidade e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
+| D2-404 | view genérica | `view T` é líder de pesquisa; nomes `XView` ficam provisórios até fechar mutabilidade, custo e ABI | família pública `XView`; `Readonly<T>` profundo; usar somente `ref` |
+| D2-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
+| D2-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
+| D2-407 | alocação em region | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
+| D2-408 | escape de arena | inline independente pode sair; storage dependente exige consuming `rehome` | copiar sempre no return; escape unchecked; adoção presumida |
+| D2-409 | arena e tasks | Arena move-only e não shareable; child paralelo recebe arena filha exclusiva | arena monotônica concorrente default; proibir todo child |
+| D2-410 | budget de arena | cobra span alinhado, padding, growth retido e drop metadata; host mede resident separado | cobrar somente live payload; usar resident bytes como semântica |
+| D2-411 | origem | owner preserva allocator instance e deallocator; zero-size não aloca; family não mistura | `free` universal; origem em low bits |
+| D2-412 | allocator profiles | system baseline; mimalloc e secure por recipe/benchmark; fixed sem OS allocation | override global obrigatório; allocator escolhido por import |
+| D2-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
+| D2-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
+| D2-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
+| D2-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
