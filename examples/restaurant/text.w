@@ -4,6 +4,10 @@ import std.ffi
 import std.fs
 import std.text
 
+export type MenuGlyph = String<(.graphemes.count == 1)>
+export type CompactGlyph =
+  String<(.graphemes.count == 1 && .bytes.count <= 32)>
+
 export struct TextShape {
   bytes: usize
   scalars: usize
@@ -26,6 +30,34 @@ export fn scalarPrefix(value: ref String, count: usize): StringView {
 
 export fn decodeLabel(payload: ref Bytes): String throws Utf8Error {
   return try String.fromUtf8(payload)
+}
+
+export fn borrowLabel(payload: ref Bytes): StringView throws Utf8Error {
+  return try StringView.fromUtf8(payload)
+}
+
+export fn adoptLabel(payload: take Bytes): Utf8Adoption {
+  return String.adoptingUtf8(take payload)
+}
+
+export fn decodeFragments(
+  first: ref Bytes,
+  second: ref Bytes,
+): String throws Utf8Error {
+  var decoder = Utf8Decoder()
+  try decoder.push(first)
+  try decoder.push(second)
+  return try (take decoder).finish()
+}
+
+export fn replaceScalarTail(
+  value: inout String,
+  offset: usize,
+  replacement: ref String,
+): () {
+  let start = value.scalars.index(value.scalars.start, offsetBy: offset)
+  let end = value.scalars.end
+  value.replace(scalars: start..<end, with: replacement)
 }
 
 export fn cLabel(value: ref String): CString throws CStringError {
@@ -56,8 +88,67 @@ test "normalization and repair stay explicit" for decodeLabel {
   do {
     let _ = try decodeLabel(b"\x66\x6f\x80")
     panic("invalid UTF-8 was accepted")
-  } catch .invalidByte(let offset) {
-    expect offset == 2
+  } catch error {
+    expect error.offset == 2
+    expect error.length == 1
+    expect error.reason == .invalidLeadingByte
+  }
+
+  expect String.replacingInvalidUtf8(b"\xF0\x80\x80A") == "���A"
+}
+
+test "borrow, adoption, and chunks preserve ownership" {
+  let payload = b"Violet Horizon"
+  let view = try borrowLabel(payload)
+  expect view == "Violet Horizon"
+
+  let adopted = adoptLabel(take Bytes(copying: payload))
+  switch adopted {
+    case .text(let text): expect text == "Violet Horizon"
+    case .invalid(_, _): panic("valid UTF-8 was rejected")
+  }
+
+  let joined = try decodeFragments(b"table \xF0\x9F", second: b"\xAA\x90")
+  expect joined == "table 🪐"
+}
+
+test "an incomplete final chunk has one stable error" for decodeFragments {
+  do {
+    let _ = try decodeFragments(b"table ", second: b"\xE1\x80")
+    panic("incomplete UTF-8 was accepted")
+  } catch error {
+    expect error.offset == 6
+    expect error.length == 2
+    expect error.reason == .unexpectedEnd
+  }
+}
+
+test "core UTF-8 preserves an initial byte-order signature" for decodeLabel {
+  expect try decodeLabel(b"\xEF\xBB\xBFmenu") == "\u{FEFF}menu"
+}
+
+test "a grapheme refinement does not imply byte capacity" {
+  let glyph: MenuGlyph = "🪐"
+  let compact: CompactGlyph = "🇧🇷"
+
+  expect glyph.graphemes.count == 1
+  expect compact.bytes.count <= 32
+}
+
+test "terminal index use permits a safe edit" for replaceScalarTail {
+  var title = "Last Light"
+  replaceScalarTail(title, offset: 5, replacement: "Course")
+  expect title == "Last Course"
+}
+
+test "byte slices validate both scalar boundaries" {
+  let flag = "🇧🇷"
+
+  do {
+    let _ = try flag.view(bytes: 1..<flag.bytes.count)
+    panic("an interior scalar boundary was accepted")
+  } catch .startInsideScalar(let offset) {
+    expect offset == 1
   }
 }
 
