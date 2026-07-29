@@ -44,7 +44,8 @@ export service LastLightRestaurant as RestaurantApi {
   static fn serviceName(): String { return "last-light" }
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
-    async<.network> let stock = pantry.reserve(order.course)
+    let ref Order(course, ...) = order
+    async<.network> let stock = pantry.reserve(course)
     spawn<.compute> let plan = optimize(order)
     plan.cancel(reason: .menuChanged)
     let (stock, plan) = try await (stock, plan)

@@ -190,8 +190,9 @@ esquerda é o head. O head publica um schema fechado com slots, tipos, defaults 
 cardinalidade. Esse schema é um contrato estático. Ele não precisa ser um
 `protocol`. Um slot pode exigir conformance a um `protocol`.
 
-`where` e `on` deixam de ser keywords da forma líder. Eles continuam registrados
-como alternativas históricas.
+`where` e `on` não são keywords da DB2. `where` permanece em comparação com
+refinements angulares. `on` fica **Rejeitado por enquanto**. Ele cria uma frase
+especial para uma informação que já pertence ao contrato de `spawn`.
 
 ### 3.1 Formas do payload estático
 
@@ -419,9 +420,12 @@ O corpus precisa verificar:
 **Líder DB2:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
 literal sem label.
 
-**Alternativa:** preservar `where`, `on` e receiver implícito no corpus
-comparativo. Slots primários nomeados continuam aceitos para comparação e
-diagnostics. O formatter emite a forma curta quando o schema não é ambíguo.
+**Alternativa:** preservar `where` e receiver implícito no corpus comparativo.
+Slots primários nomeados continuam aceitos para comparação e diagnostics. O
+formatter emite a forma curta quando o schema não é ambíguo.
+
+**Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
+medir leitura e migração. O parser DB2 não a aceita.
 
 ## 4. Superfície integrada
 
@@ -659,6 +663,65 @@ concisão dos
 Outra alternativa exporta todos os membros de qualquer tipo exportado. A forma
 líder exporta somente os componentes de um struct transparente.
 
+### 6.1 Evolução da interface exportada
+
+W promete compatibilidade de source entre versões compatíveis de um package.
+Uma atualização recompila os dependentes. A DB2 não promete substituir uma
+library compilada por outra versão sem rebuild.
+
+Um struct transparente exportado é resiliente no source por default. Um pattern
+usado fora do package que define o tipo deve terminar com `...`. Essa regra vale
+mesmo quando o pattern lista todos os fields conhecidos:
+
+```w
+let ref Order(guests, course, ...) = order
+```
+
+O marker confirma que o caller aceita fields futuros. Dentro do package, omitir
+`...` exige todos os stored fields visíveis. O compiler verifica essa lista
+quando o tipo muda.
+
+`w interface diff OLD NEW` classifica duas interfaces normalizadas. O comando
+considera estas regras:
+
+| Mudança exportada | Classificação default |
+|---|---|
+| adicionar stored field com default | minor |
+| adicionar stored field obrigatório | major |
+| remover, renomear ou reordenar stored field | major |
+| mudar tipo, mutabilidade ou reduzir visibilidade | major |
+| adicionar `init` explícito a struct transparente | major |
+| adicionar função ou computed property sem mudar resolução | minor |
+| adicionar case a enum fechado | major |
+| mudar um default ou alterar resolução de nome | revisão necessária |
+
+Uma classificação default deixa de ser automática quando a mudança altera
+member lookup, overload resolution ou uma conformance existente.
+
+Um field novo com default mantém calls existentes do initializer sintetizado.
+Patterns externos continuam válidos porque já possuem `...`. Um field com
+visibilidade menor também pode reduzir a visibilidade do initializer. Nesse
+caso, a mudança é major.
+
+Enums da DB2 são fechados. Um `switch` exaustivo recebe um diagnostic quando a
+versão adiciona um case. W não inclui uma forma `nonexhaustive` na DB2.
+
+Compatibilidade de source não define layout, ABI, JSON, WLO ou wRPC. Um schema
+de wire ou persistência possui versão e regras próprias. O compiler não deriva
+uma mudança de schema somente porque um struct ganhou um field.
+
+Esta direção usa a resiliência de
+[Swift Library Evolution](https://www.swift.org/blog/library-evolution/) sem
+publicar layout. O `...` externo cumpre o papel de abertura explícita do
+[`non_exhaustive` de Rust](https://doc.rust-lang.org/reference/attributes/type_system.html).
+A classificação segue
+[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) e registra
+casos de conflito para revisão.
+
+**Alternativa:** todo pattern externo pode ser exaustivo e qualquer field novo
+é major. Outra alternativa exige um modifier de resiliência no tipo. A forma
+líder evita annotations e torna a aceitação de fields futuros visível no uso.
+
 O top-level aceita imports, declarations e `const`. Ele não aceita I/O, `var`
 global ou inicialização runtime.
 
@@ -795,7 +858,55 @@ let duplicate = copy value
 Partial move exige destructuring. A DB2 não permite mover um field e continuar a
 usar o aggregate parcialmente inicializado.
 
-### 7.4 Closures
+### 7.4 Patterns de struct
+
+O pattern de struct usa o nome do tipo e dos fields:
+
+```w
+let ref Order(guests, course, ...) = order
+let Guest(id, name, ...) = take guest
+let Order(id: orderId, guest: Guest(name, ...), ...) = take order
+let inout Table(state, ...) = inout table
+```
+
+Um field sem `:` também cria um binding com o mesmo nome. `field: pattern`
+renomeia, ignora com `_` ou aplica um pattern aninhado. Os fields listados
+seguem a ordem da declaração. `...` ocorre no máximo uma vez e fica no fim.
+Ele cobre os fields não listados.
+
+Dentro de `Type(...)`, o token isolado `...` significa rest. Um range sempre
+possui um operando. O parser distingue as duas formas sem consultar tipos.
+
+O qualifier após `let` define um modo uniforme:
+
+| Forma | Resultado |
+|---|---|
+| `let Type(...) = take value` | consome o aggregate e cria values owned |
+| `let Type(...) = copy value` | copia o aggregate e cria values owned |
+| `let ref Type(...) = value` | cria borrows compartilhados dos fields |
+| `let inout Type(...) = inout value` | cria borrows exclusivos dos fields |
+
+O modo owned consome ou copia o aggregate inteiro. Os fields cobertos por `...`
+são destruídos com o restante do valor quando aplicável. O binding original não
+fica parcialmente inicializado.
+
+Um pattern emprestado aceita somente `let`. A mutation vem do modo `inout`, não
+de `var`. Os borrows de fields distintos podem coexistir. O owner completo não
+pode ser movido enquanto um desses borrows estiver vivo.
+
+A DB2 não mistura `copy`, `ref`, `inout` e `take` dentro do mesmo pattern. O
+programa usa projeções de field quando precisa de modos diferentes.
+
+Somente stored fields visíveis no ponto de uso participam do pattern. Um struct
+encapsulado aceita destructuring no módulo que controla seu storage. `object` e
+`service` não aceitam destructuring. Essas categorias preservam identidade,
+invariantes e cleanup atrás da API nominal.
+
+**Alternativa:** usar `{field}` como record pattern. Outra alternativa usa
+posições sem nomes. A forma líder reutiliza `Type(...)`, mantém labels nominais
+e evita reservar `{}` para um segundo modelo de record.
+
+### 7.5 Closures
 
 ```w
 let double = (value: Int) => value * 2
@@ -1215,7 +1326,6 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 
 | Tema | Estado | Contrato que falta |
 |---|---|---|
-| evolução de struct transparente | **Pesquisa** | defaults, destructuring, SemVer e schema externo |
 | vários initializers | **Pesquisa** | overload, delegação, labels e evolução de API |
 | property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
@@ -1275,7 +1385,8 @@ As regras são:
 - um move invalida o binding em todos os caminhos que o executam;
 - joins de controle exigem o mesmo estado de inicialização;
 - partial move de field não existe na DB2;
-- destructuring move o aggregate inteiro e inicializa novos bindings;
+- destructuring owned move o aggregate inteiro e inicializa novos bindings;
+- destructuring `ref` ou `inout` cria borrows de projections visíveis;
 - reatribuição avalia o novo valor antes de destruir o valor anterior.
 
 O frontend calcula lifetimes por uso e controle de fluxo. O source não contém
@@ -1877,7 +1988,9 @@ let task = Task.spawn(executor: executor, operation: work)
 ```
 
 `spawn<.compute>` é **Líder DB2**. O slot `domain` é primário e fechado.
-`spawn<domain: .compute>` e `spawn on .compute` ficam como **Alternativa**.
+`spawn<domain: .compute>` fica como **Alternativa**. `spawn on .compute` fica
+**Rejeitado por enquanto** porque duplica o contrato estático com uma frase
+especial.
 
 ### 12.7 Mobilidade e captures
 
@@ -3237,6 +3350,7 @@ aprender” fica como alternativa de marca; não é promessa técnica.
 - `w fmt` produz a forma canônica de 120 colunas;
 - `w check` não gera artefato final;
 - `w interface` mostra a interface normalizada em texto ou JSON;
+- `w interface diff` classifica compatibilidade de source e casos para revisão;
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
 - `w build --locked` usa somente o grafo fixado;
@@ -3424,6 +3538,8 @@ Uma pesquisa só avança quando possui:
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
 | visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
+| destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
+| diff de interface e SemVer | **Provável** | regras básicas fechadas; conflitos de resolução exigem corpus |
 | retorno fluente `: self` | **Provável** | reborrow é conhecido; async e consuming receiver exigem corpus |
 | initializer canônico e definite initialization | **Possível agora** | flow analysis e cleanup parcial são conhecidos |
 | computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
@@ -3516,6 +3632,8 @@ O corpus compara, no mínimo:
 - `: self` explícito contra retorno implícito do receiver e retorno `()`;
 - associated member direto contra protocol requirement e mutable type storage;
 - struct transparente contra `export` em cada field e export total do tipo;
+- pattern nominal `Type(field, ...)` contra record pattern com `{}`;
+- `...` externo obrigatório contra exaustividade aberta implícita;
 - object encapsulado contra storage público e constructor herdado;
 - initializer canônico contra memberwise sintetizado e factories nomeadas;
 - computed property property-safe contra method com `try` ou `await`;
@@ -3548,6 +3666,7 @@ Saída: toda forma implementada possui contrato, alternativa e teste.
 - CST/recovery;
 - contratos estáticos com expression, record e list payloads;
 - referência `.member` contextual sem perda no CST;
+- patterns nominais de struct e marker `...`;
 - formatter idempotente;
 - Tree-sitter e semantic highlight projetados do corpus.
 
@@ -3558,6 +3677,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - AST e module graph;
 - imports, visibilidade efetiva e interface normalizada;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
+- evolução de structs, diff de interface e classificação SemVer;
 - associated constants, functions, types e `: self`;
 - initializer sintetizado, `init` canônico e definite initialization;
 - computed properties e property requirements;
@@ -3767,10 +3887,10 @@ experimentar”, não “decisão irreversível”.
 | D2-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
 | D2-037 | concorrência | `async let` | Future/Promise; task API somente |
 | D2-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
-| D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name`; descriptor-only |
+| D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | D2-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel`; async thread cancellation |
+| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | D2-044 | atomics | seq-cst default, orders explícitas | C-like default; lock implicit |
 | D2-045 | mobilidade | `transferable`/`shareable` derivados | `Send`/`Sync` públicos; runtime checks |
@@ -3894,6 +4014,14 @@ experimentar”, não “decisão irreversível”.
 | D2-163 | enum e protocol | cases e requirements herdam; witness não repete modifier | `export` repetido; todos os members públicos |
 | D2-164 | service | storage nunca cruza módulo; API usa protocol async | field público; computed property remota |
 | D2-165 | interface exportada | signature não expõe tipo menos visível; HIR normaliza | lint apenas; defaults preservados na HIR |
+| D2-166 | pattern de struct | `Type(field, field: pattern, ...)`; nominal e ordenado | `{field}`; tuple posicional |
+| D2-167 | evolução de pattern | `...` obrigatório fora do package | exaustivo externo; modifier no tipo |
+| D2-168 | ownership de pattern | modo uniforme owned, `ref` ou `inout` | qualifier por field; partial move |
+| D2-169 | limite de destructuring | struct visível; object e service rejeitados | destructuring estrutural universal |
+| D2-170 | evolução de struct | field com default é minor se a resolução não muda; field obrigatório é major | todo field novo é major |
+| D2-171 | evolução de enum | enum fechado; case novo é major | `nonexhaustive`; default case obrigatório |
+| D2-172 | source contra schema | source, ABI e wire evoluem por contratos separados | derivar schema do struct |
+| D2-173 | verificação SemVer | `w interface diff` classifica e sinaliza revisão | revisão manual; só major/minor binário |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

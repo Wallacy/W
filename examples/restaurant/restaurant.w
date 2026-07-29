@@ -70,7 +70,8 @@ async fn prepareDish(
   probe: ServiceRef<AromaProbeApi>,
 ): Dish throws RestaurantError {
   let planning = planningRequest(order)
-  async let stock = pantry.reserve(order.course, guests: order.guests)
+  let Order(guests, course, ...) = take order
+  async let stock = pantry.reserve(course, guests: guests)
   async let telemetry = ovens.telemetry()
   async let aromaSample = probe.sample()
   async let schedule = oracle.plan(take planning)
