@@ -4,6 +4,7 @@ import { Order } from restaurant.domain
 import std.tensor as tensor
 
 export type GuestCount = u16<(1...4096)>
+export type ShortMessage = String<(.graphemes.count <= 120)>
 
 dimension Applause
 unit clap: Applause
@@ -11,9 +12,21 @@ unit ovation = 1_000<clap>
 
 const serviceTemperature = 180<degC>
 const commandLimit = 64<KiB>
-let scalar = 'W'
-let byte = b'\n'
-let rawPath = #"C:\last-light\${literal}"#
+
+fn lexicalValues(): () {
+  let scalar = 'W'
+  let byte = b'\n'
+  let rawPath = #"C:\last-light\${literal}"#
+}
+
+struct ServiceFlow {
+  var stage: ServiceStage
+  const first = ServiceFlow(stage: .accepted)
+
+  mut fn advance(to next: ServiceStage): self {
+    stage = next
+  }
+}
 
 export service LastLightRestaurant as RestaurantApi {
   pantry: ServiceRef<PantryApi>
@@ -25,6 +38,7 @@ export service LastLightRestaurant as RestaurantApi {
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     async<.network> let stock = pantry.reserve(order.course)
     spawn<.compute> let plan = optimize(order)
+    plan.cancel(reason: .menuChanged)
     let (stock, plan) = try await (stock, plan)
 
     defer async { await stock.release() }

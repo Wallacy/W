@@ -3,7 +3,7 @@
 import std.text
 import { Course, Guest, GuestCount, GuestId, GuestName, Order, OrderId } from restaurant.domain
 
-export type CommandLine = String<(value.bytes.count <= 65_536)>
+export type CommandLine = String<(.bytes.count <= 65_536)>
 
 export struct SourceSpan {
   bytes: Range<usize>

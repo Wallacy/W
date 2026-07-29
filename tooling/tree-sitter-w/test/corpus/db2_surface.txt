@@ -12,10 +12,10 @@ export unit ovation = 1_000<clap>
 
 export type Ratio = f64<(0.0...1.0)>
 export type Buffer<const count: usize> = [u8; count]
-export type SmallBytes = Array<u8><(value.count <= 64)>
+export type SmallBytes = Array<u8><(.count <= 64)>
 
 fn inspectStaticPayloads() {
-  let predicate = ContractProbe<(value.count > 0 && value.count <= 64)>()
+  let predicate = ContractProbe<(.count > 0 && .count <= 64)>()
   let record = ContractProbe<{mode: .strict, retries: 0}>()
   let pipeline = ContractProbe<[.parse, .verify, .lower]>()
 }
@@ -94,8 +94,7 @@ fn inspectStaticPayloads() {
         (type_argument
           (contract_expression_argument
             (binary_expression
-              (member_expression
-                (identifier)
+              (contextual_member_expression
                 (identifier))
               (number_literal)))))))
   (function_declaration
@@ -112,13 +111,11 @@ fn inspectStaticPayloads() {
               (contract_expression_argument
                 (binary_expression
                   (binary_expression
-                    (member_expression
-                      (identifier)
+                    (contextual_member_expression
                       (identifier))
                     (number_literal))
                   (binary_expression
-                    (member_expression
-                      (identifier)
+                    (contextual_member_expression
                       (identifier))
                     (number_literal))))))
           (argument_list)))
@@ -132,7 +129,7 @@ fn inspectStaticPayloads() {
               (static_record_literal
                 (identifier)
                 (static_argument_value
-                  (enum_literal
+                  (contextual_member_expression
                     (identifier)))
                 (identifier)
                 (static_argument_value
@@ -147,13 +144,13 @@ fn inspectStaticPayloads() {
             (generic_call_arguments
               (static_array_literal
                 (static_argument_value
-                  (enum_literal
+                  (contextual_member_expression
                     (identifier)))
                 (static_argument_value
-                  (enum_literal
+                  (contextual_member_expression
                     (identifier)))
                 (static_argument_value
-                  (enum_literal
+                  (contextual_member_expression
                     (identifier))))))
           (argument_list))))))
 
@@ -217,7 +214,7 @@ entry LastLight {
                     (identifier))))))))))
   (function_declaration
     (language_tag
-      (enum_literal
+      (contextual_member_expression
         (identifier)))
     (identifier)
     (parameter_list
@@ -256,7 +253,7 @@ entry LastLight {
     (block
       (binding_declaration
         (task_contract
-          (enum_literal
+          (contextual_member_expression
             (identifier)))
         (pattern
           (identifier))
@@ -265,7 +262,7 @@ entry LastLight {
           (argument_list)))
       (binding_declaration
         (task_contract
-          (enum_literal
+          (contextual_member_expression
             (identifier)))
         (pattern
           (identifier))
@@ -489,32 +486,87 @@ behavior Versioned<Value> for Value {
 DB2 static and mutable receivers
 ==================
 
-struct Counter {
-  value: u64
+protocol Additive {
+  type Scalar
+  const zero: Self
+  static fn from(value: Scalar): Self
+}
 
-  static fn zero(): Counter {
-    return Counter(value: 0)
+struct Counter: Additive {
+  alias Scalar = u64
+  var value: u64
+  const zero = Counter(value: 0)
+
+  static fn from(value: u64): Counter {
+    return Counter(value: value)
   }
 
-  mut fn increment() {
+  mut fn increment(): self {
     value += 1
   }
+}
+
+fn touch(): () {
+  return ()
 }
 
 ---
 
 (source_file
-  (struct_declaration
+  (protocol_declaration
     (type_identifier)
-    (type_body
-      (field_declaration
+    (protocol_body
+      (associated_type_requirement
+        (type_identifier))
+      (associated_const_requirement
         (identifier)
         (type
           (type_name
             (type_identifier))))
       (function_declaration
         (identifier)
-        (parameter_list)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))))
+    (type_body
+      (alias_declaration
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (const_declaration
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (number_literal)))))
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
         (type
           (type_name
             (type_identifier)))
@@ -525,12 +577,23 @@ struct Counter {
               (argument_list
                 (argument
                   (identifier)
-                  (number_literal)))))))
+                  (identifier)))))))
       (function_declaration
         (identifier)
         (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
         (block
           (expression_statement
             (assignment_expression
               (identifier)
-              (number_literal))))))))
+              (number_literal)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (tuple_type))
+    (block
+      (return_statement
+        (unit_literal)))))

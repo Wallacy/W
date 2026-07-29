@@ -42,7 +42,7 @@ async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppEr
   return .success
 }
 
-async fn readCommand(line: String, ctx: CliContext): Void throws AppError {
+async fn readCommand(line: String, ctx: CliContext): () throws AppError {
   let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
   let command = try decodeCommand(line)
   let output = try await dispatch(take command, restaurant: restaurant)
@@ -56,7 +56,7 @@ async fn fetch(request: http.Request, ctx: http.Context): http.Response throws A
   return try http.Response.json(receipt)
 }
 
-async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): Void {
+async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): () {
   print("Encerrando o último turno por ${signal}.")
   await ctx.services.drain(deadline: ctx.deadline)
 }

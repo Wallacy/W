@@ -232,8 +232,9 @@ Aceite:
 
 - `BoundedText<{min: 1, max: 120}>` passa um static record tipado;
 - `u16<(1...4096)>` expande para `value in 1...4096`;
-- `String<(value.scalars.count <= 40)>` mantém o receiver explícito;
-- `Array<u8><(value.count <= 64)>` refina um generic já aplicado;
+- `String<(.scalars.count <= 40)>` usa o subject contextual do refinement;
+- `Array<u8><(.count <= 64)>` refina um generic já aplicado;
+- `Array<[u8, (.count <= 64)]>` não substitui os dois contratos;
 - `spawn<.compute>` e `spawn<domain: .compute>` produzem o mesmo task contract;
 - `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
 - `<(...)>`, `<{...}>` e `<[...]>` preservam expression, record e list;
@@ -241,6 +242,8 @@ Aceite:
 - um case abreviado só preenche o slot primário declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
+- `Money.zeroCredits` e `Money.fromMajor(...)` não criam estado global;
+- `OrderState.advance(...): self` retorna um reborrow explícito.
 
 As formas `where` e `on` permanecem no corpus contrafactual. A análise normativa
 está na [seção 3 de DESIGN.md](../../DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
@@ -301,6 +304,7 @@ Aceite:
 - `.input` devolve resultados na ordem dos jobs;
 - `parallelCollect` preserva todos os outcomes;
 - cancelar o batch fecha producer e children;
+- `batch.cancel(reason: .shutdown)` preserva o handle para o join;
 - cada job move ownership para um child;
 - `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
 - um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
@@ -329,7 +333,10 @@ O Book deve mostrar pares lado a lado:
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` |
 | refinement | `T<(predicate)>` | `T where (predicate)` |
-| receiver | `String<(value.count <= 40)>` | `String<(.count <= 40)>` |
+| receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
+| generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
+| retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
+| associated member | `Money.zeroCredits` | mutable type storage |
 | static record | `<{name: value}>` | extensão universal de tipo |
 | static list | `<[a, b]>` ordenada | set implícito de constraints |
 | frontend inline | `fn<C>` | `fn<lang: .c>` |

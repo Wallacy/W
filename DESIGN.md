@@ -187,7 +187,8 @@ Cada delimitador mantém uma função mental principal:
 
 `<...>` é o envelope único para informação estática local. O elemento à
 esquerda é o head. O head publica um schema fechado com slots, tipos, defaults e
-cardinalidade.
+cardinalidade. Esse schema é um contrato estático. Ele não precisa ser um
+`protocol`. Um slot pode exigir conformance a um `protocol`.
 
 `where` e `on` deixam de ser keywords da forma líder. Eles continuam registrados
 como alternativas históricas.
@@ -212,8 +213,8 @@ Array<u8>
 Tensor<f32, shape: [8, 4]>
 
 type Port = u16<(1...65_535)>
-type FixedCode = String<(value.graphemes.count == 10)>
-type SmallBuffer = Array<u8><(value.count <= 64)>
+type FixedCode = String<(.graphemes.count == 10)>
+type SmallBuffer = Array<u8><(.count <= 64)>
 
 struct Bounds {
   min: usize
@@ -221,24 +222,48 @@ struct Bounds {
 }
 
 type BoundedString<const bounds: Bounds> =
-  String<(value.scalars.count in bounds.min...bounds.max)>
+  String<(.scalars.count in bounds.min...bounds.max)>
 type Label = BoundedString<{min: 1, max: 40}>
 
 spawn<.compute> let plan = optimize(take snapshot)
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
 ```
 
-Em um tipo, um payload Boolean é um refinement predicate. O nome `value`
-representa o valor refinado. Um range no slot primário é sugar para
-`value in range`. Portanto, `u16<(1...65_535)>` e
-`u16<(value in 1...65_535)>` possuem a mesma HIR.
+Em um tipo, um payload Boolean é um refinement predicate. Um member iniciado
+por `.` usa o valor refinado como subject implícito. Um range no slot primário
+inclui esse subject e o operador `in`. Portanto, estas formas possuem a mesma
+HIR:
+
+```w
+u16<(1...65_535)>
+u16<(value in 1...65_535)>
+
+String<(.graphemes.count == 10)>
+String<(value.graphemes.count == 10)>
+```
+
+A forma curta é **Líder DB2**. `value` continua disponível para
+desambiguação e diagnostics.
 
 Um tipo generic já aplicado recebe o refinement em outro envelope.
-`Array<u8><(value.count <= 64)>` não mistura o element type com o predicate.
+`Array<u8><(.count <= 64)>` não mistura o element type com o predicate.
 
-`String<(.graphemes.count == 10)>` permanece **Alternativa**. A forma curta
-economiza um nome. Ela também conflita com a leitura de `.case`. A forma líder
-usa `value`.
+`Array<[u8, (.count <= 64)]>` não é uma grafia equivalente. A forma passa uma
+única static list ao slot primário de `Array`. Esse slot exige um tipo de
+elemento. A lista também não identifica se o predicate restringe o elemento ou
+o `Array` resultante. Outro head pode publicar um slot que aceite uma static
+list.
+
+O parser chama toda forma `.name` de referência contextual. O type checker
+resolve a referência com estas regras:
+
+1. em um refinement, `.member` acessa o subject implícito;
+2. quando o contexto espera um enum fechado, `.case` seleciona esse enum;
+3. uma colisão exige `value.member` ou `EnumName.case`;
+4. sem subject ou tipo esperado, `.name` produz diagnostic.
+
+A HIR sempre guarda o subject ou o enum completo. `.name` não abre lookup
+global e não abrevia um associated member sem contexto.
 
 `Animal<Dog>` aplica `Dog` ao schema de `Animal`. A forma não cria inheritance.
 Se o parâmetro exige um protocol, o type checker verifica a conformance
@@ -378,7 +403,9 @@ Parênteses fecham a expressão antes do `>` externo. Essa regra reduz conflitos
 com `<`, `>`, `<=`, `>=` e generic nesting.
 
 O parser constrói o payload antes de consultar o schema. O type checker resolve
-slot, kind, default e case. O formatter não remove `value` de predicates.
+slot, kind, default e referência contextual. O formatter usa o subject curto
+quando ele é inequívoco. Ele preserva a qualificação necessária para resolver
+uma colisão.
 
 O corpus precisa verificar:
 
@@ -577,7 +604,10 @@ A ordem canônica é:
 5. `async`;
 6. `fn` ou `fn<Language>`.
 
-`throws E` fica depois do return type. `Void` pode ser omitido.
+`throws E` fica depois do return type. Uma função sem return type retorna `()`.
+Esse unit type possui um único valor, também escrito `()`. `Void` permanece
+**Alternativa** de superfície. `Never` identifica uma função ou expressão que
+não retorna ao caller.
 
 O primeiro argumento é posicional por default. Os seguintes usam o nome como
 label. Um label explícito substitui o default. `_` remove um label.
@@ -597,6 +627,36 @@ enum Course {
 
 `static mut fn` é erro. Um receiver consuming continua **Pesquisa**. A
 alternativa atual é uma função livre com parâmetro `take`.
+
+Um método fluente declara `: self`:
+
+```w
+struct OrderState {
+  var stage: ServiceStage
+
+  mut fn advance(to next: ServiceStage): self throws DomainError {
+    guard canMove(from: stage, to: next) else {
+      throw .invalidTransition(from: stage, to: next)
+    }
+
+    stage = next
+  }
+}
+```
+
+`: self` retorna um borrow do mesmo receiver. Ele não copia, move ou aloca o
+valor. `fn` retorna o borrow compartilhado. `mut fn` retorna o borrow exclusivo.
+Fallthrough, `return` e `return self` concluem com esse receiver. Outra expressão
+de retorno é erro. Dentro do método, `self.member` desambigua um field ou method
+ocultado por um nome local.
+
+`: Self` continua um return type normal e owned. `: self` não é válido em função
+livre ou `static fn`. Um método `async` segue as regras normais para borrow
+suspenso.
+
+Omitir o return type não retorna `self`. O retorno implícito faria uma função de
+efeito parecer uma transformação. Ele também ocultaria borrow, copy ou move em
+um receiver com owner único.
 
 ### 7.3 Parâmetros e ownership
 
@@ -674,7 +734,81 @@ extension Dish: Displayable {
 Uma conformance pode ser declarada no módulo do tipo ou no módulo do protocol.
 Essa regra evita conformances órfãs e conflitos dependentes da ordem de import.
 
-### 8.2 Option e ausência
+### 8.2 Associated members, protocols e singleton
+
+Um nome de tipo cria uma identidade compile-time e um namespace. Ele não cria
+um objeto runtime. `struct`, `object` e `enum` podem declarar associated members:
+
+```w
+export struct Money {
+  minorUnits: i128
+  currency: Currency
+
+  export const zeroCredits = Money(minorUnits: 0, currency: .cr)
+
+  export static fn fromMajor(value: i64, currency: Currency): Money {
+    return Money(minorUnits: i128(value) * 100, currency: currency)
+  }
+}
+
+let zero = Money.zeroCredits
+let price = Money.fromMajor(42, currency: .cr)
+```
+
+`const` dentro do tipo declara um associated compile-time value. `static fn`
+declara uma associated function. O acesso usa `Type.member`. W usa lower camel
+case também para constantes. Por exemplo, a biblioteca usa `u64.max`, não
+`Number.MAX_VALUE`.
+
+Uma declaração direta não exige um `protocol`. O `protocol` é necessário quando
+código generic precisa exigir o member:
+
+```w
+export protocol Sequence {
+  type Element
+  const empty: Self
+  static fn from(items: Array<Element>): Self
+  fn first(): Element?
+}
+
+export struct Menu: Sequence {
+  alias Element = Dish
+  const empty = Menu(dishes: [])
+  dishes: Array<Dish>
+
+  static fn from(items: Array<Dish>): Menu { return Menu(dishes: items) }
+  fn first(): Dish? { ... }
+}
+```
+
+`Self` representa o tipo concreto que atende ao requisito. `type Element`
+declara um associated type requirement. `alias Element = Dish` fornece o
+witness. Um protocol pode exigir `const`, `static fn` e methods. Ele nunca cria
+storage.
+
+O corpo que define um `struct` ou `object` pode declarar instance fields.
+Protocol e extension não adicionam instance storage. Uma extension pode
+adicionar `const` e `static fn` quando a regra de coherence permite.
+
+W não possui `static var` nem outro mutable type storage na DB2. Esse storage
+criaria estado global, ordem de inicialização, sincronização e destruction
+ocultas. Um associated value runtime usa `static fn`. Estado compartilhado usa
+um owner explícito criado por `entry` ou uma service instance com key explícita.
+
+```w
+entry {
+  let catalog = Catalog(...)
+  run(catalog: take catalog)
+}
+```
+
+Um `object Catalog` pode ter várias instances. O binding acima expressa um
+singleton do product, não da linguagem. Um módulo também não é singleton.
+
+**Pesquisa:** uma API de reflection pode reificar um tipo como `Type<T>`.
+Associated member lookup não depende desse valor runtime.
+
+### 8.3 Option e ausência
 
 `T?` é `Option<T>` e possui somente `.some(T)` ou `.none`.
 
@@ -689,7 +823,7 @@ let name = guest?.name ?? "Anonymous"
 
 Não existem `null`, `undefined`, `uninitialized` ou `empty` universais.
 
-### 8.3 Newtype, alias e refinement
+### 8.4 Newtype, alias e refinement
 
 ```w
 type GuestId = u64
@@ -698,14 +832,15 @@ alias VisitorId = GuestId
 type Ratio = f64<(0.0...1.0)>
 
 type BoundedString<const min: usize, const max: usize> =
-  String<(value.scalars.count in min...max)>
+  String<(.scalars.count in min...max)>
 
 type ShortLabel = BoundedString<min: 1, max: 40>
 ```
 
 `<(...)>` aplica um refinement estático ao tipo completo. Um range no slot
-primário inclui `value in` por sugar. Outros predicates usam `value`
-explicitamente.
+primário inclui o subject e o operador `in`. Outros predicates usam `.member`
+para acessar o mesmo subject. `value.member` continua disponível quando a forma
+curta é ambígua.
 
 Um literal válido pode ser provado em compile time. Um valor runtime usa um
 construtor fallible:
@@ -728,7 +863,7 @@ As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
 continuam como **Alternativa**. A forma líder mantém o predicate dentro do
 contrato estático sem criar um slot chamado `where`.
 
-### 8.4 Generics
+### 8.5 Generics
 
 Parâmetros são declarados antes do uso:
 
@@ -743,7 +878,7 @@ aberto não existe.
 Generics usam monomorphization e specialization dentro do build. Interfaces
 podem usar witnesses para reduzir code size e preservar separate compilation.
 
-### 8.5 Conversões
+### 8.6 Conversões
 
 Uma conversão implícita é permitida somente se:
 
@@ -754,6 +889,23 @@ Uma conversão implícita é permitida somente se:
 
 Narrowing, parsing, rounding, reinterpretation, ponteiro e conversão ambígua são
 explícitos. O mesmo princípio permite `T` para `any P` quando `T: P`.
+
+### 8.7 Lacunas de tipos antes do design freeze
+
+Estas lacunas possuem maior impacto no type checker e na ergonomia:
+
+| Tema | Estado | Contrato que falta |
+|---|---|---|
+| construção customizada | **Pesquisa** | definite initialization, acesso a fields e factory fallible |
+| computed property | **Pesquisa** | efeitos permitidos, borrow do receiver e forma de accessor |
+| associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
+| metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
+| consuming receiver | **Pesquisa** | `take self`, partial failure e retorno owned |
+| síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
+| overload de funções | **Pesquisa** | ranking único, labels, conversões e evolução de package |
+
+A DB2 usa constructor de fields e `static fn` nomeada até decidir construção
+customizada. Uma computed property não pode ocultar `async`, `throws` ou I/O.
 
 ## 9. Memória, layout e alocação
 
@@ -1268,7 +1420,7 @@ As regras são:
 1. cada child pertence ao scope criador;
 2. o scope não termina antes do cleanup de todos os children;
 3. `await` consome o handle e move um resultado owned;
-4. `cancel` solicita cancelamento, mas não consome o handle;
+4. `task.cancel()` solicita cancelamento, mas não consome o handle;
 5. retorno antecipado cancela e faz join dos children restantes;
 6. esquecer ou destruir o handle não destaca a task;
 7. o compiler diagnostica um handle sem consumo.
@@ -1318,12 +1470,16 @@ declaram que completion order faz parte do resultado.
 ### 12.5 Cancelamento
 
 ```w
-cancel report
-cancel batch, reason: .shutdown
+report.cancel()
+batch.cancel(reason: .shutdown)
 ```
 
 Cancelamento é uma solicitação idempotente. Ele não usa `pthread_cancel` e não
 faz unwind assíncrono de foreign frames.
+
+`cancel` é um método intrínseco do owner `Task<T, E>`. Ele retorna `()` e não
+consome o handle. Um `SharedTask` observer não publica esse método. O type
+checker reconhece a operação para preservar structured cancellation e trace.
 
 Uma task observa o sinal:
 
@@ -2939,6 +3095,9 @@ Uma pesquisa só avança quando possui:
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
+| referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
+| associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
+| retorno fluente `: self` | **Provável** | reborrow é conhecido; async e consuming receiver exigem corpus |
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
@@ -3023,7 +3182,10 @@ O corpus compara, no mínimo:
 
 - units `<>` contra `[]`;
 - `spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`;
-- `T<(predicate)>` contra `T where (predicate)` e receiver implícito;
+- `T<(.member predicate)>` contra `value.member`, `where` e constructor;
+- `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
+- `: self` explícito contra retorno implícito do receiver e retorno `()`;
+- associated member direto contra protocol requirement e mutable type storage;
 - static record/list contra interpretações universais de extension e constraints;
 - `fn<C>` contra `fn<lang: .c>`;
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
@@ -3052,6 +3214,7 @@ Saída: toda forma implementada possui contrato, alternativa e teste.
 - EBNF;
 - CST/recovery;
 - contratos estáticos com expression, record e list payloads;
+- referência `.member` contextual sem perda no CST;
 - formatter idempotente;
 - Tree-sitter e semantic highlight projetados do corpus.
 
@@ -3061,7 +3224,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 
 - AST e module graph;
 - imports/visibility;
-- primitives, structs, enums, functions, Option e error sets;
+- primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
+- associated constants, functions, types e `: self`;
 - inference local, generics mínimos e refinements;
 - interface compilada inicial.
 
@@ -3109,7 +3273,7 @@ capacidade necessária para o gate seguinte.
 |---|---|---|
 | SH0 | bytes, UTF-8, source locations, lexer e diagnostics | tokeniza o próprio source |
 | SH1 | parser, recovery, AST, static contracts, modules, imports e names | cria a própria AST de forma estável |
-| SH2 | scalars, aggregates, enums, generics e type checking | verifica os módulos do core |
+| SH2 | scalars, aggregates, enums, generics, associated members e type checking | verifica os módulos do core |
 | SH3 | initialization, move, borrow, drop, errors e collections | constrói HIR sem GC |
 | SH4 | HIR tipada, verifier, serialization e deterministic order | round-trip preserva a HIR |
 | SH5 | C ABI, foreign units, filesystem, argv, path, environment e backend adapter | gera um compiler executável |
@@ -3243,7 +3407,7 @@ experimentar”, não “decisão irreversível”.
 | D2-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | D2-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
 | D2-013 | alias | `alias X = T` | `typealias`; context-dependent `type` |
-| D2-014 | refinement | `T<(predicate)>`; range como sugar | `T where (...)`; receiver implícito; `T(where:)` |
+| D2-014 | refinement | `T<(.member predicate)>`; range como sugar | `value.member`; `T where (...)`; `T(where:)` |
 | D2-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
 | D2-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
 | D2-017 | opaque return | `some P` | existential; generic nomeado |
@@ -3271,7 +3435,7 @@ experimentar”, não “decisão irreversível”.
 | D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name`; descriptor-only |
 | D2-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| D2-042 | cancelamento | statement cooperativo | method only; async thread cancellation |
+| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel`; async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | D2-044 | atomics | seq-cst default, orders explícitas | C-like default; lock implicit |
 | D2-045 | mobilidade | `transferable`/`shareable` derivados | `Send`/`Sync` públicos; runtime checks |
@@ -3373,6 +3537,14 @@ experimentar”, não “decisão irreversível”.
 | D2-141 | foreign parser | body opaco entregue ao adapter da linguagem | parser W interpreta subset externo |
 | D2-142 | foreign delimiter | body braced com scanner do adapter | raw fence hash; parser W conhece strings externas |
 | D2-143 | language tag | `LanguageAdapterId` fixada no lock | enum eterno no compiler; string ou command livre |
+| D2-144 | referência contextual | `.member` usa subject ou enum esperado; HIR qualificada | somente `value.member`; `.case` apenas |
+| D2-145 | generic refinado | `Array<T><(predicate)>` separa aplicação e refinement | `Array<[T, predicate]>`; slot misto |
+| D2-146 | unit e bottom | `()` e `Never` | `Void`; `!`; retorno omitido dependente do contexto |
+| D2-147 | retorno fluente | `: self` explícito como reborrow | retorno `self` implícito; `Self` owned; builder externo |
+| D2-148 | associated member | `const`, `static fn` e `type` requerido | companion object; metatype runtime obrigatório |
+| D2-149 | associated type witness | `type Name` exige `alias Name = T` | `associatedtype`; `type Name = T` contextual |
+| D2-150 | mutable type storage | ausente; owner de `entry` ou service explícito | `static var`; módulo singleton |
+| D2-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
