@@ -10223,6 +10223,10 @@
           "named": true
         },
         {
+          "type": "optional_binding",
+          "named": true
+        },
+        {
           "type": "optional_member_expression",
           "named": true
         },

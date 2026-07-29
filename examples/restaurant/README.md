@@ -27,6 +27,7 @@ LastLight entry
   → Sino de Encerramento pinned
   → Região Temporária do Cardápio
   → Janela de Serviço sem Dono
+  → Passa-Pratos de Capacidade Finita
   → Recepção callable do Último Maitre
   → Conta da Aurora Tardia
   → resposta HTTP/TUI
@@ -65,6 +66,7 @@ owner e estado observável.
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
+| `streams.w` | stream pull, views borrowed, channel MPSC e backpressure |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -304,6 +306,51 @@ também força o fallback não lock-free e executa TSan.
 Failure injection cobre cancellation antes e depois da aquisição async. O trace
 confirma que cada critical section libera o lock uma vez. Benchmarks separam
 latency sem contenção, contenção na mesma cache line e counters particionados.
+
+### 3.5.3 Passa-Pratos de Capacidade Finita
+
+Famílias: stream pull, channel MPSC, ownership, backpressure e close.
+
+Aceite:
+
+- `Stream<Item, Failure>` possui um cursor single-pass;
+- `.none` e o primeiro error terminam o stream;
+- `Failure = Never` remove `try`, mas não remove `await`;
+- `for try await` baixa para calls exclusivas a `next()`;
+- `Stream<view String, E>` mantém a view vinculada ao stream;
+- outro `next()` não ocorre enquanto uma view conflitante está viva;
+- adapters devolvem `some Stream`, sem classes utilitárias públicas;
+- `Channel<T><.send>` pode ser copiado somente com `copy`;
+- `Channel<T><.receive>` é único e move-only;
+- o channel aceita somente payload `transferable` owned;
+- `view T` não entra na fila;
+- capacity zero faz rendezvous;
+- capacity positiva limita itens e permits aceitos;
+- `send` suspende e `trySend` devolve `.full` sem ultrapassar waiters;
+- `.full(T)` e `.closed(T)` devolvem o owner;
+- destruir um permit libera a capacity;
+- o último sender fecha o channel;
+- `receiver.close()` rejeita admission nova e drena itens aceitos;
+- destruir o receiver descarta o buffer e acorda producers;
+- sends sequenciais por sender preservam ordem;
+- sends concorrentes não ganham uma ordem global fictícia;
+- commit de send acontece antes de receive devolver o item.
+
+O oracle usa dois balcões de universos incompatíveis como producers. Um único
+maître recebe os pedidos. Ele repete o caso com capacity 0, 1 e 64, e com uma,
+duas e quatro worker threads.
+
+Failure injection cancela cada send, receive e reserve antes e depois do commit.
+Outro perfil fecha ou destrói o receiver com buffer e permits pendentes. Cada
+pedido deve terminar em exatamente um destes destinos:
+
+1. consumer;
+2. error que devolve o owner;
+3. cleanup registrado.
+
+O teste de view percorre linhas borrowed do cardápio sem allocation. O corpus
+rejeita guardar uma linha depois do próximo `next()`, enviá-la por channel ou
+movê-la para task detached.
 
 ### 3.6 Salão Prisma
 
@@ -998,6 +1045,14 @@ O Book deve mostrar pares lado a lado:
 | namespace import | `import std.http as http` | `import http as http from std.http` |
 | região | `region request(using:, limit:)` | somente `Arena` manual |
 | projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
+| stream assíncrono | `Stream<Item, Failure>` single-pass | sequence + iterator obrigatórios ou generator |
+| loop de stream | `for try await item in stream` | `await stream` lê tudo ou callback push |
+| item borrowed | `Stream<view String, E>` com provenance | `StringView` owned ou view transferable |
+| channel | MPSC bounded com endpoints separados | bidirecional, MPMC ou unbounded por default |
+| endpoint | `Channel<T><.send>` / `<.receive>` | `Sender<T>` / `Receiver<T>` ou direção runtime |
+| falha de envio | enum devolve `T` | Boolean, panic ou perda do item |
+| close de channel | último sender ou receiver gracioso; drop do receiver aborta | qualquer sender fecha globalmente |
+| prefetch | adapter `buffer(capacity:)` explícito | watermark na assinatura ou buffer invisível |
 | construção textual | reserve/append no próprio `String` | `StringBuilder` público |
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
 | reserva textual | `tryReserve(minimumBytes:)` | capacity property e growth factor fixo |

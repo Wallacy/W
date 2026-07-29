@@ -1,0 +1,209 @@
+==================
+Stream protocol and asynchronous loops
+==================
+
+protocol Stream<Item, Failure: Error> {
+  mut async fn next(): Item? throws Failure
+}
+
+async fn consume(
+  source: take some Stream<Order, StreamError>,
+): () throws StreamError {
+  var orders = take source
+
+  for try await order in orders {
+    inspect(order)
+  }
+
+  while let order = try await orders.next() {
+    inspect(order)
+  }
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (primary_associated_types
+      (type_identifier)
+      (type_identifier)
+      (type
+        (type_name
+          (type_identifier))))
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (tuple_type))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (identifier)))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (while_statement
+        (optional_binding
+          (identifier)
+          (unary_expression
+            (unary_expression
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (argument_list)))))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))))))))))
+
+==================
+Directional channel contracts
+==================
+
+async fn submit(
+  output: ref Channel<Order><.send>,
+  order: take Order,
+): () throws ChannelSendError<Order><[.closed]> {
+  try await output.send(take order)
+}
+
+async fn drain(
+  input: take Channel<Order><.receive>,
+) {
+  var orders = take input
+
+  for await order in orders {
+    serve(take order)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))
+          (type_arguments
+            (type_argument
+              (contextual_member_expression
+                (identifier))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (tuple_type))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))))))
+    (block
+      (expression_statement
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list
+                (argument
+                  (unary_expression
+                    (identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))
+          (type_arguments
+            (type_argument
+              (contextual_member_expression
+                (identifier)))))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (identifier)))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (unary_expression
+                    (identifier)))))))))))
