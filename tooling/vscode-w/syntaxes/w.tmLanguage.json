@@ -141,7 +141,7 @@
         },
         {
           "name": "keyword.operator.w",
-          "match": "\\b(?:any|as|get|init|is|modify|set|some|storage)\\b"
+          "match": "\\b(?:any|as|each|get|init|is|modify|set|some|storage)\\b"
         }
       ]
     },

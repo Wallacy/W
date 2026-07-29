@@ -262,7 +262,7 @@ fn containsRatio(value: f64): Bool {
           (identifier))
         (binary_expression
           (identifier)
-          (binary_expression
+          (bounded_range_expression
             (number_literal)
             (number_literal))))
       (binding_declaration
@@ -270,7 +270,7 @@ fn containsRatio(value: f64): Bool {
           (identifier))
         (binary_expression
           (identifier)
-          (binary_expression
+          (bounded_range_expression
             (number_literal)
             (number_literal))))
       (binding_declaration
@@ -278,7 +278,7 @@ fn containsRatio(value: f64): Bool {
           (identifier))
         (binary_expression
           (identifier)
-          (binary_expression
+          (bounded_range_expression
             (number_literal)
             (number_literal))))
       (binding_declaration
@@ -286,7 +286,7 @@ fn containsRatio(value: f64): Bool {
           (identifier))
         (binary_expression
           (identifier)
-          (binary_expression
+          (bounded_range_expression
             (number_literal)
             (number_literal))))
       (return_statement

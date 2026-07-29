@@ -1,0 +1,239 @@
+==================
+Reflection and homogeneous rest arguments
+==================
+
+import std.reflect as reflect
+
+struct Ticket: Hashable & reflect.Reflectable {
+  id: u64
+}
+
+enum Signal: reflect.Reflectable {
+  ready(Ticket)
+  delayed(u32)
+  stopped
+}
+
+alias ActiveSignal = Signal<[.ready, .delayed]>
+
+fn load(kitchens: u16, courses: Course...): u32 {
+  return courses.count * kitchens
+}
+
+fn announce(_ messages: ref String...): usize {
+  return messages.count
+}
+
+fn archive(_ records: take Record...): usize {
+  return records.count
+}
+
+fn inspect() {
+  let planned = [.broth, .cake]
+  let count = load(2, courses: .salad, each planned)
+  let tail = planned.slice(4...)
+  let id = reflect.TypeId.of<Ticket>()
+  let ref info = reflect.info<ActiveSignal>()
+  let loader: fn(u16, Course...): u32 = load
+}
+
+---
+
+(source_file
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier))
+    (identifier))
+  (struct_declaration
+    (type_identifier)
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))
+        (type_name
+          (type_identifier)
+          (type_identifier))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (enum_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)
+        (type_identifier)))
+    (enum_body
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier)))))
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier)))))
+      (enum_case
+        (identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (rest_marker)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (binary_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (rest_marker)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (member_expression
+          (identifier)
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (rest_marker)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (member_expression
+          (identifier)
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (array_literal
+          (contextual_member_expression
+            (identifier))
+          (contextual_member_expression
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (number_literal))
+            (argument
+              (identifier)
+              (contextual_member_expression
+                (identifier)))
+            (argument
+              (argument_expansion)
+              (identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (argument
+              (one_sided_range_expression
+                (number_literal))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (member_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier))
+            (generic_call_arguments
+              (type
+                (type_name
+                  (type_identifier)))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (generic_call_arguments
+              (type
+                (type_name
+                  (type_identifier)))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier)))
+              (rest_marker))
+            (type
+              (type_name
+                (type_identifier)))))
+        (identifier)))))

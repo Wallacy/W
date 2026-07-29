@@ -65,6 +65,7 @@ const MODIFIER_KEYWORDS = [
 const OTHER_KEYWORDS = [
   "any",
   "as",
+  "each",
   "false",
   "from",
   "get",
@@ -97,10 +98,6 @@ const BINARY_OPERATORS = [
   ["-", 11],
   ["<<", 10],
   [">>", 10],
-  [">..<", 9],
-  [">..", 9],
-  ["..<", 9],
-  ["...", 9],
   ["<", 8],
   ["<=", 8],
   [">", 8],
@@ -233,8 +230,10 @@ module.exports = grammar({
         ":",
         optional(field("ownership", choice("ref", "inout", "take"))),
         field("type", alias($.non_borrowed_type, $.type)),
+        optional(field("rest", $.rest_marker)),
         optional(seq("=", field("default", $._expression))),
       ),
+    rest_marker: (_) => "...",
 
     type_parameters: ($) => seq("<", commaSep1($.type_parameter), optional(","), ">"),
     type_parameter: ($) =>
@@ -757,6 +756,7 @@ module.exports = grammar({
       seq(
         optional(field("ownership", choice("ref", "inout", "take"))),
         field("type", alias($.non_borrowed_type, $.type)),
+        optional(field("rest", $.rest_marker)),
       ),
 
     block: ($) => seq("{", repeat($._statement), "}"),
@@ -928,6 +928,7 @@ module.exports = grammar({
     _expression: ($) =>
       choice(
         $.assignment_expression,
+        $.bounded_range_expression,
         $.binary_expression,
         $.unary_expression,
         $.optional_try_expression,
@@ -966,6 +967,37 @@ module.exports = grammar({
       prec.right(
         0,
         seq(field("left", $._expression), field("operator", choice(...ASSIGNMENT_OPERATORS)), field("right", $._expression)),
+      ),
+
+    bounded_range_expression: ($) =>
+      prec.dynamic(
+        1,
+        prec.left(
+          9,
+          seq(
+            field("lower", $._expression),
+            field("operator", choice("...", "..<", ">..", ">..<")),
+            field("upper", $._expression),
+          ),
+        ),
+      ),
+
+    one_sided_range_expression: ($) =>
+      choice(
+        prec.left(
+          9,
+          seq(
+            field("lower", $._expression),
+            field("operator", choice("...", ">..")),
+          ),
+        ),
+        prec.right(
+          9,
+          seq(
+            field("operator", choice("...", "..<")),
+            field("upper", $._expression),
+          ),
+        ),
       ),
 
     binary_expression: ($) =>
@@ -1032,7 +1064,17 @@ module.exports = grammar({
       ),
     argument_list: ($) => seq("(", commaSep($.argument), optional(","), ")"),
     argument: ($) =>
-      seq(optional(seq(field("label", $.identifier), ":")), field("value", $._expression)),
+      seq(
+        optional(seq(field("label", $.identifier), ":")),
+        choice(
+          seq(
+            optional(field("expansion", $.argument_expansion)),
+            field("value", $._expression),
+          ),
+          field("value", $.one_sided_range_expression),
+        ),
+      ),
+    argument_expansion: (_) => "each",
     member_expression: ($) =>
       prec.left(15, seq(field("object", $._expression), ".", field("property", $.identifier))),
     optional_member_expression: ($) =>
