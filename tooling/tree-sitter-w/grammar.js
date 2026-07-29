@@ -698,7 +698,11 @@ module.exports = grammar({
         $.static_array_literal,
       ),
     contract_expression_argument: ($) =>
-      seq("(", field("expression", $._expression), ")"),
+      seq(
+        "(",
+        field("expression", choice($._expression, $.one_sided_range_expression)),
+        ")",
+      ),
     static_record_literal: ($) =>
       seq(
         "{",

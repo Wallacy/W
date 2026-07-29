@@ -67,6 +67,7 @@ owner e estado observável.
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
 | `streams.w` | stream pull, views borrowed, channel MPSC e backpressure |
+| `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -351,6 +352,37 @@ pedido deve terminar em exatamente um destes destinos:
 O teste de view percorre linhas borrowed do cardápio sem allocation. O corpus
 rejeita guardar uma linha depois do próximo `next()`, enviá-la por channel ou
 movê-la para task detached.
+
+### 3.5.4 Arquivo Posicional das Receitas Extintas
+
+Famílias: byte I/O, EOF, progress parcial, cancellation, rights e buffers.
+
+Aceite:
+
+- `ByteSource` acrescenta somente bytes confirmados a `Bytes`;
+- `.data(count)` possui `count > 0`, e `.end` é terminal;
+- `ByteSink.write` informa `.complete` ou um prefixo positivo;
+- `writeAll` informa o prefixo committed quando falha;
+- o relay devolve o owner do chunk quando o source avançou e o sink falhou;
+- cancellation não libera um buffer antes da completion final;
+- a reserva não inicializada de `Bytes` não aparece no source safe;
+- `view Bytes` empresta um chunk sem criar `BytesView`;
+- a view não entra em channel nem sobrevive à próxima reutilização do buffer;
+- `File<[.read]>` não oferece write;
+- `read(at:)` não altera um cursor compartilhado;
+- o cursor sequencial é um `some ByteSource<IoError>`, não `FileReader`;
+- I/O blocking usa um adapter e uma quota explícitos;
+- readiness, completion e fallback blocking produzem o mesmo trace semântico.
+
+O oracle divide o Arquivo das Receitas Extintas em todos os pontos possíveis.
+Cada execução injeta short read, short write, EOF junto com dados, error depois
+de progress e cancellation nos dois lados da completion. O payload final, o
+prefixo committed e o número de cleanups devem ser iguais em `io_uring`, IOCP,
+readiness e executor blocking.
+
+O teste posicional lê blocos sobrepostos com um `shared File`. A ordem de
+completion pode mudar. Cada bloco deve manter o offset solicitado. O cursor
+sequencial continua único e rejeita duas leituras concorrentes.
 
 ### 3.6 Salão Prisma
 
@@ -1053,6 +1085,12 @@ O Book deve mostrar pares lado a lado:
 | falha de envio | enum devolve `T` | Boolean, panic ou perda do item |
 | close de channel | último sender ou receiver gracioso; drop do receiver aborta | qualquer sender fecha globalmente |
 | prefetch | adapter `buffer(capacity:)` explícito | watermark na assinatura ou buffer invisível |
+| byte I/O | `ByteSource`/`ByteSink` async-first | `Reader`/`Writer` por backend ou interface sync condicional |
+| destino de read | append em `Bytes` com spare privado | `ReadBuffer` público ou `inout view Bytes` genérico |
+| EOF | `ReadStep.data(positive)` / `.end` | zero bytes e Boolean adicional |
+| arquivo seekable | `read(at:)` posicional por default | cursor compartilhado e lock invisível |
+| I/O blocking | adapter em executor bounded | bloquear worker cooperativo ou pool ilimitado |
+| zero-copy | operação especializada e explícita em Pesquisa | `sendfile`/`mmap` invisível |
 | construção textual | reserve/append no próprio `String` | `StringBuilder` público |
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
 | reserva textual | `tryReserve(minimumBytes:)` | capacity property e growth factor fixo |

@@ -1,6 +1,7 @@
 // Host bindings for CLI and HTTP.
 
 import std.http
+import std.io
 import { Command, CommandError, decodeCommand } from restaurant.command
 import { Order } from restaurant.domain
 import { RestaurantApi, RestaurantError } from restaurant.restaurant
@@ -9,6 +10,7 @@ import { commandLimit } from restaurant.units
 export enum AppError: Error {
   command(CommandError)
   decode(DecodeError)
+  io(IoError)
   restaurant(RestaurantError)
   response(ResponseError)
   service(ServiceFailure)
@@ -34,7 +36,7 @@ async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppEr
   let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
   print("Restaurante Última Luz pronto.")
 
-  for line in ctx.stdin.lines(limit: commandLimit) {
+  for try await line in ctx.stdin.lines(maximumBytes: commandLimit) {
     let command = try decodeCommand(line)
     print(try await dispatch(take command, restaurant: restaurant))
   }
