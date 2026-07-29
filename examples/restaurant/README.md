@@ -39,6 +39,7 @@ owner e estado observável.
 |---|---|
 | `domain.w` | newtypes, refinements, enums e errors |
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
+| `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -94,6 +95,21 @@ Aceite:
 - `switch (stage, guests)` combina dois valores sem syntax especial;
 - cases usam ordem lexical e o compiler detecta um case inalcançável;
 - `_` fecha a exhaustividade sem executar custom pattern handlers.
+
+### 3.3.1 Letreiro das Três Contagens
+
+Famílias: UTF-8, bytes, scalars, graphemes, normalização e texto nativo.
+
+Aceite:
+
+- `String` nunca contém UTF-8 inválido.
+- Bytes, scalars e graphemes produzem contagens independentes.
+- Índices de scalar e grapheme não escondem busca ordinal.
+- Normalização não altera `==` sem uma call explícita.
+- `String.fromUtf8` falha no byte inválido exato.
+- `CString` rejeita NUL interno.
+- `Path` nativo converte para `Utf8Path` de forma fallible.
+- `PackagePath` mantém uma forma portátil separada.
 
 ### 3.4 Cozinha de Maré Fria
 

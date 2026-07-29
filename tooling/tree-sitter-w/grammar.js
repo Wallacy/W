@@ -898,8 +898,8 @@ module.exports = grammar({
         $.size_literal,
         $.number_literal,
         $.string_literal,
-        $.raw_string_literal,
         $.multiline_string_literal,
+        $.raw_string_literal,
         $.scalar_literal,
         $.byte_literal,
         $.boolean_literal,
@@ -1037,8 +1037,22 @@ module.exports = grammar({
           /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:_[A-Za-z][A-Za-z0-9]*)?/,
         ),
       ),
-    string_literal: (_) => token(/"([^"\\\r\n]|\\.)*"/),
-    raw_string_literal: (_) => token(/#"(?:[^"]|"[^#])*"#/),
+    // Tree-sitter keeps text and byte strings in one lexical node. Consumers
+    // can inspect the `b` prefix. The compiler lexer emits distinct tokens.
+    string_literal: (_) =>
+      token(
+        choice(
+          /"([^"\\\r\n]|\\.)*"/,
+          /b"(?:[\x20-\x21\x23-\x5b\x5d-\x7e]|\\(?:x[0-9A-Fa-f]{2}|[\\\"nrt0]))*"/,
+        ),
+      ),
+    raw_string_literal: (_) =>
+      token(
+        choice(
+          /#"(?:[^"\r\n]|"[^#\r\n])*"#/,
+          /#"""([^"\r]|"[^"\r]|""[^"\r])*"""#/,
+        ),
+      ),
     multiline_string_literal: (_) => token(/"""([^"\r]|"[^"\r]|""[^"\r])*"""/),
     scalar_literal: (_) => token(/'(?:[^'\\\r\n]|\\.)'/),
     byte_literal: (_) => token(/b'(?:[\x20-\x26\x28-\x7e]|\\(?:x[0-9A-Fa-f]{2}|[\\'nrt0]))'/),

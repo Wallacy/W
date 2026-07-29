@@ -1,0 +1,52 @@
+==================
+Text and byte literals
+==================
+
+fn literals(): Bytes {
+  let normal = "order ${id}\u{2026}"
+  let raw = #"C:\orders\${id}"#
+  let multiline = """broth
+cake"""
+  let rawMultiline = #"""${literal}
+C:\last-light"""#
+  let scalar = 'λ'
+  let byte = b'\xFF'
+  return b"WPKG\x00\x01"
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (raw_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (multiline_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (raw_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (scalar_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (byte_literal))
+      (return_statement
+        (string_literal)))))

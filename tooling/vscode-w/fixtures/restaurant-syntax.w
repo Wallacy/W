@@ -23,7 +23,10 @@ const commandLimit = 64<KiB>
 fn lexicalValues(): () {
   let scalar = 'W'
   let byte = b'\n'
+  let packet = b"WPKG\x00\x01"
   let rawPath = #"C:\last-light\${literal}"#
+  let rawCard = #"""${literal}
+C:\last-light"""#
 }
 
 struct ServiceFlow {

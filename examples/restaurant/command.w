@@ -65,7 +65,7 @@ fn decodeOrderId(fields: ref Array<StringView>, span: SourceSpan): OrderId throw
 
 export fn decodeCommand(source: ref String): Command throws CommandError {
   let line = try CommandLine(source)
-  let fields = line.views.split(where: (scalar) => scalar.isWhitespace)
+  let fields = line.scalars.split(where: (scalar) => scalar.isWhitespace)
   let span = SourceSpan(bytes: 0..<line.bytes.count, scalars: 0..<line.scalars.count)
   guard let verb = fields.first else throw .incompleteFrame(span)
 
