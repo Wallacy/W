@@ -61,6 +61,7 @@ owner e estado observável.
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
+| `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -206,6 +207,35 @@ Aceite:
 - join seleciona o error pela ordem lexical;
 - cada lease executa cleanup uma vez;
 - capture local em `spawn` falha quando não pode ser transferida ou compartilhada.
+
+### 3.5.1 Passaporte da Brigada
+
+Famílias: `transferable`, `shareable`, captures, affinity e contracts
+genéricos.
+
+Aceite:
+
+- mover um owner para outro domain exige `transferable`;
+- compartilhar `ref T` exige `shareable` e um lifetime estruturado;
+- um owner mutável pode ser transferível sem ser compartilhável;
+- imutabilidade profunda é suficiente, mas Atomic e ServiceRef também podem ser
+  compartilháveis;
+- `view T` depende do owner e nunca cria mobilidade por copiar seu descriptor;
+- allocator, `deinit` e thread-local state participam da prova;
+- raw pointer e foreign handle são locais sem um fato trusted;
+- `T<(.transferable)>` e `T<(.shareable)>` fixam um requisito genérico;
+- a forma omitida é inferida e registrada na interface;
+- adicionar um requisito a uma API publicada quebra compatibilidade;
+- mobilidade não implica serialization, remote transport, device transfer ou
+  pinning;
+- uma task detached não recebe borrow;
+- nenhuma conformance nominal a `Send`, `Sync` ou `Sendable` existe.
+
+O oracle gera products com um, dois e quatro worker threads, mas avalia domains,
+não IDs de threads. Ele move um buffer único, compartilha um snapshot, atualiza
+um atomic e chama uma ServiceRef. O resultado deve ser idêntico. Casos negativos
+usam destructor affine, allocator local, raw pointer, object mutável sem
+synchronization e uma view que escapa do scope.
 
 ### 3.6 Salão Prisma
 
@@ -863,6 +893,8 @@ O Book deve mostrar pares lado a lado:
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `spawn<domain: LastLightDomain.thermal>` | `"thermal"` ou keyword global |
 | QoS | descriptor/policy de group | `.background` como domain |
+| mobilidade | facts inferidos `transferable`/`shareable` | protocols `Send`/`Sync` ou `Sendable` |
+| constraint de mobilidade | `T<(.transferable)>` | `T: Send` e `<mobility: .transferable>` |
 | refinement | `T<(predicate)>` | `T where (predicate)` |
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
