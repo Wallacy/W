@@ -80,6 +80,7 @@ deliberadamente abertos:
 | dictionaries, hashing, arrays e sort | 16.10 e D2-226–241 | Map/Set insertion-ordered, full keys, views borrowed e stable sort |
 | borrowed text, slices e read-only genérico | 9, 16.2, 16.10 e D2-417–423 | `ref` preserva o place; `view` substitui a família histórica `XView` nas projeções core |
 | mobilidade entre tasks e domains | 12.7 e D2-424–429 | `transferable` separa move exclusivo de `shareable`; `Send`/`Sync` não viram protocols públicos |
+| String storage, capacity e tree string | 16.1, 16.3–16.4, 16.9, 18.4 e D2-430–439 | W0 usa flat unique; SSO é invisível; COW baseline é rejeitado; estruturas indexadas ficam especializadas |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -138,9 +139,9 @@ destino, não aprovação.
 
 | Família | Linhas representativas | Conteúdo histórico preservado | Destino atual | Cobertura |
 |---|---:|---|---|---|
-| strings, raw, multiline e interpolation | `1273–1388` | `#`, `$`, multiline, concat e várias combinações de delimitadores | `W/DESIGN.md` 16.1–16.6 e D2-210–221 | **Coberto**; `#`, `${}` e dedent foram mantidos; delimitadores equivalentes e concat implícita foram **Superados** |
-| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W/DESIGN.md` 16.1–16.2, 16.6 e 16.9; D2-210–212, D2-221, D2-225 e D2-417–423 | **Coberto**; `view String` substitui `StringView`; bundle versionado substitui ICU obrigatório; tree string permanece especializada |
-| tamanhos, capacity e storage de String | `1549–1604`, `1678–1709`, `2778–2806` | min/max/expected, limite lógico, mask e storage físico | `W/DESIGN.md` 8.6 e 16.9; D2-224 | **Coberto**; refinement, reserva e layout físico são contratos separados |
+| strings, raw, multiline e interpolation | `1273–1388` | `#`, `$`, multiline, concat e várias combinações de delimitadores | `W/DESIGN.md` 16.1–16.6, D2-210–221 e D2-430–439 | **Coberto**; construção incremental pertence a String; `#`, `${}` e dedent foram mantidos; delimitadores equivalentes e concat implícita foram **Superados** |
+| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W/DESIGN.md` 16.1–16.2, 16.6, 16.9 e 18.4; D2-210–212, D2-221, D2-225, D2-417–423 e D2-430–439 | **Coberto**; `view String` substitui `StringView`; reads não criam cache lazy; tree string permanece especializada |
+| tamanhos, capacity e storage de String | `1549–1604`, `1678–1709`, `2778–2806` | min/max/expected, limite lógico, mask e storage físico | `W/DESIGN.md` 8.6, 16.1, 16.4, 16.9 e 18.4; D2-224 e D2-430–439 | **Coberto**; W0 flat, SSO invisível e reserva mínima separam invariant lógico de layout; COW baseline é **Superado** |
 | zero-terminated text e paths nativos | `3036–3048`, `3543–3552` e `Y/_w_/WC.MD:85–117` | `char8_t`, terminador, UTF-8 e fronteira C | `W/DESIGN.md` 16.7–16.8 e D2-222–223 | **Coberto**; `CString`/`Path` substituem sentinela em String/Array |
 | SI, quantities e análise científica | intenções físicas dispersas, types limitados e GPU | unidades, valores precisos, integral/limite e otimização por bounds | `W/DESIGN.md` 15, 17–18 e D2-051–058/375–381/396–398 | **Coberto** |
 | matrizes, tensors e ML | intenção científica/accelerators em `1694`, `2157`, `3064–3069`, `3353–3362` | falta de notação concreta, mas ambição de cálculo vetorial/accelerated | `W/DESIGN.md` 17–18 e D2-099–106/375–381/397 | **Lacuna de profundidade → recuperada** |
