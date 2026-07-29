@@ -81,6 +81,7 @@ deliberadamente abertos:
 | borrowed text, slices e read-only genérico | 9, 16.2, 16.10 e D2-417–423 | `ref` preserva o place; `view` substitui a família histórica `XView` nas projeções core |
 | mobilidade entre tasks e domains | 12.7 e D2-424–429 | `transferable` separa move exclusivo de `shareable`; `Send`/`Sync` não viram protocols públicos |
 | String storage, capacity e tree string | 16.1, 16.3–16.4, 16.9, 18.4 e D2-430–439 | W0 usa flat unique; SSO é invisível; COW baseline é rejeitado; estruturas indexadas ficam especializadas |
+| atomics, locks, RCU e false sharing | 12.10, 18.7 e D2-440–453 | `var atomic` garante atomicidade, não lock-freedom; locks usam closures scoped; RCU exige tipo com reclamation |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -116,7 +117,7 @@ destino, não aprovação.
 | task groups e limites de fan-out | `532–543`, `577–590`, `2634–2645` | `.max(N)`, thread pool, bounded execution | `W-O060/061/069`, `spec/concurrency.md` | **Coberto** |
 | async/await vs spawn/paralelismo | `430–509`, `667–751`, `1768–1772`, `3746–3752`, `3966–4019` | corrotina na mesma fila, trabalho paralelo em pool, joins e arrays de tasks | `W/DESIGN.md` 12.7, D2-424–429, `W-D003/004`, `W-C010/043` e `W-O055–064` | **Coberto**; mobilidade separa transfer de sharing; regra rígida “cross-module = thread” foi **Superada** |
 | sync/yield/fork e module duplication | `2561–2624`, `2684–2699` | vocabulário `sync/yield/fork`, clone de módulo/estado | `W-O062`, `research/README.md` | **Superado** no core; `fork module` segue **Pesquisa** |
-| COW, RCU, locks e “call police” | `2316–2555`, `2807–2816` | policies `.rwLock/.rcu/.cow`, atomicidade e proteção por object/module | `W-O024/055`, `research/long-term-program.md` | **Coberto** como estratégias, não modifiers universais |
+| COW, RCU, locks e “call police” | `2316–2555`, `2807–2816` | policies `.rwLock/.rcu/.cow`, atomicidade, `property.use`, false sharing e proteção por object/module | `W/DESIGN.md` 12.10 e 18.7; D2-440–453 | **Recuperado**; `withLock` preserva o scope; service substitui lock por módulo; RCU continua especializado |
 | corrotinas, state machines e filas | `644–751`, `2817–2859`, `3268–3324`, `4003–4007` | protothreads, linked lists, frames e scheduler em C | `W-O064`, `design/compiler.md`, spikes históricos | **Coberto** como alternativas de lowering, não runtime escolhido |
 | directives, config overrides e hot reload | `1936–1941`, `2148–2180`, `2668–2683` | `.debug`, remote reload, `#embed`, runtime config e dealloc | `W-O087/094`, `research/README.md` | **Superado** no caminho crítico; preservado como **Pesquisa** |
 | signals e eventos do SO | `2634–2667`, `3325–3342`, `4034–4035` | signals para wakeup/cancel, IO backend, dispatch de eventos | `W-O063/074/077`, `W-O101` | **Parcial → entry adapter recuperado** |
