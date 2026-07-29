@@ -78,6 +78,7 @@ deliberadamente abertos:
 | GPU, SIMD e HDL | 17, 18 e 23.6 | facts/SIMD na baseline; GPU e HDL por backend |
 | GUI, TUI e immediate mode | 14.3 e profiles de host | T2; nenhuma GUI universal |
 | dictionaries, hashing, arrays e sort | 16.10 e D2-226–241 | Map/Set insertion-ordered, full keys, views borrowed e stable sort |
+| borrowed text, slices e read-only genérico | 9, 16.2, 16.10 e D2-417–423 | `ref` preserva o place; `view` substitui a família histórica `XView` nas projeções core |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -137,12 +138,12 @@ destino, não aprovação.
 | Família | Linhas representativas | Conteúdo histórico preservado | Destino atual | Cobertura |
 |---|---:|---|---|---|
 | strings, raw, multiline e interpolation | `1273–1388` | `#`, `$`, multiline, concat e várias combinações de delimitadores | `W/DESIGN.md` 16.1–16.6 e D2-210–221 | **Coberto**; `#`, `${}` e dedent foram mantidos; delimitadores equivalentes e concat implícita foram **Superados** |
-| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W/DESIGN.md` 16.1, 16.6 e 16.9; D2-210–212, D2-221 e D2-225 | **Coberto**; bundle versionado substitui ICU obrigatório; tree string permanece especializada |
+| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W/DESIGN.md` 16.1–16.2, 16.6 e 16.9; D2-210–212, D2-221, D2-225 e D2-417–423 | **Coberto**; `view String` substitui `StringView`; bundle versionado substitui ICU obrigatório; tree string permanece especializada |
 | tamanhos, capacity e storage de String | `1549–1604`, `1678–1709`, `2778–2806` | min/max/expected, limite lógico, mask e storage físico | `W/DESIGN.md` 8.6 e 16.9; D2-224 | **Coberto**; refinement, reserva e layout físico são contratos separados |
 | zero-terminated text e paths nativos | `3036–3048`, `3543–3552` e `Y/_w_/WC.MD:85–117` | `char8_t`, terminador, UTF-8 e fronteira C | `W/DESIGN.md` 16.7–16.8 e D2-222–223 | **Coberto**; `CString`/`Path` substituem sentinela em String/Array |
 | SI, quantities e análise científica | intenções físicas dispersas, types limitados e GPU | unidades, valores precisos, integral/limite e otimização por bounds | `W/DESIGN.md` 15, 17–18 e D2-051–058/375–381/396–398 | **Coberto** |
 | matrizes, tensors e ML | intenção científica/accelerators em `1694`, `2157`, `3064–3069`, `3353–3362` | falta de notação concreta, mas ambição de cálculo vetorial/accelerated | `W/DESIGN.md` 17–18 e D2-099–106/375–381/397 | **Lacuna de profundidade → recuperada** |
-| collections, dictionaries e sort | `2860–3000` | dict/WLON, hashing linear, HH32/XXH64, descarte de keys, linked list/BST, TimSort/fluxsort/blitsort e busca | `W/DESIGN.md` 16.10, D2-226–241 e `research/legacy-spikes.md` | **Coberto**; full key é obrigatória, Map/Set preservam inserção e o algoritmo de sort/hash não vira ABI |
+| collections, dictionaries e sort | `2860–3000` | dict/WLON, hashing linear, HH32/XXH64, descarte de keys, linked list/BST, TimSort/fluxsort/blitsort e busca | `W/DESIGN.md` 16.2, 16.10, D2-226–241, D2-417–423 e `research/legacy-spikes.md` | **Coberto**; `view Array<T>` substitui `Slice<T>` público; full key é obrigatória, Map/Set preservam inserção e o algoritmo de sort/hash não vira ABI |
 | SQLite/storage | `3676–3696` | key/value conveniente, SQLite padrão e utilitário Unix | `W-O070`, `research/README.md`, `design/modules-and-runtime.md` | **Coberto** como adapter, não semântica universal |
 | WLO/WLON e query syntax | `2860–2963` e trechos RPC/query anteriores | literal de dados, parse/stringify e SQL-like operations | `research/README.md`, `ecosystem/services-and-protocols.md` | **Coberto** como **Pesquisa** |
 | wQL/wRPC/RestQL/V6 | `1927–1935`, `2006–2077`, `TK/*` | framing, RPC, query e Computer Units | `ecosystem/services-and-protocols.md`, `research/README.md` | **Coberto** |
