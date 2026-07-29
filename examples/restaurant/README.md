@@ -51,7 +51,7 @@ owner e estado observável.
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `hardware.w` | fronteira C, layout e deallocator |
-| `memory.w` | shared/weak, borrow suspenso, pinning e callback C |
+| `memory.w` | ownership, enum subset, niches, pinning e callback C |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
@@ -672,6 +672,27 @@ O fixture negativo deve declarar
 `StagePath<[.accepted, .completed]>`. O diagnostic deve identificar o primeiro
 edge. Outros fixtures devem reutilizar a session movida, chamar `close` em
 `OvenSession<.idle>` e atribuir `OvenSession<.ready>` a um binding idle.
+
+### 3.29 Sino com Três Formas de Ausência
+
+Famílias: validity, niche, enum subset, fallback de layout e fronteira C.
+
+Aceite:
+
+- `BellTarget` pode usar null como niche interno;
+- a façade C recebe sempre um pointer canônico;
+- `BellSignal<[.ringing, .silent, .unavailable]>` exclui `corrupted`;
+- o switch do subset exige somente os três cases publicados;
+- adicionar `corrupted` ao resultado invalida o switch anterior;
+- `Option<Option<shared BellState>>` preserva três estados;
+- o profile portátil pode usar tag e payload explícitos;
+- o profile compacto produz o mesmo resultado;
+- `f64` preserva todos os NaNs e signed zero;
+- sanitizer ou hardening pode desativar compactação;
+- `w explain layout BellTarget` mostra a prova e o fallback.
+
+Um fixture negativo deve remover `.unavailable` de `describeBell`. Outro deve
+tentar passar `BellSignal.corrupted(...)` para o parâmetro refinado.
 
 ## 4. Alternativas visuais obrigatórias
 

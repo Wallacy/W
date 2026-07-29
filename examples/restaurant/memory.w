@@ -21,6 +21,22 @@ export enum BellError: Error {
   allocation(AllocationError)
 }
 
+// This enum can use null as an internal niche. Source code does not request
+// that layout, and every C boundary still receives a canonical pointer.
+export enum BellTarget {
+  open(c.ptr<ll_bell>)
+  unavailable
+}
+
+// The return contract excludes corrupted. Adding it later makes callers review
+// every exhaustive switch.
+export enum BellSignal {
+  ringing(shared BellState)
+  silent
+  unavailable
+  corrupted(BellError)
+}
+
 // Children own descendants. A child does not keep its parent alive.
 export object MenuSection {
   title: String
@@ -44,6 +60,26 @@ export async fn announceAfterYield(section: ref MenuSection): String {
 export struct BellState {
   label: String
   var atomic rings: u64
+}
+
+export fn classifyBell(state: shared BellState?): BellSignal<[.ringing, .silent, .unavailable]> {
+  guard let state = state else return .unavailable
+  if state.rings == 0 { return .silent }
+  return .ringing(state)
+}
+
+export fn describeBell(signal: BellSignal<[.ringing, .silent, .unavailable]>): String {
+  return switch signal {
+    case .ringing(let state): "${state.label}: ${state.rings}"
+    case .silent: "silent"
+    case .unavailable: "unavailable"
+  }
+}
+
+// These are three logical states. The compiler cannot collapse the two forms
+// of absence when it selects a niche or an explicit tag.
+export struct BellDiscovery {
+  current: Option<Option<shared BellState>>
 }
 
 export object BellHandle {
