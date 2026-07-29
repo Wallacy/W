@@ -174,7 +174,7 @@ vigente das famílias que ainda estavam parciais.
 | collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
 | ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
 | compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
-| generics, protocols e enum subsets | `W/DESIGN.md` 8.6–8.7 e D2-280–306 | **Líder DB2**; inference fechada, witnesses, coherence e case-sets |
+| generics, protocols e enum subsets | `W/DESIGN.md` 8.6–8.7 e D2-280–306, 323–326 | **Líder DB2**; inference fechada, witnesses, coherence e case-sets |
 | reflection, synthesis e rest | `W/DESIGN.md` 8.9 e D2-307–322 | **Líder DB2**; metadata opt-in, TypeId local e rest homogêneo |
 
 ### Resultado da revisão de collections
@@ -292,6 +292,20 @@ O subset também vale para enums de error. `throws ErrorEnum<[...]>` publica
 somente as falhas possíveis e reduz o conjunto exaustivo de `catch`. Isso
 recupera o valor dos enums fechados sem retomar a hipótese histórica de que
 todos os tipos ou representações devem ser enums.
+
+A revisão posterior separa três contratos que usam enum. Um retorno subset
+publica somente os cases alcançáveis. Um parâmetro subset recusa estados nos
+quais a operação não faz sentido. Um enum com payload mantém juntos o estado e
+os dados exigidos por esse estado.
+
+`StagePath<[...]>` não é um enum subset. Ele preserva uma sequência estática.
+`ServiceStage<[...]>` normaliza um conjunto. O head define o significado de
+`<[...]>`.
+
+Um enum comum possui um case por vez. A forma `value in (.a, .b)` testa
+alternativas. Flags simultâneas continuam em `Set` ou em um futuro tipo próprio.
+Álgebra pública de case-set permanece como alternativa; a HIR pode usá-la para
+flow analysis sem expor novos operadores no source.
 
 ### Resultado da revisão de reflection, synthesis e rest
 
