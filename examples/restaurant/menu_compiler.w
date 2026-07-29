@@ -39,6 +39,17 @@ export enum MenuCompileError: Error {
   overflow
 }
 
+const fn buildInstructionOpcodes(): Map<String, u8> {
+  var result = Map<String, u8>()
+  result["ingredient"] = 0x01_u8
+  result["heat"] = 0x02_u8
+  result["wait"] = 0x03_u8
+  result["serve"] = 0xff_u8
+  return result
+}
+
+const instructionOpcodes = buildInstructionOpcodes()
+
 fn lexMenu(source: ref String): Array<MenuToken> {
   var tokens: Array<MenuToken> = []
   var lineNumber: usize = 1
@@ -142,14 +153,18 @@ object MenuParser {
   }
 
   mut fn instruction(name: take String, line: usize): MenuInstruction throws MenuCompileError {
-    return switch name {
-      case "ingredient":
+    guard let opcode = instructionOpcodes[name] else {
+      throw .unknownInstruction(name: take name, line: line)
+    }
+
+    return switch opcode {
+      case 0x01_u8:
         let (ingredient, _) = try word()
         .ingredient(try symbols.intern(take ingredient))
-      case "heat": .heat(try unsigned())
-      case "wait": .wait(try unsigned())
-      case "serve": .serve
-      case let unknown: throw .unknownInstruction(name: unknown, line: line)
+      case 0x02_u8: .heat(try unsigned())
+      case 0x03_u8: .wait(try unsigned())
+      case 0xff_u8: .serve
+      case _: panic("const opcode table contains an invalid value")
     }
   }
 
@@ -220,4 +235,9 @@ serve"""
   let second = try compileMenu(source)
   expect first == second
   expect first.bytes.last == 0xff_u8
+}
+
+test "const opcode table preserves insertion order" for buildInstructionOpcodes {
+  expect instructionOpcodes.keys.collect() == ["ingredient", "heat", "wait", "serve"]
+  expect instructionOpcodes["serve"] == 0xff_u8
 }

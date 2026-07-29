@@ -401,6 +401,18 @@
           "members": [
             {
               "type": "STRING",
+              "value": "const"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
               "value": "unsafe"
             },
             {
@@ -1475,6 +1487,18 @@
             {
               "type": "SYMBOL",
               "name": "declaration_prefix"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "const"
             },
             {
               "type": "BLANK"
