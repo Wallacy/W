@@ -484,7 +484,7 @@ O exemplo `score` quebra porque a forma completa ultrapassa esse limite.
 - Identificadores usam Unicode conforme UAX #31 e são normalizados para NFC.
 - O compilador rejeita dois nomes que normalizam para a mesma sequência.
 - Confusables, scripts mistos e caracteres invisíveis produzem erro em API
-  pública. Código privado recebe erro ou warning conforme a policy da edição.
+  exportada. Código restrito ao módulo recebe erro ou warning conforme a edição.
 - O lockfile registra a edição e a versão do bundle Unicode.
 
 O primeiro seed pode aceitar somente ASCII. Isso é uma limitação do seed, não a
@@ -536,7 +536,7 @@ Regras:
 - um ciclo interno precisa ser um único módulo;
 - URL, versão e digest nunca aparecem no import.
 
-Declarations são privadas por default:
+Declarations usam três níveis:
 
 ```w
 fn localHelper()
@@ -544,9 +544,120 @@ package fn packageHelper()
 export fn publicOperation()
 ```
 
-`package` concede visibilidade ao package atual. `friend` não existe. Um
-`export { ... }` coletivo fica preservado como alternativa, mas não é a forma
-líder: o modifier local melhora diff, busca e geração de interface.
+| Forma | Alcance |
+|---|---|
+| sem modifier | módulo atual |
+| `package` | package atual |
+| `export` | importers do package |
+
+O módulo é a menor boundary de encapsulamento. W não possui keyword `private`.
+`friend` também não existe. Um `export { ... }` coletivo fica como
+**Alternativa**. O modifier local melhora diff, busca e interface gerada.
+
+A maioria dos membros usa o mesmo default de módulo. Existem três exceções
+deliberadas:
+
+1. stored fields de um `struct` transparente herdam a visibilidade do tipo;
+2. cases de um `enum` herdam a visibilidade do enum;
+3. requirements de um `protocol` herdam a visibilidade do protocol.
+
+Um `struct` sem `init` explícito é transparente na interface source:
+
+```w
+export struct Guest {
+  id: GuestId
+  name: GuestName
+}
+```
+
+`Guest.id`, `Guest.name` e o initializer memberwise são `export`. Um field
+`var` também permite mutation aos callers com acesso e ownership adequado.
+Essa transparência publica nomes, tipos, ordem lógica e mutabilidade. Ela não
+fixa layout físico, ABI ou placement.
+
+Um modifier explícito substitui a herança. `package field: T` pode estreitar um
+componente de um struct exportado. Nesse caso, o initializer sintetizado usa o
+nível menos visível entre tipo e fields. Para manter um field no módulo, o tipo
+deve declarar `init` e ficar encapsulado. `w lint` detecta `export` redundante
+em componente que já herdou esse nível.
+
+Um `struct` com `init` explícito é encapsulado. Seus fields voltam ao default de
+módulo. O autor publica somente os initializers, properties e methods
+necessários:
+
+```w
+export struct PidController {
+  proportionalGain: f64
+  var accumulatedError: f64
+
+  export init(proportionalGain: f64) throws KitchenError { ... }
+  export isIdle: Bool { get => accumulatedError == 0.0 }
+}
+```
+
+Adicionar um `init` a um struct transparente é uma mudança source-breaking. O
+compiler mostra os membros que deixam a interface antes de aceitar a mudança.
+
+`object` sempre é encapsulado. Um object exportado não publica storage nem
+constructor por consequência:
+
+```w
+export object StockReservation {
+  id: ReservationId
+  export ingredients: Array<Ingredient>
+  releaser: ServiceRef<PantryLeaseApi>
+
+  export mut async fn release() throws PantryError { ... }
+}
+```
+
+Um field ou method de object precisa de `package` ou `export` para cruzar o
+módulo. Um field `var` exportado permite mutation direta somente com acesso
+exclusivo. Um `shared` owner continua sujeito às regras de alias e atomics.
+
+Stored fields de `service` são sempre detalhes da implementação. O compiler
+rejeita `package` e `export` nesses fields. Uma `ServiceRef<P>` publica somente
+os requirements async de `P`. Uma computed property síncrona não atravessa uma
+service boundary.
+
+Cases de enum não repetem `export`. Um enum exportado seria inútil sem seus cases.
+Protocol requirements também não repetem o modifier. Um witness recebe a
+visibilidade efetiva do requirement:
+
+```w
+export protocol CompletionMetric {
+  completionCount: u64 { get }
+}
+
+export object BrigadeMetrics: CompletionMetric {
+  var atomic completed: u64 = 0
+  completionCount: u64 { get => completed }
+}
+```
+
+Methods, computed properties, associated members e initializers não herdam a
+visibilidade do tipo. Um protocol witness é a única exceção. Essa regra evita
+publicar behavior novo por acidente.
+
+Uma declaração não pode expor um tipo menos visível em sua assinatura. A mesma
+regra cobre generic constraints, error types, enum payloads e field types. Uma
+reexportação também não amplia a visibilidade original.
+
+`w interface` grava a visibilidade efetiva de cada membro.
+`w explain visibility Type.member` mostra regra, origem e blockers. A HIR não
+depende de defaults depois da normalização.
+
+O default de módulo e as exceções de enum/protocol seguem o
+[modelo de Rust](https://doc.rust-lang.org/reference/visibility-and-privacy.html).
+O [Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol/)
+exige opt-in para membros públicos e initializers memberwise públicos. W
+preserva esse controle em tipos encapsulados. Para records simples, W adota a
+concisão dos
+[records Java](https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/Record.html).
+
+**Alternativa:** exigir `export` em cada field, como o opt-in de Swift e Rust.
+Outra alternativa exporta todos os membros de qualquer tipo exportado. A forma
+líder exporta somente os componentes de um struct transparente.
 
 O top-level aceita imports, declarations e `const`. Ele não aceita I/O, `var`
 global ou inicialização runtime.
@@ -826,7 +937,7 @@ de um tipo em `construct` na HIR. W não usa `new`. Essa keyword sugeriria uma
 alocação que a semântica não exige.
 
 Um `struct` ou `object` sem `init` explícito recebe um initializer sintetizado.
-Ele segue estas regras:
+A assinatura segue estas regras:
 
 1. cada field stored cria um parâmetro com label obrigatório;
 2. um field sem initializer cria um parâmetro obrigatório;
@@ -834,11 +945,13 @@ Ele segue estas regras:
 4. computed properties não criam parâmetros;
 5. os argumentos seguem a ordem de declaração dos fields;
 6. cada valor é avaliado e instalado nessa mesma ordem;
-7. a visibilidade sintetizada é igual à visibilidade do tipo.
+7. um struct usa o nível menos visível entre tipo e fields;
+8. um object mantém o initializer no módulo.
 
-Adicionar um field obrigatório quebra callers do initializer público. Um field
-com default preserva esses callers. `w interface` publica a assinatura
-sintetizada para tornar esse custo visível.
+Um `export struct` transparente recebe um initializer `export` no caso comum.
+Adicionar um field obrigatório quebra seus callers. Um field com default
+preserva essas calls, mas altera a interface do record. `w interface` publica a
+assinatura sintetizada e classifica a mudança.
 
 Um tipo com invariantes declara um initializer:
 
@@ -885,6 +998,10 @@ export static fn fromLegacy(value: LegacyController): PidController
 Uma factory async torna a suspensão visível no call site. A linguagem não
 permite `async init`. A mesma regra evita overload antes de existir um ranking
 único para overloads.
+
+Um `init` explícito usa seu próprio modifier. Ele não pode ser mais visível que
+o tipo ou qualquer tipo de sua assinatura. Um object precisa de `export init`
+ou de uma factory exportada para ser construído por outro módulo.
 
 O verifier usa definite initialization em duas fases:
 
@@ -1098,7 +1215,7 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 
 | Tema | Estado | Contrato que falta |
 |---|---|---|
-| member visibility | **Pesquisa** | fields de value, object encapsulado e interface sintetizada |
+| evolução de struct transparente | **Pesquisa** | defaults, destructuring, SemVer e schema externo |
 | vários initializers | **Pesquisa** | overload, delegação, labels e evolução de API |
 | property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
@@ -1325,8 +1442,8 @@ pointer-integer por conveniência.
 
 ### 9.8 Layout, addressability e ABI
 
-Layout W comum é opaco entre builds. O compiler pode reorder fields privados,
-usar niches, eliminar aggregates ou especializar storage não escapante.
+Layout W comum é opaco entre builds. O compiler pode reorder fields não
+exportados, usar niches, eliminar aggregates ou especializar storage interno.
 
 Layout observável exige uma fronteira:
 
@@ -3119,6 +3236,7 @@ aprender” fica como alternativa de marca; não é promessa técnica.
 
 - `w fmt` produz a forma canônica de 120 colunas;
 - `w check` não gera artefato final;
+- `w interface` mostra a interface normalizada em texto ou JSON;
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
 - `w build --locked` usa somente o grafo fixado;
@@ -3305,6 +3423,7 @@ Uma pesquisa só avança quando possui:
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
+| visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
 | retorno fluente `: self` | **Provável** | reborrow é conhecido; async e consuming receiver exigem corpus |
 | initializer canônico e definite initialization | **Possível agora** | flow analysis e cleanup parcial são conhecidos |
 | computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
@@ -3396,6 +3515,8 @@ O corpus compara, no mínimo:
 - `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
 - `: self` explícito contra retorno implícito do receiver e retorno `()`;
 - associated member direto contra protocol requirement e mutable type storage;
+- struct transparente contra `export` em cada field e export total do tipo;
+- object encapsulado contra storage público e constructor herdado;
 - initializer canônico contra memberwise sintetizado e factories nomeadas;
 - computed property property-safe contra method com `try` ou `await`;
 - static record/list contra interpretações universais de extension e constraints;
@@ -3435,7 +3556,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 ### 26.3 Fase 1 — AST, nomes e tipos
 
 - AST e module graph;
-- imports/visibility;
+- imports, visibilidade efetiva e interface normalizada;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
 - associated constants, functions, types e `: self`;
 - initializer sintetizado, `init` canônico e definite initialization;
@@ -3614,7 +3735,7 @@ experimentar”, não “decisão irreversível”.
 | D2-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
 | D2-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | D2-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
-| D2-007 | visibility | private default, `package`, `export` | public default; `public/private`; block export |
+| D2-007 | visibility | módulo default, `package`, `export`; sem `private` | public universal; `public/private`; block export |
 | D2-008 | import seletivo | `{X} from path` | `path.{X}`; imports livres |
 | D2-009 | import namespace | `import path as alias` | forma DB1 `name as alias from path` |
 | D2-010 | módulos | manifest multi-file, DAG | declaração `module`; cycles de interface |
@@ -3760,13 +3881,19 @@ experimentar”, não “decisão irreversível”.
 | D2-150 | mutable type storage | ausente; owner de `entry` ou service explícito | `static var`; módulo singleton |
 | D2-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
 | D2-152 | construção | `Type(...)` baixa para `construct`; sem promessa de placement | `new Type`; literal `Type {...}` |
-| D2-153 | initializer sintetizado | fields rotulados, ordem declarada e visibilidade do tipo | labels opcionais; ordem livre; sempre privado |
+| D2-153 | initializer sintetizado | struct usa menor nível; object fica no módulo | visibilidade do tipo sempre; sempre privado |
 | D2-154 | initializer customizado | um `init` canônico; `throws E`; factory nomeada para variantes | overload; `init?`; `async init` |
 | D2-155 | definite initialization | duas fases; sem uso de `self` parcial; cleanup por field | zero universal; runtime check; partial safe value |
 | D2-156 | computed property | `name: T { get }`; `var` exige write accessor | getter implícito; method obrigatório |
 | D2-157 | efeitos de property | property-safe, síncrona, local e sem `throws` | `async`/`throws` property; custo irrestrito |
 | D2-158 | mutation de property | `set(value)` e `modify` com `return inout` escopado | get-modify-set implícito; observers |
 | D2-159 | property requirement | `{ get [set] [modify] }`; stored field pode ser witness | protocol exige storage; reflection estrutural |
+| D2-160 | struct transparente | sem `init`: stored fields herdam visibilidade do tipo | `export` por field; todos os members herdam |
+| D2-161 | struct encapsulado | `init` explícito restaura default de módulo nos fields | keyword `opaque`; field sempre público |
+| D2-162 | object | storage e initializer sintetizado ficam no módulo | herdar visibilidade do object; constructor público |
+| D2-163 | enum e protocol | cases e requirements herdam; witness não repete modifier | `export` repetido; todos os members públicos |
+| D2-164 | service | storage nunca cruza módulo; API usa protocol async | field público; computed property remota |
+| D2-165 | interface exportada | signature não expõe tipo menos visível; HIR normaliza | lint apenas; defaults preservados na HIR |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

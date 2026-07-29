@@ -81,11 +81,11 @@ export enum KitchenError: Error {
 
 export object StockReservation {
   id: ReservationId
-  ingredients: Array<Ingredient>
+  export ingredients: Array<Ingredient>
   releaser: ServiceRef<PantryLeaseApi>
   var released = false
 
-  mut async fn release() throws PantryError {
+  export mut async fn release() throws PantryError {
     if released {
       return
     }
