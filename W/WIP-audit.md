@@ -79,6 +79,7 @@ deliberadamente abertos:
 | GUI, TUI e immediate mode | 14.3 e profiles de host | T2; nenhuma GUI universal |
 | dictionaries, hashing, arrays e sort | 16.10 e D2-226–241 | Map/Set insertion-ordered, full keys, views borrowed e stable sort |
 | borrowed text, slices e read-only genérico | 9, 16.2, 16.10 e D2-417–423 | `ref` preserva o place; `view` substitui a família histórica `XView` nas projeções core |
+| mobilidade entre tasks e domains | 12.7 e D2-424–429 | `transferable` separa move exclusivo de `shareable`; `Send`/`Sync` não viram protocols públicos |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -112,7 +113,7 @@ destino, não aprovação.
 | entrypoints múltiplos e orientados a eventos | `136–138`, `1224–1258`, `1481–1535`, `1718–1760`, `3167–3210` | `main`, `fetch`, CLI/stdin, cron, mouse, keyboard, HID, selection pelo build | `W-O101`, `spec/modules.md` | **Lacuna → recuperada** |
 | grupos/queues/executors por módulo ou call | `470–472`, `723–734`, `2402–2450`, `2561–2624`, `2703–2776`, `3958–3999` | `.main/.background/.network/.io/.UX`, serial/concurrent, QoS, affinity e `spawn<group>` | `W-O100`, `spec/concurrency.md` | **Lacuna → recuperada** |
 | task groups e limites de fan-out | `532–543`, `577–590`, `2634–2645` | `.max(N)`, thread pool, bounded execution | `W-O060/061/069`, `spec/concurrency.md` | **Coberto** |
-| async/await vs spawn/paralelismo | `430–509`, `667–751`, `1768–1772`, `3746–3752`, `3966–4019` | corrotina na mesma fila, trabalho paralelo em pool, joins e arrays de tasks | `W-D003/004`, `W-C010/043`, `W-O055–064` | **Coberto**; regra rígida “cross-module = thread” foi **Superada** |
+| async/await vs spawn/paralelismo | `430–509`, `667–751`, `1768–1772`, `3746–3752`, `3966–4019` | corrotina na mesma fila, trabalho paralelo em pool, joins e arrays de tasks | `W/DESIGN.md` 12.7, D2-424–429, `W-D003/004`, `W-C010/043` e `W-O055–064` | **Coberto**; mobilidade separa transfer de sharing; regra rígida “cross-module = thread” foi **Superada** |
 | sync/yield/fork e module duplication | `2561–2624`, `2684–2699` | vocabulário `sync/yield/fork`, clone de módulo/estado | `W-O062`, `research/README.md` | **Superado** no core; `fork module` segue **Pesquisa** |
 | COW, RCU, locks e “call police” | `2316–2555`, `2807–2816` | policies `.rwLock/.rcu/.cow`, atomicidade e proteção por object/module | `W-O024/055`, `research/long-term-program.md` | **Coberto** como estratégias, não modifiers universais |
 | corrotinas, state machines e filas | `644–751`, `2817–2859`, `3268–3324`, `4003–4007` | protothreads, linked lists, frames e scheduler em C | `W-O064`, `design/compiler.md`, spikes históricos | **Coberto** como alternativas de lowering, não runtime escolhido |
