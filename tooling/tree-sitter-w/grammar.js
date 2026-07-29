@@ -241,6 +241,7 @@ module.exports = grammar({
       choice(
         seq(
           "const",
+          optional(field("external_label", "_")),
           field("name", $.identifier),
           ":",
           field("value_type", $.type),
@@ -284,7 +285,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "protocol",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.primary_associated_types),
         optional($.conformance_clause),
         $.protocol_body,
       ),
@@ -298,7 +299,19 @@ module.exports = grammar({
         $.enum_body,
       ),
 
-    conformance_clause: ($) => seq(":", commaSep1($.type)),
+    primary_associated_types: ($) =>
+      seq(
+        "<",
+        commaSep1(
+          seq(
+            field("name", $._type_identifier),
+            optional(seq(":", field("constraint", $.type))),
+          ),
+        ),
+        optional(","),
+        ">",
+      ),
+    conformance_clause: ($) => seq(":", $.type),
     type_body: ($) =>
       seq(
         "{",
@@ -486,6 +499,7 @@ module.exports = grammar({
       seq(
         optional($.declaration_prefix),
         "extension",
+        optional($.type_parameters),
         field("extended_type", $.type),
         optional($.conformance_clause),
         $.type_body,
@@ -622,6 +636,7 @@ module.exports = grammar({
         seq(
           optional(field("qualifier", choice("any", "some", "shared", "weak", "ref", "inout"))),
           $._type_core,
+          repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
         ),
       ),
@@ -630,6 +645,7 @@ module.exports = grammar({
         seq(
           optional(field("qualifier", choice("any", "some", "shared", "weak"))),
           $._type_core,
+          repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
         ),
       ),
@@ -700,7 +716,7 @@ module.exports = grammar({
         "[",
         field("element", $.type),
         ";",
-        field("count", choice($.identifier, $.number_literal)),
+        field("count", $._expression),
         "]",
       ),
     tuple_type: ($) => seq("(", commaSep($.type), optional(","), ")"),

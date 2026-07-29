@@ -247,7 +247,7 @@ struct Bounds {
   max: usize
 }
 
-type BoundedString<const bounds: Bounds> =
+type BoundedString<const _ bounds: Bounds> =
   String<(.scalars.count in bounds.min...bounds.max)>
 type Label = BoundedString<{min: 1, max: 40}>
 
@@ -267,7 +267,7 @@ enum KitchenStage {
   plate
 }
 
-struct StagePlan<const stages: StaticList<KitchenStage>> {
+struct StagePlan<const _ stages: StaticList<KitchenStage>> {
   orderId: OrderId
 }
 
@@ -281,6 +281,9 @@ fn standardPlan(
 Nesse exemplo, `<[...]>` fornece um único argumento `StaticList<KitchenStage>`.
 A ordem faz parte da especialização. Duplicação e quantidade só mudam quando o
 schema do head declara outra regra. A forma não cria índices nomeados runtime.
+
+O slot implícito `cases` de um enum declara outra regra. Ele recebe a lista e
+normaliza um conjunto pela ordem dos cases. A seção 8.6.1 define esse contrato.
 
 Em um tipo, um payload Boolean é um refinement predicate. Um member iniciado
 por `.` usa o valor refinado como subject implícito. Um range no slot primário
@@ -2111,8 +2114,7 @@ Uma declaração direta não exige um `protocol`. O `protocol` é necessário qu
 código generic precisa exigir o member:
 
 ```w
-export protocol Sequence {
-  type Element
+export protocol Sequence<Element> {
   const empty: Self
   static fn from(items: Array<Element>): Self
   fn first(): Element?
@@ -2128,10 +2130,9 @@ export struct Menu: Sequence {
 }
 ```
 
-`Self` representa o tipo concreto que atende ao requisito. `type Element`
-declara um associated type requirement. `alias Element = Dish` fornece o
-witness. Um protocol pode exigir `const`, `static fn` e methods. Ele nunca cria
-storage.
+`Self` representa o tipo concreto que atende ao requisito. `Element` no head
+declara um primary associated type. `alias Element = Dish` fornece o witness.
+Um protocol pode exigir `const`, `static fn` e methods. Ele nunca cria storage.
 
 O corpo que define um `struct` ou `object` pode declarar instance fields.
 Protocol e extension não adicionam instance storage. Uma extension pode
@@ -2595,7 +2596,255 @@ As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
 continuam como **Alternativa**. A forma líder mantém o predicate dentro do
 contrato estático sem criar um slot chamado `where`.
 
+#### 8.6.1 Subconjuntos de cases de enum
+
+Todo enum declara um slot estático implícito chamado `cases`. A forma posicional
+é canônica:
+
+```w
+enum ServiceStage {
+  accepted
+  reserving
+  preparing
+  serving
+  completed
+  cancelled
+}
+
+alias WorkStage =
+  ServiceStage<[.reserving, .preparing, .serving]>
+```
+
+`WorkStage` aceita somente os três cases listados. `alias` preserva a identidade
+do refinement. Um `type` criaria outra identidade nominal.
+
+O subset preserva members e conformances do enum base. Por exemplo,
+`ServiceFault<[.delayed]>` continua atendendo a `Error`. O subset restringe
+valores possíveis. Ele não declara uma segunda conformance.
+
+O payload `[...]` usa syntax de static list, mas o schema do enum interpreta os
+itens como um conjunto de cases. O compiler:
+
+1. rejeita duplicatas e cases de outro enum;
+2. ordena o conjunto pela declaração do enum;
+3. grava o conjunto normalizado na identidade do tipo;
+4. apaga o contrato antes do runtime.
+
+Estas formas identificam o mesmo tipo:
+
+```w
+alias A = ServiceStage<[.preparing, .serving]>
+alias B = ServiceStage<[.serving, .preparing]>
+```
+
+O formatter preserva a ordem source durante a edição. `w interface` e o hash de
+tipo usam a ordem canônica. Um conjunto com todos os cases normaliza para o enum
+base. Um conjunto vazio é erro no source. Use `Never` para ausência de valores.
+
+Uma função pode publicar um retorno mais preciso:
+
+```w
+fn nextWorkStage(inventoryReady: Bool): WorkStage {
+  return switch inventoryReady {
+    case true: .preparing
+    case false: .reserving
+  }
+}
+```
+
+Cada `return` precisa pertencer ao conjunto. Este retorno falha:
+
+```w
+fn invalidStage(): WorkStage {
+  return .cancelled
+  // error[W-TYPE-ENUM-0001]: cancelled is outside WorkStage
+}
+```
+
+Um `switch` usa o conjunto estático do subject:
+
+```w
+fn instruction(stage: WorkStage): String {
+  return switch stage {
+    case .reserving: "Reserve ingredients"
+    case .preparing: "Prepare the course"
+    case .serving: "Serve the guest"
+  }
+}
+```
+
+O switch acima é exaustivo. Um case `.cancelled` seria inalcançável. Se a API
+adicionar `.cancelled` a `WorkStage`, o switch deixa de ser exaustivo.
+
+Um wildcard ou pattern amplo continua cobrindo cases futuros do conjunto:
+
+```w
+fn isCooking(stage: WorkStage): Bool {
+  return switch stage {
+    case .preparing: true
+    case _: false
+  }
+}
+```
+
+Nesse exemplo, `_` trata explicitamente qualquer ampliação. O compiler não exige
+um novo braço.
+
+Cases com payload mantêm seu payload:
+
+```w
+enum KitchenOutcome<T> {
+  ready(T)
+  delayed(Duration)
+  cancelled(CancelReason)
+}
+
+alias ContinuingOutcome<T> =
+  KitchenOutcome<T><[.ready, .delayed]>
+
+fn describe<T: Display>(outcome: ContinuingOutcome<T>): String {
+  return switch outcome {
+    case .ready(let value): value.display()
+    case .delayed(let duration): "Delay: ${duration}"
+  }
+}
+```
+
+O primeiro envelope aplica `T`. O segundo restringe os cases. Essa regra também
+se aplica a `Result<T, E><[.success]>`, embora uma API nonthrowing deva retornar
+`T` diretamente.
+
+Um subset com um case preserva o payload sem criar um wrapper:
+
+```w
+alias ReadyOutcome<T> = KitchenOutcome<T><[.ready]>
+
+fn preparedDish(outcome: ReadyOutcome<Dish>): Dish {
+  return switch outcome {
+    case .ready(let dish): dish
+  }
+}
+```
+
+O switch possui um braço porque `.ready` é o único valor possível. O tipo não
+faz unwrap implícito. O pattern continua visível no source.
+
+Um subset converte de forma implícita para o enum base ou para um superset:
+
+```w
+alias ActiveStage =
+  ServiceStage<[.accepted, .reserving, .preparing, .serving]>
+
+let work: WorkStage = .preparing
+let active: ActiveStage = work
+let base: ServiceStage = active
+```
+
+A conversão inversa exige validação:
+
+```w
+let work = try WorkStage(base)
+let optionalWork = try? WorkStage(base)
+```
+
+Uma conversão válida preserva o valor e o payload. Uma falha retorna o mesmo
+error estruturado usado por outro refinement fechado.
+
+Flow analysis mantém um case-set fact. Um pattern reduz esse conjunto:
+
+```w
+fn prepare(stage: ServiceStage): String? {
+  guard stage in (.reserving, .preparing, .serving) else return .none
+  return instruction(stage)
+}
+```
+
+Depois do guard, `stage` possui o fact de `WorkStage`. A HIR pode chamar
+`instruction` sem check runtime. O binding source continua `ServiceStage`.
+
+Uma variável declarada como subset nunca aceita outro case:
+
+```w
+var stage: WorkStage = .reserving
+stage = .serving
+stage = .cancelled // error: case is outside WorkStage
+```
+
+O subset usa o layout lógico do enum base. Ele não cria wrapper, nova tag ou
+vtable. O optimizer pode eliminar tags em SSA ou storage interno quando o
+resultado não for observável. Struct, ABI, FFI e persistência usam o layout
+canônico do enum base.
+
+Um schema exportado registra o conjunto permitido. Um decoder valida o case
+antes de produzir o subset:
+
+```w
+fn decodeStage(source: ref Bytes): WorkStage throws DecodeError {
+  let base = try ServiceStage.decode(source)
+  return try WorkStage(base)
+}
+```
+
+O mesmo contrato vale em effect position. Uma função pode publicar somente as
+falhas que ela produz:
+
+```w
+enum ServiceFault: Error {
+  ingredientsMissing(String)
+  delayed(Duration)
+  universeEnded
+}
+
+alias RecoverableServiceFault =
+  ServiceFault<[.ingredientsMissing, .delayed]>
+
+fn reserveCourse(): WorkStage throws RecoverableServiceFault
+```
+
+`throw .universeEnded` é erro dentro de `reserveCourse`. Em um contexto
+nonthrowing, `catch` precisa tratar somente `.ingredientsMissing` e `.delayed`.
+Adicionar `.universeEnded` ao effect publicado torna um catch explícito
+nonexhaustive.
+
+`w interface diff` considera a posição do subset:
+
+| Mudança | Compatibilidade source |
+|---|---|
+| adicionar case a um retorno | major; callers podem perder exhaustividade |
+| remover case de um retorno | minor; o valor fica mais preciso |
+| adicionar case aceito por parâmetro | minor |
+| remover case aceito por parâmetro | major |
+| adicionar case a `throws` | major; callers precisam aceitar outra falha |
+| remover case de `throws` | minor |
+| alterar subset de field exportado | major |
+
+Function types continuam invariantes. A tabela classifica evolução de
+declarações, não variance automática.
+
+A baseline não permite subsets de payloads. Use um enum menor, newtype ou
+refinement do payload:
+
+```w
+alias SmallDelay = Duration<(0...30<s>)>
+```
+
+O
+[TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+demonstra narrowing e exhaustividade sobre discriminated unions. A
+[documentação de enums do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations/)
+exige switch exaustivo. W combina essas propriedades com um case-set explícito
+na interface.
+
 ### 8.7 Generics
+
+#### 8.7.1 Kinds, parâmetros e aplicação
+
+W possui dois kinds de parâmetro generic:
+
+| Kind | Declaração | Exemplo de argumento |
+|---|---|---|
+| tipo | `T` ou `T: P` | `String` |
+| valor | `const count: usize` | `count: 64` |
 
 Parâmetros são declarados antes do uso:
 
@@ -2603,12 +2852,541 @@ Parâmetros são declarados antes do uso:
 fn get<T, const count: usize>(values: ref [T; count]): T
 ```
 
-Cada argumento de `<...>` possui kind declarado: tipo ou valor `const`. Labels
-de argumentos são aceitos quando a declaração possui labels. Um modifier map
-aberto não existe.
+Um parâmetro de tipo é posicional. Um parâmetro `const` usa seu nome como label:
 
-Generics usam monomorphization e specialization dentro do build. Interfaces
-podem usar witnesses para reduzir code size e preservar separate compilation.
+```w
+struct Matrix<Element, const rows: usize, const columns: usize> { ... }
+
+let weights: Matrix<f32, rows: 3, columns: 4>
+```
+
+`_` declara um único slot `const` posicional. Essa forma serve a um contrato
+primário cujo significado já está no nome do head:
+
+```w
+struct StagePath<const _ stages: StaticList<ServiceStage>> {
+  orderId: OrderId
+}
+
+let path: StagePath<[.accepted, .preparing, .completed]>
+```
+
+Um head pode misturar slots posicionais de tipo e slots `const` nomeados:
+
+```w
+struct Tensor<Element, const shape: StaticList<usize>> { ... }
+
+let scores: Tensor<f32, shape: [8, 4]>
+```
+
+Cada argumento possui o kind declarado pelo head resolvido. Um modifier map
+aberto não existe. Um label desconhecido, duplicado ou fora de ordem é erro.
+
+Named type arguments permanecem **Alternativa**:
+
+```w
+Result<Success: Dish, Failure: KitchenError>
+```
+
+A DB2 usa `Result<Dish, KitchenError>`. Inlay hints e documentação mostram os
+nomes `Success` e `Failure` sem duplicar tokens no source.
+
+Um parâmetro entra em scope depois de sua declaração. Uma constraint pode usar
+somente parâmetros anteriores:
+
+```w
+fn zip<Item, Left: Sequence<Item>, Right: Sequence<Item>>(
+  left: ref Left,
+  right: ref Right,
+): Array<(Item, Item)>
+```
+
+Esta ordem é inválida:
+
+```w
+fn invalid<Left: Sequence<Item>, Item>(left: ref Left)
+// error: Item is not declared at this point
+```
+
+A regra evita ciclos e torna a assinatura legível da esquerda para a direita.
+Um parâmetro não pode ser redeclarado ou sombreado dentro da mesma declaração.
+
+W não possui lifetime parameters no source. Borrow relations são inferidas,
+verificadas na HIR e gravadas na interface.
+
+W também não possui estes kinds na DB2:
+
+- type constructors de ordem superior, como `F<_>`;
+- effects genéricos separados de tipos;
+- parameter packs;
+- parâmetros de layout ou allocator implícitos.
+
+Essas formas permanecem **Pesquisa**. Protocols e associated types cobrem a
+baseline.
+
+#### 8.7.2 Constraints e composição
+
+`T: P` exige uma conformance nominal. `&` combina requirements sem ordenar
+protocols:
+
+```w
+fn label<T: Display & Equatable>(value: ref T): String {
+  return value.display()
+}
+```
+
+O type checker normaliza `Display & Equatable` por identidade de protocol.
+Duplicatas são removidas. `&` em type position não executa bitwise AND.
+
+Protocol inheritance usa a mesma composição:
+
+```w
+protocol StableKey: Hashable & Display {
+  fn stableBytes(): Bytes
+}
+```
+
+Uma declaração pode usar um protocol composto nomeado quando a combinação tem
+significado de domínio. `T<[P, Q]>` e uma cláusula postfix `where` permanecem
+**Alternativa**. A lista sugere ordem. `where` separa a constraint do parâmetro.
+
+Same-type relationships usam um parâmetro comum:
+
+```w
+fn sameItems<Item: Equatable, Left: Sequence<Item>, Right: Sequence<Item>>(
+  left: ref Left,
+  right: ref Right,
+): Bool {
+  // ...
+}
+```
+
+`Left` e `Right` possuem o mesmo `Item`. A assinatura não precisa de
+`where Left.Item == Right.Item`.
+
+Um `const` parameter pode usar refinement e parâmetros anteriores:
+
+```w
+struct Tile<
+  const rows: usize<(1...4096)>,
+  const columns: usize<(1...4096)>,
+> {
+  pixels: [Pixel; rows * columns]
+}
+```
+
+O evaluator verifica a constraint quando instancia o head. A interface guarda o
+predicate normalizado.
+
+Generic defaults não entram na DB2. Um alias nomeado oferece um default sem
+mudar inference:
+
+```w
+alias Page<T> = Buffer<T, count: 4096>
+```
+
+#### 8.7.3 Primary associated types
+
+Um protocol head declara primary associated types. Esses nomes pertencem a
+`Self`. Eles não são parâmetros escolhidos por cada call:
+
+```w
+protocol Iterator<Item> {
+  mut fn next(): Item?
+}
+
+protocol Sequence<Item> {
+  fn iterator(): some Iterator<Item>
+}
+```
+
+`Item` é shorthand de um requirement `type Item`. O body não repete
+`type Item`.
+
+Uma conformance fornece o witness explicitamente:
+
+```w
+struct Menu {
+  dishes: Array<Dish>
+}
+
+extension Menu: Sequence {
+  alias Item = Dish
+
+  fn iterator(): some Iterator<Dish> {
+    return dishes.iterator()
+  }
+}
+```
+
+`Sequence<Dish>` restringe o associated type primário:
+
+```w
+fn first<S: Sequence<Dish>>(source: ref S): Dish?
+fn erase(source: take some Sequence<Dish>): any Sequence<Dish>
+```
+
+A aplicação não cria outra família de conformances. `Menu` possui uma única
+conformance a `Sequence`, e essa conformance fixa `Item = Dish`.
+
+Um protocol pode declarar mais de um primary associated type:
+
+```w
+protocol Mapping<Key, Value> {
+  fn get(key: ref Key): ref Value?
+}
+```
+
+A ordem pertence à interface do protocol. Alterá-la é major. Associated types
+não primários continuam no body:
+
+```w
+protocol Parser<Input> {
+  type State
+  fn parse(input: ref Input): State
+}
+```
+
+O conformer também declara `alias State = ...`. W não infere associated type
+witnesses a partir de methods. A declaração explícita melhora diagnostics e
+mantém a interface estável.
+
+Generic associated types, defaults de associated type e constraints sobre uma
+projection não primária permanecem **Pesquisa**. Um associated type que callers
+precisam restringir deve ser primário na DB2.
+
+#### 8.7.4 Verificação e inference
+
+O compiler verifica um body generic uma vez contra sua assinatura:
+
+```w
+fn contains<T: Equatable>(values: ref Array<T>, target: ref T): Bool {
+  for ref value in values {
+    if value == target { return true }
+  }
+  return false
+}
+```
+
+Lookup usa somente os requirements de `Equatable` e os members conhecidos de
+`Array<T>`. Uma conformance adicionada depois não muda o significado do body.
+W não possui argument-dependent lookup ou lookup tardio de template.
+
+Uma call generic segue estas etapas:
+
+1. resolve owner e overload pela forma de call;
+2. aplica argumentos generic explícitos;
+3. cria equações com receiver e argumentos runtime;
+4. usa o expected result type para parâmetros ainda abertos;
+5. normaliza associated types pelos witnesses conhecidos;
+6. exige uma solução única;
+7. verifica constraints e ownership.
+
+O compiler não retorna ao overload set quando inference falha.
+
+Uma call comum omite todos os argumentos inferíveis:
+
+```w
+let found = contains(values, target: needle)
+```
+
+Um argumento explícito fixa uma parte da solução:
+
+```w
+let order = try request.json.decode<Order>()
+let forecast = try forecast<tables: 2, courses: 4>(
+  observations,
+  weights: weights,
+)
+```
+
+Type arguments explícitos formam um prefixo posicional. Labels `const` podem
+omitir parâmetros inferíveis entre eles. `_` não é placeholder generic:
+
+```w
+decode<_>() // error: omit the argument or name a concrete type
+```
+
+Inference usa tipos, valores `const` e expected type. Ela não procura “algum
+tipo que atende a P”. Constraints validam uma solução. Elas não inventam uma.
+
+```w
+fn make<T: Default>(): T
+
+let value = make()
+// error[W-TYPE-GENERIC-0002]: T has no argument or expected type
+```
+
+Literals permanecem exatos até a solução usar typed operands. Se somente
+literals determinam um tipo numérico, a policy numérica escolhe o default.
+
+Um generic function usado como valor precisa ficar totalmente instanciado:
+
+```w
+let compare: fn(ref Dish, ref Dish): Bool = equal
+let unresolved = equal // error: generic function is not fully instantiated
+```
+
+Polymorphic function values e inference pelo body ficam fora da DB2.
+
+#### 8.7.5 Coherence e conformances condicionais
+
+Conformance é nominal. Ela pode ser declarada no módulo do tipo ou no módulo do
+protocol. A interface registra uma escolha global para cada par
+`(type constructor, protocol)`.
+
+Uma extension generic declara seus parâmetros antes do tipo:
+
+```w
+extension<T: Equatable> Array<T>: Equatable {
+  fn equals(other: ref Self): Bool {
+    return elementsEqual(self, other)
+  }
+}
+```
+
+Essa conformance existe quando `T: Equatable`. Cada parâmetro da extension deve
+aparecer no tipo estendido. Uma extension de um type parameter nu é erro:
+
+```w
+extension<T: Display> T: Loggable { ... }
+// error: a conformance extension needs a nominal type head
+```
+
+Duas conformances não podem se sobrepor para uma mesma instantiation. W não
+possui:
+
+- specialization de conformance;
+- negative conformance;
+- prioridade por módulo ou import;
+- conformance escolhida pelo call site.
+
+O compiler compara conditional heads por unification. Uma interseção possível
+produz erro no módulo que declara a segunda conformance.
+
+Um witness deve corresponder a nome, forma de call, receiver, ownership,
+effects, tipo e generic signature do requirement. W não usa variance ou
+conversão implícita para escolher um witness.
+
+```w
+protocol Store<Value> {
+  fn get(key: ref String): Value throws StoreError
+}
+
+struct MenuStore: Store {
+  alias Value = Dish
+  fn get(key: ref String): Dish throws StoreError { ... }
+}
+```
+
+Protocol methods podem ter implementação default. Somente o módulo do protocol
+pode publicar um default witness:
+
+```w
+protocol Counted {
+  fn count(): usize
+  fn isEmpty(): Bool { return self.count() == 0 }
+}
+```
+
+A conformance registra se usa o default ou um witness próprio. Imports
+posteriores não mudam essa seleção. Uma extension externa pode adicionar methods
+comuns, mas não pode criar um default witness oculto.
+
+#### 8.7.6 `some`, `any` e composição
+
+`some P` preserva um tipo concreto. Cada ocorrência em parâmetro cria um
+parâmetro generic anônimo:
+
+```w
+fn compare(left: some Equatable, right: some Equatable)
+```
+
+`left` e `right` podem ter tipos diferentes. Se a relação exigir o mesmo tipo,
+use um parâmetro nomeado:
+
+```w
+fn compare<T: Equatable>(left: ref T, right: ref T): Bool
+```
+
+Um retorno `some P` possui uma identidade opaca ligada à declaração e aos seus
+argumentos generic. Todos os returns de uma instantiation usam o mesmo tipo:
+
+```w
+fn policy<T>(config: ref T): some PricingPolicy {
+  if config.isTrial { return TrialPricing() }
+  return StandardPricing() // error: two underlying opaque types
+}
+```
+
+`some P & Q` exige as duas conformances sem apagar a identidade.
+
+`any P` apaga a identidade concreta e usa dispatch por witness. Um protocol é
+existential-compatible quando cada member chamado pelo valor:
+
+- não possui parâmetros generic;
+- não usa `Self` fora do receiver;
+- não usa associated type sem binding;
+- possui receiver e effects representáveis na witness table.
+
+```w
+protocol Factory {
+  static fn make(): Self
+}
+
+let factory: any Factory
+// error: make uses Self and has no value receiver
+```
+
+Associated consts e static functions continuam disponíveis por tipo concreto ou
+generic. Eles não são chamados por um existential value.
+
+Primary associated bindings tornam um existential utilizável:
+
+```w
+let dishes: any Sequence<Dish> = menu
+```
+
+`any P & Q` guarda witnesses para os dois protocols. A ordem source não altera o
+tipo. Um owned existential pode usar inline storage ou box. `ref any P` é uma
+fat borrow sem alocação.
+
+`any P` não conforma automaticamente a `P`. A DB2 também não abre existentials
+de forma implícita para uma função generic:
+
+```w
+fn inspect<T: PricingPolicy>(policy: ref T)
+let erased: any PricingPolicy = StandardPricing()
+
+inspect(erased) // error: existential is not a generic witness
+```
+
+A API aceita `ref any PricingPolicy` quando deseja dispatch dinâmico. Explicit
+existential opening permanece **Pesquisa**. Essa decisão evita fresh types
+ocultos e regras dependentes da posição do result.
+
+#### 8.7.7 HIR, interface e lowering
+
+HIR generic contém:
+
+- parâmetros e kinds em ordem;
+- constraints normalizadas;
+- associated type projections;
+- conformance IDs e witness selections;
+- relações de borrow e effects;
+- body tipado independente de instantiation.
+
+Uma interface exportada inclui a assinatura, o digest do body generic e um blob
+de HIR genérica no content-addressed storage (CAS). Um importer não reparseia o
+source:
+
+```text
+generic signature + witness requirements + HIR digest + HIR body
+```
+
+O lowering possui liberdade de representação:
+
+| Estratégia | Uso |
+|---|---|
+| monomorphization | layout, const arguments, inlining e hot paths |
+| shared generic body | code size e separate compilation |
+| direct call | witness conhecido e specialization |
+| witness parameter | shared body ou existential |
+
+Essas escolhas não mudam dispatch, error, ownership ou ordem de avaliação. Uma
+profile pode mudar a estratégia e manter a mesma HIR verificada.
+
+O compiler não expõe `@specialize` ou outra annotation. Tooling mostra a
+decisão:
+
+```text
+w explain generic restaurant.forecast
+  3 specialized instances
+  1 shared body
+  18.4 KiB estimated text
+```
+
+Um conditional witness usa uma witness factory. Por exemplo, a conformance
+`Array<T>: Equatable` recebe o witness de `T: Equatable` e produz o witness de
+Array.
+
+#### 8.7.8 Instantiation, termination e cache
+
+Uma instantiation é identificada por:
+
+- declaration digest;
+- type e `const` arguments normalizados;
+- conformance e witness IDs;
+- target, profile e edition;
+- compiler e bundle versions.
+
+Recursive calls com a mesma instantiation são normais:
+
+```w
+fn count<T>(node: ref Tree<T>): usize {
+  return 1 + node.children.map(count<T>).sum()
+}
+```
+
+Polymorphic recursion não é inferida. Uma call que muda a própria instantiation
+precisa de argumentos explícitos e de um grafo finito. O compiler detecta uma
+expansão sem limite:
+
+```text
+error[W-TYPE-GENERIC-0005]: instantiation does not converge
+  expand<u8>
+  expand<Array<u8>>
+  expand<Array<Array<u8>>>
+```
+
+A recipe fixa limites determinísticos:
+
+```w
+build: {
+  generics: {
+    instances: 100_000
+    depth: 128
+  }
+}
+```
+
+Os limites entram na chave de cache. Um budget de code size nunca muda a
+semântica. Quando possível, o compiler escolhe um shared body em vez de falhar.
+Uma expansão de tipos que não converge continua erro.
+
+#### 8.7.9 Variance e fechamento W0
+
+Generic types são invariantes por default:
+
+```w
+let work: Array<WorkStage> = [...]
+let all: Array<ServiceStage> = work // error: Array is invariant
+```
+
+Use `map` para converter elementos. W não possui declaration-site variance na
+DB2. Borrow e function conversions seguem suas regras próprias.
+
+`bootstrap.w0` inclui:
+
+- type parameters;
+- constraints de um protocol nominal ou composição;
+- primary associated types;
+- conformances diretas e condicionais sem overlap;
+- monomorphization;
+- inference por receiver, argumentos e expected result.
+
+W0 não inclui `some`, `any`, shared generic bodies, generic associated types ou
+polymorphic recursion. O compiler completo pode reconhecer essas formas sem
+usá-las no próprio source.
+
+O
+[Rust Compiler Development Guide](https://rustc-dev-guide.rust-lang.org/backend/monomorph.html)
+mostra os custos de compile time e tamanho causados por monomorphization. A
+[especificação de Go](https://go.dev/ref/spec#Type_inference) mostra inference
+por equações de tipos. O
+[Swift Book](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes/)
+separa generic, opaque e boxed protocol types. W usa esses precedentes com
+lookup fechado e witnesses determinísticos.
 
 ### 8.8 Conversões
 
@@ -2632,7 +3410,7 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 | Tema | Estado | Contrato que falta |
 |---|---|---|
 | property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
-| associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
+| generic associated type | **Pesquisa** | borrow, constraints, witness layout e inference |
 | metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
 | síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
 | parâmetros variadic | **Pesquisa** | packs, forma de call, formatting, generics e FFI |
@@ -4892,18 +5670,15 @@ protocol Iterator<Item> {
   mut fn next(): Item?
 }
 
-protocol Iterable {
-  type Item
+protocol Iterable<Item> {
   fn iterator(): some Iterator<Item>
 }
 
-protocol MutableIterable: Iterable {
-  type MutableItem
+protocol MutableIterable<Item, MutableItem>: Iterable<Item> {
   mut fn mutableIterator(): some Iterator<MutableItem>
 }
 
-protocol ConsumableIterable: Iterable {
-  type OwnedItem
+protocol ConsumableIterable<Item, OwnedItem>: Iterable<Item> {
   take fn intoIterator(): some Iterator<OwnedItem>
 }
 ```
@@ -5669,10 +6444,10 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | controle | `if`, `guard`, `switch`, loops, break, continue e return |
 | funções | funções livres, `const fn`, `const init`, methods, `static fn`, labels, recursion e calls diretas/por `fn(...)` |
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
-| protocols | requisitos para dispatch estático; sem existential |
+| protocols | primary associated types, composition e dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
 | dados | String, StringView, Bytes, StringBuilder, Slice, Array, Map, Set e Range de T0 |
-| generics | type parameters, constraints simples e monomorphization |
+| generics | type parameters, constraints, inference fechada, coherence e monomorphization |
 | memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
 | C | opaque type, scalar, struct, pointer, function e callback + context |
@@ -6346,6 +7121,8 @@ Uma pesquisa só avança quando possui:
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
+| generics com primary associated types | **Possível agora** | inference fechada, coherence nominal e lowering híbrido definidos |
+| subsets fechados de enum | **Possível agora** | case-set normalizado, flow narrowing e layout base definidos |
 | visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
 | destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
 | switch exaustivo e tuple scrutinee | **Possível agora** | ordem, guards e patterns fechados possuem análise conhecida |
@@ -6517,7 +7294,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - overload sets por forma de call e interface normalizada;
 - initializer sintetizado, vários `init` e definite initialization;
 - computed properties e property requirements;
-- inference local, generics mínimos e refinements;
+- generic signatures, primary associated types, witnesses e inference local;
+- refinements e enum case subsets;
 - grafo const, ConstIR, quotas e ConstValue;
 - interface compilada inicial.
 
@@ -6988,6 +7766,33 @@ experimentar”, não “decisão irreversível”.
 | D2-277 | force expression | sem `comptime expr` na baseline; binding const nomeia o resultado | keyword obrigatória; const block na v0 |
 | D2-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
 | D2-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
+| D2-280 | generic kinds | type e `const`; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
+| D2-281 | generic labels | type positional; `const` nomeado; `const _` cria slot primário posicional | todos posicionais; named type args |
+| D2-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
+| D2-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
+| D2-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
+| D2-285 | generic inference | depois da forma de call; argumentos, receiver e expected result; solução única | ranking; busca por tipo conforme; body inference |
+| D2-286 | explicit generic args | type prefix e `const` labeled podem compor com inference; sem `_` | placeholders; lista completa obrigatória |
+| D2-287 | primary associated type | protocol head declara projection de `Self`; aplicação restringe o witness | generic protocol por conformance; somente body |
+| D2-288 | associated witness | `alias` explícito; sem inference/default/GAT na DB2 | inferir por method; associated type default |
+| D2-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
+| D2-290 | conditional conformance | `extension<T: P> Nominal<T>: Q`; sem overlap ou specialization | blanket conformance; prioridade |
+| D2-291 | default witness | somente o módulo do protocol publica; seleção gravada na conformance | extension importada muda witness |
+| D2-292 | existential compatibility | sem generic method, Self externo ou associated type não ligado | aceitar tudo com traps; banir existential |
+| D2-293 | existential opening | `any P` não conforma a P e não abre implicitamente | self-conformance; implicit opening |
+| D2-294 | opaque identity | `some P` preserva um tipo por instantiation; occurrence de parâmetro é independente | existential; união de returns |
+| D2-295 | generic lowering | monomorphization, shared body e witness são escolhas equivalentes | monomorphization universal; erasure universal |
+| D2-296 | generic interface | signature, witness requirements e HIR generic por digest/CAS | reparse de source; somente machine code |
+| D2-297 | generic termination | grafo finito, quotas de instance/depth e cache completo | expansão sem limite; timeout semântico |
+| D2-298 | generic variance | type constructors invariantes por default | variance inferida; covariance de Array |
+| D2-299 | bootstrap generics | constraints, primary associated types, coherence e monomorphization; sem any/some | seed sem protocols; runtime dictionaries |
+| D2-300 | enum subset | enum possui slot primário `cases`; `Enum<[.a, .b]>` | enum base + guard; anonymous union |
+| D2-301 | subset normalization | conjunto por ordem de declaração; duplicata/empty rejeitados; all vira base | StaticList ordenada na identity |
+| D2-302 | subset conversion | subset→superset/base implícito; base→subset checked | cast implícito nos dois sentidos |
+| D2-303 | subset flow | switch usa case-set e flow narrowing elimina checks | exhaustividade sempre pelo enum base |
+| D2-304 | subset payload/layout | payload preservado; layout público do enum base; tag interno pode sumir | wrapper/tag novo; payload subset |
+| D2-305 | subset evolution | retorno widening e parâmetro narrowing são major | qualquer mudança minor; variance automática |
+| D2-306 | subset de error | `throws Enum<[...]>`; throw e catch usam o case-set publicado | error enum inteiro; effect union separado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
