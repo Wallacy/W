@@ -6,6 +6,13 @@ import std.tensor as tensor
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
 
+struct StagePath<const stages: StaticList<ServiceStage>> {
+  orderId: OrderId
+}
+
+type SensorCallback =
+  unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
+
 dimension Applause
 unit clap: Applause
 unit ovation = 1_000<clap>
@@ -64,6 +71,18 @@ fn score(
   weights: ref Tensor<f32, shape: [3, 4]>,
 ): Tensor<f32, shape: [2, 4]> {
   return observations @ weights
+}
+
+fn welcome(
+  arrival: ref Arrival,
+  using greeter: some fn(ref Arrival): Welcome,
+): Welcome {
+  return greeter(arrival)
+}
+
+struct Route {
+  handler: any mut fn(Arrival): Welcome
+  finalize: any take fn(): Receipt
 }
 
 foreign c from "last_light_probe.h" {

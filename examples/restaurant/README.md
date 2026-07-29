@@ -1,6 +1,6 @@
 # Restaurante Última Luz
 
-> **Status:** corpus experimental da DB2 · 28 de julho de 2026
+> **Status:** corpus experimental da DB2 · 29 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
 do turno cósmico. O cenário é original. Ele usa escala astronômica e humor
@@ -24,6 +24,7 @@ LastLight entry
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
   → Sino de Encerramento pinned
+  → Recepção callable do Último Maitre
   → Conta da Aurora Tardia
   → resposta HTTP/TUI
 ```
@@ -43,6 +44,7 @@ owner e estado observável.
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `memory.w` | shared/weak, borrow suspenso, pinning e callback C |
+| `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
@@ -80,7 +82,7 @@ Aceite:
 
 ### 3.3 Hóspede das Órbitas Claras
 
-Famílias: newtype, refinement, value parameter e conversão.
+Famílias: newtype, refinement, value parameter, conversão e tuple patterns.
 
 Aceite:
 
@@ -89,6 +91,9 @@ Aceite:
 - input dinâmico usa `try GuestCount(value)`;
 - refined-to-base é implícito;
 - layout materializado continua o do base type.
+- `switch (stage, guests)` combina dois valores sem syntax especial;
+- cases usam ordem lexical e o compiler detecta um case inalcançável;
+- `_` fecha a exhaustividade sem executar custom pattern handlers.
 
 ### 3.4 Cozinha de Maré Fria
 
@@ -442,6 +447,30 @@ Aceite:
 O ensaio deve rejeitar dois `parse(_)` que diferem somente por tipo. Ele também
 deve rejeitar `serve(_)` quando um default cria essa forma duas vezes.
 
+### 3.22 O Último Maitre e Seus Três Telefones
+
+Famílias: `fn`, `some fn`, `any fn`, captures e callable modes.
+
+Aceite:
+
+- `fn(ref Arrival): Welcome` contém somente um target sem capture;
+- uma call por function value usa argumentos posicionais;
+- `some fn` preserva o tipo concreto e permite specialization;
+- `any fn` possui owner, invoke e drop observáveis;
+- labels e defaults não entram no function type;
+- `mut fn` exige um callable mutável e acesso exclusivo;
+- `take fn` exige `(take callable)(...)`;
+- um ponteiro `fn` atende a `transferable` e `shareable`;
+- closures derivam esses predicates do ambiente;
+- `mut fn` não atende a `shareable`;
+- uma closure que move capture não satisfaz `fn` ou `mut fn`;
+- um overload set exige closure explícita antes da conversão;
+- uma instance method exige closure explícita para capturar o receiver;
+- `unsafe fn<abi: .c>` não aceita capture, `async` ou `throws`.
+
+O ensaio deve rejeitar labels numa call por valor. Ele também deve rejeitar uma
+segunda call ao `manifest` consumido.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -470,6 +499,9 @@ O Book deve mostrar pares lado a lado:
 | computed property | `name: T { get => value }` | getter method e getter com efeitos |
 | static record | `<{name: value}>` | extensão universal de tipo |
 | static list | `<[a, b]>` ordenada | set implícito de constraints |
+| callable concreto | `some fn(A): B` | todo callable apagado |
+| callable apagado | `any fn(A): B` | `CallbackType` universal |
+| callable mode | `fn` / `mut fn` / `take fn` | `Fn` / `FnMut` / `FnOnce` |
 | frontend inline | `fn<C>` | `fn<lang: .c>` |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |

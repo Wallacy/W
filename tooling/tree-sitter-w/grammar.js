@@ -620,6 +620,7 @@ module.exports = grammar({
             ),
             field("base", $.tuple_type),
             field("base", $.fixed_array_type),
+            field("base", $.function_type),
           ),
           optional("?"),
         ),
@@ -633,6 +634,7 @@ module.exports = grammar({
       choice(
         $.contract_expression_argument,
         $.static_record_literal,
+        $.static_array_literal,
         $.type,
         $.number_literal,
         seq(
@@ -684,6 +686,44 @@ module.exports = grammar({
         "]",
       ),
     tuple_type: ($) => seq("(", commaSep($.type), optional(","), ")"),
+    function_type: ($) =>
+      choice(
+        prec.right(
+          3,
+          seq(
+            optional("unsafe"),
+            field("callable_mode", choice("mut", "take")),
+            optional("async"),
+            $._function_type_signature,
+          ),
+        ),
+        prec.right(
+          2,
+          seq(
+            optional("unsafe"),
+            optional("async"),
+            $._function_type_signature,
+          ),
+        ),
+      ),
+    _function_type_signature: ($) =>
+      prec.right(
+        seq(
+          "fn",
+          optional(field("contract", $.type_arguments)),
+          "(",
+          commaSep($.function_type_parameter),
+          optional(","),
+          ")",
+          optional(seq(":", field("return_type", $.type))),
+          optional(seq("throws", field("error_type", $.type))),
+        ),
+      ),
+    function_type_parameter: ($) =>
+      seq(
+        optional(field("ownership", choice("ref", "inout", "take"))),
+        field("type", $.type),
+      ),
 
     block: ($) => seq("{", repeat($._statement), "}"),
     _statement: ($) =>

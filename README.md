@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 27 de julho de 2026**
+> **Working Draft · 29 de julho de 2026**
 >
 > **Prazer para humanos. Clareza para máquinas.**
 

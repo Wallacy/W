@@ -16,6 +16,8 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 
 - imports lógicos, aliases e exports;
 - `fn`, vários `init`, overloads estruturais, labels, generics e `throws`;
+- `fn(...)`, `some fn(...)`, `any fn(...)` e callable modes;
+- static records, `StaticList<T>` e payloads `<[...]>`;
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
 - stored fields, computed properties e property requirements;
 - bindings, patterns nominais, `mut fn`/`take fn`, ownership e behaviors;
@@ -40,6 +42,8 @@ npm install
 npm run generate
 npm test
 npm run parse:restaurant
+npm run parse:fixture
+npm run check:design
 ```
 
 Ou execute todos os checks:
@@ -48,11 +52,11 @@ Ou execute todos os checks:
 npm run check
 ```
 
-`npm run check` executa o corpus interno e o smoke test do restaurante. O CLI
-está fixado em `tree-sitter-cli` 0.26.11. Após `generate`, `src/` e o
-parser C gerado tornam a gramática consumível sem copiar regras para outro
-lexer. Um binding Node nativo é responsabilidade do consumidor e não é exigido
-para gerar/testar esta pasta.
+`npm run check` executa corpus, restaurante, fixture do VS Code e cobertura de
+exemplos do design. O CLI está fixado em `tree-sitter-cli` 0.26.11. Após
+`generate`, `src/` e o parser C gerado tornam a gramática consumível sem copiar
+regras para outro lexer. Um binding Node nativo é responsabilidade do
+consumidor. Ele não é necessário para gerar ou testar esta pasta.
 
 ## Próximos consumidores
 
@@ -75,8 +79,8 @@ neste corte. Eles só devem entrar depois de
 - `service` é keyword candidata; `worker`, `assistant` e `nanoservice` não são;
 - raw com múltiplos hashes balanceados ainda precisa de scanner externo; este
   corte reconhece a forma canônica de um hash;
-- patterns e captures de closure estão apenas no subset mínimo; annotations não
-  pertencem à v0;
+- patterns e captures de closure estão no subset estrutural; escape, mode e drop
+  dependem do type checker;
 - parser normativo e compartilhamento de CST seguem gates de protótipo; esta
   gramática continua uma projeção de tooling.
 

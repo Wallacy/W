@@ -204,8 +204,8 @@ test "a PID controller starts with no accumulated error" {
 }
 
 test "an overloaded function value uses an explicit call shape" for expectedEnergy {
-  let estimator = (power: Power, duty: DutyCycle, duration: Duration) =>
-    expectedEnergy(power, duty: duty, during: duration)
+  let estimator: some fn(Power, DutyCycle, Duration): Energy =
+    (power, duty, duration) => expectedEnergy(power, duty: duty, during: duration)
 
   expect estimator(2<si.W>, try DutyCycle(0.5), 3<si.s>) == 3<si.J>
 }

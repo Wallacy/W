@@ -597,3 +597,302 @@ fn touch(): () {
     (block
       (return_statement
         (unit_literal)))))
+
+==================
+DB2 static lists and callable types
+==================
+
+enum Stage {
+  reserve
+  prepare
+  serve
+}
+
+struct StagePlan<const stages: StaticList<Stage>> {
+  id: usize
+}
+
+fn standardPlan(id: usize): StagePlan<[.reserve, .prepare, .serve]> {
+  return StagePlan(id: id)
+}
+
+fn apply(value: Int, using operation: fn(Int): Int): Int {
+  return operation(value)
+}
+
+fn load(
+  path: ref Path,
+  using loader: some async fn(ref Path): Bytes throws IoError,
+): Bytes throws IoError {
+  return try await loader(path)
+}
+
+struct Pipeline {
+  transform: any mut fn(inout Buffer, take Command): Result
+  finalize: any take fn(take Session): Receipt
+}
+
+type SensorCallback =
+  unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
+
+fn counter(initial: usize): some mut fn(): usize {
+  var next = initial
+  return capture(take next) () => {
+    next += 1
+    return next
+  }
+}
+
+---
+
+(source_file
+  (enum_declaration
+    (type_identifier)
+    (enum_body
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))))))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (type
+              (type_name
+                (type_identifier)))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (type
+              (type_name
+                (type_identifier)))
+            (type
+              (type_name
+                (type_identifier)))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)))))))))
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (type
+              (type_name
+                (type_identifier))))))
+      (field_declaration
+        (identifier)
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (type
+              (type_name
+                (type_identifier))))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (function_type
+        (type_arguments
+          (type_argument
+            (identifier)
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier)
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier)))))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier)
+              (type_identifier))))
+        (type
+          (tuple_type)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (function_type
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (return_statement
+        (capture_expression
+          (capture_item
+            (identifier))
+          (closure_expression
+            (closure_parameters)
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number_literal)))
+              (return_statement
+                (identifier)))))))))
+
+==================
+Callable type labels recover before the next declaration
+==================
+
+type Invalid = fn(value: Int): Int
+
+fn stillVisible(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (function_type
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier))))
+        (ERROR
+          (identifier))
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))

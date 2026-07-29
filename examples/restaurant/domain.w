@@ -41,6 +41,35 @@ export enum ServiceStage {
   cancelled
 }
 
+export enum PartySize {
+  intimate
+  regular
+  cosmic
+}
+
+export fn classifyParty(
+  stage: ServiceStage,
+  guests: GuestCount,
+): PartySize {
+  return switch (stage, guests) {
+    case (.accepted, 1...4): .intimate
+    case (.accepted, 5...20): .regular
+    case (.accepted, _): .cosmic
+    case (_, _) if guests > 1_000: .cosmic
+    case (_, _): .regular
+  }
+}
+
+export struct StagePath<const stages: StaticList<ServiceStage>> {
+  orderId: OrderId
+}
+
+export fn standardStagePath(
+  orderId: OrderId,
+): StagePath<[.accepted, .reserving, .preparing, .serving, .completed]> {
+  return StagePath(orderId: orderId)
+}
+
 export struct Guest {
   id: GuestId
   name: GuestName
@@ -120,4 +149,9 @@ export fn add(left: Money, to right: Money): Money throws DomainError {
     .mapError((_) => .overflow)
 
   return Money(minorUnits: total, currency: left.currency)
+}
+
+test "tuple patterns classify a party in lexical order" for classifyParty {
+  expect classifyParty(.accepted, guests: try GuestCount(2)) == .intimate
+  expect classifyParty(.serving, guests: try GuestCount(2_000)) == .cosmic
 }

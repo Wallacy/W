@@ -3601,6 +3601,100 @@
     }
   },
   {
+    "type": "function_type",
+    "named": true,
+    "fields": {
+      "callable_mode": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mut",
+            "named": false
+          },
+          {
+            "type": "take",
+            "named": false
+          }
+        ]
+      },
+      "contract": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_arguments",
+            "named": true
+          }
+        ]
+      },
+      "error_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "return_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "function_type_parameter",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "function_type_parameter",
+    "named": true,
+    "fields": {
+      "ownership": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "inout",
+            "named": false
+          },
+          {
+            "type": "ref",
+            "named": false
+          },
+          {
+            "type": "take",
+            "named": false
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "generic_application_expression",
     "named": true,
     "fields": {
@@ -7181,6 +7275,10 @@
             "named": true
           },
           {
+            "type": "function_type",
+            "named": true
+          },
+          {
             "type": "tuple_type",
             "named": true
           },
@@ -7259,6 +7357,10 @@
         },
         {
           "type": "number_literal",
+          "named": true
+        },
+        {
+          "type": "static_array_literal",
           "named": true
         },
         {
