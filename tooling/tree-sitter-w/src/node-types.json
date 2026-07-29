@@ -9483,6 +9483,10 @@
       "required": false,
       "types": [
         {
+          "type": "contextual_member_expression",
+          "named": true
+        },
+        {
           "type": "contract_expression_argument",
           "named": true
         },

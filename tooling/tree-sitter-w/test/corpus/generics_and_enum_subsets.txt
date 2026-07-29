@@ -423,3 +423,96 @@ fn later(): Bool {
     (block
       (return_statement
         (boolean_literal)))))
+
+==================
+Const enum typestate and specialized extensions
+==================
+
+enum Mode {
+  idle
+  ready
+}
+
+struct Session<const _ state: Mode> {
+  id: u16
+}
+
+enum Activation {
+  ready(Session<.ready>)
+}
+
+extension Session<.idle> {
+  take fn activate(): Activation {
+    return .ready(Session<.ready>(id: id))
+  }
+}
+
+---
+
+(source_file
+  (enum_declaration
+    (type_identifier)
+    (enum_body
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (enum_declaration
+    (type_identifier)
+    (enum_body
+      (enum_case
+        (identifier)
+        (enum_case_parameter
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (contextual_member_expression
+                  (identifier)))))))))
+  (extension_declaration
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (contextual_member_expression
+            (identifier)))))
+    (type_body
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (call_expression
+              (contextual_member_expression
+                (identifier))
+              (argument_list
+                (argument
+                  (call_expression
+                    (generic_application_expression
+                      (identifier)
+                      (generic_call_arguments
+                        (contextual_member_expression
+                          (identifier))))
+                    (argument_list
+                      (argument
+                        (identifier)
+                        (identifier)))))))))))))

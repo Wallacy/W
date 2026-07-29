@@ -7,7 +7,9 @@ import std.tensor as tensor
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
 
-struct StagePath<const _ stages: StaticList<ServiceStage>> {
+struct StagePath<
+  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+> {
   orderId: OrderId
 }
 
@@ -30,6 +32,21 @@ alias ContinuingOutcome<T> =
 
 alias RecoverableServiceFault =
   ServiceFault<[.ingredientsMissing, .delayed]>
+
+enum OvenSessionState {
+  idle
+  ready
+}
+
+struct OvenSession<const _ state: OvenSessionState> {
+  id: u16
+}
+
+extension OvenSession<.idle> {
+  take fn activate(): OvenSession<.ready> {
+    return OvenSession<.ready>(id: id)
+  }
+}
 
 fn reserveCourse(): WorkStage throws RecoverableServiceFault
 

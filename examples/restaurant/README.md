@@ -44,6 +44,7 @@ owner e estado observável.
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, inference e witnesses |
 | `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
+| `state_transitions.w` | paths validados, typestate consuming e snapshots runtime |
 | `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
@@ -649,6 +650,29 @@ O fixture negativo deve declarar `serve(table)` junto de
 `serve(table, _ courses: Course...)`. O compiler deve mostrar a forma
 intersectada `serve(_)`.
 
+### 3.28 Forno que Não Pode Ser Ligado Duas Vezes
+
+Famílias: estado runtime, typestate, transições consuming e paths estáticos.
+
+Aceite:
+
+- `canMove` funciona em compile time e runtime;
+- `StagePath` rejeita o primeiro edge inválido;
+- `OvenSession<.idle>` oferece `activate`, mas não oferece `close`;
+- `activate` consome a session idle;
+- cada case de `ActivationOutcome` devolve um novo owner tipado;
+- `OvenSession<.ready>` e `OvenSession<.faulted>` oferecem operações distintas;
+- o argumento enum não exige uma tag runtime;
+- uma collection com states misturados usa `AnyOvenSession`;
+- `StageSnapshot` carrega uma revision;
+- um snapshot não concede authority sobre uma service instance;
+- `AppliedOrStale` reduz a exhaustividade de `MoveOrderResult`.
+
+O fixture negativo deve declarar
+`StagePath<[.accepted, .completed]>`. O diagnostic deve identificar o primeiro
+edge. Outros fixtures devem reutilizar a session movida, chamar `close` em
+`OvenSession<.idle>` e atribuir `OvenSession<.ready>` a um binding idle.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -662,6 +686,7 @@ O Book deve mostrar pares lado a lado:
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
 | enum subset | `ServiceStage<[.preparing, .serving]>` | enum base + guard runtime |
+| typestate | `OvenSession<.ready>` + `take fn` | state keyword, annotation ou mutation do tipo no lugar |
 | protocol composition | `T: Display & Equatable` | postfix `where`; static list de protocols |
 | runtime reflection | `T: reflect.Reflectable` | metadata universal e annotations |
 | metatype | `TypeId.of<T>()` + generic/factory | `Type<T>` e dynamic construction |

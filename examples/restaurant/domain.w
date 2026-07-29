@@ -44,6 +44,29 @@ export enum ServiceStage {
 export alias CancelledStage =
   ServiceStage<[.cancelled]>
 
+export const fn canMove(from current: ServiceStage, to next: ServiceStage): Bool {
+  return switch current {
+    case .accepted: next in (.reserving, .cancelled)
+    case .reserving: next in (.preparing, .cancelled)
+    case .preparing: next in (.serving, .cancelled)
+    case .serving: next in (.completed, .cancelled)
+    case .completed: false
+    case .cancelled: false
+  }
+}
+
+export const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {
+  guard stages.count > 0 else return false
+
+  for index in 1..<stages.count {
+    if !canMove(from: stages[index - 1], to: stages[index]) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export enum PartySize {
   intimate
   regular
@@ -63,7 +86,9 @@ export fn classifyParty(
   }
 }
 
-export struct StagePath<const _ stages: StaticList<ServiceStage>> {
+export struct StagePath<
+  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+> {
   orderId: OrderId
 }
 
@@ -130,17 +155,6 @@ export enum DomainError: Error {
   unknownOrder(OrderId)
   currencyMismatch(expected: Currency, found: Currency)
   overflow
-}
-
-export fn canMove(from current: ServiceStage, to next: ServiceStage): Bool {
-  return switch current {
-    case .accepted: next in (.reserving, .cancelled)
-    case .reserving: next in (.preparing, .cancelled)
-    case .preparing: next in (.serving, .cancelled)
-    case .serving: next in (.completed, .cancelled)
-    case .completed: false
-    case .cancelled: false
-  }
 }
 
 export fn add(left: Money, to right: Money): Money throws DomainError {
