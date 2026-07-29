@@ -7395,6 +7395,494 @@ T1 contém:
 que concede Console. Uma função exportada fora desse scope recebe `Console`
 como capability explícita.
 
+#### 14.2.1 Contratos de bytes
+
+**Líder DB2:** I/O comum usa dois protocols async-first:
+
+```w
+export enum ReadStep {
+  data(usize<(1...)>)
+  end
+}
+
+export enum WriteStep {
+  complete
+  partial(usize<(1...)>)
+}
+
+export protocol ByteSource<Failure: Error> {
+  mut async fn read(
+    appendTo destination: inout Bytes,
+    maximum: usize<(1...)>,
+  ): ReadStep throws Failure
+}
+
+export protocol ByteSink<Failure: Error> {
+  mut async fn write(source: view Bytes): WriteStep throws Failure
+}
+```
+
+Os nomes descrevem direção, unidade e ownership. Eles não criam classes
+utilitárias. `ByteSource` possui um cursor lógico e acrescenta bytes ao owner do
+caller. `ByteSink` empresta bytes e escreve um prefixo.
+
+`async` permanece na assinatura do requirement. O call site usa `try await`.
+Um tipo in-memory com `Failure = Never` ainda exige `await`, porque trocar a
+implementação por socket, pipe ou arquivo não muda a assinatura.
+
+`Reader`/`Writer`, `AsyncRead`/`AsyncWrite` e `Input`/`Output` permanecem
+alternativas de nome. `ByteSource`/`ByteSink` vencem por não confundir texto,
+messages, files e cursors, e por não repetir `Async` quando a função já declara
+o efeito.
+
+#### 14.2.2 Leitura, inicialização e EOF
+
+**Exemplo:** uma leitura acrescenta de 1 a 4096 bytes ou devolve `.end`; zero
+nunca significa duas coisas.
+
+```w
+var payload = Bytes()
+
+switch try await input.read(
+  appendTo: inout payload,
+  maximum: 4096,
+) {
+  case .data(let count):
+    let start = payload.count - count
+    inspect(payload[start...])
+  case .end: finish()
+}
+```
+
+Antes de submeter I/O, o adapter garante uma reserva para `maximum` bytes. A
+operação pode usar a parte ainda não inicializada do carrier de `Bytes`, mas
+essa memória nunca aparece no source safe. O commit aumenta `destination.count`
+exatamente pelo valor de `.data`.
+
+As invariantes são:
+
+1. `.data(count)` sempre possui `count > 0`;
+2. `.end` não altera o destination;
+3. depois de `.end`, as próximas leituras devolvem `.end`;
+4. uma chamada não acrescenta mais que `maximum`;
+5. error antes de progress não altera `count`;
+6. o source e o destination ficam emprestados até completion ou cancel drain.
+
+`read` segue a policy normal de allocation. Um caller que precisa recuperar OOM
+reserva antes da call:
+
+```w
+let required = try usize.checkedAdd(payload.count, 4096)
+try payload.tryReserve(minimumCapacity: required)
+let step = try await input.read(appendTo: inout payload, maximum: 4096)
+```
+
+Depois de uma reserva suficiente, a call não aloca. `Bytes` mantém initialized
+count e reserva privados; W não publica `ReadBuffer`, `MaybeUninit<u8>` ou uma
+mutable view de bytes não inicializados.
+
+O protocol também não oferece `read(into: inout view Bytes)`. Um backend pode
+ter escrito no storage inicializado antes de cancellation vencer. Nesse caso,
+manter o `count` não desfaz os bytes alterados. Uma API especializada só pode
+expor um destino de extent fixo quando seu outcome informa o prefixo que o
+backend pode ter modificado. A operação comum usa append e commit privado para
+manter a garantia forte.
+
+O [`ReadBuf` de Tokio](https://docs.rs/tokio/latest/tokio/io/struct.ReadBuf.html)
+mostra por que initialized e filled são estados diferentes. W guarda os mesmos
+fatos no owner `Bytes` e no frame da operação, sem tornar o wrapper parte da API
+comum.
+
+EOF é estado, não error. Se um backend observa bytes e EOF na mesma completion,
+progress vence: a call devolve `.data`, grava EOF pendente e a próxima call
+devolve `.end`. Isso evita o tuple ambíguo `(count, error)` e preserva todos os
+bytes.
+
+O [contrato POSIX de `read`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/read.html)
+também permite uma leitura curta e devolve progress quando uma interrupção
+ocorre depois de bytes transferidos. W normaliza o resultado antes de expor o
+source.
+
+#### 14.2.3 Escrita parcial e completa
+
+**Exemplo:** `write` aceita o source inteiro ou informa um prefixo positivo.
+
+```w
+switch try await output.write(payload) {
+  case .complete: done()
+  case .partial(let count): retry(payload[count...])
+}
+```
+
+Com source vazio, `write` devolve `.complete` sem suspender. Com source não
+vazio, ele nunca devolve progress zero: aguarda capacidade, escreve ao menos um
+byte ou lança error.
+
+`.partial(count)` garante `0 < count < source.count`. O prefixo foi aceito pela
+boundary concreta. Ele não garante que bytes chegaram a um peer, a mídia
+persistente ou o display.
+
+O adapter comum `writeAll` repete writes:
+
+```w
+try await output.writeAll(payload)
+```
+
+`writeAll` é uma conveniência não transacional. Um error depois de progress usa:
+
+```w
+export struct WriteAllError<Cause: Error>: Error {
+  cause: Cause
+  committed: usize
+}
+```
+
+O caller ainda possui `payload`; `committed` identifica o prefixo que não deve
+ser reenviado sem uma policy de protocolo. Cancellation pode ocorrer depois de
+um prefixo confirmado. Código que precisa observar cada commit usa `write` em
+vez de `writeAll`.
+
+POSIX permite writes parciais e não promete atomicidade geral. O
+[contrato de `write`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html)
+é a razão para W não tratar uma call como entrega integral.
+
+#### 14.2.4 Progress, error e cancellation
+
+**Exemplo:** se completion de quatro bytes vence cancellation, a call confirma
+quatro bytes. Cancellation é observada no próximo suspension point.
+
+Cada operação possui uma disputa linear:
+
+```text
+pending ── completion ──→ committed(progress/end/error)
+   └──── cancellation ──→ canceling ── completion drain ──→ canceled
+```
+
+Se cancellation vence antes de progress:
+
+- a parte spare de `Bytes` não entra no initialized count;
+- um read destination permanece logicamente inalterado;
+- um write não confirma bytes;
+- a task não termina antes de o backend liberar pointer, handle e callback.
+
+Se completion vence, a operação devolve o progress. Uma solicitação de
+cancellation pendente é observada no próximo ponto cancelável. O runtime não
+transforma completion real em um falso “nenhum efeito”.
+
+Um backend pode produzir progress e error na mesma completion. W devolve o
+progress e armazena o error no source ou sink. A próxima operação lança esse
+error antes de submeter outro I/O. Assim, cada call que lança error possui zero
+progress próprio.
+
+O error latched pertence à completion que já venceu a disputa. Por isso, ele é
+observado antes de uma solicitação de cancellation posterior. `writeAll`,
+`finish` e a próxima operação também consultam esse estado. Se o caller encerra
+o owner sem observá-lo, `deinit` registra o fato no trace, mas não lança.
+
+Solicitar cancellation não significa que o kernel interrompeu a operação. A
+[documentação de `CancelIoEx`](https://learn.microsoft.com/en-us/windows/win32/fileio/cancelioex-func)
+explica que uma operação pode concluir normalmente depois do pedido. A
+[documentação de cancellation do `io_uring`](https://man7.org/linux/man-pages/man7/io_uring_cancelation.7.html)
+também exige observar a completion final. O runtime W usa essa completion para
+resolver a disputa e só então libera borrows.
+
+Uma operação não cancelável aumenta cancellation latency. Ela não autoriza
+use-after-free, detach do request ou liberação antecipada do buffer. O trace
+separa `cancelRequested`, `cancelSubmitted`, `cancelConfirmed` e
+`completedBeforeCancel`.
+
+#### 14.2.5 I/O async e blocking
+
+**Exemplo:** uma API foreign blocking entra num domain bounded explícito:
+
+```w
+spawn<.blocking> let step = legacy.read(
+  appendTo: inout payload,
+  maximum: 4096,
+)
+```
+
+`ByteSource` e `ByteSink` prometem suspensão do caller. Eles não prometem qual
+backend físico o target possui. O host registra uma destas estratégias:
+
+| Estratégia | Consome worker bloqueado? | Cancellation física |
+|---|---:|---|
+| readiness | não durante a espera | remove interest; syscall final ainda pode ocorrer |
+| completion | não durante a espera | request cancelável conforme o backend |
+| blocking adapter | sim, dentro de quota | somente quando a API subjacente suporta |
+| immediate/in-memory | não | completion síncrona |
+
+Uma interface síncrona separada usa `BlockingByteSource` ou
+`BlockingByteSink`. A interface compilada marca seus methods como `blocking`.
+Ela não atende automaticamente ao protocol async.
+
+Um adapter explícito pode produzir uma interface async:
+
+```w
+let input = legacy.adapt(using: context.executors.blocking)
+let step = try await input.read(appendTo: inout payload, maximum: 4096)
+```
+
+O blocking executor é bounded. Cancellation da task pode abandonar o interesse
+no resultado, mas não mata a thread nem libera o buffer antes de a call
+terminar.
+
+Um product pode exigir capability `nonBlockingIO`. Nesse caso, o build rejeita
+um target cuja rota alcançável depende do blocking adapter. Essa gate permite
+portabilidade sem esconder thread consumption.
+
+#### 14.2.6 Filesystem, rights e offsets
+
+**Líder DB2:** `FileSystem` é uma capability concedida pelo host. `File` é um
+handle move-first com rights estáticos:
+
+```w
+let menu = try await files.open<[.read]>(menuPath)
+let journal = try await files.open<[.write, .append]>(
+  journalPath,
+  creation: .create,
+)
+```
+
+`File<[.read]>` não compila uma call de write. O static list é um subset fechado
+de `FileRight`; ele não substitui a verificação dinâmica de path, sandbox,
+quota ou permissão do sistema.
+
+Arquivos seekable usam I/O posicional por default:
+
+```w
+var block = Bytes()
+let step = try await menu.read(
+  at: FileOffset(8192),
+  appendTo: inout block,
+  maximum: 4096,
+)
+```
+
+`read(at:)` e `write(at:)` não alteram um cursor compartilhado. Essa regra
+permite concorrência explícita e corresponde à função de
+[`pread`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/read.html).
+`FileOffset` é um newtype unsigned de 64 bits; conversions para limites do
+target são fallible.
+
+`File.read(at:)` não atende a `ByteSource`, pois não possui cursor. Seu
+`.end` informa que não havia bytes naquele offset durante a operação. Outra call
+pode observar dados se o arquivo crescer. O adapter sequencial abaixo transforma
+essa observação num fim estável. Um caller que precisa de conteúdo estável abre
+um snapshot ou valida a identidade e a versão do arquivo.
+
+Uma operação sequencial cria um owner de cursor:
+
+```w
+var reader = (take menu).reader(from: FileOffset.zero)
+let step = try await reader.read(appendTo: inout block, maximum: 4096)
+```
+
+O retorno é `some ByteSource<IoError>`. Não existe uma classe pública
+`FileReader`. O adapter possui file e offset, e atualiza o offset somente pelo
+progress confirmado.
+
+Append não usa `metadata.size` seguido de `write(at:)`. O right `.append`
+oferece uma operação própria que preserva a atomicidade de seleção do offset
+fornecida pelo adapter. Isso não promete que um payload grande é indivisível.
+
+`File` comum é move-only e transferable. Código que precisa de acesso paralelo
+move o handle para `shared File` de forma explícita ou abre handles
+independentes. Positional I/O é obrigatório no shared form; um cursor mutável
+não se torna shareable.
+
+#### 14.2.7 Sockets e message boundaries
+
+**Exemplo:** uma conexão TCP pode separar leitura e escrita sem permitir duas
+leituras concorrentes no mesmo cursor:
+
+```w
+let (input, output) = (take connection).split()
+
+async let request = readRequest(take input)
+async let response = writeResponse(take output)
+```
+
+Os halves atendem a `ByteSource<NetworkError>` e
+`ByteSink<NetworkError>`. Cada half é move-only e transferable. O write half
+oferece `take async fn finish()` para half-close; destruir a conexão é abortivo.
+
+TCP não preserva messages. UDP não atende a `ByteSource`: ele usa
+`DatagramSource<Message, Failure>` e devolve um datagram, endereço e truncation
+status por receive. TLS e HTTP são adapters T2 sobre byte contracts; handshake,
+record close e protocol errors não desaparecem dentro de `read`.
+
+#### 14.2.8 Errors portáteis
+
+**Exemplo:** código portátil testa `error.kind == .permissionDenied`; diagnostics
+podem mostrar o código nativo.
+
+```w
+export struct IoError: Error {
+  kind: IoErrorKind
+  operation: IoOperation
+  cause: IoCause?
+}
+
+export enum IoErrorKind {
+  permissionDenied
+  notFound
+  alreadyExists
+  invalidInput
+  unsupported
+  resourceExhausted
+  timedOut
+  connectionReset
+  brokenPipe
+  other
+}
+```
+
+`IoCause` é opaca, target-specific e redigível. Ela não participa de igualdade,
+serialization ou resultado de domínio. Um programa pode pedir o código nativo
+somente depois de verificar o target.
+
+`wouldBlock` não sai de uma API async: o executor registra interest e suspende.
+Uma interrupção do sistema sem progress é repetida quando não representa
+cancellation ou signal observável. EOF continua `ReadStep.end`.
+
+Task deadline e `task.cancel()` produzem `TaskOutcome.canceled`, não
+`IoError.timedOut`. `.timedOut` representa um timeout do protocolo, peer ou
+adapter que não é o deadline da task.
+
+`IoErrorKind` é edition-frozen. Um código novo ou desconhecido usa `.other`.
+Retriability não é Boolean do error: ela depende de operation, idempotência,
+progress e deadline.
+
+#### 14.2.9 Finish, flush e durability
+
+**Exemplo:** um arquivo de auditoria usa finish explícito; drop não promete
+persistência.
+
+```w
+let journal = try await files.open<[.write]>(
+  journalPath,
+  creation: .replace,
+)
+
+defer async {
+  try await (take journal).finish(durability: .data)
+}
+```
+
+`ByteSource` e `ByteSink` não exigem `close` ou `flush`. Um memory sink não
+possui handle; um TCP half-close e um file sync possuem contratos diferentes.
+
+- `flush` envia buffers de user space ao adapter seguinte;
+- `sync(.data)` solicita data durability;
+- `sync(.all)` inclui metadata conforme o filesystem;
+- `finish` executa a obrigação do tipo e consome o owner;
+- `deinit` fecha o handle físico de forma síncrona e best-effort.
+
+Um error de `deinit` entra no trace. Ele não pode ser lançado. Código que depende
+da confirmação usa `finish` ou `sync`. Um handle compartilhado não oferece
+`finish` até o programa recuperar ownership único.
+
+#### 14.2.10 Streams, framing e limites
+
+**Exemplo:** chunks borrowed reutilizam um único carrier; a view termina antes
+da próxima leitura.
+
+```w
+var scratch = Bytes()
+scratch.reserve(minimumCapacity: 4096)
+
+var chunks = (take input).chunks(
+  reusing: take scratch,
+  maximum: 4096,
+)
+
+for try await chunk in chunks {
+  decode(chunk)
+}
+```
+
+O adapter devolve `some Stream<view Bytes, E>`. Ele possui source e scratch. Um
+novo `next()` não ocorre enquanto `chunk` está vivo.
+
+`chunks(maximum:using:) -> some Stream<Bytes, E>` devolve owners independentes e
+pode alocar. A escolha entre owned e borrowed aparece no tipo.
+
+`lines(maximumBytes:)` combina byte source, decoder incremental e framing:
+
+```w
+for try await line in input.lines(maximumBytes: 65_536) {
+  handle(line)
+}
+```
+
+Cada line é `String` owned. O limite é obrigatório e é verificado antes de
+growth. EOF depois de texto sem delimitador produz a última line. Protocols que
+exigem delimitador usam um framer explícito com `final: .requireDelimiter`.
+
+`readToEnd` também exige `limit`. Sources contínuos, como terminal ou socket,
+podem nunca produzir EOF. A API não oferece uma versão ilimitada por default.
+
+#### 14.2.11 Backend, vectored I/O e zero-copy
+
+**Exemplo:** Linux pode usar `io_uring` ou readiness sem alterar `ReadStep`,
+ownership ou cancellation.
+
+O adapter seleciona por target, product contract e benchmark:
+
+- IOCP no Windows;
+- io_uring, epoll ou poll no Linux;
+- kqueue ou poll nos BSDs e macOS;
+- WASI, browser host ou HAL no target correspondente;
+- blocking pool bounded quando não existe backend melhor.
+
+Buffers permanecem pinned ou possuem carrier estável até a completion final. O
+runtime não solta um async frame, `Bytes` owner ou foreign control block quando
+recebe apenas a solicitação de cancellation.
+
+`readv`/`writev`, registered buffers e batching são optimizations ou APIs
+especializadas. Um futuro `writeMany` precisa devolver byte progress mapeável
+aos segmentos. Ele não promete atomicidade de message.
+
+`sendfile`, `splice`, memory mapping e device buffers mudam provenance,
+durability e fallback. Eles não são lowering invisível de `write`. T1 pode
+oferecer operations próprias depois de oracle em ao menos dois targets.
+
+#### 14.2.12 Observabilidade e oracle
+
+**Exemplo:** o explanation record mostra por que o mesmo source usa IOCP num
+product e blocking pool em outro.
+
+```text
+$ w explain io restaurant.io::readRecipeBlock
+operation:      file.read(at:)
+backend:        iocp
+request:        <= 4096 B
+buffer:         Bytes spare; pinned until completion
+blocking worker: no
+cancel:         request + completion drain
+allocation:     none after caller reservation
+```
+
+O resource lens registra bytes solicitados, confirmados e descartados, short
+operations, queue time, backend, blocking workers, pinned bytes, syscall count,
+cancel latency e native cause redigida.
+
+O oracle do restaurante executa:
+
+- vazio, EOF depois de data e todas as partições de 1 a 4096 bytes;
+- short read e short write em cada posição;
+- error antes e depois de progress;
+- cancellation antes da submissão, durante espera e depois da completion;
+- destination sem mutation quando cancellation vence;
+- buffer vivo até cancel drain;
+- positional reads fora de ordem com resultado ordenado pelo caller;
+- cursor sequencial sem offset perdido;
+- blocking, readiness e completion backends com o mesmo resultado;
+- `Stream<view Bytes>` sem allocation depois da reserva;
+- limits de line e read-to-end antes de growth;
+- leak sanitizer, TSan e fault injection.
+
 ### 14.3 T2 — domínios oficiais
 
 **Exemplo:** `std.http` e `std.si` são bundled, mas só entram no payload quando
@@ -10979,6 +11467,13 @@ Uma pesquisa só avança quando possui:
 | `Channel<T>` MPSC bounded | **Provável** | ownership e estados estão fechados; fairness, cancellation e custo exigem protótipo |
 | permits de channel | **Provável** | capability linear fecha capacity; close e suspension longa exigem oracle |
 | MPMC, broadcast, watch e weighted channel | **Pesquisa** | loss, fan-out, lag e accounting não cabem no contrato MPSC |
+| `ByteSource`/`ByteSink` async-first | **Possível agora** | short progress, EOF e errors possuem resultados fechados |
+| read por append em reserva privada de `Bytes` | **Possível agora** | initialized count e commit ocultam storage ainda não inicializado |
+| cancellation de I/O com completion drain | **Provável** | backends possuem completion; runtime e borrow checker precisam de oracle |
+| filesystem com rights estáticos e offset posicional | **Provável** | handles e syscalls existem; profiles e diagnostics exigem protótipo |
+| adapters blocking com quota | **Provável** | pool bounded preserva semântica; cancellation física depende da API |
+| backends readiness/completion equivalentes | **Provável** | contrato comum está fechado; matriz de targets deve provar os mesmos traces |
+| vectored I/O e zero-copy explícitos | **Pesquisa** | pinning, segment count, lifetime e fallback ainda não possuem superfície final |
 | `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
 | data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
 | `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
@@ -11826,6 +12321,24 @@ experimentar”, não “decisão irreversível”.
 | D2-470 | outras topologias | `WorkQueue`, `Broadcast`, `Watch` e weighted channel permanecem tipos pesquisados | um `Channel<mode: ...>` muda loss e fan-out |
 | D2-471 | implementation de channel | target escolhe ring, segmentos, mutex ou atomics; lock-free não é contrato | algoritmo único no ABI; tagged pointer obrigatório |
 | D2-472 | accounting de channel | lens separa storage, itens, payload desconhecido, waiters, permits e watermark medido | capacity promete bytes transitivos; número único exato |
+| D2-473 | byte I/O | `ByteSource<Failure>` e `ByteSink<Failure>` async-first; cursor lógico no source | Reader/Writer nominal por backend; prefixo `Async`; interface sync única |
+| D2-474 | destino de read | append em `inout Bytes`; initialized count e spare privados; sem `ReadBuffer` público | `MaybeUninit` safe; `read(into: inout view Bytes)` genérico; allocation escondida inevitável |
+| D2-475 | resultado de read | `.data(positive)` ou `.end`; EOF é estável e progress vence EOF simultâneo | zero significa EOF; tuple count/error; EOF como error |
+| D2-476 | progress e error | progress retorna agora e error simultâneo fica latched para a próxima call | lançar depois de mutar sem informar; perder progress; outcome com estados impossíveis |
+| D2-477 | resultado de write | `.complete` ou `.partial(positive)`; `writeAll` informa prefixo já committed | Boolean; assumir write integral; rollback fictício |
+| D2-478 | cancellation de I/O | cancellation disputa com completion e só libera borrow depois do drain | liberar buffer no pedido; fingir zero progress; matar worker thread |
+| D2-479 | blocking I/O | interfaces separadas e adapter explícito em executor bounded | blocking invisível no worker cooperativo; pool ilimitado; uma interface condicional |
+| D2-480 | rights de arquivo | `File<[.read, ...]>` usa static list fechada e mantém checks dinâmicos do host | flags somente runtime; capability implica permissão de path; annotations |
+| D2-481 | offsets de arquivo | I/O seekable é posicional por default; `.end` observa o offset; shared File exige offset explícito | cursor compartilhado default; EOF latched no handle posicional; metadata.size + write |
+| D2-482 | cursor sequencial | adapter opaque `some ByteSource<IoError>` possui File + offset; sem classe utilitária pública | `FileReader` público; cursor dentro de todo File; offset global |
+| D2-483 | sockets | TCP pode virar halves únicos; UDP preserva datagrams em protocol separado | duas reads concorrentes; UDP como byte stream; message boundary implícita |
+| D2-484 | error de I/O | kind e operation portáteis; cause nativa opaca; task cancellation não é IoError | errno universal; wouldBlock em async; retriable Boolean |
+| D2-485 | finish e durability | protocols base não exigem close/flush; tipos concretos nomeiam finish, sync e half-close | async destructor; drop durável; flush universal |
+| D2-486 | adapters de stream | chunks borrowed/owned, lines e read-to-end exigem limites explícitos | buffer ilimitado; item borrowed transferable; framing invisível |
+| D2-487 | backend de I/O | target escolhe readiness, completion, blocking bounded ou immediate sem mudar source | backend na syntax; um algoritmo universal; thread por operação |
+| D2-488 | lifetime de buffer I/O | pinning é interno; handles, callbacks e borrows vivem até completion drain | `pin` obrigatório no caller; raw pointer escapa; cancellation encerra lifetime cedo |
+| D2-489 | vectored e zero-copy | especializados e explícitos em Pesquisa; fallback mantém bytes e progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
+| D2-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

@@ -3170,6 +3170,10 @@
             "named": true
           },
           {
+            "type": "one_sided_range_expression",
+            "named": true
+          },
+          {
             "type": "optional_member_expression",
             "named": true
           },

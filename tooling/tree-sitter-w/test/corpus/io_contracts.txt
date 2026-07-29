@@ -1,0 +1,166 @@
+==================
+Byte I/O contracts and one-sided refinements
+==================
+
+protocol ByteSource<Failure: Error> {
+  mut async fn read(
+    appendTo destination: inout Bytes,
+    maximum: usize<(1...)>,
+  ): ReadStep throws Failure
+}
+
+protocol ByteSink<Failure: Error> {
+  mut async fn write(source: view Bytes): WriteStep throws Failure
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (primary_associated_types
+      (type_identifier)
+      (type
+        (type_name
+          (type_identifier))))
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))))
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))
+              (type_arguments
+                (type_argument
+                  (contract_expression_argument
+                    (one_sided_range_expression
+                      (number_literal))))))))
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier))))))
+  (protocol_declaration
+    (type_identifier)
+    (primary_associated_types
+      (type_identifier)
+      (type
+        (type_name
+          (type_identifier))))
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier)))))))
+
+==================
+File rights and positional read
+==================
+
+async fn readBlock(
+  files: ref FileSystem,
+  path: ref Path,
+  offset: FileOffset,
+): Bytes throws IoError {
+  let file = try await files.open<[.read]>(path)
+  var bytes = Bytes()
+  let _ = try await file.read(
+    at: offset,
+    appendTo: inout bytes,
+    maximum: 4096,
+  )
+  return bytes
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (generic_application_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (generic_call_arguments
+                  (static_array_literal
+                    (static_argument_value
+                      (contextual_member_expression
+                        (identifier))))))
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (binding_declaration
+        (pattern)
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list
+                (argument
+                  (identifier)
+                  (identifier))
+                (argument
+                  (identifier)
+                  (unary_expression
+                    (identifier)))
+                (argument
+                  (identifier)
+                  (number_literal)))))))
+      (return_statement
+        (identifier)))))
