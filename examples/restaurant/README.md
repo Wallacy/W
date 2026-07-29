@@ -694,6 +694,32 @@ Aceite:
 Um fixture negativo deve remover `.unavailable` de `describeBell`. Outro deve
 tentar passar `BellSignal.corrupted(...)` para o parâmetro refinado.
 
+### 3.30 Duas Cozinhas e Nenhuma Thread Milagrosa
+
+Famílias: execution domain, capacity, paralelismo aninhado, fairness e liveness.
+
+Aceite:
+
+- `async let` herda a preference do parent;
+- `spawn` sem domain usa o parallel default;
+- `.compute` permanece válido quando a capacity efetiva é 1;
+- `.network` pode compartilhar executor físico com `.io`;
+- `LastLightDomain.thermal` precisa de binding parallel no product;
+- conformar o enum a `ExecutionDomain` não cria um executor;
+- um módulo importado não cria domain, queue ou thread;
+- os dois `mixBatch` de `mixAcrossTwoKitchens` compartilham o compute budget;
+- dois limits de 8 não criam 16 workers quando a domain capacity é 6;
+- o parent suspenso não retém o último permit necessário ao child;
+- blocking FFI não ocupa o compute budget;
+- a correção não depende de dois jobs executarem simultaneamente;
+- scheduler replay pode trocar a ordem dos siblings sem trocar o resultado;
+- `Task.yield()` não funciona como barrier;
+- priority não substitui deadline nem isolation.
+
+O scheduler adversarial usa uma única CPU lógica, inverte a ordem de todos os
+children e suspende um nested group quando o budget está cheio. O programa deve
+terminar com o mesmo resultado e sem criar um worker adicional.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -703,6 +729,8 @@ O Book deve mostrar pares lado a lado:
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
+| domain customizado | `spawn<domain: LastLightDomain.thermal>` | `"thermal"` ou keyword global |
+| QoS | descriptor/policy de group | `.background` como domain |
 | refinement | `T<(predicate)>` | `T where (predicate)` |
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |

@@ -360,9 +360,10 @@ struct StaticContract {
 }
 ```
 
-`ExecutionDomain` e outros cases de profile são enums fechados. `C` e `Rust`
-resolvem para uma `LanguageAdapterId` fixada no lock. A HIR guarda identity,
-version e digest do adapter. Ela não guarda uma string livre.
+`StandardDomain` e os enums de domain registrados pelo product profile são
+fechados. `C` e `Rust` resolvem para uma `LanguageAdapterId` fixada no lock. A
+HIR guarda identity, version e digest do adapter. Ela não guarda uma string
+livre.
 
 O frontend normaliza a superfície para records tipados:
 
@@ -5344,9 +5345,28 @@ Uma chamada async precisa de `await`, `async let` ou `spawn let`. W não cria um
 Promise/Future silenciosa. `async let` não promete outro core. `spawn let`
 autoriza e solicita capacidade paralela.
 
+`await f()` executa `f` como parte da task atual. Ele não cria um child. A call
+começa na ordem lexical e herda cancellation, deadline e preference. Um
+suspension point pode devolver o executor ao runtime.
+
+`async let` e `spawn let` criam um child depois que o parent avalia argumentos e
+captures. O body do callee executa no child; ele não executa parcialmente no
+parent.
+
+**Exemplo:** se `prepare(take order)` precisa avaliar uma conversão que falha, a
+falha ocorre antes da criação do child. Nenhuma task recebe uma parte de
+`order`.
+
 O runtime pode executar um `spawn` inline para limitar oversubscription. Ele deve
 preservar os suspension points e as regras de alias. O programa não pode usar
 simultaneidade como resultado sem synchronization explícita.
+
+Paralelismo não é uma condição de liveness. Um programa não pode exigir que dois
+`spawn` executem ao mesmo tempo para liberar um ao outro. Channels, async locks
+ou service calls expressam a espera sem bloquear um worker.
+
+**Exemplo:** dois cooks não usam spin loops em flags para iniciar juntos. Eles
+recebem os ingredientes por `Channel<Ingredient>` ou são children de um group.
 
 ### 12.3 `Task` e ownership
 
@@ -5374,6 +5394,19 @@ ao resultado.
 W não possui task “detached” sem owner. Trabalho que ultrapassa o scope lexical
 precisa de um owner runtime explícito. Entries, service instances e supervisors
 podem exercer esse papel. O owner deve definir shutdown, deadline e trace.
+
+Children herdam somente contexto operacional:
+
+- cancellation ancestry e menor deadline;
+- causal trace e logical stack;
+- budgets descendentes;
+- executor preference conforme a seção 12.6.
+
+Dados da aplicação, capabilities e contexto mutável usam argumentos ou captures
+explícitos. W não copia um mapa task-local invisível.
+
+**Exemplo:** um child herda o deadline da reserva. Ele só recebe
+`PaymentCapability` quando o call site captura ou passa esse handle.
 
 ### 12.4 Join, erro e outcome
 
@@ -5472,8 +5505,9 @@ A resolução usa esta ordem:
 4. o callee isolado sempre executa em sua isolation boundary.
 
 Uma call por `ServiceRef` não muda o placement do callee. O contrato do child
-caller só muda seu trabalho não isolado. `async let` e task groups herdam a
-preference. Um future owner runtime precisa declará-la de novo.
+caller só muda seu trabalho não isolado. `async let` e groups concorrentes
+herdam a preference. `spawn` e groups paralelos usam a regra de parallel default
+abaixo. Um future owner runtime precisa declarar sua preference de novo.
 
 `spawn` em um domínio estritamente serial é error. Trabalho UI deve chamar o
 owner isolado:
@@ -5487,16 +5521,139 @@ await renderer.show(plan)
 A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
 executor preference de actor isolation. W mantém essa separação na HIR.
 
-Seleção dinâmica usa API:
-
-```w
-let task = Task.spawn(executor: executor, operation: work)
-```
-
 `spawn<.compute>` é **Líder DB2**. O slot `domain` é primário e fechado.
 `spawn<domain: .compute>` fica como **Alternativa**. `spawn on .compute` fica
 **Rejeitado por enquanto** porque duplica o contrato estático com uma frase
 especial.
+
+#### 12.6.1 Schema de domain
+
+`ExecutionDomainId` é um kind estático do product profile. Ele não é um pointer
+para thread pool. O enum fechado `StandardDomain` oferece estes IDs lógicos:
+
+| ID | Uso | Capability mínima |
+|---|---|---|
+| `.default` | trabalho async geral | concorrente e non-blocking |
+| `.io` | I/O async sem distinção de transporte | I/O non-blocking |
+| `.network` | I/O de rede quando o host separa essa lane | I/O non-blocking |
+| `.compute` | trabalho CPU parallel | intenção paralela e budget CPU |
+| `.blocking` | adapter que pode bloquear uma thread | blocking bounded |
+
+Um case contextual sem qualificação resolve em `StandardDomain`. Por isso,
+`spawn<.compute>` é curto e não é ambíguo. O exemplo abaixo mostra a forma
+qualificada para um domain customizado.
+
+Um profile pode mapear `.io`, `.network` e `.default` ao mesmo executor. A
+identity lógica continua no trace. Um target single-core pode dar capacity 1 a
+`.compute`; o domain continua válido e o runtime executa os jobs em sequência.
+
+`spawn` sem argumento usa o parallel default, que é `.compute` no profile
+portátil. `async let` sem argumento herda a preference atual. `concurrentMap`
+herda a preference; `parallelMap` sem argumento usa o parallel default.
+
+**Exemplo:**
+
+```w
+async let menu = loadMenu()      // herda a preference atual
+spawn let plan = optimize(snapshot)  // usa o parallel default
+spawn<.compute> let bill = price(order)
+```
+
+Um product package pode declarar IDs customizados. Eles são members qualificados
+registrados pelo profile, não keywords ou strings:
+
+```w
+export enum LastLightDomain: ExecutionDomain {
+  thermal
+}
+
+spawn<domain: LastLightDomain.thermal> let profile = solveThermalModel(oven)
+```
+
+`LastLightDomain` é outro enum fechado. O product profile registra que
+`.thermal` aceita parallel intent. `ExecutionDomain` é um marker protocol T1
+restrito a enums sem payload e sem parâmetros genéricos. A conformance declara
+nomes que precisam de binding. Ela não cria authority, queue ou executor.
+
+Um valor runtime do enum continua sendo somente um ID. `spawn<...>` exige o case
+compile-time; `any ExecutionDomain` não funciona como executor dinâmico. Esse
+caso usa `ExecutionDomainRef`.
+
+O product descriptor escolhe capacity, queue e fallback. Um package compilado
+preserva a requirement; o link falha quando o product não fornece um binding
+compatível.
+
+O schema lógico de cada domain contém:
+
+```text
+identity
+capabilities: StaticList<ExecutionCapability>
+capacity: range constrained by host
+fallback: compatible domain or reject
+affinity: none or host requirement
+instrumentation identity
+```
+
+`ExecutionCapability` é um enum. O schema valida a lista, rejeita duplicatas e a
+normaliza como set. Ele não dá ao enum uma semântica OR oculta. `parallel`,
+`nonBlockingIO`, `blocking`, `affine` e `device` são capabilities distintas.
+
+**Exemplo normalizado:**
+
+```text
+StandardDomain.compute
+  capabilities = [.parallel]
+  capacity = 1...host.cpuQuota
+
+LastLightDomain.thermal
+  capabilities = [.parallel]
+  fallback = .compute
+```
+
+O deployment pode reduzir capacity. Ele pode juntar domains quando o target
+conserva capabilities. Ele não pode remover affinity, isolation, ordering,
+mobility ou a capacidade necessária a `spawn`.
+
+**Exemplo:** um deployment pode mapear `.network` em `.io`. Ele não pode mapear
+`LastLightDomain.thermal` num strand UI serial quando o source usa `spawn`.
+
+A declaração de um módulo não escolhe domain default. Importar um módulo nunca
+cria executor, queue ou thread. Service, entry e product descriptor podem
+declarar preference porque possuem instance e lifecycle.
+
+Os antigos “thread groups” sobrevivem como domain IDs e bindings de profile.
+Essa forma mantém a finalidade e remove a promessa de uma thread fixa. A
+[documentação de Dispatch Queues da Apple](https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html)
+também separa queues de threads e permite que a capacidade varie com o sistema.
+
+#### 12.6.2 Priority, deadline e seleção dinâmica
+
+Priority e domain são contratos diferentes. `.background` não é um domain
+standard na DB2. Um profile pode oferecer QoS como policy, mas priority não muda
+ownership, ordering, isolation ou resultado.
+
+Deadline cria cancellation com causa. Priority continua uma preferência de
+scheduling. Uma task urgente sem deadline não ganha uma garantia temporal.
+
+**Exemplo:** `.compute` informa o tipo de trabalho. Uma policy
+`.userInteractive` pode alterar sua precedência, mas não autoriza acessar state
+UI.
+
+Syntax de QoS no source fica em **Pesquisa**. O primeiro runtime aceita policy no
+entry, service descriptor e API de task group. Isso evita modifier soup em
+`spawn<...>`.
+
+Seleção dinâmica permanece **Pesquisa**. O candidato usa um
+`ExecutionDomainRef` fornecido pelo host:
+
+```w
+let task = Task.spawn(domain: domain, operation: work)
+```
+
+O resultado precisa continuar sendo child lexical. A API também precisa
+representar admission failure sem criar uma task perdida. Implementar um
+executor customizado exige a interface de runtime `unsafe`; uma library comum
+não substitui o scheduler global por conformar um protocol.
 
 ### 12.7 Mobilidade e captures
 
@@ -5586,6 +5743,44 @@ Defaults:
 
 Uma builder API futura precisa declarar memória por item, deadline, fairness e
 policy de overload. O runtime nunca cria uma thread por item por default.
+
+#### 12.8.1 Paralelismo aninhado e capacity
+
+`limit` e domain capacity medem coisas diferentes:
+
+- `limit` limita children ativos e seus recursos lógicos;
+- domain capacity limita jobs que executam ao mesmo tempo;
+- host quota limita CPU física do product.
+
+Groups aninhados no mesmo domain compartilham o mesmo budget. Eles não criam
+pools independentes nem multiplicam `outerLimit * innerLimit` threads.
+
+**Exemplo:** duas kitchens usam `parallelMap<.compute>(limit: 8)`. Se o domain
+possui capacity 6, no máximo seis jobs CPU executam ao mesmo tempo. As duas
+arrays ainda podem manter até 16 children ativos conforme seus limites.
+
+Um parent que aguarda children não retém um worker necessário para esses
+children. O runtime pode liberar o permit, executar um child inline ou ajudar a
+fila do mesmo domain. Blocking code não usa o compute budget.
+
+Essa regra impede deadlock por pool exhaustion e reduz oversubscription. Ela não
+promete qual child executa em cada thread. O
+[task scheduler do oneTBB](https://uxlfoundation.github.io/oneTBB/main/specification/source/task_scheduler.html)
+também ajusta paralelismo real à capacidade disponível e não garante que todo
+trabalho potencialmente paralelo execute em paralelo.
+
+O effective parallelism é limitado por source, domain, product e host. O
+runtime publica a medição; o programa não usa o número observado como resultado
+de domínio.
+
+```text
+effective ≤ source limit
+effective ≤ domain capacity
+effective ≤ product CPU quota
+```
+
+NUMA, core type, work stealing e pinning são policies de profile expert. Eles
+não mudam `spawn`, ownership ou ordering.
 
 ### 12.9 Streams e channels
 
@@ -5684,6 +5879,28 @@ lock-free, remote tasks, QoS completa ou GPU.
 Testes usam scheduler, clock, entropy e I/O injetáveis. O scheduler registra e
 reproduz decisões. O corpus explora joins, cancel points, overload, drain e
 falha. Instrumentação não pode mudar ordering.
+
+O profile portátil publica fairness condicional. Sob estas premissas:
+
+1. o número de tasks runnable permanece bounded;
+2. cada job retorna ao scheduler, suspende ou termina em tempo finito;
+3. o executor e o host continuam saudáveis.
+
+Uma task admitida e acordada executa novamente. O profile não promete um
+intervalo máximo.
+
+Nenhuma ordem relativa entre siblings é garantida. `Task.yield()` é um
+suspension point e uma hint de fairness; não é barrier nem coloca a task no fim
+de uma fila observável.
+
+**Exemplo:** um loop async sem `await` ou `Task.yield()` pode impedir progresso
+num executor cooperativo. O compiler avisa e sugere `spawn<.compute>` ou um
+suspension point explícito.
+
+A garantia segue as mesmas premissas bounded e non-blocking documentadas pelo
+[runtime Tokio](https://docs.rs/tokio/latest/tokio/runtime/#detailed-runtime-behavior).
+W grava as premissas no profile e testa starvation com scheduler virtual. Um
+profile real-time precisa publicar bounds mais fortes e usar adapters próprios.
 
 ## 13. Módulos de execução, services e entries
 
@@ -8233,6 +8450,10 @@ Uma pesquisa só avança quando possui:
 | low-bit interno por alignment provado | **Provável** | exige lowering de provenance e corpus de FFI, atomics e sanitizer |
 | high-bit addresses e NaN boxing | **Pesquisa** | dependem de target, processo e tooling; não integram o profile portátil |
 | universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
+| schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
+| capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
+| domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
+| QoS na syntax de `spawn` | **Pesquisa** | policy não pode parecer garantia de ordering ou deadline |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
 | mimalloc universal | **Pesquisa** | profile possível; default exige matriz de targets |
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
@@ -8476,6 +8697,8 @@ antes de sair do scope.
 - blocking adapter e callback scheduling;
 - HIR verificada antes do lowering async;
 - executor cooperativo e pool paralelo bounded;
+- schema de domain e bindings de profile;
+- budget compartilhado para groups paralelos aninhados;
 - deterministic test executor.
 
 Saída: restaurante executa I/O concorrente e lotes paralelos com ordering,
@@ -8928,6 +9151,17 @@ experimentar”, não “decisão irreversível”.
 | D2-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
 | D2-344 | fingerprint de representação | inclui validity, target, ABI, allocator, hardening, sanitizer e compiler | fingerprint só por target triple |
 | D2-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
+| D2-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
+| D2-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
+| D2-348 | domains portáteis | `StandardDomain` fecha defaults; enum payload-free conforme a `ExecutionDomain` declara IDs customizados | toda finalidade vira keyword; string |
+| D2-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
+| D2-350 | defaults de execução | `async` herda; `spawn` e parallel group usam parallel default | herdar domain serial e degradar `spawn` |
+| D2-351 | domain de módulo | nenhum default por módulo; instance/entry/product possui binding | import cria queue/thread |
+| D2-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
+| D2-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
+| D2-354 | fairness | eventual sob tasks bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica |
+| D2-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
+| D2-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

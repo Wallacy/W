@@ -5,6 +5,10 @@ import { Ingredient, KitchenError, Mixture, Recipe } from restaurant.kitchen
 
 export type BatchIndex = usize
 
+export enum LastLightDomain: ExecutionDomain {
+  thermal
+}
+
 export protocol CompletionMetric {
   completionCount: u64 { get }
 }
@@ -66,6 +70,11 @@ export async fn mixPair(
   return try await (leftResult, rightResult)
 }
 
+export async fn mixOnThermalLane(job: take MixingJob): MixingResult throws BrigadeError {
+  spawn<domain: LastLightDomain.thermal> let result = mixJob(take job)
+  return try await result
+}
+
 export async fn mixBatch(
   jobs: take Array<MixingJob>,
   parallelism: usize,
@@ -82,6 +91,18 @@ export async fn mixBatch(
     ordering: .input,
     using: worker,
   )
+}
+
+// Both batches create nested compute groups. They share one domain budget, so
+// their limits bound task resources without multiplying the worker count.
+export async fn mixAcrossTwoKitchens(
+  portJobs: take Array<MixingJob>,
+  starboardJobs: take Array<MixingJob>,
+  parallelismPerKitchen: usize,
+): (Array<MixingResult>, Array<MixingResult>) throws BrigadeError {
+  spawn<.compute> let port = mixBatch(take portJobs, parallelism: parallelismPerKitchen)
+  spawn<.compute> let starboard = mixBatch(take starboardJobs, parallelism: parallelismPerKitchen)
+  return try await (port, starboard)
 }
 
 export async fn inspectEveryFailure(
