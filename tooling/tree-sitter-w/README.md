@@ -15,7 +15,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 ## Cobertura deste corte
 
 - imports lógicos, aliases e exports;
-- `fn`, `init`, parâmetros rotulados, generics, `async fn`/`throws` e blocos;
+- `fn`, vários `init`, overloads estruturais, labels, generics e `throws`;
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
 - stored fields, computed properties e property requirements;
 - bindings, patterns nominais, `mut fn`/`take fn`, ownership e behaviors;

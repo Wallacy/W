@@ -693,9 +693,14 @@ considera estas regras:
 | mudar receiver mode entre `fn`, `mut fn` e `take fn` | major |
 | adicionar `deinit` ou remover `Copy` | major |
 | adicionar `init` explícito a struct transparente | major |
-| adicionar função ou computed property sem mudar resolução | minor |
+| adicionar forma disjunta a overload set existente | minor |
+| criar o primeiro overload de uma função singular | major |
+| adicionar initializer com forma disjunta | minor |
+| adicionar função ou computed property sem mudar lookup | minor |
+| adicionar ou mudar um default | revisão necessária |
 | adicionar case a enum fechado | major |
-| mudar um default ou alterar resolução de nome | revisão necessária |
+| remover, renomear ou reordenar uma forma existente | major |
+| alterar resolução de nome de uma call existente | major |
 
 Uma classificação default deixa de ser automática quando a mudança altera
 member lookup, overload resolution ou uma conformance existente.
@@ -787,6 +792,8 @@ não retorna ao caller.
 
 O primeiro argumento é posicional por default. Os seguintes usam o nome como
 label. Um label explícito substitui o default. `_` remove um label.
+Os argumentos mantêm a ordem da declaração. Labels identificam papéis, mas não
+permitem reordenar argumentos.
 
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
 `mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
@@ -884,6 +891,124 @@ suspenso.
 Omitir o return type não retorna `self`. O retorno implícito faria uma função de
 efeito parecer uma transformação. Ele também ocultaria borrow, copy ou move em
 um receiver com owner único.
+
+#### 7.2.1 Overloads por forma de call
+
+W permite overloads quando a sintaxe do call site seleciona uma declaração sem
+consultar tipos:
+
+```w
+export fn expectedEnergy(
+  telemetry: ref OvenTelemetry,
+  during duration: Duration,
+): Energy {
+  return energy(telemetry.power * telemetry.duty, during: duration)
+}
+
+export fn expectedEnergy(
+  power: Power,
+  duty: DutyCycle,
+  during duration: Duration,
+): Energy {
+  return energy(power * duty, during: duration)
+}
+```
+
+As formas normalizadas são:
+
+```text
+expectedEnergy(_, during:)
+expectedEnergy(_, duty:, during:)
+```
+
+Uma forma de call é a sequência ordenada dos labels externos. `_` identifica um
+argumento posicional. A quantidade de itens identifica a aridade.
+
+Name lookup primeiro encontra um único owner e seu overload set. Free functions,
+instance methods e static functions pertencem a espaços de lookup distintos.
+Imports de módulos diferentes não fundem overload sets. Um conflito exige alias
+ou import seletivo.
+
+O compiler resolve uma call nesta ordem:
+
+1. calcula a forma de call;
+2. seleciona a única declaração que aceita essa forma;
+3. verifica tipos, generics, ownership, efeitos e conversões;
+4. grava a declaração qualificada na HIR.
+
+O compiler não volta a outra declaração quando a etapa 3 falha. Tipos de
+parâmetros, return type, constraints, receiver mode, `async`, `throws`,
+ownership e conversões não ordenam candidatos. Duas declarações do mesmo owner
+não podem aceitar a mesma forma.
+
+Um parâmetro com default cria formas adicionais. Cada forma deve mapear uma
+única lista de parâmetros. Um argumento labeled com default pode ser omitido.
+Entre os parâmetros `_`, somente um sufixo com default pode ser omitido. O
+compiler rejeita a declaração se duas omissões produzirem a mesma forma.
+
+Estas declarações entram em conflito:
+
+```w
+fn parse(value: String): GuestId
+fn parse(value: Bytes): GuestId
+
+fn serve(order: Order)
+fn serve(order: Order, mode: ServiceMode = .normal)
+```
+
+A segunda família aceita `serve(_)` duas vezes. Use labels, generics,
+protocols ou nomes diferentes:
+
+```w
+fn parseText(value: String): GuestId
+fn parseBytes(value: Bytes): GuestId
+
+fn serve(order: Order)
+fn serve(order: Order, with mode: ServiceMode)
+```
+
+O nome de uma função singular pode ser um valor. Um nome que resolve para um
+overload set não seleciona uma declaração. O programa cria uma closure explícita:
+
+```w
+let estimator = (power, duty, duration) =>
+  expectedEnergy(power, duty: duty, during: duration)
+```
+
+O expected type da variável não escolhe a declaração. Um seletor explícito por
+forma permanece **Alternativa**. A forma pode ser parecida com
+`fn expectedEnergy(_:, duty:, during:)`.
+
+A HIR registra o function type de todo callable. A DB2 infere o tipo de closures
+e referências singulares. A sintaxe de annotation para function types permanece
+**Pesquisa**.
+
+Somente uma extension no package do tipo pode ampliar um overload set existente.
+A forma nova deve ser disjunta da interface completa do owner. Uma extension
+externa não funde declarações nesse set. Um protocol requirement e seu witness
+registram nome, forma, signature e receiver mode.
+
+`w explain call` mostra owner, forma normalizada, declaração selecionada,
+inference e conversões. `w interface diff` compara o conjunto de formas aceitas.
+Adicionar uma forma disjunta a um set existente é minor por default. Criar o
+primeiro overload de uma função singular é major, pois referências pelo nome
+podem falhar. Initializers não são valores. Adicionar um initializer disjunto é
+minor. Alterar uma forma existente é major. Adicionar um default exige revisão.
+
+O modelo de labels acompanha a legibilidade dos
+[argument labels de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/declarations/).
+W não adota o ranking de “melhor membro” da
+[resolução de overloads de C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution).
+A regra também evita a seleção frágil por tipos descrita no
+[FAQ de Go](https://go.dev/doc/faq#overloading).
+
+**Alternativa:** tipos e constraints podem escolher o melhor candidato. Outra
+alternativa proíbe todo overload e exige nomes distintos. A forma líder permite
+APIs naturais e mantém a seleção local, finita e reproduzível.
+
+**Pesquisa:** parâmetros variadic ainda não entram na DB2. Uma API usa
+`Array<T>`, `Slice<T>` ou builder. Uma proposta futura deve definir uma família
+de formas disjunta sem usar tipos para resolver overlap.
 
 ### 7.3 Parâmetros e ownership
 
@@ -1024,14 +1149,23 @@ export struct Money {
   currency: Currency
 
   export const zeroCredits = Money(minorUnits: 0, currency: .cr)
+}
 
-  export static fn fromMajor(value: i64, currency: Currency): Money {
-    return Money(minorUnits: i128(value) * 100, currency: currency)
+export enum Course {
+  broth
+  cake
+
+  export static fn fromOrdinal(value: usize): Course {
+    return switch value {
+      case 0: .broth
+      case 1: .cake
+      case _: panic("Course ordinal outside the closed enum")
+    }
   }
 }
 
 let zero = Money.zeroCredits
-let price = Money.fromMajor(42, currency: .cr)
+let cake = Course.fromOrdinal(1)
 ```
 
 `const` dentro do tipo declara um associated compile-time value. `static fn`
@@ -1154,18 +1288,66 @@ export struct PidController {
 `unsafe` e `throws E`. Todos os parâmetros usam labels por default. `_` remove
 um label.
 
-A DB2 aceita um único `init` por tipo. A presença dele remove o initializer
-sintetizado da interface source. Outros caminhos usam `static fn` com nomes
-estáveis:
+Um tipo pode declarar vários initializers. Suas formas de call devem ser
+disjuntas conforme a seção 7.2.1:
+
+```w
+export struct Money {
+  export minorUnits: i128
+  export currency: Currency
+
+  export init(minorUnits: i128, currency: Currency) {
+    self.minorUnits = minorUnits
+    self.currency = currency
+  }
+
+  export init(majorUnits: i64, currency: Currency) throws DomainError {
+    let minorUnits = try i128.checkedMultiply(i128(majorUnits), 100)
+      .mapError((_) => .overflow)
+
+    self = Money(minorUnits: minorUnits, currency: currency)
+  }
+}
+```
+
+As formas são `Money(minorUnits:, currency:)` e
+`Money(majorUnits:, currency:)`. Os tipos não participam da seleção.
+
+A presença de qualquer `init` remove o initializer sintetizado da interface
+source. O compiler classifica cada initializer como direto ou delegante. Um
+initializer direto inicializa todos os fields. Um initializer delegante chama
+outro initializer do mesmo tipo. A forma de delegação é:
+
+```w
+self = Type(arguments)
+```
+
+Esse statement baixa para `delegate_init`. Ele não é uma assignment normal e
+preserva a identidade do storage em construção. A expressão deve chamar
+diretamente outro initializer do mesmo tipo.
+
+Um initializer delegante segue estas regras:
+
+1. cálculos locais e `guard` podem ocorrer antes da delegação;
+2. nenhum field de `self` pode estar inicializado antes da delegação;
+3. cada caminho normal delega exatamente uma vez;
+4. depois da delegação, `self` é um valor completo;
+5. ciclos no grafo de delegação são erros de compile time.
+
+Uma declaração não pode misturar inicialização direta e delegação. Field
+initializers executam somente no initializer direto final. Um frame delegante
+não os executa novamente.
+
+Uma construção com nome semântico usa `static fn`:
 
 ```w
 export static async fn load(id: ControllerId): PidController throws LoadError
 export static fn fromLegacy(value: LegacyController): PidController
 ```
 
-Uma factory async torna a suspensão visível no call site. A linguagem não
-permite `async init`. A mesma regra evita overload antes de existir um ranking
-único para overloads.
+Uma factory async torna a suspensão visível no call site. W não permite
+`async init`. W também não possui `init?`. Uma falha usa `throws E`. Uma factory
+pode retornar `Option<T>` quando ausência não é um erro.
 
 Um `init` explícito usa seu próprio modifier. Ele não pode ser mais visível que
 o tipo ou qualquer tipo de sua assinatura. Um object precisa de `export init`
@@ -1173,7 +1355,7 @@ ou de uma factory exportada para ser construído por outro módulo.
 
 O verifier usa definite initialization em duas fases:
 
-1. field initializers são avaliados na ordem de declaração;
+1. um initializer direto avalia field initializers na ordem de declaração;
 2. `self` começa como um initialization place, não como um valor W;
 3. `self.field = value` inicializa cada field restante uma vez;
 4. todos os caminhos normais precisam inicializar os mesmos fields;
@@ -1184,10 +1366,11 @@ Um field imutável com default já está inicializado. O `init` não pode
 reatribuí-lo. Um field `var` com default pode receber mutation. Essa mutation
 não concede acesso a outro field ainda não inicializado.
 
-Se o initializer lança um erro, o runtime destrói os fields completos em ordem
-inversa. Ele não executa `deinit`, pois a instance não ficou completa. W não
-possui zero initialization universal. Storage parcialmente inicializado exige
-uma futura API `unsafe` própria.
+Se a falha ocorre antes de `self` ficar completo, o runtime destrói os fields
+completos em ordem inversa. Ele não executa `deinit`. Se a falha ocorre depois
+de `self` ficar completo, o runtime executa `deinit` uma vez e depois destrói os
+fields. W não possui zero initialization universal. Storage parcialmente
+inicializado exige uma futura API `unsafe` própria.
 
 Services usam o instance descriptor e o host. Enums usam seus cases. Um
 refined type usa seu constructor fallible. Nenhuma dessas formas ganha `init`
@@ -1201,8 +1384,10 @@ O compact constructor de
 [records Java](https://docs.oracle.com/en/java/javase/15/docs/specs/records-jls.html)
 mostra o valor de validar antes de publicar o aggregate.
 
-**Alternativa:** permitir vários initializers, delegação e `init?`. A DB2 usa um
-initializer canônico, `throws E` e factories nomeadas.
+**Alternativa:** usar somente um initializer canônico e factories nomeadas.
+Outra alternativa permite `init?`, `async init` ou delegação após inicialização
+parcial. A forma líder aceita vários initializers por forma, delegação total e
+falha tipada.
 
 ### 8.4 Propriedades computadas
 
@@ -1383,14 +1568,14 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 
 | Tema | Estado | Contrato que falta |
 |---|---|---|
-| vários initializers | **Pesquisa** | overload, delegação, labels e evolução de API |
 | property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
 | metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
 | síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
-| overload de funções | **Pesquisa** | ranking único, labels, conversões e evolução de package |
+| function type em source | **Pesquisa** | labels, ownership, efeitos, captures e ABI |
+| parâmetros variadic | **Pesquisa** | packs, forma de call, formatting, generics e FFI |
 
-A DB2 usa um `init` canônico e `static fn` nomeada para outras construções.
+A DB2 resolve overloads por forma de call. Initializers usam a mesma regra.
 Computed properties obedecem ao teto property-safe.
 
 ## 9. Memória, layout e alocação
@@ -3114,7 +3299,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | source | UTF-8, comentários, módulos, imports e visibility |
 | bindings | `const`, `let`, `var`, assignment e definite initialization |
 | controle | `if`, `guard`, `switch`, loops, break, continue e return |
-| funções | funções livres, methods, `static fn`, labels, recursion e calls indiretas |
+| funções | funções livres, methods, `static fn`, labels, overload por forma, recursion e calls indiretas inferidas |
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | requisitos para dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
@@ -3635,7 +3820,8 @@ Uma pesquisa só avança quando possui:
 | diff de interface e SemVer | **Provável** | regras básicas fechadas; conflitos de resolução exigem corpus |
 | receiver consuming `take fn` | **Possível agora** | whole-value move e drop state já são necessários |
 | retorno fluente `: self` | **Provável** | reborrow é conhecido; borrow suspenso exige corpus |
-| initializer canônico e definite initialization | **Possível agora** | flow analysis e cleanup parcial são conhecidos |
+| overload por forma de call | **Possível agora** | seleção por labels ocorre antes do type-check |
+| vários initializers e delegação total | **Possível agora** | flow analysis e grafo de delegação são conhecidos |
 | computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
@@ -3731,7 +3917,8 @@ O corpus compara, no mínimo:
 - pattern nominal `Type(field, ...)` contra record pattern com `{}`;
 - `...` externo obrigatório contra exaustividade aberta implícita;
 - object encapsulado contra storage público e constructor herdado;
-- initializer canônico contra memberwise sintetizado e factories nomeadas;
+- overload por forma contra ranking por tipos e nomes distintos;
+- vários initializers contra initializer único e factories nomeadas;
 - computed property property-safe contra method com `try` ou `await`;
 - static record/list contra interpretações universais de extension e constraints;
 - `fn<C>` contra `fn<lang: .c>`;
@@ -3775,7 +3962,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
 - evolução de structs, diff de interface e classificação SemVer;
 - associated constants, functions, types e `: self`;
-- initializer sintetizado, `init` canônico e definite initialization;
+- overload sets por forma de call e interface normalizada;
+- initializer sintetizado, vários `init` e definite initialization;
 - computed properties e property requirements;
 - inference local, generics mínimos e refinements;
 - interface compilada inicial.
@@ -4099,7 +4287,7 @@ experimentar”, não “decisão irreversível”.
 | D2-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
 | D2-152 | construção | `Type(...)` baixa para `construct`; sem promessa de placement | `new Type`; literal `Type {...}` |
 | D2-153 | initializer sintetizado | struct usa menor nível; object fica no módulo | visibilidade do tipo sempre; sempre privado |
-| D2-154 | initializer customizado | um `init` canônico; `throws E`; factory nomeada para variantes | overload; `init?`; `async init` |
+| D2-154 | initializer customizado | vários `init` com formas disjuntas; `throws E`; factory nomeada | initializer único; `init?`; `async init` |
 | D2-155 | definite initialization | duas fases; sem uso de `self` parcial; cleanup por field | zero universal; runtime check; partial safe value |
 | D2-156 | computed property | `name: T { get }`; `var` exige write accessor | getter implícito; method obrigatório |
 | D2-157 | efeitos de property | property-safe, síncrona, local e sem `throws` | `async`/`throws` property; custo irrestrito |
@@ -4125,6 +4313,19 @@ experimentar”, não “decisão irreversível”.
 | D2-177 | supressão de drop | ausente em safe W; wrapper mantém estado válido | `discard self`; `forget` geral |
 | D2-178 | limite de receiver | protocol exige mode exato; service e handles aliases não usam `take fn` | adaptação com copy; service consuming |
 | D2-179 | `deinit` e copy | tipo com cleanup customizado não atende a `Copy` | copiar e contar drops; lint |
+| D2-180 | identidade de overload | owner, nome e forma de call | tipos, return type ou constraints |
+| D2-181 | resolução de overload | forma antes do type-check; sem backtracking | ranking de melhor candidato |
+| D2-182 | defaults e overload | famílias de formas devem ser disjuntas | preferência por menos defaults |
+| D2-183 | ownership do overload set | um owner; imports não fundem sets | overload set aberto entre módulos |
+| D2-184 | overload como valor | closure explícita seleciona a forma | expected type; seletor de forma |
+| D2-185 | vários initializers | labels e formas disjuntas | ranking por tipos; initializer único |
+| D2-186 | delegação de initializer | `self = Type(...)` antes de qualquer field | `self.init`; delegação parcial |
+| D2-187 | falha de initializer | cleanup parcial; `deinit` após self completo | zero universal; leak parcial |
+| D2-188 | efeitos de initializer | síncrono; `throws E`; sem `init?` | `async init`; initializer failable |
+| D2-189 | evolução de overload | set existente: minor; primeiro overload: major; forma alterada: major | classificação somente por nome |
+| D2-190 | ordem de argumentos | ordem da declaração; labels não reordenam | named arguments livres |
+| D2-191 | parâmetros variadic | ausentes na DB2; collection ou builder | type pack; C varargs seguro |
+| D2-192 | function type | existe na HIR; source annotation em pesquisa | labels no tipo; somente inference |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
