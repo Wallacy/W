@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 27 de julho de 2026
+> **Status:** **Candidato experimental** · 29 de julho de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. A forma
@@ -647,7 +647,7 @@ expect Trace.events == ["receiver", "first", "second"]
 `&&`, `||`, `??` e a expressão condicional avaliam somente o ramo necessário:
 
 ```w
-let authorized = user != .none && user!.canEnter()
+let authorized = user?.canEnter() ?? false
 let label = cachedLabel ?? loadLabel()
 ```
 
@@ -1200,7 +1200,7 @@ Quando o operand é `ref T`, `copy` materializa um `T` owned. Ele não copia o
 borrow:
 
 ```w
-let ref recipe = recipes[course]?
+guard let ref recipe = recipes[course] else panic("recipe invariant failed")
 let ownedRecipe: Recipe = copy recipe
 ```
 
@@ -1882,7 +1882,9 @@ de entrar.
 
 ### 8.5 Option e ausência
 
-`T?` é `Option<T>` e possui somente `.some(T)` ou `.none`.
+#### 8.5.1 Tipo e significado
+
+`T?` é `Option<T>`. O tipo possui somente `.some(T)` e `.none`:
 
 ```w
 if let guest = findGuest(id) {
@@ -1893,7 +1895,130 @@ guard let guest = findGuest(id) else return .notFound
 let name = guest?.name ?? "Anonymous"
 ```
 
-Não existem `null`, `undefined`, `uninitialized` ou `empty` universais.
+`.none` significa somente ausência no domínio declarado. Ele não significa move,
+falha, cancelamento ou storage sem inicialização:
+
+```w
+var selected: Course? = .none
+selected = .some(.horizonCake)
+```
+
+W não possui `null`, `undefined`, `uninitialized` ou `empty` universais. Um
+adapter preserva distinções externas com um tipo próprio:
+
+```w
+enum JsonField<T> {
+  missing
+  null
+  value(T)
+}
+```
+
+Definite initialization é estado do compiler. Move também é estado do compiler.
+Nenhum dos dois grava `.none` no valor:
+
+```w
+let order = makeOrder()
+submit(take order)
+print(order.id) // error: order was moved
+```
+
+Storage não inicializado existe somente em `unsafe MaybeUninit<T>`. O tipo não
+é um `T` até uma prova ou uma call `unsafe`:
+
+```w
+var slot = MaybeUninit<MenuToken>()
+slot.write(.end(line: 1, column: 1))
+let token = unsafe slot.assumeInitialized()
+```
+
+#### 8.5.2 Binding e ownership
+
+Optional binding segue os modos de ownership comuns:
+
+```w
+if let ref recipe = recipes[course] { inspect(recipe) }
+if let inout count = counts[course] { count += 1 }
+if let copy title = cachedTitle { send(title) }
+if let payment = gateway.poll() { archive(take payment) }
+```
+
+O binding sem modifier possui um valor owned. Ele move de um rvalue ou copia um
+elemento `Copy`. Um lvalue non-Copy exige `ref`, `copy` ou `take()`:
+
+```w
+if let title = cachedTitle { print(title) }
+// error: cachedTitle is a non-Copy lvalue
+
+if let title = cachedTitle.take() { archive(take title) }
+expect cachedTitle == .none
+```
+
+`Option.take()` exige acesso exclusivo. Ele move o payload e grava `.none`.
+`Option<ref T>` e `Option<inout T>` preservam o borrow do payload.
+
+#### 8.5.3 Chaining, fallback e propagação
+
+`?.` faz leitura ou call condicional. O resultado possui um único nível de
+Option, mesmo quando o member já retorna Option:
+
+```w
+let city: String? = guest?.address?.city
+```
+
+O flattening perde a causa da ausência de propósito. Um programa que precisa
+distinguir as causas usa pattern matching:
+
+```w
+switch guest {
+  case .none: record(.guestMissing)
+  case .some(let value):
+    if value.address == .none { record(.addressMissing) }
+}
+```
+
+Optional chaining não faz mutation. Mutation condicional usa `if let inout`:
+
+```w
+guest?.visits += 1 // error: optional mutation can be skipped silently
+if let inout value = guest { value.visits += 1 }
+```
+
+`??` avalia o lado direito somente quando o lado esquerdo é `.none`. O operador
+associa à direita:
+
+```w
+let label = cachedLabel ?? storedLabel ?? computeLabel()
+```
+
+Postfix `?` propaga `.none` somente de uma função ou closure que retorna Option:
+
+```w
+fn firstOpen(orders: ref Array<Order>): ref Order? {
+  let ref first = orders.first?
+  return if first.isOpen { .some(first) } else { .none }
+}
+```
+
+O operator preserva ownership. Um lvalue non-Copy precisa de borrow ou
+`take()` antes da propagação. Ele nunca propaga `Result` ou `throws`:
+
+```w
+let owned = pending.take()? // move payload; pending fica .none
+let value = result?         // error: Result uses try
+```
+
+W não possui postfix `!`, optional implicitamente unwrapped ou `try!`. Uma
+invariante usa `expect` e informa a causa do panic. Ausência recuperável usa
+`orThrow`:
+
+```w
+let config = loaded.expect("validated config disappeared")
+let guest = try findGuest(id).orThrow(.unknownGuest(id))
+```
+
+`map`, `flatMap`, `filter`, `asRef` e `asInout` são APIs normais de Option. Elas
+não criam control flow oculto além do contrato do método.
 
 ### 8.6 Newtype, alias e refinement
 
@@ -1993,7 +2118,7 @@ W separa quatro contratos:
 1. **Semântica:** owner, move, copy, borrow, shared, cleanup e erro.
 2. **Lowering:** escape, placement, task frame, drop edge e specialization.
 3. **Representação:** stack, register, heap, arena, niche, tag e allocator.
-4. **Host:** quota, isolation boundary, telemetry e policy de OOM.
+4. **Host:** quota, fault boundary, telemetry e policy de OOM.
 
 Somente o primeiro contrato define o significado normal do programa. Os outros
 podem mudar por target ou profile sem alterar o resultado observável.
@@ -2076,7 +2201,9 @@ Um resultado `inout T` mantém o acesso exclusivo até o último uso do borrow. 
 não pode ser guardado em um field owned comum nem sobreviver ao owner:
 
 ```w
-let inout selected = inventory.getMutable(id)?
+guard let inout selected = inventory.getMutable(id) else {
+  throw .missingIngredient(id)
+}
 selected.quantity -= 1
 // inventory volta a aceitar acesso no último uso de selected.
 ```
@@ -2155,7 +2282,7 @@ O compiler pode remover retains e releases quando prova owner único. Um handle
 `shareable`. A implementação pode usar contagem local somente quando prova que o
 handle não cruza uma fronteira paralela.
 
-Overflow de contador nunca faz wrap. Ele encerra a isolation boundary antes de
+Overflow de contador nunca faz wrap. Ele encerra a fault boundary antes de
 perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
 de o storage ser reutilizado.
 
@@ -2210,7 +2337,7 @@ deallocator estrangeiro. W nunca chama `free` num pointer de origem
 desconhecida.
 
 Alocações que precisam de recovery usam API fallible ou uma região com budget.
-OOM geral encerra a isolation boundary conforme a seção de panic.
+OOM geral encerra a fault boundary conforme a seção de panic.
 
 ### 9.7 Provenance, pointer e address
 
@@ -2350,7 +2477,7 @@ segundo e o primeiro. Ele não chama `deinit` do aggregate incompleto.
 - `deinit` é síncrono e não usa `throws`;
 - `defer` cobre todas as saídas estruturadas;
 - cancelamento executa cleanup;
-- panic não continua numa boundary parcialmente destruída;
+- panic encerra a fault boundary e não executa user cleanup;
 - foreign callbacks registram owner, context e destroy function;
 - o valor shared morre após o último owner; o control block morre após o último
   weak handle;
@@ -2448,7 +2575,31 @@ não substitui o refined type nem o `Range`.
 
 ## 11. Erros, panic, OOM e cleanup
 
-### 11.1 Erro recuperável
+### 11.1 Três canais distintos
+
+W não usa um único mecanismo para ausência, falha recuperável e invariante
+quebrada:
+
+| Canal | Tipo ou efeito | Exemplo |
+|---|---|---|
+| ausência esperada | `Option<T>` | `menu.get(course)` |
+| falha recuperável | `Result<T, E>` ou `throws E` | `try parse(source)` |
+| invariante quebrada | panic | `orders[index]` fora do range |
+
+Cancelamento também não é um error genérico. Uma task concluída usa
+`TaskOutcome<T, E>` com `.success`, `.error` ou `.canceled`.
+
+### 11.2 `Result`, `throws` e `try`
+
+`Result<T, E>` exige `E: Error`. Ele é um enum T0 com `.success(T)` e
+`.error(E)`. Ele armazena ou compõe um resultado sem criar control flow:
+
+```w
+let parsed: Result<Order, ParseError> = Order.parse(source)
+let appResult = parsed.mapError((error) => AppError.parse(error))
+```
+
+`throws E` oferece direct style. Ele faz parte do function type:
 
 ```w
 enum ParseError: Error {
@@ -2460,8 +2611,90 @@ fn parse(source: ref String): Document throws ParseError
 let document = try parse(source)
 ```
 
-`throws E` faz parte do tipo. `try` propaga `E`. Se o error set do caller possui
-exatamente um case que aceita `E`, o compilador pode inserir essa injeção total:
+`try` aceita uma call `throws E` ou um `Result<T, E>`. Ele produz `T` em success
+e propaga `E` em error:
+
+```w
+let first = try parse(source)
+let second = try Result.capture(() => try parse(backup))
+```
+
+`Result.capture` converte direct style em valor. `try result` faz a conversão
+inversa. `map`, `mapError`, `andThen` e `asRef` são métodos normais de Result.
+Eles não são syntax especial.
+
+`try?` converte qualquer falha recuperável da expressão em `.none`:
+
+```w
+let candidate: GuestName? = try? GuestName(input)
+```
+
+Success produz `.some(T)`. Quando `T` já é Option, o resultado possui somente um
+nível de Option. O operador não captura panic ou cancelamento. Uma expressão
+nonthrowing com `try?` produz diagnostic:
+
+```w
+let course = try? Course.horizonCake // W-EFFECT-0009: expression cannot fail
+```
+
+`try?` declara perda intencional do error. Quando a causa importa, o programa usa
+`try`, `Result` ou `do`/`catch`. `try!` não existe; uma invariante usa
+`Result.expect("reason")`.
+
+O [Error Handling do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling/)
+é o precedente de ergonomia. W adiciona typed errors, Result e a regra explícita
+de que panic e cancelamento não participam da conversão.
+
+Postfix `?` não aceita Result. Ele continua exclusivo de Option:
+
+```w
+let document = result? // error: Result uses try
+let document = try result
+```
+
+Uma expressão fallible precisa de `try` no escopo que propaga o error. Um `try`
+externo cobre as subexpressões fallible da mesma expressão:
+
+```w
+let receipt = try store(load(source), audit: inspect(source))
+```
+
+Uma closure cria outro escopo de efeito. Ela precisa do próprio `try`:
+
+```w
+let probabilities = try demand.map((value) => try Probability(value))
+```
+
+Quando suspensão e error aparecem juntos, a ordem canônica é `try await`:
+
+```w
+let response = try await client.fetch(request)
+```
+
+Toda função fallible declara um error type concreto ou genérico. A DB2 não
+possui `throws` sem tipo:
+
+```w
+fn map<U, E: Error>(
+  transform: fn(ref T): U throws E,
+): Array<U> throws E
+```
+
+Quando `E` é `Never`, o compiler especializa a função como nonthrowing. W não
+precisa de `rethrows`.
+
+Um error concreto é um enum fechado que atende a `Error`. Seus cases carregam
+dados estruturados. Uma mensagem de texto não é obrigatória:
+
+```w
+enum ParseError: Error {
+  unexpectedToken(found: Token, expected: TokenKind)
+  incompleteDocument(at: SourceSpan)
+}
+```
+
+Se o error enum da função que chama possui exatamente um case que aceita `E`, o
+compiler pode inserir essa conversão total:
 
 ```w
 enum AppError: Error {
@@ -2470,28 +2703,167 @@ enum AppError: Error {
 }
 ```
 
-Duas rotas possíveis tornam a conversão ambígua e exigem `do`/`catch`.
+Duas rotas possíveis tornam a conversão ambígua. A função usa `mapError` ou
+`do`/`catch` nesse caso.
 
-Uma boundary tipada pode acrescentar outro error effect fechado. `ServiceRef`
-acrescenta `ServiceFailure`, por exemplo. `try` converte cada effect por uma rota
-única. A função caller continua declarando um único error set nominal.
+Uma call por `ServiceRef` pode ter os effects `E` e `ServiceFailure`. Cada effect
+precisa de uma rota total e única até o error enum da função:
 
-### 11.2 Panic e OOM
+```w
+enum KitchenError: Error {
+  oven(OvenError)
+  service(ServiceFailure)
+}
 
-**Exemplo:** `try buffer.reserve(additional: 4096)` devolve `AllocationError`.
-Indexação fora do limite causa panic.
+let ready = try await ovens.preheat()
+```
 
-`panic` informa uma invariante quebrada. O profile encerra a isolation boundary.
-A DB2 não faz unwind recuperável através de FFI.
+`do`/`catch` testa os clauses em ordem lexical. Um guard torna a seleção
+explícita:
 
-Alocações explicitamente fallible retornam `AllocationError`. OOM do allocator
-geral encerra a isolation boundary. O compilador não promete que todo OOM é
-recuperável.
+```w
+do {
+  return try parse(source)
+} catch .unexpectedToken(let found, _) if found.isRecoverable {
+  return try parseFallback(source)
+} catch error {
+  throw .parse(error)
+}
+```
 
-### 11.3 Cleanup
+`catch` sem pattern aceita qualquer error. `catch error` liga o valor. Um error
+sem match propaga quando a função declara `throws E`. Um contexto nonthrowing
+exige catches exaustivos.
+
+`throw expression` encerra o branch e possui tipo `Never` no IR:
+
+```w
+guard let ref recipe = recipes[course] else throw .missingRecipe(course)
+```
+
+### 11.3 Valores obrigatoriamente usados
+
+Todo valor que não é `()` ou `Never` precisa ser consumido, ligado ou descartado
+de forma explícita. A regra inclui `Result` e elimina uma annotation especial
+como `must_use`:
+
+```w
+prices.add(.cake)         // error: unused Bool
+let inserted = prices.add(.cake)
+let _ = logger.flush()    // descarte intencional
+```
+
+Debug e release preservam a mesma semântica de error. Um profile pode adicionar
+um error return trace sidecar. O trace contém somente spans de propagação e
+conversão, build ID e source ID. Ele não é observável pelo programa:
+
+```text
+W-ERROR-TRACE parse.w:42 -> command.w:18 -> app.w:37
+```
+
+O lowering não exige exception unwind do host. MLIR representa success e error
+com valores tagged e control-flow edges. Cada edge executa os drops e defers
+aplicáveis.
+
+Os precedentes principais são
+[Swift typed throws](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0413-typed-throws.md),
+[Rust Result](https://doc.rust-lang.org/std/result/index.html) e
+[Zig error return traces](https://ziglang.org/documentation/master/). W mantém
+direct style, valor armazenável e trace de propagação como contratos separados.
+
+### 11.4 Panic e fault boundaries
+
+Panic informa que o programa não pode continuar dentro de uma fault boundary.
+Ele não é `Error`, `Result` ou `TaskOutcome`, e source W não pode capturá-lo:
+
+```w
+let course = courses[index] // panic quando index >= courses.count
+```
+
+Uma isolation boundary serializa ou protege estado lógico. Ela não contém uma
+falha física. Uma fault boundary possui teardown próprio. Ela é um process, uma
+instância Wasm ou um compartment nativo com registry de recursos:
+
+```text
+service isolado no mesmo process -> panic encerra o process
+service numa instância Wasm      -> panic encerra a instância
+```
+
+Sem uma fault boundary interna, panic encerra o process. Reiniciar um service no
+mesmo process só é válido quando ele está em um compartment que atende ao
+contrato de fault boundary. Panic nunca atravessa FFI.
+
+O runtime emite um payload allocation-free e limitado:
+
+```w
+PanicEvent(
+  code: .bounds,
+  build: buildId,
+  module: "restaurant.collections",
+  span: SourceSpan(file: "collections.w", start: 912, end: 926),
+)
+```
+
+`PanicCode` inclui ao menos `.explicit`, `.bounds`, `.overflow`,
+`.divisionByZero`, `.outOfMemory` e `.internalContract`. Uma mensagem literal é
+opcional. Backtrace e symbols são sidecars removíveis. Debug e release preservam
+as mesmas condições de panic.
+
+O [Rust Reference](https://doc.rust-lang.org/stable/reference/panic.html)
+também separa panic de error recuperável e permite abort ou unwind. W escolhe
+teardown da fault boundary e não expõe unwind recuperável em source.
+
+### 11.5 OOM e alocação fallible
+
+Alocação normal, growth e `copy` podem causar panic `.outOfMemory`:
+
+```w
+let duplicate = copy largeMenu // panic quando o allocator geral falha
+```
+
+Uma operação que precisa de recovery usa uma API fallible:
+
+```w
+try buffer.tryReserve(minimumCapacity: packetSize)
+let snapshot = try menu.tryDuplicate()
+```
+
+`tryReserve` retorna `Result<(), AllocationError>`. `tryDuplicate` retorna
+`Result<T, AllocationError>`. Elas não alteram o valor quando falham.
+`AllocationError` informa a classe e o allocator, mas não promete a quantidade
+global de memória livre.
+
+`BudgetExceeded` é diferente de OOM. Ele informa que uma quota conhecida foi
+atingida:
+
+```w
+let frame = try arena.allocate(bytes: size) // pode devolver BudgetExceeded
+```
+
+OOM durante emissão de error ou cleanup escala para panic. W não possui um
+handler universal de emergência em source.
+
+### 11.6 Cleanup
 
 `defer` executa cleanup síncrono em ordem LIFO. Destruction segue a ordem inversa
-da inicialização onde ela é observável.
+da inicialização onde ela é observável. `return`, `throw`, `break`, `continue` e
+cancelamento executam o cleanup dos scopes que encerram:
+
+```w
+let file = try open(path)
+defer { file.close() }
+return try decode(file)
+```
+
+Panic não garante `defer`, `deinit` ou outro código de usuário. O host libera os
+recursos registrados na fault boundary. O sistema operacional libera os
+recursos de um process encerrado.
+
+O body de `defer` é síncrono e nonthrowing:
+
+```w
+defer { metrics.finish(span) }
+```
 
 Cleanup que precisa suspender usa uma forma distinta:
 
@@ -2502,9 +2874,8 @@ defer async {
 ```
 
 `defer async` só existe em função async. Ele executa em LIFO durante a saída do
-scope. O body deve tratar seu próprio error. O runtime fornece uma janela de
-cleanup limitada pelo profile; outro cancelamento não interrompe o mesmo cleanup
-indefinidamente.
+scope. O body trata seus próprios errors. O runtime mascara cancelamento durante
+uma janela limitada pelo profile. A janela não permite cleanup sem limite.
 
 Um remote lease não pode depender de `deinit`. Destruction é síncrona. A forma
 líder registra o cleanup logo após a aquisição:
@@ -2519,6 +2890,13 @@ defer async {
   }
 }
 ```
+
+O error original continua primário. O cleanup pode registrar um error secundário
+depois de capturá-lo, como no exemplo anterior. Um error de cleanup sem `catch`
+produz diagnostic.
+
+`defer<.error>` e `errdefer` permanecem em **Pesquisa**. Eles precisam distinguir
+error, cancelamento e saída normal sem criar uma segunda regra de cleanup.
 
 **Pesquisa:** um protocol padrão pode criar uma obrigação linear de close. Move
 transfere a obrigação. Um `defer async` reconhecido a descarrega. Sair do scope
@@ -2627,7 +3005,7 @@ let outcome: TaskOutcome<Menu, MenuError> = await task.outcome()
 ```
 
 `TaskOutcome<T, E>` possui `.success(T)`, `.error(E)` e `.canceled(Cancellation)`.
-Panic não é um outcome recuperável. Ele encerra a isolation boundary conforme a
+Panic não é um outcome recuperável. Ele encerra a fault boundary conforme a
 seção 11.
 
 Um join de tuple usa ordem lexical:
@@ -4228,8 +4606,8 @@ remove, altera e reinsere:
 
 ```w
 for inout course in courses { course.rename() } // error
-let course = courses.remove(.cake)?
-courses.add(course.withLabel("final cake"))
+guard let course = courses.remove(.cake) else panic("cake fixture is missing")
+let _ = courses.add(course.withLabel("final cake"))
 ```
 
 `Set<T>` atende a `Duplicable` quando `T` atende. A cópia preserva a ordem
@@ -4237,7 +4615,7 @@ lógica e não compartilha mutation:
 
 ```w
 var snapshot = copy courses
-snapshot.add(.broth)
+let _ = snapshot.add(.broth)
 expect !courses.contains(.broth)
 ```
 
@@ -5210,6 +5588,99 @@ Contagem de tokens depende do tokenizer. A DB2 mede vários modelos antes de
 trocar uma keyword por pontuação. Compile success, testes e edit distance têm
 mais peso que token count isolado.
 
+### 21.5 Diagnostics estruturados
+
+Um diagnostic possui identidade estável e dados antes de possuir prosa. A saída
+JSONL canônica contém:
+
+```json
+{
+  "schemaVersion": 1,
+  "code": "W-MOVE-0001",
+  "phase": "typecheck",
+  "severity": "error",
+  "primary": {"source": "order.w", "startByte": 418, "endByte": 423},
+  "labels": [
+    {"source": "order.w", "startByte": 351, "endByte": 361, "role": "move"}
+  ],
+  "facts": {"binding": "order", "type": "Order"},
+  "help": ["borrow the value or move it only once"],
+  "fixes": [],
+  "root": null
+}
+```
+
+Byte offsets são canônicos. O renderer calcula line, Unicode scalar column e
+display column. Um diagnostic gerado por macro ou ilha registra os spans de
+origem e expansão:
+
+```text
+order.w:18:9: error[W-MOVE-0001]: order was already moved
+  note: move occurred at order.w:15:10
+```
+
+Codes usam uma família e quatro digits, como `W-PARSE-0001`,
+`W-TYPE-0042`, `W-MOVE-0001`, `W-EFFECT-0008`, `W-FFI-0012` e
+`W-BUILD-0003`. Um code removido nunca recebe outro significado. A mensagem
+humana pode melhorar sem alterar o code.
+
+Um fix contém edits, applicability e precondition. Applicability é `.machine`,
+`.review` ou `.placeholder`. A precondition inclui o source digest:
+
+```json
+{
+  "title": "borrow order",
+  "applicability": "machine",
+  "sourceDigest": "sha256:...",
+  "edits": [{"source": "order.w", "startByte": 418, "endByte": 418, "text": "ref "}]
+}
+```
+
+Uma ferramenta só aplica `.machine` quando o digest ainda corresponde. `.review`
+exige confirmação humana. `.placeholder` contém uma região que ainda precisa de
+um valor.
+
+Diagnostics usam ordem determinística por logical path, byte inicial, code e
+ocorrência. Um error secundário aponta para o diagnostic raiz. O renderer limita
+cascades por raiz:
+
+```text
+W-TYPE-0042 root
+  W-TYPE-0119 caused-by W-TYPE-0042
+```
+
+O compiler pode usar poison types para continuar a análise. Ele nunca gera um
+executable quando existe um diagnostic `error`.
+
+Errors não podem ser suprimidos. Warnings são configuradas por code e path no
+manifest ou CLI:
+
+```w
+diagnostics {
+  deny = ["W-FFI-*"]
+  allow = [{ code: "W-DOC-0017", path: "generated/**" }]
+}
+```
+
+Source annotations de suppressão não entram na DB2. Elas esconderiam policy no
+programa e adicionariam syntax permanente.
+
+O schema JSON não é localizado. Um renderer pode localizar a mensagem. LSP e
+SARIF são adapters do mesmo diagnostic; eles não definem a semântica interna.
+Eventos runtime `ErrorEvent` e `PanicEvent` usam schemas separados.
+
+`w explain diagnostic CODE` mostra significado, causas, exemplos e fixes:
+
+```text
+w explain diagnostic W-MOVE-0001
+```
+
+O schema toma como precedentes a saída
+[JSON do rustc](https://doc.rust-lang.org/beta/rustc/json.html), o
+[Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
+e o [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.pdf).
+W mantém um schema interno menor e produz LSP ou SARIF por adapter.
+
 ## 22. Protocolos e pesquisas de ecossistema
 
 Nenhum item desta seção reserva keyword. Cada hipótese usa os contratos do core
@@ -5721,7 +6192,7 @@ experimentar”, não “decisão irreversível”.
 | D2-032 | behavior composition | composite nomeado | lista ordenada; nesting arbitrário |
 | D2-033 | erro | `throws E` + `try` | exceptions abertas; Result em toda assinatura |
 | D2-034 | error widening | case único compatível | mapping sempre explícito; `From` livre |
-| D2-035 | panic | abort da isolation boundary | unwind recuperável; abort process global |
+| D2-035 | panic | encerra a fault boundary física mais próxima | unwind recuperável; tratar toda isolation como fault boundary |
 | D2-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
 | D2-037 | concorrência | `async let` | Future/Promise; task API somente |
 | D2-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
@@ -5806,7 +6277,7 @@ experimentar”, não “decisão irreversível”.
 | D2-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
 | D2-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
 | D2-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
-| D2-120 | outcome de task | success/error/canceled; panic encerra boundary | cancel em `E`; panic como Result |
+| D2-120 | outcome de task | success/error/canceled; panic encerra fault boundary | cancel em `E`; panic como Result |
 | D2-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
 | D2-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
 | D2-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
@@ -5928,6 +6399,24 @@ experimentar”, não “decisão irreversível”.
 | D2-239 | cleanup de collections | ordem inversa de índice/inserção; capacity e buckets invisíveis | drop order não especificada |
 | D2-240 | escopo da std | core em T0; Deque/PriorityQueue/BitSet em `std.collections`; concorrentes fora de T0 | todas as estruturas no prelude |
 | D2-241 | duplicação owned | `Copy` barato e implícito; `Duplicable` explícito via `copy value` | clone method; copiar owned implicitamente |
+| D2-242 | ausência | `Option<T>` com some/none; sem null/undefined universal | sentinela universal; pointer null por default |
+| D2-243 | estado de memória | definite init e move no compiler; `MaybeUninit<T>` unsafe | gravar none após move; uninitialized como valor comum |
+| D2-244 | controle Option | `?.`, lazy/right-associative `??` e postfix `?` só para none | force unwrap; postfix `?` para Result |
+| D2-245 | ownership Option | binding owned por default; `ref`/`inout`/`copy`; `take()` esvazia | copiar payload owned; mutation por optional chain |
+| D2-246 | Result | enum T0 success/error para storage e composição | Result implícito só em debug; exceptions abertas |
+| D2-247 | `try` | propaga `throws E` ou `Result<T,E>`; cada closure é outro effect scope | postfix `?` para ambos; propagação implícita |
+| D2-248 | error type | enum fechado e estruturado; `throws E` sempre tipado | throws sem tipo; string obrigatória |
+| D2-249 | effect polymorphism | generic `E: Error`; `Never` especializa como nonthrowing | keyword `rethrows`; erasure universal |
+| D2-250 | catch | ordem lexical, guard e exaustividade no contexto nonthrowing | ranking de catches; catch implícito |
+| D2-251 | uso de valores | todo valor non-unit/non-Never deve ser usado ou descartado com `let _` | annotation must-use; ignorar Result |
+| D2-252 | lowering de error | tagged result e cleanup edges; trace sidecar não observável | host exception unwind; sem trace estruturado |
+| D2-253 | fault boundary | process, Wasm instance ou compartment com teardown próprio | service lógico sempre recuperável; panic capturável |
+| D2-254 | panic | payload limitado, code estável e sem user cleanup garantido | payload alocável obrigatório; user recovery |
+| D2-255 | OOM | alocação normal pode panic; APIs `try*` retornam AllocationError | toda alocação fallible; emergency handler universal |
+| D2-256 | cleanup | saídas estruturadas e cancel executam LIFO; panic não garante user cleanup | panic unwind; defer que propaga error |
+| D2-257 | diagnostic | code estável, spans em bytes, facts e relação root/cascade | texto livre como API; reutilizar code |
+| D2-258 | fix e policy | edits com applicability/digest; ordem estável; error não suprimível | fix sem precondition; source suppression na DB2 |
+| D2-259 | `try?` | converte falha recuperável em Option e flatten; não captura panic/cancel | excluir o sugar; `try!`; preservar error oculto |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

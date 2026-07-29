@@ -186,7 +186,7 @@
       "patterns": [
         {
           "name": "constant.language.w",
-          "match": "\\b(?:true|false|self)\\b|\\.(?:none|some|ok|error)\\b"
+          "match": "\\b(?:true|false|self)\\b|\\.(?:none|some|success|error|canceled)\\b"
         }
       ]
     },

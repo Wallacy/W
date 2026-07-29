@@ -58,7 +58,7 @@ export fn forecast<const tables: usize, const features: usize, const courses: us
 
   let logits = observations @ weights
   let demand = try normalized(logits.softmax(axis: 1))
-  let confidence = demand.map((value) => try Probability(value))
+  let confidence = try demand.map((value) => try Probability(value))
 
   return Forecast(demand: demand, confidence: confidence)
 }
