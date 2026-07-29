@@ -23,6 +23,10 @@ export struct PaymentProof {
   paymentId: PaymentId
   amount: Money
   state: PaymentState
+
+  export canServe: Bool {
+    get => state == .captured
+  }
 }
 
 export enum BillingError: Error {

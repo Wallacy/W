@@ -305,6 +305,7 @@ Aceite:
 - `parallelCollect` preserva todos os outcomes;
 - cancelar o batch fecha producer e children;
 - `batch.cancel(reason: .shutdown)` preserva o handle para o join;
+- `cancel` não existe como statement ou keyword;
 - cada job move ownership para um child;
 - `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
 - um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
@@ -323,6 +324,27 @@ Timeline mínima:
 O scheduler de teste deve reproduzir essa timeline por um schedule ID. Outro
 packing físico precisa produzir o mesmo resultado quando ordering é `.input`.
 
+### 3.17 Regulador do Forno Improvável
+
+Famílias: construção, definite initialization, computed property e protocol
+requirement.
+
+Aceite:
+
+- `PidController(...)` baixa para `construct` sem prometer heap ou stack;
+- o `init` customizado remove o memberwise initializer público;
+- cada gain inválido lança `KitchenError` antes de publicar a instance;
+- todos os caminhos normais inicializam os cinco fields;
+- uma falha destrói somente os fields já inicializados;
+- `PidController.isIdle` usa um getter local, síncrono e sem allocation;
+- `PaymentProof.canServe` não oculta I/O, `throws` ou suspensão;
+- `BrigadeMetrics.completionCount` atende ao property requirement;
+- o corpus estrutural cobre `get`, `set` e `modify`;
+- `modify` devolve um borrow escopado com `return inout`.
+
+O ensaio deve rejeitar `async init`, getter com service call e uso de `self`
+antes da inicialização completa.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -337,6 +359,9 @@ O Book deve mostrar pares lado a lado:
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
 | associated member | `Money.zeroCredits` | mutable type storage |
+| construção | `Type(field: value)` | `new Type(...)` e `Type {...}` |
+| initializer | um `init` + factories nomeadas | overload e `async init` |
+| computed property | `name: T { get => value }` | getter method e getter com efeitos |
 | static record | `<{name: value}>` | extensão universal de tipo |
 | static list | `<[a, b]>` ordenada | set implícito de constraints |
 | frontend inline | `fn<C>` | `fn<lang: .c>` |

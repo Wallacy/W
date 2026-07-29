@@ -297,6 +297,8 @@ module.exports = grammar({
         repeat(
           choice(
             $.field_declaration,
+            $.computed_property_declaration,
+            $.initializer_declaration,
             $.function_declaration,
             $.const_declaration,
             $.alias_declaration,
@@ -311,6 +313,7 @@ module.exports = grammar({
         repeat(
           choice(
             $.function_declaration,
+            $.property_requirement,
             $.associated_type_requirement,
             $.associated_const_requirement,
           ),
@@ -323,6 +326,7 @@ module.exports = grammar({
         repeat(
           choice(
             $.enum_case,
+            $.computed_property_declaration,
             $.function_declaration,
             $.const_declaration,
             $.alias_declaration,
@@ -347,14 +351,71 @@ module.exports = grammar({
         optional(";"),
       ),
 
+    initializer_declaration: ($) =>
+      seq(
+        optional($.declaration_prefix),
+        optional("unsafe"),
+        "init",
+        field("parameters", $.parameter_list),
+        optional(seq("throws", field("error_type", $.type))),
+        field("body", $.block),
+      ),
+
     field_declaration: ($) =>
       seq(
-        optional("export"),
+        optional($.declaration_prefix),
         optional("var"),
         optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
         field("name", $.identifier),
         optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
+        optional(";"),
+      ),
+
+    computed_property_declaration: ($) =>
+      seq(
+        optional($.declaration_prefix),
+        optional("var"),
+        field("name", $.identifier),
+        ":",
+        field("type", $.type),
+        field("accessors", $.property_accessor_body),
+      ),
+    property_accessor_body: ($) =>
+      seq(
+        "{",
+        field("getter", $.get_accessor),
+        optional(field("setter", $.set_accessor)),
+        optional(field("modifier", $.modify_accessor)),
+        "}",
+      ),
+    get_accessor: ($) => seq("get", $.accessor_implementation),
+    set_accessor: ($) =>
+      seq(
+        "set",
+        "(",
+        field("parameter", $.identifier),
+        ")",
+        $.accessor_implementation,
+      ),
+    modify_accessor: ($) => seq("modify", field("body", $.block)),
+    accessor_implementation: ($) =>
+      choice(
+        field("body", $.block),
+        seq("=>", field("value", $._expression), optional(";")),
+      ),
+
+    property_requirement: ($) =>
+      seq(
+        optional("var"),
+        field("name", $.identifier),
+        ":",
+        field("type", $.type),
+        "{",
+        "get",
+        optional("set"),
+        optional("modify"),
+        "}",
         optional(";"),
       ),
 

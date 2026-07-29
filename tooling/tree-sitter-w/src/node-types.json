@@ -1,5 +1,147 @@
 [
   {
+    "type": "accessor_implementation",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "array_literal",
+            "named": true
+          },
+          {
+            "type": "assignment_expression",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "boolean_literal",
+            "named": true
+          },
+          {
+            "type": "byte_literal",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "capture_expression",
+            "named": true
+          },
+          {
+            "type": "closure_expression",
+            "named": true
+          },
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          },
+          {
+            "type": "generic_application_expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
+            "type": "map_literal",
+            "named": true
+          },
+          {
+            "type": "member_expression",
+            "named": true
+          },
+          {
+            "type": "multiline_string_literal",
+            "named": true
+          },
+          {
+            "type": "number_literal",
+            "named": true
+          },
+          {
+            "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "panic_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "quantity_literal",
+            "named": true
+          },
+          {
+            "type": "raw_string_literal",
+            "named": true
+          },
+          {
+            "type": "scalar_literal",
+            "named": true
+          },
+          {
+            "type": "size_literal",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          },
+          {
+            "type": "switch_expression",
+            "named": true
+          },
+          {
+            "type": "tuple_expression",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
+            "type": "unit_suffix_literal",
+            "named": true
+          },
+          {
+            "type": "unsafe_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "alias_declaration",
     "named": true,
     "fields": {
@@ -2046,6 +2188,52 @@
     }
   },
   {
+    "type": "computed_property_declaration",
+    "named": true,
+    "fields": {
+      "accessors": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "property_accessor_body",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "declaration_prefix",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "conformance_clause",
     "named": true,
     "fields": {},
@@ -2531,6 +2719,10 @@
           "named": true
         },
         {
+          "type": "computed_property_declaration",
+          "named": true
+        },
+        {
           "type": "const_declaration",
           "named": true
         },
@@ -2996,6 +3188,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "declaration_prefix",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3447,6 +3649,21 @@
         },
         {
           "type": "type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "get_accessor",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "accessor_implementation",
           "named": true
         }
       ]
@@ -4107,6 +4324,52 @@
     }
   },
   {
+    "type": "initializer_declaration",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      },
+      "error_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "parameters": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "parameter_list",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "declaration_prefix",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "language_tag",
     "named": true,
     "fields": {
@@ -4561,6 +4824,22 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "modify_accessor",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
             "named": true
           }
         ]
@@ -5319,6 +5598,68 @@
     }
   },
   {
+    "type": "property_accessor_body",
+    "named": true,
+    "fields": {
+      "getter": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "get_accessor",
+            "named": true
+          }
+        ]
+      },
+      "modifier": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "modify_accessor",
+            "named": true
+          }
+        ]
+      },
+      "setter": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "set_accessor",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "property_requirement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "protocol_body",
     "named": true,
     "fields": {},
@@ -5336,6 +5677,10 @@
         },
         {
           "type": "function_declaration",
+          "named": true
+        },
+        {
+          "type": "property_requirement",
           "named": true
         }
       ]
@@ -5593,6 +5938,32 @@
         },
         {
           "type": "type_parameters",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "set_accessor",
+    "named": true,
+    "fields": {
+      "parameter": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "accessor_implementation",
           "named": true
         }
       ]
@@ -6801,6 +7172,10 @@
           "named": true
         },
         {
+          "type": "computed_property_declaration",
+          "named": true
+        },
+        {
           "type": "const_declaration",
           "named": true
         },
@@ -6814,6 +7189,10 @@
         },
         {
           "type": "function_declaration",
+          "named": true
+        },
+        {
+          "type": "initializer_declaration",
           "named": true
         }
       ]

@@ -181,7 +181,7 @@ Cada delimitador mantém uma função mental principal:
 | `:` | introduz um contrato associado | tipo, return, label, field ou case body |
 | `=` | define ou atualiza um valor ou binding | binding, assignment, alias ou slot |
 | `.` | qualificação, member ou case abreviado | `std.http`, `value.count`, `.none` |
-| `=>` | separa parâmetros e corpo de closure | `(item) => transform(item)` |
+| `=>` | introduz um corpo de expressão | closure ou accessor curto |
 | `if` | introduz condição ou guard runtime | `case ..<0 if error > 0` |
 | `@` | faz contração matricial | `features @ weights` |
 
@@ -808,7 +808,209 @@ singleton do product, não da linguagem. Um módulo também não é singleton.
 **Pesquisa:** uma API de reflection pode reificar um tipo como `Type<T>`.
 Associated member lookup não depende desse valor runtime.
 
-### 8.3 Option e ausência
+### 8.3 Construção e inicialização
+
+`Type(...)` constrói uma instance. A forma não promete heap, stack ou região.
+O optimizer escolhe o storage sem mudar ownership, identidade ou drop:
+
+```w
+let controller = try PidController(
+  proportionalGain: 0.8,
+  integralGain: 0.1,
+  derivativeGain: 0.02,
+)
+```
+
+O parser reconhece uma call expression. Name resolution transforma a chamada
+de um tipo em `construct` na HIR. W não usa `new`. Essa keyword sugeriria uma
+alocação que a semântica não exige.
+
+Um `struct` ou `object` sem `init` explícito recebe um initializer sintetizado.
+Ele segue estas regras:
+
+1. cada field stored cria um parâmetro com label obrigatório;
+2. um field sem initializer cria um parâmetro obrigatório;
+3. um field com initializer cria um parâmetro que pode ser omitido;
+4. computed properties não criam parâmetros;
+5. os argumentos seguem a ordem de declaração dos fields;
+6. cada valor é avaliado e instalado nessa mesma ordem;
+7. a visibilidade sintetizada é igual à visibilidade do tipo.
+
+Adicionar um field obrigatório quebra callers do initializer público. Um field
+com default preserva esses callers. `w interface` publica a assinatura
+sintetizada para tornar esse custo visível.
+
+Um tipo com invariantes declara um initializer:
+
+```w
+export struct PidController {
+  proportionalGain: f64
+  integralGain: f64
+  derivativeGain: f64
+  var accumulatedError: f64
+  var previousError: f64
+
+  export init(
+    proportionalGain: f64,
+    integralGain: f64,
+    derivativeGain: f64,
+  ) throws KitchenError {
+    guard proportionalGain.isFinite && proportionalGain >= 0.0 else {
+      throw .invalidControllerGain(kind: .proportional, value: proportionalGain)
+    }
+
+    self.proportionalGain = proportionalGain
+    self.integralGain = integralGain
+    self.derivativeGain = derivativeGain
+    self.accumulatedError = 0.0
+    self.previousError = 0.0
+  }
+}
+```
+
+`init` é contextual ao corpo de `struct` ou `object`. Ele não recebe `fn`,
+`static`, `mut`, `async` ou return type. Ele pode receber visibilidade,
+`unsafe` e `throws E`. Todos os parâmetros usam labels por default. `_` remove
+um label.
+
+A DB2 aceita um único `init` por tipo. A presença dele remove o initializer
+sintetizado da interface source. Outros caminhos usam `static fn` com nomes
+estáveis:
+
+```w
+export static async fn load(id: ControllerId): PidController throws LoadError
+export static fn fromLegacy(value: LegacyController): PidController
+```
+
+Uma factory async torna a suspensão visível no call site. A linguagem não
+permite `async init`. A mesma regra evita overload antes de existir um ranking
+único para overloads.
+
+O verifier usa definite initialization em duas fases:
+
+1. field initializers são avaliados na ordem de declaração;
+2. `self` começa como um initialization place, não como um valor W;
+3. `self.field = value` inicializa cada field restante uma vez;
+4. todos os caminhos normais precisam inicializar os mesmos fields;
+5. antes disso, o código não lê, empresta, chama método ou faz escape de `self`;
+6. depois disso, `self` vira um valor completo e pode usar methods.
+
+Um field imutável com default já está inicializado. O `init` não pode
+reatribuí-lo. Um field `var` com default pode receber mutation. Essa mutation
+não concede acesso a outro field ainda não inicializado.
+
+Se o initializer lança um erro, o runtime destrói os fields completos em ordem
+inversa. Ele não executa `deinit`, pois a instance não ficou completa. W não
+possui zero initialization universal. Storage parcialmente inicializado exige
+uma futura API `unsafe` própria.
+
+Services usam o instance descriptor e o host. Enums usam seus cases. Um
+refined type usa seu constructor fallible. Nenhuma dessas formas ganha `init`
+por simetria.
+
+A segurança em duas fases segue o objetivo da
+[inicialização do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization/).
+O risco de representar bytes ainda inválidos aparece no contrato de
+[`MaybeUninit`](https://doc.rust-lang.org/core/mem/union.MaybeUninit.html).
+O compact constructor de
+[records Java](https://docs.oracle.com/en/java/javase/15/docs/specs/records-jls.html)
+mostra o valor de validar antes de publicar o aggregate.
+
+**Alternativa:** permitir vários initializers, delegação e `init?`. A DB2 usa um
+initializer canônico, `throws E` e factories nomeadas.
+
+### 8.4 Propriedades computadas
+
+Uma computed property precisa declarar seus accessors. Ela continua diferente
+de um stored field:
+
+```w
+export struct PaymentProof {
+  paymentId: PaymentId
+  amount: Money
+  state: PaymentState
+
+  export canServe: Bool {
+    get => state == .captured
+  }
+}
+
+object Cursor {
+  var storedIndex: usize
+
+  var index: usize {
+    get => storedIndex
+    set(value) => storedIndex = value
+
+    modify {
+      return inout storedIndex
+    }
+  }
+}
+```
+
+Uma propriedade read-only não recebe `var`. Uma propriedade writable recebe
+`var`, sempre declara `get` e declara `set`, `modify` ou ambos. W não possui
+write-only property.
+
+Os accessors usam estes receivers:
+
+| Accessor | Receiver | Resultado |
+|---|---|---|
+| `get` | `ref self` | valor da propriedade |
+| `set(value)` | `inout self` | substitui o valor lógico |
+| `modify` | `inout self` | empresta um place com exclusividade |
+
+`get => expression` e `set(value) => expression` são corpos curtos. Um bloco
+permanece disponível. `modify` usa bloco. `return inout place` abre um borrow
+escopado. O accessor retoma seus `defer` quando esse borrow termina.
+
+Accessors são property-safe. O compiler aplica este teto de efeitos:
+
+- são síncronos e não usam `throws`;
+- não fazem I/O, bloqueio, service call ou device transfer;
+- não criam tasks nem adquirem authority;
+- não transferem ownership para fora de `self`;
+- não fazem uma alocação geral oculta.
+
+Reads, arithmetic curta e mutation do receiver são permitidos. Atomics
+continuam com a semântica declarada pelo backing field. Uma operação que não
+atende ao teto usa um método nomeado. Parentheses, `try` e `await` mostram o
+custo no call site.
+
+Um getter de receiver borrowed não move um valor move-only para fora de
+`self`. Ele pode devolver um valor `Copy`, um novo valor owned ou uma view
+permitida pelo borrow checker.
+
+Um protocol pode exigir uma propriedade:
+
+```w
+protocol CompletionMetric {
+  completionCount: u64 { get }
+  var limit: usize { get set modify }
+}
+```
+
+Um stored field compatível pode ser o witness. Uma extension pode adicionar
+computed properties, mas não storage. Associated state continua ausente:
+compile-time usa `const`, e cálculo associado usa `static fn`.
+
+Uma declaração não combina behavior e accessors explícitos. O behavior possui
+o storage e gera os accessors. A inicialização do field chama `init` do
+behavior. Ela não chama `set`. Um behavior publica seu contrato adicional de
+custo conforme a seção 10.
+
+Swift permite
+[properties read-only com `async` e `throws`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0310-effectful-readonly-properties.md).
+W rejeita essa forma por enquanto. A rejeição preserva a expectativa de acesso
+rápido e local. A separação entre stored e computed properties também segue as
+[propriedades do Swift](https://docs.swift.org/swift-book/LanguageGuide/Properties.html).
+
+**Alternativa:** permitir accessors com efeitos, observers e static computed
+properties. Esses recursos precisam superar o corpus de previsibilidade antes
+de entrar.
+
+### 8.5 Option e ausência
 
 `T?` é `Option<T>` e possui somente `.some(T)` ou `.none`.
 
@@ -823,7 +1025,7 @@ let name = guest?.name ?? "Anonymous"
 
 Não existem `null`, `undefined`, `uninitialized` ou `empty` universais.
 
-### 8.4 Newtype, alias e refinement
+### 8.6 Newtype, alias e refinement
 
 ```w
 type GuestId = u64
@@ -863,7 +1065,7 @@ As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
 continuam como **Alternativa**. A forma líder mantém o predicate dentro do
 contrato estático sem criar um slot chamado `where`.
 
-### 8.5 Generics
+### 8.7 Generics
 
 Parâmetros são declarados antes do uso:
 
@@ -878,7 +1080,7 @@ aberto não existe.
 Generics usam monomorphization e specialization dentro do build. Interfaces
 podem usar witnesses para reduzir code size e preservar separate compilation.
 
-### 8.6 Conversões
+### 8.8 Conversões
 
 Uma conversão implícita é permitida somente se:
 
@@ -890,22 +1092,23 @@ Uma conversão implícita é permitida somente se:
 Narrowing, parsing, rounding, reinterpretation, ponteiro e conversão ambígua são
 explícitos. O mesmo princípio permite `T` para `any P` quando `T: P`.
 
-### 8.7 Lacunas de tipos antes do design freeze
+### 8.9 Lacunas de tipos antes do design freeze
 
 Estas lacunas possuem maior impacto no type checker e na ergonomia:
 
 | Tema | Estado | Contrato que falta |
 |---|---|---|
-| construção customizada | **Pesquisa** | definite initialization, acesso a fields e factory fallible |
-| computed property | **Pesquisa** | efeitos permitidos, borrow do receiver e forma de accessor |
+| member visibility | **Pesquisa** | fields de value, object encapsulado e interface sintetizada |
+| vários initializers | **Pesquisa** | overload, delegação, labels e evolução de API |
+| property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
 | metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
 | consuming receiver | **Pesquisa** | `take self`, partial failure e retorno owned |
 | síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
 | overload de funções | **Pesquisa** | ranking único, labels, conversões e evolução de package |
 
-A DB2 usa constructor de fields e `static fn` nomeada até decidir construção
-customizada. Uma computed property não pode ocultar `async`, `throws` ou I/O.
+A DB2 usa um `init` canônico e `static fn` nomeada para outras construções.
+Computed properties obedecem ao teto property-safe.
 
 ## 9. Memória, layout e alocação
 
@@ -1268,6 +1471,10 @@ A primeira implementação aceita somente `init`, `get`, `set` e `modify`
 síncronos e sem `throws`. Um accessor que suspende, faz rede ou bloqueia exige
 uma API nomeada. Behavior não concede mobilidade ou atomicidade.
 
+Cada behavior publica seu custo na interface compilada. `Lazy` pode calcular,
+alocar e guardar o valor uma vez. O nome `Lazy` torna essa diferença visível na
+declaração. `w explain` mostra o initializer e o storage gerado.
+
 Composição v0 usa um behavior composto nomeado. Lista por vírgula e nesting
 arbitrário ficam como alternativas até que ordem, exclusivity e drop tenham uma
 regra simples.
@@ -1477,9 +1684,10 @@ batch.cancel(reason: .shutdown)
 Cancelamento é uma solicitação idempotente. Ele não usa `pthread_cancel` e não
 faz unwind assíncrono de foreign frames.
 
-`cancel` é um método intrínseco do owner `Task<T, E>`. Ele retorna `()` e não
-consome o handle. Um `SharedTask` observer não publica esse método. O type
-checker reconhece a operação para preservar structured cancellation e trace.
+`cancel` não é keyword nem statement. Ele é um método intrínseco do owner
+`Task<T, E>`. O método retorna `()` e não consome o handle. Um `SharedTask`
+observer não publica esse método. O type checker reconhece a operação para
+preservar structured cancellation e trace.
 
 Uma task observa o sinal:
 
@@ -3098,6 +3306,8 @@ Uma pesquisa só avança quando possui:
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
 | retorno fluente `: self` | **Provável** | reborrow é conhecido; async e consuming receiver exigem corpus |
+| initializer canônico e definite initialization | **Possível agora** | flow analysis e cleanup parcial são conhecidos |
+| computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
@@ -3134,7 +3344,7 @@ entry
   → Restaurant service
   → async calls com payloads owned
   → parallelMap bounded da brigada
-  → controle PID com ranges e units
+  → controle PID com `init`, computed property, ranges e units
   → tensor de previsão
   → sensor C + fn<C>
   → grafo shared/weak + callback pinned
@@ -3186,6 +3396,8 @@ O corpus compara, no mínimo:
 - `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
 - `: self` explícito contra retorno implícito do receiver e retorno `()`;
 - associated member direto contra protocol requirement e mutable type storage;
+- initializer canônico contra memberwise sintetizado e factories nomeadas;
+- computed property property-safe contra method com `try` ou `await`;
 - static record/list contra interpretações universais de extension e constraints;
 - `fn<C>` contra `fn<lang: .c>`;
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
@@ -3226,6 +3438,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - imports/visibility;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
 - associated constants, functions, types e `: self`;
+- initializer sintetizado, `init` canônico e definite initialization;
+- computed properties e property requirements;
 - inference local, generics mínimos e refinements;
 - interface compilada inicial.
 
@@ -3545,6 +3759,14 @@ experimentar”, não “decisão irreversível”.
 | D2-149 | associated type witness | `type Name` exige `alias Name = T` | `associatedtype`; `type Name = T` contextual |
 | D2-150 | mutable type storage | ausente; owner de `entry` ou service explícito | `static var`; módulo singleton |
 | D2-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
+| D2-152 | construção | `Type(...)` baixa para `construct`; sem promessa de placement | `new Type`; literal `Type {...}` |
+| D2-153 | initializer sintetizado | fields rotulados, ordem declarada e visibilidade do tipo | labels opcionais; ordem livre; sempre privado |
+| D2-154 | initializer customizado | um `init` canônico; `throws E`; factory nomeada para variantes | overload; `init?`; `async init` |
+| D2-155 | definite initialization | duas fases; sem uso de `self` parcial; cleanup por field | zero universal; runtime check; partial safe value |
+| D2-156 | computed property | `name: T { get }`; `var` exige write accessor | getter implícito; method obrigatório |
+| D2-157 | efeitos de property | property-safe, síncrona, local e sem `throws` | `async`/`throws` property; custo irrestrito |
+| D2-158 | mutation de property | `set(value)` e `modify` com `return inout` escopado | get-modify-set implícito; observers |
+| D2-159 | property requirement | `{ get [set] [modify] }`; stored field pode ser witness | protocol exige storage; reflection estrutural |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
