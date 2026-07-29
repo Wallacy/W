@@ -77,6 +77,7 @@ deliberadamente abertos:
 | signals, mouse, keyboard e HID | 13.4 e 13.5 | slots de host tipados, sem keywords por evento |
 | GPU, SIMD e HDL | 17 e 22.6 | T2 e **Pesquisa** por backend |
 | GUI, TUI e immediate mode | 14.3 e profiles de host | T2; nenhuma GUI universal |
+| dictionaries, hashing, arrays e sort | 16.10 e D2-226–241 | Map/Set insertion-ordered, full keys, views borrowed e stable sort |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -141,7 +142,7 @@ destino, não aprovação.
 | zero-terminated text e paths nativos | `3036–3048`, `3543–3552` e `Y/_w_/WC.MD:85–117` | `char8_t`, terminador, UTF-8 e fronteira C | `W/DESIGN.md` 16.7–16.8 e D2-222–223 | **Coberto**; `CString`/`Path` substituem sentinela em String/Array |
 | SI, quantities e análise científica | intenções físicas dispersas, types limitados e GPU | unidades, valores precisos, integral/limite e otimização por bounds | `W-C041/045`, `W-O036–041/081/099`, `design/numerics-and-quantities.md` | **Coberto** |
 | matrizes, tensors e ML | intenção científica/accelerators em `1694`, `2157`, `3064–3069`, `3353–3362` | falta de notação concreta, mas ambição de cálculo vetorial/accelerated | `W-O082/102`, `design/numerics-and-quantities.md` | **Lacuna de profundidade → recuperada** |
-| collections, dictionaries e sort | `2860–3000` | dict/WLON, hashing linear, TimSort/fluxsort e busca | `W-O080`, `research/legacy-spikes.md` | **Coberto** como seleção de std/algoritmos, não implementação escolhida |
+| collections, dictionaries e sort | `2860–3000` | dict/WLON, hashing linear, HH32/XXH64, descarte de keys, linked list/BST, TimSort/fluxsort/blitsort e busca | `W/DESIGN.md` 16.10, D2-226–241 e `research/legacy-spikes.md` | **Coberto**; full key é obrigatória, Map/Set preservam inserção e o algoritmo de sort/hash não vira ABI |
 | SQLite/storage | `3676–3696` | key/value conveniente, SQLite padrão e utilitário Unix | `W-O070`, `research/README.md`, `design/modules-and-runtime.md` | **Coberto** como adapter, não semântica universal |
 | WLO/WLON e query syntax | `2860–2963` e trechos RPC/query anteriores | literal de dados, parse/stringify e SQL-like operations | `research/README.md`, `ecosystem/services-and-protocols.md` | **Coberto** como **Pesquisa** |
 | wQL/wRPC/RestQL/V6 | `1927–1935`, `2006–2077`, `TK/*` | framing, RPC, query e Computer Units | `ecosystem/services-and-protocols.md`, `research/README.md` | **Coberto** |
@@ -170,6 +171,30 @@ vigente das famílias que ainda estavam parciais.
 | GPU, SIMD, OpenMP e HDL | `W/DESIGN.md` 17, 22.6 e D2-093 | CPU/SIMD/device têm corpus; GPU e HDL continuam **Pesquisa** |
 | GUI, TUI e immediate mode | `W/DESIGN.md` 13.8 e 14.3 | host events e T2 preservam a pergunta; toolkit universal não é baseline |
 | texto, bytes e strings nativas | `W/DESIGN.md` 16 e D2-210–225 | **Líder DB2** com alternativas históricas rastreadas |
+| collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
+
+### Resultado da revisão de collections
+
+O caderno propunha guardar somente HH32/XXH64 no lugar da key. Essa forma foi
+**Superada**: hashes colidem, e equality precisa da key completa. W pode trocar
+o algoritmo e a seed sem mudar source, storage persistente ou ordem de
+iteração.
+
+A linked list, a BST, linear hashing e B-tree permanecem técnicas possíveis
+para collections especializadas. Nenhuma define `Map`. A baseline usa
+complexidade observável e ordem de inserção; buckets e nodes são detalhes.
+`UnorderedMap` preserva a pergunta histórica sobre uma variante mais barata,
+mas continua **Pesquisa** até demonstrar ganho. O nome `HashMap` não é líder
+porque `Map` também usa hashing.
+
+O caderno também comparava Timsort, fluxsort, wolfsort, blitsort e rhsort.
+`sort()` agora promete estabilidade e O(n log n), mas não um algoritmo.
+`sortUnstable()` declara a troca de garantia. Um algoritmo nomeado só entra em
+`std.algorithm` após licença, provenance, fuzzing e benchmark reproduzível.
+
+Arrays terminados por zero continuam apenas na fronteira C. Safe `Array<T>` usa
+count, capacity e bounds check. Named indices continuam como `StaticList<T>`
+compile-time e não mudam a collection runtime.
 
 ## Alternativas que não devem desaparecer de novo
 
