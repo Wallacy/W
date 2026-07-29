@@ -74,13 +74,21 @@ export enum Currency {
 }
 
 export struct Money {
-  minorUnits: i128
-  currency: Currency
+  export minorUnits: i128
+  export currency: Currency
 
   export const zeroCredits = Money(minorUnits: 0, currency: .cr)
 
-  export static fn fromMajor(value: i64, currency: Currency): Money {
-    return Money(minorUnits: i128(value) * 100, currency: currency)
+  export init(minorUnits: i128, currency: Currency) {
+    self.minorUnits = minorUnits
+    self.currency = currency
+  }
+
+  export init(majorUnits: i64, currency: Currency) throws DomainError {
+    let minorUnits = try i128.checkedMultiply(i128(majorUnits), 100)
+      .mapError((_) => .overflow)
+
+    self = Money(minorUnits: minorUnits, currency: currency)
   }
 }
 

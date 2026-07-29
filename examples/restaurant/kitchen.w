@@ -175,7 +175,11 @@ export fn controlDuty(
 }
 
 export fn expectedEnergy(telemetry: ref OvenTelemetry, during duration: Duration): Energy {
-  return energy(telemetry.power * telemetry.duty, during: duration)
+  return expectedEnergy(telemetry.power, duty: telemetry.duty, during: duration)
+}
+
+export fn expectedEnergy(power: Power, duty: DutyCycle, during duration: Duration): Energy {
+  return energy(power * duty, during: duration)
 }
 
 export fn mix(ingredients: ref Array<Ingredient>, recipe: ref Recipe): Mixture throws KitchenError {
@@ -197,4 +201,11 @@ test "a PID controller starts with no accumulated error" {
   )
 
   expect controller.isIdle
+}
+
+test "an overloaded function value uses an explicit call shape" for expectedEnergy {
+  let estimator = (power: Power, duty: DutyCycle, duration: Duration) =>
+    expectedEnergy(power, duty: duty, during: duration)
+
+  expect estimator(2<si.W>, try DutyCycle(0.5), 3<si.s>) == 3<si.J>
 }

@@ -1,0 +1,197 @@
+==================
+Shape overloads and initializer delegation
+==================
+
+struct Money {
+  minorUnits: i128
+  currency: Currency
+
+  init(minorUnits: i128, currency: Currency) {
+    self.minorUnits = minorUnits
+    self.currency = currency
+  }
+
+  init(majorUnits: i64, currency: Currency) throws DomainError {
+    let minorUnits = checkedMultiply(majorUnits, by: 100)
+    self = Money(minorUnits: minorUnits, currency: currency)
+  }
+}
+
+fn expectedEnergy(telemetry: ref OvenTelemetry, during duration: Duration): Energy {
+  return expectedEnergy(telemetry.power, duty: telemetry.duty, during: duration)
+}
+
+fn expectedEnergy(power: Power, duty: DutyCycle, during duration: Duration): Energy {
+  return energy(power * duty, during: duration)
+}
+
+fn quote(): Money {
+  return Money(majorUnits: 42, currency: .cr)
+}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (initializer_declaration
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))))
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier)))
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier)))))
+      (initializer_declaration
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))))
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (binding_declaration
+            (pattern
+              (identifier))
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))
+                (argument
+                  (identifier)
+                  (number_literal)))))
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (identifier)
+                    (identifier))
+                  (argument
+                    (identifier)
+                    (identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (member_expression
+                (identifier)
+                (identifier)))
+            (argument
+              (identifier)
+              (member_expression
+                (identifier)
+                (identifier)))
+            (argument
+              (identifier)
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (binary_expression
+                (identifier)
+                (identifier)))
+            (argument
+              (identifier)
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (number_literal))
+            (argument
+              (identifier)
+              (contextual_member_expression
+                (identifier)))))))))

@@ -242,7 +242,7 @@ Aceite:
 - um case abreviado só preenche o slot primário declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
-- `Money.zeroCredits` e `Money.fromMajor(...)` não criam estado global;
+- `Money.zeroCredits` e `Course.fromOrdinal(...)` não criam estado global;
 - `OrderState.advance(...): self` retorna um reborrow explícito.
 
 As formas `where` e `on` permanecem no corpus contrafactual. A análise normativa
@@ -414,6 +414,34 @@ O ensaio deve rejeitar `take stream.finish()`, consumo por `shared` e call após
 transferência. Ele também deve rejeitar destructuring owned de tipo com
 `deinit` customizado.
 
+### 3.21 O Caixa com Duas Portas e Nenhum Paradoxo
+
+Famílias: overload por forma de call, labels, defaults, initializers e
+delegação.
+
+Aceite:
+
+- `Money(minorUnits:, currency:)` seleciona o initializer de unidade mínima;
+- `Money(majorUnits:, currency:)` seleciona o initializer com conversão;
+- os labels selecionam o initializer antes do type-check;
+- `self = Money(...)` delega sem trocar a identidade do storage;
+- overflow na conversão lança `DomainError.overflow`;
+- falha antes de completar `self` limpa somente os fields completos;
+- falha depois de completar `self` executa `deinit` uma vez;
+- os overloads de `expectedEnergy` possuem formas disjuntas;
+- `_`, `during:` seleciona telemetry sem consultar seu tipo;
+- `_`, `duty:`, `during:` seleciona power e duty;
+- return type, constraints, efeitos e conversões não ordenam candidatos;
+- um default não pode criar uma forma aceita por outro overload;
+- uma referência a overload exige uma closure que mostre a forma;
+- uma forma nova em overload set existente é minor quando não altera lookup;
+- o primeiro overload de uma função singular é major;
+- um initializer disjunto novo é minor;
+- mudar uma forma existente é major.
+
+O ensaio deve rejeitar dois `parse(_)` que diferem somente por tipo. Ele também
+deve rejeitar `serve(_)` quando um default cria essa forma duas vezes.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -436,7 +464,9 @@ O Book deve mostrar pares lado a lado:
 | destructuring | `Type(field, field: pattern, ...)` | `{field}` e tuple posicional |
 | evolução de pattern | `...` externo explícito | exaustividade aberta implícita |
 | construção | `Type(field: value)` | `new Type(...)` e `Type {...}` |
-| initializer | um `init` + factories nomeadas | overload e `async init` |
+| overload | labels e aridade antes dos tipos | ranking por tipos ou nomes únicos |
+| initializer | vários `init` com formas disjuntas | um `init`, `init?` e `async init` |
+| delegação de initializer | `self = Type(...)` | `self.init(...)` e factory obrigatória |
 | computed property | `name: T { get => value }` | getter method e getter com efeitos |
 | static record | `<{name: value}>` | extensão universal de tipo |
 | static list | `<[a, b]>` ordenada | set implícito de constraints |
