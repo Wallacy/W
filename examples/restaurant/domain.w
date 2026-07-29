@@ -21,7 +21,7 @@ export enum Course {
   quietSalad
   horizonCake
 
-  static fn fromOrdinal(value: usize): Course {
+  export static fn fromOrdinal(value: usize): Course {
     return switch value {
       case 0: .nebulaBroth
       case 1: .photonSouffle

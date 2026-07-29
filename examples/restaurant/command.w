@@ -78,7 +78,7 @@ export fn decodeCommand(source: ref String): Command throws CommandError {
   }
 }
 
-export object CommandStream {
+object CommandStream {
   var buffer = String()
   var consumedBytes: usize = 0
   var consumedScalars: usize = 0

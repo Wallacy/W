@@ -332,7 +332,7 @@ requirement.
 Aceite:
 
 - `PidController(...)` baixa para `construct` sem prometer heap ou stack;
-- o `init` customizado remove o memberwise initializer público;
+- o `init` customizado remove o memberwise initializer exportado;
 - cada gain inválido lança `KitchenError` antes de publicar a instance;
 - todos os caminhos normais inicializam os cinco fields;
 - uma falha destrói somente os fields já inicializados;
@@ -344,6 +344,28 @@ Aceite:
 
 O ensaio deve rejeitar `async init`, getter com service call e uso de `self`
 antes da inicialização completa.
+
+### 3.18 Porta da Despensa Quase Segura
+
+Famílias: visibilidade, records transparentes, objects e protocol witnesses.
+
+Aceite:
+
+- fields de `Guest` herdam `export` do struct transparente;
+- o initializer memberwise de `Guest` também é `export`;
+- fields de `PidController` ficam no módulo porque o struct declara `init`;
+- `StockReservation` publica somente `ingredients` e `release`;
+- `id`, `releaser` e `released` não cruzam o módulo;
+- `CommandStream` deixa de ser exportado porque só apoia `decodeCommand`;
+- `BrigadeMetrics` permite construção externa somente pelo `export init`;
+- `BrigadeMetrics.completionCount` herda a visibilidade do requirement;
+- `Course.fromOrdinal` usa `export` porque associated functions não herdam;
+- cases de enums exportados não repetem o modifier;
+- storage de service não aceita `package` ou `export`;
+- `w interface` materializa todos os níveis efetivos.
+
+O ensaio deve rejeitar uma API exportada que menciona um tipo restrito ao
+módulo. Ele também deve rejeitar acesso externo ao storage do object.
 
 ## 4. Alternativas visuais obrigatórias
 
@@ -359,6 +381,9 @@ O Book deve mostrar pares lado a lado:
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
 | associated member | `Money.zeroCredits` | mutable type storage |
+| struct de dados | fields herdam a visibilidade do tipo | `export` em cada field |
+| object | storage encapsulado e API explícita | todos os membros herdam `export` |
+| protocol witness | herda o requirement | repete `export` na implementação |
 | construção | `Type(field: value)` | `new Type(...)` e `Type {...}` |
 | initializer | um `init` + factories nomeadas | overload e `async init` |
 | computed property | `name: T { get => value }` | getter method e getter com efeitos |

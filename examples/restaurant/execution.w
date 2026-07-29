@@ -12,11 +12,13 @@ export protocol CompletionMetric {
 export object BrigadeMetrics: CompletionMetric {
   var atomic completed: u64 = 0
 
+  export init() {}
+
   fn recordCompletion() {
     completed += 1
   }
 
-  export completionCount: u64 {
+  completionCount: u64 {
     get => completed
   }
 }
