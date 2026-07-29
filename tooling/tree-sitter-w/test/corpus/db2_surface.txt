@@ -158,6 +158,10 @@ fn inspectStaticPayloads() {
 DB2 domains unsafe and entries
 ==================
 
+enum LastLightDomain: ExecutionDomain {
+  thermal
+}
+
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint {
   return unsafe { c_checksum(data) }
 }
@@ -169,6 +173,7 @@ unsafe fn<lang: .c> namedChecksum(data: c.ptr<c.uchar>): c.uint {
 async fn prepare(): Dish {
   async<.network> let stock = fetchStock()
   spawn<.compute> let plan = calculatePlan()
+  spawn<domain: LastLightDomain.thermal> let heat = calculateHeat()
   defer async { await stock.close() }
   return await cook(stock, plan: plan)
 }
@@ -181,6 +186,14 @@ entry LastLight {
 ---
 
 (source_file
+  (enum_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (enum_body
+      (enum_case
+        (identifier))))
   (function_declaration
     (language_tag
       (identifier))
@@ -264,6 +277,19 @@ entry LastLight {
         (task_contract
           (contextual_member_expression
             (identifier)))
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (binding_declaration
+        (task_contract
+          (identifier)
+          (static_argument_value
+            (type
+              (type_name
+                (type_identifier)
+                (type_identifier)))))
         (pattern
           (identifier))
         (call_expression
