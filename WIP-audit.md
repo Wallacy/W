@@ -175,6 +175,7 @@ vigente das famílias que ainda estavam parciais.
 | ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
 | compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
 | generics, protocols e enum subsets | `W/DESIGN.md` 8.6–8.7 e D2-280–306 | **Líder DB2**; inference fechada, witnesses, coherence e case-sets |
+| reflection, synthesis e rest | `W/DESIGN.md` 8.9 e D2-307–322 | **Líder DB2**; metadata opt-in, TypeId local e rest homogêneo |
 
 ### Resultado da revisão de collections
 
@@ -292,6 +293,28 @@ somente as falhas possíveis e reduz o conjunto exaustivo de `catch`. Isso
 recupera o valor dos enums fechados sem retomar a hipótese histórica de que
 todos os tipos ou representações devem ser enums.
 
+### Resultado da revisão de reflection, synthesis e rest
+
+O DB1 já separava witness metadata, `TypeId` local e reflection estrutural.
+Também exigia conformance opt-in sem annotations. A DB2 recupera esse contrato
+em `std.reflect`.
+
+Tooling usa interfaces e HIR. Runtime recebe somente descriptors alcançáveis de
+tipos `Reflectable`. Debug symbols continuam separados. Fields privados,
+offsets e dynamic construction não entram no descriptor.
+
+Conformance no type head também solicita synthesis de uma família fechada. O
+compiler conhece `Equatable`, `Hashable`, `Duplicable` e `Reflectable` por
+identidade. User macros e `@derive` continuam rejeitados.
+
+O WIP usava varargs em opções de import. Essa ocorrência preservava a intenção
+de uma lista compacta, mas não definia ownership ou ABI. A DB2 usa `T...` para
+rest homogêneo e `each values` para expansão.
+
+`each` evita a colisão entre spread postfix e o range unilateral `4...`.
+Heterogeneous packs, generic associated types e typed property paths continuam
+em **Pesquisa**.
+
 ## Alternativas que não devem desaparecer de novo
 
 As seguintes formas não são candidatas atuais, mas precisam continuar
@@ -309,6 +332,7 @@ pesquisáveis porque registram uma intenção humana legítima:
 - config de função `fn<config>` distinta de `fn<lang>`;
 - `comptime expression` e `const { ... }` para pipelines sem binding;
 - named type arguments, implicit existential opening e generic associated types;
+- `Type<T>`, `\Type.property` e heterogeneous parameter packs;
 - autotest gerado, PGO, snapshots e live debug;
 - WLO/WLON, SQL-like queries, wRPC e Computer Units.
 
