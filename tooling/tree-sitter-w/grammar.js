@@ -670,6 +670,7 @@ module.exports = grammar({
         $.static_array_literal,
         $.type,
         $.number_literal,
+        $.contextual_member_expression,
         seq(
           field("label", $.identifier),
           ":",

@@ -737,7 +737,7 @@ field names, ordem e valor:
 
 ```w
 BoundedText<{min: 1, max: 120}>
-StagePath<[.accepted, .preparing, .completed]>
+StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>
 ```
 
 Float fica fora da identidade de tipo porque NaN não possui equality reflexiva.
@@ -2625,14 +2625,14 @@ torna todos os contratos equivalentes:
 
 ```w
 // `StagePath` declara uma StaticList. A ordem e a repetição são significativas.
-let path: StagePath<[.accepted, .preparing, .completed]>
+let path: StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>
 
 // `ServiceStage` declara um case-set. A ordem não é significativa.
 let stage: ServiceStage<[.preparing, .serving]> = .preparing
 ```
 
-`StagePath<[.accepted, .preparing]>` e
-`StagePath<[.preparing, .accepted]>` são tipos diferentes.
+As listas `[.accepted, .reserving]` e `[.reserving, .accepted]` são valores
+estáticos diferentes. `StagePath` também rejeita a segunda ordem pelo predicate.
 `ServiceStage<[.preparing, .serving]>` e
 `ServiceStage<[.serving, .preparing]>` são o mesmo tipo.
 
@@ -3023,7 +3023,7 @@ Use outro contrato quando a estrutura do problema for diferente:
 | implementações externas podem crescer | `protocol` | `DishFactory` |
 | várias opções podem estar ativas | `Set<T>` ou flags | `Set([.read, .write])` |
 | um scalar possui limites | refinement | `GuestCount = u16<(1...4096)>` |
-| a ordem compile-time importa | `StaticList<T>` | `StagePath<[.accepted, .completed]>` |
+| a ordem compile-time importa | `StaticList<T>` | `StagePath<[.accepted, .cancelled]>` |
 | uma alternativa fechada está ativa | `enum` | `OvenReading.stable(180)` |
 | uma API conhece menos alternativas | enum subset | `OvenReading<[.stable, .warming]>` |
 
@@ -3040,6 +3040,290 @@ protocol PaymentProvider {
 Não use um case `.custom(any PaymentProvider)` para fingir que um enum fechado
 é uma extensão aberta, a menos que o fechamento externo seja uma decisão
 explícita do protocol de wire.
+
+#### 8.6.3 Estado runtime, typestate e transições
+
+W separa dois fatos:
+
+| Fato | Representação | Exemplo |
+|---|---|---|
+| estado conhecido em runtime | enum em storage | `OrderState.stage: ServiceStage` |
+| estado provado pelo código chamador | argumento `const` de enum | `OvenSession<.ready>` |
+
+**Líder DB2:** use estado runtime para valores persistidos, compartilhados ou
+escolhidos por entrada. Use typestate para um owner local cuja transição consome o
+estado anterior.
+
+Esses fatos não convertem de forma automática. Um enum runtime pode exigir uma
+validação. Um typestate não cria um field runtime.
+
+##### Transições e paths estáticos
+
+Uma função `const` pode definir a mesma regra para compile time e runtime:
+
+```w
+export const fn canMove(from current: ServiceStage, to next: ServiceStage): Bool {
+  return switch current {
+    case .accepted: next in (.reserving, .cancelled)
+    case .reserving: next in (.preparing, .cancelled)
+    case .preparing: next in (.serving, .cancelled)
+    case .serving: next in (.completed, .cancelled)
+    case .completed: false
+    case .cancelled: false
+  }
+}
+```
+
+Um refinement do parâmetro `const` valida uma sequência:
+
+```w
+export const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {
+  guard stages.count > 0 else return false
+
+  for index in 1..<stages.count {
+    if !canMove(from: stages[index - 1], to: stages[index]) {
+      return false
+    }
+  }
+
+  return true
+}
+
+export struct StagePath<
+  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+> {
+  orderId: OrderId
+}
+```
+
+O tipo abaixo é válido:
+
+```w
+let standard: StagePath<
+  [.accepted, .reserving, .preparing, .serving, .completed]
+>
+```
+
+O tipo abaixo falha na transição `.accepted → .completed`:
+
+```w
+let skipped: StagePath<[.accepted, .completed]>
+// error[W-CONST-STATE-0001]: invalid transition at stages[0] -> stages[1]
+```
+
+`StagePath` prova a sequência declarada. Ele não prova que uma service instance
+executou essa sequência.
+
+##### Typestate com enum e ownership
+
+Um argumento `const` de enum pode identificar o estado estático:
+
+```w
+export type OvenId = u64
+
+export enum OvenFault: Error {
+  sensorUnavailable
+}
+
+export enum OvenSessionState {
+  idle
+  ready
+  faulted
+  closed
+}
+
+export struct OvenSession<const _ state: OvenSessionState> {
+  id: OvenId
+
+  init(id: OvenId) {
+    self.id = id
+  }
+}
+
+export enum ActivationOutcome {
+  ready(OvenSession<.ready>)
+  faulted(OvenSession<.faulted>, OvenFault)
+}
+
+export fn openOven(id: OvenId): OvenSession<.idle> {
+  return OvenSession<.idle>(id: id)
+}
+```
+
+O initializer sem `export` impede a construção externa de um estado arbitrário.
+Uma extension publica somente as operações válidas para uma specialization:
+
+```w
+extension OvenSession<.idle> {
+  export take fn activate(sensorWorks: Bool): ActivationOutcome {
+    if sensorWorks {
+      return .ready(OvenSession<.ready>(id: id))
+    }
+
+    return .faulted(
+      OvenSession<.faulted>(id: id),
+      .sensorUnavailable,
+    )
+  }
+}
+
+extension OvenSession<.ready> {
+  export take fn close(): OvenSession<.closed> {
+    return OvenSession<.closed>(id: id)
+  }
+}
+```
+
+`activate` consome `OvenSession<.idle>`. O binding antigo fica movido. Cada case
+de `ActivationOutcome` devolve o novo owner e preserva o estado conhecido:
+
+```w
+let idle = openOven(id)
+let outcome = (take idle).activate(sensorWorks: probe.isHealthy)
+
+switch outcome {
+  case .ready(let oven):
+    bakeCake(using: take oven)
+  case .faulted(let oven, let fault):
+    report(fault)
+    quarantine(take oven)
+}
+```
+
+O compiler rejeita estas operações:
+
+```w
+(take idle).activate(sensorWorks: true)
+// error: idle was already moved
+
+let stillIdle = openOven(id)
+(take stillIdle).close()
+// error: close is not a member of OvenSession<.idle>
+```
+
+Uma transição não muda o tipo de um binding no lugar:
+
+```w
+var oven = openOven(id)
+oven = OvenSession<.ready>(id: id)
+// error: OvenSession<.idle> and OvenSession<.ready> are distinct types
+```
+
+Essa regra mantém o type checker local. Ela também impede que um alias observe
+uma mudança de tipo.
+
+Um borrow precisa terminar antes da transição consuming:
+
+```w
+let ref identifier = idle.id
+let outcome = (take idle).activate(sensorWorks: true)
+print(identifier)
+// error: borrow of idle remains live across a consuming transition
+```
+
+Uma transição `throws` não restaura o owner de forma implícita. Se o código chamador
+precisa recuperar um owner, a função retorna um enum como `ActivationOutcome`.
+Cada saída transfere ou destrói o owner uma vez.
+
+O argumento `state` participa da identidade de tipo e de `TypeId`. Ele não exige
+tag, byte ou pointer adicional no runtime. O backend pode compartilhar machine
+code entre specializations quando o estado não altera o body.
+
+Typestate não é o default para collections heterogêneas:
+
+```w
+let ovens: Array<OvenSession<?>> = mixed
+// error: W does not erase a const state with `?`
+```
+
+Use um enum runtime ou um envelope fechado quando vários estados precisam ocupar
+a mesma collection:
+
+```w
+enum AnyOvenSession {
+  idle(OvenSession<.idle>)
+  ready(OvenSession<.ready>)
+  faulted(OvenSession<.faulted>)
+  closed(OvenSession<.closed>)
+}
+```
+
+##### Services, snapshots e concorrência
+
+Uma `ServiceRef` pode ter aliases. A instância também pode mudar entre duas
+calls. Portanto, uma service não muda de protocol ou typestate depois de uma
+call.
+
+Uma API publica um snapshot quando o código chamador precisa observar o estado:
+
+```w
+struct StageSnapshot {
+  stage: ServiceStage
+  revision: u64
+}
+
+enum MoveOrderResult {
+  applied(StageSnapshot)
+  stale(current: StageSnapshot)
+  rejected(from: ServiceStage, to: ServiceStage)
+}
+
+protocol RestaurantApi {
+  async fn status(orderId: OrderId): StageSnapshot
+
+  async fn move(
+    orderId: OrderId,
+    to next: ServiceStage,
+    expectedRevision: u64,
+  ): MoveOrderResult
+}
+```
+
+O closed turn torna cada call serial na instância. O snapshot pode ficar antigo
+depois do retorno. `expectedRevision` fornece uma precondição verificável para
+a próxima transição.
+
+Um enum subset ainda melhora cada resultado:
+
+```w
+alias AppliedOrStale =
+  MoveOrderResult<[.applied, .stale]>
+```
+
+Ele não transforma o snapshot em authority sobre a instância.
+
+##### Limites e alternativas
+
+W não adiciona keywords `state` ou `transition` na DB2. Const generics,
+extensions, `take fn`, enums e refinements já expressam o protocolo.
+
+Uma `StateGraph<E>` declarativa permanece **Pesquisa**:
+
+```w
+const serviceFlow = StateGraph<ServiceStage>([
+  (.accepted, .reserving),
+  (.accepted, .cancelled),
+  (.reserving, .preparing),
+  (.reserving, .cancelled),
+])
+```
+
+Esse valor poderia gerar diagramas e analisar estados inalcançáveis. O protótipo
+precisa provar que ele reduz duplicação sem limitar guards dinâmicos.
+
+Typestate em `shared`, `service` ou outro owner com aliases fica **Rejeitado por
+enquanto**. A transição exigiria invalidar aliases ou executar checks runtime.
+Use enum em storage e uma fronteira serial.
+
+O
+[Embedded Rust Book](https://docs.rust-embedded.org/book/static-guarantees/typestate-programming.html)
+mostra transições que consomem um estado e produzem outro. A seção sobre
+[zero-cost abstractions](https://docs.rust-embedded.org/book/static-guarantees/zero-cost-abstractions.html)
+mostra que markers de estado não precisam existir no runtime. O trabalho
+[Typestates for Objects](https://www.cs.cmu.edu/~aldrich/courses/819/deline-typestates.pdf)
+mostra o valor de preconditions por estado e o custo de aliases. As
+[regras de Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
+mostram por que coordenação compartilhada exige estado runtime e serialização.
 
 ### 8.7 Generics
 
@@ -3070,11 +3354,13 @@ let weights: Matrix<f32, rows: 3, columns: 4>
 primário cujo significado já está no nome do head:
 
 ```w
-struct StagePath<const _ stages: StaticList<ServiceStage>> {
+struct StagePath<
+  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+> {
   orderId: OrderId
 }
 
-let path: StagePath<[.accepted, .preparing, .completed]>
+let path: StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>
 ```
 
 Um head pode misturar slots posicionais de tipo e slots `const` nomeados:
@@ -7742,6 +8028,7 @@ Uma pesquisa só avança quando possui:
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
 | generics com primary associated types | **Possível agora** | inference fechada, coherence nominal e lowering híbrido definidos |
 | subsets fechados de enum | **Possível agora** | case-set normalizado, flow narrowing e layout base definidos |
+| typestate por `const` enum + `take fn` | **Provável** | lookup e ownership são conhecidos; diagnostics e code sharing exigem corpus |
 | `TypeId` e reflection opt-in | **Possível agora** | descriptor alcançável não expõe layout nem storage privado |
 | synthesis de protocols core | **Possível agora** | families fechadas e witnesses normalizados |
 | parâmetros rest homogêneos | **Provável** | call shape é fechado; ownership e lowering exigem corpus |
@@ -7920,6 +8207,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - computed properties e property requirements;
 - generic signatures, primary associated types, witnesses e inference local;
 - refinements e enum case subsets;
+- argumentos `const` de enum, extensions especializadas e paths refinados;
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;
@@ -7949,6 +8237,7 @@ e cancelamento.
 
 - initialization e whole-value move;
 - receiver `take fn`, deinit e saídas com consumo;
+- transições typestate consuming e outcomes que devolvem o novo owner;
 - borrows, drop e defer;
 - typed errors e panic boundary;
 - allocator hooks;
@@ -8440,6 +8729,14 @@ experimentar”, não “decisão irreversível”.
 | D2-324 | sequência e case-set | o head decide: `StagePath<[...]>` preserva ordem; `Enum<[...]>` normaliza conjunto | tratar toda static list como conjunto |
 | D2-325 | enum e flags | enum representa uma alternativa; simultaneidade usa Set ou tipo de flags separado | enum com semântica AND/OR contextual |
 | D2-326 | álgebra de case-set | somente na HIR; source nomeia a lista resultante | operadores públicos de union/intersection/difference na DB2 |
+| D2-327 | dois estados | enum em storage para runtime; argumento `const` de enum para typestate local | typestate universal; enum runtime universal |
+| D2-328 | argumento const enum | slot primário aceita `.case`; slot normal usa `label: .case` | marker type vazio; string; annotation |
+| D2-329 | transição typestate | extension especializada + `take fn`; novo tipo no retorno | mudar tipo do binding no lugar; pre/post annotations |
+| D2-330 | falha consuming | outcome enum devolve cada novo owner; `throws` não restaura owner | rollback implícito; owner escondido no error |
+| D2-331 | path estático | `StaticList<Enum>` refinada por `const fn`; primeiro edge inválido vira diagnostic | lista sem validação; DSL obrigatória |
+| D2-332 | estado de service | enum persistido + snapshot revisionado; closed turn por call | `ServiceRef<State>` muda depois da call |
+| D2-333 | erasure de typestate | envelope enum explícito para collections mistas | `T<?>`; existential implícito; tag escondida |
+| D2-334 | DSL de transição | sem keywords novas; `StateGraph<E>` declarativa em Pesquisa | `state`/`transition` na DB2; annotations |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
