@@ -174,6 +174,7 @@ vigente das famílias que ainda estavam parciais.
 | collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
 | ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
 | compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
+| generics, protocols e enum subsets | `W/DESIGN.md` 8.6–8.7 e D2-280–306 | **Líder DB2**; inference fechada, witnesses, coherence e case-sets |
 
 ### Resultado da revisão de collections
 
@@ -258,6 +259,39 @@ O seed C e o core W0 implementam CE0. Quotas de steps, heap, call depth e result
 impedem loops infinitos e expansão sem limite. O evaluator usa a semântica do
 target e nunca executa FFI ou código nativo do host.
 
+### Resultado da revisão de generics e protocols
+
+O caderno exigia generics capazes de substituir macros C especializadas. Essa
+intenção foi preservada. O body generic é verificado uma vez. O backend pode
+usar monomorphization, shared body ou witness sem mudar a semântica.
+
+O caderno também estudava vtables dentro de structs e symbol hashes globais.
+Essas formas não definem o layout W. Uma conformance possui witnesses externos
+ao valor. Static dispatch pode eliminar a table. `any P` leva os witnesses
+necessários quando o tipo concreto fica apagado.
+
+Associated types não adicionam fields ao conformer. Um primary associated type
+fica ligado a `Self` e recebe um `alias` witness explícito. Property behavior
+continua o mecanismo para storage e accessors.
+
+Conformance segue coherence nominal. O módulo do tipo ou do protocol pode
+declará-la. Imports não escolhem implementação. Conditional conformances não
+podem se sobrepor ou usar prioridade.
+
+Labels de argumentos generic foram fechados por kind. Type arguments continuam
+posicionais. `const` arguments usam labels. `const _` declara um slot primário
+posicional, como o path ordenado de stages.
+
+O path e o enum subset possuem contratos diferentes. `StagePath<[...]>` guarda
+uma sequência compile-time. `ServiceStage<[...]>` restringe um valor a um
+conjunto canônico de cases. O segundo contrato permite narrowing e switch
+exaustivo sem criar wrapper runtime.
+
+O subset também vale para enums de error. `throws ErrorEnum<[...]>` publica
+somente as falhas possíveis e reduz o conjunto exaustivo de `catch`. Isso
+recupera o valor dos enums fechados sem retomar a hipótese histórica de que
+todos os tipos ou representações devem ser enums.
+
 ## Alternativas que não devem desaparecer de novo
 
 As seguintes formas não são candidatas atuais, mas precisam continuar
@@ -274,6 +308,7 @@ pesquisáveis porque registram uma intenção humana legítima:
 - optional operators como `?+`;
 - config de função `fn<config>` distinta de `fn<lang>`;
 - `comptime expression` e `const { ... }` para pipelines sem binding;
+- named type arguments, implicit existential opening e generic associated types;
 - autotest gerado, PGO, snapshots e live debug;
 - WLO/WLON, SQL-like queries, wRPC e Computer Units.
 
