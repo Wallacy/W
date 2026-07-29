@@ -83,15 +83,9 @@ export object StockReservation {
   id: ReservationId
   export ingredients: Array<Ingredient>
   releaser: ServiceRef<PantryLeaseApi>
-  var released = false
 
-  export mut async fn release() throws PantryError {
-    if released {
-      return
-    }
-
+  export take async fn release() throws PantryError {
     try await releaser.release(id)
-    released = true
   }
 }
 

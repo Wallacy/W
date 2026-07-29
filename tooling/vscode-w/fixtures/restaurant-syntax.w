@@ -34,6 +34,10 @@ struct ServiceFlow {
   mut fn advance(to next: ServiceStage): self {
     stage = next
   }
+
+  take fn finish(): ServiceStage {
+    return stage
+  }
 }
 
 export service LastLightRestaurant as RestaurantApi {

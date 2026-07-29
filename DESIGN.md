@@ -611,7 +611,7 @@ export object StockReservation {
   export ingredients: Array<Ingredient>
   releaser: ServiceRef<PantryLeaseApi>
 
-  export mut async fn release() throws PantryError { ... }
+  export take async fn release() throws PantryError { ... }
 }
 ```
 
@@ -690,6 +690,8 @@ considera estas regras:
 | adicionar stored field obrigatório | major |
 | remover, renomear ou reordenar stored field | major |
 | mudar tipo, mutabilidade ou reduzir visibilidade | major |
+| mudar receiver mode entre `fn`, `mut fn` e `take fn` | major |
+| adicionar `deinit` ou remover `Copy` | major |
 | adicionar `init` explícito a struct transparente | major |
 | adicionar função ou computed property sem mudar resolução | minor |
 | adicionar case a enum fechado | major |
@@ -774,7 +776,7 @@ A ordem canônica é:
 1. visibilidade;
 2. `static`, para member sem receiver;
 3. `unsafe`, se necessário;
-4. `mut`, para receiver mutável;
+4. `mut` ou `take`, para mudar o receiver mode;
 5. `async`;
 6. `fn` ou `fn<Language>`.
 
@@ -787,7 +789,8 @@ O primeiro argumento é posicional por default. Os seguintes usam o nome como
 label. Um label explícito substitui o default. `_` remove um label.
 
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
-`mut fn` recebe `self` com mutation exclusiva. `static fn` não recebe `self`:
+`mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
+`static fn` não recebe `self`:
 
 ```w
 enum Course {
@@ -799,8 +802,58 @@ enum Course {
 }
 ```
 
-`static mut fn` é erro. Um receiver consuming continua **Pesquisa**. A
-alternativa atual é uma função livre com parâmetro `take`.
+Os receiver modes são:
+
+| Forma | Receiver | Efeito no caller |
+|---|---|---|
+| `fn` | `ref self` | preserva o owner |
+| `mut fn` | `inout self` | preserva o owner e permite mutation |
+| `take fn` | `take self` | transfere e invalida o binding |
+| `static fn` | nenhum | não usa uma instance |
+
+`mut`, `take` e `static` são exclusivos. Um `take fn` possui ownership local de
+`self` e pode mutar esse valor. Essa mutation não aparece no caller.
+`take fn` fora de um member é erro. Uma free function usa parâmetro `take`.
+
+O call site transfere o receiver de forma explícita:
+
+```w
+let tail = try (take stream).finish()
+try await (take reservation).release()
+```
+
+Os parênteses aplicam `take` ao receiver antes do member lookup. A forma
+`take value.method()` não é válida. Ela poderia parecer uma transferência do
+resultado. Uma free function continua usando `finish(take stream)`.
+
+Um `take fn` pode transferir `self` inteiro para outro owner. Ele também pode
+retornar `Self`. Se não transferir `self`, o método executa `deinit` e drop ao
+terminar.
+
+`: self` não é válido em `take fn`. Esse return type seria um borrow de um
+receiver que termina na call. `: Self` continua um resultado owned.
+
+O receiver fica consumido em success, error e cancellation. Um `catch` não
+restaura o binding do caller. Uma operação que permite retry usa `mut fn` ou
+retorna um outcome que carrega o owner no case de retry.
+
+Um call com receiver `Copy` também invalida o binding quando usa `take`. O
+caller escreve `(take copy value).method()` quando precisa preservar uma cópia.
+
+Protocol requirements registram o receiver mode. O witness deve usar o mesmo
+mode. Uma service instance não implementa `take fn`, pois o host controla seu
+lifecycle. Um `take fn` também não pode ser chamado por `ref`, `inout`, `shared`,
+`weak` ou `ServiceRef`.
+
+W reutiliza `take` em vez de adicionar `consuming`. A direção acompanha os
+ownership modifiers da
+[SE-0377](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md)
+e o receiver by-value do
+[Rust Reference](https://doc.rust-lang.org/reference/items/associated-items.html#methods).
+
+**Alternativa:** consumir o receiver sem marker no call site, como Swift e Rust.
+Outra alternativa usa somente uma free function com parâmetro `take`. A forma
+líder mantém a transferência visível e preserva method lookup.
 
 Um método fluente declara `: self`:
 
@@ -901,6 +954,10 @@ Somente stored fields visíveis no ponto de uso participam do pattern. Um struct
 encapsulado aceita destructuring no módulo que controla seu storage. `object` e
 `service` não aceitam destructuring. Essas categorias preservam identidade,
 invariantes e cleanup atrás da API nominal.
+
+Um struct com `deinit` customizado não aceita destructuring owned. O pattern
+emprestado continua válido dentro do módulo. Essa regra impede que um pattern
+ignore ou execute duas vezes o cleanup customizado.
 
 **Alternativa:** usar `{field}` como record pattern. Outra alternativa usa
 posições sem nomes. A forma líder reutiliza `Type(...)`, mantém labels nominais
@@ -1330,7 +1387,6 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 | property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
 | metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
-| consuming receiver | **Pesquisa** | `take self`, partial failure e retorno owned |
 | síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
 | overload de funções | **Pesquisa** | ranking único, labels, conversões e evolução de package |
 
@@ -1640,6 +1696,10 @@ Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
 
 ### 9.11 Destruição e recuperação de storage
 
+- `deinit` recebe acesso exclusivo e não consuming ao valor completo;
+- `deinit` pode mutar fields, mas não pode mover fields ou `self`;
+- `deinit` não chama `take fn` no próprio receiver;
+- um tipo com `deinit` customizado não atende a `Copy`;
 - locals são destruídos na ordem inversa da inicialização;
 - fields owned morrem em ordem inversa da inicialização completa;
 - branches mantêm drop state explícito na HIR;
@@ -1654,6 +1714,34 @@ Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
 
 O compiler pode eliminar drop flags depois de provar definite initialization.
 Ele não remove um cleanup observável.
+
+Um `take fn` assume a obrigação de destruir ou transferir `self`. As saídas
+seguem estas regras:
+
+1. `return self` ou outro consumo inteiro transfere a obrigação;
+2. fallthrough e `return ()` executam `deinit` uma vez;
+3. `throw` e cancellation também executam `deinit` uma vez;
+4. `defer` termina antes de `deinit`;
+5. os fields executam drop depois de `deinit`.
+
+Todo caminho que não transfere `self` precisa deixá-lo completo e válido para
+`deinit`. O verifier aplica definite destruction antes de cada saída.
+
+Código safe não possui `discard self`, `forget` ou call manual de `deinit`.
+Uma operação que limpa um recurso antes do fim deixa o wrapper em estado válido.
+Um handle opcional pode virar `.none`, por exemplo. O optimizer pode representar
+esse estado com um niche.
+
+Essa regra impede double-close em todos os caminhos. Ela também evita uma
+análise de partial destruction na primeira implementação. Um futuro suporte a
+extração de fields exige uma prova inversa de definite initialization.
+
+A
+[SE-0390](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0390-noncopyable-structs-and-enums.md)
+mostra o risco de suprimir `deinit` em somente alguns caminhos. O
+[`Drop` de Rust](https://doc.rust-lang.org/stable/core/ops/trait.Drop.html)
+também mantém o destructor separado do consumo explícito. W usa um estado
+válido e drop automático como baseline.
 
 ### 9.12 Explicação e medição
 
@@ -1786,6 +1874,11 @@ defer async {
 transfere a obrigação. Um `defer async` reconhecido a descarrega. Sair do scope
 sem close produz diagnostic. O compilador não cria uma task detached no
 destructor.
+
+`take async fn` já expressa encerramento one-shot de um owner local. Ele não
+torna `ServiceRef` linear. Esse handle é shareable e pode ter aliases. Uma lease
+remota precisa de capability própria ou close idempotente antes de atender ao
+protocol linear.
 
 ## 12. Concorrência, paralelismo e execução
 
@@ -3540,7 +3633,8 @@ Uma pesquisa só avança quando possui:
 | visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
 | destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
 | diff de interface e SemVer | **Provável** | regras básicas fechadas; conflitos de resolução exigem corpus |
-| retorno fluente `: self` | **Provável** | reborrow é conhecido; async e consuming receiver exigem corpus |
+| receiver consuming `take fn` | **Possível agora** | whole-value move e drop state já são necessários |
+| retorno fluente `: self` | **Provável** | reborrow é conhecido; borrow suspenso exige corpus |
 | initializer canônico e definite initialization | **Possível agora** | flow analysis e cleanup parcial são conhecidos |
 | computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
@@ -3630,6 +3724,8 @@ O corpus compara, no mínimo:
 - `T<(.member predicate)>` contra `value.member`, `where` e constructor;
 - `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
 - `: self` explícito contra retorno implícito do receiver e retorno `()`;
+- `(take value).method()` contra consumo implícito e free function;
+- error em `take fn` contra restauração implícita do owner;
 - associated member direto contra protocol requirement e mutable type storage;
 - struct transparente contra `export` em cada field e export total do tipo;
 - pattern nominal `Type(field, ...)` contra record pattern com `{}`;
@@ -3700,6 +3796,7 @@ Saída: payload determinístico para programas síncronos nos dois caminhos.
 ### 26.5 Fase 3 — memória, errors e C
 
 - initialization e whole-value move;
+- receiver `take fn`, deinit e saídas com consumo;
 - borrows, drop e defer;
 - typed errors e panic boundary;
 - allocator hooks;
@@ -3949,8 +4046,8 @@ experimentar”, não “decisão irreversível”.
 | D2-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
 | D2-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
 | D2-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
-| D2-101 | recurso async | `defer async`; obrigação linear em pesquisa | async destructor; `using await`; lint |
-| D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `static fn` sem receiver | `self`; inferir static; função livre |
+| D2-101 | recurso async | `defer async` + `take async fn`; obrigação linear em pesquisa | async destructor; `using await`; lint |
+| D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `take fn` owned, `static fn` sem receiver | `self`; inferir static; função livre |
 | D2-103 | camadas de memória | semântica separada de lowering, representação e host | tag ou allocator como semântica |
 | D2-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
 | D2-105 | pinning | interno sem annotation; `Pinned<T>` para storage estável | keyword universal; raw pointer |
@@ -4022,6 +4119,12 @@ experimentar”, não “decisão irreversível”.
 | D2-171 | evolução de enum | enum fechado; case novo é major | `nonexhaustive`; default case obrigatório |
 | D2-172 | source contra schema | source, ABI e wire evoluem por contratos separados | derivar schema do struct |
 | D2-173 | verificação SemVer | `w interface diff` classifica e sinaliza revisão | revisão manual; só major/minor binário |
+| D2-174 | consuming receiver | `take fn`; call usa `(take value).method()` | consumo implícito; `consuming fn`; free function |
+| D2-175 | saída consuming | success, error e cancellation consomem; owner pode ser retornado | restaurar no error; abortar sem drop |
+| D2-176 | authority de `deinit` | exclusivo e não consuming; mutation sem move | borrow read-only; consumir fields |
+| D2-177 | supressão de drop | ausente em safe W; wrapper mantém estado válido | `discard self`; `forget` geral |
+| D2-178 | limite de receiver | protocol exige mode exato; service e handles aliases não usam `take fn` | adaptação com copy; service consuming |
+| D2-179 | `deinit` e copy | tipo com cleanup customizado não atende a `Copy` | copiar e contar drops; lint |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

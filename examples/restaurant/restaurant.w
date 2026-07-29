@@ -79,7 +79,7 @@ async fn prepareDish(
   let (stock, telemetry, aromaSample, schedule) = try await (stock, telemetry, aromaSample, schedule)
   defer async {
     do {
-      try await stock.release()
+      try await (take stock).release()
     } catch error {
       Trace.current.recordCleanupError(error)
     }
