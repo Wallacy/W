@@ -42,6 +42,7 @@ owner e estado observável.
 | `domain.w` | newtypes, refinements, enums e errors |
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
+| `string_storage.w` | construção incremental, reserva, reuse e carrier binário |
 | `collections.w` | arrays, views, iteration, Map/Set, hashing e stable sort |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
@@ -161,6 +162,38 @@ Ele executa o mesmo caso com Array, fixed array, Bytes, String e Tensor. A
 criação da view não muda a contagem de allocations. O corpus compile-fail tenta
 usar `capacity`, fazer append, devolver local storage, editar UTF-8 por bytes e
 escapar a view por uma task detached.
+
+### 3.3.3 Letreiro que Guarda as Últimas Palavras
+
+Famílias: String flat, literal static, SSO, reserva, mutation, carrier e OOM.
+
+Aceite:
+
+- W0 funciona com literal/static e um buffer UTF-8 flat de owner único;
+- criar `String()` vazio não aloca;
+- `copy` de storage dinâmico cria outro owner durante a operação;
+- COW não desloca allocation ou budget para uma mutation futura;
+- SSO pode mudar por target sem mudar source, resultado ou ABI pública;
+- a API não expõe capacity nem threshold de SSO;
+- `tryReserve(minimumBytes:)` usa o total mínimo e mantém o valor na falha;
+- append e replace não alocam quando a reserva comprovada basta;
+- `clear()` mantém storage e `reset()` o libera;
+- `takeAll()` transfere o conteúdo e deixa o receiver vazio;
+- `String.adoptingUtf8` e `String.intoBytes` transferem o carrier sem allocation
+  geral;
+- uma source view do mesmo owner não entra numa mutation;
+- reads não alocam nem atualizam uma cache lazy;
+- um summary eager, como `isAscii`, muda somente durante mutation;
+- raw pointer fica dentro de uma closure scoped;
+- CString ou Bytes pinned atende uma API que guarda o pointer;
+- String com allocator explícito usa a mesma origem em todo growth e drop.
+
+O oracle executa vazio, literal, limite de SSO menos um, limite, limite mais um e
+payload grande. Como o threshold é interno, ele é descoberto pela instrumentação
+e não pelo programa W. O ensaio injeta falha em cada allocation de copy, reserve,
+append e replace. Ele compara conteúdo, owner, allocation count, budget, drop e
+origem antes e depois. Os profiles flat e SSO precisam produzir o mesmo
+resultado; somente measurements podem mudar.
 
 ### 3.4 Cozinha de Maré Fria
 
@@ -930,6 +963,10 @@ O Book deve mostrar pares lado a lado:
 | namespace import | `import std.http as http` | `import http as http from std.http` |
 | região | `region request(using:, limit:)` | somente `Arena` manual |
 | projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
+| construção textual | reserve/append no próprio `String` | `StringBuilder` público |
+| storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
+| reserva textual | `tryReserve(minimumBytes:)` | capacity property e growth factor fixo |
+| esvaziar texto | `clear()` / `reset()` / `takeAll()` | `clear(keepingCapacity: Bool)` |
 
 Preferência visual não é medida antes das tarefas de leitura e correção.
 

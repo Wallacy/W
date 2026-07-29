@@ -76,7 +76,7 @@ export fn decodeCommand(source: ref String): Command throws CommandError {
     case "status": .status(try decodeOrderId(fields, span: span))
     case "cancel": .cancel(try decodeOrderId(fields, span: span))
     case "shutdown": .shutdown
-    case _: throw .unknownVerb(verb.toString())
+    case _: throw .unknownVerb(verb.materialize())
   }
 }
 

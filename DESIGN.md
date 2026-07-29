@@ -1743,8 +1743,9 @@ let ownedRecipe: Recipe = copy recipe
 ```
 
 Uma implementação de `Duplicable` é nonthrowing sob a policy normal de OOM. Ela
-cria um valor semanticamente independente. COW pode otimizar a operação, mas
-mutar um resultado nunca altera o outro:
+cria um valor semanticamente independente. COW só pode otimizar a operação
+quando allocation, budget, deallocator, failure e cleanup não observam a
+mudança. Mutar um resultado nunca altera o outro:
 
 ```w
 let original = "Last Light"
@@ -7117,12 +7118,38 @@ let graphemes = title.graphemes.count
 ```
 
 `String` pode conter U+0000. Ele não possui terminador NUL obrigatório. SSO,
-COW e a estratégia de crescimento são otimizações invisíveis. Cópia e move
-continuam com a semântica definida na seção 9.
+layout e estratégia de crescimento não fazem parte da API. Cópia e move seguem
+a seção 9.
 
 Esse contrato segue a experiência de
 [Swift com armazenamento UTF-8](https://www.swift.org/blog/utf8-string/) sem
 tornar a representação curta ou COW parte da linguagem.
+
+Contiguidade é uma garantia dos bytes durante um borrow scoped. Ela não promete
+um endereço estável depois de move ou mutation. Uma implementação pode usar
+estas formas internas:
+
+| Forma | Storage | Allocation |
+|---|---|---:|
+| vazia | descriptor canônico | não |
+| literal | bytes static read-only | não |
+| pequena | bytes inline no próprio valor | não, quando o profile oferece SSO |
+| dinâmica | buffer UTF-8 único com count, reserva e origem | sim |
+
+O bootstrap W0 começa com literal/static e buffer dinâmico único. Ele não
+precisa de SSO para compilar W. A representação dinâmica mínima contém pointer,
+byte count, reserva física e allocator origin. Esses fields são internos e não
+formam ABI pública.
+
+`copy text` possui custo semântico O(bytes) e produz outro owner. A baseline
+duplica storage dinâmico durante o `copy`. COW não entra na baseline, pois pode
+mover allocation failure, budget e deallocator para uma mutation posterior. O
+optimizer só pode compartilhar storage quando prova que allocation, identity,
+endereço, budget, failure e cleanup não observam a mudança.
+
+Um literal pode continuar em storage static depois de `copy`, pois não possui
+owner dinâmico nem reference count. A primeira mutation materializa storage
+único quando necessário. `w explain memory` informa essa transição.
 
 `String` não possui `length`, `count` ou subscript direto. O programa escolhe
 uma destas unidades:
@@ -7447,8 +7474,9 @@ As três conversões principais tornam ownership e allocation visíveis:
 | Forma | Resultado | Custo e owner |
 |---|---|---|
 | `String.viewFromUtf8(bytes)` | `view String` validada | O(bytes), sem cópia |
-| `String.fromUtf8(ref bytes)` | `String` | O(bytes), copia |
-| `String.adoptingUtf8(take bytes)` | outcome owned | O(bytes), pode reutilizar o buffer |
+| `String.fromUtf8(bytes)` | `String` | O(bytes), copia |
+| `String.adoptingUtf8(take bytes)` | outcome owned | O(bytes), transfere o carrier |
+| `(take text).intoBytes()` | `Bytes` | sem validação e sem allocation geral |
 
 As formas borrowed aceitam `Bytes` e `view Bytes`. A forma adopting exige
 `Bytes`, pois uma view não possui sua allocation.
@@ -7464,8 +7492,11 @@ let text = switch adopted {
 }
 ```
 
-`adoptingUtf8` consome `Bytes`. A implementação pode reutilizar o buffer, mas
-essa escolha não é uma garantia de layout. Uma falha devolve os mesmos bytes:
+`String` e `Bytes` usam um carrier owned compatível em T0. Isso não torna seus
+tipos ou layouts públicos iguais. A compatibilidade garante que
+`adoptingUtf8` valida e transfere o carrier sem copiar o payload nem pedir uma
+allocation geral. Uma forma inline pode mover seus bytes limitados dentro do
+valor. Uma falha devolve o mesmo owner de `Bytes`:
 
 ```w
 enum Utf8Adoption {
@@ -7473,6 +7504,16 @@ enum Utf8Adoption {
   invalid(Bytes, Utf8Error)
 }
 ```
+
+A conversão inversa consome `String`, remove a invariant UTF-8 e preserva
+allocator origin:
+
+```w
+let packet: Bytes = (take text).intoBytes()
+```
+
+Ela não valida nem adiciona terminador. Um borrow continua usando `text.bytes`;
+`intoBytes()` existe somente quando o caller precisa do owner binário.
 
 `Utf8Error.offset` aponta para o início da primeira maximal subpart inválida.
 `length` informa os bytes dessa subpart. `reason` não depende do decoder usado.
@@ -7615,9 +7656,20 @@ extension Course: Display {
 }
 ```
 
-`+` cria um novo `String`. `+=` e `append` mutam um `String` exclusivo.
-Os operadores aceitam somente `String`. Uma view usa `append`, interpolation
-ou `toString()`. W não converte números ou objetos nesses operadores.
+`+` produz um novo owner, mas consome o operand esquerdo e empresta o direito.
+Ele pode reutilizar a reserva esquerda. `+=` e `append` mutam um `String`
+exclusivo. Semanticamente, o operator recebe `take String` à esquerda e
+`view String` à direita:
+
+```w
+let joined = (take left) + right
+```
+
+Last-use inference move o operand esquerdo. Se ele ainda for usado depois, o
+source precisa escrever `copy left + right`. `append` também aceita
+`view String`; um `String`, literal ou grapheme view fornece esse borrow sem
+materialização. Uma view que precisa virar owner usa `materialize()`. W não
+converte números ou objetos nesses operadores.
 
 ```w
 var greeting = "Hello"
@@ -7625,8 +7677,12 @@ greeting += ", universe"
 let question = greeting + "?"
 ```
 
-`String` mantém sua capacidade de storage. `String(reservingBytes:)` torna a
-reserva explícita em loops ou construções grandes. O formatter pode sugerir
+Uma cadeia de `+` move o intermediate e pode reutilizar seu buffer. Construção
+em loop continua preferindo reserve/append, pois cada nova parcela ainda precisa
+ser copiada e growth pode ocorrer.
+
+`String` mantém uma reserva interna. `String(reservingBytes:)` torna o mínimo
+inicial explícito em loops ou construções grandes. O formatter pode sugerir
 reserva e `append` para uma cadeia de `+`.
 
 ```w
@@ -7639,6 +7695,64 @@ for row in rows {
 
 let report = output
 ```
+
+O valor exato da reserva não é uma property pública. Isso permite SSO e
+estratégias de crescimento diferentes sem mudar a API. As operações públicas
+são:
+
+| Operação | Contrato |
+|---|---|
+| `String()` | vazio sem allocation |
+| `String(using:)` | vazio ligado ao allocator fornecido |
+| `String(reservingBytes:, using:)` | solicita uma reserva mínima |
+| `reserve(minimumBytes:)` | usa a policy normal de OOM |
+| `tryReserve(minimumBytes:)` | retorna `AllocationError` e mantém o valor na falha |
+| `append(view String)` | copia bytes UTF-8 válidos para o fim |
+| `append(UnicodeScalar)` | codifica e anexa um scalar |
+| `replace(scalars:, with:)` | substitui um range com índices do mesmo owner |
+| `clear()` | esvazia e mantém a reserva |
+| `reset()` | esvazia e libera storage dinâmico |
+| `takeAll()` | devolve o conteúdo owned e deixa o receiver vazio |
+| `(take text).intoBytes()` | consome texto válido e devolve seus bytes |
+
+`reserve` e `tryReserve` recebem o total mínimo, não bytes adicionais. Depois de
+reservar `n`, mutations não alocam enquanto o resultado possui no máximo `n`
+bytes. Uma implementação pode reservar mais. A recipe fixa a growth policy
+quando budget ou failure fazem o tamanho físico observável.
+
+```w
+var line = String(using: memory)
+try line.tryReserve(minimumBytes: expectedBytes)
+line.append(prefix)
+line.append('🪐')
+```
+
+Overflow de tamanho falha antes de alterar o valor. `tryReserve` oferece strong
+failure guarantee. Código que precisa recuperar de OOM calcula o tamanho final,
+executa `tryReserve` e depois faz as mutations.
+
+`clear()` serve para reutilização em loop. `reset()` devolve storage ao allocator
+e preserva a allocator origin para growth futuro. `takeAll()` transfere o
+conteúdo sem uma cópia dinâmica; uma forma inline pode copiar somente seu limite
+fixo dentro do novo valor.
+
+```w
+var frame = String(reservingBytes: 4096)
+frame.append(chunk)
+let complete = frame.takeAll()
+expect frame.bytes.count == 0
+```
+
+Uma mutation não aceita uma source view do mesmo owner. Essa regra evita um
+temporary oculto e mantém o borrow model uniforme:
+
+```w
+let suffix = line.scalars[start..<end]
+line.append(suffix) // Erro: source e destination possuem o mesmo owner.
+```
+
+O programa materializa `suffix` ou usa uma operação futura que declare
+explicitamente self-copy. A DB2 não cria esse temporary de forma implícita.
 
 W não concatena literais adjacentes. W também não concatena valores separados
 somente por whitespace.
@@ -7897,6 +8011,53 @@ escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
 A hipótese de tree string permanece em `Y/W` porque favorece compartilhamento,
 mas aumenta metadata e indireções no caso comum.
 
+SSO invisível e `InlineString` público resolvem problemas diferentes. SSO reduz
+allocations sem prometer threshold, tamanho ou layout. `InlineString` promete
+que um limite físico faz parte do tipo e precisa definir overflow, conversão,
+ABI e tamanho por target.
+
+O primeiro protótipo de `String` usa a forma flat semelhante ao
+[`String` de Rust](https://doc.rust-lang.org/stable/alloc/string/struct.String.html):
+UTF-8 válido sobre um buffer growable. O protótipo seguinte compara SSO com a
+[representação UTF-8 pequena de Swift](https://www.swift.org/blog/utf8-string/)
+e com storage inline explícito como
+[`SmallString` do LLVM](https://llvm.org/doxygen/classllvm_1_1SmallString.html).
+Nenhum threshold entra no contrato antes dos benchmarks.
+
+Literal/static, inline e dinâmica precisam produzir os mesmos resultados,
+errors, índices e bytes. Sanitizers, debug e ABI C usam o fallback flat quando a
+forma compacta não preserva tooling ou provenance.
+
+Raw access permanece scoped:
+
+```w
+unsafe text.bytes.withPointer((pointer, count) => consume(pointer, count))
+```
+
+O borrow bloqueia move e mutation até o fim da closure. O pointer não escapa.
+Uma API C persistente usa `CString` quando precisa de NUL ou consome e fixa um
+buffer:
+
+```w
+let bytes = (take text).intoBytes()
+let stable = try pin take bytes
+```
+
+O compiler W0 precisa somente deste subset:
+
+- literal UTF-8 e `String()` vazio;
+- validação UTF-8 nas fronteiras;
+- `bytes`, equality, hashing e lexicographic comparison;
+- `reserve`, `tryReserve`, `append`, `clear` e `takeAll`;
+- `view String`, `view Bytes` e índices de byte;
+- `fromUtf8`, `adoptingUtf8` e `intoBytes`;
+- move, `copy`, drop e allocator origin.
+
+Grapheme segmentation, normalization, locale, SSO, COW e texto indexado não são
+pré-requisitos do self-host. O compiler pode usar scalars somente onde a syntax
+Unicode exigir. Assim, o primeiro compiler W não depende da camada Unicode
+completa que ele próprio ajudará a gerar.
+
 O tipo de contagem determina a prova disponível. Um limite de bytes limita
 storage diretamente. Um limite de scalars fornece um limite conservador de
 quatro bytes por scalar. Um limite de graphemes não fornece limite de bytes.
@@ -8129,7 +8290,7 @@ Operations em `Array` são eager. Operations após `.lazy` e operations em
 `Iterator` são lazy. `collect()` materializa o resultado:
 
 ```w
-let names: Array<String> = guests.map((guest) => guest.name.toString())
+let names: Array<String> = guests.map((guest) => copy guest.name)
 let firstThree: Array<OrderId> = orders.lazy
   .filter((order) => order.isOpen)
   .map((order) => order.id)
@@ -8797,10 +8958,17 @@ Texto possui custos que fazem parte da API:
 | scalar ou grapheme ordinal | O(bytes atravessados) | não |
 | equality diferente cedo | O(prefixo comum) | não |
 | normalização | O(bytes) | resultado owned |
+| `copy text` dinâmico | O(bytes) | outro owner |
+| `append(source)` | O(bytes de source), amortizado | somente se a reserva não basta |
+| `replace` | O(bytes movidos + replacement) | somente se a reserva não basta |
+| `clear()` | O(1) | não; mantém storage |
+| `reset()` | O(1) + deallocation | não |
+| `takeAll()` | O(1) ou cópia inline limitada | não |
 | `String.fromUtf8` | O(bytes) | copia |
 | `String.viewFromUtf8` | O(bytes) | não copia |
-| `String.adoptingUtf8` | O(bytes) | pode reutilizar |
-| `left + right` | O(bytes do resultado) | resultado owned |
+| `String.adoptingUtf8` | O(bytes) | não; transfere carrier |
+| `(take text).intoBytes()` | O(1) ou cópia inline limitada | não |
+| `left + right` | O(bytes de right) amortizado se left é reutilizado; O(total) no fallback | somente se a reserva esquerda não basta |
 
 **Exemplo:** um parser usa bytes para localizar ASCII estrutural e cria views
 somente depois de validar boundaries.
@@ -8813,9 +8981,15 @@ fn commandName(line: ref String): view String throws Utf8BoundaryError {
 ```
 
 A implementação pode validar UTF-8 com SIMD, manter um fast path ASCII e criar
-caches de índices. Essas escolhas são invisíveis e limitadas pelo profile. Uma
-String não volta a ser validada a cada iteração porque sua construção já prova
-UTF-8 válido.
+summaries atualizados durante construction ou mutation. Reads de `String` não
+alocam e não alteram o owner. Portanto uma cache lazy por owner não pode aparecer
+na baseline. Uma String não volta a ser validada a cada iteração porque sua
+construção já prova UTF-8 válido.
+
+Um profile pode guardar bits ou contagens eager, como `isAscii`, desde que toda
+mutation os atualize. Index checkpoints, segment trees e caches alocantes
+pertencem a um tipo especializado, como um futuro `IndexedText`, e aparecem em
+`w explain performance`.
 
 Refinements de texto oferecem provas diferentes:
 
@@ -9943,6 +10117,11 @@ Uma pesquisa só avança quando possui:
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
+| String flat com owner único no W0 | **Possível agora** | pointer/count/reserva/origin e validação UTF-8 são conhecidos |
+| carrier comum de String/Bytes consuming | **Possível agora** | ambos são buffers T0 owned; type safety permanece nas conversões |
+| SSO invisível | **Provável** | Swift e SmallString provam viabilidade; threshold e target exigem benchmark |
+| COW como baseline de String | **Rejeitado** | desloca allocation, budget, failure e deallocator para mutation futura |
+| cache lazy por String | **Rejeitado na baseline** | read não deve alocar, mutar owner ou exigir synchronization |
 | `view T` genérica para projeções core | **Possível agora** | provenance e descriptor são definidos por família; `ref` cobre o place completo |
 | fato de imutabilidade profunda | **Provável** | owner único e fields fechados são verificáveis; capabilities e foreign storage exigem fallback conservador |
 | UTF-8 incremental e maximal subpart | **Possível agora** | estado máximo de três bytes e algoritmo Unicode versionado |
@@ -10578,21 +10757,21 @@ experimentar”, não “decisão irreversível”.
 | D2-207 | custom pattern | pesquisa; conversão nomeada ou guard na DB2 | handler arbitrário; protocol de pattern na v0 |
 | D2-208 | callable transfer | `fn` é transferível/compartilhável; closure deriva predicates do ambiente | `Send`/`Sync` nominais; confiar no pointer |
 | D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
-| D2-210 | semântica de String | owned, contíguo, UTF-8 válido e mutable por acesso exclusivo | tree/rope default; UTF-16; COW contract |
+| D2-210 | semântica de String | owner único, bytes UTF-8 contíguos e mutation exclusiva; static/SSO ficam internos | tree/rope default; UTF-16; COW baseline |
 | D2-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
 | D2-212 | elementos de texto | `UnicodeScalar` Copy e grapheme como `view String` refinada; owned usa String refinado | Character/Grapheme nominal; scalar chamado Char |
 | D2-213 | índices de texto | origem borrowed, custo visível e uso terminal em edição | ordinal em subscript; índice universal |
 | D2-214 | slices de texto | byte slice é `view Bytes`; byte range para `view String` é fallible | arredondar boundary; slice sempre String |
 | D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
 | D2-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes D2-358–362 | replacement implícito; locale codec default |
-| D2-217 | construção de String | interpolation usa um `String` de destino e `Display.write`; `+` aloca; `+=` muta | builder público; concat adjacente; String intermediário por campo |
+| D2-217 | construção de String | interpolation e Display escrevem num `String`; `+` consome left; reserve/append lideram loops | builder público; concat adjacente; String intermediário por campo |
 | D2-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
 | D2-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
 | D2-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
 | D2-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
 | D2-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
 | D2-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
-| D2-224 | storage textual | refinement não fixa layout; byte/scalar/grapheme provam bounds distintos | capacity em String; SSO observável |
+| D2-224 | storage textual | refinement não fixa layout; reserva mínima é operação; capacity/SSO exatos não são properties | capacity pública; SSO observável |
 | D2-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
 | D2-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
 | D2-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
@@ -10726,7 +10905,7 @@ experimentar”, não “decisão irreversível”.
 | D2-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
 | D2-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
 | D2-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
-| D2-358 | conversão UTF-8 | view valida sem copiar; String copia; adoption consome e devolve bytes no erro | cópia implícita em todas; zero-copy prometido |
+| D2-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
 | D2-359 | erro UTF-8 | offset, maximal-subpart length e reason estáveis | byte inválido apenas; mensagem livre; decoder-dependent |
 | D2-360 | reparo UTF-8 | um U+FFFD por maximal subpart; nunca implícito | um por byte; descartar bytes; replacement configurável global |
 | D2-361 | UTF-8 incremental | até três bytes pendentes; `finish` decide incomplete; offset do stream | validar cada chunk isolado; buffer sem limite |
@@ -10771,7 +10950,7 @@ experimentar”, não “decisão irreversível”.
 | D2-400 | saída de pinning | sem `unpin` na DB2; drop in-place; `intoValue` com proof token em Pesquisa | unpin seguro irrestrito; unpin keyword unsafe |
 | D2-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
 | D2-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
-| D2-403 | construção de String | capacidade e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
+| D2-403 | construção de String | reserva e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
 | D2-404 | view genérica | `view T` é access mode DB2; sem família pública `XView` | `Slice<T>`/`Span<T>`; `Readonly<T>` profundo; usar somente `ref` |
 | D2-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
 | D2-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
@@ -10798,6 +10977,16 @@ experimentar”, não “decisão irreversível”.
 | D2-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
 | D2-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
 | D2-429 | FFI mobility | local por default; fato trusted exige adapter/digest e boundary unsafe ainda em Pesquisa | raw pointer deriva facts; assertion segura do usuário |
+| D2-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
+| D2-431 | COW de String | fora da baseline; optimizer exige efeitos de allocation e cleanup não observáveis | refcount em toda String; COW como contrato; proibir otimização |
+| D2-432 | reserva de String | mínimo total por bytes; exact capacity não é pública; `tryReserve` tem strong guarantee | bytes adicionais; growth fixo na linguagem; capacity property |
+| D2-433 | mutation de String | append/replace recebem view válida; source do mesmo owner é erro; índices são invalidados | mutable byte view; temporary de alias implícito; byte offsets unchecked |
+| D2-434 | esvaziar String | `clear` mantém storage; `reset` libera; `takeAll` transfere conteúdo | Boolean `keepingCapacity`; um método ambíguo; builder separado |
+| D2-435 | String e Bytes | carrier T0 compatível; adoption e `intoBytes` consomem sem allocation geral | layout público igual; cópia obrigatória; cast implícito |
+| D2-436 | caches de texto | reads não alocam nem mutam; summaries eager permitidos; índice alocante usa tipo próprio | cache lazy invisível; owner muta por read; grapheme ordinal O(1) |
+| D2-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
+| D2-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
+| D2-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
