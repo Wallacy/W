@@ -7,6 +7,15 @@ export alias WorkStage =
 export alias ActiveStage =
   ServiceStage<[.accepted, .reserving, .preparing, .serving]>
 
+export alias StageAfterAccepted =
+  ServiceStage<[.reserving, .cancelled]>
+
+export alias CancellableStage =
+  ServiceStage<[.accepted, .reserving, .preparing]>
+
+export alias TerminalStage =
+  ServiceStage<[.completed, .cancelled]>
+
 export enum KitchenOutcome<T> {
   ready(T)
   delayed(u32)
@@ -28,10 +37,30 @@ export enum ServiceFault: Error {
 export alias RecoverableServiceFault =
   ServiceFault<[.ingredientsMissing, .delayed]>
 
+export enum OvenReading {
+  stable(i32)
+  warming(current: i32, target: i32)
+  failed(String)
+}
+
+export alias UsableOvenReading =
+  OvenReading<[.stable, .warming]>
+
+export struct CancelRequest {
+  stage: CancellableStage
+}
+
 export fn nextWorkStage(inventoryReady: Bool): WorkStage {
   return switch inventoryReady {
     case true: .preparing
     case false: .reserving
+  }
+}
+
+export fn routeAcceptedOrder(canReserve: Bool): StageAfterAccepted {
+  return switch canReserve {
+    case true: .reserving
+    case false: .cancelled
   }
 }
 
@@ -51,12 +80,34 @@ export fn widenStage(stage: WorkStage): ActiveStage {
   return stage
 }
 
+export fn requestCancellation(stage: CancellableStage): CancelRequest {
+  return CancelRequest(stage: stage)
+}
+
+export fn terminalMessage(stage: TerminalStage): String {
+  return switch stage {
+    case .completed: "Archive the successful dinner"
+    case .cancelled: "Return the ingredients to this universe"
+  }
+}
+
+export fn asTerminalStage(stage: ServiceStage): TerminalStage? {
+  return try? TerminalStage(stage)
+}
+
 export fn describeOutcome<T: Display>(
   outcome: ContinuingOutcome<T>,
 ): String {
   return switch outcome {
     case .ready(let value): value.display()
     case .delayed(let seconds): "Delay: ${seconds} seconds"
+  }
+}
+
+export fn requestedTemperature(reading: UsableOvenReading): i32 {
+  return switch reading {
+    case .stable(let temperature): temperature
+    case .warming(_, let target): target
   }
 }
 
@@ -101,12 +152,38 @@ test "enum subset excludes cancellation" for nextWorkStage {
   expect asWorkStage(.cancelled) == .none
 }
 
+test "transition return publishes only reachable stages" for routeAcceptedOrder {
+  let reserved = routeAcceptedOrder(true)
+  let cancelled = routeAcceptedOrder(false)
+
+  expect reserved == .reserving
+  expect cancelled == .cancelled
+  expect terminalMessage(try TerminalStage(cancelled)) ==
+    "Return the ingredients to this universe"
+}
+
+test "parameter subset rejects completed orders by contract" for requestCancellation {
+  let request = requestCancellation(.preparing)
+
+  expect request.stage == .preparing
+  expect asTerminalStage(.serving) == .none
+  expect asTerminalStage(.completed) == .some(.completed)
+}
+
 test "payload enum subset keeps payload access" for describeOutcome {
   let outcome: ContinuingOutcome<String> = .ready("Horizon Cake")
   let ready: ReadyOutcome<String> = .ready("Horizon Cake")
 
   expect describeOutcome(outcome) == "Horizon Cake"
   expect preparedValue(ready) == "Horizon Cake"
+}
+
+test "payload shape follows the selected enum case" for requestedTemperature {
+  let warming: UsableOvenReading = .warming(current: 120, target: 180)
+  let stable: UsableOvenReading = .stable(180)
+
+  expect requestedTemperature(warming) == 180
+  expect requestedTemperature(stable) == 180
 }
 
 test "error subset limits the exhaustive catch" for reservationMessage {

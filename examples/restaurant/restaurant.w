@@ -1,6 +1,7 @@
 // Integrated service route for the Turno do Horizonte Violeta.
 
 import {
+  CancelledStage,
   Dish,
   DomainError,
   Order,
@@ -46,7 +47,7 @@ export enum RestaurantError: Error {
 export protocol RestaurantApi {
   async fn place(order: take Order): Receipt throws RestaurantError
   async fn status(orderId: OrderId): ServiceStage throws RestaurantError
-  async fn cancel(orderId: OrderId): ServiceStage throws RestaurantError
+  async fn cancel(orderId: OrderId): CancelledStage throws RestaurantError
 }
 
 struct OrderState {
@@ -169,9 +170,9 @@ export service LastLightRestaurant as RestaurantApi {
     return state.stage
   }
 
-  mut async fn cancel(orderId: OrderId): ServiceStage throws RestaurantError {
+  mut async fn cancel(orderId: OrderId): CancelledStage throws RestaurantError {
     guard let inout state = orders[orderId] else throw .domain(.unknownOrder(orderId))
     try state.advance(to: .cancelled)
-    return state.stage
+    return .cancelled
   }
 }
