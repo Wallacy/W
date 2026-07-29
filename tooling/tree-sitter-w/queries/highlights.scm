@@ -68,6 +68,7 @@
   "mut"
   "package"
   "panic"
+  "pin"
   "ref"
   "shared"
   "spawn"

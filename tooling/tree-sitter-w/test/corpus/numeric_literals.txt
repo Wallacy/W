@@ -1,0 +1,68 @@
+==================
+Numeric literal forms
+==================
+
+fn literalForms(): () {
+  let binary = 0b1111_0000_u8
+  let octal = 0o755_u16
+  let hexadecimal = 0xff_40_00_u32
+  let decimal = 1_000_000_i64
+  let fraction = 0.0825_f64
+  let exponent = 6.022_140_76e23_f64
+  let signedExponent = 1.0e-9_f32
+  let negative = -128_i8
+  let quantity = 6.022e23<1/mol>
+  let belowZero = -40<degC>
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (tuple_type))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (number_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (quantity_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (quantity_literal))))))

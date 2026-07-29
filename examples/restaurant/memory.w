@@ -110,7 +110,7 @@ export fn watchClosingBell(
   state: take BellState,
 ): BellLease throws BellError {
   guard let handle = bell.handle else throw .closed
-  let pinned = try Pinned.make(take state)
+  let pinned = try (pin take state)
     .mapError((error) => .allocation(error))
   let registration = unsafe {
     ll_bell_subscribe(handle, pinned.asOpaqueCPtr())

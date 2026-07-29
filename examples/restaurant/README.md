@@ -48,6 +48,7 @@ owner e estado observável.
 | `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
+| `numerics.w` | literais, conversões, overflow, float, ranges e quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
@@ -317,6 +318,8 @@ Aceite:
 - um borrow após `await` só compila com owner e task frame estáveis;
 - mover ou substituir o owner durante esse borrow falha;
 - `Pinned<T>` pode mudar de endereço sem mover o `T`;
+- `try pin take state` separa allocation fallible do move;
+- não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;
 - unsubscribe ocorre antes de liberar o callback state;
 - converter pointer em address não permite reconstruir um pointer seguro;
@@ -754,6 +757,37 @@ O oracle diferencial executa `flavorScore` com lowering portátil, vector,
 storage estreito desativado e storage estreito ativado. Cada execução precisa
 produzir o mesmo tensor e o mesmo overflow. O benchmark registra target, CPU,
 dataset, allocations, code size e intervalo de ruído.
+
+### 3.32 Caixa dos Números que Recusam Disfarces
+
+Famílias: literal exato, conversão, integer, float, decimal, quantization e
+range.
+
+Aceite:
+
+- radix e exponent não perdem informação antes do expected type;
+- um suffix fora do range falha no type checker sem truncar;
+- `u8 + u16` usa `u16`, mas `i8 + u8` exige uma escolha explícita;
+- debug, release, const evaluation e tensor usam o mesmo overflow;
+- divisão signed trunca em direção a zero;
+- Euclidean remainder exige uma API nomeada;
+- shift inválido e left shift com perda de bits não viram comportamento
+  indefinido;
+- serialization escolhe `.little` ou `.big`; `.native` nunca vira wire format;
+- float division by zero produz o valor IEEE;
+- NaN mantém equality parcial e não entra diretamente como key de `Map`;
+- `TotalFloat` fornece uma ordem e um hash compatíveis;
+- decimal esperado não passa por binary float;
+- `f16`, `bf16` e quantized storage não escondem scalar arithmetic e declaram
+  accumulator e conversion;
+- um range invertido é vazio;
+- uma progressão descendente usa `stride`, não inverte o significado do range.
+
+O oracle gera valores em cada boundary de integer, conversion e range. Ele
+compara o frontend C, o frontend self-hosted, o interpreter de ConstIR e o
+lowering MLIR. Para floats, ele compara bits das operações strict, classes IEEE,
+signed zero e total order. Modes `fast` são avaliados por bounds próprios e não
+participam do oracle bit-exact de `.strict`.
 
 ## 4. Alternativas visuais obrigatórias
 
