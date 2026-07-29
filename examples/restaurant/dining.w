@@ -38,13 +38,18 @@ export service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = Map()
 
+  mut fn setTableState(tableId: TableId, state: TableState) {
+    guard let inout table = tables[tableId] else panic("reserved table disappeared")
+    table.state = state
+  }
+
   mut async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError {
     guard payment.canServe else throw .paymentIncomplete
     guard let tableId = tables.first(where: (entry) => entry.value.state == .available)?.key else throw .full
 
-    tables[tableId].state = .serving
+    setTableState(tableId, state: .serving)
     defer {
-      tables[tableId].state = .available
+      setTableState(tableId, state: .available)
     }
 
     let orderId = dish.orderId

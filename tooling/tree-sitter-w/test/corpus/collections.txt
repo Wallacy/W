@@ -1,0 +1,148 @@
+==================
+Collection ownership and iteration
+==================
+
+fn inspect(values: ref Array<Order>): ref Order? {
+  let repeated: [u8; 32] = [0; 32]
+
+  if let ref first = values.get(0) {
+    print(first)
+  }
+
+  if let inout count = counts["cake"] {
+    count += 1
+  }
+
+  for ref value in values {
+    inspect(value)
+  }
+
+  for inout value in mutableValues {
+    value.update()
+  }
+
+  for copy code in codes {
+    send(code)
+  }
+
+  for value in take ownedValues {
+    consume(take value)
+  }
+
+  return values.get(0)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (fixed_array_type
+            (type
+              (type_name
+                (type_identifier)))
+            (number_literal)))
+        (repeat_array_literal
+          (number_literal)
+          (number_literal)))
+      (if_statement
+        (optional_binding
+          (identifier)
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list
+              (argument
+                (number_literal)))))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (if_statement
+        (optional_binding
+          (identifier)
+          (index_expression
+            (identifier)
+            (string_literal)))
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal)))))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list)))))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (for_statement
+        (pattern
+          (identifier))
+        (unary_expression
+          (identifier))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (unary_expression
+                    (identifier))))))))
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (argument
+              (number_literal))))))))

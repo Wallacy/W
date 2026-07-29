@@ -165,14 +165,13 @@ export service LastLightRestaurant as RestaurantApi {
   }
 
   async fn status(orderId: OrderId): ServiceStage throws RestaurantError {
-    guard let state = orders[orderId] else throw .domain(.unknownOrder(orderId))
+    guard let ref state = orders[orderId] else throw .domain(.unknownOrder(orderId))
     return state.stage
   }
 
   mut async fn cancel(orderId: OrderId): ServiceStage throws RestaurantError {
-    guard var state = orders[orderId] else throw .domain(.unknownOrder(orderId))
+    guard let inout state = orders[orderId] else throw .domain(.unknownOrder(orderId))
     try state.advance(to: .cancelled)
-    orders[orderId] = state
     return state.stage
   }
 }

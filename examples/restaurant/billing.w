@@ -14,7 +14,6 @@ export enum PaymentState {
 
 export struct Payment {
   id: PaymentId
-  key: IdempotencyKey
   amount: Money
   state: PaymentState
 }
@@ -122,7 +121,7 @@ export service BillingLedger as BillingApi {
       return payment
     }
 
-    let payment = try await gateway.capture(amount, idempotencyKey: key)
+    let payment = try await gateway.capture(amount, idempotencyKey: copy key)
     payments[key] = payment
     return payment
   }
@@ -134,7 +133,7 @@ export service BillingLedger as BillingApi {
       }
     }
 
-    let refunded = try await gateway.refund(take payment, idempotencyKey: key)
+    let refunded = try await gateway.refund(take payment, idempotencyKey: copy key)
     payments[key] = refunded
     return refunded
   }

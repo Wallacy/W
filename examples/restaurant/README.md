@@ -40,6 +40,7 @@ owner e estado observável.
 | `domain.w` | newtypes, refinements, enums e errors |
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
+| `collections.w` | arrays, slices, iteration, Map/Set, hashing e stable sort |
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -125,6 +126,23 @@ Aceite:
 - `clamp` prova que o `DutyCycle` refinado está em `0.0...1.0`;
 - `{unit}` e `[unit]` aparecem somente no corpus comparativo;
 - lowering sem reflection remove metadata de unit.
+
+### 3.4.1 Arquivo das Filas Improváveis
+
+Famílias: Array, fixed array, Slice, Map, Set, hashing, iteration e sort.
+
+Aceite:
+
+- `[0; 32]` avalia o valor uma vez e cria um fixed array;
+- um Slice impede mutation estrutural que poderia mover seu storage;
+- lookup borrowed não copia String ou outro valor move-only;
+- `inout` altera um value existente sem novo lookup;
+- Map e Set iteram em ordem de inserção para qualquer hash seed;
+- collision mantém full keys distintas;
+- update preserva a posição e remove/reinsert move a key para o fim;
+- `for ref`, `for inout`, `for copy` e `for ... in take` mostram ownership;
+- stable sort preserva a sequência original de prioridades iguais;
+- pipeline eager e `.lazy.collect()` permanecem formas distintas.
 
 ### 3.5 Brigada do Cometa Manso
 

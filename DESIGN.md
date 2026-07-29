@@ -631,6 +631,38 @@ switch request.routeKind() {
 }
 ```
 
+### 5.5 Ordem de avaliação
+
+W avalia receiver, operandos, argumentos, elementos de literal e entries de
+collection da esquerda para a direita. Cada avaliação termina antes da próxima:
+
+```w
+let result = trace("receiver").transform(
+  trace("first"),
+  with: trace("second"),
+)
+expect Trace.events == ["receiver", "first", "second"]
+```
+
+`&&`, `||`, `??` e a expressão condicional avaliam somente o ramo necessário:
+
+```w
+let authorized = user != .none && user!.canEnter()
+let label = cachedLabel ?? loadLabel()
+```
+
+Uma assignment resolve o place uma vez, avalia o novo valor e só depois
+substitui e destrói o valor anterior:
+
+```w
+buffer[nextIndex()] = makeValue()
+// nextIndex() executa uma vez e antes de makeValue().
+```
+
+O optimizer pode reordenar operações somente quando o programa não consegue
+observar diferença em valor, efeito, falha, cancelamento ou cleanup. Debug e
+release preservam a mesma ordem observável.
+
 ## 6. Módulos, imports e visibilidade
 
 O manifest define os arquivos de cada módulo. Um módulo pode conter vários
@@ -1133,9 +1165,10 @@ fn store(value: take Value)
 fn transform(value: Value): Result
 ```
 
-Um parâmetro `T` é pass-by-value. Um tipo `Copy` produz uma cópia semântica. Um
-tipo move-only pode ser movido no último uso. `take T` exige transferência e
-mostra essa exigência na assinatura e no call site.
+Um parâmetro `T` é pass-by-value. Um tipo `Copy` produz uma cópia semântica
+implícita e de custo limitado. Um tipo owned que não atende a `Copy` pode ser
+movido no último uso. `take T` exige transferência e mostra essa exigência na
+assinatura e no call site.
 
 ```w
 inspect(value)
@@ -1145,7 +1178,42 @@ let duplicate = copy value
 ```
 
 `ref` não aparece no call site porque não altera ownership. `inout`, `take` e
-`copy` aparecem.
+`copy` aparecem. `copy value` usa `Duplicable` quando o valor não é `Copy`. A
+operação é explícita porque pode percorrer storage ou alocar:
+
+```w
+protocol Duplicable {
+  fn duplicate(): Self
+}
+
+let titleCopy = copy title           // String: O(bytes)
+let menuCopy = copy menu             // Array<String>: O(elements + bytes)
+let socketCopy = copy socket         // error: Socket is not Duplicable
+```
+
+`Copy` refina `Duplicable`, mas o compiler pode implementar a duplicação como
+uma operação escalar. String, Bytes, Array, Map e Set atendem a `Duplicable`
+quando seus elementos atendem. Um resource, capability ou owner singular não
+ganha conformance automática.
+
+Quando o operand é `ref T`, `copy` materializa um `T` owned. Ele não copia o
+borrow:
+
+```w
+let ref recipe = recipes[course]?
+let ownedRecipe: Recipe = copy recipe
+```
+
+Uma implementação de `Duplicable` é nonthrowing sob a policy normal de OOM. Ela
+cria um valor semanticamente independente. COW pode otimizar a operação, mas
+mutar um resultado nunca altera o outro:
+
+```w
+let original = "Last Light"
+var duplicate = copy original
+duplicate.append("!")
+expect original == "Last Light"
+```
 
 Partial move exige destructuring. A DB2 não permite mover um field e continuar a
 usar o aggregate parcialmente inicializado.
@@ -1971,6 +2039,47 @@ As regras são:
 O frontend calcula lifetimes por uso e controle de fluxo. O source não contém
 annotations de lifetime. Quando a prova falha, o diagnostic mostra o owner, o
 borrow, o uso conflitante e a menor correção conhecida.
+
+`ref` e `inout` também podem qualificar um resultado ou um argumento de tipo.
+Eles continuam borrows; não criam reference counting:
+
+```w
+fn first(values: ref Array<Recipe>): ref Recipe? {
+  return values.get(0)
+}
+
+let firstRecipe: ref Recipe? = first(recipes)
+let views: Array<ref Recipe> = recipes.borrowed().collect()
+```
+
+`ref T?` significa `Option<ref T>`. `ref (T?)` significa borrow de um slot
+optional. Um resultado borrowed deve vir do receiver ou de um parâmetro
+borrowed explícito. A interface compilada registra essa relação de provenance:
+
+```w
+fn choose(primary: ref Recipe, fallback: ref Recipe): ref Recipe {
+  return if primary.isReady { primary } else { fallback }
+}
+```
+
+O source não escreve lifetime. O compiler rejeita um retorno que aponta para
+local storage e mostra a origem inválida:
+
+```w
+fn invalid(): ref Recipe { // error: local Recipe ends at return
+  let local = Recipe(...)
+  return local
+}
+```
+
+Um resultado `inout T` mantém o acesso exclusivo até o último uso do borrow. Ele
+não pode ser guardado em um field owned comum nem sobreviver ao owner:
+
+```w
+let inout selected = inventory.getMutable(id)?
+selected.quantity -= 1
+// inventory volta a aceitar acesso no último uso de selected.
+```
 
 Um borrow pode permanecer vivo após `await` somente quando o compiler prova:
 
@@ -3143,6 +3252,14 @@ T0 contém:
 T0 pode usar o runtime/allocator do target. Ele não depende de console,
 filesystem, rede, clock, locale ou OS API.
 
+O runtime pode injetar uma hash seed inacessível como metadata de hardening.
+Isso não cria uma random API nem altera output. Um target freestanding sem essa
+metadata usa o fallback declarado e informa `.unavailable`:
+
+```w
+let map = Map<String, Token>() // funciona com ou sem hardening seed
+```
+
 ### 14.2 T1 — systems e adapters comuns
 
 **Exemplo:** `print("ready")` exige um host com `Console`. Uma library pura não
@@ -3706,32 +3823,563 @@ let taxId = try TaxId.fromMasked(input)
 
 ### 16.10 Collections
 
-Collections usam estas formas:
+#### 16.10.1 Formas e inferência
+
+`Array<T>`, `Map<K, V>` e `Set<T>` possuem storage dinâmico owned. `[T; count]`
+possui count estático e storage inline:
 
 ```w
-[1, 2, 3]
-["red": 0xff0000]
-(x: 10, y: 20)
-[u8; 4096]
+let courses: Array<Course> = [.broth, .cake]
+let prices: Map<Course, Money> = [.broth: 12[cr], .cake: 42[cr]]
+let capabilities = Set([.network, .clock])
+let digest: [u8; 32] = [0; 32]
 ```
 
-Arrays e maps usam `[]`. Records anônimos usam `()`. Sets usam `Set(...)`; não
-ganham literal com chaves. Um slice de array retorna view borrowed por default.
-
-Tipos de collection permanecem explícitos:
+`[a, b]` cria `Array<T>` quando não existe um tipo esperado. `[key: value]`
+cria `Map<K, V>`. W não reserva chaves para collections e não possui literal de
+set. Records anônimos continuam em `()`:
 
 ```w
-Array<Ingredient>
-Map<OrderId, Order>
-Set<Capability>
-[u8; 4096]
+let queue = [orderA, orderB]
+let lookup = ["tea": 1, "cake": 2]
+let point = (x: 10, y: 20)
+let unique = Set(queue)
 ```
 
-`Array<T>` é owned e possui tamanho dinâmico. `[T; count]` possui tamanho
-estático. `Slice<T>` e `MutableSlice<T>` são views. `[T]` como tipo dinâmico
-continua alternativa, mas perde como líder porque se parece com literal e shape.
+`[]` é válido quando o contexto determina o elemento. Sem contexto, o compiler
+solicita um tipo. Os constructors explícitos cobrem o outro caso:
 
-Uma collection vazia usa `Array()`, `Map()` ou `Set()`. W não usa `[:]`.
+```w
+var orders: Array<Order> = []
+let pending = Array<Order>()
+let prices = Map<Course, Money>()
+let seen = Set<OrderId>()
+
+let unknown = [] // error: element type is not known
+```
+
+`[value; count]` cria um array fixo, avalia `value` uma vez e exige `Copy`.
+Construção independente de valores move-only usa uma closure:
+
+```w
+let zeroDigest: [u8; 32] = [0; 32]
+let trays = Array.generate(count: 8, using: (index) => Tray(id: index))
+let invalid = [Tray(); 8] // error: Tray is not Copy
+```
+
+`[T]` como tipo dinâmico e `[:]` como empty map permanecem rejeitados. Eles
+confundem type, literal e shape ou criam uma exceção sem ganho de capacidade.
+
+#### 16.10.2 `Array` e arrays fixos
+
+`Array<T>` mantém elementos contíguos e expõe `count` e `capacity` em O(1).
+Criar um array vazio não aloca. `append` tem custo amortizado O(1);
+insert/remove no meio têm O(n):
+
+```w
+var courses = Array<Course>()
+courses.reserve(minimumCapacity: 16)
+courses.append(.broth)
+courses.insert(.cake, at: 0)
+expect courses == [.cake, .broth]
+```
+
+A estratégia de crescimento e o valor exato de `capacity` não fazem parte da
+semântica, da igualdade ou da ABI. `reserve` segue a policy normal de OOM.
+`tryReserve` retorna falha recuperável:
+
+```w
+try buffer.tryReserve(minimumCapacity: packetSize)
+expect buffer.count == oldCount // quando a reserva falha
+```
+
+O subscript por índice faz bounds check e panic quando o contrato local foi
+violado. `get` representa input fallible:
+
+```w
+let first = courses[0]
+let optional = courses.get(userIndex) // ref Course?
+```
+
+Um subscript de array é um place. Ler um elemento `Copy` copia o valor; um
+elemento move-only é borrowed conforme o contexto. `take array[index]` é erro
+porque criaria um buraco. Remoção owned usa uma operação que preserva ou declara
+a mudança de ordem:
+
+```w
+let recipe: ref Recipe = recipes[0]
+let removed = recipes.remove(at: 0)       // O(n), preserva ordem
+let quick = recipes.swapRemove(at: 0)     // O(1), pode mudar ordem
+let hole = take recipes[0]                // error
+```
+
+`[T; count]` possui count no tipo. Ele aceita indexação e views, mas não muda de
+count:
+
+```w
+var window: [f32; 4] = [0.0; 4]
+window[2] = 1.0
+let dynamic = Array(window)
+```
+
+`Array<T>` atende a `Duplicable` quando `T` atende. A operação preserva count e
+ordem, mas não promete a mesma capacity:
+
+```w
+let snapshot = copy courses
+expect snapshot == courses
+```
+
+A baseline contígua e growable possui precedente em
+[`Vec<T>`](https://doc.rust-lang.org/std/vec/struct.Vec.html). W fixa também a
+ordem de cleanup e separa `reserve` de `tryReserve`; portanto o precedente não
+é a especificação.
+
+#### 16.10.3 `Slice` e mutation
+
+`Slice<T>` é uma view contígua shared e `Copy`. `MutableSlice<T>` é uma view
+contígua exclusiva e move-only:
+
+```w
+let middle: Slice<Order> = orders[1..<4]
+let tail: MutableSlice<Order> = orders.mutableSlice(4...)
+tail[0].priority += 1
+```
+
+Range inválido em subscript produz panic. `get(range)` retorna uma view
+optional para input externo. Uma view não muda o count do owner:
+
+```w
+let payload = bytes.get(packetRange) // Slice<u8>?
+let invalid = bytes[0...bytes.count] // panic: closed upper bound is outside
+```
+
+O owner não pode mover, desalocar ou alterar a estrutura enquanto uma view está
+viva. Alterar elementos por `MutableSlice` continua válido:
+
+```w
+let view = orders[0..<2]
+orders.append(next) // error: append can relocate storage borrowed by view
+print(view[0])
+```
+
+Uma pointer C existe somente por um adapter scoped `unsafe`. Ela não estende o
+lifetime do slice:
+
+```w
+unsafe bytes.withPointer((pointer, count) => c_write(pointer, count))
+```
+
+#### 16.10.4 Iteração
+
+O protocolo mínimo separa produção de elementos, borrow e consumo:
+
+```w
+protocol Iterator<Item> {
+  mut fn next(): Item?
+}
+
+protocol Iterable {
+  type Item
+  fn iterator(): some Iterator<Item>
+}
+
+protocol MutableIterable: Iterable {
+  type MutableItem
+  mut fn mutableIterator(): some Iterator<MutableItem>
+}
+
+protocol ConsumableIterable: Iterable {
+  type OwnedItem
+  take fn intoIterator(): some Iterator<OwnedItem>
+}
+```
+
+Um iterator é single-pass. `next()` avança seu estado. `for` avalia a fonte uma
+vez e faz o lowering para um dos três métodos:
+
+```w
+for course in menu { print(course) }             // borrow
+for ref course in menu { inspect(course) }       // borrow explícito
+for inout dish in dishes { dish.plate() }         // acesso exclusivo
+for copy code in statusCodes { send(code) }       // exige Copy
+for dish in take dishes { serve(take dish) }      // consumo owned
+```
+
+Array usa `Item = ref T`, `MutableItem = inout T` e `OwnedItem = T`. Map usa
+entry types diferentes para borrow, mutation e consumo. Set não atende a
+`MutableIterable`, pois seu elemento também é sua key. O primeiro exemplo é o
+sugar comum de `for ref`. A forma explícita é útil em API, documentação e
+diagnostics. Um producer, como `0..<10`, pode usar `Item = usize` e produzir
+valores owned sem uma collection intermediária:
+
+```w
+for index in 0..<10 { visit(index) }
+```
+
+O source fica borrowed até o fim do iterator. Mutation estrutural durante o
+loop é erro, mas mutation do elemento por `inout` é válida:
+
+```w
+for item in orders {
+  orders.append(item) // error: orders is borrowed by its iterator
+}
+```
+
+Operations em `Array` são eager. Operations após `.lazy` e operations em
+`Iterator` são lazy. `collect()` materializa o resultado:
+
+```w
+let names: Array<String> = guests.map((guest) => guest.name.toString())
+let firstThree: Array<OrderId> = orders.lazy
+  .filter((order) => order.isOpen)
+  .map((order) => order.id)
+  .take(3)
+  .collect()
+```
+
+Side effects usam `for`; descartar um pipeline lazy produz warning:
+
+```w
+orders.lazy.map((order) => audit(order)) // warning: iterator is never consumed
+for order in orders { audit(order) }
+```
+
+Iteração não cria paralelismo implícito. Trabalho paralelo usa `TaskGroup` e
+declara bound e ordem:
+
+```w
+let results = try await TaskGroup.parallelMap<.compute>(
+  take jobs,
+  maxParallelism: cooks,
+  order: .input,
+  operation: cook,
+)
+```
+
+#### 16.10.5 `Map`
+
+`Map<K, V>` preserva ordem de inserção e guarda chaves e valores completos. O
+lookup usa hashing keyed com seed aleatório, mas a seed e o layout não mudam a
+ordem:
+
+```w
+var menu: Map<String, Money> = ["broth": 12[cr], "cake": 42[cr]]
+menu["broth"] = 14[cr] // mantém a primeira posição
+expect menu.keys.collect() == ["broth", "cake"]
+menu.remove("broth")
+menu["broth"] = 15[cr] // reinsere no final
+expect menu.keys.collect() == ["cake", "broth"]
+```
+
+Lookup e inserção têm O(1) esperado e O(n) no pior caso. Iteração tem O(count)
+e segue a ordem de inserção. `Map` compara full keys após colisão; armazenar
+somente o hash é incorreto:
+
+```w
+let price: ref Money? = menu["broth"]
+expect CollisionKey(1) != CollisionKey(2)
+expect mapWithForcedCollision.count == 2
+```
+
+A seed é metadata de hardening fornecida pelo runtime e não pode ser lida pelo
+programa. Ela não altera valor, ordem, cleanup ou bytes serializados. Um host
+sem entropy anuncia que hash-flood hardening está indisponível:
+
+```w
+let policy = Runtime.current.hardening.hashFlood
+// .seeded em hosts normais; .unavailable em um seed freestanding mínimo.
+```
+
+Isso não concede uma random capability. Um service que recebe keys não
+confiáveis pode exigir `.seeded` no manifest ou escolher `SortedMap`.
+
+O subscript é um optional place. Optional binding escolhe borrow, mutation ou
+copy:
+
+```w
+if let ref price = menu["cake"] { print(price) }
+if let inout price = menu["cake"] { price += 1[cr] }
+if let copy price = menu["cake"] { send(price) }
+menu["tea"] = 9[cr]
+```
+
+Assignment substitui e destrói o valor anterior. `insert` devolve o valor
+anterior quando o caller precisa dele. `entry` evita dois lookups:
+
+```w
+let old = menu.insert(10[cr], for: "tea") // Money?
+let inout count = ordersByGuest.entry(take guestId).orInsert(0)
+count += 1
+```
+
+`remove` devolve a key original e o valor. `removeValue` descarta a key e
+devolve somente o valor. Ambos preservam a ordem restante. `swapRemove` declara
+que pode trocar a posição do último elemento:
+
+```w
+let removed: MapEntry<String, Money>? = menu.remove("tea")
+let value: Money? = menu.removeValue(for: "cake")
+let fast: MapEntry<String, Money>? = menu.swapRemove("broth")
+```
+
+Um literal avalia entries da esquerda para a direita. Duplicata conhecida é
+diagnostic. Duas keys que se tornam iguais em runtime mantêm a posição e a key
+da primeira entry, mas usam o último valor:
+
+```w
+let invalid = ["cake": 1, "cake": 2] // error: duplicate literal key
+let merged = [normalize(a): 1, normalize(b): 2]
+```
+
+Igualdade de `Map` compara pares, não ordem de inserção. `Map` não atende a
+`Hashable` por default:
+
+```w
+expect ["a": 1, "b": 2] == ["b": 2, "a": 1]
+```
+
+`Map<K, V>` atende a `Duplicable` quando key e value atendem. A cópia preserva
+ordem de inserção, mas recebe storage e hash seed próprios:
+
+```w
+let menuSnapshot = copy menu
+expect menuSnapshot.keys.collect() == menu.keys.collect()
+```
+
+Uma key armazenada só aparece como `ref K`; safe W não permite mudar equality
+ou hash no lugar. Um lookup borrowed pode usar uma view equivalente sem alocar:
+
+```w
+let name: StringView = request.pathSegment(0)
+let dish: ref Dish? = dishes.get(name) // Map<String, Dish>
+```
+
+Iteração borrowed produz uma entry com `ref K` e `ref V`. Iteração `inout`
+mantém a key read-only e entrega `inout V`. Iteração consuming entrega key e
+value owned:
+
+```w
+for entry in menu { print("${entry.key}: ${entry.value}") }
+for inout entry in menu { entry.value.applyDiscount() }
+for entry in take menu { archive(take entry.key, take entry.value) }
+
+for inout entry in menu {
+  entry.key.normalize() // error: a stored key is never mutable
+}
+```
+
+`EquivalentKey<K>` exige que a view produza o mesmo hash feed e a mesma
+igualdade da key owned. `StringView` atende a `EquivalentKey<String>`. Uma
+conformance que viola a lei é erro de contrato em teste e pode causar
+diagnostic dinâmico em builds instrumentados.
+
+Ordem de inserção possui precedentes no
+[dictionary de Python](https://docs.python.org/3/reference/datamodel.html#dictionaries)
+e em
+[`LinkedHashMap`](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/LinkedHashMap.html).
+Hashing keyed possui precedente em
+[`HashMap`](https://doc.rust-lang.org/std/collections/struct.HashMap.html).
+W combina as propriedades e não herda a ordem arbitrária do último.
+
+Um map inteiramente compile-time pode baixar para comparação, switch, tabela
+ordenada ou perfect hash. A escolha não muda a ordem lógica:
+
+```w
+const opcodeNames: Map<String, u8> = ["heat": 0x02_u8, "serve": 0xff_u8]
+```
+
+**Pesquisa:** uma variante sem ordem só entra se benchmarks mostrarem ganho
+material. `UnorderedMap` é um nome mais honesto que `HashMap`, porque `Map` já
+usa hashing. A variante precisa declarar iteration order, hash-flood policy,
+cleanup e serialization antes de promoção.
+
+Map não possui uma representação binária universal. Um codec declara se usa
+insertion order ou canonical key order:
+
+```w
+let displayBytes = codec.encode(menu, mapOrder: .insertion)
+let signedBytes = codec.encode(menu, mapOrder: .canonicalByKey)
+```
+
+#### 16.10.6 `Set`
+
+`Set<T>` possui a mesma ordem e política de hash de `Map`. A primeira inserção
+define a posição; repetir um elemento não muda a ordem:
+
+```w
+var courses = Set([.cake, .broth, .cake])
+expect courses.collect() == [.cake, .broth]
+expect !courses.add(.cake)
+expect courses.add(.salad)
+```
+
+`contains` não aloca. `remove` devolve o elemento owned. Igualdade ignora a
+ordem, e `Set` não atende a `Hashable` por default:
+
+```w
+expect courses.contains(.broth)
+let removed: Course? = courses.remove(.broth)
+expect Set([.cake, .salad]) == Set([.salad, .cake])
+```
+
+Um elemento de Set é uma key. Iteração nunca entrega `inout T`; o programa
+remove, altera e reinsere:
+
+```w
+for inout course in courses { course.rename() } // error
+let course = courses.remove(.cake)?
+courses.add(course.withLabel("final cake"))
+```
+
+`Set<T>` atende a `Duplicable` quando `T` atende. A cópia preserva a ordem
+lógica e não compartilha mutation:
+
+```w
+var snapshot = copy courses
+snapshot.add(.broth)
+expect !courses.contains(.broth)
+```
+
+#### 16.10.7 Hashing e keys
+
+`Hashable` exige `Equatable`. Valores iguais alimentam um `Hasher` com a mesma
+sequência lógica:
+
+```w
+protocol Hashable: Equatable {
+  fn hash(into hasher: inout Hasher)
+}
+
+struct GuestId: Hashable {
+  raw: u64
+
+  fn hash(into hasher: inout Hasher) {
+    hasher.append(raw)
+  }
+}
+```
+
+Hash e equality são puros, totais e nonthrowing. O compiler pode sintetizar a
+implementação quando todos os fields semânticos atendem aos contratos:
+
+```w
+struct Coordinate: Hashable {
+  x: i32
+  y: i32
+} // síntese: x e depois y
+```
+
+O algoritmo de `Hasher`, a seed e o resultado não são source, ABI ou storage
+contracts. Um hash de processo nunca vira ID persistente, digest de package ou
+nome de symbol:
+
+```w
+let localBucket = Hasher.processLocal.hash(key)
+let artifact = Sha256.tagged("w-artifact-v1", bytes) // digest persistente
+```
+
+Map e Set sempre guardam o valor completo e confirmam equality após o hash.
+HH32, XXH64 e algoritmos futuros podem ser candidatos de implementação, não
+identidades públicas.
+
+#### 16.10.8 Ordenação e busca
+
+`sort()` é stable e exige uma total order. Ele mantém a ordem relativa de
+elementos equivalentes e possui O(n log n) no pior caso:
+
+```w
+var tickets = [
+  Ticket(priority: 1, id: 7),
+  Ticket(priority: 1, id: 9),
+]
+tickets.sort(by: (left, right) => left.priority.compare(right.priority))
+expect tickets.map((ticket) => ticket.id) == [7, 9]
+```
+
+`sortUnstable()` declara que equivalentes podem mudar de posição e não exige
+buffer auxiliar proporcional a n:
+
+```w
+numbers.sortUnstable()
+```
+
+`sorted()` cria outro `Array`. O comparator retorna `Ordering`; ele é puro,
+nonthrowing e não altera a collection:
+
+```w
+let ranked = tickets.sorted(by: (a, b) => a.score.compare(b.score).reversed())
+```
+
+Floating-point usa uma total order nomeada. Usar `<` diretamente em sort é erro
+porque NaN quebra a ordem:
+
+```w
+samples.sort(by: f64.totalOrder)
+samples.sort(by: (a, b) => a < b) // error: Bool comparator is not Ordering
+```
+
+`binarySearch` distingue match de insertion point:
+
+```w
+switch sortedIds.binarySearch(42) {
+  case .found(let index): use(sortedIds[index])
+  case .insertion(let index): sortedIds.insert(42, at: index)
+}
+```
+
+O algoritmo exato pode mudar por tipo, target e edição se estabilidade,
+complexidade, memória e resultado permanecerem iguais. `std.algorithm` pode
+oferecer `radixSort` e outros algoritmos com preconditions explícitas:
+
+```w
+std.algorithm.radixSort(inout packetIds, radix: 8)
+```
+
+Timsort, fluxsort, blitsort e outros candidatos só entram após licença,
+provenance, fuzzing e benchmarks reproduzíveis. O nome de um algoritmo não vira
+o contrato de `sort()`.
+
+A separação entre sort stable e unstable possui precedente nas
+[operations de slice de Rust](https://doc.rust-lang.org/std/primitive.slice.html).
+W escolhe stable como default para reduzir surpresa; benchmark ainda decide o
+lowering.
+
+#### 16.10.9 Collections especializadas e cleanup
+
+`SortedMap<K, V>` ordena por key e suporta range queries. Ele exige total order,
+não `Hashable`:
+
+```w
+let arrivals = SortedMap<Date, Guest>()
+for entry in arrivals[opening..<closing] { admit(entry.value) }
+```
+
+`Deque`, `PriorityQueue` e `BitSet` ficam em `std.collections`. `LinkedList` e
+concurrent collections não entram em T0:
+
+```w
+import { Deque, PriorityQueue } from std.collections
+```
+
+O T0 contém `Array`, arrays fixos, `Slice`, `MutableSlice`, `Map`, `Set`,
+`Range`, `Iterator`, `Iterable`, `MutableIterable`, `ConsumableIterable`,
+`Hashable` e `Hasher`. Isso fecha lexer, parser, symbol table, worklist e
+diagnostics do compiler W0.
+
+Destruição é observável e possui ordem definida. Array e array fixo destroem em
+ordem inversa de índice. Map e Set destroem em ordem inversa de inserção.
+`clear()` usa a mesma ordem:
+
+```w
+var resources = [Resource(id: 1), Resource(id: 2)]
+resources.clear()
+expect DropLog.ids == [2, 1]
+```
+
+Capacity, buckets e tree nodes continuam detalhes de implementação. Uma
+collection concorrente futura precisa declarar atomicidade, progress guarantee,
+snapshot e iteration order; ela não é um `Map` com atomics escondidos.
 
 ## 17. Matrizes, tensors e ML
 
@@ -4128,8 +4776,8 @@ closures sem capture quando necessário.
 
 O profile impõe três regras de determinismo:
 
-1. Iteração de `Map` ou `Set` não define ordem de output.
-2. Output ordenado usa `Array`, sort explícito ou uma collection ordenada.
+1. `Map` e `Set` iteram em ordem de inserção, sem depender da hash seed.
+2. Output por key usa `SortedMap` ou sort explícito.
 3. Clock, random, locale e environment não entram sem input declarado.
 
 Estas features não pertencem ao fechamento mínimo:
@@ -5062,7 +5710,7 @@ experimentar”, não “decisão irreversível”.
 | D2-021 | owner | único/move-first | ARC universal; GC |
 | D2-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | D2-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
-| D2-024 | copy | implicit só para `Copy`; `copy` deliberado | clone method universal; COW default |
+| D2-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
 | D2-025 | shared | `shared T` + `weak` | ARC implícito; region-only |
 | D2-026 | region | API primeiro, bloco experimental | region annotations; heap por módulo |
 | D2-027 | allocator | system portable, profile substituível | mimalloc universal; allocator por import |
@@ -5264,6 +5912,22 @@ experimentar”, não “decisão irreversível”.
 | D2-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
 | D2-224 | storage textual | refinement não fixa layout; `InlineString` permanece Pesquisa | capacity em String; SSO observável |
 | D2-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
+| D2-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
+| D2-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
+| D2-228 | array dinâmico | `Array<T>` owned, contíguo, count/capacity O(1) e append amortizado O(1) | linked chunks default; `[T]` |
+| D2-229 | literais de array | `[a, b]`, `[]` contextual e `[value; count]` fixo com Copy | `[:]`; repeat clona move-only |
+| D2-230 | views de array | `Slice<T>` shared Copy e `MutableSlice<T>` exclusiva move-only | pointer público; resize pela view |
+| D2-231 | iteração | single-pass; borrow default, `ref`/`inout`/`copy` explícitos e `take` consome | copiar sempre; mutation estrutural durante loop |
+| D2-232 | pipelines | Array eager; `.lazy` e Iterator lazy; `collect()` materializa | tudo lazy; tudo eager |
+| D2-233 | `Map` | hashing keyed e ordem de inserção estável; full key confirma colisão | ordem de bucket; guardar somente hash |
+| D2-234 | `Set` | ordem de inserção; equality ignora ordem; sem literal próprio | set não ordenado; literal com chaves |
+| D2-235 | hashing | `Hashable: Equatable`; algoritmo/seed process-local e não persistente | XXH como ABI; hash como identity |
+| D2-236 | lookup borrowed | `EquivalentKey<K>` permite view com a mesma equality e hash feed | alocar key em todo lookup; equivalência ad hoc |
+| D2-237 | ordenação | `sort` stable por default; `sortUnstable` explícito; comparator `Ordering` | algoritmo fixo no contrato; Bool comparator |
+| D2-238 | maps ordenados | `SortedMap` por total order para range e key order | tornar todo Map tree; B-tree no ABI |
+| D2-239 | cleanup de collections | ordem inversa de índice/inserção; capacity e buckets invisíveis | drop order não especificada |
+| D2-240 | escopo da std | core em T0; Deque/PriorityQueue/BitSet em `std.collections`; concorrentes fora de T0 | todas as estruturas no prelude |
+| D2-241 | duplicação owned | `Copy` barato e implícito; `Duplicable` explícito via `copy value` | clone method; copiar owned implicitamente |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
