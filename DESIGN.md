@@ -1045,7 +1045,7 @@ export protocol KitchenApi {
 
 export service Kitchen as KitchenApi {
   var Lazy calibration = loadCalibration()
-  var atomic completed: u64 = 0
+  var completed: u64 = 0
 
   mut async fn prepare(order: take Order): Dish throws KitchenError {
     async<.network> let stock = checkStock(order)
@@ -6178,27 +6178,342 @@ sender, salvo policy mais forte.
 
 ### 12.10 Memory model, atomics e locks
 
-**Exemplo:** `var atomic completed: u64` aceita incremento concorrente. Um `var`
-comum não pode participar de data race em safe W.
+**Líder DB2:** safe W não permite data races. `atomic`, isolation e locks
+continuam mecanismos explícitos.
 
-Safe W não permite data races. Um programa sem data race observa uma ordem
-sequencialmente consistente, salvo atomics com order mais fraca. Race conditions
-de domínio ainda podem existir.
+#### 12.10.1 Data race e happens-before
 
-Uma data race dentro de `unsafe` viola o contrato de safety. Sanitizer profiles
-devem detectá-la quando o target permite. O optimizer não precisa preservar um
-resultado para source que viola esse contrato.
+Duas operações formam uma data race quando estas condições são verdadeiras:
 
-`var atomic value` baixa para `Atomic<T>`:
+1. elas acessam bytes sobrepostos;
+2. ao menos uma operação escreve;
+3. as operações podem executar concorrentemente;
+4. nenhum edge de happens-before ordena as operações;
+5. o storage não usa uma operação atômica compatível.
 
-- read, write e read-modify-write comuns usam sequential consistency;
-- methods nomeados escolhem acquire, release ou relaxed;
-- `ref value` empresta `Atomic<T>`, nunca `ref T`;
-- `inout` do payload é inválido;
-- `atomic` não compõe com outro behavior sem regra específica.
+Um programa safe com data-race freedom observa sequential consistency para
+acessos comuns. Uma order atômica mais fraca reduz somente as garantias
+declaradas nessa operação. Race conditions de domínio ainda podem existir.
 
-T1 fornece `Mutex<T>`, `RwLock<T>`, condition, once e barrier. Services,
-message passing e immutable snapshots continuam preferidos para state maior.
+```w
+var served: u64 = 0
+
+spawn<.compute> let left = countLeft(inout served)  // Erro: write concorrente.
+spawn<.compute> let right = countRight(inout served)
+```
+
+W cria edges de happens-before nestas operações:
+
+| Origem | Destino |
+|---|---|
+| initialization e capture/transfer do parent | início do child |
+| conclusão do child | retorno de `await` ou join |
+| `Channel.send` | `receive` que obtém o item |
+| envio de call por `ServiceRef` | início do turn que recebe o payload |
+| unlock | próxima aquisição do mesmo lock |
+| atomic release | atomic acquire que observa essa release |
+
+Mover um valor pelo channel não exige atomic dentro do valor. O sender perde
+ownership, e o receiver recebe o owner depois do edge.
+
+```w
+await channel.send(take order)
+let ownedOrder = await channel.receive()
+```
+
+Cancelamento não publica user state por si só. Um programa usa join, channel,
+service, lock ou atomic quando precisa publicar state.
+
+Uma data race dentro de `unsafe` viola o contrato de safety. O optimizer não
+preserva resultado para esse source. Um sanitizer profile deve detectar a race
+quando o target oferece suporte.
+
+W usa o modelo C++20 adotado pelo
+[guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) como base de
+lowering. A linguagem remove orders inválidas da superfície safe. W também
+separa `volatile`, atomics e synchronization.
+
+#### 12.10.2 Storage `atomic`
+
+`var atomic value: T` é o sugar comum para storage `Atomic<T>`:
+
+```w
+var atomic completed: u64 = 0
+
+let before = completed // load sequential
+completed = 1          // store sequential
+completed += 1         // read-modify-write sequential e checked
+```
+
+`atomic` é um storage modifier contextual. Ele não é um property behavior.
+Somente `var` aceita esse modifier. `var atomic Lazy value` e outras composições
+são inválidas até existir um behavior composto com semântica própria.
+
+O acesso comum usa sequential consistency. O compiler rejeita uma expressão que
+parece atômica, mas separa load e store:
+
+```w
+completed = completed + 1
+// Erro: esta forma contém load e store separados. Use `+=` ou uma operação
+// nomeada.
+```
+
+`ref completed` produz `ref Atomic<u64>`. Ele nunca produz `ref u64`. O payload
+não recebe `ref` ou `inout` enquanto aliases concorrentes podem existir.
+
+Um caller com `inout Atomic<T>` prova exclusividade. Ele pode usar
+`withExclusive` antes de publicar o valor:
+
+```w
+fn resetBeforePublication(counter: inout Atomic<u64>) {
+  counter.withExclusive((value: inout u64) => value = 0)
+}
+```
+
+A closure não pode devolver `ref` ou `view` do payload. `(take counter).intoValue()`
+consome o wrapper e devolve o payload. `Atomic<T>` não é `Copy` nem `Duplicable`.
+
+O compiler possui um fato intrínseco `atomicValue`. Ele não é um protocol que
+user code pode implementar. A baseline aceita:
+
+- `Bool`;
+- integers com largura fixa;
+- `usize` e `isize`;
+- enums sem payload com representação canônica suportada.
+
+Float, struct com padding, owner e pointer não entram na baseline. Atomics de
+address, `shared T` e palavras duplas continuam **Pesquisa** em APIs próprias.
+Essa separação evita bitwise equality, reclamation e deallocator ocultos.
+
+```w
+enum SignState {
+  dark
+  announcing
+  closed
+}
+
+var atomic sign: SignState = .dark
+```
+
+#### 12.10.3 Orders como contratos estáticos
+
+W oferece estas orders:
+
+```w
+enum MemoryOrder {
+  relaxed
+  acquire
+  release
+  acquireRelease
+  sequential
+}
+
+alias LoadOrder = MemoryOrder<[.relaxed, .acquire, .sequential]>
+alias StoreOrder = MemoryOrder<[.relaxed, .release, .sequential]>
+alias UpdateOrder = MemoryOrder
+```
+
+A order pertence ao contrato estático da operação. O call usa `<...>`. A forma
+sem contrato usa `.sequential`:
+
+```w
+let state = sign.load<.acquire>()
+sign.store<.release>(.closed)
+let ordinary = sign.load()
+```
+
+Essa forma evita dispatch runtime e torna uma order inválida não representável.
+O uso de argumentos constantes segue o precedente das
+[orders constantes do Swift Atomics](https://github.com/apple/swift-atomics/blob/main/Sources/Atomics/Types/UnsafeAtomic.swift).
+
+| Order | Garantia |
+|---|---|
+| `.relaxed` | atomicidade e modification order somente para aquele storage |
+| `.acquire` | operações seguintes observam dados publicados pela release lida |
+| `.release` | operações anteriores são publicadas para um acquire correspondente |
+| `.acquireRelease` | combina acquire e release numa read-modify-write |
+| `.sequential` | adiciona a operação à ordem total dos atomics sequential |
+
+`consume` não entra na DB2. Memory scopes de GPU e device também não entram no
+core. Eles pertencem aos contratos T2 de device.
+
+Fences soltas permanecem **Pesquisa**. O programa deve preferir uma order na
+operação que publica ou consome o valor. Isso mantém o edge visível no source.
+
+#### 12.10.4 Exchange, comparação e aritmética
+
+`exchange` troca o valor e devolve o valor anterior. `compareExchange` devolve
+um enum, não um Boolean sem diagnóstico:
+
+```w
+enum AtomicExchange<T> {
+  exchanged(previous: T)
+  mismatch(actual: T)
+}
+
+let result = sign.compareExchange<
+  success: .acquireRelease,
+  failure: .acquire,
+>(
+  expected: .announcing,
+  desired: .closed,
+)
+```
+
+A failure order aceita somente `LoadOrder`. Ela não pode ser mais forte que a
+success order. O compiler verifica a relação porque ambas são argumentos
+estáticos.
+
+`weakCompareExchange` pode devolver `.mismatch(actual: expected)` sem uma
+mudança concorrente. Ele serve a loops que já repetem a operação.
+`compareExchange` não falha de forma espúria.
+
+Essas regras seguem a separação de success e failure usada pela
+[API atômica de Rust](https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html).
+W substitui combinações inválidas em runtime por diagnostics.
+
+Compare-exchange não resolve ABA nem reclamation. Um algoritmo que recicla
+endereços usa generation suficiente, epoch, hazard pointer ou outro protocolo
+declarado.
+
+```w
+// `{address, generation: 3}` pode reaparecer depois do wrap.
+// O CAS não prova que o node antigo continua vivo.
+```
+
+Aritmética atômica segue a policy numérica de W. `+=` usa aritmética checked e
+não faz a write quando a própria operação detecta overflow. A implementação
+pode usar um CAS loop.
+
+As famílias nomeadas preservam a mesma distinção:
+
+| Família | Resultado |
+|---|---|
+| `add` e `subtract` | checked; Unit |
+| `checkedAdd` e `checkedSubtract` | `Result<T, ArithmeticError>` com o novo valor |
+| `wrappingAdd` e `wrappingSubtract` | wrap explícito; Unit |
+| `saturatingAdd` e `saturatingSubtract` | saturação explícita; Unit |
+| prefixo `fetch` | devolve também o valor anterior |
+
+```w
+completed.saturatingAdd<.relaxed>(1)
+let previous = completed.fetchWrappingAdd<.relaxed>(1)
+```
+
+Bitwise integers também oferecem `and`, `or` e `xor`. W não oferece uma closure
+`update` na baseline. Uma closure repetida por CAS pode duplicar side effects.
+
+#### 12.10.5 Lock-free, layout e ABI
+
+`Atomic<T>` garante atomicidade. Ele não garante uma instrução lock-free. O
+target pode usar uma operação nativa, um runtime portátil ou um lock interno
+sem allocation por operação.
+
+```w
+let native: Bool = Atomic<u64>.isLockFree
+let sequence = Atomic<u64, lockFree: true>(0)
+```
+
+`isLockFree` é um valor compile-time do target e profile. `lockFree: true`
+rejeita o build quando a garantia não existe. Signal handlers e outros contexts
+que não podem bloquear exigem esse contrato.
+
+O layout de `Atomic<T>` é opaco. Ele não é ABI-compatible com `_Atomic(T)` de C.
+Uma fronteira C usa um wrapper gerado e a metadata de atomic width, alignment e
+lock-freedom.
+
+Atomicidade cobre a palavra inteira escolhida. O programa não pode acessar os
+mesmos bytes por uma view atômica e outra não atômica. Uma palavra maior também
+não herda lock-freedom das partes.
+
+#### 12.10.6 Locks síncronos e assíncronos
+
+T1 oferece `Mutex<T>` para code síncrono e `AsyncMutex<T>` para tasks. Ambos
+protegem o payload e expõem uma closure scoped:
+
+```w
+let snapshot = ledger.withLock(
+  (value: ref ApologyLedgerState) => copy value,
+)
+
+let receipt = await asyncLedger.withLock((value: inout ApologyLedgerState) => {
+  value.record(order)
+  return copy value.lastReceipt
+})
+```
+
+`Mutex.withLock` pode bloquear a thread. Um executor cooperativo exige um domain
+que aceite blocking ou usa `AsyncMutex`. `tryWithLock` nunca bloqueia e devolve
+`Option<R>`.
+
+A interface compilada marca `Mutex.withLock` com o fato `blocking`. O verifier
+rejeita uma call alcançável num domain non-blocking sem adapter:
+
+```w
+spawn<.blocking> let snapshot = ledger.withLock(
+  (value: ref ApologyLedgerState) => copy value,
+)
+```
+
+`AsyncMutex.withLock` pode suspender durante a aquisição. A closure protegida é
+síncrona e não pode usar `await`. Ela também não pode devolver um borrow do
+payload.
+
+Cancelamento durante a espera remove o waiter. Depois da aquisição, a closure
+termina e libera o lock antes de observar cancelamento. Return e `throw` também
+liberam o lock.
+
+W não publica um guard na baseline. A closure reduz escape, lock esquecido e
+lock mantido durante suspension. Essa escolha aplica a intenção histórica de
+`property.use`, mas torna o custo explícito no owner `Mutex`.
+
+W não usa poisoning. Um panic termina a fault boundary física. Nenhum caller W
+continua nessa boundary para observar state possivelmente parcial.
+
+O [mutex assíncrono de Tokio](https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html)
+mostra o custo adicional da aquisição async e o risco de guards através de
+`await`. W aceita a aquisição async, mas fecha a critical section antes de outra
+suspension.
+
+`RwLock`, condition, once, barrier e atomic wait/notify permanecem T1 em
+**Pesquisa**. Cada tipo precisa fechar fairness, cancellation e failure. RCU,
+snapshot swap e striped counters também permanecem tipos especializados.
+
+Services, channels e immutable snapshots lideram para state de domínio. Um
+service serial não precisa de atomic ou lock para seu state interno:
+
+```w
+service DiningRoom {
+  var served: u64 = 0 // O closed turn fornece isolation.
+}
+```
+
+#### 12.10.7 Diagnostics e gate
+
+O compiler rejeita:
+
+- borrow comum do payload atômico;
+- order incompatível com a operação;
+- failure order mais forte que success;
+- `await` numa closure protegida;
+- retorno de borrow protegido;
+- acesso atômico e não atômico ao mesmo storage.
+
+`w explain synchronization` informa storage, order, happens-before edges,
+lock-freedom, fallback e suspension. TSan profiles verificam o programa depois
+do lowering.
+
+```text
+$ w explain synchronization restaurant.synchronization::EndOfUniverseSign.state
+storage:   Atomic<SignState>
+order:     release on publish; acquire on observe
+lock-free: true for target x86_64
+edge:      successful publish → observe that reads `.announcing`
+```
+
+Deadlock de locks dinâmicos não é um problema decidível em geral. O compiler
+detecta reacquisition lexical do mesmo lock e cycles estáticos no call graph. O
+runtime trace registra wait-for edges para os demais casos.
 
 ### 12.11 FFI, blocking calls e callbacks
 
@@ -6605,6 +6920,7 @@ T0 contém:
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
+- `Atomic<T>`, `MemoryOrder` e operações atômicas sem espera;
 - operações puras de texto, collection e matemática básica;
 - intrinsics necessários para memória segura e compile time.
 
@@ -9136,6 +9452,43 @@ Uma otimização entra no default somente quando melhora sua matriz alvo sem
 alterar oracles semânticos. Fallback e differential tests continuam
 obrigatórios.
 
+### 18.7 Atomics, locks e contenção
+
+Atomicidade não mede custo. Uma operação pode usar uma instrução, um CAS loop ou
+um lock do runtime. `w explain performance` mostra o lowering:
+
+```text
+$ w explain performance restaurant.execution::BrigadeMetrics.completed
+storage:  Atomic<u64>
+order:    relaxed
+lowering: atomicrmw add i64
+lockFree: true
+sharing:  one writer group, four worker threads
+warning:  measured cache-line contention at 16 workers
+```
+
+Uma order mais fraca não elimina contenção na cache line. Um contador global
+pode escalar menos que counters locais combinados no join. O compiler não faz
+essa transformação sozinho, pois overflow e snapshots observáveis podem mudar.
+
+Fields atômicos independentes podem causar false sharing. O layout W pode
+separá-los quando a mudança é invisível e o profile possui evidência. Um
+contrato explícito `Atomic<T, cache: .isolated>` permanece **Pesquisa** porque
+altera tamanho, alignment e cache footprint por target.
+
+```w
+// Pesquisa: solicita um interference granule exclusivo, não um tamanho fixo.
+let visits = Atomic<u64, cache: .isolated>(0)
+```
+
+Locks registram wait time, hold time, contention e owner causal no profile de
+observabilidade. O runtime não inclui endereço bruto ou thread ID no resultado
+do programa.
+
+RCU favorece reads, mas exige publication e reclamation corretas. Trocar um
+pointer atomicamente não mantém o objeto anterior vivo. Uma API de snapshot só
+avança depois de comparar epochs, hazard pointers e `shared T`.
+
 Fontes primárias:
 
 - [LLVM `range` metadata](https://llvm.org/docs/LangRef.html#range-metadata)
@@ -9144,6 +9497,8 @@ Fontes primárias:
   n-dimensionais para lowering retargetable;
 - [MLIR Linalg](https://mlir.llvm.org/docs/Dialects/Linalg/) preserva estrutura
   de loops para tiling e library dispatch;
+- o [guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) separa
+  atomicidade, order e lock-freedom no lowering;
 - o [modelo UTF-8 de Swift](https://www.swift.org/blog/utf8-string/) demonstra
   validation na criação, fast paths e storage unificado.
 
@@ -10181,6 +10536,13 @@ Uma pesquisa só avança quando possui:
 | schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
 | capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
 | `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
+| data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
+| `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
+| fallback atomic não lock-free | **Provável** | runtime striped lock preserva semântica; signals e freestanding exigem profile |
+| `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
+| `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
+| `AsyncMutex.withLock` sem suspension interna | **Provável** | fila cancel-safe e scheduler precisam de protótipo |
+| RCU e snapshot cell | **Pesquisa** | publication é simples; reclamation, ABA e leitura longa não estão fechados |
 | facts trusted para FFI e synchronization customizada | **Pesquisa** | segurança exige negative facts, target/digest e uma boundary `unsafe` auditável |
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
 | QoS na syntax de `spawn` | **Pesquisa** | policy não pode parecer garantia de ordering ou deadline |
@@ -10591,7 +10953,7 @@ experimentar”, não “decisão irreversível”.
 | D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
 | D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
-| D2-044 | atomics | seq-cst default, orders explícitas | C-like default; lock implicit |
+| D2-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes D2-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
 | D2-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em D2-424–429 | `Send`/`Sync` públicos; runtime checks |
 | D2-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
 | D2-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
@@ -10673,7 +11035,7 @@ experimentar”, não “decisão irreversível”.
 | D2-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
 | D2-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
 | D2-125 | stream/channel | pull e capacity bounded; `yield` adiado | generator unbounded |
-| D2-126 | memory model | safe W data-race-free; DRF-SC salvo atomics explícitos | race definida em safe code |
+| D2-126 | memory model | safe W data-race-free; edges fechados e DRF-SC salvo orders explícitas | race definida em safe code; somente “thread-safe” nominal |
 | D2-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
 | D2-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
 | D2-129 | lifecycle de instance | identity + generation; restart invalida state anterior | reuse de pointers/frames |
@@ -10987,6 +11349,20 @@ experimentar”, não “decisão irreversível”.
 | D2-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
 | D2-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
 | D2-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
+| D2-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
+| D2-441 | happens-before | task start/join, channel, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
+| D2-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
+| D2-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
+| D2-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential` | argumento runtime; suffix por método; relaxed default |
+| D2-445 | compare-exchange | result enum; success/failure estáticas e válidas; weak é explícita | Boolean; expected inout; combinação inválida em runtime |
+| D2-446 | aritmética atômica | policy checked normal; wrapping/saturating/fetch nomeados | wrap do hardware implícito; closure update com retries ocultos |
+| D2-447 | borrow atômico | `ref` obtém Atomic; acesso ao payload somente com exclusividade ou consumo | `ref T` comum; misturar views atômicas e não atômicas |
+| D2-448 | lock-free | não é implícito; const `isLockFree` e contrato `lockFree: true` | garantir toda largura; runtime query sem target fixo |
+| D2-449 | ABI atômica | layout W opaco; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal |
+| D2-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
+| D2-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
+| D2-452 | RwLock e RCU | tipos T1 especializados em Pesquisa; service/channel/snapshot lideram state maior | policy automática por property; RCU default universal |
+| D2-453 | contenção | explanation record mostra lowering, lock-free e waits; cache isolation em Pesquisa | prometer performance por `atomic`; padding universal |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

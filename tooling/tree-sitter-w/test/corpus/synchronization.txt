@@ -1,0 +1,243 @@
+==================
+Atomic contracts and scoped locks
+==================
+
+enum GateState {
+  idle
+  busy
+}
+
+object Gate {
+  var atomic state: GateState = .idle
+  var atomic count: u64 = 0
+
+  fn record() {
+    count.saturatingAdd<.relaxed>(1)
+  }
+
+  fn enter(): AtomicExchange<GateState> {
+    return state.compareExchange<
+      success: .acquireRelease,
+      failure: .acquire,
+    >(
+      expected: .idle,
+      desired: .busy,
+    )
+  }
+}
+
+fn nativeCounterIsLockFree(): Bool {
+  return Atomic<u64>.isLockFree
+}
+
+fn requiredNativeCounter(): Atomic<u64, lockFree: true> {
+  return Atomic<u64, lockFree: true>(0)
+}
+
+fn snapshot(lock: ref Mutex<GateState>): GateState {
+  return lock.withLock((value: ref GateState) => value)
+}
+
+async fn close(lock: ref AsyncMutex<GateState>): GateState {
+  return await lock.withLock((value: inout GateState) => {
+    value = .idle
+    return value
+  })
+}
+
+---
+
+(source_file
+  (enum_declaration
+    (type_identifier)
+    (enum_body
+      (enum_case
+        (identifier))
+      (enum_case
+        (identifier))))
+  (object_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (contextual_member_expression
+          (identifier)))
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (block
+          (expression_statement
+            (call_expression
+              (generic_application_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (generic_call_arguments
+                  (contextual_member_expression
+                    (identifier))))
+              (argument_list
+                (argument
+                  (number_literal)))))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))
+        (block
+          (return_statement
+            (call_expression
+              (generic_application_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (generic_call_arguments
+                  (identifier)
+                  (static_argument_value
+                    (contextual_member_expression
+                      (identifier)))
+                  (identifier)
+                  (static_argument_value
+                    (contextual_member_expression
+                      (identifier)))))
+              (argument_list
+                (argument
+                  (identifier)
+                  (contextual_member_expression
+                    (identifier)))
+                (argument
+                  (identifier)
+                  (contextual_member_expression
+                    (identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (member_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type
+                (type_name
+                  (type_identifier)))))
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (boolean_literal)))))
+    (block
+      (return_statement
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type
+                (type_name
+                  (type_identifier)))
+              (identifier)
+              (static_argument_value
+                (boolean_literal))))
+          (argument_list
+            (argument
+              (number_literal)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (argument
+              (closure_expression
+                (closure_parameters
+                  (closure_parameter
+                    (identifier)
+                    (type
+                      (type_name
+                        (type_identifier)))))
+                (identifier))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list
+              (argument
+                (closure_expression
+                  (closure_parameters
+                    (closure_parameter
+                      (identifier)
+                      (type
+                        (type_name
+                          (type_identifier)))))
+                  (block
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (contextual_member_expression
+                          (identifier))))
+                    (return_statement
+                      (identifier))))))))))))

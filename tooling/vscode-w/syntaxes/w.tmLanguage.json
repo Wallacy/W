@@ -133,7 +133,11 @@
         },
         {
           "name": "keyword.effect.w",
-          "match": "\\b(?:async|atomic|await|panic|spawn|static|throws|try|unsafe)\\b"
+          "match": "\\b(?:async|await|panic|spawn|static|throws|try|unsafe)\\b"
+        },
+        {
+          "name": "keyword.modifier.storage.w",
+          "match": "\\batomic\\b"
         },
         {
           "name": "keyword.other.ownership.w",

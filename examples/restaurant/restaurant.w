@@ -121,7 +121,7 @@ export service LastLightRestaurant as RestaurantApi {
   diningRoom: ServiceRef<DiningRoomApi>
   var orders: Map<OrderId, OrderState> = Map()
   var Lazy priceTable = loadPriceTable()
-  var atomic completedOrders: u64 = 0
+  var completedOrders: u64 = 0
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let orderId = order.id
