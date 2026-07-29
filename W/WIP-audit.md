@@ -73,9 +73,9 @@ deliberadamente abertos:
 | named index e arrays estáticos de modifiers | 3.1 e D2-200 | `StaticList<T>` ordenada; índice runtime rejeitado |
 | operador matricial | 17 e D2-201 | `@` fechado para ranks 1 e 2 |
 | handlers arbitrários em patterns | 5.4 e D2-207 | **Pesquisa** até existir protocolo de pattern |
-| `fork module`, hot reload e live patch | 22.6 | **Pesquisa** fora do caminho crítico |
+| `fork module`, hot reload e live patch | 23.6 | **Pesquisa** fora do caminho crítico |
 | signals, mouse, keyboard e HID | 13.4 e 13.5 | slots de host tipados, sem keywords por evento |
-| GPU, SIMD e HDL | 17 e 22.6 | T2 e **Pesquisa** por backend |
+| GPU, SIMD e HDL | 17, 18 e 23.6 | facts/SIMD na baseline; GPU e HDL por backend |
 | GUI, TUI e immediate mode | 14.3 e profiles de host | T2; nenhuma GUI universal |
 | dictionaries, hashing, arrays e sort | 16.10 e D2-226–241 | Map/Set insertion-ordered, full keys, views borrowed e stable sort |
 
@@ -168,9 +168,9 @@ vigente das famílias que ainda estavam parciais.
 |---|---|---|
 | custom pattern handlers | `W/DESIGN.md` 5.4 e D2-207 | **Pesquisa**; guard e conversão nomeada são a baseline |
 | signals e eventos do host | `W/DESIGN.md` 13.2 e 13.8 | adapters de entry cobrem signals; signal safety continua por target |
-| GPU, SIMD, OpenMP e HDL | `W/DESIGN.md` 17, 22.6 e D2-093 | CPU/SIMD/device têm corpus; GPU e HDL continuam **Pesquisa** |
+| GPU, SIMD, OpenMP e HDL | `W/DESIGN.md` 17, 18, 23.6, D2-093 e D2-368–381 | facts/SIMD/device têm corpus; GPU e HDL continuam **Pesquisa** |
 | GUI, TUI e immediate mode | `W/DESIGN.md` 13.8 e 14.3 | host events e T2 preservam a pergunta; toolkit universal não é baseline |
-| texto, bytes e strings nativas | `W/DESIGN.md` 16 e D2-210–225 | **Líder DB2** com alternativas históricas rastreadas |
+| texto, bytes e strings nativas | `W/DESIGN.md` 16, D2-210–225 e D2-357–367 | **Líder DB2** com decoding, ownership e custos rastreados |
 | collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
 | ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
 | compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
