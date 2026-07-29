@@ -355,7 +355,7 @@ Aceite:
 - o initializer memberwise de `Guest` também é `export`;
 - fields de `PidController` ficam no módulo porque o struct declara `init`;
 - `StockReservation` publica somente `ingredients` e `release`;
-- `id`, `releaser` e `released` não cruzam o módulo;
+- `id` e `releaser` não cruzam o módulo;
 - `CommandStream` deixa de ser exportado porque só apoia `decodeCommand`;
 - `BrigadeMetrics` permite construção externa somente pelo `export init`;
 - `BrigadeMetrics.completionCount` herda a visibilidade do requirement;
@@ -389,6 +389,31 @@ Aceite:
 O ensaio deve rejeitar modos de ownership misturados no mesmo pattern. Ele
 também deve rejeitar uso parcial do aggregate após um destructuring owned.
 
+### 3.20 A Última Comanda Antes da Implosão
+
+Famílias: receiver consuming, partial failure, deinit e async cleanup.
+
+Aceite:
+
+- `take fn finish()` recebe ownership local de `CommandStream`;
+- `(take stream).finish()` mostra a transferência no call site;
+- `stream` fica inválido depois da call;
+- `finish` pode mutar seu receiver sem usar `mut fn`;
+- success ou error executa `CommandStream.deinit` uma vez;
+- `take async fn release()` move `StockReservation` para o task frame;
+- cancellation executa cleanup e `deinit` do receiver;
+- falha de `release` não restaura a reservation;
+- `StockReservation` não precisa de um flag `released`;
+- `OvenLeaseApi.close()` continua não consuming porque `ServiceRef` é aliasable;
+- `(take copy value).method()` preserva uma cópia quando o tipo é `Copy`;
+- `: self` é rejeitado em `take fn`;
+- um service não implementa `take fn`;
+- mudar um method para `take fn` é uma mudança major de interface.
+
+O ensaio deve rejeitar `take stream.finish()`, consumo por `shared` e call após
+transferência. Ele também deve rejeitar destructuring owned de tipo com
+`deinit` customizado.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -402,6 +427,8 @@ O Book deve mostrar pares lado a lado:
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
+| receiver consuming | `take fn` + `(take value).method()` | consumo implícito e free function |
+| falha consuming | owner termina em success, error e cancellation | restaurar owner no `catch` |
 | associated member | `Money.zeroCredits` | mutable type storage |
 | struct de dados | fields herdam a visibilidade do tipo | `export` em cada field |
 | object | storage encapsulado e API explícita | todos os membros herdam `export` |

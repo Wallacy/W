@@ -3556,6 +3556,20 @@
           }
         ]
       },
+      "receiver_modifier": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mut",
+            "named": false
+          },
+          {
+            "type": "take",
+            "named": false
+          }
+        ]
+      },
       "return_type": {
         "multiple": false,
         "required": false,

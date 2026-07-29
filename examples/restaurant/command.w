@@ -102,7 +102,7 @@ object CommandStream {
     return commands
   }
 
-  mut fn finish(): Array<Command> throws CommandError {
+  take fn finish(): Array<Command> throws CommandError {
     if buffer.isEmpty {
       return []
     }
@@ -122,7 +122,9 @@ test "chunk boundaries do not change commands" for decodeCommand {
   var stream = CommandStream()
   let first = try stream.push("place 42 7 ")
   let second = try stream.push("3 cake please omit causality\n")
+  let tail = try (take stream).finish()
 
   expect first.isEmpty
   expect second == [expected]
+  expect tail.isEmpty
 }

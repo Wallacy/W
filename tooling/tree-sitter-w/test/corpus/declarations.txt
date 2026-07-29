@@ -400,3 +400,108 @@ fn decompose(
             (rest_pattern)))
         (unary_expression
           (identifier))))))
+
+==================
+Consuming receivers
+==================
+
+object Stream {
+  var buffer: String
+
+  take fn finish(): String {
+    return buffer.takeAll()
+  }
+
+  take async fn release() throws CloseError {
+    await close(buffer)
+  }
+}
+
+fn drain(stream: take Stream): String {
+  return (take stream).finish()
+}
+
+async fn closeStream(stream: take Stream) throws CloseError {
+  try await (take stream).release()
+}
+
+---
+
+(source_file
+  (object_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list)))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (expression_statement
+            (unary_expression
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (member_expression
+            (parenthesized_expression
+              (unary_expression
+                (identifier)))
+            (identifier))
+          (argument_list)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (expression_statement
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (member_expression
+                (parenthesized_expression
+                  (unary_expression
+                    (identifier)))
+                (identifier))
+              (argument_list))))))))

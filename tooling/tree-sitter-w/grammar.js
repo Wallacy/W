@@ -201,7 +201,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         optional("static"),
         optional("unsafe"),
-        optional("mut"),
+        optional(field("receiver_modifier", choice("mut", "take"))),
         optional("async"),
         "fn",
         optional($.language_tag),
