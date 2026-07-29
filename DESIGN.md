@@ -3899,7 +3899,7 @@ lookup fechado e witnesses determinísticos.
 ### 8.8 Conversões
 
 **Exemplo:** `u8` pode converter para `u16`. A conversão de `u16` para `u8`
-exige uma operação checked explícita.
+exige uma operação checked explícita: `try u8(exactly: value)`.
 
 Uma conversão implícita é permitida somente se:
 
@@ -3909,7 +3909,20 @@ Uma conversão implícita é permitida somente se:
 4. não muda ownership ou authority de forma oculta.
 
 Narrowing, parsing, rounding, reinterpretation, ponteiro e conversão ambígua são
-explícitos. O mesmo princípio permite `T` para `any P` quando `T: P`.
+explícitos. Refinements podem provar que uma conversão adicional preserva valor.
+O mesmo princípio permite `T` para `any P` quando `T: P`.
+
+O checker não procura um terceiro tipo numérico comum. Ele aceita a identidade
+ou uma única conversão segura de um operando para o tipo do outro. Assim,
+`u8 + i16` produz `i16`, mas `i8 + u8` exige que o source escolha um tipo.
+
+```w
+let safe: i16 = 120_u8 + 8_i16
+let chosen: i16 = i16(-1_i8) + i16(2_u8)
+let narrow = try u8(exactly: chosen)
+```
+
+A seção 15.1.2 fecha as conversões entre integers e floats.
 
 ### 8.9 Reflection, síntese e parâmetros rest
 
@@ -4353,10 +4366,11 @@ inicialização, move, borrow, escape e drop. A escada semântica é:
 1. valor `Copy`;
 2. owner único com drop determinístico;
 3. borrow `ref` ou `inout`;
-4. região lexical quando muitos valores possuem o mesmo lifetime;
-5. `shared T` quando existem múltiplos owners reais;
-6. owner de service para estado serializado por instância;
-7. ponteiro manual somente em `unsafe` ou FFI.
+4. owner único `Pinned<T>` quando a API publica endereço estável;
+5. região lexical quando muitos valores possuem o mesmo lifetime;
+6. `shared T` quando existem múltiplos owners reais;
+7. owner de service para estado serializado por instância;
+8. ponteiro manual somente em `unsafe` ou FFI.
 
 Nenhum assignment escolhe silenciosamente entre move, reference counting e
 arena. O tipo e a assinatura determinam a operação.
@@ -4453,18 +4467,42 @@ self-referential ou um task frame que contém borrows internos.
 Task frames gerados pelo compiler ficam estáveis enquanto uma suspensão exigir
 isso. Essa escolha não aparece no source e não exige annotation.
 
-**Líder DB2:** a API pública inicial usa um tipo de biblioteca, não keyword:
+**Líder DB2:** `pin` é uma operação unary de storage e ownership:
 
 ```w
-let state = try Pinned.make(take callbackState)
+let state = try pin take callbackState
 
 unsafe { register_callback(state.asOpaqueCPtr()) }
 ```
 
-`Pinned.make` aloca storage estável e pode falhar. `Pinned<T>` pode mudar de
-endereço; o `T` apontado por ele não pode. O raw pointer só é válido enquanto o
-owner `Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um
-segundo owner.
+A expressão é `try (pin (take callbackState))`. `take` move o owner para a
+operação. `pin` coloca o valor em storage estável e produz
+`Result<Pinned<T>, AllocationError>`. `try` propaga o error e entrega o handle.
+Um temporary owned não precisa de `take`:
+
+```w
+let state = try pin BellState(closed: false)
+```
+
+O formatter usa a ordem `try pin take value`. `try take pin value` é erro:
+`take` não configura outra operação. `take<.pin>` fica **Rejeitado por
+enquanto** porque tornaria um move comum fallible e alocante. Ele também
+misturaria uma policy de storage com a transferência de owner.
+
+`pin let state = value` e `let pin state = value` ficam **Alternativa** para um
+futuro pinned local lexical. Elas não substituem o handle owned necessário para
+callback persistente, retorno ou field.
+
+`pin` pode alocar ou adotar storage que já possui endereço estável. A operação
+pode falhar antes de publicar o endereço. `Pinned<T>` pode mudar de endereço; o
+`T` apontado por ele não pode. O raw pointer só é válido enquanto o owner
+`Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um segundo
+owner.
+
+A DB2 não possui keyword `unpin`. Consumir ou destruir `Pinned<T>` executa drop
+no endereço estável. Mover `T` para fora depois que seu endereço foi publicado
+exigiria provar que nenhum safe borrow, self-reference ou foreign pointer
+permanece. Um consuming `intoValue` com proof token fica em **Pesquisa**.
 
 **Pesquisa:** os nomes `PinnedRef<T>`, `PinnedMut<T>` e `withMut` para borrows
 scoped ainda precisam de corpus. O contrato já é fixo:
@@ -4473,6 +4511,7 @@ scoped ainda precisam de corpus. O contrato já é fixo:
 - pinning não prova alias, validade ou thread safety;
 - drop ocorre antes de o storage estável ser reutilizado;
 - projection para um field pinned precisa de prova do compiler ou `unsafe`;
+- safe projection mantém o parent pinned e não permite mover o field;
 - um tipo comum não paga por pinning.
 
 O modelo segue a separação usada pela
@@ -6236,9 +6275,9 @@ console, clock ou filesystem.
 
 T0 contém:
 
-- tipos primitivos, Option, Result e Error;
+- tipos primitivos, numeric modes/errors, `TotalFloat`, Option, Result e Error;
 - String, StringView, Bytes, StringBuilder, Array, Map, Set, Range e views;
-- Slice, `Pinned<T>`, AllocationError e allocator hooks;
+- Slice, `pin`, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
@@ -6286,6 +6325,7 @@ T2 contém módulos bundled e reachability-linked:
 
 - HTTP client/server, CLI/TUI e adapters de UI;
 - SI, quantities, análise numérica e constants versionadas;
+- BigInt, Rational, FixedDecimal, Complex e quantization;
 - tensor, linear algebra e ML experimental;
 - SQLite/durable adapter;
 - formatos e protocols de domínio com suporte oficial.
@@ -6296,47 +6336,308 @@ disponibilidade universal em todo target.
 
 ## 15. Números, ranges e unidades
 
-### 15.1 Números
+### 15.1 Modelo numérico
 
-**Exemplo:** `u8.max + 1` causa panic. `u8.max.wrappingAdd(1)` produz zero de
-forma explícita.
+#### 15.1.1 Tipos e literais
 
-**Líder DB2:** `Int` é um integer signed de 64 bits. `UInt` é unsigned de 64
-bits. `isize` e `usize` usam a largura de address do target. Código que precisa
-de outra largura usa `i8`...`i128` ou `u8`...`u128`.
+**Exemplo:** `0o755_u16` e `6.022_140_76e23_f64` chegam ao type checker sem
+truncamento no lexer.
+
+`Int` é a identidade pública de `i64`. `UInt` é a identidade pública de `u64`.
+`isize` e `usize` são tipos distintos com a largura de address do target. Os
+integers de largura fixa são `i8`, `i16`, `i32`, `i64`, `i128` e seus pares
+unsigned. Signed integers usam representação two's complement. `Bool` não é
+integer. Os target profiles da DB2 possuem address width de 32 ou 64 bits.
 
 ```w
 let guests: Int = 42       // i64 semântico
 let byteOffset: usize = 42 // largura do target
-let sample: i16 = 42
+let mask = 0b1111_0000_u8
+let mode = 0o755_u16
+let color = 0xff_40_00_u32
 ```
 
 `Int` fixo mantém overflow, serialização e refinements iguais em targets de 32
-e 64 bits. O optimizer pode usar uma largura interna menor e reestender na
-boundary. Um target de 32 bits ainda precisa implementar a semântica de 64 bits.
+e 64 bits. O optimizer pode estreitar uma operação interna e reestender o valor
+na boundary. Um target de 32 bits ainda implementa a semântica de 64 bits.
+`Int` com largura do target, literal default `i32` e `BigInt` como default
+permanecem **Alternativa**.
+
+O lexer aceita:
+
+- decimal, `0b` binary, `0o` octal e `0x` hexadecimal;
+- `_` somente entre digits;
+- fraction decimal com digits nos dois lados de `.`;
+- exponent decimal `e` ou `E`, com sinal opcional;
+- suffix separado por `_`, como `_i16`, `_u8`, `_f32` ou `_f64`.
+
+`2.` é erro; use `2.0`. Um sinal é um operador, não parte do literal numérico.
+O checker trata `-128_i8` como o limite representável, mas rejeita `128_i8` e
+`-(129_i8)`. Hexadecimal float não entra na DB2. Controle de bits usa
+`f32.fromBits` ou `f64.fromBits`.
+
+Antes do expected type, um literal integer guarda magnitude arbitrária. Um
+literal decimal guarda um rational decimal exato. A materialização ocorre uma
+vez:
+
+- integer sem contexto vira `Int`;
+- um literal com fraction ou exponent sem contexto vira `f64`;
+- um integer literal esperado como integer exige representabilidade exata;
+- um integer literal esperado como float precisa ser exato, salvo suffix float;
+- um real literal esperado como binary float arredonda uma vez com
+  nearest, ties-to-even;
+- um expected decimal ou rational não passa por binary float.
+
+Um literal com fraction ou exponent não materializa como integer, mesmo quando
+seu valor matemático é integral. Use `1_000`, não `1e3`, para pedir um integer.
+Um suffix float, uma fraction ou um exponent torna explícita a intenção de
+rounding. Um real literal com suffix integer é um diagnostic.
+
+Overflow ou infinity durante a materialização é diagnostic. Underflow para zero
+ou subnormal é aceito com o mesmo rounding de runtime e pode produzir warning
+configurável. `f32` e `f64` fornecem os valores associados `infinity` e `nan`;
+`inf` e `nan` não são tokens literais. `fromBits` cria um payload NaN específico.
+
+#### 15.1.2 Tipagem e conversões
+
+**Exemplo:** `let total: i16 = 250_u8 + 2_i16` é seguro. `-1_i8 + 2_u8` não
+escolhe sozinho entre signed e unsigned.
+
+Um operador binário exige o mesmo tipo depois de no máximo uma conversão
+implícita de um operando para o tipo do outro. O checker não procura um terceiro
+tipo comum. Um literal ainda não materializado usa o tipo do outro operando
+quando o valor cabe.
 
 ```w
-type SmallCount = Int<(1...128)>
+let bytes: u16 = 250_u8 + 2_u16
+let ratio: f64 = 3_i32 + 0.5_f64
+let explicit: i16 = i16(-1_i8) + i16(2_u8)
 ```
 
-`Int` com largura do target e literal default `i32` permanecem
-**Alternativa**. `BigInt` pertence a T2; ele não é o tipo de literal default.
+Não existem integer promotions de C. `u8 + u8` produz `u8` e mantém overflow
+verificado. Uma conversão integer é implícita somente quando todos os valores
+da origem cabem no destino. Um refinement pode fornecer a mesma prova para um
+valor mais restrito.
 
-- literal inteiro sem contexto usa `Int`;
-- literal decimal sem contexto usa `f64`;
-- o expected type pode especializar um literal representável;
-- operadores binários exigem o mesmo tipo depois de uma conversão segura única;
-- overflow de inteiros, divisão por zero e shift inválido causam panic;
-- APIs `checked`, `wrapping` e `saturating` tornam outra policy explícita;
-- divisão inteira trunca em direção a zero;
-- resto possui o sinal do dividendo;
-- float usa IEEE strict, preserva subnormals e não reassocia por default;
-- NaN segue comparação IEEE; total ordering exige API nomeada.
+As conversões float implícitas são:
 
-`fast` e `reproducible` começam como APIs/scopes T2 explícitos. Uma flag de
-release não muda a semântica numérica sozinha.
+- `f32` para `f64`;
+- `i8`, `u8`, `i16` e `u16` para `f32`;
+- todos os integers de até 32 bits para `f64`;
+- outra conversão cuja exatidão esteja provada por refinement.
+
+Signed para unsigned, narrowing, integer de 64 bits para float e float para
+integer são explícitos. As formas canônicas são:
+
+```w
+let port = try u16(exactly: configuredPort)
+let count = try i32(rounding: sample, mode: .towardZero)
+let clipped = u8(saturating: signal, nan: .zero)
+let lowBits = u16(truncatingBits: word)
+let short = try f32(rounding: precise, mode: .nearestEven)
+let bits = short.toBits()
+```
+
+`exactly:` rejeita out-of-range, fraction, non-finite e perda de precisão.
+`rounding:` exige uma `RoundingMode`. Um destination integer rejeita NaN,
+infinity e out-of-range. Um destination float preserva infinity, rejeita NaN e
+rejeita overflow finito na forma `try`. `saturating:` exige uma policy para NaN.
+`truncatingBits:` existe somente entre integers. `toBits` e `fromBits` preservam
+a representação, não convertem valor.
+`T(value)` também pode tornar explícita uma conversão que já é total e exata.
+Ele nunca esconde uma operação fallible.
+
+```w
+export enum RoundingMode {
+  nearestEven
+  nearestAwayFromZero
+  towardZero
+  towardPositive
+  towardNegative
+}
+
+export enum NaNConversion {
+  zero
+  minimum
+  maximum
+}
+
+export enum NumericConversionError: Error {
+  outOfRange
+  fractional
+  nonFinite
+  inexact
+}
+```
+
+`nearestEven` e `nearestAwayFromZero` definem o desempate exato. `towardPositive`
+e `towardNegative` apontam para infinity, não para maior ou menor magnitude.
+
+#### 15.1.3 Aritmética inteira e bits
+
+**Exemplo:** `u8.max + 1` causa panic em debug e release.
+`u8.wrappingAdd(u8.max, 1)` produz zero de forma explícita.
+
+`+`, `-`, `*`, unary `-` e integer `**` usam o resultado matemático e causam
+panic quando ele não cabe no tipo. Em const evaluation, o mesmo caso é um
+diagnostic. Nenhum profile troca essa regra por wrap.
+
+```w
+let next = try u16.checkedAdd(current, 1)
+let wrapped = u16.wrappingAdd(current, 1)
+let clipped = u16.saturatingAdd(current, 1)
+let (sum, overflowed) = u16.overflowingAdd(current, 1)
+```
+
+`checkedAdd`, `checkedSubtract`, `checkedMultiply`, `checkedNegate`,
+`checkedDivide`, `checkedPower`, `checkedShiftLeft` e `checkedShiftRight` retornam
+`Result<T, ArithmeticError>`.
+As famílias `wrapping`, `saturating` e `overflowing` cobrem as operações nas
+quais a policy tem significado. `carryingAdd`, `borrowingSubtract` e
+`fullMultiply` servem multiprecision e crypto sem depender de flags da CPU.
+
+```w
+export enum ArithmeticError: Error {
+  overflow
+  divisionByZero
+  invalidShift(count: UInt, width: UInt)
+}
+```
+
+Integer division causa panic em divisor zero e em `signed.min / -1`. O quotient
+trunca em direção a zero. O remainder possui o sinal do dividendo. APIs
+`euclideanDivide` e `euclideanRemainder` tornam a alternativa não negativa
+explícita. `0 ** 0` produz `1`; o exponent de integer `**` é `UInt`.
+`float ** Int` usa exponentiation integer strict, inclusive exponent negativo.
+Potência com exponent float usa `math.pow`.
+
+`&`, `|`, `^` e `~` operam nos bits do mesmo tipo integer. O operando direito de
+shift é `UInt`. Um count igual ou maior que a largura causa panic. `value << n`
+equivale à multiplicação matemática por `2 ** n` e causa panic se perder bits.
+`>>` é lógico para unsigned e arithmetic para signed. `wrappingShiftLeft`,
+`logicalShiftRight`, `rotatedLeft` e `rotatedRight` oferecem intenções de bits
+sem sobrecarregar os operadores. `wrappingShiftLeft` ainda valida o count;
+`maskedShiftLeft` e `maskedShiftRight` aplicam count módulo width.
+
+Endianness não altera o valor numérico. A memória nativa segue o target e a ABI.
+Serialização escolhe uma ordem:
+
+```w
+let wire = 0x0102_0304_u32.toBytes(order: .big)
+let restored = u32.fromBytes(wire, order: .big)
+```
+
+`.little` e `.big` são estáveis. `.native` é target-dependent e não serve como
+formato persistente ou de rede. Float serializa sua representação com `toBits`
+e as mesmas operações integer.
+
+#### 15.1.4 Floating point e ordem
+
+**Exemplo:** `0.0_f64 / 0.0_f64` produz NaN. Ele não causa panic nem ativa
+fast-math.
+
+`f32` e `f64` seguem IEEE binary32 e binary64. Operações básicas usam
+round-to-nearest, ties-to-even, preservam subnormals e não reassociam. Divisão
+por zero, overflow e operação inválida produzem os valores IEEE. `a * b + c`
+não vira FMA no mode strict; use `math.fma(a, b, c)`.
+
+```w
+let unordered = f64.nan.partialCompare(1.0) // none
+let ordered = f64.totalOrder(-0.0, 0.0)     // .less
+let key = TotalFloat(0.0)
+```
+
+Store, copy, serialization por bits e `toBits` preservam signed zero e payload
+de NaN. O resultado NaN de uma operação continua NaN, mas seu sign e payload não
+são portáveis. `==`, `<`, `<=`, `>` e `>=` seguem comparação IEEE: NaN não é
+igual a si e `-0.0 == 0.0`.
+
+Por isso, floats não conformam a `Equatable`, `Hashable` ou uma ordem total.
+`partialCompare` retorna `Ordering?`. `f32.totalOrder` e `f64.totalOrder`
+implementam a ordem total IEEE. `TotalFloat<T>` fornece equality, hash e ordem
+compatíveis para keys. `minimum` propaga NaN; `minimumNumber` seleciona o
+número quando somente um operando é NaN.
+
+Safe W não expõe um floating-point environment global. Source comum não muda
+rounding mode, flush-to-zero ou exception flags. Uma foreign call que altera
+esse estado precisa declará-lo e restaurá-lo na boundary. APIs checked retornam
+estado como valor quando o programa precisa observá-lo.
+
+`mode: .fast` permite flags fast-math declaradas pela API.
+`mode: .reproducible` usa algoritmo, ordem de reduction e accuracy profile
+versionados. Uma flag de release não ativa nenhum desses modes. Transcendentals
+ficam em `std.math` T2 e publicam domínio, tratamento de casos especiais e erro
+máximo em ULP.
+
+#### 15.1.5 Tipos numéricos T2
+
+**Exemplo:** `FixedDecimal<i128, scale: 2>` representa dinheiro decimal sem
+passar por `f64`.
+
+T2 adiciona tipos com custo e domínio explícitos:
+
+```w
+let tax: FixedDecimal<i128, scale: 2> = 12.30
+let exact = try Rational<BigInt>(22, denominator: 7)
+let phase = Complex<f64>(real: 0.0, imaginary: 1.0)
+
+type FlavorQ =
+  Quantized<
+    i8,
+    expressed: f32,
+    scale: StaticRatio<1, 128>,
+    zeroPoint: 0,
+  >
+```
+
+`std.math` fornece `BigInt`, `BigUInt`, `Rational` e `Complex`. `std.decimal`
+fornece `FixedDecimal`. `std.quant` fornece quantization. Esses módulos são T2
+e não entram na prelude.
+
+`BigInt` e `BigUInt` possuem precisão arbitrária, são owned e seguem a policy de
+OOM da seção 11.5. `FixedDecimal<Storage, scale:>` usa uma escala integer não
+negativa e guarda um coefficient integer vezes `10 ** -scale`. Add e subtract
+exigem a mesma escala. Multiply soma as escalas e verifica overflow do storage.
+Divide exige result scale e rounding nomeados. Uma conversão de escala também
+declara rounding. `Money` continua a adicionar currency e não vira alias
+universal de decimal.
+
+`Rational<BigInt>` normaliza sign e greatest common divisor. `Complex<T>` usa
+constructors nomeados; W não reserva pontuação para literal complexo.
+
+`f16` e `bf16` são formatos T2 de storage e operand. Seus valores convertem
+exatamente para um expected `f32`. Eles não definem scalar arithmetic. Source
+escalar usa `.toF32()`; tensor e ML APIs declaram accumulator. Formatos float
+de 8 bits não entram no core.
+`Quantized<Storage, expressed:, scale:, zeroPoint:>` representa:
+
+```text
+expressed = (stored - zeroPoint) * scale
+```
+
+`StaticRatio<Numerator, Denominator>` exige denominator positivo e normaliza
+sign e greatest common divisor. Assim, a escala exata entra na identidade do
+tipo. Scale e zero point são contratos estáticos. Per-axis e
+per-block quantization adicionam um eixo e uma lista de parâmetros versionada.
+A conversão, o accumulator e a saturation policy ficam explícitos na API.
+
+Os contratos seguem as operações básicas de
+[LLVM](https://llvm.org/docs/LangRef.html), os rounding modes de
+[MLIR Arith](https://mlir.llvm.org/docs/Dialects/ArithOps/) e a separação entre
+storage e expressed type de
+[MLIR Quant](https://mlir.llvm.org/docs/Dialects/QuantDialect/).
+
+Posit, Unum, IEEE decimal float e arbitrary-precision real ficam em
+**Pesquisa** como tipos T2. Cada candidato precisa definir rounding, special
+values, serialization, FFI, vector fallback e differential oracle. Nenhum deles
+substitui `f32` ou `f64` na DB2. Tipos `fast8` ou `fast16` dependentes do target
+ficam **Rejeitado por enquanto**; ProofFacts e o optimizer escolhem a largura
+física sem mudar o tipo source.
 
 ### 15.2 Ranges
+
+**Exemplo:** `1>..<5` contém `2`, `3` e `4`. Ele não aloca nem cria um
+iterator.
 
 ```w
 1...5
@@ -6358,6 +6659,32 @@ O tuple depois de `in` é um conjunto finito intrínseco. Flags usam `hasAny` e
 
 Somente tipos discretos/strideable podem iterar um Range. Outros usam
 `stride`. `clamp` exige um intervalo fechado.
+
+Os endpoints possuem o mesmo tipo depois das conversões da seção 15.1.2. A
+ordem não muda a direção:
+
+- lower menor que upper cria o intervalo indicado;
+- endpoints iguais criam um singleton somente em `a...a`;
+- lower maior que upper cria um range vazio;
+- um bound unordered, como NaN, causa panic na forma de operador;
+- `try Range.closed(lower, upper)` retorna error para bounds unordered.
+
+Membership com um valor NaN é false. `clamp` preserva um input NaN. Um Range
+float permite comparação e clamp, mas não iteration direta. Iteração direta
+exige successor discreto. Uma progressão descendente ou com step usa `stride`:
+
+```w
+for countdown in stride(from: 5, through: 1, by: -1) {
+  print(countdown)
+}
+```
+
+O step não pode ser zero e precisa avançar em direção ao endpoint. A forma
+direta causa panic quando esse contrato falha; `try Stride(...)` oferece a
+construção fallible. `to:` exclui o endpoint e `through:` o inclui. Overflow ao
+calcular o próximo elemento encerra somente quando o endpoint já foi alcançado;
+caso contrário, causa panic. `range.count()` retorna
+`Result<usize, ArithmeticError>`.
 
 Um range unilateral pode aparecer como argumento ou pattern:
 
@@ -6391,13 +6718,15 @@ let setpoint = -40<degC>
 let memory = 64<KiB>
 ```
 
-A produção aceita somente um literal numérico com sinal opcional, seguido por
-`<unit-expression>`. Uma expressão runtime não usa essa forma. Ela usa
-`Quantity(value, unit: m)`.
+A produção aceita somente um literal numérico adjacente a
+`<unit-expression>`. O sinal continua um operador unary aplicado à quantity.
+Uma expressão runtime não usa essa forma. Ela usa `Quantity(value, unit: m)`.
 
 Dentro da unit expression, a DB2 aceita nomes de units, `*`, `/`, `^`,
 parênteses e expoentes inteiros. `^` continua XOR fora desse contexto. Nomes
-qualificados são permitidos. O resolver aceita somente símbolos de kind `Unit`.
+qualificados são permitidos. O literal `1` pode ocupar o numerator
+dimensionless, como em `1/mol`; outros coefficients são rejeitados. O resolver
+aceita somente símbolos de kind `Unit`.
 
 ### 15.4 Units customizadas
 
@@ -7778,7 +8107,7 @@ Regras:
 - autodiff é transformação tipada de biblioteca/IR, não annotation.
 
 Um element refinement não é preservado automaticamente por `@`. O resultado
-usa o carrier do elemento, salvo quando a API declara outro result type.
+usa a tabela abaixo, salvo quando `tensor.matmul<R>` declara outro result type.
 
 ```w
 type Signal = Int<(1...128)>
@@ -7789,8 +8118,46 @@ let scores: Matrix<Int, rows: 16, columns: 8> = samples @ weights
 ```
 
 Integer `@` preserva overflow verificado. Float `@` usa o mode `.strict`.
-`tensor.matmul` expõe accumulator e outro mode quando o programa precisa mudar
-esses contratos. A seção 18 define as otimizações permitidas.
+`tensor.matmul<R>` expõe o tipo lógico de redução/resultado e outro mode quando
+o programa precisa mudar esses contratos. A seção 18 define as otimizações
+permitidas.
+
+O element type define o resultado de `@`:
+
+| Elemento | Resultado de `@` | Accumulator strict |
+|---|---|---|
+| signed integer até 64 bits | `Int` | `Int` ou largura menor provada |
+| unsigned integer até 64 bits | `UInt` | `UInt` ou largura menor provada |
+| `i128` ou `u128` | mesmo tipo | mesmo tipo ou largura menor provada |
+| `f16` ou `bf16` | `f32` | `f32` |
+| `f32` | `f32` | `f32` |
+| `f64` | `f64` | `f64` |
+| `Quantized` | sem operator `@` | API quantized explícita |
+
+Para integer, `@` é uma operação de domínio com widening fixo; ele não cria uma
+promoção para `+`, `*` ou outros operators. Cada prefixo da redução mantém o
+overflow do result type. Uma prova pode escolher um accumulator físico menor
+somente quando preserva o mesmo valor e o mesmo ponto de panic.
+
+`tensor.matmul<R>` converte os inputs para `R` pelas regras explícitas da API e
+verifica cada prefixo da redução em `R`. Ele retorna `Tensor<R, ...>`. Assim,
+`tensor.matmul<i32>` não é somente uma optimization hint.
+
+```w
+let accumulated =
+  tensor.matmul<i32>(samples, weights: weights, mode: .strict)
+let output = try quant.requantize(
+  accumulated,
+  as: FlavorQ,
+  rounding: .nearestEven,
+  saturation: .clamp,
+)
+```
+
+Inputs com element types diferentes não promovem silenciosamente. A API nomeia
+dequantization, cast, result ou accumulator. Requantization declara destination
+scale, rounding e saturation. Calibration e seleção de scale são tooling; elas
+não ocorrem durante uma call normal.
 
 StableHLO e ONNX são adapters. Eles não definem a semântica completa de W.
 
@@ -8044,18 +8411,21 @@ Para integers, `@` usa a semântica de operações verificadas. O compiler pode
 usar um accumulator mais largo. Ele remove checks intermediários somente quando
 prova que cada prefixo lógico cabe no carrier. Um check final basta para uma
 redução monotônica com esse fato. Nos demais casos, o lowering preserva os
-checks por etapa. Uma API explícita escolhe outro accumulator:
+checks por etapa. Uma API explícita escolhe outro tipo lógico de
+redução/resultado:
 
 ```w
 let score: Matrix<i32, rows: 16, columns: 8> =
   tensor.matmul<i32>(samples, weights: weights, mode: .strict)
 ```
 
-O `@` de float usa `.strict`: mesma ordem lógica de redução e nenhuma
-reassociação ou contração que mude rounding. `mode: .fast` autoriza
+O `@` reduz a dimensão de contração por índice crescente, de zero a `K - 1`.
+Para float, `.strict` arredonda multiply e add separadamente nessa ordem. Ele
+não reassocia nem contrai as duas operações. `mode: .fast` autoriza
 reassociation, FMA e kernels aproximados conforme um profile publicado.
-`mode: .reproducible` usa um algoritmo versionado para obter o mesmo resultado
-nos targets que declaram suporte.
+`mode: .reproducible` pode usar outra árvore, mas fixa algoritmo, chunks e
+rounding numa versão para obter o mesmo resultado nos targets que declaram
+suporte.
 
 ```w
 let strict = observations @ weights
@@ -9104,7 +9474,7 @@ Uma pesquisa só avança quando possui:
 | owner único, borrow e whole-value move | **Possível agora** | análise e lowering conhecidos |
 | provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
 | pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
-| `Pinned<T>` público | **Provável** | contrato claro; FFI persistente precisa de protótipo |
+| `pin` e `Pinned<T>` públicos | **Provável** | contrato claro; FFI persistente precisa de protótipo |
 | `shared` + `weak` sem cycle collector | **Provável** | RC é conhecido; tooling de ciclos precisa de avaliação |
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
@@ -9115,6 +9485,13 @@ Uma pesquisa só avança quando possui:
 | graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
 | `InlineString` com layout público | **Pesquisa** | benefício depende de target, ABI e benchmark contra SSO invisível |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
+| literal exato até materialização | **Possível agora** | big integer e rational decimal ficam no frontend |
+| conversões pelo domínio completo | **Possível agora** | tabela fechada e facts de refinement decidem sem heurística |
+| float strict e total-order wrapper | **Possível agora** | IEEE e backend fornecem as operações necessárias |
+| ranges com quatro closures | **Possível agora** | representação, membership e iteration discreta são separáveis |
+| BigInt, Rational e FixedDecimal T2 | **Provável T2** | algoritmos conhecidos; API, OOM e limites exigem corpus |
+| `f16`, `bf16` e quantization T2 | **Provável T2** | MLIR preserva storage/expressed type; targets exigem fallback |
+| Posit, Unum e decimal float | **Pesquisa** | interoperability, rounding e hardware ainda não justificam baseline |
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
@@ -9287,6 +9664,7 @@ Saída: toda forma implementada possui contrato, alternativa e teste.
 equivalentes e nenhum error node.
 
 - lexer lossless;
+- tokens numéricos exatos, radix, exponent e suffix sem sign incorporado;
 - recursive-descent/Pratt;
 - EBNF;
 - CST/recovery;
@@ -9306,6 +9684,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - AST e module graph;
 - imports, visibilidade efetiva e interface normalizada;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
+- literais exatos, widths numéricas, conversões seguras e ranges;
 - function pointers, callable modes, opaque callables e erased callables;
 - evolução de structs, diff de interface e classificação SemVer;
 - associated constants, functions, types e `: self`;
@@ -9333,6 +9712,7 @@ frontend self-hosted.
 - witnesses sintetizados e descriptors alcançáveis;
 - dialeto W/MLIR e verifiers;
 - arithmetic/control lowering;
+- integer checked, float strict, total order e numeric conversion lowering;
 - String UTF-8, views, decoder incremental e maximal-subpart tests;
 - LLVM/native e runtime core;
 - seed C aceita o primeiro `bootstrap.w0` e emite C11;
@@ -9346,6 +9726,7 @@ Saída: payload determinístico para programas síncronos nos dois caminhos.
 e cancelamento.
 
 - initialization e whole-value move;
+- operação `pin`, `Pinned<T>`, projections e callback storage estável;
 - receiver `take fn`, deinit e saídas com consumo;
 - transições typestate consuming e outcomes que devolvem o novo owner;
 - borrows, drop e defer;
@@ -9447,7 +9828,9 @@ Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 `Matrix<2, 4>`.
 
 - units/refinements completos;
+- BigInt, FixedDecimal, Rational e math accuracy profiles;
 - tensor CPU, `@`, accumulators e modes numéricos;
+- `f16`, `bf16`, quantization e requantization explícitas;
 - SIMD por range, storage estreito experimental e `w explain performance`;
 - rebuild em estágios;
 - suíte de conformidade;
@@ -9621,7 +10004,7 @@ experimentar”, não “decisão irreversível”.
 | D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `take fn` owned, `static fn` sem receiver | `self`; inferir static; função livre |
 | D2-103 | camadas de memória | semântica separada de lowering, representação e host | tag ou allocator como semântica |
 | D2-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
-| D2-105 | pinning | interno sem annotation; `Pinned<T>` para storage estável | keyword universal; raw pointer |
+| D2-105 | pinning | interno sem annotation; `pin` explícito produz `Pinned<T>` público | annotation universal; raw pointer |
 | D2-106 | ciclos shared | `weak`, close, região ou lifecycle owner; sem collector default | cycle collector universal |
 | D2-107 | pointer provenance | address separado; round-trip não restaura authority | pointer como integer |
 | D2-108 | origem de allocation | owner/control block/side table preserva deallocator | bits do pointer obrigatórios |
@@ -9891,7 +10274,7 @@ experimentar”, não “decisão irreversível”.
 | D2-372 | resultado refinado | expressão provada satisfaz expected refinement sem check; caso geral é fallible | `try` mesmo com prova; narrowing runtime implícito |
 | D2-373 | storage estreito | somente não escapante e após cost model; boundaries usam carrier | layout menor público por refinement; nunca comprimir |
 | D2-374 | custo de texto | complexidade por bytes e unidade explícita; caches/ASCII/SIMD invisíveis | `length` O(1) universal; cache obrigatório no layout |
-| D2-375 | integer `@` | checked semantics; widening interno ou accumulator explícito | wrap; accumulator sempre igual ao elemento |
+| D2-375 | integer `@` | checked semantics; widening fixo; `matmul<R>` muda redução/resultado | wrap; accumulator sempre igual ao elemento |
 | D2-376 | float `@` | strict default; fast e reproducible por mode explícito | fast global em release; operator dependente do target |
 | D2-377 | device e fusion | transfer explícita; fusion pode apagar intermediário, não mover device | auto-transfer; toda operação materializa |
 | D2-378 | PGO | input por digest só orienta optimization | muda const/interface; profile implícito da máquina |
@@ -9899,6 +10282,26 @@ experimentar”, não “decisão irreversível”.
 | D2-380 | proof budget | quotas determinísticas; interval/case-set/shape/alias baseline; SMT em Pesquisa | solver sem limite; timeout como resultado semântico |
 | D2-381 | gate de otimização | benchmark reproduzível + differential oracle + fallback | microbenchmark único; otimização sem profile portátil |
 | D2-382 | largura de `Int` | `Int`/`UInt` têm 64 bits; `isize`/`usize` seguem address width | Int segue target; literal default `i32`; BigInt default |
+| D2-383 | representação integer | widths fixas; signed two's complement; Bool distinto | signed dependente do target; Bool como integer |
+| D2-384 | token numérico | decimal/binário/octal/hex; exponent decimal; suffix após `_` | suffix colado; trailing dot; hex float |
+| D2-385 | valor do literal | magnitude/rational exato até expected type; uma materialização | truncar no lexer; converter decimal por f64 intermediário |
+| D2-386 | defaults de literal | integer `Int`; decimal `f64`; expected type prevalece quando válido | i32 default; BigInt/Decimal default |
+| D2-387 | tipagem binária | identidade ou uma conversão segura para um tipo operando; sem terceiro tipo | promoções C; ranking de common type |
+| D2-388 | conversão implícita | total, exata, única e sem authority oculta; refinement pode provar | cast implícito narrowing; exigir todo cast |
+| D2-389 | conversão explícita | `exactly`, `rounding`, `saturating`, `truncatingBits` e bits nomeados | um cast com policy dependente do par |
+| D2-390 | overflow integer | operators checked em todo profile; const vira diagnostic | wrap em release; undefined behavior |
+| D2-391 | divisão integer | zero e min/-1 causam panic; quotient toward zero; Euclidean nomeado | floor universal; resultado Option implícito |
+| D2-392 | shift | count `UInt`; bound e perda à esquerda causam panic; bit policies nomeadas | mask do count; regras C; wrap silencioso |
+| D2-393 | float baseline | f32/f64 IEEE strict, nearest-even, subnormal e sem FMA implícito | fast-math em release; flush-to-zero default |
+| D2-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
+| D2-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |
+| D2-396 | numeric T2 | BigInt/UInt, FixedDecimal, Rational e Complex com custo explícito | número universal; Decimal como Money |
+| D2-397 | ML storage | f16/bf16 sem scalar operators e com tensor accumulator f32; Quantized separa storage/expressed | aritmética f16 implícita; float8 core |
+| D2-398 | range | intervalo; quatro closures; reversed vazio; stride para direção/step | range como collection; range descendente implícito |
+| D2-399 | superfície de pinning | `try pin take value`; `pin` é fallible e separado de `take` | `Pinned.make`; `take<.pin>`; modifier no binding |
+| D2-400 | saída de pinning | sem `unpin` na DB2; drop in-place; `intoValue` com proof token em Pesquisa | unpin seguro irrestrito; unpin keyword unsafe |
+| D2-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
+| D2-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

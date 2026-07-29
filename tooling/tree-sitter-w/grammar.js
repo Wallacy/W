@@ -50,6 +50,7 @@ const MODIFIER_KEYWORDS = [
   "mut",
   "package",
   "panic",
+  "pin",
   "ref",
   "shared",
   "spawn",
@@ -1020,7 +1021,13 @@ module.exports = grammar({
       ),
 
     unary_expression: ($) =>
-      prec.right(13, seq(field("operator", choice("!", "~", "-", "try", "await", "copy", "take", "inout", "ref")), field("operand", $._expression))),
+      prec.right(
+        13,
+        seq(
+          field("operator", choice("!", "~", "-", "try", "await", "copy", "take", "pin", "inout", "ref")),
+          field("operand", $._expression),
+        ),
+      ),
 
     optional_try_expression: ($) =>
       prec.right(
@@ -1144,17 +1151,20 @@ module.exports = grammar({
       token(
         prec(
           2,
-          /-?[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?<[^>\r\n]+>/,
+          /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?<[^>\r\n]+>/,
         ),
       ),
-    unit_suffix_literal: (_) => token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:C|F|km)/),
-    size_literal: (_) => token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:B|KiB|MiB|GiB)/),
+    unit_suffix_literal: (_) =>
+      token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:C|F|km)/),
+    size_literal: (_) =>
+      token(/[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:B|KiB|MiB|GiB)/),
     number_literal: (_) =>
       token(
         choice(
           /0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*(?:_[A-Za-z][A-Za-z0-9]*)?/,
           /0[bB][01](?:_?[01])*(?:_[A-Za-z][A-Za-z0-9]*)?/,
-          /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:_[A-Za-z][A-Za-z0-9]*)?/,
+          /0[oO][0-7](?:_?[0-7])*(?:_[A-Za-z][A-Za-z0-9]*)?/,
+          /[0-9](?:_?[0-9])*(?:\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:_[A-Za-z][A-Za-z0-9]*)?/,
         ),
       ),
     // Tree-sitter keeps text and byte strings in one lexical node. Consumers

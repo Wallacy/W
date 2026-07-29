@@ -1,0 +1,64 @@
+==================
+Explicit pin operation
+==================
+
+fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
+  return try pin take state
+}
+
+fn pinTemporary(): Pinned<BellState> throws AllocationError {
+  return try pin BellState(closed: false)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (unary_expression
+            (unary_expression
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (unary_expression
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)
+                  (boolean_literal))))))))))

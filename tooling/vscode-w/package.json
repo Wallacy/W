@@ -2,7 +2,7 @@
   "name": "w-language",
   "displayName": "W Language (candidate)",
   "description": "Local, declarative syntax highlighting for candidate W source files.",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "publisher": "w-local",
   "private": true,
   "license": "UNLICENSED",

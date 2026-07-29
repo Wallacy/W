@@ -199,6 +199,20 @@ struct Route {
   finalize: any take fn(): Receipt
 }
 
+fn numericForms(): () {
+  let binary = 0b1111_0000_u8
+  let octal = 0o755_u16
+  let hexadecimal = 0xff_40_00_u32
+  let exponent = 6.022_140_76e23_f64
+  let signedExponent = 1.0e-9_f32
+  let amount = 6.022e23<1/mol>
+  let setpoint = -40<degC>
+}
+
+fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
+  return try pin take state
+}
+
 foreign c from "last_light_probe.h" {
   type ll_probe
   fn ll_probe_close(probe: c.ptr<ll_probe>)

@@ -82,7 +82,7 @@
       "patterns": [
         {
           "name": "meta.quantity.w",
-          "match": "(-?[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?)(<)([^>\\r\\n]+)(>)",
+          "match": "([0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?)(<)([^>\\r\\n]+)(>)",
           "captures": {
             "1": { "name": "constant.numeric.w" },
             "2": { "name": "punctuation.definition.unit.begin.w" },
@@ -117,7 +117,7 @@
       "patterns": [
         {
           "name": "constant.numeric.w",
-          "match": "(?<![A-Za-z0-9_])(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*(?:_[A-Za-z][A-Za-z0-9_]*)?|0[bB][01](?:_?[01])*(?:_[A-Za-z][A-Za-z0-9_]*)?|(?:[0-9](?:_?[0-9])*)(?:\\.(?:[0-9](?:_?[0-9])*)?)?(?:_[A-Za-z][A-Za-z0-9_]*)?)(?![A-Za-z0-9_])"
+          "match": "(?<![A-Za-z0-9_])(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*(?:_[A-Za-z][A-Za-z0-9]*)?|0[bB][01](?:_?[01])*(?:_[A-Za-z][A-Za-z0-9]*)?|0[oO][0-7](?:_?[0-7])*(?:_[A-Za-z][A-Za-z0-9]*)?|(?:[0-9](?:_?[0-9])*)(?:\\.[0-9](?:_?[0-9])*)?(?:[eE][+-]?[0-9](?:_?[0-9])*)?(?:_[A-Za-z][A-Za-z0-9]*)?)(?![A-Za-z0-9_])"
         }
       ]
     },
@@ -137,7 +137,7 @@
         },
         {
           "name": "keyword.other.ownership.w",
-          "match": "\\b(?:capture|copy|inout|ref|shared|take|weak)\\b"
+          "match": "\\b(?:capture|copy|inout|pin|ref|shared|take|weak)\\b"
         },
         {
           "name": "keyword.operator.w",

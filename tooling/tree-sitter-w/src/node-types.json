@@ -9865,6 +9865,10 @@
             "named": false
           },
           {
+            "type": "pin",
+            "named": false
+          },
+          {
             "type": "ref",
             "named": false
           },
@@ -10600,6 +10604,10 @@
   },
   {
     "type": "panic",
+    "named": false
+  },
+  {
+    "type": "pin",
     "named": false
   },
   {
