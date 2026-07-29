@@ -71,10 +71,10 @@ export service TableOracle as OracleApi {
     let prediction = try forecast(request.features, weights: weights)
     let courseIndex = prediction.demand[0].argmax(mode: .reproducible)
     let course = Course.fromOrdinal(courseIndex)
-    guard let recipe = recipes[course] else throw .missingRecipe(course)
+    guard let ref recipe = recipes[course] else throw .missingRecipe(course)
 
     return KitchenPlan(
-      recipe: recipe,
+      recipe: copy recipe,
       minimumAroma: prediction.confidence[0, courseIndex],
       duration: recipe.duration,
       energyBudget: recipe.energyBudget,

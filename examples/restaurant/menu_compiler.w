@@ -24,7 +24,7 @@ export struct MenuProgram {
 }
 
 export struct MenuBytecode {
-  bytes: Array<u8>
+  bytes: Bytes
   symbols: Array<String>
 }
 
@@ -182,7 +182,7 @@ object MenuParser {
 }
 
 fn emit(program: ref MenuProgram): MenuBytecode throws MenuCompileError {
-  var bytes: Array<u8> = []
+  var bytes = Bytes()
 
   for instruction in program.instructions {
     switch instruction {

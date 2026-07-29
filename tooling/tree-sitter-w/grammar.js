@@ -232,7 +232,7 @@ module.exports = grammar({
         ),
         ":",
         optional(field("ownership", choice("ref", "inout", "take"))),
-        field("type", $.type),
+        field("type", alias($.non_borrowed_type, $.type)),
         optional(seq("=", field("default", $._expression))),
       ),
 
@@ -280,7 +280,14 @@ module.exports = grammar({
         $.type_body,
       ),
     protocol_declaration: ($) =>
-      seq(optional($.declaration_prefix), "protocol", field("name", $._type_identifier), optional($.type_parameters), $.protocol_body),
+      seq(
+        optional($.declaration_prefix),
+        "protocol",
+        field("name", $._type_identifier),
+        optional($.type_parameters),
+        optional($.conformance_clause),
+        $.protocol_body,
+      ),
     enum_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
@@ -612,18 +619,28 @@ module.exports = grammar({
     type: ($) =>
       prec.right(
         seq(
-          optional(field("qualifier", choice("any", "some", "shared", "weak"))),
-          choice(
-            seq(
-              field("base", $.type_name),
-              repeat($.type_arguments),
-            ),
-            field("base", $.tuple_type),
-            field("base", $.fixed_array_type),
-            field("base", $.function_type),
-          ),
+          optional(field("qualifier", choice("any", "some", "shared", "weak", "ref", "inout"))),
+          $._type_core,
           optional("?"),
         ),
+      ),
+    non_borrowed_type: ($) =>
+      prec.right(
+        seq(
+          optional(field("qualifier", choice("any", "some", "shared", "weak"))),
+          $._type_core,
+          optional("?"),
+        ),
+      ),
+    _type_core: ($) =>
+      choice(
+        seq(
+          field("base", $.type_name),
+          repeat($.type_arguments),
+        ),
+        field("base", $.tuple_type),
+        field("base", $.fixed_array_type),
+        field("base", $.function_type),
       ),
     type_name: ($) =>
       prec.right(seq(field("name", $._type_identifier), repeat(seq(".", field("member", $._type_identifier))))),
@@ -722,7 +739,7 @@ module.exports = grammar({
     function_type_parameter: ($) =>
       seq(
         optional(field("ownership", choice("ref", "inout", "take"))),
-        field("type", $.type),
+        field("type", alias($.non_borrowed_type, $.type)),
       ),
 
     block: ($) => seq("{", repeat($._statement), "}"),
@@ -785,10 +802,19 @@ module.exports = grammar({
     if_statement: ($) =>
       prec.right(seq("if", choice($.optional_binding, $._expression), $.block, optional(seq("else", choice($.if_statement, $.block))))),
     while_statement: ($) => seq("while", $._expression, $.block),
-    for_statement: ($) => seq("for", field("pattern", $.pattern), "in", field("value", $._expression), $.block),
+    for_statement: ($) =>
+      seq(
+        "for",
+        optional(field("ownership", choice("ref", "inout", "copy"))),
+        field("pattern", $.pattern),
+        "in",
+        field("value", $._expression),
+        $.block,
+      ),
     optional_binding: ($) =>
       seq(
         field("kind", choice("let", "var")),
+        optional(field("ownership", choice("ref", "inout", "copy"))),
         field("name", $.identifier),
         "=",
         field("value", $._expression),
@@ -890,6 +916,7 @@ module.exports = grammar({
         $.unit_literal,
         $.parenthesized_expression,
         $.tuple_expression,
+        $.repeat_array_literal,
         $.array_literal,
         $.map_literal,
         $.contextual_member_expression,
@@ -1014,6 +1041,14 @@ module.exports = grammar({
         ")",
       ),
     tuple_element: ($) => seq(optional(seq(field("label", $.identifier), ":")), field("value", $._expression)),
+    repeat_array_literal: ($) =>
+      seq(
+        "[",
+        field("value", $._expression),
+        ";",
+        field("count", $._expression),
+        "]",
+      ),
     array_literal: ($) => seq("[", commaSep($._expression), optional(","), "]"),
     map_literal: ($) => seq("[", commaSep1($.map_entry), optional(","), "]"),
     map_entry: ($) => seq(field("key", $._expression), ":", field("value", $._expression)),

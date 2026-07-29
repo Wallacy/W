@@ -21,6 +21,9 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
 - stored fields, computed properties e property requirements;
 - bindings, patterns nominais, `mut fn`/`take fn`, ownership e behaviors;
+- borrowed result types, optional bindings owned e iteration
+  `ref`/`inout`/`copy`/`take`;
+- array repeat `[value; count]` e literals de Array/Map;
 - `try`/`await`, `async let`, `spawn let` e `Task.cancel()`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;

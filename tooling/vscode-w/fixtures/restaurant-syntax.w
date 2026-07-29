@@ -83,6 +83,24 @@ fn welcome(
   return greeter(arrival)
 }
 
+fn firstOrder(values: ref Array<Order>): ref Order? {
+  return values.get(0)
+}
+
+fn collectionForms() {
+  let digest: [u8; 32] = [0; 32]
+  var counts: Map<Course, u32> = [.horizonCake: 1]
+
+  if let inout count = counts[.horizonCake] {
+    count += 1
+  }
+
+  for ref order in orders { inspect(order) }
+  for inout order in mutableOrders { order.update() }
+  for copy code in statusCodes { send(code) }
+  for order in take pendingOrders { serve(take order) }
+}
+
 struct Route {
   handler: any mut fn(Arrival): Welcome
   finalize: any take fn(): Receipt
