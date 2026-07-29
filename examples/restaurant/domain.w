@@ -52,6 +52,7 @@ export struct Order {
   guests: GuestCount
   course: Course
   notes: String?
+  timeline: u32 = 0
 }
 
 export struct Dish {

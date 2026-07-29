@@ -294,3 +294,109 @@ export struct Counter: CompletionMetric {
               (return_statement
                 (unary_expression
                   (identifier))))))))))
+
+==================
+Nominal struct patterns
+==================
+
+fn decompose(
+  order: ref Order,
+  owned: take Order,
+  guest: take Guest,
+  table: inout Table,
+) {
+  let ref Order(guests, course, ...) = order
+  let Order(id: orderId, guest: Guest(name, ...), ...) = take owned
+  let Guest(id, name, ...) = take guest
+  let inout Table(state, ...) = inout table
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (struct_pattern
+            (type_name
+              (type_identifier))
+            (struct_pattern_field
+              (shorthand_struct_pattern_field
+                (identifier)))
+            (struct_pattern_field
+              (shorthand_struct_pattern_field
+                (identifier)))
+            (rest_pattern)))
+        (identifier))
+      (binding_declaration
+        (pattern
+          (struct_pattern
+            (type_name
+              (type_identifier))
+            (struct_pattern_field
+              (labeled_struct_pattern_field
+                (identifier)
+                (pattern
+                  (identifier))))
+            (struct_pattern_field
+              (labeled_struct_pattern_field
+                (identifier)
+                (pattern
+                  (struct_pattern
+                    (type_name
+                      (type_identifier))
+                    (struct_pattern_field
+                      (shorthand_struct_pattern_field
+                        (identifier)))
+                    (rest_pattern)))))
+            (rest_pattern)))
+        (unary_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (struct_pattern
+            (type_name
+              (type_identifier))
+            (struct_pattern_field
+              (shorthand_struct_pattern_field
+                (identifier)))
+            (struct_pattern_field
+              (shorthand_struct_pattern_field
+                (identifier)))
+            (rest_pattern)))
+        (unary_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (struct_pattern
+            (type_name
+              (type_identifier))
+            (struct_pattern_field
+              (shorthand_struct_pattern_field
+                (identifier)))
+            (rest_pattern)))
+        (unary_expression
+          (identifier))))))

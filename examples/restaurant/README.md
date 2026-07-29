@@ -367,6 +367,28 @@ Aceite:
 O ensaio deve rejeitar uma API exportada que menciona um tipo restrito ao
 módulo. Ele também deve rejeitar acesso externo ao storage do object.
 
+### 3.19 Reserva para Viajantes de Linhas do Tempo Futuras
+
+Famílias: destructuring, ownership, evolução de records e SemVer.
+
+Aceite:
+
+- `Order(guests, course, ...)` seleciona fields por nome;
+- o pattern owned consome o `Order` inteiro antes de iniciar os children;
+- o marker `...` cobre `id`, `guest`, `notes`, `timeline` e fields futuros;
+- `timeline` possui default e não quebra a construção existente em `command.w`;
+- um pattern externo sem `...` é rejeitado;
+- `let ref Type(...)` cria borrows compartilhados dos fields;
+- `let inout Type(...)` cria borrows exclusivos dos fields;
+- o owner não pode ser movido enquanto um borrow de field estiver vivo;
+- `object` e `service` não aceitam destructuring;
+- `w interface diff` classifica field com default como minor;
+- field obrigatório, case novo ou `init` explícito são mudanças major;
+- source, layout e schema de wire permanecem contratos separados.
+
+O ensaio deve rejeitar modos de ownership misturados no mesmo pattern. Ele
+também deve rejeitar uso parcial do aggregate após um destructuring owned.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -375,7 +397,7 @@ O Book deve mostrar pares lado a lado:
 |---|---|---|
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
-| domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` |
+| domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | refinement | `T<(predicate)>` | `T where (predicate)` |
 | receiver | `String<(.count <= 40)>` | `String<(value.count <= 40)>` |
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
@@ -384,6 +406,8 @@ O Book deve mostrar pares lado a lado:
 | struct de dados | fields herdam a visibilidade do tipo | `export` em cada field |
 | object | storage encapsulado e API explícita | todos os membros herdam `export` |
 | protocol witness | herda o requirement | repete `export` na implementação |
+| destructuring | `Type(field, field: pattern, ...)` | `{field}` e tuple posicional |
+| evolução de pattern | `...` externo explícito | exaustividade aberta implícita |
 | construção | `Type(field: value)` | `new Type(...)` e `Type {...}` |
 | initializer | um `init` + factories nomeadas | overload e `async init` |
 | computed property | `name: T { get => value }` | getter method e getter com efeitos |

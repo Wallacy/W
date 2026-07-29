@@ -130,6 +130,7 @@ module.exports = grammar({
     [$._expression, $.closure_parameter],
     [$._type_identifier, $._expression],
     [$._type_identifier, $._expression, $.closure_parameter],
+    [$._type_identifier, $.pattern],
     [$.tuple_type, $.unit_literal],
   ],
 
@@ -711,6 +712,7 @@ module.exports = grammar({
         ),
         field("kind", choice("let", "var")),
         optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
+        optional(field("pattern_ownership", choice("ref", "inout"))),
         field("pattern", $.pattern),
         optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
@@ -773,6 +775,7 @@ module.exports = grammar({
         $.range_pattern,
         $.identifier,
         $.enum_pattern,
+        $.struct_pattern,
         $.tuple_pattern,
         $.number_literal,
         $.string_literal,
@@ -795,6 +798,38 @@ module.exports = grammar({
       ),
     enum_pattern: ($) =>
       prec.right(seq(".", field("case", $.identifier), optional(seq("(", commaSep1($.pattern), optional(","), ")")))),
+    struct_pattern: ($) =>
+      seq(
+        field("type", $.type_name),
+        "(",
+        optional(
+          seq(
+            choice(
+              seq(
+                commaSep1($.struct_pattern_field),
+                optional(seq(",", $.rest_pattern)),
+              ),
+              $.rest_pattern,
+            ),
+            optional(","),
+          ),
+        ),
+        ")",
+      ),
+    struct_pattern_field: ($) =>
+      choice(
+        $.shorthand_struct_pattern_field,
+        $.labeled_struct_pattern_field,
+      ),
+    shorthand_struct_pattern_field: ($) =>
+      field("name", $.identifier),
+    labeled_struct_pattern_field: ($) =>
+      seq(
+        field("field", $.identifier),
+        ":",
+        field("pattern", $.pattern),
+      ),
+    rest_pattern: (_) => "...",
     tuple_pattern: ($) => seq("(", commaSep1($.pattern), optional(","), ")"),
 
     _expression: ($) =>

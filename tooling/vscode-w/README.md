@@ -18,9 +18,10 @@ permite language mode icons e não possui associação mais específica para `.w
 - comentários `//`, `/* */` e `///`;
 - strings normais, raw, multiline e interpolação `${...}`;
 - números decimais, binários, hexadecimais e sufixos candidatos;
-- declarations, `init`, computed properties, keywords e tipos
-- efeitos `async`, `await`, `spawn`, `try` e `throws`
-- operações de ownership `ref`, `inout`, `take` e `copy`
+- declarations, `init`, computed properties, keywords e tipos;
+- patterns de struct com `...`;
+- efeitos `async`, `await`, `spawn`, `try` e `throws`;
+- operações de ownership `ref`, `inout`, `take` e `copy`;
 - pares, comentário e indentação básicos do editor.
 
 O destaque é tolerante a código incompleto, mas não substitui parser/CST. Em

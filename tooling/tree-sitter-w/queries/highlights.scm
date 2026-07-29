@@ -118,6 +118,8 @@
 (enum_case name: (identifier) @constant)
 (contextual_member_expression member: (identifier) @property)
 (enum_pattern case: (identifier) @constant)
+(shorthand_struct_pattern_field name: (identifier) @variable)
+(labeled_struct_pattern_field field: (identifier) @property)
 
 (field_declaration name: (identifier) @property)
 (computed_property_declaration name: (identifier) @property)
