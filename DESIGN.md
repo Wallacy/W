@@ -4620,6 +4620,129 @@ O passe escolhe uma destas classes:
 | low-bit | alignment interno provado | somente storage não exposto |
 | high-bit | tagged address ou NaN boxing | pesquisa target-specific |
 
+#### 9.9.1 Valores válidos e niches
+
+Um niche é uma representação física que o tipo lógico não usa. O compiler pode
+usar esse espaço para representar um case adicional.
+
+**Exemplo:** `ref Oven` não aceita null. `Option<ref Oven>` pode usar null para
+`.none` e os pointers não null para `.some`. Essa escolha não adiciona um estado
+ao pointer e não permite dereference de null.
+
+A HIR registra `Validity<T>`, que descreve os bit patterns válidos conhecidos.
+O layout de um enum segue esta ordem:
+
+1. enumere os cases lógicos e os payloads;
+2. calcule os estados físicos necessários;
+3. encontre niches que nenhuma construção safe ou fronteira externa produz;
+4. escolha um mapping determinístico;
+5. use tag e payload explícitos quando a prova não for suficiente.
+
+Um niche só é válido quando todas as origens do valor respeitam o mesmo
+contrato. Um `c.ptr<T>` não null pode oferecer null como niche. Bytes vindos de
+FFI, storage persistido ou uma union C não oferecem esse niche até que um
+adapter valide a representação.
+
+**Exemplo:** os três estados abaixo permanecem distintos:
+
+```w
+let unknown: Option<Option<ref Oven>> = .none
+let knownMissing: Option<Option<ref Oven>> = .some(.none)
+let knownOven: Option<Option<ref Oven>> = .some(.some(oven))
+```
+
+Um único null separa somente dois estados. O terceiro estado exige outro niche
+provado ou uma tag explícita. O compiler nunca colapsa `unknown` e
+`knownMissing`.
+
+Enums usam a mesma regra:
+
+```w
+enum BellTarget {
+  open(c.ptr<ll_bell>)
+  unavailable
+}
+```
+
+`BellTarget` pode usar null para `unavailable` num layout interno. Se o enum
+ganhar `permissionDenied`, o compiler precisa encontrar outro niche ou expandir
+o layout. A mudança de representação interna não muda o switch.
+
+Um subset de enum reduz o conjunto semântico, mas não cria uma promessa pública
+de tamanho:
+
+```w
+fn nextStage(): ServiceStage<[.preparing, .serving, .completed]>
+```
+
+O caller trata somente esses três cases. Se a assinatura passar a incluir
+`.cancelled`, o diff de interface é incompatível e cada switch antes exaustivo
+recebe um diagnostic. Um specialization interno pode remover cases e tags
+impossíveis. Uma ABI pública mantém o layout publicado para o enum base ou usa
+um schema próprio.
+
+#### 9.9.2 Low bits
+
+Um pointer para storage alinhado a `A` bytes possui `ctz(A)` bits inferiores
+iguais a zero. O compiler pode usar esses bits somente quando prova o alignment
+real da allocation e controla todo o storage do valor.
+
+**Exemplo:** alignment provado de 16 bytes oferece quatro bits candidatos. Uma
+allocation estrangeira com alignment de 4 bytes oferece somente dois, mesmo que
+o tipo nominal tenha alignment maior.
+
+O lowering mantém a provenance original. Ele mascara a tag antes de:
+
+- dereference;
+- call FFI;
+- comparação que exige pointer canônico;
+- operação atômica de pointer;
+- entrega a debugger, sanitizer ou profiler.
+
+**Exemplo:** um `shared MenuSection` interno pode guardar um flag imutável num
+low bit. `ll_bell_subscribe` recebe sempre o `c.ptr` canônico, sem esse flag.
+
+Low bits não guardam reference count, generation mutável, deallocator ou
+allocator identity. Esses valores mudam, podem exceder os bits disponíveis ou
+precisam sobreviver a uma representação canônica.
+
+#### 9.9.3 Metadata mutável, atomics e ABA
+
+Uma tag mutável só pode compartilhar uma palavra atômica com o pointer quando
+todas as leituras e atualizações usam a palavra inteira. W não mistura uma view
+atômica tagged com uma view não atômica do mesmo storage.
+
+**Exemplo:** um slot que faz compare-and-swap de `{pointer, state}` precisa de
+uma operação atômica para o par. Atomicidade de pointer não promete que uma
+palavra maior seja lock-free.
+
+Um contador pequeno não resolve ABA. Depois do wrap, o mesmo pointer e a mesma
+tag podem reaparecer. Uma estrutura que precisa impedir ABA usa generation com
+largura suficiente, epoch, hazard pointer ou outro algoritmo declarado.
+
+**Exemplo:** uma fila não pode considerar `{node, generation: 3}` único para
+sempre quando a generation possui somente dois bits.
+
+#### 9.9.4 Headers, control blocks e handles
+
+W não exige um header universal por object. Um valor com owner único pode ser
+headerless. `shared T` cria um control block quando a implementação precisa de
+strong count, weak count ou deallocator. Service identity fica no runtime do
+host. Reflection mantém metadata por tipo alcançável, não por instance.
+
+**Exemplo:** `BellHandle` possui somente seu handle e seu estado de drop.
+`shared MenuSection` pode apontar para um control block. `ServiceRef<Kitchen>`
+contém identity e capability do host. Os três valores não precisam do mesmo
+header.
+
+Pointer compression e handles indexados são uma classe diferente de tagging.
+Eles só existem quando uma arena ou heap isolado fornece base e bounds
+explícitos.
+
+**Exemplo:** um target Wasm pode representar um handle de arena por `u32` e
+expandir esse handle na façade C. Um pointer nativo fora da arena não participa
+dessa representação.
+
 `Option<ref T>` não aloca. O tamanho exato depende do profile. A
 [null pointer optimization do Rust](https://doc.rust-lang.org/core/option/#representation)
 e os [extra inhabitants do ABI Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeLayout.rst)
@@ -4638,6 +4761,13 @@ As seguintes garantias não dependem do profile:
 - capability pointers usam sua representação nativa;
 - fallback expandido produz o mesmo resultado;
 - nenhum source pede `compact` ou tagged address.
+
+NaN boxing não representa `f64` comum nem um valor W universal. W preserva NaN,
+payload e signed zero. Um futuro container dinâmico interno pode pesquisar NaN
+boxing, mas precisa de fallback e não pode alterar operações IEEE.
+
+**Exemplo:** guardar `f64` em `Array<f64>` preserva os bits de um NaN. O
+compiler não usa o payload desse NaN para representar `.none`.
 
 ### 9.10 Negociação, hardening e instrumentação
 
@@ -4667,8 +4797,35 @@ Essa precedência é necessária porque:
 Uma otimização de high-bit não pode ser inferida somente pelo nome da CPU. O
 processo, OS, allocator, ABI e toolchain precisam confirmar a capacidade.
 
+High-bit tagging não faz parte do profile portátil DB2. Um profile experimental
+precisa confirmar, no mínimo:
+
+1. CPU e modo de paginação;
+2. enablement do processo e das threads;
+3. ABI de kernel e system calls;
+4. allocator e canonicalização;
+5. linker, debugger e unwinder;
+6. hardening e sanitizers ativos;
+7. fronteiras FFI e de módulo binário.
+
+**Exemplo:** suporte de CPU a top-byte-ignore não autoriza enviar um pointer
+tagged a uma system call. O adapter remove a tag ou usa o fallback portátil.
+
+Hardening vence compactação. MTE, pointer authentication, HWASan ou uma
+capability architecture podem ocupar bits ou impor provenance que W não pode
+reutilizar.
+
 Testes diferenciais executam o mesmo corpus em profile portátil e compacto.
 Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
+
+O fingerprint de representação inclui target data layout, schema de valores
+válidos, ABI, allocator, hardening, sanitizer e versão do compiler. Dois objetos
+binários só compartilham um layout W quando esses componentes compatíveis
+produzem o mesmo fingerprint.
+
+**Exemplo:** mudar o alignment garantido pelo allocator pode remover dois low
+bits. O linker adapta, recompila ou rejeita; ele não interpreta o layout antigo
+como novo.
 
 ### 9.11 Destruição e recuperação de storage
 
@@ -4736,6 +4893,26 @@ path para `value`.
 
 Uma lens de import pode estimar código, static data e peak memory. Ela não
 publica um único número como previsão de runtime universal.
+
+`w explain layout T` mostra:
+
+- estados lógicos e payloads;
+- layout portátil;
+- niches e alignments provados;
+- layout escolhido e fingerprint;
+- fronteiras que exigem forma canônica;
+- otimizações recusadas e o motivo.
+
+**Exemplo:**
+
+```text
+$ w explain layout BellTarget
+logical states: open(c.ptr<ll_bell>), unavailable
+portable:       tag + payload
+selected:       null niche
+ffi form:       canonical c.ptr<ll_bell>
+high-bit:       rejected; profile portable
+```
 
 ## 10. Property behaviors
 
@@ -8052,7 +8229,10 @@ Uma pesquisa só avança quando possui:
 | obrigação linear de async close | **Pesquisa** | evita leak oculto; receiver e cancellation precisam de protótipo |
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
 | tensors ranked, `@` e views | **Provável T2** | MLIR ajuda; API e device model precisam de protótipo |
-| tagged pointers e high-bit addresses | **Pesquisa** | target-specific e sem vantagem sem benchmark |
+| niches de null e bit pattern inválido | **Possível agora** | validity facts e fallback explícito fecham a semântica |
+| low-bit interno por alignment provado | **Provável** | exige lowering de provenance e corpus de FFI, atomics e sanitizer |
+| high-bit addresses e NaN boxing | **Pesquisa** | dependem de target, processo e tooling; não integram o profile portátil |
+| universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
 | mimalloc universal | **Pesquisa** | profile possível; default exige matriz de targets |
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
@@ -8737,6 +8917,17 @@ experimentar”, não “decisão irreversível”.
 | D2-332 | estado de service | enum persistido + snapshot revisionado; closed turn por call | `ServiceRef<State>` muda depois da call |
 | D2-333 | erasure de typestate | envelope enum explícito para collections mistas | `T<?>`; existential implícito; tag escondida |
 | D2-334 | DSL de transição | sem keywords novas; `StateGraph<E>` declarativa em Pesquisa | `state`/`transition` na DB2; annotations |
+| D2-335 | validity e niche | HIR registra bit patterns válidos; niche só representa estados impossíveis | sentinel sem contrato; colapsar estados aninhados |
+| D2-336 | layout de enum | mapping determinístico; tag explícita é fallback; subset não promete tamanho público | niche obrigatório; wrapper por subset |
+| D2-337 | low-bit | somente storage interno com alignment real provado e canonicalização nas fronteiras | annotation de source; alignment nominal |
+| D2-338 | high-bit | profile experimental após negociação completa; ausente do portátil | inferir por CPU; requisito de linguagem |
+| D2-339 | metadata mutável | count, generation, allocator e deallocator ficam em owner/control block/side table | esconder tudo no pointer |
+| D2-340 | atomics tagged | operação cobre a palavra inteira; lock-free e ABA exigem provas separadas | atomicidade por associação; generation curta universal |
+| D2-341 | object header | nenhum header universal; cada ownership/runtime usa metadata necessária | header W em toda allocation |
+| D2-342 | NaN boxing | rejeitado para `f64` e valor universal; somente pesquisa para container interno | reduzir payload ou range do float |
+| D2-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
+| D2-344 | fingerprint de representação | inclui validity, target, ABI, allocator, hardening, sanitizer e compiler | fingerprint só por target triple |
+| D2-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
