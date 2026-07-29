@@ -172,6 +172,7 @@ vigente das famílias que ainda estavam parciais.
 | GUI, TUI e immediate mode | `W/DESIGN.md` 13.8 e 14.3 | host events e T2 preservam a pergunta; toolkit universal não é baseline |
 | texto, bytes e strings nativas | `W/DESIGN.md` 16 e D2-210–225 | **Líder DB2** com alternativas históricas rastreadas |
 | collections, hashing e sort | `W/DESIGN.md` 16.10 e D2-226–241 | **Líder DB2**; Map/Set insertion-ordered, collisions com full equality, stable sort default |
+| ausência, errors e cleanup | `W/DESIGN.md` 8.5, 11 e D2-242–259 | **Líder DB2**; Option, Result/throws, fault boundary e diagnostics estruturados |
 
 ### Resultado da revisão de collections
 
@@ -195,6 +196,36 @@ O caderno também comparava Timsort, fluxsort, wolfsort, blitsort e rhsort.
 Arrays terminados por zero continuam apenas na fronteira C. Safe `Array<T>` usa
 count, capacity e bounds check. Named indices continuam como `StaticList<T>`
 compile-time e não mudam a collection runtime.
+
+### Resultado da revisão de ausência e falha
+
+O caderno tratava `undefined`, `null`, `uninitialized` e estado movido como
+possíveis estados universais. Essa forma foi **Superada**. `Option<T>` representa
+somente ausência. Definite initialization e move são estados do compiler.
+Storage bruto sem inicialização usa `unsafe MaybeUninit<T>`.
+
+O caderno também propunha `Result` implícito somente em debug. Essa forma foi
+**Rejeitada** porque mudaria a semântica entre debug e release. `Result<T, E>` é
+um valor comum em todos os profiles. `throws E` oferece direct style. `try`
+converte e propaga os dois sem depender de exception unwind do host.
+
+A intenção de obter errors claros sem stack rewind foi preservada. O lowering
+usa tagged results, control-flow edges e cleanup W. Um error return trace
+opcional registra os pontos de propagação em sidecar. Ele não altera o programa.
+
+`try?` foi recuperado como perda explícita de um error recuperável para Option.
+Ele não captura panic ou cancelamento. `try!` e force unwrap continuam
+rejeitados.
+
+Os error codes, o mapping explícito e os testes inline do caderno continuam
+presentes em typed Result, diagnostic codes e doctests. Operadores opcionais
+como `?+` continuam em **Pesquisa**. O lowering de `defer` por um bloco comum de
+cleanup continua possível, mas não define a source syntax.
+
+O termo isolation boundary agora possui somente o sentido lógico de estado
+serializado ou protegido. Panic exige uma fault boundary física, como process,
+instância Wasm ou compartment com teardown próprio. Essa separação evita
+prometer recovery in-process para um service que compartilha address space.
 
 ## Alternativas que não devem desaparecer de novo
 
