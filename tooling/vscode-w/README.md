@@ -16,7 +16,7 @@ permite language mode icons e não possui associação mais específica para `.w
 ## O que cobre
 
 - comentários `//`, `/* */` e `///`;
-- strings normais, raw, multiline e interpolação `${...}`;
+- strings normais, raw, multiline, byte strings e interpolação `${...}`;
 - números decimais, binários, hexadecimais e sufixos candidatos;
 - declarations, `init`, computed properties, keywords e tipos;
 - patterns de struct com `...`;
@@ -41,7 +41,7 @@ Para instalação local persistente, gere um `.vsix` em uma cópia ou diretório
 temporário e instale-o pelo VS Code:
 
 ```powershell
-$wVsix = Join-Path $env:TEMP "w-language-0.0.9.vsix"
+$wVsix = Join-Path $env:TEMP "w-language-0.0.10.vsix"
 npx --yes @vscode/vsce package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```

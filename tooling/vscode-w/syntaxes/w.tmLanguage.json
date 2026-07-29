@@ -44,8 +44,17 @@
           "match": "b'(?:[ -&(-~]|\\\\(?:x[0-9A-Fa-f]{2}|[\\\\'nrt0]))'"
         },
         {
+          "name": "string.quoted.byte.w",
+          "match": "b\\\"(?:[\\x20-\\x21\\x23-\\x5b\\x5d-\\x7e]|\\\\(?:x[0-9A-Fa-f]{2}|[\\\\\\\"nrt0]))*\\\""
+        },
+        {
           "name": "constant.character.scalar.w",
           "match": "'(?:[^'\\\\\\r\\n]|\\\\.)'"
+        },
+        {
+          "name": "string.quoted.raw.triple.w",
+          "begin": "(#)\\\"\\\"\\\"",
+          "end": "\\\"\\\"\\\"\\1"
         },
         {
           "name": "string.quoted.triple.w",
@@ -55,7 +64,7 @@
         },
         {
           "name": "string.quoted.raw.w",
-          "begin": "(#+)\\\"",
+          "begin": "(#)\\\"",
           "end": "\\\"\\1"
         },
         {

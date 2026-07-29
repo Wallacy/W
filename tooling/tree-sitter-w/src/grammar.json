@@ -5371,11 +5371,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "raw_string_literal"
+          "name": "multiline_string_literal"
         },
         {
           "type": "SYMBOL",
-          "name": "multiline_string_literal"
+          "name": "raw_string_literal"
         },
         {
           "type": "SYMBOL",
@@ -7487,15 +7487,33 @@
     "string_literal": {
       "type": "TOKEN",
       "content": {
-        "type": "PATTERN",
-        "value": "\"([^\"\\\\\\r\\n]|\\\\.)*\""
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "\"([^\"\\\\\\r\\n]|\\\\.)*\""
+          },
+          {
+            "type": "PATTERN",
+            "value": "b\"(?:[\\x20-\\x21\\x23-\\x5b\\x5d-\\x7e]|\\\\(?:x[0-9A-Fa-f]{2}|[\\\\\\\"nrt0]))*\""
+          }
+        ]
       }
     },
     "raw_string_literal": {
       "type": "TOKEN",
       "content": {
-        "type": "PATTERN",
-        "value": "#\"(?:[^\"]|\"[^#])*\"#"
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "PATTERN",
+            "value": "#\"(?:[^\"\\r\\n]|\"[^#\\r\\n])*\"#"
+          },
+          {
+            "type": "PATTERN",
+            "value": "#\"\"\"([^\"\\r]|\"[^\"\\r]|\"\"[^\"\\r])*\"\"\"#"
+          }
+        ]
       }
     },
     "multiline_string_literal": {

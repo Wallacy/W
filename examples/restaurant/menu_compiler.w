@@ -43,7 +43,7 @@ fn lexMenu(source: ref String): Array<MenuToken> {
   var tokens: Array<MenuToken> = []
   var lineNumber: usize = 1
 
-  for line in source.views.lines() {
+  for line in source.scalars.lines() {
     var column: usize = 1
 
     for word in line.words() {

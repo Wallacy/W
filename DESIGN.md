@@ -3133,7 +3133,7 @@ console, clock ou filesystem.
 T0 contém:
 
 - tipos primitivos, Option, Result e Error;
-- String, Array, Map, Set, Range e views;
+- String, StringView, Bytes, StringBuilder, Array, Map, Set, Range e views;
 - Slice, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash e iteração;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
@@ -3306,39 +3306,407 @@ reflection/formatting não as alcança.
 Sugars como `90C`, `90°F`, `5km` e `64KiB` continuam num mapa da edição. Tooling
 mostra a expansão. Source gerado e API pública preferem a forma delimitada.
 
-## 16. Texto e collections
+## 16. Texto, bytes e collections
 
-`String` contém UTF-8 válido em buffer owned contíguo. SSO pode existir, mas é
-invisível. COW não é contrato.
+### 16.1 `String` e unidades de texto
 
-Views explícitas:
-
-```w
-text.bytes
-text.scalars
-text.graphemes
-```
-
-Cada view possui índice próprio. `String` não aceita `text[i]`. Slice preserva
-uma boundary válida para a view escolhida. Equality de String compara a sequência
-UTF-8; normalização Unicode é uma operação explícita.
-
-Literais:
+**Líder DB2:** `String` é um valor owned, contíguo e UTF-8 válido. Uma mutação
+exige acesso exclusivo e preserva UTF-8 válido.
 
 ```w
-"text ${value}"
-#"raw \ ${notInterpolation}"#
-"""
-multiline
-"""
-'λ'       // UnicodeScalar
-b'A'      // u8 ASCII
+var title = "Last Light"
+title.append(" Restaurant")
+let bytes = title.bytes.count
+let scalars = title.scalars.count
+let graphemes = title.graphemes.count
 ```
 
-Um scalar literal contém exatamente um Unicode scalar. Um byte literal aceita
-ASCII ou escape de byte. Grapheme clusters continuam String.
+`String` pode conter U+0000. Ele não possui terminador NUL obrigatório. SSO,
+COW e a estratégia de crescimento são otimizações invisíveis. Cópia e move
+continuam com a semântica definida na seção 9.
 
-Collections:
+Esse contrato segue a experiência de
+[Swift com armazenamento UTF-8](https://www.swift.org/blog/utf8-string/) sem
+tornar a representação curta ou COW parte da linguagem.
+
+`String` não possui `length`, `count` ou subscript direto. O programa escolhe
+uma destas unidades:
+
+| Forma | Elemento | Custo de `count` |
+|---|---|---|
+| `text.bytes` | `u8` da codificação UTF-8 | O(1) |
+| `text.scalars` | `UnicodeScalar` | O(n), salvo cache invisível |
+| `text.graphemes` | grapheme cluster estendido | O(n), salvo cache invisível |
+
+```w
+let sign = "A🇧🇷e\u{301}"
+expect sign.bytes.count == 12
+expect sign.scalars.count == 5
+expect sign.graphemes.count == 3
+```
+
+`UnicodeScalar` é `Copy`. Ele contém um scalar Unicode válido e nunca contém
+surrogate. W não define um tipo universal chamado `Char` ou `Character`.
+Um elemento de `graphemes` é um `Grapheme`, que empresta um cluster contíguo.
+
+```w
+for scalar in sign.scalars {
+  print("U+${scalar.hex}")
+}
+
+for grapheme in sign.graphemes {
+  print(grapheme)
+}
+```
+
+### 16.2 Views, índices e slices
+
+`StringView` empresta uma subsequência UTF-8 contígua. `String`, `StringView` e
+`Grapheme` oferecem as views válidas para seu conteúdo.
+
+```w
+fn firstWord(line: ref String): StringView? {
+  return line.scalars.split(where: (scalar) => scalar.isWhitespace).first
+}
+```
+
+`text.bytes[usize]` tem acesso aleatório O(1). As views de scalar e grapheme não
+aceitam um ordinal em subscript. Isso evita esconder uma busca O(n).
+
+```w
+let firstByte: u8 = text.bytes[0]
+let secondScalar = text.scalars.element(at: 1) // busca explícita O(n)
+```
+
+`ScalarIndex` e `GraphemeIndex` pertencem ao source que os criou. O type checker
+rastreia essa origem como um borrow sem annotation pública. O programa não pode
+usar o índice em outro source nem mutar o owner enquanto o índice está vivo.
+
+```w
+let start: ScalarIndex = text.scalars.start
+let end = text.scalars.index(start, offsetBy: 4)
+let prefix: StringView = text.scalars[start..<end]
+
+// Erro: `start` empresta `text`, não `other`.
+let invalid = other.scalars[start..<end]
+```
+
+Um slice de bytes retorna `Slice<u8>`. Ele pode cortar a codificação de um
+scalar. A conversão de byte range para `StringView` valida os dois limites.
+
+```w
+let raw: Slice<u8> = text.bytes[1..<4]
+let view: StringView = try text.view(bytes: 1..<4)
+let owned: String = view.toString()
+```
+
+Uma mutação invalida views e índices. O borrow normalmente rejeita a mutação.
+Um adapter unsafe deve restabelecer a mesma regra.
+
+```w
+let view = text.scalars[start..<end]
+text.append("!") // Erro: `view` mantém um borrow ativo.
+print(view)
+```
+
+### 16.3 `Bytes` e conversão UTF-8
+
+`Bytes` é um valor owned, contíguo e move-first para dados binários. Ele pode
+conter qualquer byte. `Bytes` e `Array<u8>` são tipos distintos.
+
+```w
+var packet: Bytes = b"\x89PNG\r\n\x1a\n"
+packet.append(0xff_u8)
+let byte: u8 = packet[0]
+```
+
+`Array<u8>` expressa uma collection numérica genérica. `Bytes` expressa um
+payload binário, um digest ou uma operação de I/O. Uma conversão que copia,
+move ou muda a interpretação é explícita.
+
+```w
+let encoded = Bytes(copying: text.bytes)
+let text = try String.fromUtf8(encoded)
+let repaired = String.replacingInvalidUtf8(encoded)
+```
+
+`String.fromUtf8` empresta `Bytes` ou `Slice<u8>`. Ele informa o primeiro byte
+inválido. A forma `replacingInvalidUtf8` substitui sequências inválidas por
+U+FFFD. W não faz essa substituição de forma implícita.
+
+```w
+let invalid = b"\x66\x6f\x80"
+
+do {
+  let _ = try String.fromUtf8(invalid)
+  panic("invalid UTF-8 was accepted")
+} catch .invalidByte(let offset) {
+  expect offset == 2
+}
+```
+
+### 16.4 Construção e concatenação
+
+Interpolação é a forma canônica para construir texto com valores de tipos
+diferentes. Cada valor atende ao protocol `Display`.
+
+```w
+let message = "Order ${order.id} has ${order.guests} guests"
+```
+
+`+` cria um novo `String`. `+=` e `append` mutam um `String` exclusivo.
+Os operadores aceitam somente `String`. Uma view usa builder, interpolation
+ou `toString()`. W não converte números ou objetos nesses operadores.
+
+```w
+var greeting = "Hello"
+greeting += ", universe"
+let question = greeting + "?"
+```
+
+`StringBuilder` torna alocação e custo explícitos em loops ou construções
+grandes. O formatter pode sugerir o builder para uma cadeia de `+`.
+
+```w
+var output = StringBuilder(reservingBytes: rows.count * 32)
+
+for row in rows {
+  output.append(row.name)
+  output.append("\n")
+}
+
+let report = (take output).finish()
+```
+
+W não concatena literais adjacentes. W também não concatena valores separados
+somente por whitespace.
+
+```w
+let invalid = "Last" "Light" // Erro: falta `+` ou interpolação.
+```
+
+### 16.5 Literais de texto e bytes
+
+Uma string normal aceita escapes e interpolação `${expression}`. Uma raw string
+usa o par `#"` e `"#`. Ela desativa escapes e interpolação.
+
+```w
+let normal = "line\norder ${order.id}\u{2026}"
+let raw = #"C:\orders\${notInterpolation}"#
+```
+
+Uma string multiline normal permite interpolação. Uma raw multiline combina
+o delimitador raw com as regras de multiline.
+
+```w
+let card = """
+  guest: ${guest.name}
+  course: ${order.course}
+  """
+
+let template = #"""
+  ${thisStaysLiteral}
+  C:\last-light
+  """#
+```
+
+O newline após o delimitador inicial não entra no valor. O newline antes do
+delimitador final também não entra. A coluna do delimitador final define o
+dedent. Cada linha não vazia deve ter pelo menos essa indentação. O compiler
+normaliza CRLF e CR para LF antes dessa regra.
+
+```w
+let menu = """
+  broth
+    horizon-cake
+  """
+
+expect menu == "broth\n  horizon-cake"
+```
+
+Escapes normais de `String` são `\\`, `\"`, `\n`, `\r`, `\t`, `\0` e
+`\u{scalar}`. `\xNN` não entra em `String`, pois ele descreve bytes.
+
+```w
+let bell = "\u{1F514}"
+let zero = "\0"
+let invalid = "\x80" // Erro: use `b"\x80"`.
+```
+
+Um literal `'λ'` contém exatamente um `UnicodeScalar`. Um literal `b'A'`
+contém um `u8`. Um byte literal aceita ASCII direto ou `\xNN`.
+
+```w
+let scalar: UnicodeScalar = 'λ'
+let ascii: u8 = b'A'
+let high: u8 = b'\xFF'
+let header: Bytes = b"WPKG\x00\x01"
+```
+
+Uma byte string aceita ASCII e escapes de byte. Ela não aceita interpolação.
+Texto Unicode vira bytes somente por uma conversão UTF-8 explícita.
+
+### 16.6 Igualdade, normalização e segmentação
+
+Equality, hash e ordenação estável comparam a sequência UTF-8 exata. Em UTF-8
+válido, essa ordem também corresponde à ordem de scalars. Ela não é collation
+linguística.
+
+```w
+let composed = "é"
+let decomposed = "e\u{301}"
+
+expect composed != decomposed
+expect composed.normalized(.nfc) == decomposed.normalized(.nfc)
+```
+
+`String`, `StringView`, `Grapheme` e literais comparam texto sem materializar
+outro `String`. O hash da mesma sequência é igual em todas essas views.
+
+```w
+let verb: StringView = command.scalars[start..<end]
+expect verb == "place"
+```
+
+Normalização exige `.nfc`, `.nfd`, `.nfkc` ou `.nfkd`. Busca caseless, locale,
+collation e transliteração também usam APIs nomeadas. Elas não alteram `==`.
+
+```w
+let key = input.normalized(.nfc)
+let ordered = names.collated(using: portugueseRules)
+```
+
+A edição fixa a versão do bundle Unicode. Graphemes seguem os extended
+grapheme clusters default da UAX #29. Tailoring de locale pertence a T2 e
+declara seu profile.
+
+```text
+$ w explain unicode
+Unicode version: 17.0.0
+Grapheme profile: UAX29-C1-1
+```
+
+O bundle também fixa normalização e regras de identificadores. A baseline usa
+[UAX #15](https://www.unicode.org/reports/tr15/),
+[UAX #29](https://www.unicode.org/reports/tr29/),
+[UAX #31](https://www.unicode.org/reports/tr31/) e
+[UTS #39](https://www.unicode.org/reports/tr39/). Tabelas geradas e testadas
+evitam depender da versão Unicode do sistema.
+
+### 16.7 Texto nativo do host
+
+`OsString` preserva argumentos e nomes nativos sem perda. Em Unix, ele pode
+conter bytes que não são UTF-8. Em Windows, ele pode conter unidades UTF-16
+sem pareamento.
+
+```w
+let native: OsString = context.process.arguments[0]
+let text: String = try native.toString()
+let label: String = native.displayLossy()
+```
+
+`Path` preserva a representação nativa. `Utf8Path` exige UTF-8 válido, mas
+mantém as regras de path do target. Filesystem, argv e environment não usam
+`String` como substituto de `OsString`.
+
+```w
+let nativePath = Path(native)
+let utf8Path = try Utf8Path(nativePath)
+let restored = Path.fromUtf8(utf8Path)
+```
+
+Conversão nativa para `String` ou `Utf8Path` é fallible. `displayLossy` serve
+somente para UI e diagnostics. APIs do host rejeitam NUL quando o sistema não
+consegue representá-lo.
+
+`PackagePath` é portátil. Ele usa UTF-8 NFC, `/`, componentes relativos e
+nenhum componente `.` ou `..`.
+
+```w
+let source = try PackagePath("src/restaurant/menu.w")
+```
+
+Codecs T1 convertem formatos externos. Locale do processo nunca muda a
+interpretação de `String`.
+
+```w
+let legacy = try TextCodec.windows1252.decode(payload)
+```
+
+O [`OsString` de Rust](https://doc.rust-lang.org/std/ffi/struct.OsString.html)
+é um precedente para preservar texto nativo sem forçar UTF-8.
+
+### 16.8 C strings e buffers sentinela
+
+`CString` é um buffer owned com terminador NUL. Sua construção rejeita NUL
+interno. `CStringView` empresta o mesmo contrato.
+
+```w
+let name = try CString.from("last-light")
+
+name.withPointer((pointer) => unsafe {
+  c_register_restaurant(pointer)
+})
+```
+
+Um pointer C recebido precisa de limite máximo. O wrapper procura o terminador
+dentro desse limite e valida a codificação separadamente.
+
+```w
+let bytes = unsafe {
+  try CStringView.from(pointer, maxBytes: 4096)
+}
+let text = try bytes.decodeUtf8()
+```
+
+`WideCString` cobre APIs Windows que exigem UTF-16 terminado em zero. Arrays e
+strings W não recebem terminação sentinela como semântica geral.
+
+```w
+let wide = try WideCString.from("Última Luz")
+```
+
+O [`CString` de Rust](https://doc.rust-lang.org/std/ffi/struct.CString.html)
+é um precedente para separar ownership, NUL e lifetime do pointer.
+
+### 16.9 Representações especializadas
+
+Um refinement limita valores. Ele não promete layout ou capacidade.
+
+```w
+type ShortLabel = String<(.scalars.count <= 40)>
+type GuestName = String<(.graphemes.count in 1...80)>
+
+let buffer = String(reservingBytes: 4096)
+```
+
+`InlineString<capacity: N>` continua **Pesquisa** como tipo de storage. Rope,
+piece table, interning e a tree string histórica também ficam em tipos ou
+packages especializados.
+
+```w
+let label: InlineString<capacity: 64> = try InlineString("Last Light")
+let document = Rope.from(largeText)
+```
+
+O compiler pode escolher storage especializado para um refinement quando a
+escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
+A hipótese de tree string permanece em `Y/W` porque favorece compartilhamento,
+mas aumenta metadata e indireções no caso comum.
+
+Os sketches históricos `min`, `max`, `expected`, `mask` e `inputType` não viram
+knobs universais de `String`. Refinement define invariants. Reserva define uma
+estimativa. Property behavior ou newtype define transformação.
+
+```w
+type TaxId = String<(.scalars.count == 11 && TaxIdRules.isValid(value))>
+let likelyLarge = String(reservingBytes: expectedBytes)
+let taxId = try TaxId.fromMasked(input)
+```
+
+### 16.10 Collections
+
+Collections usam estas formas:
 
 ```w
 [1, 2, 3]
@@ -3739,7 +4107,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | requisitos para dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
-| dados | String, views, Slice, ByteBuffer, Array, Map, Set e Range de T0 |
+| dados | String, StringView, Bytes, StringBuilder, Slice, Array, Map, Set e Range de T0 |
 | generics | type parameters, constraints simples e monomorphization |
 | memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
@@ -4303,6 +4671,9 @@ Uma pesquisa só avança quando possui:
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
+| Bytes, paths nativos e C strings distintos | **Possível agora** | fronteiras conhecidas; conversões preservam perda e terminador |
+| graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
+| `InlineString` com layout público | **Pesquisa** | benefício depende de target, ABI e benchmark contra SSO invisível |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
 | schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
 | referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
@@ -4877,6 +5248,22 @@ experimentar”, não “decisão irreversível”.
 | D2-207 | custom pattern | pesquisa; conversão nomeada ou guard na DB2 | handler arbitrário; protocol de pattern na v0 |
 | D2-208 | callable transfer | `fn` é transferível/compartilhável; closure deriva predicates do ambiente | `Send`/`Sync` nominais; confiar no pointer |
 | D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
+| D2-210 | semântica de String | owned, contíguo, UTF-8 válido e mutable por acesso exclusivo | tree/rope default; UTF-16; COW contract |
+| D2-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
+| D2-212 | elementos de texto | `UnicodeScalar` Copy e `Grapheme` borrowed; sem `Character` universal | Character owned; scalar chamado Char |
+| D2-213 | índices de texto | byte usa `usize`; scalar/grapheme usam índices borrowed do source | ordinal em subscript; índice universal |
+| D2-214 | slices de texto | byte slice é `Slice<u8>`; byte range para StringView é fallible | arredondar boundary; slice sempre String |
+| D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
+| D2-216 | conversão UTF-8 | validação e reparo explícitos; erro informa byte offset | replacement implícito; locale codec default |
+| D2-217 | construção de String | interpolation canônica; `+` aloca; `+=` muta; builder para volume | concat adjacente; conversão universal implícita |
+| D2-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
+| D2-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
+| D2-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
+| D2-221 | bundle Unicode | edição fixa UAX #15/#29/#31 e UTS #39 em tabelas testadas | versão do host; ICU obrigatório |
+| D2-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos | paths sempre String; bytes portáveis do OS |
+| D2-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
+| D2-224 | storage textual | refinement não fixa layout; `InlineString` permanece Pesquisa | capacity em String; SSO observável |
+| D2-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
