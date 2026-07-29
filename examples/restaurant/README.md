@@ -314,6 +314,10 @@ determinístico.
 Aceite:
 
 - `menu_compiler.w` usa somente o profile `bootstrap.w0`;
+- `const fn buildInstructionOpcodes` executa no evaluator CE0;
+- a mesma `const fn` continua callable em runtime;
+- o ConstValue de Map preserva pares em ordem de inserção e não preserva hash;
+- lookup no const Map não exige materializar um Map mutable;
 - o profile inclui tudo que o source do compiler pequeno usa;
 - retirar qualquer capacidade W0 produz um diagnostic ligado ao fechamento;
 - seed-C e W/MLIR emitem o mesmo bytecode e symbol table;
@@ -322,13 +326,16 @@ Aceite:
 - o source não depende de task, service, tensor, unit, behavior ou tagging;
 - uma instruction depois de `serve` falha antes da emissão;
 - o seed preserva typed errors, move e drop;
+- quota, target e evaluator version entram na recipe e no cache;
+- clock, environment, FFI e filesystem não entram no evaluator;
+- um panic durante const evaluation produz `W-CONST`, não uma fault boundary;
 - o ensaio cresce pelos gates SH0–SH7 antes de declarar self-host completo.
 
 Cobertura atual:
 
 | Gate | Estado do ensaio |
 |---|---|
-| SH0–SH1 | parcial: lexer e parser da DSL, ainda não do source W |
+| SH0–SH1 | parcial: lexer, parser da DSL e tabela CE0, ainda não do source W |
 | SH2–SH3 | parcial: AST, symbols, errors, collections, move e drop |
 | SH4 | parcial: bytecode e symbol table determinísticos, ainda sem HIR W |
 | SH5–SH7 | não implementados |

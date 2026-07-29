@@ -199,6 +199,7 @@ module.exports = grammar({
       seq(
         optional($.declaration_prefix),
         optional("static"),
+        optional("const"),
         optional("unsafe"),
         optional(field("receiver_modifier", choice("mut", "take"))),
         optional("async"),
@@ -361,6 +362,7 @@ module.exports = grammar({
     initializer_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
+        optional("const"),
         optional("unsafe"),
         "init",
         field("parameters", $.parameter_list),

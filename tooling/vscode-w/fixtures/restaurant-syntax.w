@@ -92,6 +92,27 @@ fn optionalGuestName(input: ref String): GuestName? {
   return try? GuestName(input)
 }
 
+const fn buildOpcodes(): Map<String, u8> {
+  var result = Map<String, u8>()
+  result["heat"] = 0x02_u8
+  result["serve"] = 0xff_u8
+  return result
+}
+
+const instructionOpcodes = buildOpcodes()
+
+struct ConstCell {
+  var value: u8
+
+  const init(value: u8) {
+    self.value = value
+  }
+
+  const mut fn replace(value: u8) {
+    self.value = value
+  }
+}
+
 fn recoverOrder(source: ref String): Order throws AppError {
   let result = Result.capture(() => try parse(source))
 

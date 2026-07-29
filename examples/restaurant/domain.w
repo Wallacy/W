@@ -108,7 +108,7 @@ export struct Money {
 
   export const zeroCredits = Money(minorUnits: 0, currency: .cr)
 
-  export init(minorUnits: i128, currency: Currency) {
+  export const init(minorUnits: i128, currency: Currency) {
     self.minorUnits = minorUnits
     self.currency = currency
   }

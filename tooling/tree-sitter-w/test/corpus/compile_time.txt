@@ -1,0 +1,202 @@
+==================
+Const functions, initializers, and requirements
+==================
+
+const fn buildOpcodes(): Map<String, u8> {
+  var result = Map<String, u8>()
+  result["heat"] = 0x02_u8
+  result["serve"] = 0xff_u8
+  return result
+}
+
+const opcodes = buildOpcodes()
+
+struct Cell {
+  var value: u8
+
+  const init(value: u8) {
+    self.value = value
+  }
+
+  const mut fn replace(value: u8) {
+    self.value = value
+  }
+
+  const take fn finish(): u8 {
+    return value
+  }
+
+  static const fn zero(): Cell {
+    return Cell(value: 0)
+  }
+}
+
+protocol ConstDecodable {
+  static const fn decode(source: ref Bytes): Self throws DecodeError
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type
+                (type_name
+                  (type_identifier)))
+              (type
+                (type_name
+                  (type_identifier)))))
+          (argument_list)))
+      (expression_statement
+        (assignment_expression
+          (index_expression
+            (identifier)
+            (string_literal))
+          (number_literal)))
+      (expression_statement
+        (assignment_expression
+          (index_expression
+            (identifier)
+            (string_literal))
+          (number_literal)))
+      (return_statement
+        (identifier))))
+  (const_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (argument_list)))
+  (struct_declaration
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (initializer_declaration
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier)))))
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier)))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (identifier))))
+      (function_declaration
+        (identifier)
+        (parameter_list)
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (return_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier)
+                  (number_literal)))))))))
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier)))))))
+
+==================
+Const modifier recovery keeps later declarations
+==================
+
+const unsafe fn invalid(): usize {
+  return address()
+}
+
+fn stillVisible(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))

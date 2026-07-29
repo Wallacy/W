@@ -481,6 +481,539 @@ formatter emite a forma curta quando o schema não é ambíguo.
 **Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
 medir leitura e migração. O parser DB2 não a aceita.
 
+### 3.6 Avaliação compile-time
+
+W separa avaliação exigida de otimização:
+
+```w
+const pageSize = 4 * 1024 // deve ser avaliado durante a compilação
+let pageSize = 4 * 1024   // o optimizer pode fazer constant folding
+```
+
+Uma falha na primeira linha produz diagnostic. A segunda linha mantém semântica
+runtime mesmo quando o optimizer substitui a expressão por um literal.
+
+#### 3.6.1 Contextos e superfície
+
+Estes contextos exigem um valor compile-time:
+
+| Contexto | Exemplo |
+|---|---|
+| initializer de `const` | `const maximum = 256` |
+| argumento `const` generic | `Buffer<count: 4096>` |
+| contrato estático | `Tensor<f32, shape: [8, 4]>` |
+| tamanho de array fixo | `[u8; digestSize]` |
+| quantidade de repeat literal | `[0; digestSize]` |
+| definição de unit | `unit KiB = 1024<B>` |
+| refinement e shape | `u16<(1...4096)>` |
+
+Uma função usada nesses contextos declara `const fn`:
+
+```w
+export const fn opcode(name: ref String): u8 throws MenuCompileError {
+  return switch name {
+    case "ingredient": 0x01_u8
+    case "heat": 0x02_u8
+    case "wait": 0x03_u8
+    case "serve": 0xff_u8
+    case let unknown: throw .unknownInstruction(name: copy unknown, line: 0)
+  }
+}
+
+const serveOpcode = try opcode("serve")
+let selectedOpcode = try opcode(input)
+```
+
+`const fn` é um contrato de capacidade. A primeira call executa no evaluator. A
+segunda call executa em runtime com a mesma semântica.
+
+Um initializer usado em avaliação compile-time declara `const init`:
+
+```w
+struct Cell {
+  value: u8
+
+  const init(value: u8) {
+    self.value = value
+  }
+}
+
+const emptyCell = Cell(value: 0)
+```
+
+Literals, operators, enum cases e constructors sintetizados são const-safe por
+definição. Uma call de usuário exige `const fn` ou `const init`. Um protocol
+pode exigir o mesmo modifier:
+
+```w
+protocol ConstDecodable {
+  static const fn decode(source: ref Bytes): Self throws DecodeError
+}
+```
+
+Remover `const` de uma declaração exportada é source-breaking. Adicionar
+`const` amplia o uso sem mudar calls runtime.
+
+`const` não participa da forma de overload. Duas declarações não podem diferir
+somente por esse modifier:
+
+```w
+fn decode(source: ref Bytes): Packet
+const fn decode(source: ref Bytes): Packet // error: duplicate call shape
+```
+
+O modifier promete elegibilidade. Ele não promete termination ou sucesso dentro
+de qualquer quota:
+
+```w
+const fn recurse(): Never { return recurse() } // valid body; evaluation hits quota
+```
+
+A ordem canônica dos modifiers é visibility, `static`, `const`, `unsafe`,
+receiver mode, `async` e `fn`. `const` não combina com `unsafe` ou `async`.
+Ele pode combinar com `mut fn` e `take fn`:
+
+```w
+struct ConstBuilder {
+  var storage = Bytes()
+
+  static const fn table(): StaticList<u8> { ... }
+  const mut fn append(value: u8) { storage.append(value) }
+  const take fn finish(): Bytes { return take storage }
+}
+
+const unsafe fn address(): usize { ... } // error: incompatible modifiers
+```
+
+Um receiver usado por `const mut fn` ou `const take fn` deve pertencer ao heap
+virtual do evaluator. O receiver não pode referenciar storage runtime.
+
+W não precisa de `comptime expression` na baseline. Um binding `const` força a
+avaliação e dá um nome ao resultado:
+
+```w
+const table = buildTable()
+use(table)
+```
+
+`comptime buildTable()` e `const { ... }` permanecem **Alternativa**. Elas só
+entram se pipelines sem um binding mostrarem ganho mensurável.
+
+#### 3.6.2 Programa const-safe
+
+Um `const fn` pode usar:
+
+- `let`, `var`, assignment e storage local ao evaluator;
+- `if`, `guard`, `switch`, loops e recursion;
+- structs, enums, Option, Result, String, Bytes e collections const-safe;
+- typed errors, `try`, `try?`, `do`/`catch` e `defer`;
+- outra call const-safe com dispatch estático;
+- arithmetic que segue a mesma policy do target.
+
+Este exemplo constrói dados sem gerar source:
+
+```w
+const fn buildOpcodes(): Map<String, u8> {
+  var result = Map<String, u8>()
+  result["ingredient"] = 0x01_u8
+  result["heat"] = 0x02_u8
+  result["wait"] = 0x03_u8
+  result["serve"] = 0xff_u8
+  return result
+}
+
+const instructionOpcodes = buildOpcodes()
+```
+
+As interfaces compiladas de T0 marcam cada operação const-safe. Por exemplo,
+`Map.set` expõe a implementação ConstIR ou um intrinsic equivalente. O
+evaluator não mantém uma segunda implementação semântica de Map.
+
+Um `const fn` não pode usar:
+
+- I/O, environment, clock, random ou outra capability;
+- FFI, `unsafe`, raw pointer, address ou object identity;
+- task, service, `async`, `spawn`, channel ou lock;
+- `shared`, `weak` ou state global;
+- dispatch por existential ou function value;
+- API que observa allocation failure do evaluator.
+
+O compiler aponta a primeira call proibida e mostra a cadeia const:
+
+```text
+error[W-CONST-0001]: clock.now is not const-safe
+  called by buildExpiry at config.w:18
+  required by const sessionExpiry at config.w:24
+```
+
+Allocation interna do evaluator não é um efeito observável. Se o evaluator
+atinge sua quota, a compilação falha. `tryReserve` não consegue converter essa
+falha em `AllocationError`.
+
+`throws E` continua válido. Um error tratado mantém a avaliação. Um error não
+tratado no initializer produz diagnostic:
+
+```w
+const port = try Port.parse("invalid")
+// error[W-CONST-0005]: PortError escaped a required const context
+```
+
+Panic também produz diagnostic. Ele não cria uma fault boundary dentro do
+compiler:
+
+```w
+const byte = [1, 2][4]
+// error[W-CONST-0006]: bounds panic during const evaluation
+```
+
+W não expõe `isComptime`, `__ctfe` ou outra forma de escolher semântica pela
+fase. Uma `const fn` recebe os mesmos inputs e produz o mesmo valor em compile
+time e runtime:
+
+```w
+const fn phase(): Bool {
+  return isComptime // error: no such intrinsic
+}
+```
+
+Calls indiretas e closures const-safe ficam em **Pesquisa**. Elas exigem
+`const fn(A): B`, `const mut fn(A): B` e `const take fn(A): B` como function
+types. A baseline usa calls estaticamente resolvidas.
+
+Um local `const` não pode depender de um parâmetro runtime. Dentro de uma
+`const fn`, `let` e `var` recebem os argumentos da call em qualquer fase:
+
+```w
+const fn increment(value: u32): u32 {
+  let result = value + 1
+  return result
+}
+
+fn runtime(input: u32): u32 {
+  const invalid = input + 1 // error: runtime value in const initializer
+  return invalid
+}
+```
+
+#### 3.6.3 Valores e materialização
+
+`ConstRepresentable` é um predicate do compiler. Ele não é um protocol que um
+tipo pode implementar. O predicate aceita valores estruturais sem authority ou
+identidade:
+
+| Aceito | Rejeitado |
+|---|---|
+| unit, Bool, números e UnicodeScalar | raw pointer e address |
+| newtype, tuple, struct e enum | `ref`, `inout` e borrow escapante |
+| Option, Result e fixed array | object com identidade |
+| String, Bytes, Array, Map e Set | shared, weak, Task e ServiceRef |
+| static record e StaticList | closure, existential e capability |
+
+Um tipo com custom `deinit` não é ConstRepresentable na baseline. O comando
+`w explain type T` mostra o primeiro requisito que impede a representação.
+
+Map e Set exigem equality e hash const-safe para as keys. O evaluator pode usar
+um hash interno determinístico, mas sempre confirma a equality do programa:
+
+```w
+const ids: Map<GuestId, u8> = [GuestId(7): 1]
+```
+
+`StaticArgumentRepresentable` é um predicate mais restrito. Ele controla valores
+que entram na identidade de um tipo ou specialization:
+
+| Aceito | Rejeitado |
+|---|---|
+| Bool, integer, UnicodeScalar e newtype | float e NaN |
+| closed enum com payload aceito | object e existential |
+| fixed struct e static record | Array, Map e Set runtime |
+| fixed array, String, Bytes e StaticList | pointer, borrow e capability |
+
+Todos os fields devem atender ao predicate. A serialização canônica inclui tipo,
+field names, ordem e valor:
+
+```w
+BoundedText<{min: 1, max: 120}>
+StagePath<[.accepted, .preparing, .completed]>
+```
+
+Float fica fora da identidade de tipo porque NaN não possui equality reflexiva.
+Uma API que precisa de escala usa integer, rational ou um enum nomeado.
+
+ConstValue usa a semântica do valor. Ele não guarda layout, capacity, pointer,
+hash seed ou endereço:
+
+```w
+const names: Map<String, u8> = ["heat": 2, "serve": 255]
+```
+
+O evaluator serializa esse Map como pares na ordem de inserção. O backend pode
+baixar lookup para switch, tabela ordenada ou perfect hash. Essa escolha não
+muda equality ou iteration order.
+
+Um `const` não possui owner ou identidade runtime. Quando um contexto exige um
+valor owned, cada uso cria uma materialização independente:
+
+```w
+const defaults: Array<u8> = [1, 2, 3]
+let left: Array<u8> = defaults
+let right: Array<u8> = defaults
+left[0] = 9
+expect right[0] == 1
+```
+
+Uma leitura pode usar storage imutável embutido sem allocation observável. Uma
+materialização owned segue a policy normal de OOM. `take defaults` é erro porque
+o const não possui owner:
+
+```w
+fn consume(values: take Array<u8>)
+
+consume(take defaults) // error: const has no owner
+consume(defaults)      // materializa um rvalue owned
+```
+
+Um borrow de materialização não pode escapar:
+
+```w
+fn leak(): ref Array<u8> {
+  return defaults // error: const materialization cannot escape by borrow
+}
+```
+
+#### 3.6.4 Target e inputs declarados
+
+O evaluator usa a semântica do target, não a máquina do compiler. `usize`,
+layout intrinsics e endian seguem a recipe:
+
+```w
+import w.target as target
+
+const pointerBytes = target.pointerWidth / 8
+```
+
+`w.target` expõe somente facts fixados, como arch, OS, ABI, pointer width,
+endianness e CPU features declaradas. Esses facts entram na chave do resultado.
+
+Float compile-time usa a mesma policy IEEE strict da seção 15. O evaluator
+recusa uma operação que não consiga reproduzir para o target:
+
+```text
+error[W-CONST-0007]: target float operation is not reproducible
+```
+
+Source W não lê environment, arquivo, commit, path ou clock durante const
+evaluation. Uma tool target hermética pode gerar um módulo comum:
+
+```w
+// generated/build_info.w
+export const sourceCommit = "7f43c2..."
+```
+
+O source importa esse módulo como qualquer outro:
+
+```w
+import generated.build_info as buildInfo
+
+print(buildInfo.sourceCommit)
+```
+
+A recipe registra o generator, inputs, output e digest. Não existe
+`env("COMMIT")` ou `#define` oculto no evaluator.
+
+Quando um fact de target afeta um const exportado ou a identidade de um tipo, a
+interface torna-se específica desse target. Seu digest registra o target.
+
+Target selection usa adapters ou módulos declarados no build graph. W não
+adiciona `#if`, `#include` ou conditional import à linguagem:
+
+```w
+import platform.clock
+```
+
+O build graph seleciona uma implementação de `platform.clock` para o target. A
+interface importada permanece a mesma.
+
+#### 3.6.5 Termination, quotas e cache
+
+Loops e recursion são permitidos. W não promete provar termination geral. O
+evaluator usa quatro quotas determinísticas:
+
+- steps de ConstIR;
+- bytes do heap virtual;
+- call depth;
+- bytes do resultado serializado.
+
+O manifest fixa os limites efetivos:
+
+```w
+build: {
+  constEval: {
+    steps: 1_000_000
+    heap: 64MiB
+    callDepth: 256
+    result: 8MiB
+  }
+}
+```
+
+Um dependency não pode aumentar essas quotas pelo source. O limit de wall-clock
+é somente proteção do compiler. Ele não participa do resultado semântico.
+
+Uma quota excedida produz um diagnostic com consumo, limite e cadeia de calls:
+
+```text
+error[W-CONST-0003]: const evaluation exceeded 1000000 steps
+  742113 steps in buildDfa
+  257887 steps in minimizeStates
+```
+
+Um ciclo no grafo de const falha antes da execução quando o compiler consegue
+detectá-lo:
+
+```w
+const left = right + 1
+const right = left + 1
+// error[W-CONST-0002]: left -> right -> left
+```
+
+A chave de cache contém:
+
+1. ConstIR e interface digests;
+2. argumentos e tipos normalizados;
+3. target, profile e edition;
+4. tabelas Unicode e semantic bundles usados;
+5. versão do evaluator;
+6. quotas efetivas;
+7. módulos gerados declarados.
+
+Somente success completo entra no cache compartilhável. Error, panic, quota e
+cancelamento não criam uma entrada reutilizável. Cancelar o compiler descarta a
+avaliação incompleta.
+
+`w explain const NAME` mostra valor, digest, dependências, target facts, steps,
+heap máximo e materialização:
+
+```text
+w explain const restaurant.menu.instructionOpcodes
+```
+
+#### 3.6.6 Tipos, geração e feedback
+
+Uma `const fn` retorna dados. Ela não retorna um tipo, AST ou fragmento de
+source. Type identity continua declarada:
+
+```w
+type Time = String
+
+extension Time {
+  static const fn isValid(value: ref String): Bool {
+    // Verificação total e sem I/O.
+    ...
+  }
+
+  export static const fn parse(value: ref String): Time throws TimeError {
+    guard isValid(value) else throw .invalid
+    return Time(copy value)
+  }
+}
+
+const closingTime = try Time.parse("23:45")
+let requestedTime = try Time.parse(input)
+```
+
+Esse modelo valida o literal durante a compilação e o input em runtime.
+Specialization pode remover uma validação já provada. `type(regex)` e funções
+que constroem tipos arbitrários ficam **Rejeitado por enquanto**.
+
+O evaluator produz ConstValue tipado. Ele não converte o valor em WLO, reparseia
+source ou expande macro:
+
+```text
+ConstIR -> ConstValue -> HIR constant
+```
+
+WLO continua um codec de dados. Code generation usa uma tool target hermética
+com outputs e source maps declarados. Essa separação preserva diagnostics,
+cache, segurança e provenance.
+
+PGO e feedback medido não alteram const, tipo, interface ou resultado. Um
+profile pode orientar layout e optimization quando a recipe registra seu
+digest:
+
+```text
+source + declared profile -> same semantics, different permitted optimization
+```
+
+A ideia histórica de substituir um valor source pelo resultado da execução
+anterior fica **Rejeitado por enquanto**. Ela mudaria o programa por estado
+externo implícito.
+
+#### 3.6.7 ConstIR, MLIR e W0
+
+O frontend baixa um `const fn` tipado para ConstIR. O evaluator executa ConstIR
+antes do lowering para W/MLIR:
+
+```text
+typed HIR -> const dependency graph -> ConstIR evaluator -> verified HIR
+           -> W/MLIR -> target
+```
+
+ConstIR preserva type, span, call edge, numeric policy e target dependency.
+Valores finais viram attributes HIR. O adapter W/MLIR materializa constants
+adequados ao tipo.
+
+A interface de um `const fn` exportado inclui ConstIR normalizada e digest. Um
+importer não precisa do source original para avaliar uma call:
+
+```text
+public signature + ConstIR digest + ConstIR body
+```
+
+Um const público pequeno pode ficar inline na interface. Um resultado grande
+usa digest e blob no CAS. Os dois formatos representam o mesmo ConstValue
+canônico e não alteram a semântica.
+
+Const parameters ficam simbólicos até a instantiation:
+
+```text
+resolve kinds -> type-check parametric ConstIR -> substitute const arguments
+              -> evaluate -> instantiate type/HIR
+```
+
+Overload e member lookup terminam antes da execução. O evaluator não cria novos
+symbols nem reinicia name resolution.
+
+MLIR constant folding continua uma otimização. A correção não depende do
+canonicalizer. A
+[documentação de canonicalization do MLIR](https://mlir.llvm.org/docs/Canonicalization/)
+também trata o pass como best-effort e oferece materialização de constants por
+attributes.
+
+`bootstrap.w0` inclui a baseline CE0:
+
+- literals, operators, constructors e `const fn`;
+- scalars, tuples, structs, enums, Option e Result;
+- String, Bytes, fixed array, Array, Map e Set;
+- loops, recursion, typed errors e local mutation;
+- target arithmetic e as quatro quotas.
+
+CE0 não inclui const generics, reflection, type builders, FFI, closures
+indiretas ou capabilities. O seed C e o compiler self-hosted devem produzir o
+mesmo ConstValue normalizado.
+
+Os precedentes principais são:
+
+- [Rust const evaluation](https://doc.rust-lang.org/reference/const_eval.html),
+  que separa const context e `const fn` e usa a semântica do target;
+- [Zig comptime](https://ziglang.org/documentation/master/#comptime), que mostra
+  execução rica e a necessidade de branch quota;
+- [D CTFE](https://dlang.org/spec/function.html#interpretation), que reutiliza
+  funções runtime em compile time.
+
+W adota o mesmo corpo para as duas fases. W exige um contrato `const` visível,
+quotas na recipe e nenhuma inspeção da fase.
+
 ## 4. Superfície integrada
 
 O exemplo abaixo mostra a forma líder. Ele não tenta mostrar toda a biblioteca.
@@ -926,10 +1459,11 @@ A ordem canônica é:
 
 1. visibilidade;
 2. `static`, para member sem receiver;
-3. `unsafe`, se necessário;
-4. `mut` ou `take`, para mudar o receiver mode;
-5. `async`;
-6. `fn` ou `fn<Language>`.
+3. `const`, para call aceita pelo evaluator;
+4. `unsafe`, se necessário;
+5. `mut` ou `take`, para mudar o receiver mode;
+6. `async`;
+7. `fn` ou `fn<Language>`.
 
 `throws E` fica depois do return type. Uma função sem return type retorna `()`.
 Esse unit type possui um único valor, também escrito `()`. `Void` permanece
@@ -1569,9 +2103,9 @@ let cake = Course.fromOrdinal(1)
 ```
 
 `const` dentro do tipo declara um associated compile-time value. `static fn`
-declara uma associated function. O acesso usa `Type.member`. W usa lower camel
-case também para constantes. Por exemplo, a biblioteca usa `u64.max`, não
-`Number.MAX_VALUE`.
+declara uma associated function. `static const fn` também permite avaliação
+compile-time. O acesso usa `Type.member`. W usa lower camel case também para
+constantes. Por exemplo, a biblioteca usa `u64.max`, não `Number.MAX_VALUE`.
 
 Uma declaração direta não exige um `protocol`. O `protocol` é necessário quando
 código generic precisa exigir o member:
@@ -1601,7 +2135,7 @@ storage.
 
 O corpo que define um `struct` ou `object` pode declarar instance fields.
 Protocol e extension não adicionam instance storage. Uma extension pode
-adicionar `const` e `static fn` quando a regra de coherence permite.
+adicionar `const`, `static fn` e `static const fn` quando coherence permite.
 
 W não possui `static var` nem outro mutable type storage na DB2. Esse storage
 criaria estado global, ordem de inicialização, sincronização e destruction
@@ -1863,7 +2397,8 @@ protocol CompletionMetric {
 
 Um stored field compatível pode ser o witness. Uma extension pode adicionar
 computed properties, mas não storage. Associated state continua ausente:
-compile-time usa `const`, e cálculo associado usa `static fn`.
+compile-time usa `const`, e cálculo associado usa `static fn` ou
+`static const fn`.
 
 Uma declaração não combina behavior e accessors explícitos. O behavior possui
 o storage e gera os accessors. A inicialização do field chama `init` do
@@ -5038,6 +5573,8 @@ UTF-8 source
   → CST com recovery e spans
   → AST
   → HIR tipada com ownership, effects e tasks
+  → grafo const, ConstIR e evaluator
+  → HIR verificada com ConstValue
   → dialeto W/MLIR
   → dialetos MLIR de domínio
   → LLVM | Wasm | EmitC de inspeção
@@ -5051,6 +5588,7 @@ O frontend lossless retém trivia, source ranges e recovery nodes. AST remove
 detalhes puramente sintáticos. HIR registra:
 
 - símbolos, generics, constraints e overload escolhido;
+- contexts const, ConstIR, target facts e materialização;
 - tipo, conversion e numeric policy;
 - initialization, ownership, borrow e drop edges;
 - pointer provenance, address capture, pin e allocation origin;
@@ -5129,7 +5667,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | source | UTF-8, comentários, módulos, imports e visibility |
 | bindings | `const`, `let`, `var`, assignment e definite initialization |
 | controle | `if`, `guard`, `switch`, loops, break, continue e return |
-| funções | funções livres, methods, `static fn`, labels, overload por forma, recursion e calls indiretas por `fn(...)` |
+| funções | funções livres, `const fn`, `const init`, methods, `static fn`, labels, recursion e calls diretas/por `fn(...)` |
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | requisitos para dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
@@ -5157,6 +5695,9 @@ O profile impõe três regras de determinismo:
 1. `Map` e `Set` iteram em ordem de inserção, sem depender da hash seed.
 2. Output por key usa `SortedMap` ou sort explícito.
 3. Clock, random, locale e environment não entram sem input declarado.
+
+O evaluator CE0 segue a seção 3.6. Ele executa somente ConstIR e usa quotas
+fixadas na recipe. O seed C e o core self-hosted comparam ConstValue normalizado.
 
 Estas features não pertencem ao fechamento mínimo:
 
@@ -5288,7 +5829,8 @@ sem oferecer rede, threads, dynamic linking ou Unicode completo.
 ### 20.1 Manifest e resolução
 
 `package.w` usa um subset data-only. Ele aceita records, lists, strings,
-numbers, booleans e enum values. Ele não executa imports, loops, funções ou I/O.
+numbers, size literals, booleans e enum values. Ele não executa imports, loops,
+funções ou I/O.
 
 ```w
 package {
@@ -5323,6 +5865,12 @@ package {
   build: {
     network: .deny
     environment: []
+    constEval: {
+      steps: 1_000_000
+      heap: 64MiB
+      callDepth: 256
+      result: 8MiB
+    }
   }
 }
 ```
@@ -5362,6 +5910,7 @@ declarado e lockfile como inputs da recipe.
 - cada foreign unit possui source digest, toolchain, target, ABI e symbol manifest;
 - cache é content-addressed;
 - recipe fixa toolchain, target, profile, inputs e environment permitido;
+- recipe fixa quotas e evaluator version de compile-time;
 - CBOR determinístico é a representação canônica inicial;
 - SHA-256 tagged é o digest inicial e possui algorithm agility.
 
@@ -5946,6 +6495,7 @@ equivalentes e nenhum error node.
 - recursive-descent/Pratt;
 - EBNF;
 - CST/recovery;
+- modifiers `const fn` e `const init`;
 - contratos estáticos com expression, record e list payloads;
 - referência `.member` contextual sem perda no CST;
 - patterns nominais de struct e marker `...`;
@@ -5968,6 +6518,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - initializer sintetizado, vários `init` e definite initialization;
 - computed properties e property requirements;
 - inference local, generics mínimos e refinements;
+- grafo const, ConstIR, quotas e ConstValue;
 - interface compilada inicial.
 
 Saída: `w check` verifica o subset síncrono do restaurante.
@@ -6020,7 +6571,7 @@ capacidade necessária para o gate seguinte.
 | Gate | Capacidade mínima de W | Prova |
 |---|---|---|
 | SH0 | bytes, UTF-8, source locations, lexer e diagnostics | tokeniza o próprio source |
-| SH1 | parser, recovery, AST, static contracts, modules, imports e names | cria a própria AST de forma estável |
+| SH1 | parser, recovery, AST, static contracts, ConstIR, modules, imports e names | cria AST e tabela const de forma estável |
 | SH2 | scalars, aggregates, enums, generics, associated members e type checking | verifica os módulos do core |
 | SH3 | initialization, move, borrow, drop, errors e collections | constrói HIR sem GC |
 | SH4 | HIR tipada, verifier, serialization e deterministic order | round-trip preserva a HIR |
@@ -6417,6 +6968,26 @@ experimentar”, não “decisão irreversível”.
 | D2-257 | diagnostic | code estável, spans em bytes, facts e relação root/cascade | texto livre como API; reutilizar code |
 | D2-258 | fix e policy | edits com applicability/digest; ordem estável; error não suprimível | fix sem precondition; source suppression na DB2 |
 | D2-259 | `try?` | converte falha recuperável em Option e flatten; não captura panic/cancel | excluir o sugar; `try!`; preservar error oculto |
+| D2-260 | const context | `const`, value argument, contract, fixed size, unit e refinement exigem avaliação | confiar no optimizer; executar tudo em compile time |
+| D2-261 | const callable | `const fn` e `const init` explícitos; mesma semântica runtime | inferir API pelo body; função exclusiva da fase |
+| D2-262 | modifier const | depois de `static`; incompatível com unsafe/async; combina com mut/take | annotation; `comptime fn`; combinação irrestrita |
+| D2-263 | const-safe | local mutation, loops, recursion, dados e typed errors; sem capabilities/FFI | subset expression-only; executar host code |
+| D2-264 | fase | sem `isComptime`; mesmo input produz o mesmo valor nas duas fases | branch por fase; implementação separada |
+| D2-265 | const failure | error não tratado, panic e quota viram diagnostics W-CONST | fault boundary no compiler; AllocationError catchable |
+| D2-266 | ConstRepresentable | predicate derivado para valores estruturais sem identity/authority | protocol implementável; qualquer tipo serializável |
+| D2-267 | materialização | const sem owner; uso owned cria valor independente; borrow não escapa | singleton mutable; endereço estável público |
+| D2-268 | target | evaluator usa target e módulo `w.target`; nunca a máquina host | host semantics; target facts implícitos |
+| D2-269 | build input | módulo gerado e recipe declarada; sem env/file/clock no evaluator | `#define`; env intrinsic; acesso sandboxed ad hoc |
+| D2-270 | quotas | steps, heap, depth e result na recipe; wall clock não semântico | quota por source; sem limite; timeout como semântica |
+| D2-271 | cache const | chave inclui ConstIR, args, target, bundles, evaluator, quotas e generated modules | cache por source text; omitir target |
+| D2-272 | type builder | identidade declarada + const parse/refinement; sem função que retorna Type | `type(regex)`; type function arbitrária |
+| D2-273 | geração | ConstIR para ConstValue; codegen em tool target; WLO continua codec | stringify/reparse; macro AST universal |
+| D2-274 | feedback | PGO declarado só orienta otimização; nunca altera const/tipo/interface | substituir const com execução anterior |
+| D2-275 | implementação const | evaluator HIR antes de MLIR; folding MLIR não define correção | JIT host; canonicalizer como evaluator semântico |
+| D2-276 | bootstrap const | CE0 no seed C e core W0; ConstValue normalizado deve coincidir | excluir const fn do seed; evaluator só no compiler final |
+| D2-277 | force expression | sem `comptime expr` na baseline; binding const nomeia o resultado | keyword obrigatória; const block na v0 |
+| D2-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
+| D2-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
