@@ -83,6 +83,7 @@ deliberadamente abertos:
 | String storage, capacity e tree string | 16.1, 16.3–16.4, 16.9, 18.4 e D2-430–439 | W0 usa flat unique; SSO é invisível; COW baseline é rejeitado; estruturas indexadas ficam especializadas |
 | atomics, locks, RCU e false sharing | 12.10, 18.7 e D2-440–453 | `var atomic` garante atomicidade, não lock-freedom; locks usam closures scoped; RCU exige tipo com reclamation |
 | streams, channels e watermarks | 12.9 e D2-454–472 | `Stream` pull aceita item owned ou `view`; `Channel` MPSC transfere owner com capacity obrigatória; watermark fica como policy pesquisada |
+| I/O async, buffers e backends | 14.2 e D2-473–490 | bytes usam source/sink async-first; files são posicionais; cancellation drena completion; vectored e zero-copy seguem Pesquisa |
 
 As formas históricas continuam neste arquivo e no caderno. A tabela registra
 destino, não aprovação.
@@ -122,6 +123,8 @@ destino, não aprovação.
 | corrotinas, state machines e filas | `644–751`, `2817–2859`, `3268–3324`, `4003–4007` | protothreads, linked lists, frames e scheduler em C | `W-O064`, `design/compiler.md`, spikes históricos | **Coberto** como alternativas de lowering, não runtime escolhido |
 | directives, config overrides e hot reload | `1936–1941`, `2148–2180`, `2668–2683` | `.debug`, remote reload, `#embed`, runtime config e dealloc | `W-O087/094`, `research/README.md` | **Superado** no caminho crítico; preservado como **Pesquisa** |
 | signals e eventos do SO | `2634–2667`, `3325–3342`, `4034–4035` | signals para wakeup/cancel, IO backend, dispatch de eventos | `W-O063/074/077`, `W-O101` | **Parcial → entry adapter recuperado** |
+| byte I/O, polling e completion | `2650`, `4035` | poll/ppoll/epoll, LibAIO, IOCP e seleção de backend | `W/DESIGN.md` 14.2 e D2-473–490 | **Recuperado**; API é async-first, backend é interno e blocking fallback consome quota |
+| file offsets e vectored I/O | `4035` | read/write, pread/pwrite, preadv/pwritev e io_uring configurável | `W/DESIGN.md` 14.2.6, 14.2.11 e D2-480–489 | **Parcial**; positional I/O lidera; vectored e zero-copy seguem **Pesquisa** |
 | output/input gates e durable state | `3676–3686` e inspiração Durable dispersa | executar/reter efeitos perto da boundary e causalidade de outputs | `W-O070`, `design/modules-and-runtime.md` | **Coberto** como **Pesquisa** |
 
 ### Memória, layout, C e backend
