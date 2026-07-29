@@ -68,7 +68,7 @@ export fn makeMenuRoot(
 export async fn announceAfterYield(section: ref MenuSection): String {
   let title = section.title.scalars
   await Task.yield()
-  return title.toString()
+  return title.materialize()
 }
 
 export struct BellState {

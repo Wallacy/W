@@ -1,0 +1,150 @@
+==================
+String owns construction and storage reuse
+==================
+
+fn build(lines: ref Array<String>, memory: ref Allocator): String throws AllocationError {
+  var output = String(using: memory)
+  try output.tryReserve(minimumBytes: 4096)
+
+  for ref line in lines {
+    output.append(line)
+  }
+
+  return output
+}
+
+fn drain(buffer: inout String): String {
+  return buffer.takeAll()
+}
+
+fn bytes(value: take String): Bytes {
+  return (take value).intoBytes()
+}
+
+fn join(left: take String, right: view String): String {
+  return (take left) + right
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (identifier)))))
+      (expression_statement
+        (unary_expression
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list
+              (argument
+                (identifier)
+                (number_literal))))))
+      (for_statement
+        (pattern
+          (identifier))
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (argument_list
+                (argument
+                  (identifier)))))))
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (member_expression
+            (parenthesized_expression
+              (unary_expression
+                (identifier)))
+            (identifier))
+          (argument_list)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (binary_expression
+          (parenthesized_expression
+            (unary_expression
+              (identifier)))
+          (identifier))))))

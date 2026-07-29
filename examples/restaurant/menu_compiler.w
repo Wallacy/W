@@ -59,7 +59,7 @@ fn lexMenu(source: ref String): Array<MenuToken> {
 
     for word in line.words() {
       tokens.append(.word(
-        word.toString(),
+        word.materialize(),
         line: lineNumber,
         column: column,
       ))
