@@ -79,7 +79,7 @@ test "Set keeps the first insertion and never mutates a key in place" {
 test "fixed repeat and slice contracts keep storage explicit" {
   let digest: [u8; 32] = [0; 32]
   var temperatures = [270.0, 271.0, 272.0, 273.0]
-  let middle: Slice<f64> = temperatures[1..<3]
+  let middle: view Array<f64> = temperatures[1..<3]
 
   expect digest.count == 32
   expect middle == [271.0, 272.0]

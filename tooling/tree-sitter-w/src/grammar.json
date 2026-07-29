@@ -3343,6 +3343,23 @@
                     {
                       "type": "STRING",
                       "value": "inout"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "view"
+                    },
+                    {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "STRING",
+                          "value": "inout"
+                        },
+                        {
+                          "type": "STRING",
+                          "value": "view"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -3421,6 +3438,10 @@
                     {
                       "type": "STRING",
                       "value": "weak"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "view"
                     }
                   ]
                 }
@@ -7365,8 +7386,17 @@
                 "type": "FIELD",
                 "name": "index",
                 "content": {
-                  "type": "SYMBOL",
-                  "name": "_expression"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "_expression"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "one_sided_range_expression"
+                    }
+                  ]
                 }
               },
               {
@@ -7382,8 +7412,17 @@
                       "type": "FIELD",
                       "name": "index",
                       "content": {
-                        "type": "SYMBOL",
-                        "name": "_expression"
+                        "type": "CHOICE",
+                        "members": [
+                          {
+                            "type": "SYMBOL",
+                            "name": "_expression"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "one_sided_range_expression"
+                          }
+                        ]
                       }
                     }
                   ]

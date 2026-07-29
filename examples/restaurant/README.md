@@ -25,6 +25,7 @@ LastLight entry
   → Arquivo de Ecos shared/weak
   → Sino de Encerramento pinned
   → Região Temporária do Cardápio
+  → Janela de Serviço sem Dono
   → Recepção callable do Último Maitre
   → Conta da Aurora Tardia
   → resposta HTTP/TUI
@@ -41,7 +42,8 @@ owner e estado observável.
 | `domain.w` | newtypes, refinements, enums e errors |
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
-| `collections.w` | arrays, slices, iteration, Map/Set, hashing e stable sort |
+| `collections.w` | arrays, views, iteration, Map/Set, hashing e stable sort |
+| `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, inference e witnesses |
 | `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
@@ -121,7 +123,7 @@ Aceite:
 - reparo usa uma U+FFFD por maximal subpart inválida.
 - decoder incremental preserva até três bytes entre chunks.
 - somente `finish()` classifica uma sequência parcial como incompleta.
-- `StringView.fromUtf8` valida sem copiar.
+- `String.viewFromUtf8` devolve `view String` e valida sem copiar.
 - adoção consome o buffer e o devolve quando a validação falha.
 - core UTF-8 preserva U+FEFF; somente um adapter nomeado consome a assinatura.
 - uma edição pode usar índices do owner na última operação que os usa.
@@ -129,6 +131,35 @@ Aceite:
 - `CString` rejeita NUL interno.
 - `Path` nativo converte para `Utf8Path` de forma fallible.
 - `PackagePath` mantém uma forma portátil separada.
+
+### 3.3.2 Janela de Serviço sem Dono
+
+Famílias: `ref`, `view`, mutation exclusiva, lifetime, materialização e FFI.
+
+Aceite:
+
+- `ref Array<T>` observa o owner completo e pode ler `capacity`;
+- `view Array<T>` observa somente elementos e `count`;
+- criar ou copiar uma view read-only não aloca nem mantém o owner vivo;
+- `inout view Array<T>` altera elementos e não altera o extent;
+- append, resize e mudança de allocator não existem na interface da view;
+- o owner não pode mover ou mudar a estrutura durante um borrow;
+- `view String` sempre começa e termina em boundaries UTF-8 válidas;
+- `inout view String` e `inout view CString` não existem;
+- `materialize()` copia a projeção para um owner;
+- `tryMaterialize(using:)` torna allocation failure recuperável;
+- `await` exige que o owner permaneça estável no task frame;
+- um child estruturado termina antes do owner; uma task detached não recebe a
+  view;
+- uma view contígua usa pointer e count somente dentro de um adapter FFI
+  scoped;
+- uma view de tensor mantém shape e strides e não promete contiguidade.
+
+O oracle registra owner, base address, offset, count, mutability e provenance.
+Ele executa o mesmo caso com Array, fixed array, Bytes, String e Tensor. A
+criação da view não muda a contagem de allocations. O corpus compile-fail tenta
+usar `capacity`, fazer append, devolver local storage, editar UTF-8 por bytes e
+escapar a view por uma task detached.
 
 ### 3.4 Cozinha de Maré Fria
 
@@ -147,12 +178,12 @@ Aceite:
 
 ### 3.4.1 Arquivo das Filas Improváveis
 
-Famílias: Array, fixed array, Slice, Map, Set, hashing, iteration e sort.
+Famílias: Array, fixed array, `view`, Map, Set, hashing, iteration e sort.
 
 Aceite:
 
 - `[0; 32]` avalia o valor uma vez e cria um fixed array;
-- um Slice impede mutation estrutural que poderia mover seu storage;
+- uma view impede mutation estrutural que poderia mover seu storage;
 - lookup borrowed não copia String ou outro valor move-only;
 - `inout` altera um value existente sem novo lookup;
 - Map e Set iteram em ordem de inserção para qualquer hash seed;
@@ -866,7 +897,7 @@ O Book deve mostrar pares lado a lado:
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import std.http as http` | `import http as http from std.http` |
 | região | `region request(using:, limit:)` | somente `Arena` manual |
-| view | `view String` (**Pesquisa**) | `StringView` provisório e `Readonly<T>` profundo |
+| projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
 
 Preferência visual não é medida antes das tarefas de leitura e correção.
 

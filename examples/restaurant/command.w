@@ -26,17 +26,17 @@ export enum Command {
   shutdown
 }
 
-fn decodeCourse(value: ref StringView): Course throws CommandError {
+fn decodeCourse(value: view String): Course throws CommandError {
   return switch value {
     case "broth": .nebulaBroth
     case "souffle": .photonSouffle
     case "salad": .quietSalad
     case "cake": .horizonCake
-    case _: throw .invalidCourse(value.toString())
+    case _: throw .invalidCourse(value.materialize())
   }
 }
 
-fn decodeOrder(fields: ref Array<StringView>, span: SourceSpan): Order throws CommandError {
+fn decodeOrder(fields: ref Array<view String>, span: SourceSpan): Order throws CommandError {
   guard fields.count >= 5 else throw .missingField(name: "order", span: span)
 
   let orderId = try OrderId.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
@@ -46,7 +46,7 @@ fn decodeOrder(fields: ref Array<StringView>, span: SourceSpan): Order throws Co
   var notes: String? = .none
 
   if fields.count > 5 {
-    notes = .some(String.join(fields.slice(from: 5), separator: " "))
+    notes = .some(String.join(fields[5...], separator: " "))
   }
 
   return Order(
@@ -58,14 +58,14 @@ fn decodeOrder(fields: ref Array<StringView>, span: SourceSpan): Order throws Co
   )
 }
 
-fn decodeOrderId(fields: ref Array<StringView>, span: SourceSpan): OrderId throws CommandError {
+fn decodeOrderId(fields: ref Array<view String>, span: SourceSpan): OrderId throws CommandError {
   guard fields.count >= 2 else throw .missingField(name: "order-id", span: span)
   return try OrderId.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
 }
 
 export fn decodeCommand(source: ref String): Command throws CommandError {
   let line = try CommandLine(source)
-  let fields: Array<StringView> = line.scalars
+  let fields: Array<view String> = line.scalars
     .split(where: (scalar) => scalar.isWhitespace)
     .collect()
   let span = SourceSpan(bytes: 0..<line.bytes.count, scalars: 0..<line.scalars.count)

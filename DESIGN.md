@@ -4025,7 +4025,7 @@ operações:
 ```w
 let ref staticInfo = reflect.info<MenuCard>()
 
-fn reflectedName(value: ref any reflect.Reflectable): StringView {
+fn reflectedName(value: ref any reflect.Reflectable): view String {
   let ref dynamicInfo = reflect.info(of: value)
   return dynamicInfo.name
 }
@@ -4265,7 +4265,7 @@ dela:
 schedule(table, courses: .welcomeDrink, each planned)
 ```
 
-O source expandido deve ser `Arguments<T>`, `Slice<T>`, `[T; N]` ou
+O source expandido deve ser `Arguments<T>`, `view Array<T>`, `[T; N]` ou
 `Array<T>`. O element type e ownership precisam corresponder.
 
 As regras normais de parâmetro valem para cada elemento:
@@ -4290,7 +4290,7 @@ archive(each take pendingRecords)
 
 `inout T...` fica **Rejeitado por enquanto**. Um número dinâmico de borrows
 exclusivos torna alias diagnostics e recovery pouco previsíveis. A API recebe
-`MutableSlice<T>`.
+`inout view Array<T>`.
 
 Argumentos individuais podem usar storage no call frame. Uma expansão borrowed
 passa address e count. O lowering não exige heap. `Arguments<T>` mantém cleanup
@@ -4831,7 +4831,7 @@ lifetime e mutabilidade.
 
 As regras de W são:
 
-- `ref`, `inout`, `Slice` e views seguras preservam provenance;
+- `ref`, `inout` e `view` preservam provenance;
 - `c.ptr<T>` só permite dereference, arithmetic ou cast em `unsafe`;
 - offset válido permanece na mesma allocation;
 - comparar endereços não prova que dois pointers possuem a mesma provenance;
@@ -6513,8 +6513,8 @@ console, clock ou filesystem.
 T0 contém:
 
 - tipos primitivos, numeric modes/errors, `TotalFloat`, Option, Result e Error;
-- String, StringView, Bytes, Array, Map, Set, Range e views;
-- Slice, `pin`, `Pinned<T>`, AllocationError e allocator hooks;
+- String, Bytes, Array, Map, Set, Range e access mode `view`;
+- `pin`, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
@@ -6926,7 +6926,7 @@ caso contrário, causa panic. `range.count()` retorna
 Um range unilateral pode aparecer como argumento ou pattern:
 
 ```w
-let tail = orders.slice(4...)
+let tail: view Array<Order> = orders[4...]
 ```
 
 O parser distingue essa forma pelo fim do argumento. `each values` não reutiliza
@@ -7065,7 +7065,8 @@ sign.append("!")        // Válido: a operação preserva UTF-8.
 
 `UnicodeScalar` é `Copy`. Ele contém um scalar Unicode válido e nunca contém
 surrogate. W não define um tipo universal chamado `Char` ou `Character`.
-Um elemento de `graphemes` é um `Grapheme`, que empresta um cluster contíguo.
+Um elemento de `graphemes` é um
+`view String<(.graphemes.count == 1)>`. Ele empresta um cluster contíguo.
 
 ```w
 for scalar in sign.scalars {
@@ -7104,7 +7105,8 @@ W separa quatro conceitos que outras APIs chamam de “imutável”:
 |---|---|
 | `let T` | o binding não recebe outro valor |
 | `ref T` | acesso read-only a um place completo |
-| view | descriptor borrowed de uma projeção |
+| `view T` | descriptor read-only de uma projeção borrowed |
+| `inout view T` | acesso exclusivo a uma projeção de extent fixo |
 | tipo sem operação mutating | a interface pública não oferece mutation |
 
 Nenhuma forma promete imutabilidade transitiva de um grafo com atomics,
@@ -7112,8 +7114,32 @@ capabilities ou aliases `shared`. W não adiciona um wrapper universal
 `Readonly<T>`. Essa forma esconderia interior mutation e não resolveria
 ownership.
 
-**Líder de pesquisa:** substituir nomes especializados como `StringView`,
-`Slice<T>` e `MutableSlice<T>` por um access mode genérico:
+Read-only é uma permissão de acesso, não uma segunda cópia do type system. Um
+generic lê um valor completo por `ref T`:
+
+```w
+fn checksum<T: Hashable>(value: ref T): u64
+```
+
+O compiler também calcula um fato interno de imutabilidade profunda. Um valor
+owned em binding `let` recebe esse fato somente quando todo storage alcançável é
+value storage e não contém `shared`, atomic, object identity, capability,
+pointer externo ou outro canal de mutation. O fato permite constant folding,
+sharing seguro e diagnostics. Ele não cria syntax, conformance pública nem
+conversão implícita. `w explain type value` mostra a primeira razão que impede a
+prova.
+
+```w
+let courses = ["broth", "cake"]       // profundamente imutável
+let counter = try share(Atomic(0_u64)) // não: atomic permite mutation observável
+```
+
+Uma API que precisa prometer um snapshot recebe ou devolve um valor owned.
+`ref T` impede escrita por aquele acesso, mas outro alias autorizado ainda pode
+mudar o owner. `view T` tem a mesma limitação temporal.
+
+**Líder DB2:** `view` é um access mode genérico. W não publica uma família
+`StringView`, `Slice<T>`, `MutableSlice<T>` ou `CStringView`:
 
 ```w
 fn firstWord(line: ref String): view String?
@@ -7121,46 +7147,100 @@ fn serve(orders: view Array<Order>)
 fn reprioritize(orders: inout view Array<Order>)
 ```
 
-`view T` seria `Copy`, read-only e ligado ao owner. `inout view T` seria
-exclusivo, move-only e permitiria mutation dos elementos, mas não mudança de
-shape ou capacity. `ref T` continuaria um borrow do place completo. Assim, uma
-view de `String` preservaria UTF-8, uma view de `Array<T>` preservaria
-contiguidade e uma view de `Tensor` poderia publicar shape e strides.
+`ref T` empresta o place completo e preserva identity e metadata do owner.
+`view T` empresta uma projeção lógica. Ela não possui capacity, allocator,
+identity ou authority para mudar o extent. `inout view T` permite mutation
+dentro do extent, mas não permite append, resize ou substituição do owner.
 
-O termo genérico não pode apagar fatos de custo. A interface compilada precisa
-registrar element type, index model, contiguidade, mutabilidade e provenance.
-Nem todo tipo recebe uma view automaticamente.
-
-Esta mudança ainda não é DB2. O corpus precisa fechar:
-
-1. a declaration que permite a um tipo publicar sua forma de view;
-2. a composição de `ref`, `inout` e `view` sem modifier ambíguo;
-3. ABI de descriptors contíguos e strided;
-4. lookup de methods que exigem owner ou capacity;
-5. conversão C de pointer + length;
-6. diagnostics de escape e invalidation.
-
-Até esse gate, os nomes concretos abaixo continuam como candidato executável.
-Se `view T` vencer, a migração será direta: `StringView` vira `view String`,
-`Slice<T>` vira `view Array<T>` ou `view Bytes`, e `MutableSlice<T>` vira
-`inout view Array<T>`. W não manterá as duas superfícies públicas.
-
-`StringView` empresta uma subsequência UTF-8 contígua. `String`, `StringView` e
-`Grapheme` oferecem as views válidas para seu conteúdo.
+Esta separação evita dois erros. `view` não é um sinônimo menor para `ref`.
+Também não é um wrapper que torna qualquer grafo profundamente imutável.
+O [`Ref` de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0519-borrow-inout-types.md)
+representa uma referência a uma instância. O
+[`Span` de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0447-span-access-to-contiguous-storage.md)
+e os [slices de Rust](https://doc.rust-lang.org/reference/types/slice.html)
+representam sequências borrowed. W mantém a mesma distinção de função, mas usa
+um access mode comum para as famílias que possuem uma projeção verificável.
 
 ```w
-fn firstWord(line: ref String): StringView? {
-  return line.scalars.split(where: (scalar) => scalar.isWhitespace).first
+fn inspectOwner(values: ref Array<Order>) {
+  print(values.capacity)
+}
+
+fn inspectWindow(values: view Array<Order>) {
+  print(values.count)
+  print(values.capacity) // Erro: uma view não possui capacity.
 }
 ```
 
-`StringView` e `Grapheme` são valores `Copy` read-only ligados ao lifetime do
-source. Um literal usado diretamente como `StringView` pode apontar para static
-data e não exige allocation.
+Uma view read-only é `Copy`; a cópia duplica somente seu descriptor e mantém a
+mesma provenance. Uma view exclusiva é move-only. Nenhuma delas mantém o owner
+vivo, cria reference counting ou estende seu lifetime.
+
+O source não escreve lifetimes. Um retorno `view T` deve apontar para o receiver
+ou para um parâmetro borrowed explícito. A interface compilada registra cada
+origem possível. O compiler rejeita uma view de local storage.
+
+Uma view pode atravessar `await` somente quando o owner permanece estável no
+task frame. Ela pode entrar em um child estruturado somente quando o join
+precede o fim do owner e as regras de exclusividade continuam válidas. `view`
+não torna um owner shareable e não autoriza escape por task detached.
+
+O descriptor depende da família lógica:
+
+| Forma | Projeção e representação portátil |
+|---|---|
+| `view String` | bytes UTF-8 contíguos em boundaries válidas |
+| `view Bytes` | bytes contíguos |
+| `view Array<T>` | elementos `T` contíguos |
+| `view CString` | bytes contíguos com NUL validado |
+| `view Tensor<T, ...>` | base, shape e strides; pode não ser contígua |
+
+`view` vence `slice` e `span` porque uma projeção pode ser textual ou strided,
+e não somente uma sequência contígua. `borrow` duplicaria `ref`. `readonly`
+descreveria a permissão, mas não a perda intencional de owner metadata. Esses
+nomes permanecem alternativas documentadas; não ficam reservados como
+keywords.
+
+Criar uma view não aloca. A interface registra owner lógico, element type, index
+model, contiguidade, shape/strides, mutabilidade e provenance. Esses fatos não
+exigem o mesmo layout runtime para todas as famílias.
+
+Somente `Array`, fixed array, `Bytes`, `String`, `CString` e `Tensor` publicam
+views na DB2. Um tipo de usuário expõe uma view dessas sobre seu storage ou um
+borrow nominal próprio. Uma extensão futura para views customizadas precisa de
+um modelo de descriptor verificável; um protocol comum não pode inventar
+provenance.
+
+`inout view` existe para `Array`, fixed array, `Bytes` e `Tensor` quando a
+projeção permite escrita. A DB2 não oferece `inout view String` nem
+`inout view CString`. Escrita arbitrária poderia invalidar UTF-8 ou o
+terminador. Uma mutação de texto usa `inout String`; um buffer C mutável usa
+`inout view Bytes` e valida o contrato sentinela quando volta à fronteira.
+
+Views expõem somente a superfície lógica que o tipo define para essa forma.
+Methods que exigem owner, identity, allocator ou capacity não participam.
+Generic algorithms usam `Iterable` e os outros protocols de collection; eles não
+dependem de um protocol universal `View`.
+
+Materialização é explícita e produz o owner lógico:
 
 ```w
-let prompt: StringView = "End of service"
-let owned: String = prompt.toString() // A materialização é explícita.
+let prompt: view String = "End of service"
+let owned: String = prompt.materialize() // Usa a policy normal de OOM.
+let recovered = try prompt.tryMaterialize(using: memory)
+```
+
+`materialize()` segue a policy normal de allocation. `tryMaterialize(using:)`
+retorna `AllocationError`. Ela copia conteúdo; uma view borrowed não pode adotar
+o storage do owner.
+
+`view String` empresta uma subsequência UTF-8 contígua. `String` e suas
+projeções oferecem somente views que preservam boundaries válidas.
+
+```w
+fn firstWord(line: ref String): view String? {
+  return line.scalars.split(where: (scalar) => scalar.isWhitespace).first
+}
 ```
 
 `text.bytes[usize]` tem acesso aleatório O(1). As views de scalar e grapheme não
@@ -7194,19 +7274,19 @@ usar o índice em outro source nem mutar o owner enquanto o índice está vivo.
 ```w
 let start: ScalarIndex = text.scalars.start
 let end = text.scalars.index(start, offsetBy: 4)
-let prefix: StringView = text.scalars[start..<end]
+let prefix: view String = text.scalars[start..<end]
 
 // Erro: `start` empresta `text`, não `other`.
 let invalid = other.scalars[start..<end]
 ```
 
-Um slice de bytes retorna `Slice<u8>`. Ele pode cortar a codificação de um
-scalar. A conversão de byte range para `StringView` valida os dois limites.
+Um slice de bytes retorna `view Bytes`. Ele pode cortar a codificação de um
+scalar. A conversão de byte range para `view String` valida os dois limites.
 
 ```w
-let raw: Slice<u8> = text.bytes[1..<4]
-let view: StringView = try text.view(bytes: 1..<4)
-let owned: String = view.toString()
+let raw: view Bytes = text.bytes[1..<4]
+let word: view String = try text.view(bytes: 1..<4)
+let owned: String = word.materialize()
 ```
 
 Uma falha de boundary informa qual extremidade é inválida. O offset é contado
@@ -7228,9 +7308,9 @@ Uma mutação invalida views e índices. O borrow normalmente rejeita a mutaçã
 Um adapter unsafe deve restabelecer a mesma regra.
 
 ```w
-let view = text.scalars[start..<end]
-text.append("!") // Erro: `view` mantém um borrow ativo.
-print(view)
+let segment = text.scalars[start..<end]
+text.append("!") // Erro: `segment` mantém um borrow ativo.
+print(segment)
 ```
 
 Índices do mesmo owner podem terminar seu borrow na própria operação de edição.
@@ -7280,15 +7360,15 @@ As três conversões principais tornam ownership e allocation visíveis:
 
 | Forma | Resultado | Custo e owner |
 |---|---|---|
-| `StringView.fromUtf8(ref bytes)` | view validada | O(bytes), sem cópia |
+| `String.viewFromUtf8(bytes)` | `view String` validada | O(bytes), sem cópia |
 | `String.fromUtf8(ref bytes)` | `String` | O(bytes), copia |
 | `String.adoptingUtf8(take bytes)` | outcome owned | O(bytes), pode reutilizar o buffer |
 
-As formas borrowed aceitam `Bytes` e `Slice<u8>`. A forma adopting exige
-`Bytes`, pois um slice não possui seu allocation.
+As formas borrowed aceitam `Bytes` e `view Bytes`. A forma adopting exige
+`Bytes`, pois uma view não possui sua allocation.
 
 ```w
-let borrowed = try StringView.fromUtf8(payload)
+let borrowed = try String.viewFromUtf8(payload)
 let copied = try String.fromUtf8(payload)
 
 let adopted = String.adoptingUtf8(take ownedPayload)
@@ -7556,11 +7636,11 @@ expect composed != decomposed
 expect composed.normalized(.nfc) == decomposed.normalized(.nfc)
 ```
 
-`String`, `StringView`, `Grapheme` e literais comparam texto sem materializar
-outro `String`. O hash da mesma sequência é igual em todas essas views.
+`String`, `view String` e literais comparam texto sem materializar outro
+`String`. O hash da mesma sequência é igual em todos esses access modes.
 
 ```w
-let verb: StringView = command.scalars[start..<end]
+let verb: view String = command.scalars[start..<end]
 expect verb == "place"
 ```
 
@@ -7676,7 +7756,7 @@ O [`OsString` de Rust](https://doc.rust-lang.org/std/ffi/struct.OsString.html)
 ### 16.8 C strings e buffers sentinela
 
 `CString` é um buffer owned com terminador NUL. Sua construção rejeita NUL
-interno. `CStringView` empresta o mesmo contrato.
+interno. `view CString` empresta o mesmo contrato.
 
 ```w
 let name = try CString.from("last-light")
@@ -7690,8 +7770,8 @@ Um pointer C recebido precisa de limite máximo. O wrapper procura o terminador
 dentro desse limite e valida a codificação separadamente.
 
 ```w
-let bytes = unsafe {
-  try CStringView.from(pointer, maxBytes: 4096)
+let bytes: view CString = unsafe {
+  try CString.view(pointer, maxBytes: 4096)
 }
 let text = try bytes.decodeUtf8()
 ```
@@ -7871,14 +7951,14 @@ A baseline contígua e growable possui precedente em
 ordem de cleanup e separa `reserve` de `tryReserve`; portanto o precedente não
 é a especificação.
 
-#### 16.10.3 `Slice` e mutation
+#### 16.10.3 `view` e mutation
 
-`Slice<T>` é uma view contígua shared e `Copy`. `MutableSlice<T>` é uma view
-contígua exclusiva e move-only:
+Uma faixa de `Array<T>` produz `view Array<T>`. Uma faixa de `Bytes` produz
+`view Bytes`. Um binding `inout` solicita a forma exclusiva:
 
 ```w
-let middle: Slice<Order> = orders[1..<4]
-let tail: MutableSlice<Order> = orders.mutableSlice(4...)
+let middle: view Array<Order> = orders[1..<4]
+let inout tail: view Array<Order> = orders[4...]
 tail[0].priority += 1
 ```
 
@@ -7886,21 +7966,21 @@ Range inválido em subscript produz panic. `get(range)` retorna uma view
 optional para input externo. Uma view não muda o count do owner:
 
 ```w
-let payload = bytes.get(packetRange) // Slice<u8>?
+let payload = bytes.get(packetRange) // view Bytes?
 let invalid = bytes[0...bytes.count] // panic: closed upper bound is outside
 ```
 
 O owner não pode mover, desalocar ou alterar a estrutura enquanto uma view está
-viva. Alterar elementos por `MutableSlice` continua válido:
+viva. Alterar elementos por uma `inout view` continua válido:
 
 ```w
-let view = orders[0..<2]
-orders.append(next) // error: append can relocate storage borrowed by view
-print(view[0])
+let window = orders[0..<2]
+orders.append(next) // error: append can relocate storage borrowed by window
+print(window[0])
 ```
 
 Uma pointer C existe somente por um adapter scoped `unsafe`. Ela não estende o
-lifetime do slice:
+lifetime da view:
 
 ```w
 unsafe bytes.withPointer((pointer, count) => c_write(pointer, count))
@@ -8084,7 +8164,7 @@ Uma key armazenada só aparece como `ref K`; safe W não permite mudar equality
 ou hash no lugar. Um lookup borrowed pode usar uma view equivalente sem alocar:
 
 ```w
-let name: StringView = request.pathSegment(0)
+let name: view String = request.pathSegment(0)
 let dish: ref Dish? = dishes.get(name) // Map<String, Dish>
 ```
 
@@ -8103,7 +8183,7 @@ for inout entry in menu {
 ```
 
 `EquivalentKey<K>` exige que a view produza o mesmo hash feed e a mesma
-igualdade da key owned. `StringView` atende a `EquivalentKey<String>`. Uma
+igualdade da key owned. `view String` atende a `EquivalentKey<String>`. Uma
 conformance que viola a lei é erro de contrato em teste e pode causar
 diagnostic dinâmico em builds instrumentados.
 
@@ -8295,7 +8375,7 @@ concurrent collections não entram em T0:
 import { Deque, PriorityQueue } from std.collections
 ```
 
-O T0 contém `Array`, arrays fixos, `Slice`, `MutableSlice`, `Map`, `Set`,
+O T0 contém `Array`, arrays fixos, `view Array<T>`, `inout view Array<T>`, `Map`, `Set`,
 `Range`, `Iterator`, `Iterable`, `MutableIterable`, `ConsumableIterable`,
 `Hashable` e `Hasher`. Isso fecha lexer, parser, symbol table, worklist e
 diagnostics do compiler W0.
@@ -8378,7 +8458,7 @@ Indexação multi-rank usa uma lista de índices:
 
 ```w
 let score = forecast[table, course]
-let row = forecast[table]
+let row: view Tensor<f32, shape: [courses]> = forecast[table]
 ```
 
 Fornecer todos os índices produz um elemento. Fornecer um prefixo produz uma
@@ -8391,8 +8471,8 @@ Regras:
 - scalar expansion é total;
 - `@` usa somente a família rank-1/rank-2 definida acima;
 - broadcast entre shapes diferentes é explícito;
-- slicing retorna `TensorView`;
-- `copy()` materializa;
+- slicing retorna `view Tensor<T, ...>`;
+- `materialize()` produz um Tensor owned;
 - host/device transfer é explícita;
 - random recebe generator/seed;
 - reduction declara a policy numérica;
@@ -8632,7 +8712,7 @@ Texto possui custos que fazem parte da API:
 | equality diferente cedo | O(prefixo comum) | não |
 | normalização | O(bytes) | resultado owned |
 | `String.fromUtf8` | O(bytes) | copia |
-| `StringView.fromUtf8` | O(bytes) | não copia |
+| `String.viewFromUtf8` | O(bytes) | não copia |
 | `String.adoptingUtf8` | O(bytes) | pode reutilizar |
 | `left + right` | O(bytes do resultado) | resultado owned |
 
@@ -8640,7 +8720,7 @@ Texto possui custos que fazem parte da API:
 somente depois de validar boundaries.
 
 ```w
-fn commandName(line: ref String): StringView throws Utf8BoundaryError {
+fn commandName(line: ref String): view String throws Utf8BoundaryError {
   let separator = line.bytes.firstIndex(of: b' ') ?? line.bytes.count
   return try line.view(bytes: 0..<separator)
 }
@@ -8846,7 +8926,7 @@ Uma wrapper W restabelece os contratos ausentes:
 | Forma C | Forma segura W quando provada |
 |---|---|
 | nullable pointer | `T?`, `ref T?` ou owner opcional |
-| pointer + length | `Slice<T>` ou `Array<T>` |
+| pointer + length | `view Array<T>`, `view Bytes` ou owner correspondente |
 | out pointer | return value ou `inout` scoped |
 | status code | `throws Error` |
 | callback + context | closure e owner de registration |
@@ -8921,7 +9001,7 @@ A fronteira aceita somente carriers com layout e ownership definidos:
 | Valor W | Carrier da façade |
 |---|---|
 | scalar C compatível | valor C correspondente |
-| slice ou String view | pointer, length e lifetime scoped |
+| view contígua de Array, Bytes ou String | pointer, length e lifetime scoped |
 | owned buffer | pointer, length, capacity e função de drop |
 | enum fechado | tag e payload com layout declarado |
 | `throws E` | status e out value, ou result struct ABI |
@@ -9098,7 +9178,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | primary associated types, composition e dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
-| dados | String, StringView, Bytes, Slice, Array, Map, Set e Range de T0 |
+| dados | String, Bytes, `view`, Array, Map, Set e Range de T0 |
 | generics | type parameters, constraints, inference fechada, coherence e monomorphization |
 | memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
@@ -9777,6 +9857,8 @@ Uma pesquisa só avança quando possui:
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
+| `view T` genérica para projeções core | **Possível agora** | provenance e descriptor são definidos por família; `ref` cobre o place completo |
+| fato de imutabilidade profunda | **Provável** | owner único e fields fechados são verificáveis; capabilities e foreign storage exigem fallback conservador |
 | UTF-8 incremental e maximal subpart | **Possível agora** | estado máximo de três bytes e algoritmo Unicode versionado |
 | adoção de `Bytes` por `String` | **Provável** | owner transfer é claro; reuse depende do allocator/layout |
 | Bytes, paths nativos e C strings distintos | **Possível agora** | fronteiras conhecidas; conversões preservam perda e terminador |
@@ -10258,7 +10340,7 @@ experimentar”, não “decisão irreversível”.
 | D2-057 | integer safety | checked, panic; APIs alternatives | wrapping default; Result operators |
 | D2-058 | float | IEEE strict default | fast default; build-mode semantics |
 | D2-059 | String | owned UTF-8 contíguo | tree/rope default; COW contract |
-| D2-060 | String indexing | views tipadas, sem `string[i]` | scalar index; grapheme index default |
+| D2-060 | String indexing | access mode `view`, sem `string[i]` | scalar index; grapheme index default |
 | D2-061 | raw string | `#"..."#` | `r"..."`; backtick |
 | D2-062 | scalar/byte | `'x'` e `b'x'` | constructor only; char=grapheme |
 | D2-063 | arrays/maps | `[]` e `[key: value]` | braces para map/set |
@@ -10410,9 +10492,9 @@ experimentar”, não “decisão irreversível”.
 | D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
 | D2-210 | semântica de String | owned, contíguo, UTF-8 válido e mutable por acesso exclusivo | tree/rope default; UTF-16; COW contract |
 | D2-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
-| D2-212 | elementos de texto | `UnicodeScalar` Copy e `Grapheme` borrowed; owned usa String refinado | Character owned; scalar chamado Char |
+| D2-212 | elementos de texto | `UnicodeScalar` Copy e grapheme como `view String` refinada; owned usa String refinado | Character/Grapheme nominal; scalar chamado Char |
 | D2-213 | índices de texto | origem borrowed, custo visível e uso terminal em edição | ordinal em subscript; índice universal |
-| D2-214 | slices de texto | byte slice é `Slice<u8>`; byte range para StringView é fallible | arredondar boundary; slice sempre String |
+| D2-214 | slices de texto | byte slice é `view Bytes`; byte range para `view String` é fallible | arredondar boundary; slice sempre String |
 | D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
 | D2-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes D2-358–362 | replacement implícito; locale codec default |
 | D2-217 | construção de String | interpolation usa um `String` de destino e `Display.write`; `+` aloca; `+=` muta | builder público; concat adjacente; String intermediário por campo |
@@ -10428,7 +10510,7 @@ experimentar”, não “decisão irreversível”.
 | D2-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
 | D2-228 | array dinâmico | `Array<T>` owned, contíguo, count/capacity O(1) e append amortizado O(1) | linked chunks default; `[T]` |
 | D2-229 | literais de array | `[a, b]`, `[]` contextual e `[value; count]` fixo com Copy | `[:]`; repeat clona move-only |
-| D2-230 | views de array | `Slice<T>` shared Copy e `MutableSlice<T>` exclusiva move-only | pointer público; resize pela view |
+| D2-230 | views de array | `view Array<T>` read-only Copy e `inout view Array<T>` exclusiva move-only | tipos Slice públicos; pointer público; resize pela view |
 | D2-231 | iteração | single-pass; borrow default, `ref`/`inout`/`copy` explícitos e `take` consome | copiar sempre; mutation estrutural durante loop |
 | D2-232 | pipelines | Array eager; `.lazy` e Iterator lazy; `collect()` materializa | tudo lazy; tudo eager |
 | D2-233 | `Map` | hashing keyed e ordem de inserção estável; full key confirma colisão | ordem de bucket; guardar somente hash |
@@ -10602,7 +10684,7 @@ experimentar”, não “decisão irreversível”.
 | D2-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
 | D2-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
 | D2-403 | construção de String | capacidade e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
-| D2-404 | view genérica | `view T` é líder de pesquisa; nomes `XView` ficam provisórios até fechar mutabilidade, custo e ABI | família pública `XView`; `Readonly<T>` profundo; usar somente `ref` |
+| D2-404 | view genérica | `view T` é access mode DB2; sem família pública `XView` | `Slice<T>`/`Span<T>`; `Readonly<T>` profundo; usar somente `ref` |
 | D2-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
 | D2-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
 | D2-407 | alocação em region | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
@@ -10615,6 +10697,13 @@ experimentar”, não “decisão irreversível”.
 | D2-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
 | D2-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
 | D2-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
+| D2-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
+| D2-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
+| D2-419 | materialização | `materialize()` normal e `tryMaterialize(using:)` fallible produzem `T` | constructor por família; adoção borrowed; conversão implícita |
+| D2-420 | escopo de view | core families e Tensor; custom type expõe core view ou borrow nominal | protocol inventa provenance; view automática de todo tipo |
+| D2-421 | ABI de view | descriptor W por família; C usa pointer + count somente quando contígua | descriptor universal; layout W cruza FFI |
+| D2-422 | lifetime de view | provenance inferida; `await` exige owner estável; child estruturado termina antes do owner | lifetime annotation; view mantém owner vivo; escape detached |
+| D2-423 | read-only e imutabilidade | `ref` é acesso read-only; `view` é projeção; imutabilidade profunda é fato inferido sem syntax | `Readonly<T>` universal; modifier `immutable`; `let` promete grafo congelado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

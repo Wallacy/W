@@ -137,7 +137,7 @@
         },
         {
           "name": "keyword.other.ownership.w",
-          "match": "\\b(?:capture|copy|inout|pin|ref|shared|take|weak)\\b"
+          "match": "\\b(?:capture|copy|inout|pin|ref|shared|take|view|weak)\\b"
         },
         {
           "name": "keyword.operator.w",

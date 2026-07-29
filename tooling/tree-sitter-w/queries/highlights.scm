@@ -79,6 +79,7 @@
   "try"
   "unsafe"
   "var"
+  "view"
   "weak"
 ] @keyword.modifier
 

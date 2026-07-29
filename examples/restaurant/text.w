@@ -22,7 +22,7 @@ export fn textShape(value: ref String): TextShape {
   )
 }
 
-export fn scalarPrefix(value: ref String, count: usize): StringView {
+export fn scalarPrefix(value: ref String, count: usize): view String {
   let start = value.scalars.start
   let end = value.scalars.index(start, offsetBy: count)
   return value.scalars[start..<end]
@@ -32,8 +32,8 @@ export fn decodeLabel(payload: ref Bytes): String throws Utf8Error {
   return try String.fromUtf8(payload)
 }
 
-export fn borrowLabel(payload: ref Bytes): StringView throws Utf8Error {
-  return try StringView.fromUtf8(payload)
+export fn borrowLabel(payload: ref Bytes): view String throws Utf8Error {
+  return try String.viewFromUtf8(payload)
 }
 
 export fn adoptLabel(payload: take Bytes): Utf8Adoption {
@@ -99,8 +99,8 @@ test "normalization and repair stay explicit" for decodeLabel {
 
 test "borrow, adoption, and chunks preserve ownership" {
   let payload = b"Violet Horizon"
-  let view = try borrowLabel(payload)
-  expect view == "Violet Horizon"
+  let label = try borrowLabel(payload)
+  expect label == "Violet Horizon"
 
   let adopted = adoptLabel(take Bytes(copying: payload))
   switch adopted {

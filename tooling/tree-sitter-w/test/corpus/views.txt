@@ -1,0 +1,150 @@
+==================
+Borrowed views
+==================
+
+fn visibleOrders(values: ref Array<Order>): view Array<Order> {
+  return values[1..<values.count]
+}
+
+fn reprioritize(values: inout Array<Order>): inout view Array<Order> {
+  let inout pending: view Array<Order> = values[1..<values.count]
+  return pending
+}
+
+fn commandWord(source: ref String): view String throws Utf8BoundaryError {
+  return try source.view(bytes: 0..<4)
+}
+
+fn remainingOrders(values: ref Array<Order>): view Array<Order> {
+  return values[1...]
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (block
+      (return_statement
+        (index_expression
+          (identifier)
+          (bounded_range_expression
+            (number_literal)
+            (member_expression
+              (identifier)
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))
+        (index_expression
+          (identifier)
+          (bounded_range_expression
+            (number_literal)
+            (member_expression
+              (identifier)
+              (identifier)))))
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list
+              (argument
+                (identifier)
+                (bounded_range_expression
+                  (number_literal)
+                  (number_literal)))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))))
+    (block
+      (return_statement
+        (index_expression
+          (identifier)
+          (one_sided_range_expression
+            (number_literal)))))))

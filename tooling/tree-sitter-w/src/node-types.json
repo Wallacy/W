@@ -5172,6 +5172,10 @@
             "named": true
           },
           {
+            "type": "one_sided_range_expression",
+            "named": true
+          },
+          {
             "type": "optional_member_expression",
             "named": true
           },
@@ -9460,7 +9464,7 @@
         ]
       },
       "qualifier": {
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "types": [
           {
@@ -9481,6 +9485,10 @@
           },
           {
             "type": "some",
+            "named": false
+          },
+          {
+            "type": "view",
             "named": false
           },
           {
@@ -10776,6 +10784,10 @@
   },
   {
     "type": "var",
+    "named": false
+  },
+  {
+    "type": "view",
     "named": false
   },
   {
