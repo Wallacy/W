@@ -1,0 +1,173 @@
+==================
+Option propagation, chaining, and lazy fallback
+==================
+
+fn firstOpen(orders: ref Array<Order>): ref Order? {
+  let ref first = orders.first?
+  return ifOpen(first)
+}
+
+fn displayName(guest: ref Guest?): String {
+  return guest?.profile?.name ?? storedName ?? "Anonymous"
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (optional_propagation_expression
+          (member_expression
+            (identifier)
+            (identifier))))
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (binary_expression
+          (optional_member_expression
+            (optional_member_expression
+              (identifier)
+              (identifier))
+            (identifier))
+          (binary_expression
+            (identifier)
+            (string_literal)))))))
+
+==================
+Result conversion and ordered catches
+==================
+
+fn load(source: ref String): Order throws AppError {
+  let result = Result.capture(() => try parse(source))
+  let cached = try? parse(cacheSource)
+  let order = try result
+
+  do {
+    return try validate(order)
+  } catch .invalid(let token) if token.isRecoverable {
+    return try repair(order)
+  } catch error {
+    throw .validation(error)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list
+            (argument
+              (closure_expression
+                (closure_parameters)
+                (unary_expression
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (argument
+                        (identifier))))))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (optional_try_expression
+          (call_expression
+            (identifier)
+            (argument_list
+              (argument
+                (identifier))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (identifier)))
+      (do_statement
+        (block
+          (return_statement
+            (unary_expression
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (identifier)))))))
+        (catch_clause
+          (pattern
+            (enum_pattern
+              (identifier)
+              (pattern
+                (identifier))))
+          (member_expression
+            (identifier)
+            (identifier))
+          (block
+            (return_statement
+              (unary_expression
+                (call_expression
+                  (identifier)
+                  (argument_list
+                    (argument
+                      (identifier))))))))
+        (catch_clause
+          (pattern
+            (identifier))
+          (block
+            (throw_statement
+              (call_expression
+                (contextual_member_expression
+                  (identifier))
+                (argument_list
+                  (argument
+                    (identifier)))))))))))

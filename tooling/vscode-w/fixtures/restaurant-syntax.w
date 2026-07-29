@@ -84,7 +84,24 @@ fn welcome(
 }
 
 fn firstOrder(values: ref Array<Order>): ref Order? {
-  return values.get(0)
+  let ref first = values.first?
+  return .some(first)
+}
+
+fn optionalGuestName(input: ref String): GuestName? {
+  return try? GuestName(input)
+}
+
+fn recoverOrder(source: ref String): Order throws AppError {
+  let result = Result.capture(() => try parse(source))
+
+  do {
+    return try result
+  } catch .invalid(let token) if token.isRecoverable {
+    return try repair(source)
+  } catch error {
+    throw .parse(error)
+  }
 }
 
 fn collectionForms() {

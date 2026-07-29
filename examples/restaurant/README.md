@@ -41,6 +41,7 @@ owner e estado observável.
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
 | `collections.w` | arrays, slices, iteration, Map/Set, hashing e stable sort |
+| `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -504,6 +505,45 @@ Aceite:
 
 O ensaio deve rejeitar labels numa call por valor. Ele também deve rejeitar uma
 segunda call ao `manifest` consumido.
+
+### 3.23 Farol de Falhas Improváveis
+
+Famílias: `Option`, `Result`, typed throws, panic, OOM, cleanup e diagnostics.
+
+Aceite:
+
+- `T?` representa somente `.some(T)` ou `.none`;
+- postfix `?` propaga somente `.none` de uma função que retorna Option;
+- `?.` faz leitura condicional e `??` avalia o fallback de forma lazy;
+- uma mutation usa `if let inout`, não optional chaining;
+- `try` aceita uma call `throws E` ou um `Result<T, E>`;
+- `try?` converte qualquer error recuperável em ausência, mas não captura panic
+  ou cancelamento;
+- cada closure fallible possui o próprio `try`;
+- `Result.capture` transforma direct style em um valor armazenável;
+- `catch` usa ordem lexical e pode ter guard;
+- `return`, `throw` e cancelamento executam cleanup LIFO;
+- panic não garante user cleanup e não pode ser capturado;
+- um service no mesmo process não é uma fault boundary;
+- uma instância Wasm dedicada pode ser uma fault boundary;
+- `tryReserve` e `tryDuplicate` permitem recovery de alocação;
+- alocação normal pode causar panic `.outOfMemory`;
+- todo valor non-unit precisa ser usado ou descartado com `let _`;
+- o diagnostic JSON preserva code, byte spans, facts e fix applicability.
+
+O ensaio deve injetar falha na abertura, no decode e no close. Cada saída
+estruturada deve fechar o recurso uma vez. Um teste em process separado deve
+confirmar panic `.bounds`. Outro teste deve executar o mesmo service dentro e
+fora de uma instância Wasm. Somente a instância dedicada pode reiniciar sem
+encerrar o host.
+
+Os fixtures negativos devem rejeitar:
+
+```w
+archive.duplicate(payload) // W-VALUE-0001: unused Result
+guest?.visits += 1         // W-OPTION-0004: optional mutation
+let guest = guests[id]!    // W-PARSE-0001: force unwrap does not exist
+```
 
 ## 4. Alternativas visuais obrigatórias
 

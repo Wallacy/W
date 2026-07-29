@@ -86,6 +86,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -272,6 +280,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -423,6 +439,14 @@
           "named": true
         },
         {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
+          "named": true
+        },
+        {
           "type": "panic_expression",
           "named": true
         },
@@ -555,6 +579,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -715,6 +747,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -1086,6 +1126,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -1235,6 +1283,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -1482,6 +1538,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -1704,6 +1768,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -1919,6 +1991,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -2039,6 +2119,144 @@
     "type": "catch_clause",
     "named": true,
     "fields": {
+      "guard": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "array_literal",
+            "named": true
+          },
+          {
+            "type": "assignment_expression",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "boolean_literal",
+            "named": true
+          },
+          {
+            "type": "byte_literal",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "capture_expression",
+            "named": true
+          },
+          {
+            "type": "closure_expression",
+            "named": true
+          },
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          },
+          {
+            "type": "generic_application_expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
+            "type": "map_literal",
+            "named": true
+          },
+          {
+            "type": "member_expression",
+            "named": true
+          },
+          {
+            "type": "multiline_string_literal",
+            "named": true
+          },
+          {
+            "type": "number_literal",
+            "named": true
+          },
+          {
+            "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
+            "type": "panic_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "quantity_literal",
+            "named": true
+          },
+          {
+            "type": "raw_string_literal",
+            "named": true
+          },
+          {
+            "type": "repeat_array_literal",
+            "named": true
+          },
+          {
+            "type": "scalar_literal",
+            "named": true
+          },
+          {
+            "type": "size_literal",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          },
+          {
+            "type": "switch_expression",
+            "named": true
+          },
+          {
+            "type": "tuple_expression",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
+            "type": "unit_suffix_literal",
+            "named": true
+          },
+          {
+            "type": "unsafe_expression",
+            "named": true
+          }
+        ]
+      },
       "pattern": {
         "multiple": false,
         "required": false,
@@ -2143,6 +2361,14 @@
         },
         {
           "type": "optional_member_expression",
+          "named": true
+        },
+        {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
           "named": true
         },
         {
@@ -2403,6 +2629,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -2567,6 +2801,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -3002,6 +3244,14 @@
           "named": true
         },
         {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
+          "named": true
+        },
+        {
           "type": "panic_expression",
           "named": true
         },
@@ -3202,6 +3452,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -3406,6 +3664,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -3994,6 +4260,14 @@
           "named": true
         },
         {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
+          "named": true
+        },
+        {
           "type": "panic_expression",
           "named": true
         },
@@ -4150,6 +4424,14 @@
         },
         {
           "type": "optional_member_expression",
+          "named": true
+        },
+        {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
           "named": true
         },
         {
@@ -4354,6 +4636,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -4481,6 +4771,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -4738,6 +5036,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -4865,6 +5171,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -5016,6 +5330,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -5291,6 +5613,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -5427,6 +5757,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -5490,6 +5828,294 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "optional_propagation_expression",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "array_literal",
+            "named": true
+          },
+          {
+            "type": "assignment_expression",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "boolean_literal",
+            "named": true
+          },
+          {
+            "type": "byte_literal",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "capture_expression",
+            "named": true
+          },
+          {
+            "type": "closure_expression",
+            "named": true
+          },
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          },
+          {
+            "type": "generic_application_expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
+            "type": "map_literal",
+            "named": true
+          },
+          {
+            "type": "member_expression",
+            "named": true
+          },
+          {
+            "type": "multiline_string_literal",
+            "named": true
+          },
+          {
+            "type": "number_literal",
+            "named": true
+          },
+          {
+            "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
+            "type": "panic_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "quantity_literal",
+            "named": true
+          },
+          {
+            "type": "raw_string_literal",
+            "named": true
+          },
+          {
+            "type": "repeat_array_literal",
+            "named": true
+          },
+          {
+            "type": "scalar_literal",
+            "named": true
+          },
+          {
+            "type": "size_literal",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          },
+          {
+            "type": "switch_expression",
+            "named": true
+          },
+          {
+            "type": "tuple_expression",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
+            "type": "unit_suffix_literal",
+            "named": true
+          },
+          {
+            "type": "unsafe_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "optional_try_expression",
+    "named": true,
+    "fields": {
+      "operand": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "array_literal",
+            "named": true
+          },
+          {
+            "type": "assignment_expression",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "boolean_literal",
+            "named": true
+          },
+          {
+            "type": "byte_literal",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "capture_expression",
+            "named": true
+          },
+          {
+            "type": "closure_expression",
+            "named": true
+          },
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          },
+          {
+            "type": "generic_application_expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
+            "type": "map_literal",
+            "named": true
+          },
+          {
+            "type": "member_expression",
+            "named": true
+          },
+          {
+            "type": "multiline_string_literal",
+            "named": true
+          },
+          {
+            "type": "number_literal",
+            "named": true
+          },
+          {
+            "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
+            "type": "panic_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "quantity_literal",
+            "named": true
+          },
+          {
+            "type": "raw_string_literal",
+            "named": true
+          },
+          {
+            "type": "repeat_array_literal",
+            "named": true
+          },
+          {
+            "type": "scalar_literal",
+            "named": true
+          },
+          {
+            "type": "size_literal",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          },
+          {
+            "type": "switch_expression",
+            "named": true
+          },
+          {
+            "type": "tuple_expression",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
+            "type": "unit_suffix_literal",
+            "named": true
+          },
+          {
+            "type": "unsafe_expression",
             "named": true
           }
         ]
@@ -5586,6 +6212,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -5789,6 +6423,14 @@
         },
         {
           "type": "optional_member_expression",
+          "named": true
+        },
+        {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
           "named": true
         },
         {
@@ -6145,6 +6787,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -6272,6 +6922,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -6413,6 +7071,14 @@
         },
         {
           "type": "optional_member_expression",
+          "named": true
+        },
+        {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
           "named": true
         },
         {
@@ -6892,6 +7558,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -7089,6 +7763,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -7310,6 +7992,14 @@
           "named": true
         },
         {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
+          "named": true
+        },
+        {
           "type": "panic_expression",
           "named": true
         },
@@ -7452,6 +8142,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -7598,6 +8296,14 @@
           },
           {
             "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
             "named": true
           },
           {
@@ -8072,6 +8778,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -8270,6 +8984,14 @@
             "named": true
           },
           {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
             "type": "panic_expression",
             "named": true
           },
@@ -8437,6 +9159,14 @@
         },
         {
           "type": "optional_member_expression",
+          "named": true
+        },
+        {
+          "type": "optional_propagation_expression",
+          "named": true
+        },
+        {
+          "type": "optional_try_expression",
           "named": true
         },
         {

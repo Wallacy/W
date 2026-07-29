@@ -114,7 +114,6 @@ const BINARY_OPERATORS = [
   ["|", 4],
   ["&&", 3],
   ["||", 2],
-  ["??", 1],
 ];
 
 const ASSIGNMENT_OPERATORS = ["=", "+=", "-=", "*=", "/=", "%="];
@@ -832,7 +831,17 @@ module.exports = grammar({
       ),
 
     do_statement: ($) => seq("do", $.block, repeat1($.catch_clause)),
-    catch_clause: ($) => seq("catch", optional(field("pattern", $.pattern)), $.block),
+    catch_clause: ($) =>
+      seq(
+        "catch",
+        optional(
+          seq(
+            field("pattern", $.pattern),
+            optional(seq("if", field("guard", $._expression))),
+          ),
+        ),
+        $.block,
+      ),
 
     expression_statement: ($) => seq($._expression, optional(";")),
 
@@ -903,6 +912,8 @@ module.exports = grammar({
         $.assignment_expression,
         $.binary_expression,
         $.unary_expression,
+        $.optional_try_expression,
+        $.optional_propagation_expression,
         $.panic_expression,
         $.call_expression,
         $.generic_application_expression,
@@ -945,6 +956,10 @@ module.exports = grammar({
           14,
           seq(field("left", $._expression), field("operator", "**"), field("right", $._expression)),
         ),
+        prec.right(
+          1,
+          seq(field("left", $._expression), field("operator", "??"), field("right", $._expression)),
+        ),
         ...BINARY_OPERATORS.map(([operator, precedence]) =>
           prec.left(
             precedence,
@@ -955,6 +970,15 @@ module.exports = grammar({
 
     unary_expression: ($) =>
       prec.right(13, seq(field("operator", choice("!", "~", "-", "try", "await", "copy", "take", "inout", "ref")), field("operand", $._expression))),
+
+    optional_try_expression: ($) =>
+      prec.right(
+        13,
+        seq("try", token.immediate("?"), field("operand", $._expression)),
+      ),
+
+    optional_propagation_expression: ($) =>
+      prec.left(17, seq(field("value", $._expression), token.immediate("?"))),
 
     panic_expression: ($) => prec(15, seq("panic", field("arguments", $.argument_list))),
 
