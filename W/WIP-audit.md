@@ -4,6 +4,7 @@
 > **Fonte auditada:** blob Git `5b8f5e230ef63705173632fdad2de08a9fff4370`
 > (`4.035` linhas)
 > **Baseline comparada:** `W/` no commit `7505201`
+> **Última reconciliação DB2:** 29 de julho de 2026
 
 Este documento responde a uma pergunta diferente do inventário byte a byte: não
 apenas “o arquivo foi preservado?”, mas **cada família de ideia ainda possui um
@@ -134,8 +135,10 @@ destino, não aprovação.
 
 | Família | Linhas representativas | Conteúdo histórico preservado | Destino atual | Cobertura |
 |---|---:|---|---|---|
-| strings, raw, multiline e interpolation | `1273–1388` | `#`, `$`, multiline, concat e várias combinações de delimitadores | `W-C008/037/040`, `W-O046–048` | **Coberto**; sinônimos excessivos foram **Superados** |
-| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W-O046/047/075`, `research/README.md` | **Coberto** |
+| strings, raw, multiline e interpolation | `1273–1388` | `#`, `$`, multiline, concat e várias combinações de delimitadores | `W/DESIGN.md` 16.1–16.6 e D2-210–221 | **Coberto**; `#`, `${}` e dedent foram mantidos; delimitadores equivalentes e concat implícita foram **Superados** |
+| Unicode/ICU e tree strings | `1329–1361` e `TK/tree_string.md` | unidade de texto, indices e representação alternativa | `W/DESIGN.md` 16.1, 16.6 e 16.9; D2-210–212, D2-221 e D2-225 | **Coberto**; bundle versionado substitui ICU obrigatório; tree string permanece especializada |
+| tamanhos, capacity e storage de String | `1549–1604`, `1678–1709`, `2778–2806` | min/max/expected, limite lógico, mask e storage físico | `W/DESIGN.md` 8.6 e 16.9; D2-224 | **Coberto**; refinement, reserva e layout físico são contratos separados |
+| zero-terminated text e paths nativos | `3036–3048`, `3543–3552` e `Y/_w_/WC.MD:85–117` | `char8_t`, terminador, UTF-8 e fronteira C | `W/DESIGN.md` 16.7–16.8 e D2-222–223 | **Coberto**; `CString`/`Path` substituem sentinela em String/Array |
 | SI, quantities e análise científica | intenções físicas dispersas, types limitados e GPU | unidades, valores precisos, integral/limite e otimização por bounds | `W-C041/045`, `W-O036–041/081/099`, `design/numerics-and-quantities.md` | **Coberto** |
 | matrizes, tensors e ML | intenção científica/accelerators em `1694`, `2157`, `3064–3069`, `3353–3362` | falta de notação concreta, mas ambição de cálculo vetorial/accelerated | `W-O082/102`, `design/numerics-and-quantities.md` | **Lacuna de profundidade → recuperada** |
 | collections, dictionaries e sort | `2860–3000` | dict/WLON, hashing linear, TimSort/fluxsort e busca | `W-O080`, `research/legacy-spikes.md` | **Coberto** como seleção de std/algoritmos, não implementação escolhida |
@@ -153,6 +156,20 @@ destino, não aprovação.
 | docs, doctests, co-located tests e debug | `1905–2005`, `3366–3390`, `3565–3575` | docs inline, exemplos executáveis, `.test.w`, generated tests e benchmark IDE | `W-C049`, `W-O095/096`, `design/documentation-and-tests.md` | **Coberto**; autotest por IA segue **Pesquisa** |
 | parser/Tree-sitter | `3343–3352`, `3754–3904` e `Y/_w_/grammar.js` | Tree-sitter como parser/tradutor e sketch de grammar | `W-C022`, `W-O007/008`, `tooling/tree-sitter-w` | **Coberto**; tradução semântica pela CST foi **Superada** |
 | observabilidade, debug symbols e remote debug | `1936–1941`, `2148–2180`, `2860–2963` | source mapping, `.debug`, live patch e metrics | `W-C035`, `W-O032/094/096`, `ARCHITECTURE.md` | **Coberto**; hot reload segue **Pesquisa** |
+
+## Reconciliação das lacunas com a DB2
+
+Alguns destinos nas tabelas acima nomeiam IDs e arquivos da DB1 arquivada.
+Esses nomes preservam a migração original. A tabela abaixo informa o destino
+vigente das famílias que ainda estavam parciais.
+
+| Família residual | Destino DB2 | Estado vigente |
+|---|---|---|
+| custom pattern handlers | `W/DESIGN.md` 5.4 e D2-207 | **Pesquisa**; guard e conversão nomeada são a baseline |
+| signals e eventos do host | `W/DESIGN.md` 13.2 e 13.8 | adapters de entry cobrem signals; signal safety continua por target |
+| GPU, SIMD, OpenMP e HDL | `W/DESIGN.md` 17, 22.6 e D2-093 | CPU/SIMD/device têm corpus; GPU e HDL continuam **Pesquisa** |
+| GUI, TUI e immediate mode | `W/DESIGN.md` 13.8 e 14.3 | host events e T2 preservam a pergunta; toolkit universal não é baseline |
+| texto, bytes e strings nativas | `W/DESIGN.md` 16 e D2-210–225 | **Líder DB2** com alternativas históricas rastreadas |
 
 ## Alternativas que não devem desaparecer de novo
 
