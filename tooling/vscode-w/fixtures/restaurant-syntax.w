@@ -1,6 +1,7 @@
 /// Fixture lexical da superfície integrada. Não é um programa executável.
 import std.http
 import { Order } from restaurant.domain
+import std.reflect as reflect
 import std.tensor as tensor
 
 export type GuestCount = u16<(1...4096)>
@@ -31,6 +32,21 @@ alias RecoverableServiceFault =
   ServiceFault<[.ingredientsMissing, .delayed]>
 
 fn reserveCourse(): WorkStage throws RecoverableServiceFault
+
+struct ReservationKey: Hashable & reflect.Reflectable {
+  orderId: OrderId
+  course: Course
+}
+
+fn kitchenLoad(kitchens: u16, courses: Course...): u32
+fn announce(_ messages: ref String...): usize
+
+fn restValues(): () {
+  let planned = [.nebulaBroth, .horizonCake]
+  let load = kitchenLoad(2, courses: each planned)
+  let ref info = reflect.info<ReservationKey>()
+  let loader: fn(u16, Course...): u32 = kitchenLoad
+}
 
 type SensorCallback =
   unsafe fn<abi: .c>(c.ptr<void>, c.int): ()

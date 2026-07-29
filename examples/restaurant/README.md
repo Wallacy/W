@@ -44,6 +44,8 @@ owner e estado observável.
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, inference e witnesses |
 | `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
+| `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
+| `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -597,6 +599,46 @@ Aceite:
 O fixture negativo deve retornar `.cancelled` como `WorkStage`. Outro fixture
 deve adicionar `.cancelled` ao alias e omitir esse case em `workInstruction`.
 
+### 3.26 Arquivo dos Nomes que Não Sobrevivem ao Universo
+
+Famílias: `TypeId`, reflection opt-in, synthesis e metadata alcançável.
+
+Aceite:
+
+- `TypeId.of<T>()` identifica uma specialization no build atual;
+- o programa não persiste ou transmite `TypeId`;
+- `Reflectable` emite somente metadata alcançável;
+- o descriptor mostra properties exportadas e omite `secretCalibration`;
+- `ActionableSignal` mostra somente os dois cases permitidos;
+- `Hashable` e `Reflectable` são sintetizados sem annotations;
+- backing storage de property behavior não aparece;
+- debug symbols podem ser removidos sem alterar reflection;
+- nenhum descriptor oferece offset, dynamic construction ou acesso por string.
+
+O fixture negativo deve tentar persistir `TypeId`. Outro fixture deve procurar
+`secretCalibration` no descriptor exportado.
+
+### 3.27 Mesa para um Número Incerto de Convidados
+
+Famílias: rest homogêneo, labels, expansão, ownership e lowering.
+
+Aceite:
+
+- `Course...` aceita zero ou mais valores `Course`;
+- o label `courses:` aparece somente antes do primeiro item;
+- `each planned` expande uma collection sem colidir com `4...`;
+- `Arguments<T>` não pode escapar do body;
+- `ref T...` preserva borrows por elemento;
+- `take T...` e `each take values` preservam consumo;
+- `inout T...` é rejeitado;
+- a expansão final não exige heap;
+- uma forma fixa que intersecta a forma rest é rejeitada;
+- rest W não cruza C varargs.
+
+O fixture negativo deve declarar `serve(table)` junto de
+`serve(table, _ courses: Course...)`. O compiler deve mostrar a forma
+intersectada `serve(_)`.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -611,6 +653,10 @@ O Book deve mostrar pares lado a lado:
 | generic refinado | `Array<u8><(.count <= 64)>` | `Array<[u8, (.count <= 64)]>` |
 | enum subset | `ServiceStage<[.preparing, .serving]>` | enum base + guard runtime |
 | protocol composition | `T: Display & Equatable` | postfix `where`; static list de protocols |
+| runtime reflection | `T: reflect.Reflectable` | metadata universal e annotations |
+| metatype | `TypeId.of<T>()` + generic/factory | `Type<T>` e dynamic construction |
+| synthesis | conformance no type head | `@derive` e user macro |
+| rest | `T...` + `each values` | Array obrigatório e heterogeneous pack |
 | retorno fluente | `mut fn advance(...): self` | retorno `self` implícito |
 | receiver consuming | `take fn` + `(take value).method()` | consumo implícito e free function |
 | falha consuming | owner termina em success, error e cancellation | restaurar owner no `catch` |

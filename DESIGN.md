@@ -1689,9 +1689,9 @@ A regra também evita a seleção frágil por tipos descrita no
 alternativa proíbe todo overload e exige nomes distintos. A forma líder permite
 APIs naturais e mantém a seleção local, finita e reproduzível.
 
-**Pesquisa:** parâmetros variadic ainda não entram na DB2. Uma API usa
-`Array<T>`, `Slice<T>` ou builder. Uma proposta futura deve definir uma família
-de formas disjunta sem usar tipos para resolver overlap.
+Parâmetros rest homogêneos entram na DB2. A forma `T...` aceita zero ou mais
+argumentos do mesmo tipo. A seção 8.9.5 define labels, ownership, overlap e
+lowering. Type packs heterogêneos continuam em **Pesquisa**.
 
 ### 7.3 Parâmetros e ownership
 
@@ -2153,8 +2153,10 @@ entry {
 Um `object Catalog` pode ter várias instances. O binding acima expressa um
 singleton do product, não da linguagem. Um módulo também não é singleton.
 
-**Pesquisa:** uma API de reflection pode reificar um tipo como `Type<T>`.
-Associated member lookup não depende desse valor runtime.
+W não reifica tipos como `Type<T>` na DB2. Associated member lookup continua
+compile-time. `reflect.TypeId` oferece identidade runtime local. Uma conformance
+a `reflect.Reflectable` solicita metadata estrutural. A seção 8.9 define os dois
+contratos.
 
 ### 8.3 Construção e inicialização
 
@@ -3403,21 +3405,424 @@ Uma conversão implícita é permitida somente se:
 Narrowing, parsing, rounding, reinterpretation, ponteiro e conversão ambígua são
 explícitos. O mesmo princípio permite `T` para `any P` quando `T: P`.
 
-### 8.9 Lacunas de tipos antes do design freeze
+### 8.9 Reflection, síntese e parâmetros rest
 
-Estas lacunas possuem maior impacto no type checker e na ergonomia:
+#### 8.9.1 Dois planos de introspecção
 
-| Tema | Estado | Contrato que falta |
+W separa introspecção de tooling e reflection runtime.
+
+Tooling lê interfaces e HIR versionadas. Esse plano contém nomes, tipos,
+visibilidade, source spans, efeitos, ownership e documentação. Ele não exige
+metadata no executável.
+
+Runtime recebe somente metadata solicitada pelo programa. Uma conformance a
+`reflect.Reflectable` cria essa solicitação. Debug symbols e source maps
+continuam em sidecars removíveis.
+
+```w
+import std.reflect as reflect
+
+export struct MenuCard: Hashable & reflect.Reflectable {
+  title: String
+  course: Course
+}
+```
+
+A conformance fica na interface mesmo quando o linker remove o descriptor
+runtime. O witness alcançável mantém o descriptor necessário.
+
+Essa separação atende ferramentas e assistentes sem forçar reflection em todo
+programa. Ela também impede que debug metadata vire uma API.
+
+#### 8.9.2 `TypeId` sem metatype universal
+
+`reflect.TypeId` identifica um tipo dentro de um build:
+
+```w
+let menuCardId = reflect.TypeId.of<MenuCard>()
+let anotherId = reflect.TypeId.of<MenuCard>()
+expect menuCardId == anotherId
+```
+
+A identidade inclui o tipo nominal e argumentos normalizados. Ela também inclui
+refinements e subsets de enum:
+
+```w
+expect reflect.TypeId.of<ServiceStage>() !=
+  reflect.TypeId.of<WorkStage>()
+```
+
+`TypeId` atende a `Copy`, `Equatable` e `Hashable`. Seu valor e hash podem mudar
+entre builds, toolchains e processos. O programa não deve persistir, serializar
+ou transmitir esse valor.
+
+Um schema ID possui outro contrato. Ele usa nome, versão e codificação
+canônicos. Um package digest também não usa `TypeId`.
+
+DB2 não possui `Type<T>`, `T.type` ou construção por metatype. Um `TypeId`:
+
+- não constrói valores;
+- não resolve associated members;
+- não informa layout;
+- não faz lookup por nome;
+- não prova conformance.
+
+Uma API estática usa um type argument:
+
+```w
+let order = try decoder.decode<Order>()
+```
+
+Uma escolha runtime usa um enum fechado, uma factory ou um existential:
+
+```w
+protocol DishFactory {
+  fn make(): Dish
+}
+
+fn makeDish(using factory: ref any DishFactory): Dish {
+  return factory.make()
+}
+```
+
+`Type<T>` permanece **Alternativa** para uma futura API que precise transportar
+um tipo preservado. Dynamic construction por nome fica **Rejeitado por
+enquanto**. Ele exigiria argumentos apagados, initializers negociados e erros
+runtime para relações que hoje são estáticas.
+
+#### 8.9.3 `Reflectable` e metadata alcançável
+
+`std.reflect` pertence a T0. Ele não depende do host. O protocol possui um
+body vazio:
+
+```w
+protocol Reflectable {}
+```
+
+O compiler adiciona um descriptor ao conformance record. O marker continua
+existential-compatible e não expõe um method especial. O programa usa duas
+operações:
+
+```w
+let ref staticInfo = reflect.info<MenuCard>()
+
+fn reflectedName(value: ref any reflect.Reflectable): StringView {
+  let ref dynamicInfo = reflect.info(of: value)
+  return dynamicInfo.name
+}
+```
+
+`reflect.info<T>()` usa o tipo estático. `reflect.info(of:)` usa o conformance
+record do valor apagado. Ambas retornam um descriptor imutável com lifetime de
+process.
+
+O descriptor possui estes dados lógicos:
+
+| Dado | Contrato |
+|---|---|
+| `id` | `TypeId` local |
+| `name` | nome qualificado da interface |
+| `kind` | scalar, struct, object, enum, refinement ou enum subset |
+| `base` | `TypeId?` para refinement e enum subset |
+| `properties` | propriedades instance exportadas, em ordem de declaração |
+| `cases` | cases exportados e payload types, em ordem de declaração |
+
+`PropertyInfo` contém nome, `TypeId`, mutabilidade e accessors disponíveis.
+`CaseInfo` contém nome e payload types. O descriptor não contém:
+
+- offsets ou tamanho físico;
+- addresses de fields;
+- getter ou setter universal;
+- methods invocáveis por nome;
+- valores de associated members;
+- nomes privados;
+- acesso por string a uma instance.
+
+Property behavior aparece como uma propriedade lógica. Seu backing storage não
+aparece. Uma computed property exportada pode aparecer com seus accessors. O
+descriptor não executa o accessor.
+
+Um enum subset preserva a conformance do enum base. Seu descriptor contém
+somente os cases permitidos e aponta para o `TypeId` base:
+
+```w
+enum DispatchState: reflect.Reflectable {
+  queued
+  running
+  completed
+  cancelled
+}
+
+alias LiveState = DispatchState<[.queued, .running]>
+let ref liveInfo = reflect.info<LiveState>()
+expect liveInfo.cases.count == 2
+```
+
+Reflection respeita a interface exportada. Ela não revela um field privado nem
+package por meio de um existential exportado. Código do mesmo módulo usa HIR
+compile-time ou uma API nominal para acessar esses fields.
+
+Generic specializations possuem `TypeId` distintos. O linker emite um
+descriptor somente para uma specialization alcançável. Um registry global de
+tipos não existe.
+
+#### 8.9.4 Síntese por conformance
+
+Uma conformance explícita pode solicitar witnesses conhecidos pelo compiler. W
+não usa `@derive`, decorators ou macros:
+
+```w
+struct ReservationKey: Hashable & reflect.Reflectable {
+  table: TableId
+  sequence: u64
+}
+```
+
+O compiler reconhece o protocol por identidade de módulo. Um protocol com o
+mesmo nome não ativa síntese.
+
+DB2 sintetiza somente estas famílias:
+
+| Protocol | Struct | Enum | Object |
+|---|---:|---:|---:|
+| `Equatable` | fields semânticos | tag e payloads | não |
+| `Hashable` | fields semânticos | tag e payloads | não |
+| `Duplicable` | fields semânticos | payload ativo | não |
+| `reflect.Reflectable` | interface exportada | cases e payloads | interface exportada |
+
+`Hashable` também fornece o witness requerido de `Equatable`. A ordem de
+declaração governa equality, hash e duplication. O enum inclui o case antes dos
+payloads.
+
+Synthesis de `Hashable` inclui synthesis de `Equatable`. Um witness manual de
+equality bloqueia hash estrutural. O author fornece os dois contratos.
+
+Synthesis exige que todos os fields ou payloads necessários atendam ao
+protocol. Um resource, capability ou owner singular bloqueia `Duplicable`.
+
+Generic constraints ficam explícitas:
+
+```w
+struct Pair<Left: Hashable, Right: Hashable>: Hashable {
+  left: Left
+  right: Right
+}
+```
+
+O compiler não adiciona `T: Hashable` de forma oculta. Uma declaração sem a
+constraint recebe um diagnostic no ponto da conformance.
+
+Synthesis ocorre somente na declaração primária do tipo. Uma extension pode
+fornecer uma conformance manual. Ela não pede acesso estrutural implícito.
+
+Quando o tipo fornece um witness do protocol, o compiler exige todos os
+witnesses desse protocol. Ele não mistura uma implementação parcial com fields
+sintetizados. Essa regra evita equality customizada com hash estrutural.
+
+Fields privados participam de equality, hash e duplication. Eles não entram em
+runtime reflection.
+
+Computed properties e associated members não participam de synthesis
+estrutural. Eles não fazem parte do stored value.
+
+Um type com property behavior não recebe synthesis estrutural de `Equatable`,
+`Hashable` ou `Duplicable` na DB2. O author fornece witnesses manuais. Essa
+regra evita confundir o valor lógico com cache ou backing storage.
+
+`Reflectable` continua disponível. Ele descreve a propriedade lógica e ignora
+o backing storage.
+
+O compiler grava HIR normalizada para cada witness. Tooling mostra o resultado:
+
+```text
+w explain synthesis restaurant.ReservationKey: Hashable
+  equality: table, sequence
+  hash: case none; fields table, sequence
+  source witnesses: synthesized
+```
+
+Uma mudança de field pode alterar um witness sintetizado. `w interface diff`
+marca a mudança para revisão de comportamento, além da classificação estrutural
+normal.
+
+Síntese de `Display`, `Ordering`, codecs e schemas permanece **Pesquisa**. Essas
+families precisam de escolhas humanas sobre formato, ordem e compatibilidade.
+User-defined synthesis fica **Rejeitado por enquanto**. Ele exigiria macro,
+reflection compile-time aberta ou outro gerador de declarations.
+
+#### 8.9.5 Parâmetros rest homogêneos
+
+`T...` declara zero ou mais argumentos do mesmo tipo:
+
+```w
+fn schedule(table: TableId, courses: Course...): usize {
+  for course in courses {
+    queue(table, course: course)
+  }
+  return courses.count
+}
+
+let count = schedule(
+  table,
+  courses: .nebulaBroth,
+  .horizonCake,
+)
+```
+
+O parâmetro rest deve ser o último. A declaração permite somente um. Ele não
+aceita default.
+
+O label aparece antes do primeiro argumento repetido. Os argumentos seguintes
+não repetem o label. Um rest com label `_` recebe todos os itens sem label:
+
+```w
+fn byteCount(_ messages: ref String...): usize {
+  var total: usize = 0
+  for message in messages { total += message.bytes.count }
+  return total
+}
+
+let bytes = byteCount("Kitchen ready", "Universe ending soon")
+```
+
+Zero itens não escreve o label:
+
+```w
+let emptyCount = schedule(table)
+```
+
+Uma call sem itens não infere o element type de um generic rest. Outro
+argumento ou o expected result precisa fixar esse tipo.
+
+O binding possui tipo intrínseco `Arguments<T>`. Um parâmetro `ref T...` produz
+`Arguments<ref T>`. `Arguments` oferece `count`, indexação e iteração. Ele não
+pode ser construído, armazenado, retornado ou capturado.
+
+`for item in arguments` faz borrow de um pack owned. Ele preserva um element
+que já é `ref T`. `for item in take arguments` consome um pack owned.
+
+O function type preserva o rest marker:
+
+```w
+let scheduler: fn(TableId, Course...): usize = schedule
+```
+
+Callable conversion exige o mesmo prefixo, element type, label e ownership.
+
+Uma declaração rest representa um conjunto de call shapes. O compiler rejeita
+qualquer interseção com outra declaração:
+
+```w
+fn serve(table: TableId)
+fn serve(table: TableId, _ courses: Course...)
+// error: both declarations accept serve(_)
+```
+
+O compiler não prefere a forma fixa. Para exigir um item, declare o primeiro
+item fora do rest:
+
+```w
+fn serve(table: TableId, first: Course, _ remaining: Course...)
+```
+
+Essa regra mantém overload resolution independente dos tipos.
+
+#### 8.9.6 Expansão, ownership e lowering
+
+`each` expande uma collection no último argumento rest:
+
+```w
+let planned = [.nebulaBroth, .horizonCake]
+let count = schedule(table, courses: each planned)
+```
+
+`each` é a keyword de expansão em um argument. Ela não é um operador geral. A
+forma evita colisão com o range unilateral `4...`.
+
+Uma call aceita uma expansão final. Argumentos individuais podem aparecer antes
+dela:
+
+```w
+schedule(table, courses: .welcomeDrink, each planned)
+```
+
+O source expandido deve ser `Arguments<T>`, `Slice<T>`, `[T; N]` ou
+`Array<T>`. O element type e ownership precisam corresponder.
+
+As regras normais de parâmetro valem para cada elemento:
+
+| Rest | Efeito no caller |
+|---|---|
+| `T...` com `T: Copy` | copia cada elemento |
+| `T...` owned | move cada último uso |
+| `ref T...` | cria borrows compartilhados |
+| `take T...` | exige `take` em cada valor owned |
+
+Uma expansão owned usa `each take values`. Ela consome a collection. Uma
+expansão borrowed usa somente `each values`.
+
+```w
+fn archive(_ records: take AuditRecord...) {
+  for record in take records { persist(take record) }
+}
+
+archive(each take pendingRecords)
+```
+
+`inout T...` fica **Rejeitado por enquanto**. Um número dinâmico de borrows
+exclusivos torna alias diagnostics e recovery pouco previsíveis. A API recebe
+`MutableSlice<T>`.
+
+Argumentos individuais podem usar storage no call frame. Uma expansão borrowed
+passa address e count. O lowering não exige heap. `Arguments<T>` mantém cleanup
+dos elementos owned em todas as saídas.
+
+Rest W não faz parte do ABI C. C varargs continuam `unsafe` e exigem um adapter
+tipado ou `c.vaList`. Default argument promotions não entram no type checker W.
+
+#### 8.9.7 Formas adiadas
+
+Três famílias não entram na DB2:
+
+| Família | Estado | Baseline |
 |---|---|---|
-| property reflection | **Pesquisa** | key paths, metadata, stripping e efeitos no ABI |
-| generic associated type | **Pesquisa** | borrow, constraints, witness layout e inference |
-| metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
-| síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
-| parâmetros variadic | **Pesquisa** | packs, forma de call, formatting, generics e FFI |
+| typed property path | **Pesquisa** | closure ou função nominal |
+| generic associated type | **Pesquisa** | primary associated type e método generic |
+| type/value parameter pack | **Pesquisa** | rest homogêneo, tuple ou collection |
 
-A DB2 resolve overloads por forma de call. Initializers usam a mesma regra.
-Computed properties obedecem ao teto property-safe. A seção 7.5 fecha function
-types, callables e captures.
+Uma typed property path precisa preservar place, borrow, accessors e
+visibilidade. A forma líder de pesquisa usa um construtor explícito:
+
+```w
+let guestName = path<Order>(.guest.name)
+```
+
+`\Order.guest.name` permanece **Alternativa**. Reflection por string fica
+**Rejeitado por enquanto**. Até o contrato fechar, uma API recebe uma closure:
+
+```w
+let names = orders.map((order) => order.guest.name)
+```
+
+Generic associated types precisam de uma relação de borrow expressável e de
+witness layout estável. O W0 não precisa dessa capacidade.
+
+Packs heterogêneos evitariam overloads por aridade. Eles também adicionariam
+outro kind, shape constraints e pack iteration. A sintaxe abaixo permanece
+**Pesquisa**:
+
+```text
+fn format<each T: Display>(_ values: ref each T...)
+```
+
+O
+[Swift SE-0161](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0161-key-paths.md)
+mostra o valor de property paths tipadas. O
+[Swift SE-0185](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0185-synthesize-equatable-hashable.md)
+mostra síntese limitada a casos estruturalmente seguros. O
+[Swift SE-0393](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0393-parameter-packs.md)
+mostra a complexidade adicional de packs heterogêneos. W fecha primeiro a forma
+homogênea.
 
 ## 9. Memória, layout e alocação
 
@@ -4936,6 +5341,7 @@ T0 contém:
 - String, StringView, Bytes, StringBuilder, Array, Map, Set, Range e views;
 - Slice, `Pinned<T>`, AllocationError e allocator hooks;
 - protocols de igualdade, hash e iteração;
+- `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
 - operações puras de texto, collection e matemática básica;
 - intrinsics necessários para memória segura e compile time.
@@ -5032,6 +5438,15 @@ O tuple depois de `in` é um conjunto finito intrínseco. Flags usam `hasAny` e
 
 Somente tipos discretos/strideable podem iterar um Range. Outros usam
 `stride`. `clamp` exige um intervalo fechado.
+
+Um range unilateral pode aparecer como argumento ou pattern:
+
+```w
+let tail = orders.slice(4...)
+```
+
+O parser distingue essa forma pelo fim do argumento. `each values` não reutiliza
+o mesmo token.
 
 ### 15.3 Delimitador de unidade
 
@@ -7123,6 +7538,11 @@ Uma pesquisa só avança quando possui:
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
 | generics com primary associated types | **Possível agora** | inference fechada, coherence nominal e lowering híbrido definidos |
 | subsets fechados de enum | **Possível agora** | case-set normalizado, flow narrowing e layout base definidos |
+| `TypeId` e reflection opt-in | **Possível agora** | descriptor alcançável não expõe layout nem storage privado |
+| synthesis de protocols core | **Possível agora** | families fechadas e witnesses normalizados |
+| parâmetros rest homogêneos | **Provável** | call shape é fechado; ownership e lowering exigem corpus |
+| packs heterogêneos e GAT | **Pesquisa** | kinds, shape constraints, borrow e witness layout ficam abertos |
+| metatype e dynamic construction | **Rejeitado por enquanto** | generics, factory e enum preservam relações estáticas |
 | visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
 | destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
 | switch exaustivo e tuple scrutinee | **Possível agora** | ordem, guards e patterns fechados possuem análise conhecida |
@@ -7296,6 +7716,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - computed properties e property requirements;
 - generic signatures, primary associated types, witnesses e inference local;
 - refinements e enum case subsets;
+- rest signatures, call-shape intersection e `each` expansion;
+- synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;
 - interface compilada inicial.
 
@@ -7307,6 +7729,7 @@ Saída: `w check` verifica o subset síncrono do restaurante.
 frontend self-hosted.
 
 - HIR tipada;
+- witnesses sintetizados e descriptors alcançáveis;
 - dialeto W/MLIR e verifiers;
 - arithmetic/control lowering;
 - LLVM/native e runtime core;
@@ -7504,7 +7927,7 @@ experimentar”, não “decisão irreversível”.
 | D2-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
 | D2-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
 | D2-017 | opaque type | `some P` em local, retorno e parâmetro generic anônimo | existential; generic nomeado |
-| D2-018 | reflection | conformance opt-in | metadata universal; annotations |
+| D2-018 | reflection | `reflect.Reflectable` opt-in e alcançável | metadata universal; annotations |
 | D2-019 | Option | `T?` com some/none | null; sentinel; result-like |
 | D2-020 | conversão | total, única e sem perda | tudo explícito; promotions amplas |
 | D2-021 | owner | único/move-first | ARC universal; GC |
@@ -7540,7 +7963,7 @@ experimentar”, não “decisão irreversível”.
 | D2-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
 | D2-052 | custom unit | `dimension`/`unit` declarations | wrapper types; runtime registry |
 | D2-053 | affine/log units | metaconstrutores distintos | scale universal; runtime-only |
-| D2-054 | range | quatro closures + interval semantics | dois ranges; producer universal |
+| D2-054 | range | quatro closures; unilateral em argumento/pattern; intervalo | dois ranges; producer universal |
 | D2-055 | membership | `value in (a, b)` | `.isOneOf`; equality chain |
 | D2-056 | exponent | `**`; `^` somente em unit grammar | `^` universal; `pow` only |
 | D2-057 | integer safety | checked, panic; APIs alternatives | wrapping default; Result operators |
@@ -7677,7 +8100,7 @@ experimentar”, não “decisão irreversível”.
 | D2-188 | efeitos de initializer | síncrono; `throws E`; sem `init?` | `async init`; initializer failable |
 | D2-189 | evolução de overload | set existente: minor; primeiro overload: major; forma alterada: major | classificação somente por nome |
 | D2-190 | ordem de argumentos | ordem da declaração; labels não reordenam | named arguments livres |
-| D2-191 | parâmetros variadic | ausentes na DB2; collection ou builder | type pack; C varargs seguro |
+| D2-191 | parâmetros rest | `T...` homogêneo e final; `each` expande collection | somente collection; type pack; C varargs |
 | D2-192 | function type | source usa `fn(A): B`; labels e defaults ficam na declaração | labels no tipo; somente inference |
 | D2-193 | callable concreto | `some fn(A): B` preserva tipo, captures e specialization | generic nomeado; `fn` sempre apagado |
 | D2-194 | callable apagado | `any fn(A): B` guarda owner, invoke e drop | `CallbackType`; box manual |
@@ -7793,6 +8216,22 @@ experimentar”, não “decisão irreversível”.
 | D2-304 | subset payload/layout | payload preservado; layout público do enum base; tag interno pode sumir | wrapper/tag novo; payload subset |
 | D2-305 | subset evolution | retorno widening e parâmetro narrowing são major | qualquer mudança minor; variance automática |
 | D2-306 | subset de error | `throws Enum<[...]>`; throw e catch usam o case-set publicado | error enum inteiro; effect union separado |
+| D2-307 | planos de introspecção | interface/HIR para tooling; descriptor opt-in no runtime | runtime metadata universal; debug como API |
+| D2-308 | type identity | `reflect.TypeId` local ao build; sem persistência ou layout | ID estável global; nome como identidade |
+| D2-309 | metatype | sem `Type<T>`/`T.type`; generic, factory ou enum | metatype universal; dynamic construction |
+| D2-310 | reflection trigger | conformance explícita a `reflect.Reflectable`; sem annotation | inferir por uso; decorator; registro manual |
+| D2-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
+| D2-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
+| D2-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
+| D2-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object | qualquer protocol; Display/codec automáticos |
+| D2-315 | synthesis witness | all-or-none por protocol; constraints explícitas | completar witness parcial; inferir constraints |
+| D2-316 | rest syntax | último `T...`; zero ou mais; um label inicial | `params`; `*args`; overloads por aridade |
+| D2-317 | rest shape | conjunto infinito deve ser disjunto de todo overload | fixed vence rest; ranking por tipos |
+| D2-318 | rest binding | `Arguments<T>` não escapante; mode por elemento | Array alocado obrigatório; tuple runtime |
+| D2-319 | rest expansion | `each collection` somente no argumento final | `values...`; spread universal; expansão implícita |
+| D2-320 | rest ownership | value/ref/take; sem `inout`; cleanup por elemento | ownership apagado; inout dinâmico |
+| D2-321 | C varargs | adapter unsafe tipado ou `c.vaList`; rest W não cruza ABI | mapear rest diretamente; promotions implícitas |
+| D2-322 | formas type-level adiadas | property path, GAT e heterogeneous packs continuam Pesquisa | incluir no W0; reflection por string |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

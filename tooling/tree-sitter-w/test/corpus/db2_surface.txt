@@ -61,7 +61,7 @@ fn inspectStaticPayloads() {
       (type_arguments
         (type_argument
           (contract_expression_argument
-            (binary_expression
+            (bounded_range_expression
               (number_literal)
               (number_literal)))))))
   (type_declaration
