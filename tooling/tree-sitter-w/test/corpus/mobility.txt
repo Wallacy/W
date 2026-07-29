@@ -1,0 +1,97 @@
+==================
+Inferred and explicit mobility
+==================
+
+async fn inspectElsewhere<T: Inspectable>(
+  value: ref T<(.shareable)>,
+): u64 {
+  spawn<.compute> let code = value.inspectionCode()
+  return await code
+}
+
+async fn consumeElsewhere<T: Consumable>(
+  value: take T<(.transferable)>,
+): u64 {
+  spawn<.compute> let code = (take value).finish()
+  return await code
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (contract_expression_argument
+                (contextual_member_expression
+                  (identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (task_contract
+          (contextual_member_expression
+            (identifier)))
+        (pattern
+          (identifier))
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list)))
+      (return_statement
+        (unary_expression
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (contract_expression_argument
+                (contextual_member_expression
+                  (identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (task_contract
+          (contextual_member_expression
+            (identifier)))
+        (pattern
+          (identifier))
+        (call_expression
+          (member_expression
+            (parenthesized_expression
+              (unary_expression
+                (identifier)))
+            (identifier))
+          (argument_list)))
+      (return_statement
+        (unary_expression
+          (identifier))))))

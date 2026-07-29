@@ -5955,44 +5955,130 @@ W prova duas propriedades em uma fronteira concorrente:
 | `transferable` | o owner ou acesso exclusivo pode mudar de domínio? |
 | `shareable` | referências ao mesmo valor podem ser usadas por domínios paralelos? |
 
-As propriedades são independentes. Um buffer mutável com owner único pode ser
-`transferable` sem ser `shareable`. Um recurso com cleanup preso ao domínio de
-origem pode expor uma view `shareable` sem transferir o owner. Um tipo comum pode
-provar ambas.
+Esses fatos valem para domains de execução no mesmo address space. Eles não
+prometem serialization, processo remoto, device transfer, stable address ou
+real-time behavior. Cada contrato adicional permanece separado.
+
+As propriedades são independentes. `transferable` exige:
+
+1. um owner ou acesso exclusivo;
+2. ausência de alias utilizável no domain de origem;
+3. fields owned também transferíveis;
+4. allocator, deallocator e `deinit` válidos no destino;
+5. ausência de thread-local storage ou affinity incompatível.
+
+O destino pode mutar um owner transferido. Isso não exige synchronization,
+porque o domain de origem perdeu acesso. O parent recupera o valor somente por
+join ou return.
+
+`shareable` exige:
+
+1. storage vivo e estável até o fim de todos os uses;
+2. reads concorrentes sem data race;
+3. interior mutation protegida por atomicidade, serialization ou outro
+   mecanismo verificado;
+4. cleanup posterior ao último use concorrente.
+
+Imutabilidade profunda é suficiente para `shareable`, mas não é necessária.
+`Atomic<T>` e `ServiceRef<P>` podem ser `shareable` mesmo quando state muda.
+Um buffer owned mutável pode ser `transferable` e não `shareable`.
 
 | Capture | Prova mínima |
 |---|---|
 | `take value` | `transferable(value)` |
-| value copiado | cópia independente e `transferable` |
+| `copy value` independente | resultado owned `transferable` |
+| `copy value` que mantém alias | storage `shareable` |
 | `ref value` | `shareable(value)` e lifetime dentro do scope |
-| `inout value` | acesso exclusivo transferido; parent fica bloqueado |
+| `inout value` | `transferable(value)`; parent fica bloqueado até o join |
+| `view value` | owner `shareable`, descriptor válido e lifetime dentro do scope |
+| `inout view value` | owner e acesso exclusivo transferíveis; parent bloqueado |
 | `ServiceRef<P>` | handle `shareable`; state não cruza |
 
 Um child que continua na mesma isolation boundary pode acessar state isolado. Um
 child que sai da boundary precisa de snapshot, copy ou move. `spawn` nunca
 captura state mutável de uma service instance.
 
-Structs, enums, tuples e closures derivam mobilidade de fields ou captures. Raw
-pointers, thread-local state e destructors affine são locais por default.
-`Pinned<T>`, `shared T` e pointer C não ganham mobilidade pelo nome.
+Uma view não possui mobilidade independente. O descriptor é `Copy`, mas copiar
+pointer e count não torna o storage seguro. Um child estruturado pode receber
+`view T` quando o owner é `shareable` e permanece vivo. Uma task detached não
+recebe borrow.
+
+O compiler deriva os fatos:
+
+| Forma | Regra |
+|---|---|
+| scalar, enum, tuple e struct | composição dos fields e do `deinit` |
+| String, Bytes e Array<T> owned | transferíveis quando element, allocator e cleanup são |
+| `ref T` | cruza a boundary somente quando `T` é shareable |
+| `inout T` | pode transferir exclusividade; nunca é shareable |
+| `shared T` e `weak T` | cruzam somente quando `T` é shareable e a contagem é thread-safe |
+| `Atomic<T>` | shareable somente para operações atômicas suportadas |
+| `ServiceRef<P>` | transferable e shareable; state permanece na instance |
+| function pointer | transferable e shareable |
+| closure | deriva mode e fatos de cada capture |
+| `Pinned<T>` e Arena | dependem de storage, allocator, cleanup e affinity |
+| raw pointer, thread-local e foreign handle | locais por default |
+
+Um `object` não ganha `shareable` somente por ter identity. O compiler analisa
+seus fields e a interface que pode executar concorrentemente. Um wrapper de
+synchronization reconhecido pode publicar o fato em sua interface compilada.
+Imports sem esse fato continuam locais.
 
 O [Rust Reference](https://doc.rust-lang.org/reference/special-types-and-traits.html)
-separa `Send` de `Sync`. A
-[SE-0302](https://www.swift.org/swift-evolution/#SE-0302) usa `Sendable` para
-transfer e referências sincronizadas. W mantém duas provas, mas não usa os nomes
-de Rust como API.
+separa `Send` de `Sync` e deriva ambos estruturalmente. O
+[guia de concorrência de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/#Sendable-Types)
+combina value transfer, immutable state e state serializado sob `Sendable`. W
+mantém duas provas para não confundir move exclusivo com aliases concorrentes.
 
 **Líder DB2:** `transferable` e `shareable` são predicates intrínsecos. Código
-comum não declara annotations. Uma prova manual sempre é `unsafe`.
+comum não declara annotations e tipos não conformam a marker protocols
+`Send`/`Sync`.
 
 O compiler infere o predicate exigido pelo body generic e o grava na interface
 do módulo. Documentation gerada mostra o contrato. Adicionar um predicate
-inferido a uma API publicada é uma mudança de compatibilidade. O author pode
-fixar o contrato no source com um predicate de tipo explícito. A forma dessa
-constraint continua em **Pesquisa**. Ela não cria traits para conformar.
+inferido a uma API publicada é uma mudança de compatibilidade.
 
-**Alternativa:** `<mobility: .transferable>` mantém o contrato explícito, mas cria
-outro uso de `<>`. Marker protocols públicos ficam rejeitados por enquanto.
+Uma API genérica pode fixar o requisito com o refinement do parâmetro:
+
+```w
+protocol Inspectable {
+  fn inspectionCode(): u64
+}
+
+protocol Consumable {
+  take fn finish(): u64
+}
+
+async fn inspectElsewhere<T: Inspectable>(
+  value: ref T<(.shareable)>,
+): u64 {
+  spawn<.compute> let code = value.inspectionCode()
+  return await code
+}
+
+async fn consumeElsewhere<T: Consumable>(
+  value: take T<(.transferable)>,
+): u64 {
+  spawn<.compute> let code = (take value).finish()
+  return await code
+}
+```
+
+`.shareable` e `.transferable` são Boolean facts do subject do contrato. Eles
+são avaliados no compile time, não mudam layout e não executam um check runtime.
+`T<(.transferable && .shareable)>` exige os dois. A forma explícita congela a
+interface; a forma omitida continua inferida.
+
+Uma prova manual não pertence a safe W. Um binding foreign ou primitive de
+synchronization pode publicar um fato de mobilidade somente por uma interface
+trusted que registra target, adapter e digest. Uma assertion escrita pelo
+usuário precisa de uma boundary `unsafe`; sua forma source permanece
+**Pesquisa** até o corpus de FFI provar diagnostics e negative facts.
+
+**Alternativas:** `T<mobility: .transferable>` usa um static slot nomeado.
+`T: Send`, `T: Sync` e `T: Sendable` usam marker protocols públicos. As formas
+ficam rejeitadas na DB2 porque permitem conformance nominal para uma propriedade
+que safe W deve derivar.
 
 ### 12.8 Task groups e backpressure
 
@@ -9915,6 +10001,8 @@ Uma pesquisa só avança quando possui:
 | universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
 | schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
 | capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
+| `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
+| facts trusted para FFI e synchronization customizada | **Pesquisa** | segurança exige negative facts, target/digest e uma boundary `unsafe` auditável |
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
 | QoS na syntax de `spawn` | **Pesquisa** | policy não pode parecer garantia de ordering ou deadline |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
@@ -10325,7 +10413,7 @@ experimentar”, não “decisão irreversível”.
 | D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | D2-044 | atomics | seq-cst default, orders explícitas | C-like default; lock implicit |
-| D2-045 | mobilidade | `transferable`/`shareable` derivados | `Send`/`Sync` públicos; runtime checks |
+| D2-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em D2-424–429 | `Send`/`Sync` públicos; runtime checks |
 | D2-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
 | D2-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
 | D2-048 | mailbox | bounded com backpressure | drop; unbounded |
@@ -10704,6 +10792,12 @@ experimentar”, não “decisão irreversível”.
 | D2-421 | ABI de view | descriptor W por família; C usa pointer + count somente quando contígua | descriptor universal; layout W cruza FFI |
 | D2-422 | lifetime de view | provenance inferida; `await` exige owner estável; child estruturado termina antes do owner | lifetime annotation; view mantém owner vivo; escape detached |
 | D2-423 | read-only e imutabilidade | `ref` é acesso read-only; `view` é projeção; imutabilidade profunda é fato inferido sem syntax | `Readonly<T>` universal; modifier `immutable`; `let` promete grafo congelado |
+| D2-424 | mobilidade pública | facts intrínsecos `transferable`/`shareable`; sem marker protocols | `Send`/`Sync`; `Sendable`; check runtime |
+| D2-425 | transferência | owner/acesso exclusivo, fields, allocator, cleanup e affinity; origem perde acesso | exigir synchronization para move único; copiar sempre |
+| D2-426 | sharing | storage vivo e reads sem race; interior mutation precisa de mecanismo verificado | exigir imutabilidade profunda; aceitar todo `ref` |
+| D2-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
+| D2-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
+| D2-429 | FFI mobility | local por default; fato trusted exige adapter/digest e boundary unsafe ainda em Pesquisa | raw pointer deriva facts; assertion segura do usuário |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
