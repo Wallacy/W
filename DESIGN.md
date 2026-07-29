@@ -53,6 +53,9 @@ fonte de verdade para o estado atual.
 
 ### 0.1 Promessa
 
+**Exemplo:** `spawn<.compute>` mostra paralelismo no source e continua legível
+sem conhecer o executor.
+
 > **Prazer para humanos. Clareza para máquinas.**
 
 W é uma linguagem nativa, segura e previsível. Ela oferece um caminho contínuo
@@ -73,6 +76,9 @@ O público inicial inclui pessoas que escrevem:
 
 ### 0.2 Princípios de produto
 
+**Exemplo:** `task.cancel(reason: .shutdown)` nomeia target, ação e motivo sem
+criar um statement especial.
+
 1. O source deve permitir prever a execução.
 2. O caminho comum deve ser leve.
 3. Segurança e baixo nível são camadas compatíveis.
@@ -88,6 +94,9 @@ O público inicial inclui pessoas que escrevem:
 
 ### 0.3 Não objetivos
 
+**Exemplo:** o target Wasm não concede DOM nem transforma W em substituto de
+JavaScript.
+
 A DB2 não tenta:
 
 - substituir JavaScript no navegador;
@@ -102,6 +111,9 @@ A DB2 não tenta:
 - esconder device transfer, blocking ou rede atrás de um field access.
 
 ### 0.4 Critérios de sucesso
+
+**Exemplo:** uma pessoa identifica por que `async let` sobrepõe espera e
+`spawn let` permite paralelismo após ler um único exemplo.
 
 - Pessoas que conhecem C, Swift ou TypeScript entendem o Tour sem treinamento
   longo.
@@ -125,7 +137,17 @@ Toda proposta deve informar:
 6. alternativa mais simples;
 7. teste, oracle e critério de remoção.
 
+Cada contrato normativo deve incluir ou apontar para um exemplo verificável. O
+exemplo pode ser source válido, diagnostic esperado ou cenário canônico. Uma
+afirmação sobre runtime deve mostrar também o estado após erro ou cancelamento.
+
+**Exemplo:** a decisão de callable mostra `fn`, `some fn` e `any fn` na seção
+7.5. O ensaio correspondente fica em `examples/restaurant`.
+
 ## 1. Limite da alegação
+
+**Exemplo:** a comparação entre `<unit>` e `[unit]` precisa medir correção antes
+de medir preferência.
 
 Não existe um estudo que prove a melhor sintaxe para W. Familiaridade também não
 prova facilidade de uso. A DB2 usa três classes de evidência:
@@ -147,6 +169,9 @@ uma escolha comum para especialistas pode continuar difícil para iniciantes.
 Por isso, a DB2 mede acerto antes de medir preferência.
 
 ## 2. Invariantes
+
+**Exemplo:** um build release não pode aceitar overflow que o mesmo programa
+rejeita em debug.
 
 Estas regras limitam todas as escolhas da DB2:
 
@@ -183,7 +208,7 @@ Cada delimitador mantém uma função mental principal:
 | `.` | qualificação, member ou case abreviado | `std.http`, `value.count`, `.none` |
 | `=>` | introduz um corpo de expressão | closure ou accessor curto |
 | `if` | introduz condição ou guard runtime | `case ..<0 if error > 0` |
-| `@` | faz contração matricial | `features @ weights` |
+| `@` | faz produto linear de rank 1 ou 2 | `features @ weights` |
 
 `<...>` é o envelope único para informação estática local. O elemento à
 esquerda é o head. O head publica um schema fechado com slots, tipos, defaults e
@@ -230,6 +255,33 @@ spawn<.compute> let plan = optimize(take snapshot)
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
 ```
 
+`StaticList<T>` é um tipo compile-time de T0. Ele é ordenado, imutável e
+apagado depois da especialização. Um head pode publicar esse tipo como slot
+primário:
+
+```w
+enum KitchenStage {
+  reserve
+  prepare
+  bake
+  plate
+}
+
+struct StagePlan<const stages: StaticList<KitchenStage>> {
+  orderId: OrderId
+}
+
+fn standardPlan(
+  orderId: OrderId,
+): StagePlan<[.reserve, .prepare, .bake, .plate]> {
+  return StagePlan(orderId: orderId)
+}
+```
+
+Nesse exemplo, `<[...]>` fornece um único argumento `StaticList<KitchenStage>`.
+A ordem faz parte da especialização. Duplicação e quantidade só mudam quando o
+schema do head declara outra regra. A forma não cria índices nomeados runtime.
+
 Em um tipo, um payload Boolean é um refinement predicate. Um member iniciado
 por `.` usa o valor refinado como subject implícito. Um range no slot primário
 inclui esse subject e o operador `in`. Portanto, estas formas possuem a mesma
@@ -252,8 +304,7 @@ Um tipo generic já aplicado recebe o refinement em outro envelope.
 `Array<[u8, (.count <= 64)]>` não é uma grafia equivalente. A forma passa uma
 única static list ao slot primário de `Array`. Esse slot exige um tipo de
 elemento. A lista também não identifica se o predicate restringe o elemento ou
-o `Array` resultante. Outro head pode publicar um slot que aceite uma static
-list.
+o `Array` resultante. `StagePlan` mostra um head cujo slot aceita a lista.
 
 O parser chama toda forma `.name` de referência contextual. O type checker
 resolve a referência com estas regras:
@@ -400,6 +451,9 @@ protocol nomeado continua a baseline.
 
 ### 3.5 Parsing, formatter e gate
 
+**Exemplo:** `Array<u8><(.count <= 64)>` deve manter a mesma CST após dois ciclos
+de formatação.
+
 Parênteses fecham a expressão antes do `>` externo. Essa regra reduz conflitos
 com `<`, `>`, `<=`, `>=` e generic nesting.
 
@@ -483,6 +537,9 @@ O exemplo `score` quebra porque a forma completa ultrapassa esse limite.
 
 ### 5.1 Source
 
+**Exemplo:** dois identificadores Unicode que normalizam para o mesmo nome
+produzem diagnostic antes do name lookup.
+
 - A forma canônica usa UTF-8 sem BOM e LF.
 - Keywords são ASCII, lowercase e case-sensitive.
 - Identificadores usam Unicode conforme UAX #31 e são normalizados para NFC.
@@ -514,8 +571,65 @@ Debug symbols e documentação compilada são artefatos separados e removíveis.
 
 ### 5.3 Statements
 
+**Exemplo:** `let answer = 42;` é aceito na migração, mas `w fmt` remove o
+semicolon.
+
 O formatter não emite `;`. O parser aceita `;` como separador de migração.
 Semicolon não separa linhas de matriz na DB2.
+
+### 5.4 Controle e patterns
+
+`if`, `guard`, `while` e `for` controlam statements. `switch` é uma expressão
+exaustiva. Ele não possui fallthrough:
+
+```w
+enum PartySize {
+  intimate
+  regular
+  cosmic
+}
+
+fn classify(
+  stage: ServiceStage,
+  guests: GuestCount,
+): PartySize {
+  return switch (stage, guests) {
+    case (.accepted, 1...4): .intimate
+    case (.accepted, 5...20): .regular
+    case (.accepted, _): .cosmic
+    case (_, _) if guests > 1_000: .cosmic
+    case (_, _): .regular
+  }
+}
+```
+
+Uma tuple representa múltiplos scrutinees. W não adiciona uma forma especial
+`switch a, b`. Tuple, enum, literal, range, struct e `_` são patterns fechados.
+Bindings usam `let` dentro do pattern.
+
+O compiler testa cases em ordem lexical. Um guard `if` executa depois que o
+pattern combina. Um case sem guard que cobre um anterior gera diagnostic de case
+inalcançável. Overlap restante mantém a regra first-match e aparece em
+`w explain switch`.
+
+Um enum fechado exige todos os cases ou `_`. Inteiros, strings e ranges exigem
+`_` quando o compiler não prova cobertura. Todos os braços de um switch
+expression produzem o mesmo tipo após conversões seguras.
+
+`break` e `continue` pertencem a loops. Um switch não usa `break`. Um braço com
+vários statements termina em expressão, `return`, `throw` ou `panic`.
+
+**Pesquisa:** um protocol pode definir custom pattern matching. A proposta
+precisa fechar pureza, custo, exhaustividade, captures e diagnostics. A DB2 usa
+uma conversão nomeada ou um guard até esse contrato existir:
+
+```w
+switch request.routeKind() {
+  case .menu: ...
+  case .status: ...
+  case .unknown: ...
+}
+```
 
 ## 6. Módulos, imports e visibilidade
 
@@ -980,8 +1094,8 @@ forma permanece **Alternativa**. A forma pode ser parecida com
 `fn expectedEnergy(_:, duty:, during:)`.
 
 A HIR registra o function type de todo callable. A DB2 infere o tipo de closures
-e referências singulares. A sintaxe de annotation para function types permanece
-**Pesquisa**.
+e referências singulares. A seção 7.5 define a annotation e a representação
+observável desses valores.
 
 Somente uma extension no package do tipo pode ampliar um overload set existente.
 A forma nova deve ser disjunta da interface completa do owner. Uma extension
@@ -1088,26 +1202,228 @@ ignore ou execute duas vezes o cleanup customizado.
 posições sem nomes. A forma líder reutiliza `Type(...)`, mantém labels nominais
 e evita reservar `{}` para um segundo modelo de record.
 
-### 7.5 Closures
+### 7.5 Valores callable e closures
+
+A DB2 separa três formas. A separação torna capture, erasure e ABI observáveis:
+
+| Tipo | Conteúdo | Uso |
+|---|---|---|
+| `fn(A): B` | ponteiro fino para função W sem capture | callback estático e call indireta |
+| `some fn(A): B` | tipo concreto oculto, com ambiente conhecido pelo compiler | parâmetro ou retorno especializado |
+| `any fn(A): B` | callable apagado, com owner, invoke e drop | storage ou seleção runtime |
+
+Uma função singular e uma closure sem capture podem formar `fn(A): B`:
 
 ```w
-let double = (value: Int) => value * 2
+fn double(value: Int): Int {
+  return value * 2
+}
 
+let operation: fn(Int): Int = double
+let result = operation(21)
+```
+
+Um parâmetro `some fn` é generic shorthand. Cada call preserva o tipo concreto e
+permite specialization. Um retorno `some fn` precisa usar o mesmo tipo concreto
+em todos os caminhos. Numa annotation local, o initializer fixa o tipo concreto:
+
+```w
+fn map<T, U>(
+  values: ref Array<T>,
+  using transform: some fn(ref T): U,
+): Array<U> {
+  // ...
+}
+
+fn makeEstimator(
+  model: take Model,
+): some fn(ref Observation): Score {
+  return capture(take model) (observation) => model.score(observation)
+}
+
+let estimate: some fn(Int): Int = (value) => value * 2
+```
+
+`any fn` apaga a identidade do ambiente. O valor continua owned e move-first.
+A representação contém uma operação de invoke e uma operação de drop. Ela pode
+usar storage inline ou indireto sem mudar a semântica:
+
+```w
+struct Route {
+  handler: any fn(Request): Response
+}
+
+fn chooseRoute(
+  usePreview: Bool,
+  stable: take any fn(Request): Response,
+  preview: take any fn(Request): Response,
+): Route {
+  if usePreview {
+    return Route(handler: take preview)
+  }
+
+  return Route(handler: take stable)
+}
+```
+
+Erasure, escape ou capture pode exigir allocation. `w explain cost` mostra essa
+decisão e o owner. O profile mantém a policy normal de allocation failure. A
+otimização não pode mudar o momento observável do drop.
+
+Function types não possuem labels, defaults ou nomes de parâmetros. Esses itens
+pertencem à declaração. Uma call direta usa a forma declarada. Uma call por valor
+usa todos os argumentos em ordem:
+
+```w
+fn energy(power: Power, during duration: Duration): Energy { ... }
+
+let estimate: fn(Power, Duration): Energy =
+  (power, duration) => energy(power, during: duration)
+
+let result = estimate(2<si.W>, 3<si.s>)
+```
+
+Um overload set não converte para callable por expected type. O programa usa uma
+closure explícita, como mostra a seção 7.2.1. Defaults também não acompanham o
+valor callable.
+
+O callable mode descreve como o corpo usa o ambiente capturado:
+
+| Forma | Ambiente | Calls permitidas |
+|---|---|---|
+| `fn` | não sofre mutation nem move | repetidas por borrow compartilhado |
+| `mut fn` | pode sofrer mutation | repetidas por acesso exclusivo |
+| `take fn` | pode mover valores capturados | uma call que consome o callable |
+
+`mut fn` e `take fn` exigem `some` ou `any`, pois um ponteiro fino não possui
+ambiente. Um callable `fn` satisfaz um parâmetro `mut fn` ou `take fn`. Um
+callable `mut fn` satisfaz um parâmetro `take fn`. A ordem inversa é inválida.
+
+Um ponteiro fino `fn(...)` atende a `Copy`. Portanto, `take fn(...)` sempre
+identifica callable mode. A transferência de um callable apagado usa
+`take any fn(...)`.
+
+```w
+fn counter(
+  initial: usize,
+): some mut fn(): usize {
+  var next = initial
+
+  return capture(take next) () => {
+    next += 1
+    return next
+  }
+}
+
+fn closingNotice(
+  log: take ShiftLog,
+): some take fn(): AuditRecord {
+  return capture(take log) () => (take log).seal()
+}
+
+var nextTicket = counter(initial: 40)
+let ticket = nextTicket()
+
+let close = closingNotice(take shiftLog)
+let audit = (take close)()
+```
+
+O compiler infere o mode menos restritivo. Uma annotation pode exigir um mode
+mais restritivo. A call de `mut fn` exige um callable mutável e acesso exclusivo.
+A call de `take fn` usa a mesma forma explícita dos receivers consuming.
+
+Ownership dos parâmetros e effects fazem parte do function type:
+
+```w
+fn load(
+  path: ref Path,
+  using loader: some async fn(ref Path): Bytes throws IoError,
+): Bytes throws IoError
+
+struct Pipeline {
+  transform: any mut fn(inout Buffer, take Command): Result
+  finalize: any take fn(take Session): Receipt
+}
+```
+
+A ordem canônica é qualifier, `unsafe`, callable mode, `async`, `fn`, parâmetros,
+return e `throws`. A omissão do return type significa `()`.
+
+Uma call preserva os markers da assinatura. `unsafe` exige bloco `unsafe`.
+`async` exige `await`. `throws E` exige `try` ou propagação de `E`.
+
+Function types são invariantes na DB2. Parameter types, ownership, return,
+error, `async`, `unsafe` e ABI precisam coincidir. Somente a relação entre
+callable modes definida acima permite adaptação automática. Outra mudança usa
+uma closure explícita:
+
+```w
+fn readByte(index: usize): u8 { ... }
+
+let readWord: fn(usize): u16 =
+  (index) => u16(readByte(index))
+```
+
+Captures são inferidos. `capture(...)` substitui a inferência nos casos
+importantes. Os modos são `copy`, `ref`, `take` e `weak`:
+
+```w
 let task = capture(take model, ref cache) (input) => {
   return model.run(input, cache: cache)
 }
 ```
 
-Captures são inferidos. `capture(...)` substitui a inferência nos casos
-importantes. Os modos são `copy`, `ref`, `take` e `weak`. Uma closure armazenada
-não captura `inout`.
+Uma closure possui um tipo anônimo semelhante a uma struct de captures. A HIR
+registra cada place capturado, seu modo, lifetime, owner e drop path. Uma closure
+armazenada não captura `inout`. Um borrow `ref` só escapa quando o lifetime do
+owner cobre todo o destino.
 
 Um child estruturado pode manter um borrow exclusivo passado como `inout`. O
 owner e o task frame precisam ficar estáveis. O parent não acessa o valor antes
 do join. Um runtime owner ou `SharedTask` não recebe esse borrow.
 
+Um ponteiro fino atende a `transferable` e `shareable`. Um callable concreto ou
+apagado atende a esses predicates somente quando seu ambiente atende. `mut fn`
+não atende a `shareable`, pois a call exige exclusividade. Ele pode atender a
+`transferable`. `spawn` aplica essas regras ao callable e a cada capture.
+
+Uma referência a instance method não captura `self` implicitamente. O programa
+mostra o mode com uma closure:
+
+```w
+let bake = capture(ref oven) (order) => oven.bake(order)
+```
+
+Uma função generic precisa ter todos os argumentos de tipo resolvidos antes da
+conversão. Igualdade, ordering e hash de callables não existem.
+
+Uma fronteira C usa um ponteiro fino com ABI explícita:
+
+```w
+type SensorCallback =
+  unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
+```
+
+Esse tipo aceita somente carriers C. Ele não aceita capture, `async` ou
+`throws`. Um callback C stateful usa um context pointer e um owner/deallocator
+explícitos. O ABI de `fn(A): B` normal é interno ao build e não é uma promessa de
+package ABI.
+
 `(args) => body` é a única forma de closure da DB2. `{ args in body }` e
 `fn(args) { body }` ficam como alternativas de corpus.
+
+A separação segue três precedentes. Swift removeu labels dos function types.
+Rust separa function pointers e tipos anônimos de closure. Clang Blocks torna
+invoke, ambiente, copy e dispose explícitos no ABI:
+
+- [Swift SE-0111](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0111-remove-arg-label-type-significance.md)
+- [Rust function pointer types](https://doc.rust-lang.org/reference/types/function-pointer.html)
+- [Rust closure types](https://doc.rust-lang.org/reference/types/closure.html)
+- [Clang Blocks ABI](https://clang.llvm.org/docs/Block-ABI-Apple.html)
+
+**Alternativa:** um único `fn` apagado simplifica annotations, mas oculta capture,
+dispatch e possível allocation. Outra alternativa usa protocols `Fn`, `FnMut` e
+`FnOnce`. A forma líder reutiliza `some`, `any`, `mut` e `take`.
 
 ## 8. Tipos e conversões
 
@@ -1122,10 +1438,26 @@ do join. Um runtime owner ou `SharedTask` não recebe esse borrow.
 | `type` | nova identidade nominal |
 | `alias` | outro nome para a mesma identidade |
 | `any P` | existential com identidade concreta apagada |
-| `some P` | tipo concreto preservado e oculto do caller |
+| `some P` | tipo concreto preservado; a interface expõe somente `P` |
 
 Herança de implementação não entra na DB2. Composição, protocols e funções
 livres são a baseline.
+
+`some P` em um parâmetro é shorthand para um generic anônimo. `some P` em um
+return type oculta um tipo concreto único:
+
+```w
+fn render(value: some Displayable): String
+// Equivale a: fn render<T: Displayable>(value: T): String
+
+fn activePolicy(): some PricingPolicy {
+  return StandardPricing()
+}
+```
+
+Essa regra também atende `some fn(...)`. Ela preserva specialization sem exigir
+um nome generic usado uma única vez. A forma possui precedente nos
+[opaque parameter declarations de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0341-opaque-parameters.md).
 
 Extensions não adicionam storage:
 
@@ -1552,6 +1884,9 @@ podem usar witnesses para reduzir code size e preservar separate compilation.
 
 ### 8.8 Conversões
 
+**Exemplo:** `u8` pode converter para `u16`. A conversão de `u16` para `u8`
+exige uma operação checked explícita.
+
 Uma conversão implícita é permitida somente se:
 
 1. é total para todos os valores do tipo de origem;
@@ -1572,15 +1907,18 @@ Estas lacunas possuem maior impacto no type checker e na ergonomia:
 | associated type avançado | **Pesquisa** | constraints, defaults, existential e inference |
 | metatype runtime | **Pesquisa** | reflection, dynamic construction, metadata e stripping |
 | síntese de conformances | **Pesquisa** | opt-in sem annotations, estabilidade e diagnostics |
-| function type em source | **Pesquisa** | labels, ownership, efeitos, captures e ABI |
 | parâmetros variadic | **Pesquisa** | packs, forma de call, formatting, generics e FFI |
 
 A DB2 resolve overloads por forma de call. Initializers usam a mesma regra.
-Computed properties obedecem ao teto property-safe.
+Computed properties obedecem ao teto property-safe. A seção 7.5 fecha function
+types, callables e captures.
 
 ## 9. Memória, layout e alocação
 
 ### 9.1 Quatro contratos separados
+
+**Exemplo:** mover um `Buffer` encerra o binding antigo. Stack, arena ou heap não
+mudam esse resultado.
 
 W separa quatro contratos:
 
@@ -1767,6 +2105,9 @@ OOM geral encerra a isolation boundary conforme a seção de panic.
 
 ### 9.7 Provenance, pointer e address
 
+**Exemplo:** converter um pointer para um endereço inteiro e voltar não restaura
+authority sem uma API `unsafe` específica.
+
 Um pointer não é somente um número. Ele carrega um endereço e a autorização para
 acessar uma allocation durante um intervalo. Essa autorização inclui alcance,
 lifetime e mutabilidade.
@@ -1793,6 +2134,9 @@ O lowering usa operações que preservam a distinção. Ele não faz round-trip
 pointer-integer por conveniência.
 
 ### 9.8 Layout, addressability e ABI
+
+**Exemplo:** um wrapper `foreign c struct` fixa offsets. Um struct W comum pode
+trocar packing entre builds.
 
 Layout W comum é opaco entre builds. O compiler pode reorder fields não
 exportados, usar niches, eliminar aggregates ou especializar storage interno.
@@ -1853,6 +2197,9 @@ As seguintes garantias não dependem do profile:
 
 ### 9.10 Negociação, hardening e instrumentação
 
+**Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar low-bit
+tagging sem mudar a semântica do valor.
+
 Cada object W registra o profile de representação usado nas interfaces
 compiladas. O linker só compartilha ABI W quando fingerprints compatíveis
 conferem. Caso contrário, recompila do source, usa adapter canônico ou rejeita o
@@ -1880,6 +2227,9 @@ Testes diferenciais executam o mesmo corpus em profile portátil e compacto.
 Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
 
 ### 9.11 Destruição e recuperação de storage
+
+**Exemplo:** se o terceiro field falhar durante `init`, o runtime destrói o
+segundo e o primeiro. Ele não chama `deinit` do aggregate incompleto.
 
 - `deinit` recebe acesso exclusivo e não consuming ao valor completo;
 - `deinit` pode mutar fields, mas não pode mover fields ou `self`;
@@ -1929,6 +2279,9 @@ também mantém o destructor separado do consumo explícito. W usa um estado
 válido e drop automático como baseline.
 
 ### 9.12 Explicação e medição
+
+**Exemplo:** `w explain memory value` mostra owner, escape, allocation e drop
+path para `value`.
 
 `w explain memory` separa fatos, estimates e medições:
 
@@ -2015,6 +2368,9 @@ acrescenta `ServiceFailure`, por exemplo. `try` converte cada effect por uma rot
 única. A função caller continua declarando um único error set nominal.
 
 ### 11.2 Panic e OOM
+
+**Exemplo:** `try buffer.reserve(additional: 4096)` devolve `AllocationError`.
+Indexação fora do limite causa panic.
 
 `panic` informa uma invariante quebrada. O profile encerra a isolation boundary.
 A DB2 não faz unwind recuperável através de FFI.
@@ -2361,6 +2717,9 @@ policy de overload. O runtime nunca cria uma thread por item por default.
 
 ### 12.9 Streams e channels
 
+**Exemplo:** `Channel<Event>(capacity: 64)` aplica backpressure no item 65 até
+existir espaço ou cancelamento.
+
 **Direção:** `Stream<T, E>` usa pull. `next()` é async e move um elemento para o
 consumer. Cancelar ou destruir o consumer fecha o producer scope.
 
@@ -2373,6 +2732,9 @@ Capacity zero cria rendezvous. Capacity positiva é bounded. Ordering é FIFO po
 sender, salvo policy mais forte.
 
 ### 12.10 Memory model, atomics e locks
+
+**Exemplo:** `var atomic completed: u64` aceita incremento concorrente. Um `var`
+comum não pode participar de data race em safe W.
 
 Safe W não permite data races. Um programa sem data race observa uma ordem
 sequencialmente consistente, salvo atomics com order mais fraca. Race conditions
@@ -2395,6 +2757,9 @@ message passing e immutable snapshots continuam preferidos para state maior.
 
 ### 12.11 FFI, blocking calls e callbacks
 
+**Exemplo:** um importer marca `read()` como blocking e exige um blocking adapter
+quando a call ocorre em executor cooperativo.
+
 Uma foreign function possui metadata verificada:
 
 - thread-safe ou serializada;
@@ -2414,6 +2779,9 @@ task arbitrária em qualquer thread. Raw pointers capturados continuam locais at
 um wrapper `unsafe` provar mobilidade e lifetime.
 
 ### 12.12 HIR, lowering e runtime mínimo
+
+**Exemplo:** `async let stock = reserve()` vira um child com parent, cancel edge,
+join e drop registrados antes do lowering backend.
 
 A HIR preserva:
 
@@ -2533,6 +2901,9 @@ descriptor por product. Importar o módulo não registra nem executa o entry.
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
 
 ### 13.3 Unidade lógica e packing físico
+
+**Exemplo:** duas instances de `DiningRoom` podem compartilhar um processo ou
+usar processos distintos sem mudar `ServiceRef<DiningApi>`.
 
 Uma service instance é uma unidade lógica endereçável. Ela pode ter identity,
 lifecycle, state, mailbox, quotas, capabilities e trace próprios. Ela não exige
@@ -2684,6 +3055,9 @@ failure e `unknownOutcome`. Ele não muda `ServiceRef` para uma Promise lazy. O
 
 ### 13.7 Estado durável e gates
 
+**Exemplo:** o adapter SQLite confirma a transação antes de liberar a resposta.
+Uma falha descarta o output retido.
+
 Durability é um adapter explícito. Um handler declara transação, commit point e
 a relação entre state e outputs. A baseline não presume state durável.
 
@@ -2702,6 +3076,9 @@ são uma referência, não uma decisão automática.
 
 ### 13.8 Capabilities e sandbox
 
+**Exemplo:** um handler sem `FileSystem` não abre arquivos mesmo quando o processo
+host possui essa permissão.
+
 O contrato portátil usa capabilities tipadas para filesystem, network, clock,
 random, process, environment, storage e devices. A enforcement boundary depende
 do target:
@@ -2716,11 +3093,17 @@ física. Um filtro de syscall não controla memory safety dentro do processo.
 
 ### 13.9 Wasm e playground
 
+**Exemplo:** o playground executa `add(2, 3)` em Wasm. Network permanece ausente
+sem um import tipado do host.
+
 Wasm é um target e uma boundary possível. Ele não transforma W em substituto de
 JavaScript. O playground compila um subset para Wasm e usa imports/exports
 tipados do host. DOM, network e storage só existem quando o profile concede.
 
 ### 13.10 Observabilidade e teste
+
+**Exemplo:** uma call de service registra queue time, execution time, instance ID
+e causalidade no mesmo evento estruturado.
 
 Cada task, call e instance registra:
 
@@ -2744,6 +3127,9 @@ precisa passar o mesmo oracle observável.
 
 ### 14.1 T0 — core independente do ambiente
 
+**Exemplo:** `Array.map` e `String.scalars` funcionam em target freestanding sem
+console, clock ou filesystem.
+
 T0 contém:
 
 - tipos primitivos, Option, Result e Error;
@@ -2758,6 +3144,9 @@ T0 pode usar o runtime/allocator do target. Ele não depende de console,
 filesystem, rede, clock, locale ou OS API.
 
 ### 14.2 T1 — systems e adapters comuns
+
+**Exemplo:** `print("ready")` exige um host com `Console`. Uma library pura não
+recebe essa capability implicitamente.
 
 T1 contém:
 
@@ -2777,6 +3166,9 @@ como capability explícita.
 
 ### 14.3 T2 — domínios oficiais
 
+**Exemplo:** `std.http` e `std.si` são bundled, mas só entram no payload quando
+o programa os alcança.
+
 T2 contém módulos bundled e reachability-linked:
 
 - HTTP client/server, CLI/TUI e adapters de UI;
@@ -2792,6 +3184,9 @@ disponibilidade universal em todo target.
 ## 15. Números, ranges e unidades
 
 ### 15.1 Números
+
+**Exemplo:** `u8.max + 1` causa panic. `u8.max.wrappingAdd(1)` produz zero de
+forma explícita.
 
 - literal inteiro sem contexto usa `Int`;
 - literal decimal sem contexto usa `f64`;
@@ -2995,6 +3390,41 @@ fn classify<const batch: usize>(
 }
 ```
 
+`@` possui uma família fechada para ranks 1 e 2:
+
+| Operandos | Resultado | Operação |
+|---|---|---|
+| `[K] @ [K]` | scalar | produto interno |
+| `[M, K] @ [K]` | `[M]` | matrix-vector |
+| `[K] @ [K, N]` | `[N]` | vector-matrix |
+| `[M, K] @ [K, N]` | `[M, N]` | matrix-matrix |
+
+Um exemplo completo:
+
+```w
+let visits: Matrix<f32, rows: 2, columns: 3> = [
+  [1.0, 2.0, 3.0],
+  [4.0, 5.0, 6.0],
+]
+
+let weights: Matrix<f32, rows: 3, columns: 2> = [
+  [1.0, 0.0],
+  [0.0, 1.0],
+  [1.0, 1.0],
+]
+
+let scores = visits @ weights
+expect scores == [[4.0, 5.0], [10.0, 11.0]]
+```
+
+Uma `Matrix<f32, rows: 2, columns: 3>` não multiplica uma
+`Matrix<f32, rows: 4, columns: 2>`. O diagnostic mostra as dimensões internas
+`3` e `4`. Scalar expansion e broadcast não participam de `@`.
+
+Rank maior usa `tensor.batchMatmul` com batch shape explícito. Contração geral
+usa `tensor.contract` com eixos nomeados. Essa divisão evita inferir eixos,
+broadcast ou permutation pelo operador.
+
 Indexação multi-rank usa uma lista de índices:
 
 ```w
@@ -3010,7 +3440,7 @@ Regras:
 
 - `*`, `/`, `+`, `-` são elementwise para shape igual;
 - scalar expansion é total;
-- `@` é matrix/tensor contraction;
+- `@` usa somente a família rank-1/rank-2 definida acima;
 - broadcast entre shapes diferentes é explícito;
 - slicing retorna `TensorView`;
 - `copy()` materializa;
@@ -3240,6 +3670,9 @@ Um verifier rejeita HIR incompleta antes do lowering.
 
 ### 19.3 Dialeto W/MLIR
 
+**Exemplo:** um move validado vira uma operação W de ownership antes de qualquer
+bufferization ou lowering para LLVM.
+
 O dialeto W mantém as invariantes que LLVM e os dialetos genéricos não conhecem.
 Passes só apagam uma distinção depois de prová-la. O lowering pode usar:
 
@@ -3253,6 +3686,9 @@ Passes só apagam uma distinção depois de prová-la. O lowering pode usar:
 MLIR bytecode é cache do toolchain, não formato público eterno.
 
 ### 19.4 ABI e runtime
+
+**Exemplo:** `fn(Int): Int` pode mudar calling convention entre builds. Somente
+`unsafe fn<abi: .c>` promete a ABI C.
 
 Há quatro contratos:
 
@@ -3299,7 +3735,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | source | UTF-8, comentários, módulos, imports e visibility |
 | bindings | `const`, `let`, `var`, assignment e definite initialization |
 | controle | `if`, `guard`, `switch`, loops, break, continue e return |
-| funções | funções livres, methods, `static fn`, labels, overload por forma, recursion e calls indiretas inferidas |
+| funções | funções livres, methods, `static fn`, labels, overload por forma, recursion e calls indiretas por `fn(...)` |
 | tipos | scalars, tuples, structs, objects, enums, Option, typed Error e newtypes |
 | protocols | requisitos para dispatch estático; sem existential |
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
@@ -3317,8 +3753,10 @@ Cada tipo e função usados por `compiler/core-w0` precisam estar no profile ou 
 T0. Cada dependência de T0 usada pelo core também precisa ser expressável em W0.
 O teste de fechamento compila o core sem carregar `compiler/extended`.
 
-Closures com capture podem entrar quando reduzirem o compiler sem ampliar muito
-o seed. O primeiro source W0 pode usar loops e funções nomeadas.
+O ponteiro fino `fn(...)` pertence ao fechamento. `some fn`, `any fn` e closures
+com capture não pertencem ao primeiro seed. Elas podem entrar quando reduzirem o
+compiler sem ampliar muito o seed. O primeiro source W0 usa funções nomeadas e
+closures sem capture quando necessário.
 
 O profile impõe três regras de determinismo:
 
@@ -3396,6 +3834,9 @@ preserva o compiler Go 1.4 escrito em C como rota longa de bootstrap.
 
 #### 19.5.4 Evolução e recovery
 
+**Exemplo:** se stage C falhar, a recipe recompila `compiler/core-w0` com o seed
+C fixado e compara a HIR normalizada.
+
 Uma release W `N` compila o core de `N + 1` dentro de uma janela publicada. Uma
 mudança que quebra essa janela exige uma ponte source ou um novo seed versionado.
 O seed antigo não precisa aceitar toda edição futura.
@@ -3410,6 +3851,9 @@ recipe pode funcionar, mas não recebe o estado “bootstrap reproduzido”.
 
 ### 19.6 Incrementalidade
 
+**Exemplo:** alterar o corpo privado de `parseLine` não recompila importers
+quando a interface serializada permanece igual.
+
 Cache é content-addressed por source normalizado, interface das dependências,
 edition, target, profile, toolchain e flags semânticas. Type checking ocorre por
 módulo. Instâncias generics e outputs de passes possuem chaves próprias.
@@ -3418,6 +3862,9 @@ Um cache miss afeta performance, não resultado. A ferramenta registra o motivo
 do miss. Ela não usa timestamps como identidade.
 
 ### 19.7 Diagnostics e debug
+
+**Exemplo:** um use-after-move informa o move original, o uso inválido e um
+fix-it que propõe `copy` somente quando o tipo atende a `Copy`.
 
 Diagnostics possuem código estável, spans, related spans, fix-its e saída
 estruturada. O compilador preserva a regra violada até produzir o diagnóstico.
@@ -3509,6 +3956,9 @@ manual invalida o arquivo.
 
 ### 20.2 Build
 
+**Exemplo:** `w build --locked` recebe target, profile, flags, environment
+declarado e lockfile como inputs da recipe.
+
 - source é o fallback normativo;
 - binaries são otimização sob uma chave ABI completa;
 - static linkage é preferido quando compatível;
@@ -3530,6 +3980,9 @@ Data, commit, paths, locale, timezone, seeds e environment são inputs explícit
 ou são removidos.
 
 ### 20.3 Verificação
+
+**Exemplo:** dois builders reproduzem o mesmo payload e publicam recipes,
+toolchains e sidecars de provenance separados.
 
 O sistema separa:
 
@@ -3562,6 +4015,9 @@ keywords nem raízes universais.
 
 ### 20.4 Registry, mirrors e estado de segurança
 
+**Exemplo:** uma versão pode ser `reproduced` e ainda possuir um advisory de
+segurança aberto. Os estados não se substituem.
+
 Registry governa identity e metadata. Mirror hospeda bytes por digest. Trocar
 GitHub Releases, CDN, bucket ou cache corporativo não troca o package.
 
@@ -3580,6 +4036,9 @@ O portal mostra eixos separados:
 evidência técnica.
 
 ### 20.5 Scripts e supply chain
+
+**Exemplo:** um build script sem capability de rede não baixa um binary durante
+CI.
 
 Install scripts arbitrários são rejeitados. Tool targets de geração declaram
 inputs, outputs e capabilities. Network é denied por default. Outputs entram no
@@ -3608,6 +4067,9 @@ Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
 
 ### 20.7 Evolução e governança
+
+**Exemplo:** o registry pode marcar uma versão como yanked. Ele não troca os
+bytes associados ao mesmo digest.
 
 Cada package declara uma edition. Editions podem alterar grammar, prelude e
 lints com migração automatizada. Elas não mudam resultado ou effects
@@ -3650,6 +4112,9 @@ Formatter:
 
 #### Portal gerado
 
+**Exemplo:** a página de `spawn` inclui o snippet de `execution.w` e falha no
+build quando essa região deixa de parsear.
+
 O portal atual é um **protótipo congelado**. Ele demonstra direção visual, tema,
 navegação e playground lexical. Ele não é uma segunda documentação e não precisa
 acompanhar cada mudança durante o endurecimento da linguagem.
@@ -3690,6 +4155,9 @@ e revisáveis. IA pode propor testes em diff; ela não substitui o oracle aceito
 
 ### 21.3 Lens de recursos
 
+**Exemplo:** o editor mostra `+0 B static, <=4 KiB peak` ao lado de um import
+quando a análise possui bounds provados.
+
 Uma previsão por import separa:
 
 - delta do artefato e reachability;
@@ -3707,6 +4175,9 @@ Feedback medido pode melhorar estimates locais. Ele é opt-in, vinculado à reci
 e não envia source/dados sem consentimento.
 
 ### 21.4 Interface para modelos
+
+**Exemplo:** um modelo recebe diagnostic JSON com move original, uso inválido,
+tipo e fix-it. Ele não precisa inferir esses fatos de uma mensagem livre.
 
 W não possui uma sintaxe curta exclusiva para IA. Em vez disso, oferece:
 
@@ -3730,6 +4201,9 @@ e pode evoluir como package separado.
 
 ### 22.1 Contrato tipado e wRPC
 
+**Exemplo:** `ServiceRef<MenuApi>.lookup(id)` preserva request, response, error,
+deadline e cancellation no schema de transporte.
+
 Um protocol de service pode gerar um contrato independente de transporte. O
 contrato registra operações, inputs, outputs, error sets, idempotência, limits e
 schema dos tipos alcançáveis.
@@ -3743,6 +4217,9 @@ Falhas de aplicação, transporte, codec, protocol e autorização são distinta
 
 ### 22.2 JSON, WLO e wStruct
 
+**Exemplo:** um adapter JSON rejeita field desconhecido quando o schema usa modo
+strict. WLO não muda essa regra por syntax.
+
 - JSON é o primeiro codec de interoperabilidade e debug.
 - WLO/WLON é pesquisa de formato data-only canônico para valores W.
 - wStruct pesquisa IPC sob target, ABI e layout idênticos.
@@ -3751,6 +4228,9 @@ WLO precisa de grammar menor que W, canonical bytes, limits e fuzzing. wStruct
 não serializa pointers, padding ou handles crus. Ambos precisam de fallback.
 
 ### 22.3 wQL e RestPC
+
+**Exemplo:** uma query de pedidos precisa declarar paginação, limites, auth,
+cache e error mapping antes de virar API oficial.
 
 wQL começa como AST tipada com query, command e introspection. Uma DSL textual
 só entra depois. Parameters ficam separados do texto. Projection, pagination,
@@ -3769,17 +4249,26 @@ camadas distintas. GraphQL, SQL e OpenAPI não são compatibilidade automática.
 
 ### 22.4 V6 e Computer Units
 
+**Exemplo:** uma Computer Unit pode virar uma service instance. Ela não recebe
+wire format ou deployment implícitos.
+
 V6 continua pesquisa de runtime/host serverless. Computer Unit é uma instância
 com entrypoints, limits e capabilities. Esses conceitos podem hospedar services
 W, mas não definem a linguagem, wRPC ou o package manager.
 
 ### 22.5 Tree strings
 
+**Exemplo:** um protótipo compara árvore compacta com `String` + parser em tamanho,
+lookup, edição e interoperabilidade.
+
 Tree strings continuam uma estrutura especializada para interning, índices ou
 edição. `String` público permanece UTF-8 contíguo. Codec e ABI observam o valor
 lógico, não a representação experimental.
 
 ### 22.6 GPU, HDL, PGO e geração assistida
+
+**Exemplo:** um kernel tensor pode baixar para GPU quando o device atende ao
+contrato. O mesmo source mantém fallback CPU correto.
 
 GPU começa por um kernel puro com baseline CPU, device transfer explícita e
 comparação de resultado/custo. HDL exige um modelo próprio de timing e
@@ -3789,6 +4278,9 @@ PGO, snapshots e casos gerados por IA são artefatos de tooling. Seed, workload,
 provenance e oracle são explícitos. Nenhum deles muda a semântica source.
 
 ### 22.7 Gate de promoção
+
+**Exemplo:** `fn<Rust>` não entra na linguagem até reproduzir archive, façade C,
+diagnostics e cleanup em dois targets.
 
 Uma pesquisa só avança quando possui:
 
@@ -3817,6 +4309,7 @@ Uma pesquisa só avança quando possui:
 | associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
 | visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
 | destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
+| switch exaustivo e tuple scrutinee | **Possível agora** | ordem, guards e patterns fechados possuem análise conhecida |
 | diff de interface e SemVer | **Provável** | regras básicas fechadas; conflitos de resolução exigem corpus |
 | receiver consuming `take fn` | **Possível agora** | whole-value move e drop state já são necessários |
 | retorno fluente `: self` | **Provável** | reborrow é conhecido; borrow suspenso exige corpus |
@@ -3824,6 +4317,7 @@ Uma pesquisa só avança quando possui:
 | vários initializers e delegação total | **Possível agora** | flow analysis e grafo de delegação são conhecidos |
 | computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
+| `fn`, `some fn` e `any fn` | **Provável** | tipos e drop são conhecidos; escape e erasure exigem corpus de custo |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
@@ -3879,6 +4373,9 @@ O ensaio detalhado está no
 
 ## 25. Protocolo de revisão
 
+**Exemplo:** pessoas e modelos corrigem o mesmo erro de ownership no restaurante
+antes de informar preferência pela syntax.
+
 Cada comparação usa o mesmo programa e quatro tarefas:
 
 1. explicar o que o código faz;
@@ -3915,12 +4412,18 @@ O corpus compara, no mínimo:
 - associated member direto contra protocol requirement e mutable type storage;
 - struct transparente contra `export` em cada field e export total do tipo;
 - pattern nominal `Type(field, ...)` contra record pattern com `{}`;
+- tuple scrutinee contra syntax especial para múltiplos valores;
+- patterns fechados contra handler customizado pelo usuário;
 - `...` externo obrigatório contra exaustividade aberta implícita;
 - object encapsulado contra storage público e constructor herdado;
 - overload por forma contra ranking por tipos e nomes distintos;
 - vários initializers contra initializer único e factories nomeadas;
 - computed property property-safe contra method com `try` ou `await`;
 - static record/list contra interpretações universais de extension e constraints;
+- ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
+- call posicional por valor contra labels e defaults preservados no function type;
+- `fn`, `mut fn` e `take fn` contra protocols callable separados;
+- signature invariável contra variance e effect widening implícitos;
 - `fn<C>` contra `fn<lang: .c>`;
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
@@ -3934,6 +4437,9 @@ corpus ou na CLI. O portal gerado começa somente depois do design freeze.
 
 ### 26.1 Fase -1 — design e corpus
 
+**Exemplo:** cada forma líder possui um caso positivo, um negativo e uma
+alternativa preservada.
+
 - consolidar este documento;
 - criar corpus DB2 positivo, negativo e comparativo;
 - completar o restaurante cósmico;
@@ -3942,6 +4448,9 @@ corpus ou na CLI. O portal gerado começa somente depois do design freeze.
 Saída: toda forma implementada possui contrato, alternativa e teste.
 
 ### 26.2 Fase 0 — lexer, parser e formatter
+
+**Exemplo:** `parse → format → parse` de `callables.w` produz árvores
+equivalentes e nenhum error node.
 
 - lexer lossless;
 - recursive-descent/Pratt;
@@ -3957,9 +4466,12 @@ Saída: parse/format/parse estável e diagnostics preparados.
 
 ### 26.3 Fase 1 — AST, nomes e tipos
 
+**Exemplo:** `w check` rejeita um overload por tipo antes de existir backend.
+
 - AST e module graph;
 - imports, visibilidade efetiva e interface normalizada;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
+- function pointers, callable modes, opaque callables e erased callables;
 - evolução de structs, diff de interface e classificação SemVer;
 - associated constants, functions, types e `: self`;
 - overload sets por forma de call e interface normalizada;
@@ -3972,6 +4484,9 @@ Saída: `w check` verifica o subset síncrono do restaurante.
 
 ### 26.4 Fase 2 — HIR, MLIR e executável nativo
 
+**Exemplo:** o mesmo programa aritmético gera HIR equivalente pelo seed C e pelo
+frontend self-hosted.
+
 - HIR tipada;
 - dialeto W/MLIR e verifiers;
 - arithmetic/control lowering;
@@ -3982,6 +4497,9 @@ Saída: `w check` verifica o subset síncrono do restaurante.
 Saída: payload determinístico para programas síncronos nos dois caminhos.
 
 ### 26.5 Fase 3 — memória, errors e C
+
+**Exemplo:** um callback C com context executa cleanup uma vez em success, error
+e cancelamento.
 
 - initialization e whole-value move;
 - receiver `take fn`, deinit e saídas com consumo;
@@ -4033,6 +4551,9 @@ services, units, tensors e packages não ampliam a base de recovery.
 
 ### 26.7 Fase 5 — tasks
 
+**Exemplo:** `mixPair` cancela o sibling após erro e aguarda ambos os children
+antes de sair do scope.
+
 - async state machine;
 - `async<.domain> let`, `spawn<.domain> let` e inheritance de preference;
 - linear Task, `TaskOutcome` e cancellation;
@@ -4047,6 +4568,9 @@ backpressure e cleanup reproduzíveis.
 
 ### 26.8 Fase 6 — services e host entries
 
+**Exemplo:** `entry LastLight` valida `process.main` e `http.fetch` contra o
+profile do host.
+
 - `entry` e host profiles;
 - service instance manager;
 - closed turn, generation e drain;
@@ -4059,6 +4583,9 @@ Saída: CLI e HTTP exibem hops, queues, overload, cycle e restart.
 
 ### 26.9 Fase 7 — packages e SDK
 
+**Exemplo:** CI recompila um package público pela recipe e compara o digest antes
+de marcar a versão como reproduced.
+
 - package parser, resolver, lock e CAS;
 - builds `--locked`/offline;
 - T0/T1 mínimos;
@@ -4068,6 +4595,9 @@ Saída: CLI e HTTP exibem hops, queues, overload, cycle e restart.
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 
 ### 26.10 Fase 8 — ciência e extração
+
+**Exemplo:** `Matrix<2, 3> @ Matrix<3, 4>` baixa para CPU e mantém shape
+`Matrix<2, 4>`.
 
 - units/refinements completos;
 - tensor CPU e `@`;
@@ -4090,6 +4620,9 @@ Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
 | self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |
 
 ### 26.12 Checkpoint por fase
+
+**Exemplo:** uma fase não fecha quando seus testes passam, mas `git diff --check`
+ou o corpus negativo falha.
 
 Cada checkpoint executa:
 
@@ -4121,6 +4654,7 @@ Cada checkpoint executa:
 | bootstrap | seed C e self-host cedo | profile W0 fechado antes de tasks |
 | static contract | aplicações pontuais | envelope `<...>` fechado por head |
 | ilha multilíngue | `fn<lang>` em pesquisa | adapter externo, façade C e static archive |
+| callable | `CallbackType` e capture dispersos | `fn`, `some fn` e `any fn` separam pointer, ambiente, owner e drop |
 
 Estas mudanças são experimentais. A fotografia completa da DB1 continua
 acessível no
@@ -4150,7 +4684,7 @@ experimentar”, não “decisão irreversível”.
 | D2-014 | refinement | `T<(.member predicate)>`; range como sugar | `value.member`; `T where (...)`; `T(where:)` |
 | D2-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
 | D2-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
-| D2-017 | opaque return | `some P` | existential; generic nomeado |
+| D2-017 | opaque type | `some P` em local, retorno e parâmetro generic anônimo | existential; generic nomeado |
 | D2-018 | reflection | conformance opt-in | metadata universal; annotations |
 | D2-019 | Option | `T?` com some/none | null; sentinel; result-like |
 | D2-020 | conversão | total, única e sem perda | tudo explícito; promotions amplas |
@@ -4325,7 +4859,24 @@ experimentar”, não “decisão irreversível”.
 | D2-189 | evolução de overload | set existente: minor; primeiro overload: major; forma alterada: major | classificação somente por nome |
 | D2-190 | ordem de argumentos | ordem da declaração; labels não reordenam | named arguments livres |
 | D2-191 | parâmetros variadic | ausentes na DB2; collection ou builder | type pack; C varargs seguro |
-| D2-192 | function type | existe na HIR; source annotation em pesquisa | labels no tipo; somente inference |
+| D2-192 | function type | source usa `fn(A): B`; labels e defaults ficam na declaração | labels no tipo; somente inference |
+| D2-193 | callable concreto | `some fn(A): B` preserva tipo, captures e specialization | generic nomeado; `fn` sempre apagado |
+| D2-194 | callable apagado | `any fn(A): B` guarda owner, invoke e drop | `CallbackType`; box manual |
+| D2-195 | callable mode | `fn`, `mut fn` e `take fn` descrevem uso do ambiente | `Fn`/`FnMut`/`FnOnce`; inferência sem annotation |
+| D2-196 | call por valor | posicional, aridade completa e sem defaults | labels cosméticos; labels significativos |
+| D2-197 | capture e escape | HIR registra place, modo, lifetime, owner e drop | capture sempre weak; heap por default |
+| D2-198 | method reference | closure explícita mostra receiver e ownership | bound method implícito |
+| D2-199 | callback C | `unsafe fn<abi: .c>` fino + context/owner explícitos | converter closure W; callback universal |
+| D2-200 | static list | `StaticList<T>` compile-time, ordenada e apagada | named index runtime; set implícito |
+| D2-201 | operador `@` | família rank-1/rank-2 sem broadcast; APIs nomeadas para rank maior | contração geral implícita; `*` linalg |
+| D2-202 | exemplo normativo | cada contrato aponta para exemplo válido, erro ou cenário canônico | afirmação sem evidência local |
+| D2-203 | opaque parameter | `some P` é generic anônimo e especializado | exigir generic nomeado; existential |
+| D2-204 | switch | expressão exaustiva, sem fallthrough ou `break` | switch statement; fallthrough explícito |
+| D2-205 | ordem de case | ordem lexical, first-match e diagnostic de inalcançável | exigir patterns disjuntos; ranking |
+| D2-206 | múltiplos scrutinees | tuple subject e tuple pattern | `switch a, b`; matching relacional implícito |
+| D2-207 | custom pattern | pesquisa; conversão nomeada ou guard na DB2 | handler arbitrário; protocol de pattern na v0 |
+| D2-208 | callable transfer | `fn` é transferível/compartilhável; closure deriva predicates do ambiente | `Send`/`Sync` nominais; confiar no pointer |
+| D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

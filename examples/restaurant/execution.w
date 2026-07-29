@@ -74,11 +74,13 @@ export async fn mixBatch(
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
 
+  let worker: fn(take MixingJob): MixingResult throws BrigadeError = mixJob
+
   return try await TaskGroup.parallelMap<.compute>(
     take jobs,
     limit: parallelism,
     ordering: .input,
-    using: mixJob,
+    using: worker,
   )
 }
 

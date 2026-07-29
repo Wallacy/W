@@ -15,6 +15,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | [VS Code/TextMate](vscode-w/README.md) | highlighting lexical local, comentários, pares e indentação | regex tolerante; não produz CST nem diagnósticos |
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
+| `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
@@ -77,6 +78,8 @@ integrações de editor.
    [tooling/tree-sitter-w/README.md](tree-sitter-w/README.md).
 3. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
    playground identifica explicitamente qual engine de highlight está ativa.
+4. Para auditar a cobertura local de exemplos, execute
+   `node tooling/check-design-examples.mjs` na pasta `W`.
 
 ## Caminho até o browser
 
