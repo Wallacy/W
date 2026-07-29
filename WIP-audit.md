@@ -123,10 +123,10 @@ destino, não aprovação.
 
 | Família | Linhas representativas | Conteúdo histórico preservado | Destino atual | Cobertura |
 |---|---:|---|---|---|
-| ownership, caller/callee e ARC fallback | `430–590`, `1389–1477`, `1620–1717`, `4018–4019` | owner implícito, `ref/copy/transfer`, ARC em escapes, regions/module heap | `W-C009/038`, `W-O002–004/052/053`, `design/memory-strategy.md` | **Coberto** |
-| mimalloc, arenas e estimativa de recursos | `164–225`, `517–529`, `1542`, `1667` | min/max/current por import/call, arena e allocator alternativo | `W-O017/028–032/096`, `design/resource-estimation.md` | **Coberto** |
-| tagged pointers/values | `510–529`, `1390–1477`, `3911–3931` e spikes `Y/_w_/C` | bit stealing, small values, bounds e ARC metadata | `W-C029`, `research/tagged-values.md` | **Coberto** como otimização com fallback |
-| struct layout, alignment e packing | `753–764`, `1780–1904`, `3073–3081`, `3400–3402` | layout por módulo, padding, pragma pack e ABI | `W-C039`, `W-O044/045/085`, `spec/types-and-memory.md` | **Coberto** |
+| ownership, caller/callee e ARC fallback | `430–590`, `1389–1477`, `1620–1717`, `4018–4019` | owner implícito, `ref/copy/transfer`, ARC em escapes, regions/module heap | `W/DESIGN.md` 9 e D2-021–028, D2-103–108 | **Coberto**; owner, placement e allocator são contratos separados |
+| mimalloc, arenas e estimativa de recursos | `164–225`, `517–529`, `1542`, `1667` | min/max/current por import/call, arena e allocator alternativo | `W/DESIGN.md` 9.2.1, 9.5–9.6 e D2-405–413 | **Recuperado**; `Arena` T0, `region` lexical, budget lógico e profiles substituíveis |
+| tagged pointers/values | `510–529`, `1390–1477`, `3911–3931` e spikes `Y/_w_/C` | bit stealing, small values, bounds e ARC metadata | `W/DESIGN.md` 9.7–9.10 e D2-335–345 | **Coberto** como otimização invisível com fallback |
+| struct layout, alignment e packing | `753–764`, `1780–1904`, `3073–3081`, `3400–3402` | layout por módulo, padding, pragma pack e ABI | `W/DESIGN.md` 9.8–9.10 e D2-029, D2-335–345 | **Coberto**; layout W é opaco e C/schema permanecem explícitos |
 | C/WC/EmitC/bootstrap | `610–666`, `1739–1904`, `2006–2213`, `3001–3006`, `3360–3365` | tradução C, dialect WC, compiler choice e escape manual | `W-C014/046`, `W-O009–011/090`, `design/compiler.md` | **Coberto** |
 | `fn<lang>` e migração gradual | `1843–1904`, `2040–2077`, `3064–3069`, `3641–3653` | bodies C/JS/Rust/Zig/Bend e target GPU | `W-C047`, `W-O042/083/084`, `research/README.md` | **Coberto** |
 | GPU, SIMD, OpenMP e HDL | `1694`, `2157`, `3064–3069`, `3353–3362` | kernels, accelerators, intrinsics e backends heterogêneos | `W-O082/084/099`, `research/README.md`, programa LT | **Parcial**; superfície tensor/ML recuperada em `W-O102` |
@@ -176,6 +176,7 @@ vigente das famílias que ainda estavam parciais.
 | compile-time e type builders | `W/DESIGN.md` 3.6 e D2-260–279 | **Líder DB2**; const fn/init, ConstIR, quotas, materialização e CE0 |
 | generics, protocols, enum subsets e typestate | `W/DESIGN.md` 8.6–8.7 e D2-280–306, 323–334 | **Líder DB2**; inference fechada, witnesses, case-sets e transições consuming |
 | reflection, synthesis e rest | `W/DESIGN.md` 8.9 e D2-307–322 | **Líder DB2**; metadata opt-in, TypeId local e rest homogêneo |
+| memória, arenas e allocator | `W/DESIGN.md` 9, 11.5 e D2-399–416 | **Líder DB2**; placement inferido, `pin`, `shared`, `Arena`, `region`, origem, budget e profiles medidos |
 
 ### Resultado da revisão de collections
 
