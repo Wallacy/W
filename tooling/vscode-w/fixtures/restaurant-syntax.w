@@ -213,6 +213,13 @@ fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
   return try pin take state
 }
 
+fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
+  region scratch(using: memory, limit: 8<MiB>) {
+    let parsed = try Menu.parse(payload, using: scratch)
+    return try (take parsed).rehome(using: memory)
+  }
+}
+
 foreign c from "last_light_probe.h" {
   type ll_probe
   fn ll_probe_close(probe: c.ptr<ll_probe>)

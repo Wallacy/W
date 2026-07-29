@@ -31,6 +31,7 @@ const CONTROL_KEYWORDS = [
   "for",
   "guard",
   "if",
+  "region",
   "return",
   "switch",
   "throw",
@@ -769,6 +770,7 @@ module.exports = grammar({
         $.throw_statement,
         $.defer_statement,
         $.guard_statement,
+        $.region_statement,
         $.if_statement,
         $.while_statement,
         $.for_statement,
@@ -818,6 +820,13 @@ module.exports = grammar({
     continue_statement: (_) => seq("continue", optional(";")),
     defer_statement: ($) => seq("defer", optional("async"), $.block),
     guard_statement: ($) => seq("guard", choice($.optional_binding, $._expression), "else", choice($.block, $._statement)),
+    region_statement: ($) =>
+      seq(
+        "region",
+        field("name", $.identifier),
+        optional(field("options", $.argument_list)),
+        field("body", $.block),
+      ),
     if_statement: ($) =>
       prec.right(seq("if", choice($.optional_binding, $._expression), $.block, optional(seq("else", choice($.if_statement, $.block))))),
     while_statement: ($) => seq("while", $._expression, $.block),

@@ -49,6 +49,20 @@ export object MenuSection {
   }
 }
 
+export fn makeMenuRoot(
+  title: String,
+  memory: ref Allocator,
+): shared MenuSection throws AllocationError {
+  return try share(
+    MenuSection(
+      title: take title,
+      parent: .none,
+      children: [],
+    ),
+    using: memory,
+  )
+}
+
 // The borrowed scalar view remains live across one suspension. The compiler
 // must keep the owner stable in the task frame or reject the function.
 export async fn announceAfterYield(section: ref MenuSection): String {
