@@ -34,16 +34,12 @@ export protocol DiningRoomApi {
   async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError
 }
 
-fn paymentCanServe(payment: ref PaymentProof): Bool {
-  return payment.state == .captured
-}
-
 export service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = Map()
 
   mut async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError {
-    guard paymentCanServe(payment) else throw .paymentIncomplete
+    guard payment.canServe else throw .paymentIncomplete
     guard let tableId = tables.first(where: (entry) => entry.value.state == .available)?.key else throw .full
 
     tables[tableId].state = .serving
@@ -62,12 +58,12 @@ export service PrismDiningRoom as DiningRoomApi {
   }
 }
 
-test "an authorization cannot enter the dining room" for paymentCanServe {
+test "an authorization cannot enter the dining room" {
   let payment = PaymentProof(
     paymentId: 10,
     amount: Money(minorUnits: 4_242, currency: .cr),
     state: .authorized,
   )
 
-  expect !paymentCanServe(payment)
+  expect !payment.canServe
 }

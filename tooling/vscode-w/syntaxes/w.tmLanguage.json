@@ -162,6 +162,12 @@
     "members": {
       "patterns": [
         {
+          "match": "^\\s*(?:(?:export|package)\\s+)?(?:var\\s+)?([a-z_][A-Za-z0-9_]*)\\s*:(?=[^\\r\\n{}=]+\\{\\s*$)",
+          "captures": {
+            "1": { "name": "variable.other.member.w" }
+          }
+        },
+        {
           "name": "variable.other.member.w",
           "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*"
         }

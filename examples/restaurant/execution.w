@@ -5,15 +5,19 @@ import { Ingredient, KitchenError, Mixture, Recipe } from restaurant.kitchen
 
 export type BatchIndex = usize
 
-export object BrigadeMetrics {
+export protocol CompletionMetric {
+  completionCount: u64 { get }
+}
+
+export object BrigadeMetrics: CompletionMetric {
   var atomic completed: u64 = 0
 
   fn recordCompletion() {
     completed += 1
   }
 
-  fn completionCount(): u64 {
-    return completed
+  export completionCount: u64 {
+    get => completed
   }
 }
 

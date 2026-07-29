@@ -4,12 +4,12 @@
   // This is a deliberately small lexical fallback. It is not a W grammar and
   // must be replaced by the same Tree-sitter/WASM grammar used by editor tooling.
   const keywords = new Set([
-    "alias", "any", "as", "async", "atomic", "await", "behavior", "break", "cancel", "capture", "case", "catch",
+    "alias", "any", "as", "async", "atomic", "await", "behavior", "break", "capture", "case", "catch",
     "const", "continue", "copy", "defer", "deinit", "dimension", "do", "else", "entry", "enum", "export", "extension",
     "false", "fn", "for", "foreign", "from", "get", "guard", "if", "import", "in", "inout", "is", "let", "modify",
-    "mut", "object", "on", "package", "panic", "protocol", "ref", "return", "service", "set", "shared", "some",
+    "mut", "object", "package", "panic", "protocol", "ref", "return", "service", "set", "shared", "some",
     "spawn", "struct", "switch", "take", "test", "throw", "throws", "true", "try", "type", "unit", "unsafe", "var",
-    "weak", "where", "while",
+    "weak", "while",
   ]);
   const pairedDelimiters = { "(": ")", "[": "]", "{": "}" };
   const operators = [">..<", ">..", "...", "..<", "=>", "??", "?.", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];

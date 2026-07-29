@@ -186,3 +186,111 @@ fn inspect(service: ServiceRef): Bool {
         (identifier))
       (return_statement
         (boolean_literal)))))
+
+==================
+Initializers and computed properties
+==================
+
+protocol CompletionMetric {
+  completionCount: u64 { get }
+  var limit: usize { get set modify }
+}
+
+export struct Counter: CompletionMetric {
+  var storedValue: u64
+
+  export init(initial: u64) throws RangeError {
+    self.storedValue = initial
+  }
+
+  export completionCount: u64 {
+    get => storedValue
+  }
+
+  var value: u64 {
+    get => storedValue
+    set(next) => storedValue = next
+
+    modify {
+      return inout storedValue
+    }
+  }
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (property_requirement
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (property_requirement
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (struct_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (conformance_clause
+      (type
+        (type_name
+          (type_identifier))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (initializer_declaration
+        (declaration_prefix)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier)))
+        (block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (identifier)
+                (identifier))
+              (identifier)))))
+      (computed_property_declaration
+        (declaration_prefix)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (property_accessor_body
+          (get_accessor
+            (accessor_implementation
+              (identifier)))))
+      (computed_property_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (property_accessor_body
+          (get_accessor
+            (accessor_implementation
+              (identifier)))
+          (set_accessor
+            (identifier)
+            (accessor_implementation
+              (assignment_expression
+                (identifier)
+                (identifier))))
+          (modify_accessor
+            (block
+              (return_statement
+                (unary_expression
+                  (identifier))))))))))

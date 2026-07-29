@@ -21,7 +21,15 @@ fn lexicalValues(): () {
 
 struct ServiceFlow {
   var stage: ServiceStage
-  const first = ServiceFlow(stage: .accepted)
+  const first = ServiceFlow(initialStage: .accepted)
+
+  export init(initialStage: ServiceStage) {
+    self.stage = initialStage
+  }
+
+  isTerminal: Bool {
+    get => stage in (.completed, .cancelled)
+  }
 
   mut fn advance(to next: ServiceStage): self {
     stage = next

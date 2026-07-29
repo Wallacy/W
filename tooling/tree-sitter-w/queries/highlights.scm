@@ -102,6 +102,7 @@
   function: (member_expression property: (identifier) @function.method.call))
 
 (parameter name: (identifier) @variable.parameter)
+(set_accessor parameter: (identifier) @variable.parameter)
 (behavior_parameter name: (identifier) @variable.parameter)
 (closure_parameter name: (identifier) @variable.parameter)
 (argument label: (identifier) @variable.parameter)
@@ -119,6 +120,8 @@
 (enum_pattern case: (identifier) @constant)
 
 (field_declaration name: (identifier) @property)
+(computed_property_declaration name: (identifier) @property)
+(property_requirement name: (identifier) @property)
 (member_expression property: (identifier) @property)
 (optional_member_expression property: (identifier) @property)
 (import_item name: (identifier) @module)
