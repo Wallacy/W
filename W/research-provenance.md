@@ -23,6 +23,7 @@ está em [WIP-audit.md](WIP-audit.md). Este arquivo curto continua sendo apenas 
 | wQL/wRPC/RestQL | seções `WRPC` e `wRPC / wQL` de `Y/WIP.MD`; `TK/wQL.MD`; `TK/RestQL.MD` |
 | V6/Computer Units | `TK/V6.MD`; seção “Computer Unit” de `Y/WIP.MD` |
 | tree strings | `TK/tree_string.md` |
+| texto, bytes e fronteiras nativas | `Y/WIP.MD:1273-1388`, `1549-1604`, `1678-1709`, `2174`, `3036-3048`, `3543-3552`; `Y/_w_/WC.MD:85-117`; `TK/tree_string.md` |
 | SQLite/storage | seção “Storage” de `Y/WIP.MD`; `Y/_w_/WC.MD`; `TK/wQL.MD` |
 | GPU/HDL | perguntas e exemplos OpenCL, OpenMP, HIP, CUDA, Bend e HDL em `Y/WIP.MD`/`Y/_w_/WC.MD` |
 | snapshots, PGO e autotests | trechos `snapshot`, `.test.w`, `.debug.w`, `profile`, PGO e `.w/.autotest` de `Y/WIP.MD` |
