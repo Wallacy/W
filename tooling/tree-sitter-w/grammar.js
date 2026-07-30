@@ -130,6 +130,7 @@ module.exports = grammar({
     [$._type_identifier, $._expression],
     [$._type_identifier, $._expression, $.closure_parameter],
     [$._type_identifier, $.pattern],
+    [$.labeled_tuple_type_element, $.closure_parameter],
     [$.tuple_type, $.unit_literal],
   ],
 
@@ -236,7 +237,12 @@ module.exports = grammar({
           seq(field("label", choice($.identifier, "_")), field("name", $.identifier)),
         ),
         ":",
-        optional(field("ownership", choice("ref", "inout", "take"))),
+        optional(
+          choice(
+            field("ownership", choice("ref", "inout", "take")),
+            field("const_requirement", "const"),
+          ),
+        ),
         field("type", alias($.non_borrowed_type, $.type)),
         optional(field("rest", $.rest_marker)),
         optional(seq("=", field("default", $._expression))),
@@ -802,7 +808,30 @@ module.exports = grammar({
         field("count", $._expression),
         "]",
       ),
-    tuple_type: ($) => seq("(", commaSep($.type), optional(","), ")"),
+    tuple_type: ($) =>
+      choice(
+        seq("(", ")"),
+        seq(
+          "(",
+          $.type,
+          ",",
+          optional(seq(commaSep1($.type), optional(","))),
+          ")",
+        ),
+        seq(
+          "(",
+          $.labeled_tuple_type_element,
+          ",",
+          optional(seq(commaSep1($.labeled_tuple_type_element), optional(","))),
+          ")",
+        ),
+      ),
+    labeled_tuple_type_element: ($) =>
+      seq(
+        field("label", $.identifier),
+        ":",
+        field("type", $.type),
+      ),
     function_type: ($) =>
       choice(
         prec.right(
@@ -838,7 +867,12 @@ module.exports = grammar({
       ),
     function_type_parameter: ($) =>
       seq(
-        optional(field("ownership", choice("ref", "inout", "take"))),
+        optional(
+          choice(
+            field("ownership", choice("ref", "inout", "take")),
+            field("const_requirement", "const"),
+          ),
+        ),
         field("type", alias($.non_borrowed_type, $.type)),
         optional(field("rest", $.rest_marker)),
       ),
@@ -1178,9 +1212,23 @@ module.exports = grammar({
       ),
     argument_expansion: (_) => "each",
     member_expression: ($) =>
-      prec.left(15, seq(field("object", $._expression), ".", field("property", $.identifier))),
+      prec.left(
+        15,
+        seq(
+          field("object", $._expression),
+          ".",
+          field("property", choice($.identifier, $.tuple_index)),
+        ),
+      ),
     optional_member_expression: ($) =>
-      prec.left(15, seq(field("object", $._expression), "?.", field("property", $.identifier))),
+      prec.left(
+        15,
+        seq(
+          field("object", $._expression),
+          "?.",
+          field("property", choice($.identifier, $.tuple_index)),
+        ),
+      ),
     index_expression: ($) =>
       prec.left(
         15,
@@ -1218,15 +1266,31 @@ module.exports = grammar({
     unit_literal: (_) => seq("(", ")"),
     parenthesized_expression: ($) => seq("(", $._expression, ")"),
     tuple_expression: ($) =>
-      seq(
-        "(",
-        choice(
-          seq(field("label", $.identifier), ":", field("value", $._expression)),
-          seq($.tuple_element, ",", optional(seq(commaSep1($.tuple_element), optional(",")))),
+      choice(
+        seq(
+          "(",
+          $.tuple_element,
+          ",",
+          optional(seq(commaSep1($.tuple_element), optional(","))),
+          ")",
         ),
-        ")",
+        seq(
+          "(",
+          $.labeled_tuple_element,
+          ",",
+          optional(
+            seq(commaSep1($.labeled_tuple_element), optional(",")),
+          ),
+          ")",
+        ),
       ),
-    tuple_element: ($) => seq(optional(seq(field("label", $.identifier), ":")), field("value", $._expression)),
+    tuple_element: ($) => field("value", $._expression),
+    labeled_tuple_element: ($) =>
+      seq(
+        field("label", $.identifier),
+        ":",
+        field("value", $._expression),
+      ),
     repeat_array_literal: ($) =>
       seq(
         "[",
@@ -1285,6 +1349,7 @@ module.exports = grammar({
     // Exact keyword tokens win in their syntactic positions. `word` lets
     // Tree-sitter build the keyword table from this shared identifier token.
     identifier: (_) => /[A-Za-z_][A-Za-z0-9_]*/,
+    tuple_index: (_) => /[0-9]+/,
     behavior_identifier: (_) => /[A-Z][A-Za-z0-9_]*/,
 
     comment: (_) =>

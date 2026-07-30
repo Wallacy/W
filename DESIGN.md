@@ -602,6 +602,49 @@ use(table)
 `comptime buildTable()` e `const { ... }` permanecem **Alternativa**. Elas só
 entram se pipelines sem um binding mostrarem ganho mensurável.
 
+Um parâmetro de chamada pode exigir um argumento compile-time com `const`:
+
+```w
+fn prepare(
+  statement: const database.Query<WorldKey, WorldRow>,
+  parameters: WorldKey,
+): PreparedQuery
+
+const worldById = database.Query<WorldKey, WorldRow>(...)
+let prepared = prepare(worldById, parameters: WorldKey(id: 42))
+let invalid = prepare(runtimeQuery, parameters: WorldKey(id: 42))
+// error[W-CONST-0007]: statement requires a compile-time value
+```
+
+`const` fica no modo do parâmetro, depois de `:`. Ele não é C `const` nem um
+borrow read-only. Ele não combina com `ref`, `inout` ou `take`. O argumento
+precisa ser `ConstRepresentable` e conhecido pelo evaluator no call site. Uma
+expressão const-safe direta também é aceita; o caller não precisa criar um
+binding.
+
+O body recebe um valor imutável normal. Ele não precisa ser `const fn` e pode
+executar trabalho runtime. Um default também precisa ser compile-time. O
+requisito entra na interface, mas não cria uma forma de overload. Duas funções
+que diferem somente por `const` possuem a mesma call shape e são duplicadas.
+
+O requisito faz parte do function type:
+
+```w
+type QueryPreparer =
+  fn(const database.Query<WorldKey, WorldRow>, WorldKey): PreparedQuery
+```
+
+O lowering pode usar bytes static, um digest ou um handle interno. Ele não
+precisa monomorphizar a função por valor. Uma chamada indireta mantém o mesmo
+requisito no function type. O compiler grava o valor normalizado nas
+dependências da recipe. Uma protocol boundary passa o descriptor estático e não
+o transforma em input livre. Uma wire boundary precisa incluir esse descriptor
+na operação versionada antes de aceitar a interface.
+
+Essa forma serve a SQL, bindings, format strings, regex e outros descriptors
+que precisam de validação e auditoria no build. Dados deliberadamente dinâmicos
+usam outra API. W não adiciona `comptime` no call site.
+
 #### 3.6.2 Programa const-safe
 
 Um `const fn` pode usar:
@@ -1733,6 +1776,7 @@ fn inspect(value: ref Value)
 fn edit(value: inout Value)
 fn store(value: take Value)
 fn transform(value: Value): Result
+fn prepare(format: const Format): PreparedFormat
 ```
 
 Um parâmetro `T` é pass-by-value. Um tipo `Copy` produz uma cópia semântica
@@ -1765,6 +1809,9 @@ let socketCopy = copy socket         // error: Socket is not Duplicable
 uma operação escalar. String, Bytes, Array, Map e Set atendem a `Duplicable`
 quando seus elementos atendem. Um resource, capability ou owner singular não
 ganha conformance automática.
+
+`const` não é um ownership mode. Ele exige um argumento compile-time e não
+adiciona syntax no call site. A seção 3.6.1 define o requisito.
 
 Quando o operand é `ref T`, `copy` materializa um `T` owned. Ele não copia o
 borrow:
@@ -2105,6 +2152,31 @@ extension Dish: Display {
   fn write(to output: inout String): () { ... }
 }
 ```
+
+Tuples podem nomear seus elementos:
+
+```w
+let row: (id: i32, randomNumber: i32) = (
+  id: 42,
+  randomNumber: 7,
+)
+
+print(row.id)
+```
+
+Labels pertencem ao tipo. `(id: i32, value: i32)` não é o mesmo tipo que
+`(value: i32, id: i32)` ou `(i32, i32)`. Uma conversão que remove labels é
+explícita. Function arguments também não viram tuple implicitamente.
+
+```w
+let positional: (i32, i32) = (row.id, row.randomNumber)
+```
+
+Um tuple usa labels em todos os elementos ou em nenhum. `(id: i32, String)` é
+erro. Um tuple sem labels usa destructuring. Os members posicionais `.0`, `.1`
+e seguintes existem para composição genérica, mas uma API exportada deve
+preferir labels ou um struct nominal. Um tuple de um elemento exige a vírgula:
+`(value: i32,)` ou `(i32,)`.
 
 Uma conformance pode ser declarada no módulo do tipo ou no módulo do protocol.
 Essa regra evita conformances órfãs e conflitos dependentes da ordem de import.
@@ -8909,6 +8981,7 @@ o programa os alcança.
 T2 contém módulos bundled e reachability-linked:
 
 - HTTP client/server, CLI/TUI e adapters de UI;
+- database, SQL descriptors e cache local com limite;
 - SI, quantities, análise numérica e constants versionadas;
 - BigInt, Rational, FixedDecimal, Complex e quantization;
 - tensor, linear algebra e ML experimental;
@@ -8918,6 +8991,369 @@ T2 contém módulos bundled e reachability-linked:
 Álgebra simbólica completa, CAS, dataframe e stacks de vendor continuam packages
 first-party experimentais. Tier não significa import implícito, linking ou
 disponibilidade universal em todo target.
+
+#### 14.3.1 Mensagem HTTP e ownership
+
+**Exemplo:** o handler consome o body uma vez e exige limite antes de decodificar:
+
+```w
+async fn fetch(
+  request: take http.Request,
+  ctx: http.Context,
+): http.Response throws ApiError {
+  let command = try await request.decodeJson<Command>(
+    maximumBytes: 64<KiB>,
+  )
+  return try http.Response.json(command)
+}
+```
+
+`std.http` representa a semântica HTTP. Ele não expõe frames de HTTP/1.1,
+HTTP/2 ou HTTP/3 no handler comum. Um adapter pode informar versão e transport
+em metadata observável. O resultado do programa não depende desses dados.
+
+`Request` é um owner move-only. Ele contém method, target, headers, body e
+metadata atenuada pelo host. Ele não atende a `Copy` ou `Duplicable`. Uma
+service call que transfere um request também transfere o body.
+
+O body atende a `ByteSource<HttpBodyError>` e só pode ser consumido uma vez.
+`decodeJson`, `bytes` e `text` são métodos async do request. Cada método exige
+um limite. O programa usa o body como stream quando não deseja materializá-lo.
+
+W não oferece `request.clone()` implícito. Um caller que precisa de duas leituras
+materializa bytes com limite ou cria um tee bounded. Um tee mantém backpressure
+entre os consumers e declara o buffer máximo.
+
+Headers preservam entradas repetidas. Comparação de nome é ASCII
+case-insensitive. O valor continua `Bytes`, pois um peer pode enviar octets que
+não formam texto Unicode. A conversão para `String` exige uma policy explícita.
+`HeaderName` e method tokens rejeitam um token vazio ou um byte fora da grammar
+HTTP. `HeaderField` rejeita NUL, CR, LF e outros control bytes não permitidos.
+Assim, um adapter nunca recebe um field inválido por uma API safe.
+
+`Method` possui os methods registrados e `.other(MethodToken)`. O token
+customizado é validado. `StatusCode` aceita `100..<600`; associated constants
+como `http.Status.ok` evitam números soltos.
+
+O modelo segue a mensagem abstrata do
+[RFC 9110](https://datatracker.ietf.org/doc/rfc9110/) e a separação de
+request, response, fields e streams do
+[WASI HTTP](https://github.com/WebAssembly/wasi-http).
+
+#### 14.3.2 Response, streaming e commit
+
+**Exemplo:** bytes owned geram tamanho conhecido. Um stream mantém sua própria
+boundary:
+
+```w
+let fixed = http.Response.bytes(
+  take encoded,
+  status: .ok,
+  contentType: "application/json",
+)
+
+let streamed = http.Response.stream(
+  take body,
+  status: .ok,
+  headers: headers,
+)
+```
+
+`Response` é um owner. Retorná-lo transfere headers e body para o host. Um body
+fixo usa `Bytes` ou `String`. Um body incremental usa um
+`ByteSource<HttpBodyError>` owned.
+
+O host cria um response-pump runtime-owned para o stream. Esse pump é parte do
+request root. Ele não é uma task solta. Disconnect, deadline ou erro de
+transport cancelam o pump, drenam a completion física e destroem o body uma
+vez.
+
+Retornar `Response` confirma somente a aceitação pelo host. Não confirma entrega
+ao client. Código que precisa de efeito confiável depois da resposta usa
+`SupervisorRef`, queue ou workflow. Ele não depende de callback de socket.
+
+O adapter valida status, headers, trailers e framing antes do primeiro commit.
+Depois do commit, um error de stream fecha a resposta e entra no trace. Ele não
+se converte num segundo status HTTP.
+
+Responses `1xx`, `204` e `304` não aceitam body. Uma resposta a `HEAD` envia os
+headers da representação e não consome o body. O linter informa quando o handler
+constrói um body que será descartado por essa regra.
+
+`Response.text`, `.bytes`, `.json` e `.html` são constructors do próprio tipo.
+Eles definem media type e encoding. `Response.json` exige `JsonEncodable`; ele
+não usa reflection universal.
+
+#### 14.3.3 Host HTTP, limits e admission
+
+**Exemplo:** um processo nativo fornece network e limites. Um worker recebe o
+mesmo envelope do host:
+
+```w
+const serverLimits = http.ServerLimits(
+  activeRequests: 1_024,
+  queuedRequests: 2_048,
+  queuedBytes: 64<MiB>,
+  connections: 8_192,
+  message: http.MessageLimits(
+    targetBytes: 16<KiB>,
+    headerBytes: 64<KiB>,
+    headerFields: 128,
+    bodyBytes: 1<MiB>,
+  ),
+)
+
+try await http.serve(
+  at: .loopback(port: 8_080),
+  using: ctx.network,
+  limits: serverLimits,
+  handler: fetch,
+)
+```
+
+`http-worker@1` possui este slot default:
+
+```text
+http.fetch:
+  async fn(take http.Request, http.Context)
+    -> http.Response throws E
+```
+
+O profile grava como `E` vira uma resposta de boundary. Um error de domínio
+precisa de mapping explícito. Panic, quota e fault continuam outcomes distintos.
+
+Cada host profile possui um schema fechado de `hostConfiguration`. O compiler
+rejeita fields desconhecidos e grava a configuração na recipe. A configuração
+seleciona somente policies que o profile declara. Ela não concede capability,
+slot ou authority.
+
+**Exemplo:** o profile de benchmark fixa headers e remove trabalho que o
+harness proíbe:
+
+```w
+hostConfiguration: {
+  responseHeaders: {
+    server: .literal("W")
+    date: .cached(maximumAge: 1<s>)
+  }
+  compression: .deny
+  logging: { requests: .deny, disk: .deny, console: .deny }
+}
+```
+
+O cache de `Date` usa clock autorizado e não pode servir um instante mais velho
+que o limite. Um profile sem clock não oferece essa policy. O deployment pode
+reduzir logging e compression. Ele não pode habilitar uma policy negada na
+recipe.
+
+Um processo nativo usa `http.serve`. Um component recebe requests pelo slot
+`http.fetch`. Os dois caminhos usam os mesmos `Request`, `Response`, handler e
+oracles. O native adapter possui accept loop; o worker host possui admission
+externa.
+
+Limits são obrigatórios no product ou na call de `serve`. O menor envelope
+vence. O adapter rejeita target, headers e body antes de growth acima do limite.
+Ele também limita requests ativos, fila, bytes enfileirados e conexões.
+
+Overload antes do handler não cria uma task W. O host responde conforme o
+profile e registra o motivo. Rate limit de negócio continua uma capability
+separada.
+
+Cada request aceito cria um root estruturado. Children normais terminam antes do
+handler devolver. Somente owners transferidos no `Response` e adapters
+runtime-owned declarados podem sobreviver ao frame do handler.
+
+`http.Context` não é um mapa ambiental. Ele contém registries tipados para as
+capabilities declaradas pelo product. Database, cache, secret e service usam
+bindings const que o linker verifica.
+
+O host projeta duas formas de authority:
+
+- uma capability padrão e singular usa um member tipado, como `ctx.random`;
+- um resource nomeado usa um registry e um binding const, como
+  `ctx.databases.get(benchmarkDatabase)`.
+
+O product autoriza a família de capabilities no envelope máximo. Uma
+capability singular definida pelo host profile não precisa de outro nome. O
+runtime graph declara cada resource nomeado como host import. Assim, database e
+cache exigem a família no product e o binding exato no graph. Nos dois casos, o
+compiler deriva o requirement do source e rejeita authority ausente no link.
+O parâmetro `binding` de cada `get` é `const`; um nome calculado em runtime não
+abre outro resource.
+
+#### 14.3.4 SQL estático e rows tipadas
+
+**Exemplo:** parâmetros e resultado pertencem ao tipo do descriptor:
+
+```w
+type WorldKey = (id: i32,)
+type WorldRow = (id: i32, randomNumber: i32)
+
+const worldById: database.Query<WorldKey, WorldRow> = database.Query(
+  text: #"""
+    SELECT id, randomNumber
+    FROM World
+    WHERE id = :id
+    """#,
+)
+
+let row = try await store.one(
+  worldById,
+  parameters: (id: 42,),
+)
+```
+
+`Query<Parameters, Row>` e `Command<Parameters>` são const descriptors. Os
+methods de `Database` recebem o descriptor em um parâmetro de chamada `const`.
+Portanto, um query construído com input runtime não entra nessa API. SQL usa
+parâmetros nomeados. Interpolação de String não cria parâmetro.
+
+O const evaluator verifica que cada placeholder corresponde a um field de
+`Parameters`. Ele rejeita nome ausente, duplicação incompatível, statement
+múltiplo e text mutável. O artifact grava o SQL normalizado, dialect, tipos e
+query identity.
+
+O descriptor não repete um `name` textual. O compiler usa o path do binding
+`const` como label de diagnostics e telemetry. A identity preparada deriva do
+descriptor normalizado, dos tipos, do dialect e do schema bundle. Um rename não
+muda o statement; uma mudança semântica muda a identity. Um descriptor inline
+usa source span como label local. Uma interface reutilizável deve preferir um
+binding nomeado.
+
+`Row` é um tuple ou tipo aceito por um decoder explícito. A baseline não
+preenche uma struct por reflection. O adapter verifica número, ordem, nullability
+e representação de cada column antes de construir o row.
+
+Um schema bundle opcional permite validar table, column e tipo no build. Sem
+bundle, essas verificações permanecem runtime. O artifact e o resultado de
+`w explain database` informam qual nível foi provado.
+
+`.portable` aceita o subset SQL versionado pelo W. `.sqlite` e `.postgresql`
+permitem extensions específicas. Um query de um dialect não executa em outro
+adapter por fallback silencioso.
+
+SQL dinâmico exige uma API separada, capability própria e resultado apagado.
+Ele permanece fora da baseline. Essa regra mantém query identity, prepared
+statement cache e auditoria estáveis.
+
+SQLite também transforma SQL em prepared statement antes de bind e execução.
+As fases públicas de
+[prepare, bind, step, reset e finalize](https://sqlite.org/c3ref/stmt.html)
+fundamentam o descriptor W.
+
+#### 14.3.5 Database, pipeline e transaction
+
+**Exemplo:** cada item continua um statement independente, mesmo quando o
+adapter usa pipeline:
+
+```w
+let rows = try await store.queryMany(
+  worldById,
+  parameters: take keys,
+  maximumInFlight: 20,
+)
+
+let updated = try await store.transaction(
+  take worlds,
+  isolation: .readCommitted,
+  using: persistWorlds,
+)
+```
+
+`database.Binding` seleciona um pool por nome e dialect. O deployment fornece o
+adapter e referencia credentials por secret capability. Source, artifact e lock
+não contêm connection string secreta.
+
+O pool limita connections, operations queued e bytes retidos. Admission cheia
+produz `DatabaseError.overloaded`. A fila não cresce até OOM.
+
+`one` exige um row. `optional` aceita zero ou um. `all` exige limites de rows e
+bytes. `queryMany` executa uma vez por item, preserva a ordem de input e exige
+`maximumInFlight`.
+
+`executeMany` também aplica `Command` uma vez por item e preserva a ordem
+observável de errors. O adapter pode usar uma batch protocol ou uma transmission
+única. Ele não converte os parâmetros em um statement que altera vários rows,
+salvo quando o próprio `Command` declara esse statement.
+
+O adapter pode preparar, reutilizar statements, agrupar syscalls e pipeline de
+transport. Ele não pode combinar SELECTs, remover queries repetidas ou mudar
+transactionality. A
+[pipeline do PostgreSQL 18](https://www.postgresql.org/docs/18/libpq-pipeline-mode.html)
+mostra o ganho e também exige associar cada result à query original.
+
+`transaction` cria um borrow de `Transaction` que não escapa da operação. Em
+success, o adapter confirma commit antes de devolver o output. Em error ou
+cancellation, ele executa rollback e drena o connection antes de devolvê-lo ao
+pool.
+
+Uma perda de conexão depois de enviar commit produz
+`TransactionFailure.unknownCommit`. W não repete a transaction
+automaticamente. Query read-only também não recebe retry implícito; a policy
+precisa considerar deadline, idempotência e progress.
+
+Buffers de driver podem alimentar o decoder por view. Nenhuma view de row escapa
+da call. Um stream de rows futuro precisa possuir seu pool lease e declarar
+limites, cancellation e cleanup antes de entrar na std.
+
+#### 14.3.6 Cache local com limite
+
+**Exemplo:** o binding fixa a autoridade local e o limite de entries:
+
+```w
+const cachedWorlds = cache.LocalBinding<i32, CachedWorld>(
+  name: "cached-worlds",
+  maximumEntries: 10_000,
+  maximumActiveLoads: 256,
+  maximumQueuedLoads: 4_096,
+  expiration: .none,
+)
+
+let worlds = try ctx.caches.get(cachedWorlds)
+let value = try await worlds.getOrLoad(id, using: loadCachedWorld)
+```
+
+`LocalCache<K, V>` é uma capability process-local. `K` atende a igualdade,
+hash e duplicação. `V` atende a `Duplicable`. `get` devolve um value owned; uma
+eviction nunca invalida borrow do caller.
+
+O cache possui limite obrigatório por entries. Weight e limite por bytes
+permanecem próximos candidatos. Expiration usa monotonic clock e pode ocorrer
+depois de access ou write. O adapter pode remover qualquer entry antes do prazo
+para respeitar memória.
+
+O binding também limita loaders ativos e calls enfileiradas. Uma call que não
+entra nesses limites falha com `.overloaded` antes de iniciar o loader. Calls
+para a mesma key contam como waiters enfileirados. O limite por entries não
+promete um limite transitivo de bytes; o product mantém seu envelope de memória
+até existir um contrato de weight comprovável.
+
+Hit ou miss não altera o resultado correto. Cache não é source of truth,
+durability ou lock distribuído. A baseline não possui write-back.
+
+`getOrLoad` mantém no máximo um loader ativo por key. Calls concorrentes aguardam
+esse loader. O loader continua child estruturado do caller líder. Se ele falha
+ou é cancelado, nenhum value entra no cache; um waiter posterior pode tentar de
+novo. Errors não são negative-cached por default.
+
+Cancelar um waiter remove somente esse waiter. Cancelar o líder solicita
+cancelamento do loader e acorda os waiters com cancellation. O commit do value é
+o ponto linear: se ele vence a cancellation, o cache e os waiters recebem o
+value; se a cancellation vence, a entry não existe. O runtime aplica a mesma
+regra de completion committed usada por tasks e I/O.
+
+O algoritmo de eviction pode combinar frequência e recência. A ordem exata não
+faz parte do resultado do programa. Um test host injeta clock e policy
+determinísticos. O [Caffeine](https://github.com/ben-manes/caffeine/wiki/Eviction)
+mostra por que capacity e expiration são eixos separados.
+
+O comportamento de loader compartilhado corresponde ao problema isolado pelo
+[`singleflight` do Go](https://pkg.go.dev/golang.org/x/sync/singleflight).
+W acrescenta ownership, error type e cancellation estruturada ao contrato.
+
+Um deployment pode reduzir capacidade. Ele não pode converter `LocalCache` em
+rede. Um cache remoto usa `ServiceRef<CacheApi>` e methods async. Assim, latency,
+failure boundary e placement continuam visíveis na assinatura.
 
 ## 15. Números, ranges e unidades
 
@@ -11454,6 +11890,39 @@ TechEmpower:
 6. data updates;
 7. plaintext.
 
+O source oracle implementa as sete rotas. O runtime graph e o deployment
+declaram PostgreSQL, cache local, admission e quotas. Esse estado não constitui
+um resultado. Ainda faltam runtime HTTP, codec JSON, template adapter, database
+adapter, cache, harness e medição.
+
+Antes de throughput, o harness valida:
+
+- method, path, payload, media type, `Server` e `Date`;
+- `queries` ou `count` com clamp em `1...500`;
+- uma query database distinta por item quando o workload exige;
+- uma boundary `Sync` por query no extended protocol do PostgreSQL;
+- read-modify-write concluído antes da resposta de updates;
+- escaping UTF-8 das fortunes;
+- read-through e replacement real na rota de cache;
+- ausência de gzip, resposta pré-renderizada e disk log por request;
+- limites de admission, pool, pipeline, cache e retained bytes.
+
+**Exemplo:** validação e medição são passos distintos:
+
+```text
+w benchmark validate last-light-benchmark \
+  --deployment deployments/benchmark.w \
+  --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
+
+w benchmark run last-light-benchmark \
+  --deployment deployments/benchmark.w \
+  --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
+  --evidence results/last-light.wbench
+```
+
+`validate` não produz ranking. `run` recusa um artifact, deployment ou harness
+que não corresponde ao validation record.
+
 Cada resultado registra:
 
 - versão e configuração do benchmark;
@@ -12135,6 +12604,18 @@ package {
       targets: ["wasi"]
       runtime: "restaurant-edge"
       packing: "entry-only"
+      limits: {
+        http: {
+          activeRequests: 1_024
+          queuedRequests: 2_048
+          queuedBytes: 64MiB
+          connections: 8_192
+          targetBytes: 16KiB
+          headerBytes: 64KiB
+          headerFields: 128
+          bodyBytes: 1MiB
+        }
+      }
     },
   ]
 
@@ -12214,6 +12695,11 @@ root alcançável.
 
 Vários products podem usar os mesmos módulos. Escolher outro entry, host,
 target, runtime graph ou packing cria outra recipe.
+
+`limits` usa um schema fechado pelo host profile e pelas capabilities. Ele
+define o maior envelope do artifact. Um limite exigido por um slot precisa
+estar no product ou numa const call alcançável, como `http.serve`. Deployment
+pode reduzir o envelope. Ele não pode aumentá-lo.
 
 Product kinds iniciais:
 
@@ -12861,6 +13347,12 @@ Uma pesquisa só avança quando possui:
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
 | descriptor anônimo e overlay local | **Possível agora** | expansão é estática; diagnostics precisam mostrar origem |
 | package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
+| parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
+| mensagem HTTP, ownership e admission | **Possível agora** | types, stream e limits estão fechados; adapters ainda precisam de corpus |
+| adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
+| SQL estático e rows tipadas | **Possível agora** | descriptors e bind são diretos; schema completo depende de bundle |
+| pool, pipeline e transaction database | **Provável** | protocolos existem; admission, cleanup e unknown commit exigem fault tests |
+| cache local com limite e read-through | **Provável** | algoritmos são conhecidos; eviction, cancellation e custo exigem protótipo |
 | target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
 | WASI 0.3 native async component | **Provável** | standard estável; target e guest toolchains ainda amadurecem |
 | desktop/server LLVM targets | **Provável** | backends existem; runtime, SDK e CI ainda são trabalho W |
@@ -12869,7 +13361,7 @@ Uma pesquisa só avança quando possui:
 | NVVM, ROCDL e SPIR-V device bundle | **Provável T2** | MLIR oferece lowerings; kernel subset e transfer precisam de protótipo |
 | ASIC/FPGA como target geral | **Pesquisa** | timing, synthesis e verification não seguem o runtime CPU |
 | nanoservices co-localizados | **Provável** | service graph permite fast path; equivalência física exige trace e fault tests |
-| profile TechEmpower | **Provável** | workloads são conhecidos; harness vigente e configuração precisam ser fixados |
+| profile TechEmpower | **Provável** | sete source oracles existem; adapters, harness fixado e medição ainda faltam |
 | tensors ranked, `@` e views | **Provável T2** | MLIR ajuda; API e device model precisam de protótipo |
 | integer tensor com accumulator inferido por range | **Provável T2** | prova é conhecida; panic, widening e kernel dispatch exigem corpus |
 | float matrix modes strict/fast/reproducible | **Provável T2** | cada mode precisa de oracle numérico e matriz de targets |
@@ -13148,6 +13640,7 @@ equivalentes e nenhum error node.
 - EBNF;
 - CST/recovery;
 - modifiers `const fn` e `const init`;
+- parâmetros de chamada `name: const T` em declarations e function types;
 - contratos estáticos com expression, record e list payloads;
 - referência `.member` contextual sem perda no CST;
 - patterns nominais de struct e marker `...`;
@@ -13176,6 +13669,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - rest signatures, call-shape intersection e `each` expansion;
 - synthesis core, `TypeId` e interfaces de reflection;
 - grafo const, ConstIR, quotas e ConstValue;
+- verificação de parâmetros de chamada `const` no call site;
 - `ProofFacts` para intervalos, case-sets, comprimentos, shapes e flow;
 - interface compilada inicial.
 
@@ -13290,7 +13784,9 @@ backpressure e cleanup reproduzíveis.
 - packing em service-only units e artifact index;
 - validation de deployment plan e lock contra o product envelope;
 - tracing e local fast path;
-- process e `wasm32-wasip3` boundary experimentais.
+- process e `wasm32-wasip3` boundary experimentais;
+- `Request`, `Response`, `http.Context` e admission HTTP;
+- adapter HTTP nativo e adapter `http-worker@1` com o mesmo oracle;
 
 Saída: CLI e HTTP exibem hops, queues, overload, cycle, trabalho supervisionado
 e restart de instance.
@@ -13303,6 +13799,8 @@ de marcar a versão como reproduced.
 - package parser, resolver, lock e CAS;
 - builds `--locked`/offline;
 - T0/T1 mínimos;
+- descriptors SQL, codecs de row e adapters database com pool limitado;
+- cache local com limite, replacement, expiration e loader compartilhado;
 - provenance, SBOM e reprodução local;
 - lens por import;
 - SQLite adapter experimental para steps e outcomes supervisionados;
@@ -13909,7 +14407,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-516 | produto de referência | Última Luz é especificação executável, regressão e benchmark do W | exemplo descartável; snippets independentes como oracle principal |
 | W-517 | nanoservice | service é fronteira lógica; runtime pode co-localizar sem apagar effects | processo por service; call remota transparente |
 | W-518 | accelerator | device target gera kernels/objects ligados por host product | device como processo geral; offload implícito |
-| W-519 | benchmark externo | profile versionado reproduz workload e registra diferenças; ranking não é semântica | otimizar para placar sem oracle; prometer posição |
+| W-519 | benchmark externo | sete source oracles, profile versionado e validators precedem medição; ranking não é semântica | otimizar para placar sem oracle; chamar source de resultado; prometer posição |
 | W-520 | module set | `.fileStem` expande paths de forma determinística e grava a lista no lock | descoberta livre do diretório; `module` em cada source |
 | W-521 | std em W | contratos públicos são source W; handles e operações intrínsecas têm fronteira explícita | std toda no compiler; wrappers utilitários por operação |
 | W-522 | fechamento do runtime graph | cada requirement recebe provider, supervisor, host capability ou import declarado | lookup por string; import implícito; provider descoberto por reflection |
@@ -13920,6 +14418,25 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-527 | WASI baseline | `wasm32-wasip3` usa Component Model native async; `wasm32-wasip2` é compatibilidade | polling 0.2 como semântica W; Wasm implica DOM |
 | W-528 | unit root | entry unit é explícita; service-only unit publica provider no artifact index; toda unit possui root | unit vazia; initializer implícito; entry sintético pelo nome |
 | W-529 | interface privada de unit | packer deriva endpoints privados e fixos; deployment só roteia a edge | tornar provider público; religar edge interna no deployment |
+| W-530 | tuple com labels | todos os elementos têm label ou nenhum; labels pertencem ao tipo; unitário exige vírgula | mistura de labels; labels decorativos; function arguments viram tuple; struct anônimo universal |
+| W-531 | modelo HTTP | `std.http` representa semântica de mensagem, independente de HTTP/1.1, HTTP/2 ou HTTP/3 | frames no handler; Fetch API copiada integralmente; version decide domínio |
+| W-532 | ownership de request | `Request` move-only transfere body e só permite um consumer | clone implícito; body copiável; stream ambiental |
+| W-533 | materialização HTTP | decode, bytes e text são async e exigem limite; stream preserva backpressure | ler body inteiro sem limite; decode síncrono; buffer oculto |
+| W-534 | headers HTTP | tokens e controls são validados; nomes são ASCII case-insensitive; Bytes, repetição e ordem são preservados | Map<String, String>; normalizar value Unicode; juntar Set-Cookie |
+| W-535 | response streaming | retorno transfere owner ao pump runtime-owned; entrega ao client não é confirmada | task solta; retorno confirma socket; segundo status após commit |
+| W-536 | admission HTTP | product/call fixa requests, fila, bytes, connections e message limits | defaults ilimitados; task antes de admission; rate limit de negócio implícito |
+| W-537 | host HTTP | native `serve` e worker slot usam o mesmo handler e oracle | API por protocolo de transporte; OS chama fetch; handler especial de benchmark |
+| W-538 | `http.Context` | registries tipados expõem somente bindings e capabilities declaradas | mapa de env; singleton global; lookup livre por string |
+| W-539 | SQL estático | descriptors const usam bind nomeado e identity derivada; sem `name` textual repetido | interpolação; SQL mutável; query sem dialect; identity manual |
+| W-540 | row database | tuple tipado ou decoder explícito; schema bundle aumenta prova | preencher struct por reflection; `Any` row; column conversion silenciosa |
+| W-541 | pool e pipeline | admission bounded; query/execute-many preservam um statement, outcome e ordem por input | pool ilimitado; combinar SELECTs; deduplicar queries; ordem de result variável |
+| W-542 | transaction | closure recebe borrow não escapante; output sai após commit confirmado; unknown commit é distinto | transaction escapa; retry automático; perda de conexão significa rollback |
+| W-543 | cache local | limita entries, loaders e fila; devolve owned duplicate; bytes ficam no envelope do product | Map global; fila livre; view sobre entry; cache como source of truth |
+| W-544 | cache load | um loader por key; waiter cancela só a espera; admission e commit são explícitos | task detached; waiter cancela loader; errors cached por default; loaders iguais |
+| W-545 | cache remoto | usa `ServiceRef` async separado; deployment não converte cache local em rede | API sync location-transparent; timeout invisível; remote fallback |
+| W-546 | limits de product | schema do host/capability fixa envelope máximo; deployment somente reduz | config aumenta authority; limite só operacional; defaults sem artifact contract |
+| W-547 | configuração de host | schema fechado do profile entra na recipe; deployment somente reduz policies permitidas | mapa de opções livre; config concede capability; proxy oculto corrige semântica |
+| W-548 | parâmetro de chamada `const` | `name: const T` exige ConstRepresentable conhecido no call site; ABI pode apagar | `comptime` em cada call; runtime descriptor na API estática; monomorphization obrigatória |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

@@ -7,6 +7,8 @@ Estes planos testam a separação entre grafo lógico, packing e placement.
 
 - [`local.w`](local.w) usa uma unit e adapters locais de desenvolvimento.
 - [`distributed.w`](distributed.w) usa vários artifacts e hosts.
+- [`benchmark.w`](benchmark.w) fixa HTTP, PostgreSQL e cache local para o
+  corpus TechEmpower.
 
 O artifact index já fixa as edges entre as units de `restaurant-core`.
 O plano só escolhe a rota entre os placements. A seção `bindings` satisfaz

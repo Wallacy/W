@@ -4556,6 +4556,16 @@
     "type": "function_type_parameter",
     "named": true,
     "fields": {
+      "const_requirement": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "const",
+            "named": false
+          }
+        ]
+      },
       "ownership": {
         "multiple": false,
         "required": false,
@@ -5492,6 +5502,190 @@
     }
   },
   {
+    "type": "labeled_tuple_element",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "array_literal",
+            "named": true
+          },
+          {
+            "type": "assignment_expression",
+            "named": true
+          },
+          {
+            "type": "binary_expression",
+            "named": true
+          },
+          {
+            "type": "boolean_literal",
+            "named": true
+          },
+          {
+            "type": "bounded_range_expression",
+            "named": true
+          },
+          {
+            "type": "byte_literal",
+            "named": true
+          },
+          {
+            "type": "call_expression",
+            "named": true
+          },
+          {
+            "type": "capture_expression",
+            "named": true
+          },
+          {
+            "type": "closure_expression",
+            "named": true
+          },
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          },
+          {
+            "type": "generic_application_expression",
+            "named": true
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "index_expression",
+            "named": true
+          },
+          {
+            "type": "map_literal",
+            "named": true
+          },
+          {
+            "type": "member_expression",
+            "named": true
+          },
+          {
+            "type": "multiline_string_literal",
+            "named": true
+          },
+          {
+            "type": "number_literal",
+            "named": true
+          },
+          {
+            "type": "optional_member_expression",
+            "named": true
+          },
+          {
+            "type": "optional_propagation_expression",
+            "named": true
+          },
+          {
+            "type": "optional_try_expression",
+            "named": true
+          },
+          {
+            "type": "panic_expression",
+            "named": true
+          },
+          {
+            "type": "parenthesized_expression",
+            "named": true
+          },
+          {
+            "type": "quantity_literal",
+            "named": true
+          },
+          {
+            "type": "raw_string_literal",
+            "named": true
+          },
+          {
+            "type": "repeat_array_literal",
+            "named": true
+          },
+          {
+            "type": "scalar_literal",
+            "named": true
+          },
+          {
+            "type": "size_literal",
+            "named": true
+          },
+          {
+            "type": "string_literal",
+            "named": true
+          },
+          {
+            "type": "switch_expression",
+            "named": true
+          },
+          {
+            "type": "tuple_expression",
+            "named": true
+          },
+          {
+            "type": "unary_expression",
+            "named": true
+          },
+          {
+            "type": "unit_literal",
+            "named": true
+          },
+          {
+            "type": "unit_suffix_literal",
+            "named": true
+          },
+          {
+            "type": "unsafe_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "labeled_tuple_type_element",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "language_tag",
     "named": true,
     "fields": {
@@ -6149,6 +6343,10 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "tuple_index",
             "named": true
           }
         ]
@@ -6890,6 +7088,10 @@
           {
             "type": "identifier",
             "named": true
+          },
+          {
+            "type": "tuple_index",
+            "named": true
           }
         ]
       }
@@ -7227,6 +7429,16 @@
     "type": "parameter",
     "named": true,
     "fields": {
+      "const_requirement": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "const",
+            "named": false
+          }
+        ]
+      },
       "default": {
         "multiple": false,
         "required": false,
@@ -9268,16 +9480,6 @@
     "type": "tuple_element",
     "named": true,
     "fields": {
-      "label": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
       "value": {
         "multiple": false,
         "required": true,
@@ -9425,164 +9627,15 @@
   {
     "type": "tuple_expression",
     "named": true,
-    "fields": {
-      "label": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "value": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "array_literal",
-            "named": true
-          },
-          {
-            "type": "assignment_expression",
-            "named": true
-          },
-          {
-            "type": "binary_expression",
-            "named": true
-          },
-          {
-            "type": "boolean_literal",
-            "named": true
-          },
-          {
-            "type": "bounded_range_expression",
-            "named": true
-          },
-          {
-            "type": "byte_literal",
-            "named": true
-          },
-          {
-            "type": "call_expression",
-            "named": true
-          },
-          {
-            "type": "capture_expression",
-            "named": true
-          },
-          {
-            "type": "closure_expression",
-            "named": true
-          },
-          {
-            "type": "contextual_member_expression",
-            "named": true
-          },
-          {
-            "type": "generic_application_expression",
-            "named": true
-          },
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "index_expression",
-            "named": true
-          },
-          {
-            "type": "map_literal",
-            "named": true
-          },
-          {
-            "type": "member_expression",
-            "named": true
-          },
-          {
-            "type": "multiline_string_literal",
-            "named": true
-          },
-          {
-            "type": "number_literal",
-            "named": true
-          },
-          {
-            "type": "optional_member_expression",
-            "named": true
-          },
-          {
-            "type": "optional_propagation_expression",
-            "named": true
-          },
-          {
-            "type": "optional_try_expression",
-            "named": true
-          },
-          {
-            "type": "panic_expression",
-            "named": true
-          },
-          {
-            "type": "parenthesized_expression",
-            "named": true
-          },
-          {
-            "type": "quantity_literal",
-            "named": true
-          },
-          {
-            "type": "raw_string_literal",
-            "named": true
-          },
-          {
-            "type": "repeat_array_literal",
-            "named": true
-          },
-          {
-            "type": "scalar_literal",
-            "named": true
-          },
-          {
-            "type": "size_literal",
-            "named": true
-          },
-          {
-            "type": "string_literal",
-            "named": true
-          },
-          {
-            "type": "switch_expression",
-            "named": true
-          },
-          {
-            "type": "tuple_expression",
-            "named": true
-          },
-          {
-            "type": "unary_expression",
-            "named": true
-          },
-          {
-            "type": "unit_literal",
-            "named": true
-          },
-          {
-            "type": "unit_suffix_literal",
-            "named": true
-          },
-          {
-            "type": "unsafe_expression",
-            "named": true
-          }
-        ]
-      }
-    },
+    "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
+        {
+          "type": "labeled_tuple_element",
+          "named": true
+        },
         {
           "type": "tuple_element",
           "named": true
@@ -9613,6 +9666,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "labeled_tuple_type_element",
+          "named": true
+        },
         {
           "type": "type",
           "named": true
@@ -10978,6 +11035,10 @@
   {
     "type": "try",
     "named": false
+  },
+  {
+    "type": "tuple_index",
+    "named": true
   },
   {
     "type": "type",

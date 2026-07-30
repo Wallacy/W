@@ -20,13 +20,34 @@ O product inclui somente o grafo alcançável.
 
 ```text
 std/
+  cache/
+    contracts.w
+  database/
+    contracts.w
+  http/
+    contracts.w
   runtime/
     work.w
 ```
 
 `runtime/work.w` materializa os tipos públicos usados por trabalho
-supervisionado. `WorkId`, `EffectId`, `Cancellation` e handles de capability
-ainda são intrinsics do compiler/runtime.
+supervisionado. Os outros arquivos materializam values e protocols de T2 para
+HTTP, database e cache local com limite.
+
+O rascunho fixa três fronteiras:
+
+- HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
+- database exige SQL const em parâmetros de chamada, usa binds nomeados, rows
+  tipadas e transactions;
+- cache local possui capacidade, devolve values owned e nunca vira rede por
+  configuração.
+
+Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
+otimizar transporte, mas não pode mudar statements, results, ownership ou
+failure semantics.
+
+`WorkId`, `EffectId`, `Cancellation`, `Request`, `Response`, `http.Context` e
+handles de capability ainda são intrinsics do compiler/runtime.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:

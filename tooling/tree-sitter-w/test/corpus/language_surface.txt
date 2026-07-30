@@ -922,3 +922,154 @@ fn stillVisible(): Bool {
     (block
       (return_statement
         (boolean_literal)))))
+
+==================
+Labeled tuple types and positional members
+==================
+
+type WorldRow = (id: i32, randomNumber: i32)
+type NamedCell = (value: i32,)
+type PositionalCell = (i32,)
+
+fn inspect(row: WorldRow): i32 {
+  let world: WorldRow = (id: 42, randomNumber: 7)
+  let namedCell: NamedCell = (value: 1,)
+  let positionalCell: PositionalCell = (1,)
+  let named = row.id
+  let positional = row.0
+  return named + positional
+}
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier))))
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (tuple_expression
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (tuple_expression
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (tuple_expression
+          (tuple_element
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (member_expression
+          (identifier)
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (member_expression
+          (identifier)
+          (tuple_index)))
+      (return_statement
+        (binary_expression
+          (identifier)
+          (identifier))))))
+
+==================
+Mixed tuple labels are rejected
+==================
+
+type MixedRow = (id: i32, String)
+
+fn invalidTuple(): () {
+  let invalid = (id: 42, 7)
+}
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier))))
+        (ERROR
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (tuple_type))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (tuple_expression
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))
+          (ERROR
+            (number_literal)))))))

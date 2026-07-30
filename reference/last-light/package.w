@@ -247,6 +247,33 @@ package {
         },
       ]
     },
+    {
+      name: "benchmark-host"
+      providers: []
+      imports: [
+        {
+          binding: "benchmark-database"
+          capability: "std.database::Database"
+          dialect: .postgresql
+          source: .host
+        },
+        {
+          binding: "cached-worlds"
+          capability: "std.cache::LocalCache"
+          keyType: "i32"
+          valueType: "restaurant.benchmark_app::CachedWorld"
+          source: .host
+        },
+      ]
+      supervisors: []
+      exports: []
+      packings: [
+        {
+          name: "entry-only"
+          units: [{ name: "main", entry: true, providers: [] }]
+        },
+      ]
+    },
   ]
 
   products: [
@@ -271,6 +298,18 @@ package {
       runtime: "restaurant-client"
       packing: "entry-only"
       capabilities: [.network, .clock, .services]
+      limits: {
+        http: {
+          activeRequests: 1_024
+          queuedRequests: 2_048
+          queuedBytes: 64MiB
+          connections: 8_192
+          targetBytes: 16KiB
+          headerBytes: 64KiB
+          headerFields: 128
+          bodyBytes: 1MiB
+        }
+      }
     },
     {
       name: "last-light-wifi"
@@ -282,6 +321,18 @@ package {
       runtime: "wifi-edge"
       packing: "entry-only"
       capabilities: [.network, .clock, .storage, .secrets, .services]
+      limits: {
+        http: {
+          activeRequests: 512
+          queuedRequests: 1_024
+          queuedBytes: 8MiB
+          connections: 4_096
+          targetBytes: 8KiB
+          headerBytes: 32KiB
+          headerFields: 64
+          bodyBytes: 8KiB
+        }
+      }
     },
     {
       name: "last-light-simulation"
@@ -347,8 +398,45 @@ package {
       module: "restaurant.benchmark_app"
       entry: "LastLightBenchmark"
       host: "w.host/http-worker@1"
+      hostConfiguration: {
+        responseHeaders: {
+          server: .literal("W")
+          date: .cached(maximumAge: 1<s>)
+        }
+        compression: .deny
+        logging: {
+          requests: .deny
+          disk: .deny
+          console: .deny
+        }
+      }
       targets: ["server"]
-      capabilities: [.network, .clock, .database]
+      runtime: "benchmark-host"
+      packing: "entry-only"
+      capabilities: [.network, .clock, .random, .database, .cache, .templates]
+      limits: {
+        http: {
+          activeRequests: 16_384
+          queuedRequests: 16_384
+          queuedBytes: 64MiB
+          connections: 32_768
+          targetBytes: 16KiB
+          headerBytes: 64KiB
+          headerFields: 128
+          bodyBytes: 1MiB
+        }
+        database: {
+          connections: 256
+          queuedOperations: 4_096
+          queuedBytes: 64MiB
+          pipelineDepth: 20
+        }
+        cache: {
+          entries: 10_000
+          activeLoads: 256
+          queuedLoads: 4_096
+        }
+      }
     },
   ]
 
