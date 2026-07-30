@@ -11,7 +11,8 @@ conformance, benchmarks, documentação e treinamento.
 
 O produto não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md). O
-[plano de build](BUILD.md) aplica products, targets, host profiles e artifacts.
+[plano de build](BUILD.md) aplica products, target specs, toolchain plans, host
+profiles e artifacts.
 O workspace data-only está em [`workspace.w`](workspace.w). O package principal
 está em [`package.w`](package.w).
 
@@ -178,8 +179,8 @@ alvo de execução independente.
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
 | `package.w` | products, variantes, runtime graphs, targets e build profiles |
-| `workspace.w` | members, defaults e patches locais |
-| `BUILD.md` | matriz de artifacts, comandos e gates |
+| `workspace.w` | members, defaults, patches e toolchain policy locais |
+| `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
 | `deployments/distributed.w` | plano heterogêneo com services, devices e WASI |
 | `deployments/benchmark.w` | PostgreSQL, cache local, admission e limites do benchmark |
@@ -219,6 +220,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w` | um dispatch tipado atende CLI, TUI e HTTP |
 | products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, target e placement ficam separados |
+| toolchains e SDKs | `workspace.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
 | mobile e Wi-Fi | `mobile_app.w`, `wifi.w` | lifecycle e authority usam capabilities |
@@ -705,7 +707,8 @@ Aceite:
 
 - `packages/menu-compiler/compiler.w` usa somente o profile `bootstrap.w0`;
 - `packages/menu-compiler/transform.w` recebe somente `menu` e `bytecode`;
-- o tool compila para o execution target, não para o product target;
+- o tool artifact é compilado para o target da execution platform;
+- a action executa nessa platform, não no product target;
 - nenhum path, environment, clock, random ou network fica disponível;
 - error ou output acima de 1 MiB não confirma objeto no CAS;
 - `const fn buildInstructionOpcodes` executa no evaluator CE0;
@@ -1331,17 +1334,21 @@ definidos.
 
 ### 3.36 Bilheteria para Muitos Universos
 
-Famílias: package, product, entry, runtime graph, packing, deployment e artifact.
+Famílias: package, product, entry, runtime graph, packing, toolchain, deployment
+e artifact.
 
 Aceite:
 
 - `package.w` usa somente o subset data-only;
 - `workspace.w` lista paths exatos e usa um lock compartilhado;
+- `workspace.w` permite catalog da distribuição e somente system imports
+  explícitos;
 - o member `last-light/menu-compiler` satisfaz a `.build` dependency local;
 - a authority, o name e a version do member conferem com a dependency;
 - `w publish check` resolve a mesma dependency sem o workspace;
 - build, product, test e benchmark mantêm graphs e target roles distintos;
-- o lock fixa resolução, a recipe fixa inputs e o artifact record liga outputs;
+- o lock fixa packages, a toolchain plan fixa providers, a recipe fixa inputs e
+  o artifact record liga outputs;
 - `compile-final-menu` declara tool, input, output e budgets;
 - o compiler não entra no payload de `last-light-native`;
 - o resource gerado entra na artifact key do product;
@@ -1377,6 +1384,27 @@ Aceite:
 - `w deploy apply --locked` não executa build;
 - secrets permanecem handles de host;
 - cada target possui recipe e digest próprios;
+- `TargetId` não incorpora CPU, platform contract, SDK ou linker;
+- a recipe contém o `TargetSpec` expandido;
+- API alcançável acima do platform contract falha sem elevar o minimum;
+- cada build phase fixa uma execution platform;
+- um build tool é compilado para o target da execution platform;
+- a action do build tool executa nessa platform e não no product target;
+- o package pede roles de toolchain e não fixa executables por path;
+- dependency pode pedir role, mas somente a root policy autoriza language e
+  provider source;
+- package e dependency não fornecem a toolchain policy do consumer;
+- a resolução não consulta `PATH`, `SDKROOT`, `INCLUDE` ou `LIB`;
+- SDK de sistema exige import explícito e closure por digest;
+- CAS ou snapshot local selado é preferido a provider system-backed;
+- provider inventory associa records a execution platforms sem expor paths;
+- provider não selecionado não muda a recipe;
+- provider ambiguity falha sem uma prioridade da raiz;
+- `cpuPolicy: .explicit` exige CPU e features explícitos;
+- cada slice de um artifact composto mantém target, plan row e digest;
+- signing e notarization geram delivery records separados;
+- `bit-reproducible` não implica `publicly-rebuildable`;
+- clean, no-op, body edit e matrix build publicam records de desempenho;
 - WASI 0.3 preserva async na component boundary;
 - uma matriz publica um index, não um hash falso entre architectures;
 - `w explain product` informa origem de cada binding;
@@ -1384,7 +1412,8 @@ Aceite:
 
 O oracle gera products e packings de [`package.w`](package.w). Depois ele resolve
 os dois planos em [`deployments/`](deployments/). Ele rejeita graph aberto,
-binding incompatível, quota maior, unit ausente, digest mutável e target sem SDK.
+binding incompatível, quota maior, unit ausente, digest mutável, provider
+ambíguo e target sem SDK.
 
 ### 3.37 Coreografia das Luas que Perderam o Planeta
 
@@ -1528,7 +1557,11 @@ O Book deve mostrar pares lado a lado:
 | handler default | `entry Name(run)` | escrever `process.main = run` em cada descriptor |
 | seleção | product escolhe descriptor no link | nome de entry escolhido livremente no runtime |
 | multimodo | um `process.main` escolhe CLI/TUI/server | vários mains ou OS chama `http.fetch` |
-| target | tuple canônica + CPU/features/sysroot | string livre, OS apenas ou backend implica suporte |
+| target | `TargetId` + `TargetSpec` expandido | string livre, OS apenas ou backend implica suporte |
+| build platform | target spec e execution platform separados | compiler executa no target final ou usa host implícito |
+| toolchain | requirements + providers por digest | executable em `PATH` ou path no package |
+| SDK | system import explícito + closure | SDK mais novo instalado |
+| envelope | payload, unsigned envelope e delivery records | assinatura dentro da compilation recipe |
 | matriz | payload e digest por target + index | um hash para bytes de architectures diferentes |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
@@ -1631,7 +1664,8 @@ A integração avança em seis gates cumulativos:
    `AppResponse`;
 3. **Turno do Horizonte Violeta:** o grafo real de services, FFI, compensação e
    observabilidade passa fault injection;
-4. **Products:** package, lock e build geram artifacts reproduzíveis por target;
+4. **Products:** package lock, toolchain plan e build geram artifacts
+   reproduzíveis por target;
 5. **Devices:** mobile, firmware, áudio e accelerator passam os próprios
    resource gates;
 6. **Performance:** benchmarks internos e externos mantêm semântica e evidence.

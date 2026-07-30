@@ -54,7 +54,7 @@ package {
         optimize: .speed
         checks: .safe
         debug: .sidecar
-        targetCpu: "portable"
+        cpuPolicy: .portable
       },
     ]
     constEval: {

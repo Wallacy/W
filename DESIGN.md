@@ -12360,11 +12360,14 @@ profiles: [
   {
     name: "release"
     optimize: .speed
-    targetCpu: "x86-64-v3"
+    cpuPolicy: .explicit
     pgoUse: "sha256:..."
   },
 ]
 ```
+
+O target spec dessa build fixa `cpu: "x86-64-v3"` e suas features. O profile
+exige a declaração. Ele não armazena uma segunda cópia da seleção.
 
 O proof engine possui quotas determinísticas para tempo, memória e tamanho de
 facts. Intervalos, case-sets, shapes e aliasing formam a baseline. SMT geral e
@@ -12948,17 +12951,20 @@ nem muda o payload executável além das sections declaradas.
 
 ### 20.8 Targets e profiles
 
-W separa quatro identidades:
+W separa cinco identidades:
 
 | Identidade | Pergunta |
 |---|---|
 | target | Para qual architecture, vendor, system e ABI o código é emitido? |
+| execution platform | Em qual target uma action de build executa? |
 | host profile | Quais slots, capabilities e regras de lifecycle o host oferece? |
 | product | Qual entry, module graph, runtime envelope e artifact kind serão ligados? |
 | deployment | Onde os artifacts e instances serão colocados? |
 
-Misturar essas identidades faria `linux`, `CLI`, `server` e `GPU` parecerem
-variações da mesma propriedade. Elas não são.
+Misturar essas identidades faria `linux`, `CLI`, `server`, `builder` e `GPU`
+parecerem variações da mesma propriedade. Elas não são. Um compiler que executa
+em Windows pode emitir um firmware ARM. O firmware não recebe capabilities de
+Windows.
 
 #### 20.8.1 Target identity
 
@@ -12989,10 +12995,86 @@ amdgcn-amd-amdhsa
 spirv64-unknown-vulkan
 ```
 
-O schema normaliza aliases antes de calcular a recipe. Um target também fixa
+O schema normaliza aliases antes de calcular a recipe. Um `TargetId` também fixa
 data layout, endianness, pointer width, object format e calling conventions.
-CPU, features, sysroot, SDK e linker são campos separados e entram na chave do
-artifact.
+Ele não fixa CPU, features, platform contract, sysroot, SDK ou linker.
+
+Uma build usa um `TargetSpec` normalizado:
+
+```text
+TargetSpec = {
+  id: TargetId,
+  cpu,
+  features,
+  platformContract,
+}
+```
+
+`platformContract` é fechado pela família do target. Ele informa o menor
+contrato de runtime ou device aceito. Ele não informa qual versão do SDK compila
+o programa.
+
+```w
+{
+  id: "x86_64-unknown-linux-gnu"
+  cpu: .portable
+  features: []
+  platformContract: .linux(
+    kernel: "4.18",
+    libc: .glibc("2.28"),
+  )
+}
+
+{
+  id: "aarch64-unknown-linux-android"
+  cpu: .portable
+  features: []
+  platformContract: .android(api: 26)
+}
+
+{
+  id: "aarch64-apple-ios"
+  cpu: .portable
+  features: []
+  platformContract: .apple(.ios, minimum: "17.0")
+}
+```
+
+Os números acima são exemplos de schema. Eles não definem a baseline da primeira
+release. Cada família possui um schema próprio. Exemplos incluem
+`.linux(kernel:, libc:)`, `.windows(minimum:)`, `.apple(...)`, `.android(api:)`,
+`.wasi(...)`, `.device(...)` e `.cuda(...)`. Um case de outra família é error.
+
+Runtime, std, platform adapter e foreign symbol declaram availability. O
+analyzer calcula o maior requisito do grafo alcançável e compara com
+`platformContract`. Ele não aumenta o mínimo em silêncio:
+
+```text
+target contract: .android(api: 26)
+reachable symbol: CameraFrame.acquire requires .android(api: 28)
+result: error; raise the target contract or remove the symbol
+```
+
+Um SDK mais novo pode emitir para um contract antigo quando seu provider declara
+essa capacidade. SDK version e runtime minimum continuam separados.
+
+Uma string de target no manifest é sugar para os defaults fixados pela
+distribuição W. A recipe sempre contém o record expandido. O profile usa
+`cpuPolicy: .portable` ou `cpuPolicy: .explicit`. A primeira exige o baseline da
+distribuição. A segunda exige `cpu` e `features` explícitos no comando ou no
+target spec. O field é obrigatório em cada profile. Nenhuma forma consulta a
+CPU do executor:
+
+```text
+w build last-light-benchmark \
+  --target x86_64-unknown-linux-gnu \
+  --cpu x86-64-v3 \
+  --features +avx2,+fma \
+  --profile benchmark
+```
+
+CPU, features, platform contract, sysroot, SDK e linker entram separadamente na
+chave do artifact.
 
 Um nome aceito pelo LLVM não constitui suporte W. O target W precisa de:
 
@@ -13036,8 +13118,8 @@ required. Um `entry` não inventa um slot e um target não concede capability.
 
 #### 20.8.3 Matriz de suporte
 
-Uma linha de suporte declara target, host profile, artifact kind, SDK
-capabilities, compiler/runtime version, status e test evidence.
+Uma linha de suporte declara target spec, host profile, artifact kind, roles de
+toolchain, SDK capabilities, compiler/runtime version, status e test evidence.
 
 | Tier | Garantia |
 |---|---|
@@ -13213,7 +13295,7 @@ package {
       {
         name: "release"
         optimize: .speed
-        targetCpu: "portable"
+        cpuPolicy: .portable
       },
     ]
     constEval: {
@@ -13254,6 +13336,29 @@ workspace {
   ]
   defaultMembers: ["."]
   patches: []
+  toolchainPolicy: {
+    catalogs: [.distribution]
+    systemImports: .explicit
+    providerOrder: [.distribution, .system]
+    foreignLanguages: [.c]
+    executionPlatforms: [
+      {
+        name: "linux-x64"
+        target: "x86_64-unknown-linux-gnu"
+        sandbox: "w.build-sandbox/1"
+      },
+      {
+        name: "windows-x64"
+        target: "x86_64-pc-windows-msvc"
+        sandbox: "w.build-sandbox/1"
+      },
+      {
+        name: "macos-arm64"
+        target: "aarch64-apple-darwin"
+        sandbox: "w.build-sandbox/1"
+      },
+    ]
+  }
 }
 ```
 
@@ -13286,6 +13391,33 @@ eles não dependem de discovery ambiental.
 Ele não muda dependências ou artifacts. `w publish check` resolve cada member
 como package externo, sem substituição automática por workspace. Assim, um
 workspace verde não esconde uma dependência que ainda não pode ser publicada.
+
+`toolchainPolicy` limita as fontes que a análise de build pode usar.
+`.distribution` seleciona o snapshot assinado que acompanha a distribuição W em
+execução. `.explicit` permite somente SDKs e tools de sistema importados por um
+comando separado. O build não procura executables em `PATH` e não escolhe o SDK
+mais recente instalado. `providerOrder` ordena selectors de source, authority ou
+provider autorizados. A raiz pode inserir `.authority("acme:sha256:...")` ou
+`.provider("w/llvm-lld", authority: "w:sha256:...")` nessa lista. Dois provider
+lineages na mesma posição continuam ambíguos. `foreignLanguages` autoriza
+adapters estrangeiros; o Última Luz autoriza somente C.
+`executionPlatforms` é uma lista ordenada de target specs e sandbox profiles
+aceitos. Um executor local ou remoto pode satisfazer a mesma entry. A policy não
+fixa endpoint ou caminho local e não faz parte da identity publicável de um
+member. A toolchain plan fixa a resolução concreta.
+
+Sem workspace, a root usa `--toolchain-policy <file>` ou o default seguro da
+distribuição. Esse default usa somente providers da distribuição, nega system
+imports ainda não autorizados e nega foreign languages. Um package nunca fornece
+a policy do consumer. O builder de publicação aplica sua própria policy:
+
+```text
+w toolchain resolve \
+  --product image-converter \
+  --target x86_64-unknown-linux-gnu \
+  --toolchain-policy policies/release.w \
+  --output build/image-converter.wplan
+```
 
 **Alternativa:** manter configuração de workspace apenas fora do repository
 facilita overlays pessoais. Ela torna CI, lock e seleção de members menos
@@ -13871,20 +14003,22 @@ Product kinds iniciais:
 uma ABI, como C, Wasm Component ou schema W versionado.
 
 `targetSets` servem à matriz de CI e release. Eles não produzem um payload
-universal por inferência. Cada combinação de product, target e profile possui
-uma chave própria.
+universal por inferência. Cada combinação de product, target e profile abre uma
+row. O target spec expandido e a toolchain plan concluem sua chave.
 
 O algoritmo inicial deve ser PubGrub ou outro solver que produza explicações
 equivalentes e determinísticas. O resultado, não o nome do algoritmo, é o
 contrato.
 
-O lock registra a resolução. A recipe registra uma build concreta. O artifact
-record registra os outputs dessa recipe. Os três schemas não se fundem:
+O dependency lock registra a resolução de packages. A toolchain plan registra
+providers de build. A recipe registra uma build concreta. O artifact record
+registra os outputs dessa recipe. Os quatro schemas não se fundem:
 
 | Record | Inputs principais | Não contém |
 |---|---|---|
 | `package.lock` | versões, sources, features, contexts e metadata | payloads e resultados de actions |
-| recipe | source trees, lock digest, product, target, profile e toolchain | payload digest autorreferente |
+| toolchain plan | product, target spec, profile, execution platforms, catalogs e inventories | package graph e outputs |
+| recipe | source trees, lock digest, product, target spec, profile e toolchain-plan row | payload digest autorreferente |
 | artifact record | recipe digest, payloads, resources e sidecars | inputs ambientais não declarados |
 
 ### 21.2 Build
@@ -13919,7 +14053,8 @@ payloads. O resultado inclui um index que aponta para cada digest.
 - adapters `fn<Language>` são tool targets fixadas, não shell commands livres;
 - cada foreign unit possui source digest, toolchain, target, ABI e symbol manifest;
 - cache é content-addressed;
-- recipe fixa toolchain, target, profile, inputs e environment permitido;
+- recipe fixa toolchain-plan row, target spec, profile, inputs e environment
+  permitido;
 - recipe fixa source tree digests, source inventory, active source sets e lock
   digest;
 - recipe fixa quotas e evaluator version de compile-time;
@@ -13936,14 +14071,398 @@ frozen pode buscar somente objetos já fixados.
 produzir o mesmo payload bit a bit. Data, commit, paths, locale, timezone, seeds
 e environment são inputs explícitos ou são removidos.
 
-#### 21.2.1 Artifact identity
+#### 21.2.1 Resolução de toolchain e SDK
+
+**Exemplo:** o executable do restaurante tem target Linux. O compiler de
+cardápio executa em Windows. Os dois usos precisam de providers diferentes:
+
+```text
+w toolchain resolve \
+  --product last-light-native \
+  --target x86_64-unknown-linux-gnu \
+  --execution windows-x64 \
+  --profile release \
+  --output build/last-light-linux.wplan
+
+w build last-light-native \
+  --target x86_64-unknown-linux-gnu \
+  --profile release \
+  --toolchains build/last-light-linux.wplan \
+  --locked
+```
+
+W separa estes termos:
+
+| Termo | Significado | Exemplo |
+|---|---|---|
+| target spec | código e platform contract produzidos | Cortex-M com hard float |
+| execution platform | target spec e sandbox nos quais um tool executa | `windows-x64` |
+| executor | máquina ou worker que executa a action | runner CI 17 |
+| requirement | role e capabilities necessárias | linker ELF para ARM |
+| provider | artifacts que satisfazem uma requirement | W LLD bundle |
+| toolchain plan | resolução imutável para uma build | `last-light-linux.wplan` |
+| SDK/sysroot | headers, libraries e metadata do target | Cortex-M device pack |
+
+O executor não entra na identidade semântica. Seu target, suas capabilities e
+os provider artifacts entram. Dois workers podem executar a mesma plan. Eles
+precisam observar a mesma sandbox e os mesmos inputs.
+
+##### Requirements e providers
+
+O analyzer deriva requirements do product, do target spec, do profile e do
+grafo alcançável. O package declara a necessidade. Ele não declara um
+executable por path.
+
+```text
+requirement {
+  role: .linker
+  execution: { systems: [.linux, .windows, .darwin] }
+  target: { architectures: [.arm, .thumb], systems: [.none] }
+  capabilities: [.elf, .linkerScript, .gcSections]
+  version: "^1"
+}
+```
+
+Um provider declara o que executa e o que produz:
+
+```text
+provider {
+  schema: "w.toolchain-provider/1"
+  authority: "w:sha256:..."
+  name: "w/llvm-lld"
+  version: "1.0.0"
+  roles: [.backend, .assembler, .archiver, .linker]
+  runsOn: {
+    architectures: [.x86_64, .aarch64]
+    systems: [.linux, .windows, .darwin]
+  }
+  producesFor: {
+    architectures: [.x86_64, .aarch64, .arm, .thumb, .riscv32, .wasm32]
+    systems: [.linux, .windows, .none]
+  }
+  artifacts: [
+    { root: "sha256:...", executable: "bin/ld.lld" },
+  ]
+  environment: []
+  license: "Apache-2.0 WITH LLVM-exception"
+}
+```
+
+`runsOn` e `producesFor` são independentes. Um provider pode agrupar várias
+roles. O plan ainda registra qual artifact satisfaz cada role. O agrupamento não
+cria uma capability implícita.
+
+Roles iniciais:
+
+| Role | Responsabilidade |
+|---|---|
+| `.wFrontend` | parse, tipos, HIR e lowering W |
+| `.backend` | MLIR/LLVM e emissão target-specific |
+| `.assembler` | object a partir de assembly |
+| `.archiver` | static archive determinístico |
+| `.linker` | payload ligado e map opcional |
+| `.wRuntime` | runtime subset e startup do target |
+| `.sysroot` | headers e libraries que formam a raiz lógica |
+| `.platformSdk` | APIs, metadata e tools da plataforma |
+| `.componentLinker` | component e interfaces Wasm |
+| `.packager` | envelope de plataforma sem assinatura |
+| `.deviceTools` | image, kernel ou device metadata |
+| `.runner` | test, emulator ou device harness |
+
+Um adapter `fn<C>` adiciona requirements de C frontend, C runtime e ABI. Um
+device bundle adiciona backend e device tools. Um product W freestanding não
+recebe libc somente porque ela existe no executor.
+
+Uma dependency transitiva pode adicionar uma requirement. Ela não pode escolher
+o provider ou autorizar uma foreign language. O resolver mostra a cadeia antes
+de baixar ou executar o provider:
+
+```text
+acme/image@2 -> fn<Rust> -> .foreignFrontend(.rust)
+root policy  -> foreignLanguages [.c]
+result       -> denied before toolchain download
+```
+
+Signer, timestamp authority e notarization service não são roles da payload
+toolchain. Eles operam sobre um envelope já identificado.
+
+##### Algoritmo de resolução
+
+O resolver aplica esta ordem:
+
+1. normaliza target spec, product, profile e target variants;
+2. expande actions, foreign units, payloads e envelopes alcançáveis;
+3. cria as requirements tipadas de cada phase;
+4. lê somente catalog e provider-inventory snapshots permitidos pela root
+   policy;
+5. filtra `runsOn`, `producesFor`, version, capabilities, ABI e license policy;
+6. para cada phase, escolhe a primeira execution platform compatível na ordem
+   explícita da raiz;
+7. aplica `providerOrder` e exige uma provider lineage única na primeira posição
+   compatível;
+8. escolhe a maior versão compatível dessa lineage no snapshot fixo;
+9. emite a plan e explica cada escolha.
+
+`--execution <name>` restringe a análise a uma execution platform da policy. Sem
+esse argumento, a ordem de `executionPlatforms` resolve somente as entries
+compatíveis. Provider lineage é `authority + name`. Se duas lineages permanecem
+na primeira posição compatível de `providerOrder`, a resolução falha. Se a mesma
+authority, name e version apontam para digests diferentes, o snapshot é inválido.
+Registration order, filesystem order e primeiro item em `PATH` não resolvem
+ambiguidade.
+
+Somente os providers escolhidos entram no grafo. Um catalog pode anunciar mil
+toolchains sem baixar ou conceder acesso a todas elas.
+
+Uma phase possui uma execution platform. Phases diferentes podem usar platform
+specs diferentes. Por exemplo:
+
+```text
+compile Linux payload -> execution Linux x86-64
+assemble iOS bundle   -> execution macOS AArch64
+sign iOS bundle       -> release action macOS AArch64
+```
+
+Uma phase não pode trocar de execution platform durante a execução. Remote
+execution seleciona outro executor compatível. Ele não altera a plan.
+
+##### Toolchain plan
+
+`ToolchainPlan` usa o codec data-only e uma serialização canônica. Ele é um
+record de análise. Ele não é source W, package ou script.
+
+```text
+toolchainPlan {
+  schema: "w.toolchain-plan/1"
+  resolver: "w.toolchain-resolver/1"
+  distribution: "sha256:w-distribution..."
+  catalogSnapshots: ["sha256:w-toolchain-catalog..."]
+  providerInventories: ["sha256:release-executors..."]
+  rows: [
+    {
+      product: "last-light-native"
+      target: {
+        id: "x86_64-unknown-linux-gnu"
+        cpu: .portable
+        features: []
+        platformContract: .linux(
+          kernel: "4.18",
+          libc: .glibc("2.28"),
+        )
+      }
+      profile: "release"
+      phases: [
+        {
+          name: .compileAndLink
+          executionPlatform: {
+            name: "linux-x64"
+            target: "x86_64-unknown-linux-gnu"
+            sandbox: "w.build-sandbox/1"
+          }
+          providers: [
+            { role: .wFrontend, artifact: "sha256:..." },
+            { role: .backend, artifact: "sha256:..." },
+            { role: .wRuntime, artifact: "sha256:..." },
+            { role: .sysroot, artifact: "sha256:..." },
+            { role: .linker, artifact: "sha256:..." },
+          ]
+          environment: []
+        },
+      ]
+    },
+  ]
+}
+```
+
+O plan fixa:
+
+- distribuição W e evaluator;
+- catalog snapshots;
+- provider-inventory snapshots usados pela análise;
+- target spec expandido;
+- execution platform por phase;
+- provider identity, version e artifact digest por role;
+- SDK/sysroot closure e platform contract;
+- invocation schema e environment permitido;
+- policy exceptions autorizadas.
+
+O action recipe fixa os argumentos concretos e os inputs usados numa invocation.
+O plan não contém payload ou action output. A product recipe referencia o digest
+semântico da row usada. Esse digest cobre somente as escolhas. Candidatos
+rejeitados e providers não selecionados ficam na explicação da plan. Adicionar
+um provider irrelevante pode mudar o plan digest sem mudar a row ou o artifact.
+
+`w build` sem `--toolchains` resolve e conserva uma plan junto ao resultado. Essa
+forma serve ao desenvolvimento local. CI, release e comparação de benchmark
+fornecem uma plan exata. `w reproduce` usa a plan publicada na recipe. Ele não
+resolve novamente contra o estado atual do host.
+
+`w toolchain explain` mostra requisitos e rejeições:
+
+```text
+$ w toolchain explain last-light-mobile \
+    --target aarch64-apple-ios \
+    --execution macos-arm64
+
+role .platformSdk
+  selected apple/xcode-sdk sha256:...
+  target contract .apple(.ios, minimum: "17.0"): satisfied
+  rejected apple/xcode-sdk sha256:...: SDK version not in fixed snapshot
+```
+
+##### SDKs de sistema e estado ambiental
+
+SDKs redistribuíveis podem entrar no CAS. Um SDK sujeito a licença pode continuar
+instalado no sistema. Nesse caso, um import explícito cria um provider
+system-backed:
+
+```text
+w toolchain import apple-xcode --developer-dir <path>
+w toolchain import windows-msvc --instance <id> --sdk <version>
+w toolchain import android-ndk --root <path>
+```
+
+O import ocorre fora da build. Um adapter versionado pode consultar `xcrun`,
+`vcvarsall` ou metadata do NDK nessa etapa. Ele produz:
+
+- provider identity e version;
+- Merkle digest da closure de tools, headers, libraries e metadata;
+- target e execution constraints;
+- environment allowlist normalizada;
+- license e acquisition record.
+
+Um provider inventory associa records disponíveis a uma execution platform. Ele
+não contém paths ou secrets:
+
+```text
+providerInventory {
+  schema: "w.toolchain-inventory/1"
+  executionPlatform: "macos-arm64"
+  providers: [
+    { record: "sha256:apple-sdk...", availability: .systemBacked },
+    { record: "sha256:w-tools...", availability: .cas },
+  ]
+}
+```
+
+Por padrão, o ambiente local usa um snapshot do provider store. Um control plane
+de CI pode agregar inventories assinados de vários pools. A resolução de release
+recebe esse snapshot como input:
+
+```text
+w toolchain inventory --output build/providers.winventory
+w toolchain resolve \
+  --product last-light-mobile \
+  --matrix mobile \
+  --providers build/providers.winventory \
+  --output build/mobile.wplan
+```
+
+Caminhos locais ficam no provider store. Eles não entram no plan, recipe,
+diagnostic ou debug info. A sandbox monta cada closure por um `ToolPath` lógico,
+derivado do provider digest. Quando o host não oferece um mount virtual, o
+adapter aplica prefix maps e verifica que o path físico não vazou para os
+outputs. O locked build não executa discovery script. Ele verifica a closure
+importada e falha quando um arquivo mudou.
+
+O Merkle digest cobre conteúdo, symlink normalizado e bits semânticos, como
+permissão de execução. Ele não cobre mtime, owner local ou diretório de
+instalação. O provider declara a closure completa que o tool pode abrir. A
+sandbox nega acesso ao restante da instalação.
+
+O importer prefere três formas, nesta ordem:
+
+| Availability | Contrato |
+|---|---|
+| `.cas` | artifact redistribuível e verificado por digest |
+| `.sealedLocal` | snapshot local imutável, sem direito de redistribuição |
+| `.systemBacked` | instalação externa verificada antes da action |
+
+`.sealedLocal` pode usar copy ou clone local quando a licença permite. Um
+provider `.systemBacked` exige verificação forte da closure antes do uso. Size,
+mtime e file ID podem acelerar discovery. Eles não substituem content digest em
+uma release. Um seal autenticado pelo OS pode evitar nova leitura quando seu
+provider schema define essa prova.
+
+`PATH`, `SDKROOT`, `INCLUDE`, `LIB`, `LIBPATH`, `CC`, locale e timezone são
+negados por default. Um adapter foreign pode receber uma projeção explícita. Por
+exemplo, uma recipe com timestamp declarado pode projetá-lo como
+`SOURCE_DATE_EPOCH`. O nome, o valor e o adapter entram na action recipe.
+
+O sysroot é a única raiz lógica para headers e libraries do target. Um build
+Linux não consulta `/usr/include` do executor. Search paths adicionais apontam
+para artifacts declarados e preservam ordem canônica.
+
+Uma build pode ser reproduzível sem ser publicamente reconstruível. Por exemplo,
+dois builders autorizados podem possuir o mesmo SDK fechado e produzir os mesmos
+bytes. Sem acesso legal e independente ao SDK, o registry não marca a release
+como publicamente reconstruível.
+
+##### Envelopes e artifacts compostos
+
+O packager determinístico pertence à toolchain plan. Ele recebe payloads,
+resources e metadata explícita. Um macOS universal binary, um Android App Bundle
+ou um accelerator bundle usa uma composition recipe:
+
+```text
+slice recipe A ─┐
+slice recipe B ─┼─> composition recipe -> unsigned platform envelope
+resources ──────┘
+```
+
+Cada slice mantém target spec, toolchain row e payload digest próprios. A
+composition recipe fixa ordering, names, permissions e timestamps normalizados.
+Ela não trata várias architectures como um target único.
+
+Code signing, timestamp e notarization produzem um delivery record:
+
+```text
+unsigned envelope digest + signing policy + signer evidence
+  -> signed delivery digest
+```
+
+O delivery digest pode mudar sem mudar o payload ou o unsigned envelope. Um
+signed envelope não volta como input da compilation recipe.
+
+Esta separação usa:
+
+- [cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html)
+  para distinguir triple, CPU, sysroot e libraries;
+- [toolchains do Bazel](https://bazel.build/extending/toolchains) para separar
+  target platform, execution platform e provider selection;
+- [Android NDK](https://developer.android.com/ndk/guides/other_build_systems)
+  para tornar ABI, API level e tool path explícitos;
+- [command-line tools da Apple](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools)
+  e [MSVC](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line)
+  para tratar SDK e environment como inputs importados;
+- [WASI SDK](https://github.com/WebAssembly/wasi-sdk) para separar compiler e
+  sysroot;
+- [LLD](https://lld.llvm.org/) como candidato de linker cross-target, não como
+  prova automática de suporte;
+- [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
+  como adapter de compatibilidade para tools que exigem uma variável temporal.
+
+**Alternativa:** usar sempre a toolchain instalada no host reduz o setup
+inicial. Ela deixa uma atualização de IDE, SDK ou environment mudar a recipe sem
+uma decisão no projeto.
+
+**Alternativa:** distribuir todos os SDKs com W aproxima a ergonomia cross-target
+do Zig. Ela não é possível para todo SDK, licença ou device pack. W distribui o
+que pode e usa providers explícitos para o restante.
+
+**Alternativa:** fixar um archive por module simplifica inspection. Ela impede o
+compiler de escolher uma granularidade melhor para incremental build, LTO e
+dead stripping. Module continua uma unidade semântica; archive é uma decisão da
+recipe.
+
+#### 21.2.2 Artifact identity
 
 A chave mínima inclui:
 
 ```text
 package graph + product + expanded entry + host profile + runtime graph + packing
-+ target + selected target variants + CPU/features + sysroot/SDK + profile
-+ compiler/runtime + adapters + build inputs + lock digest
++ target spec + selected target variants + profile + toolchain-plan row
++ adapters + build inputs + lock digest
 ```
 
 O artifact record separa:
@@ -13957,14 +14476,15 @@ O artifact record separa:
 - envelope de plataforma.
 
 Um macOS universal binary, um Android App Bundle e um firmware bundle são
-artifacts compostos. Seus componentes continuam identificados por digest.
-Assinatura, notarization ou timestamp não alteram o digest do payload interno.
+artifacts compostos. Cada component possui recipe, target spec e digest.
+Assinatura, notarization ou timestamp não alteram o digest do payload interno ou
+do envelope sem assinatura.
 
-Um product descreve uma família de recipes. `product + target + profile`
-identifica uma build concreta. Um matrix index agrega artifacts. Ele não cria
-um executável universal.
+Um product descreve uma família de recipes. `product + target spec + profile +
+toolchain-plan row` identifica uma build concreta. Um matrix index agrega
+artifacts. Ele não cria um executável universal.
 
-#### 21.2.2 Multimode e múltiplos artifacts
+#### 21.2.3 Multimode e múltiplos artifacts
 
 Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
 `process.main` escolhe o modo e mantém um só descriptor:
@@ -14002,7 +14522,7 @@ reachable adapter: http.Server (selected by LaunchMode.serve)
 excluded entry: restaurant.worker_app::LastLightWorker
 ```
 
-#### 21.2.3 Build transforms tipadas
+#### 21.2.4 Build transforms tipadas
 
 **Exemplo:** o compiler de cardápio recebe um input nomeado e confirma um output
 nomeado. Ele não recebe argv ou filesystem:
@@ -14108,7 +14628,7 @@ transform precisa de facts do target final, o action declara
 Action identity inclui:
 
 ```text
-tool artifact + expanded entry + execution target + typed inputs
+tool artifact + expanded entry + execution platform + typed inputs
 + target metadata declarada + output schema + budgets + allowed capabilities
 ```
 
@@ -14131,7 +14651,7 @@ O scheduler pode executar a mesma action local ou remotamente. O resultado
 correto não depende do executor. Cache hit não executa o tool e mantém a mesma
 provenance de input e output.
 
-`w explain action compile-final-menu` mostra tool, execution target, inputs,
+`w explain action compile-final-menu` mostra tool, execution platform, inputs,
 budgets, capabilities, cache key e consumers. `w run tool` não concede mais
 authority que a action.
 
@@ -14225,8 +14745,12 @@ w tree [product]
 w fetch --locked
 w package list [package]
 w package check [package]
-w build <product> --target <target> [--packing <packing>] --locked
-w build --matrix <set> --product <product> --locked
+w toolchain import <provider> [provider options]
+w toolchain inventory [--execution <platform>] --output <inventory>
+w toolchain resolve --product <product> (--target <target> | --matrix <set>) [--toolchain-policy <file>] [--execution <platform>] [--providers <inventory>] --output <plan>
+w toolchain explain <product> --target <target> [--execution <platform>]
+w build <product> --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
+w build --matrix <set> --product <product> [--toolchains <plan>] [--output-index <path>] --locked
 w run <product> [--deployment <plan>] -- <arguments>
 w test [product] --locked
 w explain dependency <package>
@@ -14287,8 +14811,15 @@ mostra fases. `--json` emite eventos estáveis.
 #### 21.6.2 Publicação e reprodução
 
 ```text
-w package assemble last-light-native --target x86_64-unknown-linux-gnu --locked
-w publish --release 0.1.0 --artifacts dist/release.windex
+w build last-light-native \
+  --target x86_64-unknown-linux-gnu \
+  --profile release \
+  --toolchains build/release.wplan \
+  --output-index dist/release.windex \
+  --locked
+w publish last-light/restaurant \
+  --artifacts dist/release.windex \
+  --locked
 w verify registry:last-light/restaurant@0.1.0
 w reproduce registry:last-light/restaurant@0.1.0 \
   --target x86_64-unknown-linux-gnu
@@ -14706,6 +15237,13 @@ Uma pesquisa só avança quando possui:
 | pool, pipeline e transaction database | **Provável** | protocolos existem; admission, cleanup e unknown commit exigem fault tests |
 | cache local com limite e read-through | **Provável** | algoritmos são conhecidos; eviction, cancellation e custo exigem protótipo |
 | target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
+| target spec com platform contract | **Possível agora** | schema fechado separa runtime floor, CPU e SDK |
+| availability check por platform contract | **Possível agora** | join de requirements alcançáveis é análise estática fechada |
+| toolchain plan por roles | **Possível agora** | constraints, seleção e digests são análise data-only |
+| system SDK importer | **Provável** | Apple, Windows e vendors exigem adapters e closure hashing por instalação |
+| remote execution sem mudar a plan | **Provável** | sandbox e inputs estão fechados; parity cross-host exige corpus |
+| envelope sem assinatura reproduzível | **Provável** | ordering e metadata podem ser normalizados por packager |
+| assinatura universal bit a bit | **Rejeitado** | timestamp, notarization e authorities externas produzem delivery records |
 | WASI 0.3 native async component | **Provável** | standard estável; target e guest toolchains ainda amadurecem |
 | desktop/server LLVM targets | **Provável** | backends existem; runtime, SDK e CI ainda são trabalho W |
 | Android e Apple mobile | **Provável** | ABI e SDK existem; lifecycle, packaging e signing exigem adapters |
@@ -14916,9 +15454,10 @@ last-light/menu-compiler   → build tool bootstrap.w0
 compile-final-menu         → menu source -> resource no CAS
 ```
 
-O segundo package é uma `.build` dependency. Ele executa no execution target e
-não entra no payload nativo. O workspace usa o member local; `w publish check`
-prova que a release também resolve fora do workspace.
+O segundo package é uma `.build` dependency. O tool artifact é compilado para o
+target da execution platform. A action executa nessa platform. O tool não entra
+no payload nativo. O workspace usa o member local; `w publish check` prova que a
+release também resolve fora do workspace.
 
 O gate final é o **Turno do Horizonte Violeta**:
 
@@ -15887,7 +16426,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-571 | source de dependency | registry ou Git por commit; path somente em workspace; lock fixa tree externo e source set local | branch/tag no build; URL no import; binary URL como identity |
 | W-572 | patch | somente workspace root, mesma identity/version, sempre visível e não publicável | dependency troca por fork invisível; patch transitivo; release patched |
 | W-573 | build tool W | `.tool` usa `build-transform@1` e bindings tipados | install script; shell fragment; process com filesystem ambiental |
-| W-574 | action hermética | tool, inputs, outputs, execution target, budgets e capabilities formam a key; commit vai ao CAS | output no source tree; host implícito; cache por path/mtime |
+| W-574 | action hermética | tool, inputs, outputs, execution platform, budgets e capabilities formam a key; commit vai ao CAS | output no source tree; host implícito; cache por path/mtime |
 | W-575 | namespace de dependency | package declara raiz canônica; alias local substitui a raiz no import sem mudar identity | package name dentro do import; URL import; namespace global sem alias |
 | W-576 | package identity | `authority` declarada + scoped ASCII name; revision, mirror e alias local não mudam identity | nome global sem authority; source concede identity; Unicode no path canônico |
 | W-577 | source snapshot | `publish.files` allowlist usa modules e PackagePath; VCS ignore não altera release | publicar tudo; usar `.gitignore`; registry acrescenta arquivos |
@@ -15902,6 +16441,24 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-586 | adaptação de plataforma | manifest escolhe module implementation; source mantém import normal e target facts não removem declarations | `#if`; filename condition; import ou annotation condicional |
 | W-587 | mutation do package graph | `w add/remove` atualiza manifest e lock atomicamente, com dry-run e sem scripts | editar lock à mão; resolver depois; executar install hook |
 | W-588 | inventário de source | package fixa todo source inventory; cada context fixa o active source set após selectors | um digest ambíguo; somente files ativos na release; discovery por checkout |
+| W-589 | target spec | `TargetId` + CPU/features + platform contract; profile só impõe `cpuPolicy` | triple inclui SDK; CPU duplicada no profile; host completa campos |
+| W-590 | execution platform | root ordena platform specs; cada phase fixa uma; executor compatível não muda a plan | host global ou automático; target final executa build tool; endpoint na recipe |
+| W-591 | requirement de toolchain | analyzer pede roles e capabilities; package não escolhe executable por path | compiler path no manifest; shell environment; toolchain monolítica obrigatória |
+| W-592 | provider de toolchain | `runsOn`, `producesFor`, roles e artifacts por digest são independentes | backend implica SDK/linker; provider concede capabilities não declaradas |
+| W-593 | resolução de provider | root ordena source/authority/provider; versão é comparada dentro de uma lineage no snapshot fixo; empate falha | comparar versões de providers distintos; registration order; primeiro executable em `PATH` |
+| W-594 | toolchain plan | record data-only fixa target spec, execution platforms e providers; recipe referencia a row | toolchain no package lock; resolver novamente durante reprodução; output na plan |
+| W-595 | system SDK | import explícito cria provider system-backed e closure por digest; build não faz discovery | SDK mais recente instalado; `xcrun`/`vcvarsall` em toda build; path na recipe |
+| W-596 | ambiente de build | deny por default; projeção nomeada e valor entram na action recipe | herdar `PATH`, `SDKROOT`, `INCLUDE`, locale ou timezone |
+| W-597 | sysroot | raiz lógica declarada e search paths por artifacts em ordem canônica | `/usr` do executor; library discovery do host; flags ambientais |
+| W-598 | artifact composto | cada slice possui recipe/target/digest; composition recipe produz envelope sem assinatura | target universal fictício; concatenar bytes sem schema; um hash para várias recipes |
+| W-599 | assinatura de plataforma | signing, timestamp e notarization produzem delivery record separado | assinatura dentro da payload recipe; JWT autorreferente; signed bytes como input |
+| W-600 | claim de reprodução | bit-reproducible e publicly rebuildable são facts distintos | SDK fechado recebe selo público; um builder prova reprodução independente |
+| W-601 | granularidade física | module é semântico; recipe pode usar object, archive, LTO ou incremental unit | static library obrigatória por módulo; granularidade física na linguagem |
+| W-602 | provider inventory | snapshot associa provider records a execution platforms sem paths; row identity cobre só selections | consultar pools durante build; endpoint na plan; candidato não usado muda artifact |
+| W-603 | materialização de provider | CAS ou sealed local são preferidos; system-backed exige verificação forte antes da action | confiar em mtime/path; copiar contra licença; rehash ambiental sem record |
+| W-604 | platform availability | grafo alcançável precisa caber no `platformContract`; compiler não aumenta o minimum | SDK version vira runtime floor; link falha tarde; API nova eleva target em silêncio |
+| W-605 | requirement transitiva | dependency pode pedir role; somente root autoriza language/source e escolhe provider | dependency fixa compiler; download precede policy; foreign adapter implícito |
+| W-606 | ownership da toolchain policy | workspace, flag da root ou default seguro do consumer; package não concede autorização | policy transitiva; package autoriza próprio compiler; reprodução ignora deny local |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

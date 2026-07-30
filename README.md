@@ -16,8 +16,8 @@ Leia estes artefatos nesta ordem:
    compilador, packages, distribuição, tooling, plano e alternativas;
 2. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
-3. [Build do Última Luz](reference/last-light/BUILD.md) — products, targets,
-   artifacts e gates;
+3. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+   specs, toolchain plans, artifacts e gates;
 4. [Deployments](reference/last-light/deployments/README.md) — planos local e
    distribuído;
 5. [Rascunho da std](std/README.md) — contratos da standard library em W;
