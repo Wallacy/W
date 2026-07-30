@@ -24,6 +24,7 @@ permite language mode icons e não possui associação mais específica para `.w
 - efeitos `async`, `await`, `spawn`, `try` e `throws`, inclusive
   `for try await`;
 - storage modifier `atomic` separado dos efeitos;
+- ilhas `fn<Language>` e funções W com `fn<abi: .c>`;
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
 - bloco lexical de memória `region`;

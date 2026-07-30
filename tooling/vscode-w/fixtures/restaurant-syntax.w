@@ -268,6 +268,18 @@ foreign c from "last_light_probe.h" {
   fn ll_probe_close(probe: c.ptr<ll_probe>)
 }
 
+export foreign c {
+  const LL_STATUS_OK_V1: c.int = 0
+
+  struct ll_status_v1 {
+    code: c.int
+  }
+}
+
+export unsafe fn<abi: .c> ll_status_v1_create(code: c.int): ll_status_v1 {
+  return ll_status_v1(code: code)
+}
+
 entry LastLight {
   process.main = run
   http.fetch = fetch

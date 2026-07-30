@@ -57,6 +57,7 @@
 ] @keyword.control
 
 [
+  "abi"
   "async"
   "atomic"
   "await"

@@ -1,5 +1,21 @@
 [
   {
+    "type": "abi_contract",
+    "named": true,
+    "fields": {
+      "abi": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "accessor_implementation",
     "named": true,
     "fields": {
@@ -4318,6 +4334,10 @@
       "required": false,
       "types": [
         {
+          "type": "const_declaration",
+          "named": true
+        },
+        {
           "type": "declaration_prefix",
           "named": true
         },
@@ -4477,6 +4497,10 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "abi_contract",
+          "named": true
+        },
         {
           "type": "declaration_prefix",
           "named": true
@@ -10769,6 +10793,10 @@
   },
   {
     "type": "_",
+    "named": false
+  },
+  {
+    "type": "abi",
     "named": false
   },
   {

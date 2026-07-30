@@ -152,6 +152,7 @@ alvo de execução independente.
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
+| `abi.w` | façade C escrita em W, carriers e export exato |
 | `memory.w` | ownership, enum subset, niches, pinning e callback C |
 | `allocation.w` | placement, allocator, arena, budget e rehome |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
@@ -217,6 +218,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
+| ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w` | um dispatch tipado atende CLI, TUI e HTTP |
 | products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, target e placement ficam separados |
@@ -1547,6 +1549,42 @@ cache hit/miss e ausência de logs antes de medir throughput. Ele também deve
 registrar toda diferença em relação à especificação TechEmpower fixada pelo
 profile.
 
+### 3.43 Janela que Fala C sem Esquecer W
+
+Famílias: interface semântica, ABI W exata, calling convention C, symbols,
+runtime requirements e version skew.
+
+`horizon.w` exporta `classifyHorizon` para a static library W. `abi.w` escreve
+em W a façade C `ll_horizon_classify_v1`. `package.w` declara cada boundary sem
+dar `entry` ou `host` à library.
+
+Aceite:
+
+- documentation e spans não invalidam `SemanticInterfaceKey`;
+- metadata de interface e ABI é lida como input não confiável e bounded;
+- a library W publica `WInterface`, `WAbiKey` e `RepresentationMap` separadas;
+- requirements alcançáveis produzem `RuntimeClosureKey` fora da `WAbiKey`;
+- reuse exige key igual e mismatch com source causa rebuild;
+- `HorizonStatus` usa layout W somente na boundary `.wExact`;
+- a façade C aceita e devolve somente carriers C;
+- o header gerado compila em Clang, GCC e MSVC;
+- o header pertence ao mesmo target slice da library e verifica seu layout;
+- `ll_horizon_classify_v1` mantém o nome exato em ELF, PE/COFF e Mach-O;
+- score não finito ou negativo vira status distinto no carrier C;
+- `panic: .forbid` fecha o call graph exportado;
+- nenhuma parte exige que o caller use `free` em memória criada por W;
+- module constructors não executam antes da validação da ABI note;
+- `runtime: .none` não recebe contexto oculto ou faz lazy init;
+- runtime requirements ausentes falham antes da primeira call;
+- release do handle `.wExact` fecha novas calls sem desmapear código na v0;
+- ThinLTO não muda a interface, o export ou o resultado;
+- dois exports C iguais falham antes do linker;
+- ordem de load e symbol interposition não mudam uma call W;
+- uma dynamic library nativa não é tratada como sandbox.
+
+O caso compara a boundary W exata, a façade C e a component schema. As três
+formas resolvem problemas diferentes.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -1563,6 +1601,9 @@ O Book deve mostrar pares lado a lado:
 | SDK | system import explícito + closure | SDK mais novo instalado |
 | envelope | payload, unsigned envelope e delivery records | assinatura dentro da compilation recipe |
 | matriz | payload e digest por target + index | um hash para bytes de architectures diferentes |
+| library W | `.wExact`, key e layouts compartilhados iguais | static ou dynamic torna a ABI estável |
+| export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
+| plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
@@ -1657,7 +1698,7 @@ Cada arquivo W precisa passar:
 6. runtime test ou oracle explícito quando houver lowering;
 7. origem e revision disponíveis para geração do Book após o design freeze.
 
-A integração avança em seis gates cumulativos:
+A integração avança em sete gates cumulativos:
 
 1. **Simulação:** `LastLightSimulation` gera os três relatórios sem deployment;
 2. **Host:** CLI, TUI, line host e HTTP chegam ao mesmo `Command` e
@@ -1666,9 +1707,11 @@ A integração avança em seis gates cumulativos:
    observabilidade passa fault injection;
 4. **Products:** package lock, toolchain plan e build geram artifacts
    reproduzíveis por target;
-5. **Devices:** mobile, firmware, áudio e accelerator passam os próprios
+5. **ABI:** `WInterface`, `WAbiKey`, symbols, header C e runtime requirements
+   passam o laboratório do horizonte;
+6. **Devices:** mobile, firmware, áudio e accelerator passam os próprios
    resource gates;
-6. **Performance:** benchmarks internos e externos mantêm semântica e evidence.
+7. **Performance:** benchmarks internos e externos mantêm semântica e evidence.
 
 No estado atual, somente o gate sintático do Tree-sitter é executável. Os outros
 gates são contratos de implementação. A documentação não os apresenta como

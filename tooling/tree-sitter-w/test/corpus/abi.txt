@@ -1,0 +1,61 @@
+==================
+C ABI export written in W
+==================
+
+export foreign c {
+  const LL_OK_V1: c.int = 0
+
+  struct ll_result_v1 {
+    code: c.int
+  }
+}
+
+export unsafe fn<abi: .c> ll_classify_v1(value: c.int): ll_result_v1 {
+  return ll_result_v1(code: value)
+}
+
+---
+
+(source_file
+  (foreign_declaration
+    (declaration_prefix)
+    (identifier)
+    (const_declaration
+      (identifier)
+      (type
+        (type_name
+          (type_identifier)
+          (type_identifier)))
+      (number_literal))
+    (foreign_struct_declaration
+      (type_identifier)
+      (foreign_field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier))))))
+  (function_declaration
+    (declaration_prefix)
+    (abi_contract
+      (contextual_member_expression
+        (identifier)))
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)
+              (identifier))))))))

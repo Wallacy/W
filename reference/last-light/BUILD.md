@@ -9,15 +9,20 @@ novas.
 
 ## 1. O que o build seleciona
 
-O build seleciona um product. O product seleciona:
+O build seleciona um product. Todo product seleciona module roots, target,
+profile e toolchain plan. O kind fecha os outros fields:
 
-1. um módulo de entry;
-2. um descriptor;
-3. um host profile;
-4. um target;
-5. um build profile;
-6. um runtime graph;
-7. um packing.
+| Product iniciado por host | Library |
+|---|---|
+| entry descriptor | exports exatos |
+| host profile | ABI `.wExact` ou `.c` |
+| runtime graph e packing | runtime e panic policy |
+| capabilities e limits | header e ABI sidecars |
+
+Uma library não recebe entry ou host por default omitido. Esses fields são
+inválidos para seu kind.
+
+O product iniciado por host usa:
 
 O source usa:
 
@@ -107,6 +112,8 @@ está em [`package.w`](package.w).
 | `last-light-wifi` | component | HTTP worker | captive portal e sessões |
 | `last-light-simulation` | executable | native process | oracle determinístico |
 | `last-light-observatory` | executable | native process | swarm e horizon telemetry |
+| `last-light-horizon-w` | static library | none | API W exata do horizon monitor |
+| `last-light-horizon-c` | dynamic library | none | façade C versionada do horizon monitor |
 | `last-light-mobile` | executable | mobile app | lifecycle Android/iOS |
 | `last-light-controller` | firmware | device | sensores e rádio |
 | `last-light-audio` | firmware | audio device | callback sem allocation |
@@ -181,6 +188,45 @@ O lock grava o digest do adapter. Um adapter em memória pode executar o oracle
 volátil, mas não satisfaz `recovery: .required`. Storage sem encryption at rest
 não satisfaz `.hostEncrypted`. Essas regras impedem o deployment de reduzir as
 garantias do product.
+
+### 3.3 Libraries e fronteiras ABI
+
+O laboratório do horizonte produz duas libraries:
+
+| Product | Boundary | Export |
+|---|---|---|
+| `last-light-horizon-w` | `.wExact` | `restaurant.horizon::classifyHorizon` |
+| `last-light-horizon-c` | `.c` | `ll_horizon_classify_v1` |
+
+A library W publica `WInterface`, `WAbiKey`, `RepresentationMap`, ABI note e
+symbol manifest. Um consumer reutiliza o artifact somente quando a key e os
+layouts compartilhados conferem. Se houver source, uma diferença exige rebuild.
+Se não houver source, o build falha.
+
+Requirements de runtime permanecem separados. O product final registra o
+`RuntimeClosureKey` após resolver os offers do provider.
+
+A export W devolve `HorizonStatus`. A `RepresentationMap` registra o enum e seus
+payloads. A façade C converte o enum para `error`, `kind` e `score`. Ela não
+expõe o layout W ao caller C.
+
+A façade C está em [`abi.w`](abi.w). O body usa W. A signature usa carriers C e
+o calling convention C do target. O builder gera o header e a export list. O
+nome exportado é exato. A call não transfere um owner W ou a responsabilidade
+de usar o allocator W.
+
+Essas libraries não possuem `entry` ou `host`. O container não inicia runtime e
+não executa module constructors. O product C usa `panic: .forbid`. Seu call
+graph exportado não pode alcançar panic. Outra façade pode escolher
+`.abortProcess`. Nenhuma dynamic library nativa isola a falha. Um plugin isolado
+usa uma component ou um process.
+
+O product C usa `runtime: .none`. Seus exports não recebem contexto oculto. Uma
+façade com estado usaria um context handle C e exports explícitos de create e
+destroy.
+
+O contrato normativo está em [DESIGN.md](../../DESIGN.md#204-abi-e-runtime).
+Este laboratório valida o contrato sem duplicá-lo.
 
 ## 4. Targets
 
@@ -422,6 +468,53 @@ w benchmark run last-light-benchmark \
 
 `validate` verifica semântica e configuração. `run` mede somente a combinação
 validada e grava a evidence com os digests do artifact, deployment e harness.
+
+### 5.7 Interface e ABI
+
+```text
+w build last-light-horizon-w \
+  --target x86_64-unknown-linux-gnu \
+  --profile release \
+  --locked
+
+w build last-light-horizon-c \
+  --target x86_64-pc-windows-msvc \
+  --profile release \
+  --locked
+
+w interface show last-light-horizon-w
+w abi show last-light-horizon-w
+w abi key last-light-horizon-w
+w runtime explain last-light-horizon-w
+w symbols show last-light-horizon-c
+w c header last-light-horizon-c --output build/last_light_horizon.h
+w interface diff artifact:old artifact:new
+w abi diff artifact:old artifact:new
+```
+
+O oracle de ABI cobre estes casos:
+
+- mudar somente documentation ou spans preserva `SemanticInterfaceKey`;
+- metadata truncada, oversized ou com ciclo proibido falha sob limites;
+- uma `WAbiKey` igual permite reuse;
+- os fingerprints dos tipos compartilhados também precisam conferir;
+- `HorizonStatus` não atravessa a façade C como bytes W;
+- uma key diferente causa rebuild por source ou error para binary-only;
+- funções W homônimas de módulos distintos não colidem;
+- dois exports C com o mesmo nome falham antes do linker;
+- lookup W usa handle e manifest, não o primeiro symbol global;
+- Clang, GCC e MSVC aceitam o header nos targets correspondentes;
+- header e library de target slices diferentes não podem ser combinados;
+- layout assertions conferem size, alignment e offsets do result carrier;
+- um caller C não libera memória com o allocator errado;
+- error tipado não finito ou negativo vira status C distinto;
+- `panic: .forbid` fecha o call graph; typed error continua no result carrier;
+- a library não executa código antes de validar a ABI note;
+- `runtime: .none` não cria contexto global ou lazy;
+- um runtime requirement ausente causa error antes da primeira call;
+- release do handle `.wExact` fecha novas calls, sem prometer unmap físico;
+- ThinLTO ligado ou desligado preserva interface, exports e comportamento;
+- version skew isolado usa component adapter e drain de instances.
 
 ## 6. Packages e releases
 
@@ -890,6 +983,7 @@ Cada product precisa de um oracle observável.
 | accelerators | CPU e device concordam dentro do numeric mode |
 | AI lab | treino no host e kernel de device preservam shapes e numeric mode |
 | benchmark | workload oficial sem bypass e com configuração registrada |
+| ABI laboratory | interface, key, symbols, header e runtime requirements concordam |
 
 O produto de referência se torna parte da suíte de:
 
@@ -926,6 +1020,10 @@ Os arquivos atuais exigem contratos ainda não implementados:
 17. device memory e kernel ABI;
 18. harness TechEmpower versionado e seus validadores;
 19. deployment resolver, lock e validator;
-20. compiler e backends.
+20. schema e serializer canônico de `WInterface`;
+21. `WAbiKey`, ABI note, symbol manifest e diagnostics de compatibilidade;
+22. gerador de header C, export list e harness para C callers;
+23. loader por digest para artifacts W exatos;
+24. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.
