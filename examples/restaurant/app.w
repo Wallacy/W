@@ -13,6 +13,8 @@ import { RestaurantApi, RestaurantError } from restaurant.restaurant
 import { SimulationError, simulateShift } from restaurant.simulation
 import { commandLimit } from restaurant.units
 
+const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
+
 export enum AppError: Error {
   command(CommandError)
   decode(DecodeError)
@@ -67,7 +69,7 @@ async fn runConsole(
   ctx: ProcessContext,
   mode: RenderMode,
 ): ExitCode throws AppError {
-  let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
+  let restaurant = try await ctx.services.get(restaurantService)
   let welcome = renderResponse(.help, mode: mode)
   try await ctx.stdout.write(welcome)
 
@@ -99,7 +101,7 @@ async fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode throws Ap
 }
 
 async fn readCommand(line: String, ctx: CliContext): () throws AppError {
-  let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
+  let restaurant = try await ctx.services.get(restaurantService)
   let command = try decodeCommand(line)
   let response = try await dispatch(
     take command,
@@ -111,7 +113,7 @@ async fn readCommand(line: String, ctx: CliContext): () throws AppError {
 }
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
+  let restaurant = try await ctx.services.get(restaurantService)
   let command = try request.json.decode<Command>()
   let response = try await dispatch(
     take command,

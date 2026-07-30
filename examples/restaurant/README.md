@@ -72,9 +72,9 @@ exige esta divisão:
 4. a identidade do pedido seleciona a instance keyed;
 5. trace e idempotency ligam todos os turns ao mesmo efeito.
 
-O contrato do supervisor e o descriptor de deployment ainda estão em
-**Pesquisa**. Até essa decisão, `LastLightSimulation` é o alvo executável
-independente previsto.
+`SupervisorRef` e o descriptor data-only agora são **Líder DB2**. A API final
+de steps duráveis permanece em **Pesquisa**. Até existir runtime,
+`LastLightSimulation` continua o primeiro alvo de execução independente.
 
 ## 2. Mapa de source
 
@@ -110,6 +110,7 @@ independente previsto.
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
+| `supervision.w` | turn curto, `WorkKeyRef`, identity keyed e cancelamento |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `simulation_app.w` | entry determinística sem deployment de services |
@@ -132,6 +133,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
+| supervisão e deployment | `supervision.w` | trabalho longo sai do turn sem virar task solta |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
@@ -1146,6 +1148,58 @@ O oracle de equivalência remove sequências ANSI antes da comparação. O teste
 replay executa o mesmo profile duas vezes. Ele compara métricas e eventos campo
 a campo.
 
+### 3.35 Comanda que Sobrevive ao Maître
+
+Famílias: `SupervisorRef`, identity keyed, admission, progress, cancellation,
+outcome e deployment.
+
+```text
+host entry (target)
+  → ServiceFamily<OrderCoordinatorApi, OrderId>
+  → turn curto de submit
+  → fulfillment.tryStart
+  → root owned pelo supervisor
+  → pantry / ovens / oracle / probe / billing / dining room
+
+status / cancel / outcome
+  → mesma instance keyed
+  → WorkKeyRef injetado para uma única key
+  → snapshot ou control do supervisor
+```
+
+`supervision.w` mantém a coordination boundary curta. O trabalho longo não
+captura state do service. Ele recebe input owned e bindings por `WorkContext`.
+
+Aceite:
+
+- `ServiceIdentity<OrderId>` precisa corresponder ao pedido;
+- o descriptor atenua `SupervisorRef` para um `WorkKeyRef`;
+- o coordenador não recebe authority sobre outros pedidos;
+- `tryStart` não espera capacity dentro do closed turn;
+- rejeição tipada antes do commit devolve `FulfillmentInput`;
+- uma key duplicada não substitui o primeiro pedido;
+- o supervisor possui o root depois do commit;
+- cancellation do caller depois do commit não destaca nem cancela o root;
+- `unknownOutcome` exige reconciliação pela key e pelo effect ID;
+- `WorkSnapshot` separa estado do trabalho de `ServiceStage`;
+- progress é revisionado e substitui o valor anterior;
+- o snapshot terminal preserva o último progress;
+- cancelamento é idempotente e não vira `RestaurantError`;
+- application error, cancellation e boundary failure são outcomes distintos;
+- o root usa tasks estruturadas em seu interior;
+- `capture` confirmado entrega `Payment` antes do próximo ponto de cancelamento;
+- o `defer async` de refund é instalado antes da próxima suspensão;
+- pagamento capturado recebe compensação se serving falhar;
+- restart de operação arbitrária usa `.never`;
+- outcome, tombstone e queue possuem budgets separados;
+- `WorkId` não concede authority;
+- deployment reduz o envelope sem mudar os bytes do artifact;
+- operation version não muda em um root ativo.
+
+O oracle adversarial enche admission, cancela em cada suspension point, derruba
+o supervisor e troca o deployment. Cada caso precisa terminar com ownership,
+outcome e trace definidos.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -1157,6 +1211,14 @@ O Book deve mostrar pares lado a lado:
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `spawn<domain: LastLightDomain.thermal>` | `"thermal"` ou keyword global |
 | QoS | descriptor/policy de group | `.background` como domain |
+| trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
+| binding singular | `ctx.services.get(restaurantService)` | lookup normal por string |
+| binding keyed | `ctx.services.get(orderCoordinators, key:)` | singleton global ou key inferida |
+| identity keyed | `ServiceIdentity<OrderId>` + `WorkKeyRef` | primeiro argumento redefine a instance |
+| progress | `WorkSnapshot<ServiceStage>` revisionado | borrow do task frame ou event list ilimitada |
+| cancelamento remoto | `WorkRef<[.observe, .cancel]>` | todo observer cancela ou Boolean runtime |
+| workflow durável | steps fechados e versionados | persistência automática do frame async |
+| deployment | manifest separado ligado ao artifact digest | rebuild por ambiente ou config invisível |
 | mobilidade | facts inferidos `transferable`/`shareable` | protocols `Send`/`Sync` ou `Sendable` |
 | constraint de mobilidade | `T<(.transferable)>` | `T: Send` e `<mobility: .transferable>` |
 | refinement | `T<(predicate)>` | `T where (predicate)` |

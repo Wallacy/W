@@ -5737,7 +5737,14 @@ declaram que completion order faz parte do resultado.
 ### 12.5 Cancelamento
 
 ```w
-report.cancel()
+export enum CancellationReason {
+  userRequest
+  shutdown
+  superseded
+  budgetExceeded
+}
+
+report.cancel(reason: .userRequest)
 batch.cancel(reason: .shutdown)
 ```
 
@@ -5749,12 +5756,28 @@ faz unwind assíncrono de foreign frames.
 observer não publica esse método. O type checker reconhece a operação para
 preservar structured cancellation e trace.
 
+`CancellationReason` é fechado. Deadline e ancestry ficam em campos próprios de
+`Cancellation`; eles não fingem ser um motivo escolhido pelo caller.
+
 Uma task observa o sinal:
 
 - antes e depois de um suspension point;
 - em I/O que aceita cancelamento;
 - em uma boundary de task group;
 - em `Task.checkCancellation()` para loops longos.
+
+Uma completion committed vence a corrida com cancellation. O caller recebe o
+valor owned. O sinal continua pendente para o próximo suspension point ou
+`Task.checkCancellation()`. O runtime não injeta cancelamento entre statements:
+
+```w
+let payment = try await billing.capture(amount)
+defer async { try await refundIfNeeded(take payment) }
+```
+
+Assim, o caller pode instalar cleanup antes de suspender novamente. Uma
+operação que não consegue provar se o commit ocorreu retorna seu canal de
+`unknownOutcome`; ela não informa um cancelamento pré-commit falso.
 
 O cancelamento do parent propaga para descendants. Cancelar um child não cancela
 siblings, salvo policy explícita do group. Um deadline cria o mesmo sinal com
@@ -7180,6 +7203,35 @@ borrows, pointers e task frames da geração. Restart sempre cria outra geraçã
 Uma `ServiceRef<P>` mantém identity e authority. Ela pode resolver a geração
 ativa conforme a policy. Ela nunca expõe um pointer para state da instance.
 
+Uma service keyed declara sua identity quando o body precisa da key:
+
+```w
+export service OrderCoordinator as OrderCoordinatorApi {
+  identity: ServiceIdentity<OrderId>
+
+  async fn submit(order: take Order): OrderAccepted throws OrderError {
+    guard order.id == identity.key else {
+      throw .wrongInstance(expected: identity.key, found: order.id)
+    }
+
+    // ...
+  }
+
+  async fn status(): StageSnapshot throws OrderError {
+    // A ServiceRef keyed já selecionou identity.key.
+    // ...
+  }
+}
+```
+
+`ServiceIdentity<K>` é um valor read-only injetado pelo instance manager. Ele
+contém key, instance ID e generation. Ele não concede authority e não expõe
+storage da instance.
+
+O descriptor keyed precisa usar o mesmo `K`. Uma service `.process`, `.request`
+ou `.deployment` pode declarar `ServiceIdentity<()>` quando precisa de instance
+ID e generation sem key de domínio.
+
 ### 13.5 Mailbox, admission e ordering
 
 Uma mailbox é limitada por três quotas:
@@ -7274,7 +7326,618 @@ failure e `unknownOutcome`. Ele não muda `ServiceRef` para uma Promise lazy. O
 [promise pipelining de Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
 é evidência útil para o protótipo, não uma decisão de syntax.
 
-### 13.7 Estado durável e gates
+### 13.7 Trabalho runtime-owned e `SupervisorRef`
+
+**Exemplo:** o handler aceita um pedido e retorna. O preparo continua sob um
+owner runtime. Outro turn consulta o progresso ou solicita cancelamento.
+
+**Líder DB2:** `Task<T, E>` permanece lexical. Ela nunca escapa por `return`,
+drop, `spawn` ou `await`. Trabalho que ultrapassa o caller usa uma capability
+explícita `SupervisorRef`.
+
+| Unidade | Owner | Lifetime | Uso |
+|---|---|---|---|
+| `Task<T, E>` | scope lexical | termina antes do scope | subtarefa estruturada |
+| trabalho supervisionado | supervisor runtime | pode ultrapassar a call | operação longa identificável |
+| service instance | instance manager | depende do deployment | estado e calls serializadas |
+
+Um supervisor não é um executor. Ele possui roots, admission, shutdown,
+identity e outcomes. O execution domain continua responsável por placement.
+
+`SupervisorRef` não é global. Um `Context`, service field ou argumento concede a
+capability. Importar o tipo ou a operação não cria o supervisor.
+
+#### 13.7.1 Identidade, estado e rights
+
+Os tipos conceituais do runtime são:
+
+```w
+export enum WorkRight {
+  observe
+  cancel
+}
+
+export enum WorkState {
+  queued
+  running
+  succeeded
+  failed
+  canceled
+  boundaryFailed
+}
+
+export struct WorkSnapshot<Progress> {
+  id: WorkId
+  revision: u64
+  attempt: u32
+  state: WorkState
+  progress: Progress?
+  cancellation: Cancellation?
+}
+
+export enum WorkOutcome<Output, Failure: Error> {
+  success(Output)
+  error(Failure)
+  canceled(Cancellation)
+  boundary(WorkBoundaryFailure)
+}
+
+export enum WorkBoundaryFailure {
+  fault
+  generationLost
+  restartLimit
+  operationUnavailable
+  durability
+}
+
+export enum WorkCancelResult<Progress> {
+  requested(WorkSnapshot<Progress>)
+  alreadyRequested(WorkSnapshot<Progress>)
+  terminal(WorkSnapshot<Progress>)
+}
+
+export enum WorkLookupError: Error {
+  unknown
+  outcomeExpired(WorkId)
+}
+
+export enum SupervisorFailure: Error {
+  unavailable
+  unauthorized
+  incompatibleSchema
+  unknownOutcome(EffectId)
+}
+```
+
+`WorkId` é um identificador opaco. Ele não concede authority. Sua identidade
+conceitual é:
+
+```text
+WorkId = (supervisor instance, logical key, incarnation)
+Attempt = restart ordinal within the same incarnation
+```
+
+`EffectId` também é opaco. Ele identifica uma tentativa de efeito para
+reconciliação e deduplication. Ele não concede authority. O trace mantém o
+diagnóstico detalhado de cada `WorkBoundaryFailure`; o enum mantém somente a
+classificação estável.
+
+O runtime nunca usa um process hash como identity persistente. Um adapter local
+pode indexar pelo hash, mas confirma o key completo. Um adapter durável usa o
+codec canônico declarado pelo descriptor.
+
+Authority possui três níveis:
+
+| Capability | Alcance |
+|---|---|
+| `SupervisorRef<K, I, P, O, E>` | namespace de keys do supervisor |
+| `WorkKeyRef<K, I, P, O, E>` | uma key lógica e suas incarnations |
+| `WorkRef<P, O, E><[rights]>` | uma incarnation |
+
+`SupervisorRef.at(key:)` atenua authority e cria `WorkKeyRef`. Um descriptor
+keyed pode injetar essa forma com a key de `ServiceIdentity<K>`. O service não
+recebe acesso às outras keys.
+
+`WorkKeyRef.observe()` cria `WorkRef<P, O, E><[.observe]>`.
+`WorkKeyRef.control()` cria `WorkRef<P, O, E><[.observe, .cancel]>`. As duas
+formas expõem `snapshot` e `outcome`. Somente a segunda expõe `cancel`.
+`SupervisorRef` mantém authority administrativa mesmo quando nenhum `WorkRef`
+foi delegado.
+
+```w
+let orderWork = fulfillment.at(key: orderId)
+let observer: WorkRef<ServiceStage, Receipt, RestaurantError><[.observe]> =
+  try await orderWork.observe()
+let controller: WorkRef<ServiceStage, Receipt, RestaurantError><[.observe, .cancel]> =
+  try await orderWork.control()
+```
+
+Handles são move-first e shareable. `copy` torna o retain visível. Copiar um
+observer não copia o trabalho nem seu outcome.
+
+`state`, `progress` e `cancellation` são eixos separados. O último progress
+permanece no snapshot depois do estado terminal. Snapshots são revisionados.
+Eles podem ficar antigos depois do retorno. O caller usa `revision` quando uma
+operação depende do estado observado.
+
+#### 13.7.2 Operação fechada e input explícito
+
+Um supervisor possui um único contrato de operação. O alias reduz a forma no
+source:
+
+```w
+export alias FulfillmentSupervisor = SupervisorRef<
+  OrderId,
+  FulfillmentInput,
+  ServiceStage,
+  Receipt,
+  RestaurantError,
+>
+
+export alias FulfillmentKey = WorkKeyRef<
+  OrderId,
+  FulfillmentInput,
+  ServiceStage,
+  Receipt,
+  RestaurantError,
+>
+```
+
+Os parâmetros representam key, input, progress, output e failure. O descriptor
+do product liga uma função com esta forma:
+
+```w
+package async fn fulfillOrder(
+  input: take FulfillmentInput,
+  work: WorkContext<ServiceStage>,
+): Receipt throws RestaurantError {
+  let orderId = input.order.id
+  work.report(.accepted)
+  Task.checkCancellation()
+
+  let pantry = try await work.services.get(pantryService)
+  let ovens = try await work.services.get(ovenService)
+  let oracle = try await work.services.get(oracleService)
+  let probe = try await work.services.get(aromaProbeService)
+  let billing = try await work.services.get(billingService)
+  let diningRoom = try await work.services.get(diningRoomService)
+
+  work.report(.reserving)
+  Task.checkCancellation()
+  work.report(.preparing)
+  let dish = try await prepareDish(
+    take input.order,
+    pantry: pantry,
+    ovens: ovens,
+    oracle: oracle,
+    probe: probe,
+  )
+
+  work.report(.serving)
+  let amount = try quote(loadPriceTable(), course: dish.course)
+  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
+  let proof = servingProof(payment)
+  let refundIdempotencyKey = refundKey(payment.id)
+  var completed = false
+
+  defer async {
+    if !completed {
+      do {
+        let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
+      } catch error {
+        Trace.current.recordCleanupError(error)
+      }
+    }
+  }
+
+  let receipt = try await diningRoom.serve(take dish, payment: proof)
+  completed = true
+  work.report(.completed)
+  return receipt
+}
+```
+
+`start` não recebe uma closure arbitrária. O descriptor fixa a função e sua
+versão. Input, key e capabilities ficam explícitos. O compiler rejeita captures
+ocultos, borrows, state de service e valores não transferíveis.
+
+A operação pode usar visibilidade `package`. O product do mesmo package liga o
+símbolo, mas um consumer não recebe uma função pública para invocá-la sem o
+supervisor.
+
+`WorkContext` contém somente contexto operacional e bindings concedidos:
+
+- cancellation, deadline, trace e budgets;
+- report de progresso;
+- bindings tipados de service e host;
+- adapter de durability quando declarado.
+
+Ele não contém um mapa mutável task-local. Uma capability da aplicação precisa
+de binding ou input explícito.
+
+A operação supervisionada é root de uma nova árvore. Dentro dela, `async let`,
+`spawn let` e `TaskGroup` continuam estruturados. Esses children terminam antes
+do root.
+
+#### 13.7.3 Admission e transferência de ownership
+
+`start` e `tryStart` retornam o primeiro `WorkSnapshot<Progress>`. O uso comum
+fora de um closed turn é:
+
+```w
+let orderWork = fulfillment.at(key: order.id)
+let started = try await orderWork.start(input: take input)
+```
+
+O call site move o input para um admission envelope. O commit point ocorre
+quando o supervisor aceita key, input, quotas e operação. Antes do commit, o
+envelope não representa um root. Uma rejeição tipada devolve o input. Depois do
+commit, o supervisor possui o input e o root.
+
+`start` espera capacity. `tryStart` não espera. As falhas anteriores ao commit
+devolvem o input:
+
+```w
+export enum WorkStartError<Key, Input>: Error {
+  duplicate(key: Key, current: WorkId, rejected: Input)
+  full(Input)
+  draining(Input)
+  unavailable(Input)
+  unauthorized(Input)
+  incompatibleSchema(Input)
+}
+
+extension<K, I, P, O, E: Error> WorkKeyRef<K, I, P, O, E> {
+  async fn start(
+    input: take I,
+  ): WorkSnapshot<P> throws WorkStartError<K, I><[
+    .duplicate,
+    .draining,
+    .unavailable,
+    .unauthorized,
+    .incompatibleSchema,
+  ]>
+
+  async fn tryStart(input: take I): WorkSnapshot<P> throws WorkStartError<K, I>
+}
+```
+
+`start` não produz `.full`. `tryStart` pode produzir todos os cases. O subset do
+error torna essa diferença estática. Validações que recusam a admissão devolvem
+o input por `WorkStartError`. Depois que a boundary não consegue mais provar se
+o commit ocorreu, o único error é `SupervisorFailure.unknownOutcome`.
+
+```w
+do {
+  let started = try await orderWork.tryStart(input: take input)
+  recordAcceptance(started)
+} catch .full(let rejected) {
+  storeForRetry(take rejected)
+}
+```
+
+Cancellation antes do commit encerra o admission envelope e executa o cleanup
+normal do input. Ela não cria um root. `SupervisorFailure.unknownOutcome` indica
+que a boundary não consegue provar se o commit ocorreu. Nesse caso, o caller não
+recebe o input e precisa reconciliar pela key e pelo effect ID.
+
+O commit vence uma corrida com cancellation. `start` retorna o snapshot e não
+informa um cancelamento pré-commit falso. Depois do commit, o root possui
+cancellation e deadline próprios. Ele não continua como child lexical do
+caller. O caller usa a capability de controle para solicitar cancelamento.
+
+Uma key duplicada nunca substitui input ou trabalho. O caller decide se descarta
+o novo input, consulta o trabalho existente ou usa outra incarnation.
+
+O supervisor mantém uma tombstone depois de expirar o outcome. A tombstone
+preserva key, incarnation e estado terminal dentro de um budget separado.
+Enquanto ela existe, uma nova admissão ainda retorna `.duplicate`.
+
+Depois da tombstone, reutilizar a key cria outra incarnation. Um efeito que
+exige deduplication mais longa usa um adapter durável ou uma key nova. Retention
+de outcome não é uma promessa eterna de idempotência.
+
+Cancellation depois do commit não recupera input. O trabalho continua
+endereçável pela key determinística. Um retry de rede usa a mesma key e encontra
+`.duplicate`.
+
+Admission possui limites de:
+
+1. roots ativos;
+2. itens aguardando;
+3. bytes retidos;
+4. outcomes terminais;
+5. tombstones de deduplication.
+
+O product fixa máximos. O deployment pode reduzir os limites dentro do envelope
+declarado.
+
+#### 13.7.4 Progresso, cancelamento e outcome
+
+O runtime incrementa `revision` em cada mudança observável de state, progress ou
+cancellation. `work.report(take progress)` substitui o último progresso. Ele não
+cria uma fila ilimitada. O trace pode registrar cada mudança dentro do próprio
+budget.
+
+`report` não é um commit durável por default. O adapter durável define quais
+updates participam de uma transação ou step.
+
+O caller observa sem entrar na isolation boundary da operação:
+
+```w
+let snapshot = try await orderWork.snapshot()
+let result = try await orderWork.cancel(reason: .userRequest)
+```
+
+Cancelamento é idempotente e cooperativo. O retorno distingue `requested`,
+`alreadyRequested` e `terminal`. Cada case contém o snapshot após a decisão. O
+campo `cancellation` registra o sinal aceito. Ele não promete rollback.
+
+`awaitOutcome()` espera o terminal e devolve `WorkOutcome`. `outcome()` consulta
+sem esperar. Application error, cancellation e boundary failure permanecem
+canais distintos.
+
+`snapshot` continua disponível enquanto existe um root, outcome ou tombstone.
+`outcome` retorna `none` para trabalho não terminal, o valor retido para trabalho
+terminal e `outcomeExpired` quando resta somente a tombstone. Depois da
+tombstone, as operações retornam `unknown`.
+
+Progress, output e failure observáveis precisam ser transferíveis e
+duplicáveis. Um resource singular retorna uma capability ou `ServiceRef`, não o
+resource bruto.
+
+Retention é limitada por itens e bytes. Depois da expiração, a lookup retorna
+`outcomeExpired`; ela não inventa um outcome. Um `WorkRef` remoto não fixa
+memória indefinidamente.
+
+#### 13.7.5 Falha, restart e shutdown
+
+Um error `E` conclui o trabalho com `.error(E)`. Cancellation conclui com
+`.canceled`. Panic ou perda da fault boundary produz `.boundary(...)` quando o
+supervisor sobrevive para registrar o evento.
+
+**Líder DB2:** restart automático de uma operação arbitrária usa `.never`. O
+runtime não executa novamente efeitos desconhecidos.
+
+Uma policy de retry exige:
+
+- limite de attempts;
+- backoff e deadline;
+- step ou operação idempotente explícita;
+- effect ID estável;
+- regra para `unknownOutcome`;
+- restart intensity limitada.
+
+Exceder o limite produz `restartLimit`. O supervisor não reinicia para sempre.
+Essa regra segue o objetivo de evitar restart loops das supervision trees de
+Erlang/OTP.
+
+Shutdown usa:
+
+```text
+ready → draining → stopped
+          ├─ reject new starts
+          ├─ request cancellation
+          └─ wait for cleanup until deadline
+```
+
+Depois do deadline, a fault boundary pode terminar. Nesse caso, W não promete
+user cleanup de frames interrompidos. O trace registra cada root não concluído.
+
+O trace do root mantém `originCallId`, supervisor, key, incarnation e operation
+version. Ele não finge que o root ainda é child lexical da call encerrada.
+
+#### 13.7.6 Memória, steps duráveis e scheduling
+
+O primeiro adapter é process-local e em memória. Uma queda perde roots e
+outcomes não persistidos. O supervisor reiniciado usa outra generation.
+
+Durability não serializa stack, task frame, pointer, borrow, `ServiceRef` ou
+capability. Um workflow durável usa steps explícitos e schemas versionados.
+
+```w
+export enum FulfillmentStep {
+  reserveStock
+  prepareDish
+  capturePayment
+  serveDish
+}
+
+let stock = try await work.step(
+  .reserveStock,
+  input: reservation,
+  using: reserveStock,
+)
+```
+
+Um step concluído guarda seu input, outcome e commit metadata conforme o
+adapter. Recovery pode reutilizar o outcome. Um step incompleto só repete quando
+a policy de idempotência permite.
+
+**Direção:** steps fechados, effect IDs e schemas explícitos. A forma generic
+final de `work.step`, sleep e wait-for-event permanece **Pesquisa**.
+
+Alarmes e reminders acordam uma instance no futuro. Eles não são tasks mantidas
+vivas. Delivery at-least-once exige handler idempotente.
+
+`waitUntil`-like pode existir como adapter bounded de um host. Ele serve a
+cleanup curto, logs ou cache. Ele não substitui `SupervisorRef` nem um workflow
+durável.
+
+Esta separação segue evidência externa:
+
+- [JEP 525](https://openjdk.org/jeps/525) confina subtasks ao scope;
+- [Cloudflare `waitUntil`](https://developers.cloudflare.com/workers/runtime-apis/context/)
+  possui lifetime limitado e recomenda queues para trabalho confiável;
+- [Cloudflare Workflows](https://developers.cloudflare.com/workflows/get-started/guide/)
+  persiste outcomes em steps explícitos;
+- [Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
+  usa identity por entidade e recomenda trabalho curto na coordination boundary;
+- [Durable Object alarms](https://developers.cloudflare.com/durable-objects/api/alarms/)
+  usa delivery at-least-once e retry para wakeups persistentes;
+- [Orleans timers e reminders](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders)
+  separa timers transitórios de reminders persistentes;
+- [Erlang supervisors](https://www.erlang.org/doc/system/sup_princ.html)
+  limitam restart intensity e distinguem children dinâmicos de estado durável.
+
+Alternativas:
+
+| Forma | Estado |
+|---|---|
+| `WorkKeyRef.start` ou `tryStart` com operação fechada | **Líder DB2** |
+| channel consumido por um entry root | implementação process-local possível |
+| `ctx.waitUntil(task)` | adapter bounded, não owner geral |
+| `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de paralelismo |
+| drop de `Task` destaca o child | **Rejeitado por enquanto**; perde ownership e cleanup |
+| call one-way de service | **Rejeitado por enquanto**; perde outcome e cria ambiguidade |
+| service keyed com um handler longo | oracle adversarial; ainda bloqueia controle na mesma key |
+| actor reentrant durante `await` | **Pesquisa**; exige invalidação e revalidação de state |
+| persistir frame async automaticamente | **Rejeitado por enquanto**; pointers, effects e upgrades não têm contrato |
+
+### 13.8 Bindings tipados, product e deployment
+
+Um nome textual no source não deve escolher uma service sem type-check. O source
+declara um binding const:
+
+```w
+export const restaurantService = ServiceBinding<RestaurantApi>(name: "restaurant")
+
+export const orderCoordinators = ServiceFamily<OrderCoordinatorApi, OrderId>(name: "orders")
+
+let restaurant = try await ctx.services.get(restaurantService)
+let coordinator = try await ctx.services.get(orderCoordinators, key: orderId)
+```
+
+`ServiceBinding<P>` descreve uma requirement singular. `ServiceFamily<P, K>`
+descreve instances keyed. Esses valores não concedem authority sozinhos. O
+`Context` precisa conter o binding.
+
+O compiler resolve protocol, key type, visibility e schema no link. A string é
+somente o nome estável no product. Lookup dinâmica por string fica em
+**Pesquisa** para hosts de plugins.
+
+Fields sem initializer em uma service são pontos de injection:
+
+```w
+export service OrderCoordinator as OrderCoordinatorApi {
+  identity: ServiceIdentity<OrderId>
+  fulfillment: FulfillmentKey
+}
+```
+
+O product descriptor liga cada field pelo nome e pelo tipo exato. Para um
+`WorkKeyRef`, ele também liga a origem da key. Falta, duplicata, cycle estático
+ou authority incompatível falha no build.
+
+#### 13.8.1 Envelope do product
+
+`package.w` declara o grafo máximo do artifact. O campo `runtime` fica no record
+do product. Este trecho começa nesse campo e omite os descriptors das seis
+dependências do workflow:
+
+```w
+runtime: {
+  services: [
+    {
+      binding: "orders"
+      protocol: "restaurant.OrderCoordinatorApi"
+      implementation: "restaurant.OrderCoordinator"
+      scope: { kind: .keyed, keyType: "restaurant.OrderId" }
+      mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
+      inject: {
+        fulfillment: { supervisor: "fulfillment", key: .serviceIdentity }
+      }
+    },
+  ]
+
+  supervisors: [
+    {
+      binding: "fulfillment"
+      keyType: "restaurant.OrderId"
+      inputType: "restaurant.FulfillmentInput"
+      progressType: "restaurant.ServiceStage"
+      outputType: "restaurant.Receipt"
+      failureType: "restaurant.RestaurantError"
+      operation: "restaurant.supervision::fulfillOrder"
+      domain: .io
+      context: {
+        services: ["pantry", "ovens", "oracle", "aroma-probe", "billing", "dining-room"]
+      }
+      capacity: { active: 64, queued: 128, queuedBytes: 16MiB }
+      retention: { terminalItems: 4_096, terminalBytes: 64MiB }
+      deduplication: { tombstones: 16_384, tombstoneBytes: 8MiB }
+      restart: .never
+      durability: [.memory]
+    },
+  ]
+}
+```
+
+O descriptor usa dados. Ele não executa código. Símbolos são resolvidos pelo
+compiler e gravados por identity na interface.
+
+Os limites são parte do artifact contract. Um deployment pode reduzi-los. Ele
+não pode trocar operation, protocol, key type, rights ou required isolation.
+
+#### 13.8.2 Manifest de deployment
+
+Deployment não altera o executável reproduzível. Um arquivo data-only separado
+liga placement, quotas e capabilities a um artifact digest:
+
+```w
+deployment {
+  schema: "w.deployment/1"
+  artifact: "sha256:<artifact-digest>"
+  product: "last-light"
+
+  limits: {
+    supervisors: [
+      { binding: "fulfillment", active: 32, queued: 64 },
+    ]
+  }
+
+  placement: [
+    { binding: "orders", target: "api-processes" },
+  ]
+
+  adapters: [
+    { binding: "fulfillment", durability: .memory },
+  ]
+}
+```
+
+O deployment precisa respeitar o envelope do product. O validator rejeita uma
+expansão, capability ausente ou placement incompatível.
+
+Secrets não entram em `package.w` nem no artifact. O deployment referencia uma
+capability do host. O runtime entrega um handle, nunca o secret como metadata
+global.
+
+Artifact digest e deployment digest aparecem em trace, audit e crash report.
+Assim, duas instalações usam os mesmos bytes e mantêm configuração observável.
+
+#### 13.8.3 Versionamento e rolling update
+
+**Exemplo:** um root iniciado com `fulfillOrder@v3` termina nessa versão. O
+deploy de `v4` recebe somente starts novos.
+
+Cada root fixa:
+
+- operation identity e semantic fingerprint;
+- input, progress, output e failure schemas;
+- supervisor generation;
+- deployment digest inicial.
+
+Um deploy novo não troca o body de um root ativo. Ele drena a operation antiga,
+inicia work novo na versão nova ou executa uma migration explícita.
+
+Um adapter durável preserva a versão necessária para retomar steps. Remover essa
+versão exige concluir, cancelar ou migrar cada root.
+
+Service protocols usam compatibilidade de interface e wire schema. Co-location
+não permite ignorar essa verificação durante rolling update.
+
+### 13.9 Estado durável e gates
 
 **Exemplo:** o adapter SQLite confirma a transação antes de liberar a resposta.
 Uma falha descarta o output retido.
@@ -7289,13 +7952,16 @@ e engines especializadas podem implementar o contrato.
 O baseline confirma o commit antes de liberar uma response. Um outbox
 transacional é a alternativa para mensagens.
 
+Um supervisor durável usa o mesmo adapter somente em boundaries explícitas de
+step. Ele não persiste um task frame arbitrário.
+
 **Pesquisa:** um output gate pode reter outputs até confirmar writes. Se a write
 falhar, o runtime descarta os outputs. O protótipo precisa provar causalidade,
 limites, backpressure e cancelamento. Os
 [output gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
 são uma referência, não uma decisão automática.
 
-### 13.8 Capabilities e sandbox
+### 13.10 Capabilities e sandbox
 
 **Exemplo:** um handler sem `FileSystem` não abre arquivos mesmo quando o processo
 host possui essa permissão.
@@ -7312,7 +7978,7 @@ do target:
 Seccomp não protege “cada módulo importado”. Um módulo não é uma boundary
 física. Um filtro de syscall não controla memory safety dentro do processo.
 
-### 13.9 Wasm e playground
+### 13.11 Wasm e playground
 
 **Exemplo:** o playground executa `add(2, 3)` em Wasm. Network permanece ausente
 sem um import tipado do host.
@@ -7321,7 +7987,7 @@ Wasm é um target e uma boundary possível. Ele não transforma W em substituto 
 JavaScript. O playground compila um subset para Wasm e usa imports/exports
 tipados do host. DOM, network e storage só existem quando o profile concede.
 
-### 13.10 Observabilidade e teste
+### 13.12 Observabilidade e teste
 
 **Exemplo:** uma call de service registra queue time, execution time, instance ID
 e causalidade no mesmo evento estruturado.
@@ -7386,7 +8052,8 @@ T1 contém:
 - clock, calendar, timezone e random;
 - Task, TaskOutcome, TaskGroup, Stream e Channel;
 - synchronization, executors e blocking adapters;
-- ServiceRef, ServiceFailure e service host APIs;
+- ServiceRef, ServiceBinding, ServiceFamily, ServiceIdentity e service host APIs;
+- SupervisorRef, WorkKeyRef, WorkRef, WorkContext, WorkSnapshot e WorkOutcome;
 - TCP, UDP, TLS e DNS;
 - crypto, codecs, JSON e FFI C;
 - storage e observabilidade básicas.
@@ -11442,6 +12109,10 @@ Uma pesquisa só avança quando possui:
 | static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
 | `fn`, `some fn` e `any fn` | **Provável** | tipos e drop são conhecidos; escape e erasure exigem corpus de custo |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
+| `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
+| bindings tipados e runtime graph data-only | **Possível agora** | resolução nominal e validação do envelope ocorrem no link |
+| deployment separado por artifact digest | **Provável** | schema é simples; placement, secrets e rolling update exigem adapters |
+| workflow durável por steps | **Provável T2** | SQLite e outbox ajudam; retry, migration e effect ID exigem protótipo |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
 | interval, case-set, shape e alias facts na HIR | **Possível agora** | análises conhecidas; fallback conserva checks e largura |
@@ -11505,7 +12176,7 @@ humor vem de situações técnicas: reservas em fusos relativísticos, cozinha
 térmica, estoque por telemetria, previsão tensorial, cobrança idempotente e
 burocracia de encerramento.
 
-O corpus tem duas rotas. A primeira é um oracle determinístico e não exige
+O corpus tem três rotas. A primeira é um oracle determinístico e não exige
 deployment:
 
 ```text
@@ -11527,9 +12198,19 @@ CLI / TUI / line host / HTTP
   → texto plain / ANSI / JSON
 ```
 
-O mesmo `Command` e o mesmo `AppResponse` impedem que cada adapter de host crie
-semântica de negócio própria. O modo ANSI é uma apresentação de texto. Ele não
-introduz uma UI library no core ou na std.
+A terceira testa o owner runtime:
+
+```text
+ServiceFamily<OrderCoordinatorApi, OrderId>
+  → turn curto
+  → WorkKeyRef.tryStart
+  → root de fulfillment
+  → snapshot / cancel / outcome
+```
+
+Na segunda rota, o mesmo `Command` e o mesmo `AppResponse` impedem que cada
+adapter de host crie semântica de negócio própria. O modo ANSI é uma
+apresentação de texto. Ele não introduz uma UI library no core ou na std.
 
 O adapter escolhe uma autoridade antes do dispatch. CLI e line host usam
 `localOperator`. HTTP usa `remoteClient` e não aceita `Command.shutdown`.
@@ -11540,8 +12221,9 @@ mantém esse handler como oracle adversarial.
 
 O gate operacional exige um turn curto de aceitação. Um owner supervisionado
 continua o workflow por pedido. Status e cancelamento usam turns curtos. A key
-do pedido seleciona a instance. O desenho do supervisor e do deployment fica em
-**Pesquisa** até o protótipo de runtime.
+do pedido seleciona a instance. `SupervisorRef` e deployment data-only são
+**Líder DB2**. A terceira rota ainda não possui um entry ligado ao product
+runtime graph. Steps duráveis permanecem em **Pesquisa**.
 
 O gate final é o **Turno do Horizonte Violeta**:
 
@@ -11550,6 +12232,7 @@ RestaurantApi
   → parser streaming de comanda
   → compiler de cardápio restrito a bootstrap.w0
   → Restaurant service
+  → keyed coordinator + fulfillment supervisor
   → async calls com payloads owned
   → parallelMap bounded da brigada
   → controle PID com `init`, computed property, ranges e units
@@ -11802,10 +12485,15 @@ profile do host.
 - closed turn, generation e drain;
 - mailbox com três quotas;
 - `ServiceFailure`, cycle detection e `ServiceRef`;
+- `ServiceBinding`, `ServiceFamily` e validation do runtime graph;
+- `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
+- cancelamento, retention, tombstones e drain de roots;
+- validation data-only de deployment contra o product envelope;
 - tracing e local fast path;
 - process/Wasm boundary experimental.
 
-Saída: CLI e HTTP exibem hops, queues, overload, cycle e restart.
+Saída: CLI e HTTP exibem hops, queues, overload, cycle, trabalho supervisionado
+e restart de instance.
 
 ### 27.9 Fase 7 — packages e SDK
 
@@ -11816,7 +12504,9 @@ de marcar a versão como reproduced.
 - builds `--locked`/offline;
 - T0/T1 mínimos;
 - provenance, SBOM e reprodução local;
-- lens por import.
+- lens por import;
+- SQLite adapter experimental para steps e outcomes supervisionados;
+- recovery por operation version, effect ID e schema.
 
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 
@@ -11939,7 +12629,7 @@ experimentar”, não “decisão irreversível”.
 | D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | D2-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
+| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco e `CancellationReason` fechado | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
 | D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | D2-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes D2-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
 | D2-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em D2-424–429 | `Send`/`Sync` públicos; runtime checks |
@@ -12388,6 +13078,23 @@ experimentar”, não “decisão irreversível”.
 | D2-488 | lifetime de buffer I/O | pinning é interno; handles, callbacks e borrows vivem até completion drain | `pin` obrigatório no caller; raw pointer escapa; cancellation encerra lifetime cedo |
 | D2-489 | vectored e zero-copy | especializados e explícitos em Pesquisa; fallback mantém bytes e progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
 | D2-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
+| D2-491 | trabalho runtime-owned | `SupervisorRef` é owner explícito; `Task` permanece lexical | drop destaca; `spawn<owner: ...>`; task global |
+| D2-492 | operação supervisionada | descriptor fixa função e versão; key, input e bindings explícitos | closure arbitrária; capture de state; body trocado em work ativo |
+| D2-493 | admission de work | bounded; commit transfere input; rejeição pré-commit devolve input; unknown outcome reconcilia por key | fila ilimitada; input perdido; start fire-and-forget |
+| D2-494 | identity de work | supervisor + key completa + incarnation; attempt separado; hash nunca é identity | PID/pointer; hash persistente; nome solto |
+| D2-495 | observação de work | state, progress e cancellation separados; snapshot revisionado; retention bounded | event list ilimitada; ref para frame; polling sem revision |
+| D2-496 | rights de work | SupervisorRef → WorkKeyRef → WorkRef; key e rights atenuam authority | Boolean runtime; todo observer cancela; ID concede authority |
+| D2-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
+| D2-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
+| D2-499 | workflow durável | steps e schemas explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
+| D2-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
+| D2-501 | product runtime graph | `package.w` fixa símbolos, envelope, injection e operation | manifest executável; reflection encontra implementação; limite só no host |
+| D2-502 | deployment | data-only separado e ligado ao artifact digest; só reduz envelope | rebuild por ambiente; config invisível; deployment troca semântica estática |
+| D2-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
+| D2-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
+| D2-505 | identity keyed de service | `ServiceIdentity<K>` read-only e injetada; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
+| D2-506 | dedup de work | outcome e tombstone têm budgets separados; key só é reutilizada em nova incarnation | outcome eterno; expiração permite duplicação silenciosa; key global única |
+| D2-507 | completion versus cancellation | completion committed entrega o valor; cancellation fica pendente; unknown outcome permanece distinto | descartar valor committed; injetar cancel entre statements; rollback presumido |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
