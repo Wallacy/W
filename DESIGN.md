@@ -11499,15 +11499,54 @@ Uma pesquisa só avança quando possui:
 
 ## 25. Ensaio do restaurante cósmico
 
-O corpus DB2 usa um restaurante original de escala cósmica. Ele não copia
-personagens, frases ou eventos de outra obra. O humor vem de situações técnicas:
-reservas em fusos relativísticos, cozinha térmica, estoque por telemetria,
-previsão tensorial, cobrança idempotente e burocracia de encerramento.
+O Restaurante Última Luz homenageia o absurdo cósmico popularizado por Douglas
+Adams. Os personagens, diálogos, pratos e eventos do corpus são originais. O
+humor vem de situações técnicas: reservas em fusos relativísticos, cozinha
+térmica, estoque por telemetria, previsão tensorial, cobrança idempotente e
+burocracia de encerramento.
+
+O corpus tem duas rotas. A primeira é um oracle determinístico e não exige
+deployment:
+
+```text
+entry LastLightSimulation
+  → profile fechado
+  → simulação por ticks
+  → energia + receita + filas
+  → relatório estável
+```
+
+A segunda usa um protocolo de aplicação compartilhado:
+
+```text
+CLI / TUI / line host / HTTP
+  → Command
+  → dispatch
+  → RestaurantApi
+  → AppResponse
+  → texto plain / ANSI / JSON
+```
+
+O mesmo `Command` e o mesmo `AppResponse` impedem que cada adapter de host crie
+semântica de negócio própria. O modo ANSI é uma apresentação de texto. Ele não
+introduz uma UI library no core ou na std.
+
+O adapter escolhe uma autoridade antes do dispatch. CLI e line host usam
+`localOperator`. HTTP usa `remoteClient` e não aceita `Command.shutdown`.
+
+O `place()` atual mantém um closed turn durante todo o atendimento. Ele preserva
+invariantes, mas bloqueia `status()` e `cancel()` na mesma instance. O corpus
+mantém esse handler como oracle adversarial.
+
+O gate operacional exige um turn curto de aceitação. Um owner supervisionado
+continua o workflow por pedido. Status e cancelamento usam turns curtos. A key
+do pedido seleciona a instance. O desenho do supervisor e do deployment fica em
+**Pesquisa** até o protótipo de runtime.
 
 O gate final é o **Turno do Horizonte Violeta**:
 
 ```text
-entry
+RestaurantApi
   → parser streaming de comanda
   → compiler de cardápio restrito a bootstrap.w0
   → Restaurant service
@@ -11520,13 +11559,23 @@ entry
   → pricing + billing idempotente
   → DiningRoom service
   → mailbox, ServiceFailure e cycle oracle
-  → HTTP/TUI response
+  → AppResponse
   → cleanup, trace e provenance
 ```
 
 Uma injeção de falha em cada seta não pode deixar task, lease, buffer, mailbox
 item, shared owner, callback ou pagamento sem estado observável. O compiler de
 cardápio precisa continuar dentro do fechamento W0.
+
+Os gates são cumulativos:
+
+1. `LastLightSimulation` passa parser, type-check, replay e runtime;
+2. os quatro adapters de host preservam `Command` e `AppResponse`;
+3. o turno completo passa deployment, FFI, fault injection e provenance.
+
+Enquanto o compiler não existe, o documento deve informar quais gates são
+oracles e quais possuem evidência executável. Um parse do Tree-sitter não prova
+type-check, lowering ou comportamento runtime.
 
 O ensaio detalhado está no
 [Restaurante Última Luz](examples/restaurant/README.md).

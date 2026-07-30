@@ -32,6 +32,21 @@ export enum Course {
   }
 }
 
+export const fn courseLabel(course: Course): DishLabel {
+  return switch course {
+    case .nebulaBroth: "Nebula broth"
+    case .photonSouffle: "Photon souffle"
+    case .quietSalad: "Quiet salad"
+    case .horizonCake: "Horizon cake"
+  }
+}
+
+export enum SimulationProfile {
+  quietOrbit
+  photonRush
+  timelineCollision
+}
+
 export enum ServiceStage {
   accepted
   reserving
@@ -128,6 +143,14 @@ export enum Currency {
   cr
   usd
   brl
+}
+
+export const fn currencyCode(currency: Currency): String {
+  return switch currency {
+    case .cr: "CR"
+    case .usd: "USD"
+    case .brl: "BRL"
+  }
 }
 
 export struct Money {

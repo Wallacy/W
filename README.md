@@ -39,14 +39,15 @@ mostram esse contrato, mas não criam regras próprias.
 ## Amostra
 
 ```w
-import { Order } from restaurant.domain
+import std.http
+import { Command } from restaurant.command
 import { RestaurantApi } from restaurant.restaurant
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
   let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
-  let order = try request.json.decode<Order>()
-  let receipt = try await restaurant.place(take order)
-  return try http.Response.json(receipt)
+  let command = try request.json.decode<Command>()
+  let response = try await dispatch(take command, restaurant: restaurant)
+  return try http.Response.json(response)
 }
 
 entry LastLight {
@@ -55,8 +56,8 @@ entry LastLight {
 }
 ```
 
-O source mostra suspensão, falha, transferência de ownership e entrypoints. O
-runtime pode co-localizar services e otimizar chamadas sem mudar esses contratos.
+O mesmo `Command` e a mesma resposta tipada atendem CLI, TUI e HTTP. O runtime
+pode co-localizar services sem mudar esses contratos.
 
 ## Histórico
 

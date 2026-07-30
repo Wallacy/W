@@ -1,6 +1,14 @@
 // Pricing, idempotency, and compensation for the final service window.
 
-import { Course, Currency, DomainError, Money, OrderId } from restaurant.domain
+import {
+  Course,
+  Currency,
+  DishLabel,
+  DomainError,
+  Money,
+  OrderId,
+  courseLabel,
+} from restaurant.domain
 
 export type PaymentId = u64
 export type IdempotencyKey = String<(.scalars.count in 8...128)>
@@ -26,6 +34,12 @@ export struct PaymentProof {
   export canServe: Bool {
     get => state == .captured
   }
+}
+
+export struct MenuItem {
+  course: Course
+  label: DishLabel
+  price: Money
 }
 
 export enum BillingError: Error {
@@ -79,6 +93,20 @@ export fn loadPriceTable(): PriceTable {
     .quietSalad: Money(minorUnits: 900, currency: .cr),
     .horizonCake: Money(minorUnits: 4_242, currency: .cr),
   ])
+}
+
+export fn menuItems(table: ref PriceTable): Array<MenuItem> throws BillingError {
+  var items: Array<MenuItem> = []
+
+  for course in [.nebulaBroth, .photonSouffle, .quietSalad, .horizonCake] {
+    items.append(MenuItem(
+      course: course,
+      label: courseLabel(course),
+      price: try table.price(for: course),
+    ))
+  }
+
+  return items
 }
 
 export fn activePricingPolicy(table: take PriceTable): some PricingPolicy {
@@ -141,6 +169,7 @@ export service BillingLedger as BillingApi {
 
 test "pricing keeps currency and integer minor units" for quote {
   let table = loadPriceTable()
+  let menu = try menuItems(table)
   let policy: any PricingPolicy = table
   let value = try quote(policy, course: .horizonCake)
 
@@ -148,4 +177,6 @@ test "pricing keeps currency and integer minor units" for quote {
   expect value.minorUnits == 4_242
   expect Money.zeroCredits.minorUnits == 0
   expect try Money(majorUnits: 42, currency: .cr).minorUnits == 4_200
+  expect menu.count == 4
+  expect menu.last?.label == "Horizon cake"
 }

@@ -1,7 +1,16 @@
 // Streaming command input for the Last Light restaurant.
 
 import std.text
-import { Course, Guest, GuestCount, GuestId, GuestName, Order, OrderId } from restaurant.domain
+import {
+  Course,
+  Guest,
+  GuestCount,
+  GuestId,
+  GuestName,
+  Order,
+  OrderId,
+  SimulationProfile,
+} from restaurant.domain
 
 export type CommandLine = String<(.bytes.count <= 65_536)>
 
@@ -17,12 +26,17 @@ export enum CommandError: Error {
   missingField(name: String, span: SourceSpan)
   invalidNumber(name: String, span: SourceSpan)
   invalidCourse(String)
+  invalidSimulationProfile(String)
 }
 
 export enum Command {
+  help
+  menu
   place(Order)
   status(OrderId)
   cancel(OrderId)
+  dashboard
+  simulate(SimulationProfile)
   shutdown
 }
 
@@ -63,6 +77,20 @@ fn decodeOrderId(fields: ref Array<view String>, span: SourceSpan): OrderId thro
   return try OrderId.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
 }
 
+fn decodeSimulationProfile(
+  fields: ref Array<view String>,
+  span: SourceSpan,
+): SimulationProfile throws CommandError {
+  guard fields.count >= 2 else throw .missingField(name: "simulation-profile", span: span)
+
+  return switch fields[1] {
+    case "quiet": .quietOrbit
+    case "rush": .photonRush
+    case "timeline": .timelineCollision
+    case _: throw .invalidSimulationProfile(fields[1].materialize())
+  }
+}
+
 export fn decodeCommand(source: ref String): Command throws CommandError {
   let line = try CommandLine(source)
   let fields: Array<view String> = line.scalars
@@ -72,9 +100,13 @@ export fn decodeCommand(source: ref String): Command throws CommandError {
   guard let verb = fields.first else throw .incompleteFrame(span)
 
   return switch verb {
+    case "help": .help
+    case "menu": .menu
     case "place": .place(try decodeOrder(fields, span: span))
     case "status": .status(try decodeOrderId(fields, span: span))
     case "cancel": .cancel(try decodeOrderId(fields, span: span))
+    case "dashboard": .dashboard
+    case "simulate": .simulate(try decodeSimulationProfile(fields, span: span))
     case "shutdown": .shutdown
     case _: throw .unknownVerb(verb.materialize())
   }
@@ -129,4 +161,10 @@ test "chunk boundaries do not change commands" for decodeCommand {
   expect first.isEmpty
   expect second == [expected]
   expect tail.isEmpty
+}
+
+test "simulation profiles are closed and typed" for decodeCommand {
+  expect try decodeCommand("simulate quiet") == .simulate(.quietOrbit)
+  expect try decodeCommand("simulate rush") == .simulate(.photonRush)
+  expect try decodeCommand("simulate timeline") == .simulate(.timelineCollision)
 }

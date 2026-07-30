@@ -3,16 +3,42 @@
 > **Status:** corpus experimental da DB2 · 29 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
-do turno cósmico. O cenário é original. Ele usa escala astronômica e humor
-burocrático sem copiar personagens, frases ou eventos de outra obra.
+do universo. O cenário homenageia o absurdo cósmico popularizado por Douglas
+Adams. Os personagens, diálogos, pratos e eventos deste corpus são originais.
 
 O ensaio não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md).
 
-## 1. Rota completa
+## 1. Rotas operacionais
 
 ```text
-LastLight entry
+LastLightSimulation
+  → cenário fechado
+  → simulação por ticks
+  → relatório determinístico
+
+LastLight / LastLightTui / LastLightLineHost
+  → Command
+  → dispatch único
+  → RestaurantApi
+  → AppResponse
+  ├─ texto portátil
+  ├─ terminal ANSI
+  └─ JSON por HTTP
+```
+
+`LastLightSimulation` é o primeiro alvo operacional. Ele não usa relógio,
+aleatoriedade, network nem deployment de services. O mesmo profile deve produzir
+os mesmos eventos, totais e consumo de energia em qualquer execução compatível.
+
+`LastLight` expõe CLI de texto e `http.fetch`. `LastLightTui` reutiliza a mesma
+resposta tipada e adiciona somente controle ANSI. `LastLightLineHost` recebe uma
+linha por evento do host. Nenhuma dessas rotas exige uma biblioteca gráfica.
+
+A rota distribuída mantém o gate **Turno do Horizonte Violeta**:
+
+```text
+RestaurantApi
   → parser streaming da Comanda de Íon
   → compiler W0 do Cardápio de Fótons
   → Salão Prisma
@@ -30,12 +56,25 @@ LastLight entry
   → Passa-Pratos de Capacidade Finita
   → Recepção callable do Último Maitre
   → Conta da Aurora Tardia
-  → resposta HTTP/TUI
 ```
 
-O gate final se chama **Turno do Horizonte Violeta**. Uma falha injetada em cada
-seta não pode deixar task, lease, buffer, mailbox item ou pagamento vivo sem
-owner e estado observável.
+Uma falha injetada em cada seta não pode deixar task, lease, buffer, mailbox
+item ou pagamento sem owner e estado observável. A configuração de deployment e
+alguns services de infraestrutura ainda dependem de contratos não congelados.
+
+O `place()` atual mantém um closed turn até servir o prato. Ele é um oracle de
+head-of-line blocking. Ele não é a arquitetura operacional final. O gate de host
+exige esta divisão:
+
+1. um turn curto aceita o pedido e devolve sua identidade;
+2. um owner supervisionado executa o workflow;
+3. turns curtos consultam status e solicitam cancelamento;
+4. a identidade do pedido seleciona a instance keyed;
+5. trace e idempotency ligam todos os turns ao mesmo efeito.
+
+O contrato do supervisor e o descriptor de deployment ainda estão em
+**Pesquisa**. Até essa decisão, `LastLightSimulation` é o alvo executável
+independente previsto.
 
 ## 2. Mapa de source
 
@@ -71,10 +110,36 @@ owner e estado observável.
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
-| `app.w` | CLI, HTTP, Context e entries |
+| `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
+| `presentation.w` | resposta tipada e render portátil ou ANSI |
+| `simulation_app.w` | entry determinística sem deployment de services |
+| `app.w` | CLI, TUI ANSI, linha por evento, HTTP, Context e entries |
 
 Esses arquivos usam a forma líder da DB2. A versão DB1 está no
 [arquivo histórico](../../../Y/W/archive/db1-2026-07-27/examples/restaurant/).
+
+### 2.1 Cobertura e alcance
+
+O corpus separa duas perguntas. Um arquivo de ensaio mostra se uma forma local é
+clara. Uma rota operacional mostra se as formas funcionam juntas.
+
+| Camada | Testemunho principal | Benefício observado |
+|---|---|---|
+| módulos, visibilidade e entry | `app.w`, `simulation_app.w` | composição sem execução por import |
+| tipos, refinements e enum subsets | `domain.w`, `enum_contracts.w` | estados inválidos saem do runtime |
+| controle, patterns e errors | `command.w`, `failure.w`, `state_transitions.w` | fluxo exaustivo e falha tipada |
+| ownership, views e allocation | `memory.w`, `views.w`, `allocation.w` | custo e lifetime aparecem no source |
+| texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
+| async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
+| services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
+| units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
+| C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
+| self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
+| operação integrada | `simulation.w`, `presentation.w`, `app.w` | um modelo tipado atende CLI, TUI e HTTP |
+
+A tabela cobre as famílias aceitas da DB2. Itens em **Pesquisa**, alternativas
+contrafactuais e propostas rejeitadas não são requisitos do executável. Cada um
+continua preservado em `DESIGN.md`.
 
 ## 3. Casos e oracles
 
@@ -1029,6 +1094,58 @@ destruir a região não altera o snapshot. O teste repete com allocator do siste
 buffer fixo e profile mimalloc. Os valores e drops são os mesmos; somente
 measurements podem mudar.
 
+### 3.34 As Três Últimas Noites
+
+Famílias: algoritmo determinístico, capacidade, SI, Money, estado, CLI, TUI e
+HTTP.
+
+`simulation.w` contém três cargas fechadas:
+
+- `quietOrbit` prova o caminho sem overload;
+- `photonRush` pressiona cozinheiros e mesas;
+- `timelineCollision` faz a impaciência competir com uma cozinha serial.
+
+Os hóspedes são personagens originais. Entre eles estão Ada Quasar, Capitão
+Ontem, a Auditora da Causalidade e a Advogada do Paradoxo. Os nomes ajudam a
+identificar traces sem alterar a semântica.
+
+Fluxo interativo previsto:
+
+```text
+menu
+place 42 7 3 cake please omit causality
+status 42
+dashboard
+simulate timeline
+cancel 42
+shutdown
+```
+
+Aceite:
+
+- o mesmo profile produz a mesma sequência de `SimulationEvent`;
+- o algoritmo usa somente input, ticks inteiros e ordem estável do array;
+- número de cozinheiros e mesas limita a admissão;
+- o relatório mostra capacidade, duração do tick e event log;
+- pedidos que esperam além da paciência saem com `.departed`;
+- energia usa `Power * DutyCycle * Duration`;
+- receita usa `Money` em minor units e rejeita currency diferente;
+- todo pedido termina como completed, departed ou unfinished;
+- `queueHighWater` torna overload observável;
+- `Command` representa menu, pedido, status, cancelamento, dashboard, simulação
+  e encerramento;
+- `AppResponse` é o único modelo de saída para CLI, TUI e HTTP;
+- o renderer ANSI não muda os dados da resposta;
+- o adapter HTTP não recebe autoridade para encerrar o processo;
+- construção textual usa `append` no próprio `String`, sem um `StringBuilder`
+  público;
+- `LastLightSimulation` executa sem service registry;
+- o target completo não consome `stdin` por duas APIs ao mesmo tempo.
+
+O oracle de equivalência remove sequências ANSI antes da comparação. O teste de
+replay executa o mesmo profile duas vezes. Ele compara métricas e eventos campo
+a campo.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
@@ -1115,3 +1232,15 @@ Cada arquivo DB2 precisa passar:
 5. type-check quando a fase correspondente existir;
 6. runtime test ou oracle explícito quando houver lowering;
 7. origem e revision disponíveis para geração do Book após o design freeze.
+
+A integração avança em três gates cumulativos:
+
+1. **Simulação:** `LastLightSimulation` gera os três relatórios sem deployment;
+2. **Host:** CLI, TUI, line host e HTTP chegam ao mesmo `Command` e
+   `AppResponse`;
+3. **Turno do Horizonte Violeta:** o grafo real de services, FFI, compensação e
+   observabilidade passa fault injection.
+
+No estado atual, somente o gate sintático do Tree-sitter é executável. Os outros
+gates são contratos de implementação. A documentação não os apresenta como
+testes aprovados.
