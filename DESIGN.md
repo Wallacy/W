@@ -8509,12 +8509,14 @@ export protocol ByteSource<Failure: Error> {
 
 export protocol ByteSink<Failure: Error> {
   mut async fn write(source: view Bytes): WriteStep throws Failure
+  mut async fn writeMany(_ sources: view Bytes...): WriteStep throws Failure
 }
 ```
 
 Os nomes descrevem direção, unidade e ownership. Eles não criam classes
 utilitárias. `ByteSource` possui um cursor lógico e acrescenta bytes ao owner do
-caller. `ByteSink` empresta bytes e escreve um prefixo.
+caller. `ByteSink` empresta bytes e escreve um prefixo. `writeMany` trata os
+segments como uma concatenação lógica sem materializá-la.
 
 `async` permanece na assinatura do requirement. O call site usa `try await`.
 Um tipo in-memory com `Failure = Never` ainda exige `await`, porque trocar a
@@ -8913,30 +8915,104 @@ exigem delimitador usam um framer explícito com `final: .requireDelimiter`.
 `readToEnd` também exige `limit`. Sources contínuos, como terminal ou socket,
 podem nunca produzir EOF. A API não oferece uma versão ilimitada por default.
 
-#### 14.2.11 Backend, vectored I/O e zero-copy
+#### 14.2.11 Backend, gather write e transferências especializadas
 
-**Exemplo:** Linux pode usar `io_uring` ou readiness sem alterar `ReadStep`,
-ownership ou cancellation.
+**Forma vigente:** `ByteSink.writeMany` recebe zero ou mais segments borrowed:
 
-O adapter seleciona por target, product contract e benchmark:
+```w
+let step = try await output.writeMany(responseHead, jsonBody, finalBoundary)
 
-- IOCP no Windows;
-- io_uring, epoll ou poll no Linux;
-- kqueue ou poll nos BSDs e macOS;
+switch step {
+  case .complete: finishResponse()
+  case .partial(let count): rememberCommittedPrefix(count)
+}
+```
+
+A operação observa os segments como se fossem uma sequência concatenada. Ela
+não cria essa concatenação. Segments vazios não mudam o resultado.
+
+O resultado segue estas regras:
+
+1. `.complete` confirma todos os bytes de todos os segments.
+2. `.partial(count)` confirma um prefixo positivo da concatenação lógica.
+3. O prefixo termina dentro de um segment ou entre dois segments.
+4. Um error lançado confirma zero bytes nessa call.
+5. Progress e error na mesma completion seguem a regra de error latched.
+6. A call não promete entrega ao peer, atomicidade, durability ou message
+   boundary.
+
+O default de protocol chama `write` somente para o primeiro segment não vazio.
+Se outros segments possuem bytes, um `.complete` dessa call vira
+`.partial(source.count)`. Esse fallback não aloca, não copia e não faz uma
+segunda operação física.
+
+Um adapter pode substituir o default por uma operação gather nativa. Ele
+processa os segments em ordem. Um limite nativo de quantidade ou tamanho não
+vira error público. O adapter envia o maior prefixo válido e devolve
+`.partial(count)` quando ainda existe input.
+
+O adapter não concatena segments para ultrapassar `IOV_MAX` ou outro limite. Ele
+pode usar um array bounded de descriptors no task frame. A call mantém cada
+owner e descriptor válido até completion ou cancel drain.
+
+O compiler impede mutation, resize ou destruição dos owners durante a call.
+`view Bytes` não exige `Pinned<T>` no source. O lowering pode fixar o task frame
+ou impedir o move do carrier durante a operação.
+
+W não expõe `isWriteVectored`. O source usa a mesma call com qualquer adapter.
+`w explain io` informa native gather, quantidade submetida, fallback e
+allocation.
+
+O adapter seleciona uma estratégia pelo target, product contract e benchmark:
+
+- IOCP e `WSASend` no Windows;
+- `io_uring`, `writev`, epoll ou poll no Linux;
+- `writev`, kqueue ou poll nos BSDs e macOS;
 - WASI, browser host ou HAL no target correspondente;
 - blocking pool bounded quando não existe backend melhor.
 
-Buffers permanecem pinned ou possuem carrier estável até a completion final. O
-runtime não solta um async frame, `Bytes` owner ou foreign control block quando
-recebe apenas a solicitação de cancellation.
+POSIX processa os buffers de `writev` em ordem e permite short progress. O
+número de segments possui limite específico do host. `WSASend` também preserva
+a ordem e exige buffers válidos até completion. W mantém essas propriedades sem
+publicar `iovec` ou `WSABUF`.
 
-`readv`/`writev`, registered buffers e batching são optimizations ou APIs
-especializadas. Um futuro `writeMany` precisa devolver byte progress mapeável
-aos segmentos. Ele não promete atomicidade de message.
+Atomicidade de `writev` em um arquivo não vira garantia de `ByteSink`. Sockets,
+filesystems e adapters possuem boundaries diferentes. Uma API que exige
+atomicidade usa um contrato específico.
 
-`sendfile`, `splice`, memory mapping e device buffers mudam provenance,
-durability e fallback. Eles não são lowering invisível de `write`. T1 pode
-oferecer operations próprias depois de oracle em ao menos dois targets.
+**Pesquisa:** scatter read não entra no protocol comum. A forma exigiria vários
+borrows exclusivos, initialized counts e rollback parcial. W também rejeita
+`inout T...` por causa de alias diagnostics. A baseline continua
+`read(appendTo:maximum:)` com um único owner.
+
+Um futuro scatter read pode usar um owner `ReadBatch` ou um tuple fixo de
+destinos. A pesquisa deve provar alias checking, cancellation e progress em
+POSIX, Windows e um host component.
+
+**Pesquisa:** transferência file-to-sink continua uma operação explícita.
+`sendfile`, `TransmitFile`, `splice`, memory mapping e device buffers mudam
+provenance, offset, mutation lifetime e fallback.
+
+Esta forma permanece **Alternativa**:
+
+```w
+let step = try await output.transfer(
+  from: archive,
+  range: requestedRange,
+  fallback: inout scratch,
+)
+```
+
+O scratch explícito evita allocation escondida quando o target não possui uma
+rota especializada. A operação só entra na forma vigente depois de oracles em
+Windows, Linux e um terceiro host.
+
+Fontes primárias:
+
+- [`readv` e `writev`](https://man7.org/linux/man-pages/man2/writev.2.html);
+- [`WSASend`](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasend);
+- [`sendfile`](https://man7.org/linux/man-pages/man2/sendfile.2.html);
+- [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile).
 
 #### 14.2.12 Observabilidade e oracle
 
@@ -8954,6 +9030,16 @@ cancel:         request + completion drain
 allocation:     none after caller reservation
 ```
 
+```text
+$ w explain io restaurant.io::writeExtinctRecipeFrame
+operation:        bytes.writeMany
+segments:         3 borrowed
+backend:          wsasend
+native submitted: 3
+fallback:         available; one write
+allocation:       none
+```
+
 O resource lens registra bytes solicitados, confirmados e descartados, short
 operations, queue time, backend, blocking workers, pinned bytes, syscall count,
 cancel latency e native cause redigida.
@@ -8969,6 +9055,9 @@ O oracle do restaurante executa:
 - positional reads fora de ordem com resultado ordenado pelo caller;
 - cursor sequencial sem offset perdido;
 - blocking, readiness e completion backends com o mesmo resultado;
+- gather com zero, empty e mais segments que o limite nativo;
+- partial gather dentro e entre segments;
+- fallback, `writev` e `WSASend` com o mesmo byte stream;
 - `Stream<view Bytes>` sem allocation depois da reserva;
 - limits de line e read-to-end antes de growth;
 - leak sanitizer, TSan e fault injection.
@@ -13382,7 +13471,9 @@ Uma pesquisa só avança quando possui:
 | filesystem com rights estáticos e offset posicional | **Provável** | handles e syscalls existem; profiles e diagnostics exigem protótipo |
 | adapters blocking com quota | **Provável** | pool bounded preserva semântica; cancellation física depende da API |
 | backends readiness/completion equivalentes | **Provável** | contrato comum está fechado; matriz de targets deve provar os mesmos traces |
-| vectored I/O e zero-copy explícitos | **Pesquisa** | pinning, segment count, lifetime e fallback ainda não possuem superfície final |
+| gather write com segments borrowed | **Possível agora** | rest homogêneo, prefix progress e fallback sem allocation fecham a superfície |
+| scatter read | **Pesquisa** | múltiplos borrows exclusivos, initialized counts e rollback ainda não estão fechados |
+| file/device zero-copy | **Pesquisa** | provenance, offset, mutation lifetime e fallback variam por host |
 | `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
 | data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
 | `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
@@ -13787,6 +13878,7 @@ backpressure e cleanup reproduzíveis.
 - process e `wasm32-wasip3` boundary experimentais;
 - `Request`, `Response`, `http.Context` e admission HTTP;
 - adapter HTTP nativo e adapter `http-worker@1` com o mesmo oracle;
+- `ByteSink.writeMany` com fallback, short progress e cancel drain;
 
 Saída: CLI e HTTP exibem hops, queues, overload, cycle, trabalho supervisionado
 e restart de instance.
@@ -14377,7 +14469,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-486 | adapters de stream | chunks borrowed/owned, lines e read-to-end exigem limites explícitos | buffer ilimitado; item borrowed transferable; framing invisível |
 | W-487 | backend de I/O | target escolhe readiness, completion, blocking bounded ou immediate sem mudar source | backend na syntax; um algoritmo universal; thread por operação |
 | W-488 | lifetime de buffer I/O | pinning é interno; handles, callbacks e borrows vivem até completion drain | `pin` obrigatório no caller; raw pointer escapa; cancellation encerra lifetime cedo |
-| W-489 | vectored e zero-copy | especializados e explícitos em Pesquisa; fallback mantém bytes e progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
+| W-489 | famílias de I/O especializado | gather, scatter e transfer possuem decisões separadas; nenhuma otimização muda bytes ou progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
 | W-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
 | W-491 | trabalho runtime-owned | `SupervisorRef` é owner explícito; `Task` permanece lexical | drop destaca; `spawn<owner: ...>`; task global |
 | W-492 | operação supervisionada | descriptor fixa função e versão; key, input e bindings explícitos | closure arbitrária; capture de state; body trocado em work ativo |
@@ -14437,6 +14529,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-546 | limits de product | schema do host/capability fixa envelope máximo; deployment somente reduz | config aumenta authority; limite só operacional; defaults sem artifact contract |
 | W-547 | configuração de host | schema fechado do profile entra na recipe; deployment somente reduz policies permitidas | mapa de opções livre; config concede capability; proxy oculto corrige semântica |
 | W-548 | parâmetro de chamada `const` | `name: const T` exige ConstRepresentable conhecido no call site; ABI pode apagar | `comptime` em cada call; runtime descriptor na API estática; monomorphization obrigatória |
+| W-549 | gather write | `writeMany(_ sources: view Bytes...)` confirma prefixo da concatenação lógica; default usa um `write` | `IoSlice` público; concatenação; exigir backend vetorizado; erro por excesso de segments |
+| W-550 | scatter read | permanece em Pesquisa; baseline acrescenta a um único `Bytes` owner | `inout view Bytes...`; `ReadBatch`; mutable buffer universal |
+| W-551 | transferência zero-copy | permanece em Pesquisa e exige operação, fallback e oracle por host explícitos | lowering invisível de `write`; ausência de fallback; promessa universal de zero-copy |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
