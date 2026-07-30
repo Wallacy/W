@@ -9,6 +9,10 @@ Adams. Os personagens, diálogos, pratos e eventos deste corpus são originais.
 Este é o produto de referência oficial do W. Ele orienta design, regressão,
 conformance, benchmarks, documentação e treinamento.
 
+Ele não é uma coleção de snippets. Cada subsystem deve evoluir para uma rota
+operacional ou para um oracle negativo. O compiler, a std e o runtime só podem
+afirmar suporte quando a rota correspondente compila e passa seus gates.
+
 O produto não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md). O
 [plano de build](BUILD.md) aplica products, target specs, toolchain plans, host
@@ -179,7 +183,7 @@ alvo de execução independente.
 | `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, variantes, runtime graphs, targets e build profiles |
+| `package.w` | products, variantes, runtime graphs, execution profiles, targets e build profiles |
 | `workspace.w` | members, defaults, patches e toolchain policy locais |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
@@ -221,7 +225,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w` | um dispatch tipado atende CLI, TUI e HTTP |
-| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, target e placement ficam separados |
+| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, execution envelope, target e placement ficam separados |
 | toolchains e SDKs | `workspace.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
@@ -370,7 +374,10 @@ Famílias: units lineares, afins e customizadas, ranges e controle PID.
 Aceite:
 
 - `m`, `smoot`, `K`, `degC` e `clap` resolvem pelo import;
-- `Power * Duration` produz Energy;
+- `PhysicalDuration`, `Power` e `Energy` são aliases; a dimensão já fornece
+  identidade;
+- `Power * PhysicalDuration` produz Energy;
+- `Duration` operacional não aceita conversão float implícita;
 - point menos point produz delta;
 - point mais point falha;
 - `switch` com range e `if` preserva a regra anti-windup;
@@ -1115,20 +1122,32 @@ Aceite:
 - `.compute` permanece válido quando a capacity efetiva é 1;
 - `.network` pode compartilhar executor físico com `.io`;
 - `LastLightDomain.thermal` precisa de binding parallel no product;
+- `.thermal` e `.compute` compartilham o pool `cpu`;
 - conformar o enum a `ExecutionDomain` não cria um executor;
 - um módulo importado não cria domain, queue ou thread;
+- cada unit recebe task, frame, timer e ready budgets bounded;
+- `async let` avalia captures e argumentos uma vez antes de publish;
+- budget exhaustion limpa o staging uma vez e não inicia o body;
+- um wakeup não aloca uma queue node;
 - os dois `mixBatch` de `mixAcrossTwoKitchens` compartilham o compute budget;
 - dois limits de 8 não criam 16 workers quando a domain capacity é 6;
 - o parent suspenso não retém o último permit necessário ao child;
 - blocking FFI não ocupa o compute budget;
+- cancellation antes de uma blocking call começar remove o job;
+- cancellation depois da entrada foreign mantém owner e buffers até drain;
 - a correção não depende de dois jobs executarem simultaneamente;
 - scheduler replay pode trocar a ordem dos siblings sem trocar o resultado;
 - `Task.yield()` não funciona como barrier;
+- `mixBeforeTheLastBell` usa deadline monotônico e devolve `TaskOutcome`;
+- `TaskTimeout` usa nanoseconds exatos; ausência de timeout não usa infinity;
+- body settled vence cancellation posterior e só fica visível após cleanup;
+- fail-fast cancela cedo e escolhe o error primário pela ordem declarada;
 - priority não substitui deadline nem isolation.
 
 O scheduler adversarial usa uma única CPU lógica, inverte a ordem de todos os
-children e suspende um nested group quando o budget está cheio. O programa deve
-terminar com o mesmo resultado e sem criar um worker adicional.
+children, esgota cada budget e suspende um nested group quando a capacity está
+cheia. O programa deve terminar com o mesmo resultado, limpar cada owner uma
+vez e não criar um worker adicional.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 
@@ -1256,7 +1275,7 @@ Aceite:
 - número de cozinheiros e mesas limita a admissão;
 - o relatório mostra capacidade, duração do tick e event log;
 - pedidos que esperam além da paciência saem com `.departed`;
-- energia usa `Power * DutyCycle * Duration`;
+- energia usa `Power * DutyCycle * PhysicalDuration`;
 - receita usa `Money` em minor units e rejeita currency diferente;
 - todo pedido termina como completed, departed ou unfinished;
 - `queueHighWater` torna overload observável;
@@ -1634,6 +1653,7 @@ O Book deve mostrar pares lado a lado:
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `spawn<domain: LastLightDomain.thermal>` | `"thermal"` ou keyword global |
+| execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
 | QoS | descriptor/policy de group | `.background` como domain |
 | trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
 | binding singular | `ctx.services.get(restaurantService)` | lookup normal por string |

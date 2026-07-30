@@ -362,6 +362,150 @@ package {
     },
   ]
 
+  executionProfiles: [
+    {
+      name: "native-bounded"
+      parallelDefault: .compute
+      tasks: {
+        live: 16_384
+        frameBytes: 256MiB
+        timers: 16_384
+      }
+      pools: [
+        {
+          name: "cpu"
+          capacity: { minimum: 1, maximum: .hostCpuQuota }
+        },
+        {
+          name: "blocking"
+          capacity: { minimum: 1, maximum: 32 }
+        },
+      ]
+      domains: {
+        default: {
+          pool: "cpu"
+          ready: { jobs: 16_384, frameBytes: 256MiB }
+          fallback: .reject
+        }
+        io: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 128MiB }
+          fallback: .default
+        }
+        network: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 128MiB }
+          fallback: .io
+        }
+        compute: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 256MiB }
+          fallback: .reject
+        }
+        blocking: {
+          pool: "blocking"
+          ready: { jobs: 256, frameBytes: 32MiB }
+          fallback: .reject
+        }
+        custom: [
+          {
+            id: "restaurant.execution::LastLightDomain.thermal"
+            capabilities: [.concurrent, .parallel]
+            pool: "cpu"
+            ready: { jobs: 1_024, frameBytes: 64MiB }
+            fallback: .compute
+          },
+        ]
+      }
+      cleanup: {
+        asyncGrace: 5<s>
+        blockingDrainGrace: 30<s>
+      }
+    },
+    {
+      name: "edge-bounded"
+      parallelDefault: .compute
+      tasks: {
+        live: 8_192
+        frameBytes: 128MiB
+        timers: 16_384
+      }
+      pools: [
+        {
+          name: "cpu"
+          capacity: { minimum: 1, maximum: .hostCpuQuota }
+        },
+      ]
+      domains: {
+        default: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 128MiB }
+          fallback: .reject
+        }
+        io: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 128MiB }
+          fallback: .default
+        }
+        network: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 128MiB }
+          fallback: .io
+        }
+        compute: {
+          pool: "cpu"
+          ready: { jobs: 2_048, frameBytes: 64MiB }
+          fallback: .reject
+        }
+      }
+      cleanup: {
+        asyncGrace: 2<s>
+        blockingDrainGrace: 0<s>
+      }
+    },
+    {
+      name: "benchmark-bounded"
+      parallelDefault: .compute
+      tasks: {
+        live: 65_536
+        frameBytes: 1GiB
+        timers: 65_536
+      }
+      pools: [
+        {
+          name: "cpu"
+          capacity: { minimum: 1, maximum: .hostCpuQuota }
+        },
+      ]
+      domains: {
+        default: {
+          pool: "cpu"
+          ready: { jobs: 65_536, frameBytes: 1GiB }
+          fallback: .reject
+        }
+        io: {
+          pool: "cpu"
+          ready: { jobs: 65_536, frameBytes: 1GiB }
+          fallback: .default
+        }
+        network: {
+          pool: "cpu"
+          ready: { jobs: 65_536, frameBytes: 1GiB }
+          fallback: .io
+        }
+        compute: {
+          pool: "cpu"
+          ready: { jobs: 8_192, frameBytes: 256MiB }
+          fallback: .reject
+        }
+      }
+      cleanup: {
+        asyncGrace: 2<s>
+        blockingDrainGrace: 0<s>
+      }
+    },
+  ]
+
   products: [
     {
       name: "last-light-native"
@@ -372,6 +516,7 @@ package {
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"
+      executionProfile: "native-bounded"
       capabilities: [.stdio, .network, .signals, .clock, .services, .devices]
       resources: [
         .action("compile-final-menu", output: "bytecode"),
@@ -386,6 +531,7 @@ package {
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"
+      executionProfile: "native-bounded"
       capabilities: [.stdio, .signals, .clock, .services, .devices]
       resources: [
         .action("compile-final-menu", output: "bytecode"),
@@ -400,6 +546,7 @@ package {
       targets: ["wasi"]
       runtime: "restaurant-client"
       packing: "entry-only"
+      executionProfile: "edge-bounded"
       capabilities: [.network, .clock, .services]
       limits: {
         http: {
@@ -423,6 +570,7 @@ package {
       targets: ["server", "wasi"]
       runtime: "wifi-edge"
       packing: "entry-only"
+      executionProfile: "edge-bounded"
       capabilities: [.network, .clock, .storage, .secrets, .services]
       limits: {
         http: {
@@ -444,6 +592,7 @@ package {
       entry: "LastLightSimulation"
       host: "w.host/native-process@1"
       targets: ["desktop"]
+      executionProfile: "native-bounded"
       capabilities: [.stdio]
     },
     {
@@ -455,6 +604,7 @@ package {
       targets: ["server"]
       runtime: "observatory-client"
       packing: "entry-only"
+      executionProfile: "native-bounded"
       capabilities: [.stdio, .network, .clock, .services]
     },
     {
@@ -484,6 +634,7 @@ package {
       targets: ["mobile"]
       runtime: "restaurant-client"
       packing: "entry-only"
+      executionProfile: "edge-bounded"
       capabilities: [.network, .clock, .notifications, .services]
     },
     {
@@ -543,6 +694,7 @@ package {
       targets: ["server"]
       runtime: "benchmark-host"
       packing: "entry-only"
+      executionProfile: "benchmark-bounded"
       capabilities: [.network, .clock, .random, .database, .cache, .templates]
       limits: {
         http: {

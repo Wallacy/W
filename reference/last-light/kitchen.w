@@ -3,7 +3,7 @@
 import std.clock
 import std.si
 import { Course, Dish, GuestCount, Probability } from restaurant.domain
-import { Duration, Energy, Mass, Power, Temperature, energy } from restaurant.units
+import { Energy, Mass, PhysicalDuration, Power, Temperature, energy } from restaurant.units
 
 export type ReservationId = u64
 export type OvenId = u16
@@ -21,7 +21,7 @@ export struct Recipe {
   course: Course
   ingredients: Array<Ingredient>
   target: Temperature
-  duration: Duration
+  duration: PhysicalDuration
   energyBudget: Energy
 }
 
@@ -34,7 +34,7 @@ export struct Mixture {
 export struct KitchenPlan {
   recipe: Recipe
   minimumAroma: Probability
-  duration: Duration
+  duration: PhysicalDuration
   energyBudget: Energy
 }
 
@@ -105,7 +105,10 @@ export protocol OvenLeaseApi {
 
 export protocol OvenApi {
   async fn telemetry(): OvenTelemetry throws OvenError
-  async fn acquire(target: Temperature, duration: Duration): ServiceRef<OvenLeaseApi> throws OvenError
+  async fn acquire(
+    target: Temperature,
+    duration: PhysicalDuration,
+  ): ServiceRef<OvenLeaseApi> throws OvenError
 }
 
 export struct PidController {
@@ -155,7 +158,7 @@ export fn controlDuty(
   controller: inout PidController,
   target: Temperature,
   measured: Temperature,
-  interval: Duration,
+  interval: PhysicalDuration,
 ): DutyCycle {
   let error = (target - measured).value(in: si.deltaK)
   let seconds = interval.value(in: si.s)
@@ -174,11 +177,18 @@ export fn controlDuty(
   return duty
 }
 
-export fn expectedEnergy(telemetry: ref OvenTelemetry, during duration: Duration): Energy {
+export fn expectedEnergy(
+  telemetry: ref OvenTelemetry,
+  during duration: PhysicalDuration,
+): Energy {
   return expectedEnergy(telemetry.power, duty: telemetry.duty, during: duration)
 }
 
-export fn expectedEnergy(power: Power, duty: DutyCycle, during duration: Duration): Energy {
+export fn expectedEnergy(
+  power: Power,
+  duty: DutyCycle,
+  during duration: PhysicalDuration,
+): Energy {
   return energy(power * duty, during: duration)
 }
 
@@ -204,7 +214,7 @@ test "a PID controller starts with no accumulated error" {
 }
 
 test "an overloaded function value uses an explicit call shape" for expectedEnergy {
-  let estimator: some fn(Power, DutyCycle, Duration): Energy =
+  let estimator: some fn(Power, DutyCycle, PhysicalDuration): Energy =
     (power, duty, duration) => expectedEnergy(power, duty: duty, during: duration)
 
   expect estimator(2<si.W>, try DutyCycle(0.5), 3<si.s>) == 3<si.J>

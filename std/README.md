@@ -31,12 +31,15 @@ std/
   io/
     contracts.w
   runtime/
+    task.w
     work.w
     workflow.w
 ```
 
 `build/contracts.w` materializa bindings de transforms herméticas.
-`runtime/work.w` materializa os tipos públicos usados por trabalho
+`runtime/task.w` materializa reasons, budget kinds, outcomes e timeout de tasks
+lexicais. `Duration` é um intrinsic T1 signed e exato, com resolução de
+nanosecond. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. `io/contracts.w` materializa byte I/O de T1.
 Os outros arquivos materializam values e protocols de T2.
@@ -62,9 +65,10 @@ Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
 otimizar transporte, mas não pode mudar statements, results, ownership ou
 failure semantics.
 
-`WorkId`, `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`,
-`StepContext`, `Cancellation`, `build.Context`, `Request`, `Response`,
-`http.Context` e handles de capability ainda são intrinsics do
+`Duration`, `Task`, `Deadline`, `Cancellation`, `CancellationId`, `WorkId`,
+`WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`, `StepContext`,
+`build.Context`, `Request`, `Response`, `http.Context` e handles de capability
+ainda são intrinsics do
 compiler/runtime.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio

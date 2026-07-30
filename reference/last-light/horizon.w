@@ -2,7 +2,7 @@
 
 import std.tensor
 import {
-  Duration,
+  PhysicalDuration,
   Frequency,
   Pressure,
   Temperature,
@@ -13,8 +13,8 @@ export type EventSequence = u64
 
 export struct HorizonSample {
   sensor: SensorId
-  eventTime: Duration
-  observedTime: Duration
+  eventTime: PhysicalDuration
+  observedTime: PhysicalDuration
   frequency: Frequency
   pressure: Pressure
   temperature: Temperature

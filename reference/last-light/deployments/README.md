@@ -15,6 +15,17 @@ O artifact index já fixa as edges entre as units de `restaurant-core`.
 O plano só escolhe a rota entre os placements. A seção `bindings` satisfaz
 imports abertos do grafo; ela não religa providers internos.
 
+A seção `limits.execution` reduz o execution profile de cada unit. Ela não
+altera domains, pools, capabilities ou fallbacks:
+
+- o plano local usa uma CPU lógica para o scheduler adversarial;
+- o plano distribuído dá budgets distintos a gateway, planning, finance,
+  dining, edge e observatory;
+- o plano de benchmark mantém o envelope alto, mas continua bounded.
+
+Cada valor precisa ser menor ou igual ao máximo de `package.w`. O futuro
+`deployment.lock` grava a redução e o profile digest.
+
 A seção `adapters` satisfaz roles fechadas pelo artifact. Os planos local e
 distribuído selecionam `w.std/sqlite-workflow@1` para o journal de
 `fulfillment`. O lock futuro grava seu digest. Um adapter em memória não atende

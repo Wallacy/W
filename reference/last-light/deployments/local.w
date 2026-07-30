@@ -59,6 +59,20 @@ deployment {
   ]
 
   limits: {
+    execution: [
+      {
+        unit: "restaurant/main"
+        tasks: {
+          live: 1_024
+          frameBytes: 32MiB
+          timers: 1_024
+        }
+        pools: [
+          { name: "cpu", capacity: 1 }
+          { name: "blocking", capacity: 2 }
+        ]
+      },
+    ]
     supervisors: [
       {
         artifact: "restaurant"

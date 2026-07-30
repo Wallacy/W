@@ -4,6 +4,7 @@ import { OrderId } from restaurant.domain
 import { Ingredient, KitchenError, Mixture, Recipe } from restaurant.kitchen
 
 export type BatchIndex = usize
+export alias ClosingTimeout = TaskTimeout
 
 export enum LastLightDomain: ExecutionDomain {
   thermal
@@ -46,6 +47,14 @@ export enum BrigadeError: Error {
   invalidParallelism(found: usize, maximum: usize)
 }
 
+export enum LastBellResult {
+  mixed(MixingResult)
+  failed(BrigadeError)
+  timedOut
+  runtimePressure
+  canceled
+}
+
 const maximumParallelCooks: usize = 256
 
 fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
@@ -59,6 +68,13 @@ fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
 
   job.metrics.recordCompletion()
   return MixingResult(index: job.index, orderId: job.orderId, mixture: mixture)
+}
+
+async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError {
+  Task.checkCancellation()
+  await Task.yield()
+  Task.checkCancellation()
+  return mixJob(take job)
 }
 
 export async fn mixPair(
@@ -128,4 +144,40 @@ export async fn closeBeforeTheLastCourse(
   async let batch = mixBatch(take jobs, parallelism: parallelism)
   batch.cancel(reason: .shutdown)
   return await batch.outcome()
+}
+
+export async fn mixBeforeTheLastBell(
+  job: take MixingJob,
+  timeout: ClosingTimeout,
+): TaskOutcome<MixingResult, BrigadeError> {
+  return await Task.withTimeout(
+    for: timeout,
+    input: take job,
+    using: mixCooperatively,
+  )
+}
+
+fn cancellationResult(cancellation: ref Cancellation): LastBellResult {
+  if cancellation.deadlineExceeded {
+    return .timedOut
+  }
+
+  if cancellation.exceeded(.liveTasks)
+    || cancellation.exceeded(.taskFrameBytes)
+    || cancellation.exceeded(.timers)
+    || cancellation.exceeded(.readyJobs) {
+    return .runtimePressure
+  }
+
+  return .canceled
+}
+
+export fn explainLastBell(
+  outcome: take TaskOutcome<MixingResult, BrigadeError>,
+): LastBellResult {
+  return switch take outcome {
+    case .success(let result): .mixed(take result)
+    case .error(let error): .failed(error)
+    case .canceled(let cancellation): cancellationResult(cancellation)
+  }
 }

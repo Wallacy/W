@@ -54,6 +54,17 @@ deployment {
   ]
 
   limits: {
+    execution: [
+      {
+        unit: "benchmark/main"
+        tasks: {
+          live: 65_536
+          frameBytes: 1GiB
+          timers: 65_536
+        }
+        pools: [{ name: "cpu", capacity: 64 }]
+      },
+    ]
     http: [
       {
         artifact: "benchmark"
