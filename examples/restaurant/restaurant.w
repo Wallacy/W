@@ -4,6 +4,7 @@ import {
   CancelledStage,
   Dish,
   DomainError,
+  Money,
   Order,
   OrderId,
   Receipt,
@@ -13,7 +14,9 @@ import {
 import {
   BillingApi,
   BillingError,
+  MenuItem,
   loadPriceTable,
+  menuItems,
   paymentKey,
   quote,
   refundKey,
@@ -44,10 +47,24 @@ export enum RestaurantError: Error {
   service(ServiceFailure)
 }
 
+export struct OrderSummary {
+  orderId: OrderId
+  stage: ServiceStage
+  total: Money?
+}
+
+export struct RestaurantSnapshot {
+  orders: Array<OrderSummary>
+  activeOrders: usize
+  completedOrders: u64
+}
+
 export protocol RestaurantApi {
   async fn place(order: take Order): Receipt throws RestaurantError
   async fn status(orderId: OrderId): ServiceStage throws RestaurantError
   async fn cancel(orderId: OrderId): CancelledStage throws RestaurantError
+  async fn menu(): Array<MenuItem> throws RestaurantError
+  async fn snapshot(): RestaurantSnapshot
 }
 
 struct OrderState {
@@ -65,10 +82,10 @@ struct OrderState {
 
 async fn prepareDish(
   order: take Order,
-  pantry: ServiceRef<PantryApi>,
-  ovens: ServiceRef<OvenApi>,
-  oracle: ServiceRef<OracleApi>,
-  probe: ServiceRef<AromaProbeApi>,
+  pantry: ref ServiceRef<PantryApi>,
+  ovens: ref ServiceRef<OvenApi>,
+  oracle: ref ServiceRef<OracleApi>,
+  probe: ref ServiceRef<AromaProbeApi>,
 ): Dish throws RestaurantError {
   let planning = planningRequest(order)
   let Order(guests, course, ...) = take order
@@ -174,5 +191,38 @@ export service LastLightRestaurant as RestaurantApi {
     guard let inout state = orders[orderId] else throw .domain(.unknownOrder(orderId))
     try state.advance(to: .cancelled)
     return .cancelled
+  }
+
+  async fn menu(): Array<MenuItem> throws RestaurantError {
+    return try menuItems(priceTable)
+  }
+
+  async fn snapshot(): RestaurantSnapshot {
+    var summaries: Array<OrderSummary> = []
+    var activeOrders = 0_usize
+
+    for entry in orders {
+      let total: Money? = switch entry.value.receipt {
+        case .some(let receipt): .some(receipt.total)
+        case .none: .none
+      }
+
+      summaries.append(OrderSummary(
+        orderId: entry.key,
+        stage: entry.value.stage,
+        total: total,
+      ))
+
+      if !(entry.value.stage in (.completed, .cancelled)) {
+        activeOrders += 1
+      }
+    }
+
+    summaries.sort(by: (left, right) => left.orderId.compare(right.orderId))
+    return RestaurantSnapshot(
+      orders: take summaries,
+      activeOrders: activeOrders,
+      completedOrders: completedOrders,
+    )
   }
 }
