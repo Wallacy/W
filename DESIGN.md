@@ -7597,11 +7597,13 @@ Os tipos conceituais do runtime são:
 export enum WorkRight {
   observe
   cancel
+  signal
 }
 
 export enum WorkState {
   queued
   running
+  waiting
   succeeded
   failed
   canceled
@@ -7615,6 +7617,7 @@ export struct WorkSnapshot<Progress> {
   state: WorkState
   progress: Progress?
   cancellation: Cancellation?
+  suspension: WorkSuspension?
 }
 
 export enum WorkOutcome<Output, Failure: Error> {
@@ -7630,6 +7633,9 @@ export enum WorkBoundaryFailure {
   restartLimit
   operationUnavailable
   durability
+  unknownOutcome(EffectId)
+  historyMismatch(WorkflowPointId)
+  historyLimit
 }
 
 export enum WorkCancelResult<Progress> {
@@ -7683,6 +7689,8 @@ recebe acesso às outras keys.
 `WorkKeyRef.observe()` cria `WorkRef<P, O, E><[.observe]>`.
 `WorkKeyRef.control()` cria `WorkRef<P, O, E><[.observe, .cancel]>`. As duas
 formas expõem `snapshot` e `outcome`. Somente a segunda expõe `cancel`.
+`WorkKeyRef.signals()` cria `WorkRef<P, O, E><[.observe, .signal]>`. Essa forma
+pode enviar somente os event bindings declarados pelo supervisor.
 `SupervisorRef` mantém authority administrativa mesmo quando nenhum `WorkRef`
 foi delegado.
 
@@ -7692,15 +7700,18 @@ let observer: WorkRef<ServiceStage, Receipt, RestaurantError><[.observe]> =
   try await orderWork.observe()
 let controller: WorkRef<ServiceStage, Receipt, RestaurantError><[.observe, .cancel]> =
   try await orderWork.control()
+let signaler: WorkRef<ServiceStage, Receipt, RestaurantError><[.observe, .signal]> =
+  try await orderWork.signals()
 ```
 
 Handles são move-first e shareable. `copy` torna o retain visível. Copiar um
 observer não copia o trabalho nem seu outcome.
 
-`state`, `progress` e `cancellation` são eixos separados. O último progress
-permanece no snapshot depois do estado terminal. Snapshots são revisionados.
-Eles podem ficar antigos depois do retorno. O caller usa `revision` quando uma
-operação depende do estado observado.
+`state`, `progress`, `cancellation` e `suspension` são eixos separados. O estado
+`.waiting` informa que o root espera retry, timer ou evento sem manter um task
+frame ativo. O último progress permanece no snapshot depois do estado terminal.
+Snapshots são revisionados. Eles podem ficar antigos depois do retorno. O
+caller usa `revision` quando uma operação depende do estado observado.
 
 #### 13.7.2 Operação fechada e input explícito
 
@@ -7885,11 +7896,16 @@ endereçável pela key determinística. Um retry de rede usa a mesma key e encon
 
 Admission possui limites de:
 
-1. roots ativos;
-2. itens aguardando;
-3. bytes retidos;
-4. outcomes terminais;
-5. tombstones de deduplication.
+1. roots não terminais, inclusive `.waiting`;
+2. roots em execução;
+3. admission envelopes aguardando antes do commit;
+4. bytes retidos nesses envelopes;
+5. outcomes terminais;
+6. tombstones de deduplication.
+
+`roots` conta `.queued`, `.running` e `.waiting`. `running` conta somente
+execução ativa. Assim, uma espera durável libera execution capacity sem criar
+roots ilimitados.
 
 O product fixa máximos. O deployment pode reduzir os limites dentro do envelope
 declarado.
@@ -7975,29 +7991,419 @@ O primeiro adapter é process-local e em memória. Uma queda perde roots e
 outcomes não persistidos. O supervisor reiniciado usa outra generation.
 
 Durability não serializa stack, task frame, pointer, borrow, `ServiceRef` ou
-capability. Um workflow durável usa steps explícitos e schemas versionados.
+capability. Um workflow durável usa points explícitos, schemas versionados e um
+journal bounded.
+
+**Forma vigente:** `WorkContext.step`, `sleep` e `wait` formam o contrato
+portátil. O uso de uma dessas operações marca o root como workflow de steps. O
+compiler verifica o call graph replayable. Não existe annotation `durable` nem
+uma segunda forma de `async`.
+
+Recovery inicia a mesma operation desde o começo. O journal devolve outcomes já
+confirmados e só executa um point ainda não confirmado. O source entre points
+pode executar novamente. Por isso, essa parte aceita somente:
+
+- input imutável do root;
+- outcomes confirmados de points;
+- constants e funções sem effects;
+- collections com ordem determinística;
+- branches e loops derivados desses valores.
+
+Essa recovery não é o restart arbitrário da seção 13.7.5. `restart: .never`
+continua válido. O journal, a effect policy e os limits governam a retomada.
+
+O compiler rejeita I/O, service call, clock, random, environment, mutable global,
+FFI, `spawn`, cancellation observation e mutation externa fora de `step`. Ele
+infere o fact replayable pela HIR. Uma função helper não precisa de annotation.
+
+Um step recebe input owned e uma função nominal sem capture. O `StepContext`
+concede services, cancellation, trace, attempt e `effectId` somente durante a
+operação:
 
 ```w
-export enum FulfillmentStep {
-  reserveStock
+export enum StepEffect {
+  repeatable
+  idempotent
+  transactional
+  atMostOnce
+}
+
+export enum StepBackoff {
+  none
+  fixed(Duration<(0...)>)
+  linear(
+    initial: Duration<(0...)>,
+    increment: Duration<(0...)>,
+    maximum: Duration<(0...)>,
+  )
+  exponential(
+    initial: Duration<(0...)>,
+    factor: u16<(2...)>,
+    maximum: Duration<(0...)>,
+  )
+}
+
+export struct StepRetry<Failure: Error> {
+  maximumAttempts: u16<(1...)>
+  backoff: StepBackoff
+  attemptTimeout: Duration<(0...)>?
+  retryWhen: fn(ref Failure): Bool
+}
+
+extension<P> WorkContext<P> {
+  async fn step<Point, Input, Output, Failure: Error>(
+    _ point: Point,
+    progress: P,
+    succeeded: P? = .none,
+    input: take Input,
+    effect: const StepEffect = .atMostOnce,
+    retry: const StepRetry<Failure> = .never,
+    using operation: async fn(take Input, StepContext): Output throws Failure,
+  ): Output throws Failure
+}
+```
+
+`Point`, `Input`, `Output` e `Failure` precisam de codec canônico, schema
+versionado e ownership compatível com storage. Pointer, borrow, capability,
+`ServiceRef`, task e storage foreign sem codec são rejeitados. O step persiste o
+input antes de liberar a operation. O caller move o input. Se ele precisa do
+valor depois, preserva outro owner explícito antes da call.
+
+`progress` é confirmado quando a tentativa começa. `succeeded`, quando presente,
+é confirmado junto com o outcome de sucesso. Um replay não reaplica essas
+transições nem incrementa `revision` outra vez.
+
+O resultado ou error da operation não fica visível para o workflow antes do
+commit no journal. Depois do commit, todo replay devolve o mesmo output ou lança
+o mesmo application error. Uma falha do adapter vira boundary failure; ela não
+é convertida para `Failure`.
+
+Identidade usa esta composição:
+
+```text
+WorkflowPointId = (WorkId, point kind, canonical Point value)
+EffectId        = (WorkflowPointId, operation semantic fingerprint)
+StepAttempt     = retry ordinal within the point
+```
+
+O mesmo `EffectId` acompanha todas as step attempts do mesmo efeito lógico.
+`WorkSnapshot.attempt` continua sendo o restart ordinal do root. Um enum fechado
+é a forma usual de `Point`. Um loop usa um payload estável no case:
+
+```w
+export enum FulfillmentPoint {
   prepareDish
+  notifySatellite(SatelliteId)
   capturePayment
   serveDish
 }
+```
 
-let stock = try await work.step(
-  .reserveStock,
-  input: reservation,
-  using: reserveStock,
+Dois calls com o mesmo point na mesma execução lógica são um
+`historyMismatch`. Input, operation ou schema diferentes para um point já
+registrado também falham na boundary. O runtime não usa ordem de source, nome
+textual ou contador implícito como identity.
+
+Cada `StepEffect` possui um contrato:
+
+| Effect | Reexecução depois de outcome incerto | Obrigação |
+|---|---|---|
+| `.repeatable` | permitida | effect summary não contém mutation externa |
+| `.idempotent` | permitida com o mesmo `EffectId` | destino deduplica ou reconcilia a key |
+| `.transactional` | resolvida pelo adapter | efeito e journal usam a mesma transação |
+| `.atMostOnce` | proibida | outcome incerto termina com `unknownOutcome` |
+
+`.atMostOnce` é o default e exige `StepRetry.never`. `.repeatable` é verificado
+pelo compiler.
+`.transactional` só aceita capabilities do mesmo adapter e transaction.
+`.idempotent` é uma afirmação de domínio. O compiler verifica que o
+`StepContext.effectId` ou uma key de domínio estável alcança o parâmetro de
+idempotência quando a interface o declara. Ele não prova o comportamento do
+sistema externo. `w audit effects` inclui essa afirmação, a derivação da key, a
+operation e o adapter.
+
+W não promete exactly-once para um efeito externo arbitrário. Um adapter
+transactional pode garantir uma única mudança dentro da própria transação. Um
+serviço externo exige idempotência ou reconciliação. Um outcome at-most-once
+incerto não dispara compensação automática, pois o runtime também não sabe se o
+efeito original ocorreu.
+
+`StepRetry.never` executa uma attempt. Uma policy bounded define total de
+attempts, backoff, timeout por attempt e um predicate nominal sobre application
+errors. Não existe jitter aleatório escondido. Um adapter pode derivar spread
+determinístico de `WorkId`, point e attempt, e precisa gravar essa decisão.
+Const validation rejeita `maximum < initial` e arithmetic overflow no schedule.
+`retryWhen` precisa ser uma função nominal replayable.
+
+Um error elegível confirma a attempt e o próximo wake instant na mesma mudança
+de journal. O workflow não recebe esse error intermediário. O error final vira o
+outcome do point e é lançado em todo replay.
+Panic, schema failure e runtime fault não entram em `retryWhen`. Eles seguem a
+boundary policy do supervisor.
+
+Timeout e cancellation não provam que um serviço remoto deixou de aplicar o
+efeito. Depois de uma queda ou completion incerta:
+
+- `.repeatable` executa outra attempt;
+- `.idempotent` executa outra attempt com o mesmo `EffectId`;
+- `.transactional` consulta a decisão da transação;
+- `.atMostOnce` termina em `.boundary(.unknownOutcome(effectId))`.
+
+Um outcome de step confirmado vence cancellation. Sem outcome confirmado, um
+efeito at-most-once incerto vence o estado `.canceled`, pois o runtime não pode
+afirmar rollback. `step`, `sleep` e `wait` observam o cancel request durável.
+Cleanup de uma attempt ativa ainda segue completion drain.
+
+Steps são sequenciais na baseline. O body de um step pode usar tasks
+estruturadas e paralelismo bounded. Scheduling durável concorrente, fan-out e
+race de vários steps permanecem **Pesquisa**. Essa restrição evita uma ordem de
+journal dependente do scheduler.
+
+Timers também são points. Eles não mantêm um task frame ou worker:
+
+```w
+extension<P> WorkContext<P> {
+  async fn sleep<Point>(_ point: Point, for duration: Duration<(0...)>)
+  async fn sleep<Point>(_ point: Point, until deadline: Instant)
+}
+
+try await work.sleep(.settleProbability, for: 2<si.s>)
+```
+
+`sleep(for:)` confirma o deadline calculado pelo adapter antes de suspender.
+Replay usa esse deadline. `sleep(until:)` usa o instant fornecido. Ler clock
+diretamente no workflow continua proibido; uma observação de clock variável
+precisa ser output de um step. Duração zero ou deadline passado confirma um
+point imediato; duração negativa não atende ao tipo.
+
+Eventos usam um binding tipado e versionado:
+
+```w
+export struct WorkEventBinding<Payload> {
+  name: String
+  version: u32<(1...)>
+}
+
+export enum WaitOutcome<Payload> {
+  event(Payload)
+  timeout
+}
+
+export enum WorkSuspension {
+  retry(point: WorkflowPointId, attempt: u32, wakeAt: Instant)
+  sleep(point: WorkflowPointId, wakeAt: Instant)
+  event(point: WorkflowPointId, binding: WorkEventTypeId, deadline: Instant?)
+}
+
+export enum WorkEventSendResult {
+  accepted(revision: u64)
+  duplicate(revision: u64)
+}
+
+export enum WorkEventSendError<Payload>: Error {
+  full(Payload)
+  terminal(Payload)
+  unavailable(Payload)
+  unauthorized(Payload)
+  incompatibleSchema(Payload)
+  unknownOutcome(EventId)
+}
+
+extension<P> WorkContext<P> {
+  async fn wait<Point, Payload>(
+    _ point: Point,
+    for event: const WorkEventBinding<Payload>,
+  ): Payload
+
+  async fn wait<Point, Payload>(
+    _ point: Point,
+    for event: const WorkEventBinding<Payload>,
+    timeout: Duration<(0...)>,
+  ): WaitOutcome<Payload>
+
+  async fn wait<Point, Payload>(
+    _ point: Point,
+    for event: const WorkEventBinding<Payload>,
+    until deadline: Instant,
+  ): WaitOutcome<Payload>
+}
+
+extension<K, I, P, O, E: Error> WorkKeyRef<K, I, P, O, E> {
+  async fn send<Payload>(
+    _ event: const WorkEventBinding<Payload>,
+    id: EventId,
+    payload: take Payload,
+  ): WorkEventSendResult throws WorkEventSendError<Payload><[
+    .terminal,
+    .unavailable,
+    .unauthorized,
+    .incompatibleSchema,
+    .unknownOutcome,
+  ]>
+
+  async fn trySend<Payload>(
+    _ event: const WorkEventBinding<Payload>,
+    id: EventId,
+    payload: take Payload,
+  ): WorkEventSendResult throws WorkEventSendError<Payload>
+}
+
+export enum FulfillmentSignal {
+  tableReady(TableId)
+  restaurantClosing
+}
+
+export const fulfillmentSignals =
+  WorkEventBinding<FulfillmentSignal>(name: "fulfillment", version: 1)
+
+let signal = try await work.wait(
+  .awaitTable,
+  for: fulfillmentSignals,
+  timeout: 1_800<si.s>,
 )
 ```
 
-Um step concluído guarda seu input, outcome e commit metadata conforme o
-adapter. Recovery pode reutilizar o outcome. Um step incompleto só repete quando
-a policy de idempotência permite.
+Binding identity inclui package, module, exported symbol, `name` e `version`.
+`name` não é um registry global. O linker rejeita identity duplicada ou payload
+schema incompatível no mesmo supervisor. `Payload` segue as mesmas regras de
+codec e ownership de step input. O const initializer aceita 1 a 64 caracteres
+ASCII lowercase, digits e `-`; o primeiro caractere precisa ser uma letra.
 
-**Direção:** steps fechados, effect IDs e schemas explícitos. A forma generic
-final de `work.step`, sleep e wait-for-event permanece **Pesquisa**.
+Sem `timeout` ou `until`, `wait` devolve `Payload`. Com limite, ele devolve
+`WaitOutcome<Payload>`. Timeout é um resultado esperado, não um application
+error. Cancellation continua no canal de task.
+
+`WorkKeyRef.send` espera inbox capacity. `trySend` devolve `.full(payload)` sem
+esperar. As duas recebem binding, `EventId` e payload owned. O event commit
+ocorre antes do acknowledgement. O mesmo `EventId` dentro da retention devolve
+`.duplicate`; ele não entrega duas vezes. Uma falha anterior ao commit devolve o
+payload. Um outcome incerto exige reconciliação por `EventId`. A revision do
+resultado é a `WorkSnapshot.revision` depois do event commit.
+
+O sender cria `EventId` antes do retry. Ele pode derivar o ID de uma key de
+domínio canônica ou usar uma random capability. Recriar um ID aleatório em cada
+attempt elimina deduplication. `derive` usa o codec canônico, a identity do
+binding, domain separation e o digest completo do profile. Ele não usa o hash
+de processo nem uma forma truncada para identity.
+
+```w
+let signalId = EventId.derive(
+  fulfillmentSignals,
+  key: (orderId, tableRevision),
+)
+
+let result = try await fulfillment.send(
+  fulfillmentSignals,
+  id: signalId,
+  payload: .tableReady(42),
+)
+
+switch result {
+  case .accepted(let revision): traceAcceptance(revision)
+  case .duplicate(let revision): traceDuplicate(revision)
+}
+```
+
+Um evento pode chegar antes do `wait`. O adapter o guarda dentro do inbox
+bounded. Matching usa binding e ordem de commit, não timestamp do sender. O
+commit decide uma corrida entre evento, timeout e cancellation. Se timeout
+vence, um evento posterior permanece disponível para outro wait.
+
+`WorkState.waiting` cobre retry, sleep e wait. `WorkSnapshot.suspension` expõe
+point, kind, wake instant ou event binding sem expor payload. Uma espera não
+consome uma execution slot, mas continua contando como root não terminal no
+supervisor e usa bytes de journal, inbox e outcome.
+`WorkflowPointId` e `WorkEventTypeId` são IDs opacos para observabilidade. Eles
+não concedem authority.
+
+O product fecha estes limites:
+
+1. records e bytes de history;
+2. bytes de input e output por step;
+3. attempts e timers pendentes;
+4. events e bytes no inbox;
+5. tombstones de `EventId`;
+6. tempo de retention.
+
+O supervisor grava o envelope no artifact:
+
+```w
+durability: {
+  recovery: .required
+  confidentiality: .hostEncrypted
+  points: "restaurant.workflow::FulfillmentPoint"
+  events: ["restaurant.workflow::fulfillmentSignals"]
+  adapters: ["w.std/sqlite-workflow@1"]
+  history: {
+    recordsPerRoot: 8_192
+    bytesPerRoot: 64MiB
+    retainedBytes: 512MiB
+  }
+  step: { inputBytes: 4MiB, outputBytes: 4MiB, attempts: 8 }
+  inbox: {
+    itemsPerRoot: 1_024
+    bytesPerRoot: 8MiB
+    retainedBytes: 64MiB
+    tombstonesPerRoot: 4_096
+  }
+  retention: { terminal: 604_800<si.s> }
+}
+```
+
+`PerRoot` limita uma instance. `retainedBytes` limita o supervisor inteiro.
+Exceder history produz `historyLimit`. `trySend` com inbox cheio devolve o
+payload. `continueAsNew`, child workflows e compaction definida pelo usuário
+permanecem **Pesquisa**. A baseline é bounded.
+
+Cada root fixa a operation version, o semantic fingerprint, os schemas de
+points e events e o adapter ABI. Um deploy novo não altera um history ativo.
+Workers novos precisam manter a versão antiga. Remover a versão produz
+`operationUnavailable`. Migration de workflow permanece explícita e fora da
+baseline.
+
+SQLite é o primeiro adapter oficial do produto de referência. Uma transação
+guarda input, attempt, outcome, progress, timer e consumo de evento. Um outbox na
+mesma transação pode publicar uma mensagem depois do commit. Ele não torna um
+efeito remoto exatamente uma vez.
+
+O adapter profile fixa journal mode, `synchronous`, checkpoint policy e
+filesystem assumptions. WAL exige processos no mesmo host e não funciona sobre
+um network filesystem. Essas escolhas aparecem em `w explain workflow`; W não
+as converte em uma garantia SQLite universal.
+
+Journal pode conter dados pessoais ou comerciais. Capability, secret handle e
+foreign resource continuam proibidos como payload. O artifact declara a
+confidentiality mínima e a retention. Diagnostics mostram schema, digest e
+tamanho, não payload. O adapter e o host precisam provar encryption at rest
+quando o product exige `.hostEncrypted`.
+
+O adapter em memória implementa o mesmo oracle para teste, mas não satisfaz um
+product que exige recovery depois de process failure. O deployment seleciona
+somente um adapter permitido pelo artifact contract.
+
+`w explain workflow` mostra o contrato resolvido:
+
+```text
+$ w explain workflow last-light/fulfillment --key order:42
+operation:       restaurant.workflow::fulfillOrderDurably
+version:         sha256:...
+state:           waiting
+point:           FulfillmentPoint.awaitTable
+effect:          event
+step attempt:    1
+journal:         w.std/sqlite-workflow@1
+storage profile: wal / synchronous=full / local filesystem
+history:         4 records / 18 KiB
+inbox:           0 events / 0 B
+recovery:        required
+confidentiality: host-encrypted
+```
+
+O oracle derruba o adapter antes do dispatch, depois do dispatch, antes do
+outcome commit e depois do commit. Ele também cobre input divergente, point
+duplicado, retry exaurido, effect at-most-once incerto, evento antecipado e
+duplicado, timeout concorrente, cancellation, history cheio, schema incompatível
+e operation version ausente.
 
 Alarmes e reminders acordam uma instance no futuro. Eles não são tasks mantidas
 vivas. Delivery at-least-once exige handler idempotente.
@@ -8011,8 +8417,21 @@ Esta separação segue evidência externa:
 - [JEP 525](https://openjdk.org/jeps/525) confina subtasks ao scope;
 - [Cloudflare `waitUntil`](https://developers.cloudflare.com/workers/runtime-apis/context/)
   possui lifetime limitado e recomenda queues para trabalho confiável;
-- [Cloudflare Workflows](https://developers.cloudflare.com/workflows/get-started/guide/)
-  persiste outcomes em steps explícitos;
+- [regras de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/rules-of-workflows/)
+  exigem identidade determinística e isolam side effects em steps;
+- [sleep e retry de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/)
+  usam waits persistentes e policies bounded;
+- [eventos de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/events-and-parameters/)
+  aceitam envio antes do wait e payload persistido;
+- [constraints de Durable Task](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-code-constraints)
+  mostram por que replay exige clock, I/O e scheduling controlados;
+- [versionamento de Durable Task](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-orchestration-versioning)
+  fixa uma versão por instance;
+- [atomic commit do SQLite](https://www.sqlite.org/atomiccommit.html) e
+  [transactions](https://www.sqlite.org/lang_transaction.html) sustentam o
+  primeiro journal local;
+- [WAL do SQLite](https://www.sqlite.org/wal.html) delimita host, concurrency e
+  checkpoint;
 - [Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
   usa identity por entidade e recomenda trabalho curto na coordination boundary;
 - [Durable Object alarms](https://developers.cloudflare.com/durable-objects/api/alarms/)
@@ -8027,6 +8446,9 @@ Alternativas:
 | Forma | Estado |
 |---|---|
 | `WorkKeyRef.start` ou `tryStart` com operação fechada | **Forma vigente** |
+| `work.step` com point fechado, função nominal e effect policy | **Forma vigente** |
+| `work.sleep` e `work.wait` como records duráveis | **Forma vigente** |
+| steps duráveis concorrentes e child workflows | **Pesquisa** |
 | channel consumido por um entry root | implementação process-local possível |
 | `ctx.waitUntil(task)` | adapter bounded, não owner geral |
 | `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de paralelismo |
@@ -8270,9 +8692,27 @@ deployment {
     },
   ]
 
+  adapters: [
+    {
+      artifact: "restaurant"
+      supervisor: "fulfillment"
+      role: .workflowJournal
+      provider: .adapter(
+        "w.std/sqlite-workflow@1",
+        storage: .capability("last-light/workflow-store"),
+      )
+    },
+  ]
+
   limits: {
     supervisors: [
-      { artifact: "restaurant", binding: "fulfillment", active: 8, queued: 32 },
+      {
+        artifact: "restaurant"
+        binding: "fulfillment"
+        roots: 256
+        running: 8
+        admissionQueued: 32
+      },
     ]
   }
 }
@@ -8298,6 +8738,12 @@ O deployment pode:
 - selecionar adapters permitidos;
 - reduzir quotas;
 - referenciar secrets por capability.
+
+Uma seleção por `role` satisfaz uma requirement já gravada no artifact. O
+adapter precisa ter ABI, durability, confidentiality e target compatibility
+iguais ou maiores. Um journal em memória não satisfaz `recovery: .required`.
+Storage sem encryption at rest não satisfaz `.hostEncrypted`. O deployment não
+pode reduzir essas garantias.
 
 O deployment não pode:
 
@@ -8354,15 +8800,16 @@ SQLite é o primeiro adapter oficial provável. Ele oferece transações, opera�
 local e portabilidade. Ele não é a semântica universal. Memory, files, remote KV
 e engines especializadas podem implementar o contrato.
 
-O baseline confirma o commit antes de liberar uma response. Um outbox
-transacional é a alternativa para mensagens.
+**Forma vigente para workflows:** o adapter confirma input, outcome e progress
+do step antes de liberar o resultado para o código replayable. Um outbox
+transacional é a alternativa para mensagens emitidas depois desse commit.
 
 Um supervisor durável usa o mesmo adapter somente em boundaries explícitas de
 step. Ele não persiste um task frame arbitrário.
 
-**Pesquisa:** um output gate pode reter outputs até confirmar writes. Se a write
-falhar, o runtime descarta os outputs. O protótipo precisa provar causalidade,
-limites, backpressure e cancelamento. Os
+**Pesquisa:** um output gate geral pode reter responses ou writes fora de um
+step. Se a write falhar, o runtime descarta os outputs. O protótipo precisa
+provar causalidade, limites, backpressure e cancelamento. Os
 [output gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
 são uma referência, não uma decisão automática.
 
@@ -12997,6 +13444,8 @@ w test [product] --locked
 w explain dependency <package>
 w explain product <product>
 w explain artifact <digest>
+w explain workflow <supervisor> --key <key>
+w audit effects <product>
 w diff-lock
 w verify <artifact>
 w reproduce <release>
@@ -13422,7 +13871,7 @@ Uma pesquisa só avança quando possui:
 | bindings tipados e runtime graph data-only | **Possível agora** | requirements, providers, imports e exports fecham por interface no link |
 | packing de service graph | **Provável** | partição e index são simples; ABI entre units e fast path exigem protótipo |
 | deployment plan e lock por digest | **Provável** | resolução é direta; placement, adapters e rolling update exigem runtime |
-| workflow durável por steps | **Provável T2** | SQLite e outbox ajudam; retry, migration e effect ID exigem protótipo |
+| workflow durável por steps | **Provável T2** | superfície, replay e effect policy estão fechados; journal, crash oracle e migration exigem protótipo |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
 | interval, case-set, shape e alias facts na HIR | **Possível agora** | análises conhecidas; fallback conserva checks e largura |
@@ -13569,7 +14018,8 @@ ServiceFamily<OrderCoordinatorApi, OrderId>
   → turn curto
   → WorkKeyRef.tryStart
   → root de fulfillment
-  → snapshot / cancel / outcome
+  → prepare / wait / capture / serve points
+  → signal / snapshot / cancel / outcome
 ```
 
 Na segunda rota, o mesmo `Command` e o mesmo `AppResponse` impedem que cada
@@ -13586,7 +14036,8 @@ mantém esse handler como oracle adversarial.
 O gate operacional exige um turn curto de aceitação. Um owner supervisionado
 continua o workflow por pedido. Status e cancelamento usam turns curtos. A key
 do pedido seleciona a instance. `SupervisorRef` e deployment data-only são
-**Forma vigente**. Steps duráveis permanecem em **Pesquisa**.
+**Forma vigente**. Points, retry, timer e evento duráveis também possuem forma
+vigente. O journal e o adapter ainda precisam de implementação.
 
 Products adicionais aumentam a superfície sem criar linguagens paralelas:
 
@@ -13609,6 +14060,7 @@ RestaurantApi
   → compiler de cardápio restrito a bootstrap.w0
   → Restaurant service
   → keyed coordinator + fulfillment supervisor
+  → workflow journal + typed event inbox
   → async calls com payloads owned
   → parallelMap bounded da brigada
   → controle PID com `init`, computed property, ranges e units
@@ -13623,8 +14075,8 @@ RestaurantApi
 ```
 
 Uma injeção de falha em cada seta não pode deixar task, lease, buffer, mailbox
-item, shared owner, callback ou pagamento sem estado observável. O compiler de
-cardápio precisa continuar dentro do fechamento W0.
+item, event, history record, shared owner, callback ou pagamento sem estado
+observável. O compiler de cardápio precisa continuar dentro do fechamento W0.
 
 Os gates são cumulativos:
 
@@ -13872,6 +14324,8 @@ backpressure e cleanup reproduzíveis.
 - imports, exports e provider injection por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
+- verificação replayable e journal de steps em memória;
+- `work.step`, sleep, event inbox e effect IDs estáveis;
 - packing em service-only units e artifact index;
 - validation de deployment plan e lock contra o product envelope;
 - tracing e local fast path;
@@ -13895,8 +14349,9 @@ de marcar a versão como reproduced.
 - cache local com limite, replacement, expiration e loader compartilhado;
 - provenance, SBOM e reprodução local;
 - lens por import;
-- SQLite adapter experimental para steps e outcomes supervisionados;
-- recovery por operation version, effect ID e schema.
+- SQLite adapter para steps, timers, events e outcomes supervisionados;
+- recovery por operation version, effect ID e schema;
+- crash injection antes e depois de cada attempt e journal commit.
 
 Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 
@@ -14113,7 +14568,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-130 | admission | quotas de itens, bytes e in-flight | unbounded; limite só por item |
 | W-131 | falha de call | `E` e `ServiceFailure` são effects separados | transporte dentro de todo `E` |
 | W-132 | call cycle | ancestry causal rejeita ciclo closed-turn conhecido | esperar somente deadline |
-| W-133 | output durável | commit confirmado ou outbox; output gate em pesquisa | gate inferido na v0 |
+| W-133 | output durável | outcome de step só aparece depois do commit; outbox para mensagem; gate geral em pesquisa | gate geral inferido na v0 |
 | W-134 | scheduler de teste | clock/I/O/schedule injetáveis e replay | teste somente por timing real |
 | W-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
 | W-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
@@ -14473,13 +14928,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
 | W-491 | trabalho runtime-owned | `SupervisorRef` é owner explícito; `Task` permanece lexical | drop destaca; `spawn<owner: ...>`; task global |
 | W-492 | operação supervisionada | descriptor fixa função e versão; key, input e bindings explícitos | closure arbitrária; capture de state; body trocado em work ativo |
-| W-493 | admission de work | bounded; commit transfere input; rejeição pré-commit devolve input; unknown outcome reconcilia por key | fila ilimitada; input perdido; start fire-and-forget |
+| W-493 | admission de work | roots, running, admission queue e bytes são bounded; commit transfere input; unknown outcome reconcilia por key | fila ilimitada; input perdido; start fire-and-forget |
 | W-494 | identity de work | supervisor + key completa + incarnation; attempt separado; hash nunca é identity | PID/pointer; hash persistente; nome solto |
-| W-495 | observação de work | state, progress e cancellation separados; snapshot revisionado; retention bounded | event list ilimitada; ref para frame; polling sem revision |
-| W-496 | rights de work | SupervisorRef → WorkKeyRef → WorkRef; key e rights atenuam authority | Boolean runtime; todo observer cancela; ID concede authority |
+| W-495 | observação de work | state, progress, cancellation e suspension separados; snapshot revisionado; retention bounded | event list ilimitada; ref para frame; polling sem revision |
+| W-496 | rights de work | SupervisorRef → WorkKeyRef → WorkRef; observe, cancel e signal atenuam authority | Boolean runtime; todo observer controla; ID concede authority |
 | W-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
-| W-499 | workflow durável | steps e schemas explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
+| W-499 | workflow durável | replay desde o começo usa points e outcomes explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
 | W-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
 | W-501 | product runtime graph | `runtimeGraphs` fixa providers, imports, exports, injection e envelope; compiler deriva requirements | manifest executável; reflection encontra implementação; limite só no host |
 | W-502 | deployment | plano e lock data-only ligam units prebuilt por digest; só placement, binding permitido e redução | rebuild por ambiente; config invisível; deployment troca packing ou semântica |
@@ -14532,6 +14987,19 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-549 | gather write | `writeMany(_ sources: view Bytes...)` confirma prefixo da concatenação lógica; default usa um `write` | `IoSlice` público; concatenação; exigir backend vetorizado; erro por excesso de segments |
 | W-550 | scatter read | permanece em Pesquisa; baseline acrescenta a um único `Bytes` owner | `inout view Bytes...`; `ReadBatch`; mutable buffer universal |
 | W-551 | transferência zero-copy | permanece em Pesquisa e exige operação, fallback e oracle por host explícitos | lowering invisível de `write`; ausência de fallback; promessa universal de zero-copy |
+| W-552 | ativação de workflow | usar `work.step`, `sleep` ou `wait` ativa análise replayable; sem annotation `durable` | keyword nova; replay sem análise; persistência automática de frame |
+| W-553 | identidade de point | `WorkId` + kind + valor canônico fechado; duplicata ou input divergente é history mismatch | string livre; ordem de source; contador implícito |
+| W-554 | identidade de efeito | `EffectId` é estável por point e operation; step attempt e root attempt são ordinais separados | key nova por retry; hash de payload como identity |
+| W-555 | effect policy | `.repeatable`, `.idempotent`, `.transactional` ou `.atMostOnce`; at-most-once é default | exactly-once universal; retry automático de efeito desconhecido |
+| W-556 | retry de step | policy const e bounded seleciona application errors, backoff e timeout | defaults infinitos; jitter oculto; Boolean retriable no error |
+| W-557 | commit de step | input precede dispatch; outcome e progress precedem visibilidade ao workflow | devolver output antes do journal; converter falha de storage para application error |
+| W-558 | timer durável | `sleep` registra deadline e não mantém task frame; clock direto fora de step é rejeitado | `Task.sleep` persistido; recalcular deadline em replay |
+| W-559 | evento de workflow | binding tipado, `EventId`, inbox bounded e `send`/`trySend` com deduplication | event string sem schema; payload global; fila ilimitada |
+| W-560 | corrida de wait | commit escolhe evento, timeout ou cancelamento; evento posterior permanece disponível | timestamp do sender decide; timeout descarta evento |
+| W-561 | scheduling durável | points sequenciais; paralelismo estruturado pode ocorrer dentro do step | journal dependente do scheduler; fan-out implícito |
+| W-562 | versão de workflow | root fixa operation, point/event schemas e adapter ABI; migration é explícita | hot-swap do history; worker antigo executa versão nova |
+| W-563 | adapter de workflow | contrato portátil; SQLite profile é explícito e memory serve ao oracle volátil | SQLite universal; deployment reduz garantia; storage oculto |
+| W-564 | confidencialidade de journal | artifact fixa mínimo e retention; payload não entra em diagnostics; adapter prova storage | plaintext implícito; secret handle serializado; deployment reduz proteção |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

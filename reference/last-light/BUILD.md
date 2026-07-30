@@ -110,6 +110,39 @@ As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
 imports do runtime graph. Essa diferença impede lookup livre por string.
 
+### 3.2 Workflow de pedidos
+
+O supervisor `fulfillment` liga `fulfillOrderDurably`. O artifact fixa:
+
+- `FulfillmentPoint` e `fulfillmentSignals`;
+- schemas de input, progress, output e failure;
+- `recovery: .required`;
+- `confidentiality: .hostEncrypted`;
+- quotas separadas para roots, running e admission queue;
+- budgets de history, step e inbox;
+- adapters compatíveis.
+
+O deployment seleciona o adapter por role:
+
+```w
+adapters: [
+  {
+    artifact: "restaurant"
+    supervisor: "fulfillment"
+    role: .workflowJournal
+    provider: .adapter(
+      "w.std/sqlite-workflow@1",
+      storage: .capability("last-light/workflow-store"),
+    )
+  },
+]
+```
+
+O lock grava o digest do adapter. Um adapter em memória pode executar o oracle
+volátil, mas não satisfaz `recovery: .required`. Storage sem encryption at rest
+não satisfaz `.hostEncrypted`. Essas regras impedem o deployment de reduzir as
+garantias do product.
+
 ## 4. Targets
 
 ### 4.1 Desktop e servidor
@@ -218,8 +251,10 @@ w run last-light-native --deployment deployments/local.w -- --serve
 w explain product last-light-native
 w explain artifact sha256:...
 w explain runtime restaurant-core
+w explain workflow fulfillment --key order:42
 w explain performance restaurant.horizon::forecast
 w explain resources restaurant.audio::renderFinalSong
+w audit effects last-light-native
 ```
 
 ### 5.5 Benchmark
@@ -361,6 +396,7 @@ Cada product precisa de um oracle observável.
 | simulation | mesmos eventos e totais para a mesma recipe |
 | native | CLI, TUI e HTTP produzem a mesma resposta tipada |
 | worker | request limits, cancellation e status são equivalentes |
+| fulfillment workflow | crash em todo commit preserva effect ID, outcome e ownership |
 | mobile | suspend drena trabalho e resume não duplica efeitos |
 | controller | nenhuma interrupt faz allocation ou blocking |
 | audio | callback não aloca, bloqueia ou perde deadline |
@@ -390,11 +426,12 @@ Os arquivos atuais exigem contratos ainda não implementados:
 6. codecs JSON explícitos ou derivados por synthesis autorizada;
 7. pool, adapters de protocolo e validação de schema do database;
 8. implementação de cache local, eviction e single-flight;
-9. validator do runtime graph e da interface de cada unit;
-10. platform packaging e signing;
-11. device memory e kernel ABI;
-12. harness TechEmpower versionado e seus validadores;
-13. deployment resolver, lock e validator;
-14. compiler e backends.
+9. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
+10. validator do runtime graph e da interface de cada unit;
+11. platform packaging e signing;
+12. device memory e kernel ABI;
+13. harness TechEmpower versionado e seus validadores;
+14. deployment resolver, lock e validator;
+15. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

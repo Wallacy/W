@@ -99,9 +99,10 @@ exige esta divisão:
 4. a identidade do pedido seleciona a instance keyed;
 5. trace e idempotency ligam todos os turns ao mesmo efeito.
 
-`SupervisorRef` e o descriptor data-only agora são **Forma vigente**. A API final
-de steps duráveis permanece em **Pesquisa**. Até existir runtime,
-`LastLightSimulation` continua o primeiro alvo de execução independente.
+`SupervisorRef`, o descriptor data-only e a API de steps duráveis são **Forma
+vigente**. O journal, o adapter SQLite e o crash oracle ainda não possuem
+implementação. Até existir runtime, `LastLightSimulation` continua o primeiro
+alvo de execução independente.
 
 ## 2. Mapa de source
 
@@ -138,6 +139,7 @@ de steps duráveis permanece em **Pesquisa**. Até existir runtime,
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
 | `supervision.w` | turn curto, `WorkKeyRef`, identity keyed e cancelamento |
+| `workflow.w` | points duráveis, retry, timer, evento e compensação |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `simulation_app.w` | entry determinística sem deployment de services |
@@ -177,7 +179,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| supervisão e deployment | `supervision.w`, `deployments/` | trabalho longo e placement mantêm owners explícitos |
+| supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
@@ -1217,16 +1219,25 @@ host entry (target)
   → turn curto de submit
   → fulfillment.tryStart
   → root owned pelo supervisor
-  → pantry / ovens / oracle / probe / billing / dining room
+  → prepareDish point
+  → durable sleep
+  → wait for table signal
+  → capturePayment point
+  → serveDish point
+  → refundPayment point on application failure
 
-status / cancel / outcome
+status / signal / cancel / outcome
   → mesma instance keyed
   → WorkKeyRef injetado para uma única key
   → snapshot ou control do supervisor
 ```
 
 `supervision.w` mantém a coordination boundary curta. O trabalho longo não
-captura state do service. Ele recebe input owned e bindings por `WorkContext`.
+captura state do service. `workflow.w` recebe input owned e obtém os bindings
+novamente em cada step por `StepContext`.
+
+`supervision.fulfillOrder` permanece como oracle process-local de compensação.
+O product liga `workflow.fulfillOrderDurably`.
 
 Aceite:
 
@@ -1240,6 +1251,24 @@ Aceite:
 - cancellation do caller depois do commit não destaca nem cancela o root;
 - `unknownOutcome` exige reconciliação pela key e pelo effect ID;
 - `WorkSnapshot` separa estado do trabalho de `ServiceStage`;
+- `.waiting` libera running capacity, mas continua no limite de roots;
+- cada point usa um enum case, não uma string ou ordem de source;
+- `EffectId` permanece igual durante retries do mesmo point;
+- `.atMostOnce` encerra com unknown outcome depois de uma completion incerta;
+- serving at-most-once incerto não inicia refund automático;
+- `.idempotent` repete com a mesma key de domínio;
+- input é confirmado antes de liberar a função nominal do step;
+- output e progress são confirmados antes de voltar ao workflow;
+- lógica fora de steps não acessa clock, I/O, services ou mutable global;
+- o sleep persiste deadline sem manter um task frame;
+- evento anterior ao wait permanece no inbox bounded;
+- `EventId` duplicado não entrega o payload outra vez;
+- `trySend` cheio devolve o payload sem bloquear o turn;
+- `tableReady(TableId)` seleciona a mesma mesa usada por `serve(at:)`;
+- event, timeout e cancellation possuem um único vencedor persistido;
+- o deployment seleciona SQLite sem reduzir `recovery: .required`;
+- o journal exige storage host-encrypted e nunca aparece em diagnostics como
+  payload;
 - progress é revisionado e substitui o valor anterior;
 - o snapshot terminal preserva o último progress;
 - cancelamento é idempotente e não vira `RestaurantError`;
@@ -1248,15 +1277,19 @@ Aceite:
 - `capture` confirmado entrega `Payment` antes do próximo ponto de cancelamento;
 - o `defer async` de refund é instalado antes da próxima suspensão;
 - pagamento capturado recebe compensação se serving falhar;
+- se refund falha, seu error termina o workflow e o history preserva o error de
+  serving;
 - restart de operação arbitrária usa `.never`;
 - outcome, tombstone e queue possuem budgets separados;
 - `WorkId` não concede authority;
 - deployment reduz o envelope sem mudar os bytes do artifact;
 - operation version não muda em um root ativo.
 
-O oracle adversarial enche admission, cancela em cada suspension point, derruba
-o supervisor e troca o deployment. Cada caso precisa terminar com ownership,
-outcome e trace definidos.
+O oracle adversarial enche admission e inbox, cancela em cada suspension point,
+derruba o supervisor antes e depois de cada journal commit e troca o deployment.
+Ele também injeta event duplicado, timeout concorrente, history divergente e
+versão ausente. Cada caso precisa terminar com ownership, outcome e trace
+definidos.
 
 ### 3.36 Bilheteria para Nove Universos
 
@@ -1450,7 +1483,10 @@ O Book deve mostrar pares lado a lado:
 | identity keyed | `ServiceIdentity<OrderId>` + `WorkKeyRef` | primeiro argumento redefine a instance |
 | progress | `WorkSnapshot<ServiceStage>` revisionado | borrow do task frame ou event list ilimitada |
 | cancelamento remoto | `WorkRef<[.observe, .cancel]>` | todo observer cancela ou Boolean runtime |
-| workflow durável | steps fechados e versionados | persistência automática do frame async |
+| signal remoto | `WorkRef<[.observe, .signal]>` + event binding | ID concede authority ou event string global |
+| workflow durável | points fechados, replay verificado e effect policy | persistência automática do frame async |
+| timer durável | `work.sleep(.point, for:)` | manter worker ou recalcular deadline |
+| evento durável | binding tipado + `EventId` + inbox bounded | string, payload global ou fila ilimitada |
 | deployment | manifest separado ligado ao artifact digest | rebuild por ambiente ou config invisível |
 | mobilidade | facts inferidos `transferable`/`shareable` | protocols `Send`/`Sync` ou `Sendable` |
 | constraint de mobilidade | `T<(.transferable)>` | `T: Send` e `<mobility: .transferable>` |

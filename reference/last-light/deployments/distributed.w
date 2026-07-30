@@ -133,13 +133,26 @@ deployment {
     },
   ]
 
+  adapters: [
+    {
+      artifact: "core"
+      supervisor: "fulfillment"
+      role: .workflowJournal
+      provider: .adapter(
+        "w.std/sqlite-workflow@1",
+        storage: .capability("last-light/workflow-store"),
+      )
+    },
+  ]
+
   limits: {
     supervisors: [
       {
         artifact: "core"
         binding: "fulfillment"
-        active: 32
-        queued: 64
+        roots: 4_096
+        running: 32
+        admissionQueued: 64
       },
     ]
   }

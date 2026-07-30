@@ -19,6 +19,11 @@ import { AromaProbeApi } from restaurant.hardware
 import { OvenApi, PantryApi } from restaurant.kitchen
 import { OracleApi } from restaurant.oracle
 import { RestaurantError, prepareDish } from restaurant.restaurant
+import {
+  FulfillmentInput,
+  FulfillmentSignal,
+  fulfillmentSignals,
+} from restaurant.workflow
 
 const pantryService = ServiceBinding<PantryApi>(name: "pantry")
 const ovenService = ServiceBinding<OvenApi>(name: "ovens")
@@ -26,10 +31,6 @@ const oracleService = ServiceBinding<OracleApi>(name: "oracle")
 const aromaProbeService = ServiceBinding<AromaProbeApi>(name: "aroma-probe")
 const billingService = ServiceBinding<BillingApi>(name: "billing")
 const diningRoomService = ServiceBinding<DiningRoomApi>(name: "dining-room")
-
-export struct FulfillmentInput {
-  order: Order
-}
 
 export alias FulfillmentSupervisor = SupervisorRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
 export alias FulfillmentKey = WorkKeyRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
@@ -43,11 +44,13 @@ export struct OrderAccepted {
 
 export enum CoordinatorError: Error {
   start(WorkStartError<OrderId, FulfillmentInput>)
+  event(WorkEventSendError<FulfillmentSignal>)
   lookup(WorkLookupError)
   supervisor(SupervisorFailure)
   wrongInstance(expected: OrderId, found: OrderId)
 }
 
+// Process-local compensation oracle. The product binds fulfillOrderDurably.
 package async fn fulfillOrder(
   input: take FulfillmentInput,
   work: WorkContext<ServiceStage>,
@@ -95,6 +98,7 @@ package async fn fulfillOrder(
 
 export protocol OrderCoordinatorApi {
   async fn submit(order: take Order): OrderAccepted throws CoordinatorError
+  async fn signal(id: EventId, event: take FulfillmentSignal): WorkEventSendResult throws CoordinatorError
   async fn status(): FulfillmentSnapshot throws CoordinatorError
   async fn cancel(): WorkCancelResult<ServiceStage> throws CoordinatorError
   async fn outcome(): WorkOutcome<Receipt, RestaurantError>? throws CoordinatorError
@@ -118,6 +122,17 @@ export service OrderCoordinator as OrderCoordinatorApi {
     let input = FulfillmentInput(order: take order)
     let started = try await fulfillment.tryStart(input: take input)
     return OrderAccepted(orderId: orderId, workId: started.id, revision: started.revision)
+  }
+
+  async fn signal(
+    id: EventId,
+    event: take FulfillmentSignal,
+  ): WorkEventSendResult throws CoordinatorError {
+    return try await fulfillment.trySend(
+      fulfillmentSignals,
+      id: id,
+      payload: take event,
+    )
   }
 
   async fn status(): FulfillmentSnapshot throws CoordinatorError {

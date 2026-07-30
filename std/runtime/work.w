@@ -3,11 +3,13 @@
 export enum WorkRight {
   observe
   cancel
+  signal
 }
 
 export enum WorkState {
   queued
   running
+  waiting
   succeeded
   failed
   canceled
@@ -21,6 +23,7 @@ export struct WorkSnapshot<Progress> {
   state: WorkState
   progress: Progress?
   cancellation: Cancellation?
+  suspension: WorkSuspension?
 }
 
 export enum WorkOutcome<Output, Failure: Error> {
@@ -36,6 +39,9 @@ export enum WorkBoundaryFailure {
   restartLimit
   operationUnavailable
   durability
+  unknownOutcome(EffectId)
+  historyMismatch(WorkflowPointId)
+  historyLimit
 }
 
 export enum WorkCancelResult<Progress> {
@@ -69,4 +75,10 @@ test "terminal work remains distinct from cancellation request" {
   let terminal: WorkState = .succeeded
   let canceled: WorkState = .canceled
   expect terminal != canceled
+}
+
+test "durable waiting is not active execution" {
+  let waiting: WorkState = .waiting
+  let running: WorkState = .running
+  expect waiting != running
 }

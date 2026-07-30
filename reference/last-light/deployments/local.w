@@ -46,13 +46,26 @@ deployment {
     },
   ]
 
+  adapters: [
+    {
+      artifact: "restaurant"
+      supervisor: "fulfillment"
+      role: .workflowJournal
+      provider: .adapter(
+        "w.std/sqlite-workflow@1",
+        storage: .capability("last-light/workflow-store"),
+      )
+    },
+  ]
+
   limits: {
     supervisors: [
       {
         artifact: "restaurant"
         binding: "fulfillment"
-        active: 8
-        queued: 32
+        roots: 256
+        running: 8
+        admissionQueued: 32
       },
     ]
   }
