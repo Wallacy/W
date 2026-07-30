@@ -5732,6 +5732,22 @@
     }
   },
   {
+    "type": "lock_manifest",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_record",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "manifest_argument",
     "named": true,
     "fields": {
@@ -8674,6 +8690,10 @@
           "named": true
         },
         {
+          "type": "lock_manifest",
+          "named": true
+        },
+        {
           "type": "object_declaration",
           "named": true
         },
@@ -8703,6 +8723,10 @@
         },
         {
           "type": "unit_declaration",
+          "named": true
+        },
+        {
+          "type": "workspace_manifest",
           "named": true
         }
       ]
@@ -10564,6 +10588,22 @@
     }
   },
   {
+    "type": "workspace_manifest",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_record",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "!",
     "named": false
   },
@@ -10909,6 +10949,10 @@
     "named": false
   },
   {
+    "type": "lock",
+    "named": false
+  },
+  {
     "type": "modify",
     "named": false
   },
@@ -11074,6 +11118,10 @@
   },
   {
     "type": "while",
+    "named": false
+  },
+  {
+    "type": "workspace",
     "named": false
   },
   {

@@ -2,7 +2,8 @@
 
 Extensão declarativa mínima para abrir arquivos `.w` como **W** e destacar a
 sintaxe candidata atual. Ela não contém JavaScript, runtime, telemetria, LSP,
-formatter ou compilador.
+formatter ou compilador. Um `package.lock` canônico também é detectado pela
+linha inicial `lock {`.
 
 O ícone local é um `W` azul transparente em `icons/w.png`. Ele é registrado
 como ícone da extensão e ícone default da linguagem. Sua exibição no Explorer

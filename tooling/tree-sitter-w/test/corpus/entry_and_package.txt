@@ -235,6 +235,78 @@ package {
                 (size_literal)))))))))
 
 ==================
+Data-only workspace manifest
+==================
+
+workspace {
+  schema: "w.workspace/1"
+  members: [".", "packages/menu-compiler"]
+  defaultMembers: ["."]
+  patches: []
+}
+
+---
+
+(source_file
+  (workspace_manifest
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (string_literal))
+            (manifest_value
+              (string_literal)))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (string_literal)))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list))))))
+
+==================
+Data-only package lock
+==================
+
+lock {
+  schema: "w.package-lock/1"
+  resolver: "w.resolver/1"
+  contexts: []
+  packages: []
+}
+
+---
+
+(source_file
+  (lock_manifest
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list))))))
+
+==================
 Data-only deployment plan
 ==================
 

@@ -29,6 +29,14 @@
         {
           "type": "SYMBOL",
           "name": "deployment_manifest"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "workspace_manifest"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "lock_manifest"
         }
       ]
     },
@@ -3106,6 +3114,40 @@
         {
           "type": "STRING",
           "value": "deployment"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "manifest_record"
+          }
+        }
+      ]
+    },
+    "workspace_manifest": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "workspace"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "manifest_record"
+          }
+        }
+      ]
+    },
+    "lock_manifest": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "lock"
         },
         {
           "type": "FIELD",

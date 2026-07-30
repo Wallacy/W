@@ -67,6 +67,10 @@ entry LastLightTui(runTui)
 O descriptor anônimo é o default do product nativo. O mesmo binário atende CLI,
 TUI e servidor local. Um worker usa outro product e outro host lifecycle.
 
+O Última Luz também é um workspace. O package `last-light/menu-compiler`
+fornece uma build transform tipada ao package principal. O tool recebe somente
+o cardápio declarado e produz um resource no CAS.
+
 O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
 resolve `ServiceFamily<OrderCoordinatorApi, OrderId>`. O descriptor injeta um
 `WorkKeyRef` limitado ao pedido. Consulte

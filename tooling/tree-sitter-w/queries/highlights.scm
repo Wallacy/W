@@ -67,6 +67,7 @@
   "export"
   "inout"
   "let"
+  "lock"
   "mut"
   "package"
   "panic"
@@ -82,6 +83,7 @@
   "var"
   "view"
   "weak"
+  "workspace"
 ] @keyword.modifier
 
 [

@@ -20,6 +20,8 @@ O product inclui somente o grafo alcançável.
 
 ```text
 std/
+  build/
+    contracts.w
   cache/
     contracts.w
   database/
@@ -33,13 +35,15 @@ std/
     workflow.w
 ```
 
+`build/contracts.w` materializa bindings de transforms herméticas.
 `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. `io/contracts.w` materializa byte I/O de T1.
 Os outros arquivos materializam values e protocols de T2.
 
-O rascunho fixa cinco fronteiras:
+O rascunho fixa seis fronteiras:
 
+- build transforms recebem somente inputs e outputs declarados;
 - workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
@@ -59,8 +63,9 @@ otimizar transporte, mas não pode mudar statements, results, ownership ou
 failure semantics.
 
 `WorkId`, `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`,
-`StepContext`, `Cancellation`, `Request`, `Response`, `http.Context` e handles
-de capability ainda são intrinsics do compiler/runtime.
+`StepContext`, `Cancellation`, `build.Context`, `Request`, `Response`,
+`http.Context` e handles de capability ainda são intrinsics do
+compiler/runtime.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:
