@@ -642,20 +642,21 @@ package {
         optimize: .none
         checks: .full
         debug: .sidecar
+        cpuPolicy: .portable
       },
       {
         name: "release"
         optimize: .speed
         checks: .safe
         debug: .sidecar
-        targetCpu: "portable"
+        cpuPolicy: .portable
       },
       {
         name: "benchmark"
         optimize: .speed
         checks: .safe
         debug: .none
-        targetCpu: "native-declared"
+        cpuPolicy: .explicit
       },
     ]
     constEval: {
