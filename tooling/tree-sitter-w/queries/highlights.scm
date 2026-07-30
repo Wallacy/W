@@ -63,6 +63,7 @@
   "capture"
   "const"
   "copy"
+  "deployment"
   "export"
   "inout"
   "let"

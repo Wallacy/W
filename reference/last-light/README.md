@@ -1,6 +1,6 @@
 # Restaurante Última Luz
 
-> **Status:** produto de referência experimental · 29 de julho de 2026
+> **Status:** produto de referência experimental · 30 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
 do universo. O cenário homenageia o absurdo cósmico popularizado por Douglas
@@ -143,8 +143,10 @@ de steps duráveis permanece em **Pesquisa**. Até existir runtime,
 | `simulation_app.w` | entry determinística sem deployment de services |
 | `app.w` | processo nativo multimodo, linha por evento e Context |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, targets, capabilities e build profiles |
+| `package.w` | products, runtime graphs, packings, targets e build profiles |
 | `BUILD.md` | matriz de artifacts, comandos e gates |
+| `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
+| `deployments/distributed.w` | plano heterogêneo com services, devices e WASI |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
@@ -174,12 +176,12 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| supervisão e deployment | `supervision.w` | trabalho longo sai do turn sem virar task solta |
+| supervisão e deployment | `supervision.w`, `deployments/` | trabalho longo e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `presentation.w`, `app.w` | um modelo tipado atende CLI, TUI e HTTP |
-| products e targets | `package.w`, `BUILD.md` | entry, host, target e deployment ficam separados |
+| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, packing, target e placement ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
 | mobile e Wi-Fi | `mobile_app.w`, `wifi.w` | lifecycle e authority usam capabilities |
@@ -1250,7 +1252,7 @@ outcome e trace definidos.
 
 ### 3.36 Bilheteria para Nove Universos
 
-Famílias: package, product, entry, host profile, target e artifact.
+Famílias: package, product, entry, runtime graph, packing, deployment e artifact.
 
 Aceite:
 
@@ -1260,16 +1262,30 @@ Aceite:
 - `.default` resolve o descriptor anônimo de `app.w`;
 - `LastLightTui` herda `process.signal` e troca somente o slot default;
 - `LastLightWorker` não herda bindings de outro módulo;
-- um product liga exatamente um descriptor expandido;
+- um product iniciado por host liga exatamente um descriptor expandido;
+- uma service-only unit publica seus providers no artifact index como roots;
 - CLI, TUI e servidor local podem compartilhar um `process.main`;
 - o worker HTTP possui outro product e outro artifact;
+- cada requirement recebe provider, supervisor, host capability ou import;
+- um import aberto aparece na interface do artifact;
+- `AromaProbeDevice` permanece na unit que recebe a capability do host;
+- o raw pointer do probe não cruza a service ABI;
+- `single-process` e `split-services` preservam o mesmo grafo lógico;
+- uma call normal ou borrow não cruza uma unit;
+- cada packing possui recipe, index e digests próprios;
+- deployment não reagrupa providers;
+- `deployment.lock` fixa products, releases, units e adapters;
+- `w deploy apply --locked` não executa build;
+- secrets permanecem handles de host;
 - cada target possui recipe e digest próprios;
+- WASI 0.3 preserva async na component boundary;
 - uma matriz publica um index, não um hash falso entre architectures;
 - `w explain product` informa origem de cada binding;
 - importar um entry module não executa ou registra handlers.
 
-O oracle gera todos os products de [`package.w`](package.w). Ele compara o
-grafo alcançável e rejeita slot ausente, host incompatível e target sem SDK.
+O oracle gera products e packings de [`package.w`](package.w). Depois ele resolve
+os dois planos em [`deployments/`](deployments/). Ele rejeita graph aberto,
+binding incompatível, quota maior, unit ausente, digest mutável e target sem SDK.
 
 ### 3.37 Coreografia das Luas que Perderam o Planeta
 

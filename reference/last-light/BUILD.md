@@ -16,7 +16,8 @@ O build seleciona um product. O product seleciona:
 3. um host profile;
 4. um target;
 5. um build profile;
-6. um runtime envelope.
+6. um runtime graph;
+7. um packing.
 
 O source usa:
 
@@ -90,6 +91,20 @@ O manifest vigente está em [`package.w`](package.w).
 Somente o source e a grammar existem. Todos os products dependem de runtime e
 SDK futuros. A tabela define gates, não suporte entregue.
 
+### 3.1 Runtime graphs
+
+`package.w` contém quatro grafos:
+
+| Graph | Uso | Imports abertos |
+|---|---|---|
+| `restaurant-core` | processo nativo e providers do restaurante | pantry, ovens, payment gateway, audience e aroma device |
+| `restaurant-client` | worker e mobile | `last-light` |
+| `wifi-edge` | captive portal | `wifi-sessions` |
+| `observatory-client` | observatório | `satellites` |
+
+O compiler deve derivar requirements do source. O manifest escolhe providers ou
+declara imports. Um nome textual não cria authority.
+
 ## 4. Targets
 
 ### 4.1 Desktop e servidor
@@ -118,8 +133,11 @@ expor domain logic e lifecycle para uma shell nativa.
 
 ### 4.3 WebAssembly
 
-`wasm32-wasi-preview2` gera um component. O host concede HTTP, clocks, storage e
-outgoing network por capabilities.
+`wasm32-wasip3` gera um component com native async. O host concede HTTP, clocks,
+storage e outgoing network por capabilities.
+
+`wasm32-wasip2` permanece como target de compatibilidade. Ele não define a
+interface async do W.
 
 Esse target não concede DOM. Ele também não transforma W em substituto de
 JavaScript no browser.
@@ -163,6 +181,7 @@ e synthesis que LLVM IR geral não fornece.
 w resolve
 w build last-light-native \
   --target x86_64-unknown-linux-gnu \
+  --packing single-process \
   --profile release \
   --locked
 ```
@@ -172,6 +191,7 @@ w build last-light-native \
 ```text
 w build --matrix desktop \
   --product last-light-native \
+  --packing single-process \
   --profile release \
   --locked
 ```
@@ -182,9 +202,9 @@ architectures diferentes possuem o mesmo hash.
 ### 5.3 Execução
 
 ```text
-w run last-light-native -- --cli
-w run last-light-native -- --tui
-w run last-light-native -- --serve
+w run last-light-native --deployment deployments/local.w -- --cli
+w run last-light-native --deployment deployments/local.w -- --tui
+w run last-light-native --deployment deployments/local.w -- --serve
 ```
 
 ### 5.4 Explicação
@@ -192,6 +212,7 @@ w run last-light-native -- --serve
 ```text
 w explain product last-light-native
 w explain artifact sha256:...
+w explain runtime restaurant-core
 w explain performance restaurant.horizon::forecast
 w explain resources restaurant.audio::renderFinalSong
 ```
@@ -233,35 +254,63 @@ separada.
 
 Nenhum selo combina essas propriedades em uma afirmação vaga de “seguro”.
 
-## 7. Packing de nanoservices
+## 7. Packing e deployment de nanoservices
 
 O mesmo grafo lógico pode usar vários layouts físicos.
 
-### 7.1 Processo único
+### 7.1 Packing `single-process`
 
 ```text
-last-light-native
-  ├─ Restaurant
-  ├─ Billing
-  ├─ Observatory
-  ├─ SatelliteCoordinator
-  └─ WifiSession
+main
+  ├─ LastLightRestaurant
+  ├─ OrderCoordinator
+  ├─ fulfillment supervisor
+  ├─ TableOracle
+  ├─ AromaProbeService
+  ├─ BillingLedger
+  └─ PrismDiningRoom
 ```
 
 Calls locais mantêm `ServiceRef` e podem usar fast path.
 
-### 7.2 Processos por domínio
+### 7.2 Packing `split-services`
 
 ```text
-edge        -> HTTP gateway, WifiSession
-kitchen     -> Restaurant, Pantry, Oven
-observatory -> Horizon sensors, SatelliteCoordinator
-compute     -> Oracle host, accelerator driver
+gateway  -> LastLightRestaurant, OrderCoordinator, fulfillment
+planning -> TableOracle, AromaProbeService
+finance  -> BillingLedger
+dining   -> PrismDiningRoom
 ```
 
-O deployment muda placement. Ele não troca a interface ou remove `await`.
+O build gera uma unit por grupo. Cada crossing usa a service ABI. O artifact
+index fixa estas edges privadas:
 
-### 7.3 Distribuição fina
+```text
+gateway  -> planning : oracle, aroma-probe
+gateway  -> finance  : billing
+gateway  -> dining   : dining-room
+```
+
+O deployment roteia essas edges. Ele não pode substituir os providers.
+
+### 7.3 Deployment
+
+Os planos estão em [`deployments/`](deployments/):
+
+- `local.w` usa `single-process` e adapters locais;
+- `distributed.w` usa `split-services`, WASI 0.3 e controladoras externas.
+
+O deployment muda placement. Ele não reagrupa providers, não religa edges
+privadas e não remove `await`. O futuro `deployment.lock` grava artifacts,
+units e adapters por digest.
+
+```text
+w deploy resolve deployments/local.w
+w deploy check deployments/local.w --locked
+w deploy apply deployments/local.w --locked
+```
+
+### 7.4 Distribuição fina
 
 Uma instance keyed pode ser colocada perto do estado que possui. O runtime
 continua obrigado a preservar:
@@ -304,15 +353,15 @@ O produto de referência se torna parte da suíte de:
 
 Os arquivos atuais exigem contratos ainda não implementados:
 
-1. parser data-only e schema de `package.w`;
+1. parser data-only e schemas de package e deployment;
 2. expansão determinística de `moduleSets`;
 3. host profiles e slot registry;
 4. std de process, HTTP, mobile, device, audio e accelerator;
-5. runtime graph completo para os services;
+5. validator do runtime graph e da interface de cada unit;
 6. platform packaging e signing;
 7. device memory e kernel ABI;
 8. benchmark harness versionado;
-9. deployment schema e validator;
+9. deployment resolver, lock e validator;
 10. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.
