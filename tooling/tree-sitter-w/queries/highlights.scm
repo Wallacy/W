@@ -112,6 +112,8 @@
 (behavior_parameter name: (identifier) @variable.parameter)
 (closure_parameter name: (identifier) @variable.parameter)
 (argument label: (identifier) @variable.parameter)
+(labeled_tuple_type_element label: (identifier) @property)
+(labeled_tuple_element label: (identifier) @property)
 
 (type_identifier) @type
 
@@ -132,7 +134,9 @@
 (computed_property_declaration name: (identifier) @property)
 (property_requirement name: (identifier) @property)
 (member_expression property: (identifier) @property)
+(member_expression property: (tuple_index) @property)
 (optional_member_expression property: (identifier) @property)
+(optional_member_expression property: (tuple_index) @property)
 (import_item name: (identifier) @module)
 (module_path (identifier) @module)
 

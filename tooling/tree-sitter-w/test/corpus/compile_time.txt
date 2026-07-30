@@ -200,3 +200,57 @@ fn stillVisible(): Bool {
     (block
       (return_statement
         (boolean_literal)))))
+
+==================
+Const call parameters
+==================
+
+type StaticQuery = String
+type QueryRunner = fn(const StaticQuery, i32): i32
+
+fn runQuery(query: const StaticQuery, id: i32): i32 {
+  return id
+}
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (function_type
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier))))
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (identifier)))))

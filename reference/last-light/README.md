@@ -147,6 +147,7 @@ de steps duráveis permanece em **Pesquisa**. Até existir runtime,
 | `BUILD.md` | matriz de artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
 | `deployments/distributed.w` | plano heterogêneo com services, devices e WASI |
+| `deployments/benchmark.w` | PostgreSQL, cache local, admission e limites do benchmark |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
@@ -1383,20 +1384,41 @@ Aceite:
 
 Famílias: HTTP, JSON, database, allocation, admission e performance evidence.
 
-`benchmark_app.w` mantém as sete famílias do TechEmpower como profile futuro.
+`benchmark_app.w` contém um oracle de source para as sete famílias do
+TechEmpower. `package.w` fecha o runtime graph. `deployments/benchmark.w`
+seleciona PostgreSQL, cache local e limites menores que o envelope do product.
+Isso ainda não é um resultado de benchmark. Não existem runtime, adapters,
+harness executável ou medição.
 
 Aceite:
 
-- plaintext e JSON usam o mesmo HTTP runtime do produto;
+- plaintext, JSON e as cinco rotas de dados usam o mesmo HTTP runtime;
+- o host gera os headers `Server` e `Date` exigidos pelo harness;
+- o profile desativa o log de cada request em disco;
 - query count fica em `1...500` por narrowing exaustivo;
-- queries usam APIs normais de database;
+- `/db`, `/queries` e `/updates` leem rows inteiros da tabela `World`;
+- cada item de `/queries` e `/updates` mantém um `SELECT` distinto;
+- pipeline pode agrupar transporte, mas não SQL, resultados ou semântica
+  transacional;
+- o adapter PostgreSQL envia uma boundary `Sync` por statement;
+- `/updates` modifica cada valor antes da resposta e confirma a transação;
+- uma perda depois de `COMMIT` gera `unknownCommit`; não há retry implícito;
 - fortunes escapam HTML no template adapter;
-- updates e cached queries serão adicionados antes do primeiro resultado;
+- `/cached-queries` usa `CachedWorld` e um cache com read-through e eviction;
+- `LocalCache` continua process-local; um cache remoto usa uma API async;
+- pool, cache, requests ativos, filas e bytes possuem limites;
 - nenhuma rota retorna dados constantes quando o workload exige database;
+- o codec JSON executa por request e preserva exatamente os nomes dos fields;
+- prepared statements usam parameters nomeados e SQL const;
 - configuração, hardware, compiler e artifact digest acompanham o resultado;
 - monolito e nanoservices executam o mesmo oracle;
 - uma regressão de segurança não é aceita por ganho de throughput;
 - ranking é measurement, não promessa da linguagem.
+
+O primeiro harness deve validar payload, headers, query count, SQL observado,
+cache hit/miss e ausência de logs antes de medir throughput. Ele também deve
+registrar toda diferença em relação à especificação TechEmpower fixada pelo
+profile.
 
 ## 4. Alternativas visuais obrigatórias
 

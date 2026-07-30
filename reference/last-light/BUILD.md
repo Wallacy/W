@@ -93,7 +93,7 @@ SDK futuros. A tabela define gates, não suporte entregue.
 
 ### 3.1 Runtime graphs
 
-`package.w` contém quatro grafos:
+`package.w` contém cinco grafos:
 
 | Graph | Uso | Imports abertos |
 |---|---|---|
@@ -101,9 +101,14 @@ SDK futuros. A tabela define gates, não suporte entregue.
 | `restaurant-client` | worker e mobile | `last-light` |
 | `wifi-edge` | captive portal | `wifi-sessions` |
 | `observatory-client` | observatório | `satellites` |
+| `benchmark-host` | sete workloads HTTP | database PostgreSQL e cache local |
 
 O compiler deve derivar requirements do source. O manifest escolhe providers ou
 declara imports. Um nome textual não cria authority.
+
+As capabilities padrão, como clock e random, entram no contexto tipado do host
+pelo envelope do product. Recursos nomeados, como database e cache, entram como
+imports do runtime graph. Essa diferença impede lookup livre por string.
 
 ## 4. Targets
 
@@ -217,6 +222,28 @@ w explain performance restaurant.horizon::forecast
 w explain resources restaurant.audio::renderFinalSong
 ```
 
+### 5.5 Benchmark
+
+```text
+w build last-light-benchmark \
+  --target x86_64-unknown-linux-gnu \
+  --packing entry-only \
+  --profile benchmark \
+  --locked
+
+w benchmark validate last-light-benchmark \
+  --deployment deployments/benchmark.w \
+  --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
+
+w benchmark run last-light-benchmark \
+  --deployment deployments/benchmark.w \
+  --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
+  --evidence results/last-light.wbench
+```
+
+`validate` verifica semântica e configuração. `run` mede somente a combinação
+validada e grava a evidence com os digests do artifact, deployment e harness.
+
 ## 6. Packages e releases
 
 ### 6.1 Resolução
@@ -298,7 +325,9 @@ O deployment roteia essas edges. Ele não pode substituir os providers.
 Os planos estão em [`deployments/`](deployments/):
 
 - `local.w` usa `single-process` e adapters locais;
-- `distributed.w` usa `split-services`, WASI 0.3 e controladoras externas.
+- `distributed.w` usa `split-services`, WASI 0.3 e controladoras externas;
+- `benchmark.w` fixa PostgreSQL, cache local, admission e logs em disco
+  desativados.
 
 O deployment muda placement. Ele não reagrupa providers, não religa edges
 privadas e não remove `await`. O futuro `deployment.lock` grava artifacts,
@@ -356,12 +385,16 @@ Os arquivos atuais exigem contratos ainda não implementados:
 1. parser data-only e schemas de package e deployment;
 2. expansão determinística de `moduleSets`;
 3. host profiles e slot registry;
-4. std de process, HTTP, mobile, device, audio e accelerator;
-5. validator do runtime graph e da interface de cada unit;
-6. platform packaging e signing;
-7. device memory e kernel ABI;
-8. benchmark harness versionado;
-9. deployment resolver, lock e validator;
-10. compiler e backends.
+4. std de process, mobile, device, audio e accelerator;
+5. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
+6. codecs JSON explícitos ou derivados por synthesis autorizada;
+7. pool, adapters de protocolo e validação de schema do database;
+8. implementação de cache local, eviction e single-flight;
+9. validator do runtime graph e da interface de cada unit;
+10. platform packaging e signing;
+11. device memory e kernel ABI;
+12. harness TechEmpower versionado e seus validadores;
+13. deployment resolver, lock e validator;
+14. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

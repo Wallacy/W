@@ -15,6 +15,19 @@ import { commandLimit } from restaurant.units
 
 const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
 
+const nativeServerLimits = http.ServerLimits(
+  activeRequests: 1_024,
+  queuedRequests: 2_048,
+  queuedBytes: 64<MiB>,
+  connections: 8_192,
+  message: http.MessageLimits(
+    targetBytes: 16<KiB>,
+    headerBytes: 64<KiB>,
+    headerFields: 128,
+    bodyBytes: commandLimit,
+  ),
+)
+
 export enum AppError: Error {
   command(CommandError)
   conflictingLaunchModes
@@ -126,6 +139,7 @@ async fn runServer(ctx: ProcessContext): ExitCode throws AppError {
   try await http.serve(
     at: .loopback(port: 8_080),
     using: ctx.network,
+    limits: nativeServerLimits,
     handler: fetch,
   )
   return .success
@@ -155,11 +169,13 @@ async fn readCommand(line: String, ctx: CliContext): () throws AppError {
 }
 
 package async fn fetch(
-  request: http.Request,
+  request: take http.Request,
   ctx: http.Context,
 ): http.Response throws AppError {
   let restaurant = try await ctx.services.get(restaurantService)
-  let command = try request.json.decode<Command>()
+  let command = try await request.decodeJson<Command>(
+    maximumBytes: commandLimit,
+  )
   let response = try await dispatch(
     take command,
     restaurant: restaurant,
