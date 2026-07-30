@@ -42,6 +42,7 @@ export struct HorizonForecast<const samples: usize> {
 export enum HorizonError: Error {
   emptyWindow
   nonFinite
+  invalidScore(found: f32)
   outOfOrder(previous: EventSequence, found: EventSequence)
   service(ServiceFailure)
 }
@@ -73,12 +74,7 @@ export fn forecast<const samples: usize>(
   let centered = calibrated - means.broadcast(to: [samples, 6])
   let energy = (centered * centered).sum(axis: 1, mode: .reproducible)
   let maximum = energy.max()
-
-  let status: HorizonStatus = switch maximum {
-    case 0.85...: .evacuation(score: maximum)
-    case 0.55..<0.85: .warning(score: maximum)
-    case ..<0.55: .stable
-  }
+  let status = try classifyHorizon(maximum)
 
   return HorizonForecast(
     status: status,
@@ -87,9 +83,36 @@ export fn forecast<const samples: usize>(
   )
 }
 
-test "anomaly thresholds are exhaustive" {
-  let safe: HorizonStatus = .stable
-  let alert: HorizonStatus = .warning(score: 0.7)
+export fn classifyHorizon(
+  score: f32,
+): HorizonStatus throws HorizonError<[.nonFinite, .invalidScore]> {
+  guard score.isFinite else throw .nonFinite
+  guard score >= 0.0 else throw .invalidScore(found: score)
+
+  return switch score {
+    case 0.85...: .evacuation(score: score)
+    case 0.55..<0.85: .warning(score: score)
+    case 0.0..<0.55: .stable
+  }
+}
+
+test "anomaly thresholds are exhaustive" for classifyHorizon {
+  let safe = try classifyHorizon(0.2)
+  let alert = try classifyHorizon(0.7)
+  let evacuation = try classifyHorizon(0.9)
+
   expect safe in (.stable)
   expect alert in (.warning)
+  expect evacuation in (.evacuation)
+}
+
+test "a negative score keeps its typed error" for classifyHorizon {
+  do {
+    let _ = try classifyHorizon(-0.1)
+    panic("negative horizon score was accepted")
+  } catch .invalidScore(let found) {
+    expect found == -0.1
+  } catch .nonFinite {
+    panic("negative finite score became non-finite")
+  }
 }

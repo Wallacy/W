@@ -17,7 +17,7 @@ Leia estes artefatos nesta ordem:
 2. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
 3. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
-   specs, toolchain plans, artifacts e gates;
+   specs, toolchain plans, ABIs, artifacts e gates;
 4. [Deployments](reference/last-light/deployments/README.md) — planos local e
    distribuído;
 5. [Rascunho da std](std/README.md) — contratos da standard library em W;
@@ -72,6 +72,10 @@ o module set nativo. Um worker usa outro product e outro host lifecycle.
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 fornece uma build transform tipada ao package principal. O tool recebe somente
 o cardápio declarado e produz um resource no CAS.
+
+O mesmo package publica uma static library `.wExact` e uma façade C dinâmica do
+horizon monitor. Esse laboratório separa `WInterface`, ABI W, runtime
+requirements e carriers C.
 
 O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
 resolve `ServiceFamily<OrderCoordinatorApi, OrderId>`. O descriptor injeta um

@@ -486,8 +486,17 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SYMBOL",
-              "name": "language_tag"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "language_tag"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "abi_contract"
+                }
+              ]
             },
             {
               "type": "BLANK"
@@ -637,6 +646,47 @@
                   }
                 }
               ]
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": ">"
+        }
+      ]
+    },
+    "abi_contract": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "STRING",
+          "value": "abi"
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "FIELD",
+          "name": "abi",
+          "content": {
+            "type": "SYMBOL",
+            "name": "contextual_member_expression"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ","
+            },
+            {
+              "type": "BLANK"
             }
           ]
         },
@@ -3487,6 +3537,10 @@
               {
                 "type": "SYMBOL",
                 "name": "foreign_struct_declaration"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "const_declaration"
               },
               {
                 "type": "SYMBOL",

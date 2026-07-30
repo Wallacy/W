@@ -458,6 +458,24 @@ package {
       capabilities: [.stdio, .network, .clock, .services]
     },
     {
+      name: "last-light-horizon-w"
+      kind: .staticLibrary
+      module: "restaurant.horizon"
+      exports: ["restaurant.horizon::classifyHorizon"]
+      abi: .wExact
+      targets: ["desktop"]
+    },
+    {
+      name: "last-light-horizon-c"
+      kind: .dynamicLibrary
+      module: "restaurant.abi"
+      exports: ["restaurant.abi::ll_horizon_classify_v1"]
+      abi: .c
+      runtime: .none
+      panic: .forbid
+      targets: ["desktop"]
+    },
+    {
       name: "last-light-mobile"
       kind: .executable
       module: "restaurant.mobile_app"

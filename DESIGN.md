@@ -1433,8 +1433,12 @@ líder exporta somente os componentes de um struct transparente.
 ### 6.1 Evolução da interface exportada
 
 W promete compatibilidade de source entre versões compatíveis de um package.
-Uma atualização recompila os dependentes. O design vigente não promete substituir uma
-library compilada por outra versão sem rebuild.
+Uma atualização recompila os dependentes. O design vigente não promete
+substituir uma library compilada por outra versão sem rebuild.
+
+Um artifact W pode ser reutilizado quando sua `WAbiKey` confere. Esse reuse é
+cache binário exato. Ele não é library evolution. A seção 20.4 define a
+diferença.
 
 Um struct transparente exportado é resiliente no source por default. Um pattern
 usado fora do package que define o tipo deve terminar com `...`. Essa regra vale
@@ -5161,10 +5165,10 @@ compiler não usa o payload desse NaN para representar `.none`.
 **Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar low-bit
 tagging sem mudar a semântica do valor.
 
-Cada object W registra o profile de representação usado nas interfaces
-compiladas. O linker só compartilha ABI W quando fingerprints compatíveis
-conferem. Caso contrário, recompila do source, usa adapter canônico ou rejeita o
-link.
+Cada object W registra a policy de representação e um fingerprint para cada
+tipo que cruza sua interface binária. O linker compara fingerprints somente
+quando duas signatures compartilham o tipo. Caso contrário, recompila do
+source, usa adapter canônico ou rejeita o link.
 
 Hardening e diagnóstico têm precedência sobre compactação opcional. ASan,
 HWASan, TSan, MTE, pointer authentication, debugger e profiler podem desativar
@@ -12566,6 +12570,10 @@ Uma wrapper W restabelece os contratos ausentes:
 | callback + context | closure e owner de registration |
 | allocation + destroy | owner que preserva o deallocator |
 
+W também pode exportar uma façade C. `export foreign c` declara seus carriers.
+`export unsafe fn<abi: .c>` declara um symbol C com body W. A seção 20.4.10
+define os limites dessa forma.
+
 Uma call síncrona pode criar um pointer scoped a partir de `inout`. A assinatura
 C não pode armazená-lo. Uma callback que persiste usa storage pinned e um
 destroy callback. O adapter registra se a função captura somente address,
@@ -12760,18 +12768,320 @@ MLIR bytecode é cache do toolchain, não formato público eterno.
 
 ### 20.4 ABI e runtime
 
-**Exemplo:** `fn(Int): Int` pode mudar calling convention entre builds. Somente
-`unsafe fn<abi: .c>` promete a ABI C.
+W separa contratos de source, compilação, link, runtime e composição. Uma
+otimização interna não vira promessa de ecossistema por acidente.
 
-Há quatro contratos:
+#### 20.4.1 Camadas de contrato
 
-1. API source;
-2. interface compilada para type-check/cache;
-3. ABI W keyed por toolchain, target e profile;
-4. ABI C explícita.
+**Exemplo:** uma atualização recompila o cliente W. O mesmo cliente C continua
+válido somente quando a façade preserva sua versão:
 
-Source-first é o fallback. A interface compilada possui schema, reader e
-fingerprint. ABI W só é aceita quando a chave completa confere.
+```text
+source W v2 -> rebuild do consumer W
+façade C v1 -> mesmo header e mesmos símbolos C
+component v1 -> mesmo schema e mesmos imports/exports
+```
+
+Há sete contratos:
+
+| Contrato | Consumidor | Estabilidade |
+|---|---|---|
+| API source | compiler W e developer | SemVer e edition |
+| interface semântica | compiler, LSP e tooling | schema versionado |
+| ABI W exata | objects da mesma ABI row | `WAbiKey` exata |
+| ABI de runtime | código gerado e provider `libwrt` | requirements versionadas |
+| service/component ABI | units, processes e Wasm components | schema e operation versionados |
+| foreign ABI | C e outros adapters | ABI declarada do target |
+| wire/persistence | rede, journal e storage | schema próprio |
+
+A interface semântica não fixa layout. A ABI W exata não promete substituição
+entre releases. A service ABI não autoriza um borrow. Um schema persistido não
+herda a evolução de um `struct`.
+
+A
+[separação de ABI, module stability e library evolution do Swift](https://www.swift.org/blog/abi-stability-and-more/)
+mostra que esses problemas exigem contratos diferentes. A
+[ABI nativa do Rust](https://doc.rust-lang.org/reference/items/external-blocks.html#abi)
+também não promete estabilidade. W adota essa baseline conservadora em todos os
+targets.
+
+#### 20.4.2 Interface semântica e cache do compiler
+
+**Exemplo:** alterar o body privado de `forecast` preserva o digest da interface
+quando exports e fatos públicos não mudam:
+
+```text
+restaurant.horizon source digest     sha256:source-v2
+restaurant.horizon semantic key      sha256:interface-v1
+consumer type-check cache             hit
+consumer codegen                      depende da recipe e do body alcançável
+```
+
+`WInterface` é um record canônico e data-only. Ele contém:
+
+- package, module, edition e feature set;
+- imports, reexports e visibilidade normalizada;
+- tipos, signatures, effects e ownership públicos;
+- relações de provenance de resultados borrowed;
+- generic constraints, witness requirements e opaque identities;
+- `const` values e static contracts necessários ao caller;
+- allocation, blocking, panic e capability facts exportados;
+- entry descriptors, service requirements e availability;
+- digests separados de documentation, source map e chunks adicionais.
+
+O record não contém:
+
+- pointer para AST ou memória do compiler;
+- layout W não publicado;
+- path físico do checkout;
+- machine code;
+- private body não necessário;
+- debug symbols.
+
+O index de `WInterface` referencia chunks canônicos:
+
+| Key | Conteúdo | Invalida |
+|---|---|---|
+| `SemanticInterfaceKey` | tipos, calls, effects, facts e identities | type-check e compatibilidade source |
+| `DocumentationKey` | documentação publicável | Book, hover e search |
+| `DiagnosticMapKey` | logical source IDs e spans publicáveis | diagnostics e navegação |
+| body chunk digest | HIR permitida para generic ou optimization | codegen do consumer |
+
+O artifact record autentica o index e todos os chunks. Uma mudança somente em
+documentação ou spans não altera `SemanticInterfaceKey`. Uma mudança em um body
+importável invalida codegen que usa o chunk, mas não invalida type-check quando
+a interface semântica permanece igual.
+
+O reader trata toda interface como input não confiável, mesmo após verificar
+assinatura e digest. Schema, bytes, strings, nesting, members, chunks e
+references possuem limites. A decode não executa plugin, initializer, macro ou
+code do package. Truncation, duplicate identity, digest divergente e ciclo numa
+relation acíclica produzem diagnostics antes do type-check. Types recursivos
+usam identity references.
+
+**Pesquisa:** o encoding binário ainda não está congelado. Dois candidates
+seguem para protótipo:
+
+1. `WMeta1`: header fixo, directory de chunks e records por field IDs;
+2. subset de
+   [CBOR determinístico](https://www.rfc-editor.org/rfc/rfc8949.html#name-deterministically-encoded-cbor)
+   com lengths definidas e types limitados.
+
+O gate compara implementação em `bootstrap.w0`, canonical round-trip, skip de
+fields desconhecidos, fuzzing de corruption, peak memory, decode incremental e
+desempenho. JSON serve somente para inspection. Antes desse gate, o encoding é
+toolchain-internal e recipe-exact. Uma release pública não promete ler esses
+bytes.
+
+Uma distribuição declara quais schemas de `WInterface` consegue ler. Um
+upconverter preserva significado e diagnostic origin. Um schema desconhecido
+não é reinterpretado. O compiler usa source compatível ou informa que precisa de
+outra distribuição.
+
+Um cache local pode serializar AST e HIR no formato interno do compiler. Esse
+cache usa a toolchain key completa. Ele não é um artifact de package.
+
+Generic code necessário à instanciação fica em um chunk de HIR normalizada por
+digest. Um package source-first pode reconstruir esse chunk. Um package
+binary-only escolhe uma destas opções:
+
+- publica um shared generic body compatível com a `WAbiKey`;
+- publica instâncias fechadas;
+- publica o chunk aceito pela mesma distribuição;
+- remove o generic da façade estável.
+
+Um compiler futuro não recebe direito de interpretar HIR antiga somente porque
+consegue ler a API. A
+[documentação de módulos do Clang](https://clang.llvm.org/docs/Modules.html)
+trata a representação binária do módulo como cache sensível à configuração. W
+mantém o record semântico separado desse cache.
+
+#### 20.4.3 `WAbiKey` e validação de link
+
+**Exemplo:** dois objects possuem a mesma API source. O linker ainda rejeita
+policies de ABI diferentes:
+
+```text
+consumer WAbiKey  sha256:wabi-A
+library  WAbiKey  sha256:wabi-B
+result            rebuild from source or error
+```
+
+`WAbiKey` identifica a ABI W exata de uma row:
+
+```text
+WAbiKey = digest {
+  schema
+  W ABI revision
+  compiler ABI producer
+  target spec and data layout
+  calling-convention revision
+  representation-policy revision
+  runtime ABI revision map
+  panic and cleanup model
+  hardening and sanitizer ABI facts
+}
+```
+
+O artifact recipe continua registrando o compiler e todos os inputs exatos.
+`WAbiKey` serve à compatibilidade de link. Ela não substitui a recipe.
+
+O runtime ABI revision map contém somente revisões que afetam calls, metadata,
+cleanup e value witnesses. Requirements alcançáveis não entram na key. Cada
+object registra esses requirements em separado. Assim, objects com operações de
+runtime diferentes podem compartilhar a mesma ABI W.
+
+`WAbiKey` também não enumera todos os tipos de um object. A ABI note possui um
+`RepresentationMap`. A map associa cada tipo ou instanciação que cruza uma
+boundary ao seu fingerprint. A signature de um symbol referencia essas
+entradas. Objects com tipos privados distintos continuam compatíveis. Dois
+objects que compartilham um tipo precisam publicar o mesmo fingerprint.
+
+Um object W contém uma nota mínima com:
+
+- `WAbiKey`;
+- `SemanticInterfaceKey`;
+- representation-map digest;
+- runtime requirements;
+- symbol-manifest digest;
+- build recipe digest;
+- target spec;
+- object role.
+
+O linker valida todas as notas antes de executar LTO ou emitir o artifact final.
+Uma nota ausente não recebe compatibilidade por heurística. Object format,
+filename, mtime ou symbol prefix não substituem a key.
+
+O resolver fixa a representação antes do build. Se um candidate divergir, o
+builder aplica esta ordem:
+
+1. usa outro artifact exato já fixado na plan;
+2. recompila do source fixado;
+3. usa uma façade C ou component somente quando o grafo selecionou essa boundary;
+4. falha.
+
+A disponibilidade local não muda essa ordem. O builder não adapta layout W por
+reflexão. Ele também não troca static library por dynamic library ou boundary
+nativa por component de forma automática.
+
+#### 20.4.4 ABI semântica de call
+
+**Exemplo:** `take` transfere cleanup ao callee. `ref` mantém cleanup no caller:
+
+```w
+export fn archive(record: take AuditRecord): Receipt
+export fn inspect(record: ref AuditRecord): Summary
+```
+
+A signature ABI semântica registra:
+
+- parameter e result types normalizados;
+- `ref`, `inout`, `take`, copy e owned result;
+- callable mode e capture representation;
+- `async`, typed error e `unsafe`;
+- generic metadata e witnesses necessários;
+- provenance de cada result borrowed;
+- address spaces e target-specific carriers;
+- availability e runtime requirements.
+
+Essa signature define responsabilidade. Ela não escolhe registers. Um parâmetro
+`take` chega válido e passa a ser responsabilidade do callee. Um parâmetro
+`ref` permanece válido durante a call e não transfere cleanup. Um `inout` exige
+acesso exclusivo e write-back semanticamente visível.
+
+Success, typed error e cancellation percorrem edges distintos da HIR. Typed
+error não usa exception unwind do host. Panic não é um result oculto.
+
+Um return owned transfere responsabilidade ao caller. Um return borrowed aponta
+somente para uma origem publicada na interface. O compiler não inventa owner
+metadata para prolongar o borrow.
+
+#### 20.4.5 Lowering físico de call
+
+**Exemplo:** o mesmo value result pode usar registers ou um result pointer:
+
+```text
+HorizonStatus pequeno e conhecido -> registers
+T opaco ou address-only            -> indirect result
+```
+
+O lowering físico recebe a ABI semântica e a `WAbiKey`. Ele escolhe:
+
+- direct ou indirect parameters;
+- direct ou indirect results;
+- register e stack classes;
+- hidden context, metadata e witness parameters;
+- error result channel;
+- closure environment;
+- calling convention do target.
+
+Known-layout values podem ser expandidos em scalars. Opaque, resilient,
+address-only ou generic values usam endereço e value witnesses. A decisão fica
+na interface de codegen exata. Ela não aparece no source.
+
+Uma call indireta exige a mesma ABI física do callable. O compiler cria um thunk
+quando a ABI semântica permite adaptação. O thunk participa da recipe e do
+symbol manifest. Uma adaptação não pode mudar ownership, effects ou panic.
+
+O [LLVM LangRef](https://llvm.org/docs/LangRef.html#calling-conventions) exige
+calling conventions compatíveis entre caller e callee. A
+[documentação de calling convention do Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/CallingConvention.rst)
+também separa responsabilidade, indirectness e transporte físico. W preserva
+essa separação na HIR antes de baixar para LLVM.
+
+#### 20.4.6 Symbols, exports e collisions
+
+**Exemplo:** duas funções chamadas `render` não colidem no linker:
+
+```text
+restaurant.audio::render  -> _W1_<semantic-id>_render
+restaurant.menu::render   -> _W1_<semantic-id>_render
+```
+
+`SymbolId` é um record semântico. Ele contém:
+
+- package authority, identity e resolution realm;
+- module e declaration path;
+- item kind;
+- normalized ABI signature;
+- generic arguments e witness IDs;
+- instantiating package quando necessário;
+- `WAbiKey`.
+
+Source path, line, declaration order, timestamp e process-local node ID não
+participam. Um private local symbol pode usar o body digest. Um exported symbol
+usa somente identidades publicadas.
+
+O link name W começa com uma versão de mangling. Ele contém um digest ASCII e um
+leaf name legível. O symbol manifest preserva o `SymbolId` completo e permite
+demangling. Um digest truncado que colide produz error ou um nome canônico mais
+longo. A ordem de objects não escolhe o vencedor.
+
+`export unsafe fn<abi: .c>` usa o identifier exato como C link name. O artifact
+analysis rejeita duas definições C iguais antes do linker. O builder gera export
+list, `.def` ou mecanismo equivalente. Symbols privados ficam hidden.
+
+O loader W resolve um export pelo `LibraryHandle` e pelo manifest. Ele não usa
+lookup process-global por nome. Libraries entram com visibilidade local quando
+o host permite. Calls internas não dependem de symbol interposition ou ordem de
+load. Um host C externo continua sujeito às regras da própria plataforma.
+
+O
+[mangling v0 do Rust](https://doc.rust-lang.org/beta/rustc/symbol-mangling/v0.html)
+mostra um encoding decodificável e independente de pretty-print. A própria
+documentação informa que mangling não cria uma ABI estável. W faz a mesma
+distinção.
+
+#### 20.4.7 Runtime contract set
+
+**Exemplo:** um firmware sem tasks não liga o scheduler:
+
+```text
+required  w.runtime/core.panic@1
+required  w.runtime/core.cleanup@1
+absent    w.runtime/task.scope@1
+absent    w.runtime/service.call@1
+```
 
 `libwrt` é uma família reachability-linked:
 
@@ -12781,7 +13091,297 @@ fingerprint. ABI W só é aceita quando a chave completa confere.
 - `service`: instances, mailboxes, calls e durability;
 - `observe`: tracing, symbolization e logical task stacks.
 
-Um target freestanding pode usar somente `core`.
+Cada operação importada possui identity, revision e semantic digest. Objects
+declaram requirements. Um runtime provider declara offers. A toolchain plan
+seleciona o provider.
+
+O linker calcula a união alcançável, verifica os offers e grava um
+`RuntimeClosureKey` no artifact final. Uma static library transfere requirements
+ao product que a liga. Ela não fixa o fechamento final. O
+`RuntimeClosureKey` não altera a `WAbiKey`.
+
+```text
+RuntimeClosureKey = digest {
+  required operation identities and semantic digests
+  selected offer contract identities
+  linkage mode
+}
+```
+
+O provider artifact digest permanece na toolchain plan e na recipe. Uma
+implementação nova com o mesmo contrato pode manter a closure key, mas produz
+outro payload e outro artifact record.
+
+Static linking é o default. Ele permite reachability, internalization e runtime
+por product. Um runtime dinâmico é permitido somente quando o target e a
+distribuição publicam uma ABI exata. O product registra seu provider e seu
+digest.
+
+Um target freestanding pode usar somente `core`. Um accelerator module pode não
+usar `libwrt`. Um process com tasks e services recebe somente as famílias
+alcançáveis.
+
+#### 20.4.8 Inicialização e contexto de runtime
+
+**Exemplo:** o entry shim valida o host antes de chamar o handler:
+
+```text
+host descriptor
+  -> validate target, host profile and runtime contracts
+  -> create bounded RuntimeContext
+  -> bind selected entry descriptor
+  -> call process.main
+```
+
+W não usa module constructors implícitos. Importar um módulo não executa código.
+Uma library W também não executa código antes da validação de sua nota ABI.
+
+`RuntimeContext` contém somente capabilities e services concedidos pelo product
+e pelo host. Ele não é uma tabela global de environment. O lowering passa um
+hidden context somente a calls que precisam dele. LTO pode remover o parâmetro
+de um caminho fechado.
+
+Task-local, thread-local e runtime state pertencem ao contexto ou ao provider
+que os controla. Uma dynamic library não lê globals do executable para encontrar
+scheduler, allocator ou service registry.
+
+Dois runtimes no mesmo process podem coexistir como islands. Eles não trocam
+owned W values. Uma edge entre islands usa C carriers, service ABI ou component
+ABI.
+
+Essa forma substitui a hipótese histórica de globals por módulo e tabelas de
+threads compartilhadas. Contexto explícito mantém authority, lifetime e
+versionamento verificáveis.
+
+#### 20.4.9 Libraries W e version skew
+
+**Exemplo:** uma static library W acelera o build somente quando a key confere:
+
+```text
+package source + matching W artifact -> reuse artifact
+package source + mismatched artifact -> rebuild source
+binary-only + mismatched artifact     -> error
+```
+
+`.staticLibrary` e `.dynamicLibrary` são containers físicos. Elas não tornam a
+ABI W estável. Um product de library declara:
+
+- exports exatos;
+- ABI `.wExact` ou `.c`;
+- target set;
+- runtime e panic policy;
+- artifact kind e sidecars.
+
+Uma W dynamic library é carregada somente por artifact digest e index resolvido.
+O loader valida `WAbiKey`, `RepresentationMap`, requirements, offers, exports e
+target antes de entregar um handle. Filename search e `PATH` não participam.
+
+O loader não substitui uma versão já ligada. Um upgrade carrega outra unit,
+inicia novas instances e drena as antigas. Ele não copia globals, task frames ou
+object storage entre versões.
+
+Para `.wExact`, liberar um `LibraryHandle` impede novas resoluções e calls por
+esse handle. O runtime W não desmapeia o código nativo antes do fim do runtime
+island. Um owner, callable ou witness pode depender de código de drop da
+library. Manter o mapeamento evita use-after-unload sem colocar uma lease oculta
+em cada valor.
+
+**Pesquisa:** unload físico exigiria provar que não restam calls, stacks,
+owners, callables, witnesses, task frames ou foreign callbacks. Um processo ou
+component é a boundary indicada quando versões precisam sair da memória.
+
+W v0 não oferece library evolution binária nativa. Source SemVer e
+`w interface diff` continuam disponíveis. Uma façade C versionada ou uma
+component é a boundary para clients compilados separadamente.
+
+**Alternativa:** uma ABI W resiliente permitiria trocar libraries sem rebuild.
+Ela exigiria field accessors, indirect value operations, metadata estável,
+nonexhaustive enums e runtime permanente. O
+[modelo de library evolution do Swift](https://www.swift.org/blog/library-evolution/)
+mostra o custo e recomenda ativá-lo somente quando client e library evoluem
+separadamente. W deixa essa forma em **Pesquisa**.
+
+#### 20.4.10 C façade escrita em W
+
+**Exemplo:** o body é W. O contrato da call é C:
+
+```w
+export foreign c {
+  const LL_HORIZON_OK_V1: c.int = 0
+
+  struct ll_horizon_result_v1 {
+    error: c.int
+    kind: c.uint
+    score: c.float
+  }
+}
+
+export unsafe fn<abi: .c> ll_horizon_classify_v1(
+  score: c.float,
+): ll_horizon_result_v1 {
+  // body W
+}
+```
+
+`fn<abi: .c>` não é `fn<C>`. A primeira forma escreve W com calling convention
+C. A segunda contém source C opaco entregue ao adapter C.
+
+Uma declaração `fn<abi: .c>`:
+
+- exige `unsafe`;
+- aceita somente carriers C;
+- não aceita generic, capture, `async` ou `throws`;
+- não aceita W `String`, collection, existential ou owner implícito;
+- não permite panic ou exception atravessar a call;
+- usa a ABI C selecionada pelo target.
+
+Uma C library também declara uma destas formas:
+
+```w
+runtime: .none
+
+runtime: .explicitContext(
+  create: "ll_context_create_v1",
+  destroy: "ll_context_destroy_v1",
+)
+```
+
+`.none` proíbe hidden `RuntimeContext` e requirements contextuais. Support de
+cleanup e abort pode ser ligado sem context. `.explicitContext` exige que cada
+operação contextual receba um handle C validado. Os exports `create` e
+`destroy` controlam o runtime island. Não existe runtime global, lazy init ou
+TLS implícita.
+
+`export foreign c` sem `from` declara carriers e constants para a façade. O
+gerador de header preserva layout, names e version. `foreign c from "x.h"`
+continua uma importação.
+
+Na v0, um `const` desse bloco usa um carrier C inteiro e um `ConstValue`
+representável no header. O gerador emite uma constante nomeada, sem storage
+ou link symbol. Pointer, endereço e valor dependente de runtime são rejeitados.
+
+O header é um sidecar do target slice. Ele contém:
+
+- include guard e `extern "C"` para consumers C++;
+- includes mínimos para os carriers usados;
+- calling-convention e import/export macros do target;
+- version, recipe digest e target identity em comments reproduzíveis;
+- declarations e constants em ordem canônica;
+- size, alignment e offset assertions para records quando o C mode permite;
+- ownership, lifetime e error contract em comments controlados.
+
+O header não contém path local, timestamp ou ordem do linker. Um companion
+conformance source executa os mesmos assertions quando o header mode não pode
+expressá-los. O artifact index associa header, library e target; um consumer não
+combina o header de uma slice com a library de outra.
+
+Typed error vira status, result struct ou out parameter escolhido na signature
+C. A wrapper W converte antes da boundary. Panic não atravessa a call. O product
+escolhe:
+
+- `panic: .forbid`: todo o call graph exportado precisa provar ausência de
+  panic;
+- `panic: .abortProcess`: uma panic encerra o process.
+
+Uma dynamic library nativa não cria uma fault boundary. Unwind, exception e
+conversão automática de panic para status são rejeitados.
+
+Memory allocated em W não recebe `free` do caller. Um owned C carrier inclui um
+destroy symbol ou `{context, drop}`. Um borrowed carrier inclui pointer, count e
+lifetime limitado à call.
+
+A
+[documentação do Microsoft CRT](https://learn.microsoft.com/en-us/cpp/c-runtime-library/potential-errors-passing-crt-objects-across-dll-boundaries)
+mostra que liberar memória com outro heap pode corromper o process. W preserva o
+deallocator de origem em toda façade.
+
+#### 20.4.11 Service e component ABI
+
+**Exemplo:** o show convidado roda como component. Ele não recebe um pointer para
+o storage do restaurante:
+
+```text
+ShowRequest schema + owned resources
+  -> async component call
+  -> ShowOutcome schema
+```
+
+Service e component boundaries usam schemas canônicos. Elas suportam:
+
+- scalars, records, variants e collections com limites;
+- owned resources e borrowed handles limitados à call;
+- typed results;
+- async calls, streams e cancellation;
+- import/export identities;
+- capability requirements;
+- quotas e trace context.
+
+Uma call co-localizada pode usar a ABI W exata como fast path. O runtime conserva
+ordering, serialization checks, quotas, cancellation e failures. Se as keys ou
+trust domains divergem, a call usa a forma canônica.
+
+Plugins que precisam de fault isolation usam process, Wasm component ou outro
+compartment. Uma native dynamic library não vira sandbox. Hot reload inicia uma
+nova instance e drena a antiga. State migration usa schema e operation
+versionados.
+
+O [WIT](https://component-model.bytecodealliance.org/design/wit.html) separa
+interfaces, worlds e resources da representação interna da linguagem. W usa o
+mesmo princípio. W source continua sendo a API humana. O component schema é uma
+boundary explícita.
+
+#### 20.4.12 LTO, intermediate artifacts e observabilidade
+
+**Exemplo:** ativar ThinLTO não muda exports ou `WAbiKey` semântica:
+
+```text
+same WInterface + same WAbiKey
+  recipe A -> objects
+  recipe B -> ThinLTO cache and optimized objects
+```
+
+HIR, MLIR e LLVM bitcode intermediários são artifacts da recipe. Eles não são
+package ABI pública. Cada formato inclui toolchain revision e input digests.
+
+Static libraries podem participar de whole-program optimization. Dynamic
+libraries preservam sua boundary. O optimizer pode:
+
+- internalizar symbols não exportados;
+- especializar shared generic bodies;
+- remover ABI thunks em calls fechadas;
+- eliminar hidden runtime context não usado;
+- importar bodies permitidos pela interface.
+
+Ele não pode:
+
+- mudar C export names;
+- remover runtime validation exigida;
+- cruzar fault ou service boundary;
+- alterar ownership ou error semantics;
+- usar um intermediate artifact de outra toolchain key.
+
+[ThinLTO](https://clang.llvm.org/docs/ThinLTO.html) combina summaries globais
+com cache incremental. W trata essa técnica como estratégia da recipe. Module
+continua uma unidade semântica.
+
+Tooling oferece:
+
+```text
+w interface show <artifact>
+w interface diff <old> <new>
+w abi show <artifact>
+w abi key <artifact>
+w abi diff <consumer> <library>
+w symbols show <artifact>
+w symbols demangle <name>
+w runtime explain <product>
+w c header <product> --output <path>
+```
+
+`w abi show` exibe a key, o `RepresentationMap`, requirements e a ABI note.
+`w abi diff` compara compatibilidade binária exata. `w interface diff` compara
+API source. Os comandos não combinam os dois resultados numa palavra
+“compatible”.
 
 ### 20.5 Bootstrap
 
@@ -12789,9 +13389,10 @@ Um target freestanding pode usar somente `core`.
 tensors e package registry. O bootstrap possui um perfil source próprio,
 `bootstrap.w0`. Ele é W normal com uma lista menor de features.
 
-O seed portátil usa C11, CMake e Ninja. Ele aceita `bootstrap.w0` e emite C11
-portátil. Esse emitter existe somente para bootstrap, auditoria e recovery. O
-backend normal continua W/MLIR.
+O seed portátil usa CMake e Ninja. Ele aceita `bootstrap.w0` e emite um subset C
+conservador aceito em modo C11. O output não depende de uma feature C11 quando
+uma forma com suporte mais amplo é suficiente. Esse emitter existe somente para
+bootstrap, auditoria e recovery. O backend normal continua W/MLIR.
 
 MLIR fica atrás de um adapter C estreito e versionado. C++ e TableGen podem
 implementar dialects e passes. Tipos C++/MLIR não entram na HIR W. A
@@ -12918,8 +13519,11 @@ mudança que quebra essa janela exige uma ponte source ou um novo seed versionad
 O seed antigo não precisa aceitar toda edição futura.
 
 O seed é validado com Clang, GCC e MSVC quando o target permitir. Pelo menos uma
-rota usa warnings máximos e sanitizers disponíveis. Dependable C informa a
-matriz; ele não é um dialect e não autoriza undefined behavior.
+rota usa warnings máximos e sanitizers disponíveis.
+[Dependable C](https://dependablec.org/) informa suporte real entre
+implementations e targets. Ele não é um dialect e não autoriza W a depender de
+undefined behavior. Assumptions como byte width, endianness e pointer width
+pertencem ao `TargetSpec`, não ao source por acidente.
 
 O comando futuro `w bootstrap explain` lista stages, compiler parents, source
 digests, adapters, environment e pontos de convergência. Um artifact sem essa
@@ -13969,6 +14573,34 @@ maintainer.
 **Alternativa:** publicar todos os arquivos não ignorados reduz configuração.
 Ela transforma uma policy local e mutável em boundary de distribuição.
 
+#### 21.1.8 Product roots e library ABIs
+
+**Exemplo:** o Última Luz publica uma static library W exata e uma dynamic
+library com façade C:
+
+```w
+products: [
+  {
+    name: "last-light-horizon-w"
+    kind: .staticLibrary
+    module: "restaurant.horizon"
+    exports: ["restaurant.horizon::classifyHorizon"]
+    abi: .wExact
+    targets: ["desktop"]
+  },
+  {
+    name: "last-light-horizon-c"
+    kind: .dynamicLibrary
+    module: "restaurant.abi"
+    exports: ["restaurant.abi::ll_horizon_classify_v1"]
+    abi: .c
+    runtime: .none
+    panic: .forbid
+    targets: ["desktop"]
+  },
+]
+```
+
 `kind` seleciona um schema fechado. O manifest não usa um record com fields
 opcionais sem relação.
 
@@ -13999,8 +14631,23 @@ Product kinds iniciais:
 | `.benchmark` | harness, workload e evidence schema |
 | `.tool` | executável hermético usado pelo build |
 
-`.dynamicLibrary` não estabiliza a ABI W. A superfície exportada precisa escolher
-uma ABI, como C, Wasm Component ou schema W versionado.
+Library products não possuem `entry` ou host profile. `module` define a raiz do
+grafo. `exports` seleciona symbols `export` exatos. Um wildcard não é aceito.
+Uma declaração exportada no source não entra no artifact quando a lista não a
+seleciona.
+
+`abi: .wExact` gera symbols W, uma `WInterface` e uma `RepresentationMap`. O
+artifact só liga com uma `WAbiKey` compatível e layouts compartilhados iguais.
+Uma static library transfere seus runtime requirements ao product final. Uma
+dynamic library também fixa o runtime provider e o loader contract.
+
+`abi: .c` aceita somente `export unsafe fn<abi: .c>` e os carriers alcançáveis
+de `export foreign c`. O builder gera header, symbol manifest e export list.
+Uma C dynamic library declara `panic: .forbid` ou `.abortProcess` na v0. Use uma
+component quando uma falha precisar ser isolada do host.
+
+Uma library não estabiliza a ABI W por causa do container físico. Wasm
+Component e service ABI usam seus próprios product schemas.
 
 `targetSets` servem à matriz de CI e release. Eles não produzem um payload
 universal por inferência. Cada combinação de product, target e profile abre uma
@@ -14462,13 +15109,14 @@ A chave mínima inclui:
 ```text
 package graph + product + expanded entry + host profile + runtime graph + packing
 + target spec + selected target variants + profile + toolchain-plan row
-+ adapters + build inputs + lock digest
++ WAbiKey + RuntimeClosureKey + adapters + build inputs + lock digest
 ```
 
 O artifact record separa:
 
 - payload primário;
-- interface e symbol manifest;
+- `WInterface`, ABI note e symbol manifest;
+- runtime requirements;
 - resources;
 - device payloads;
 - debug sidecars;
@@ -14762,6 +15410,15 @@ w explain artifact <digest>
 w explain workflow <supervisor> --key <key>
 w audit effects <product>
 w diff-lock
+w interface show <artifact>
+w interface diff <old> <new>
+w abi show <artifact>
+w abi key <artifact>
+w abi diff <consumer> <library>
+w symbols show <artifact>
+w symbols demangle <name>
+w runtime explain <product>
+w c header <product> --output <path>
 w verify <artifact>
 w reproduce <release>
 w deploy resolve <plan>
@@ -15230,6 +15887,14 @@ Uma pesquisa só avança quando possui:
 | target variants disjuntas | **Possível agora** | predicates positivos, case único e interface matrix são verificações estáticas |
 | source snapshot por allowlist | **Possível agora** | module expansion, PackagePath e digest produzem uma árvore fechada |
 | build transform tipada | **Provável** | host profile e CAS são diretos; sandbox cross-platform exige protótipo |
+| `WInterface` semântica versionada | **Possível agora** | schema data-only separa API, facts e chunks do cache interno |
+| encoding publicável de metadata | **Pesquisa** | `WMeta1` e CBOR determinístico precisam de protótipo W0, fuzzing e benchmark |
+| `WAbiKey` exata | **Possível agora** | target, call ABI e policies globais formam uma key; layouts compartilhados usam `RepresentationMap` |
+| runtime contract set reachability-linked | **Possível agora** | requirements e offers usam o mesmo modelo tipado da toolchain |
+| C façade com body W | **Possível agora** | `fn<abi: .c>` usa carriers explícitos e calling convention do target |
+| W dynamic library por digest | **Provável** | loader e ABI note são conhecidos; parity e unload exigem protótipo |
+| ABI W resiliente entre releases | **Pesquisa** | metadata, accessors, value witnesses e library evolution aumentam custo permanente |
+| native dynamic library como sandbox | **Rejeitado** | loader e symbol boundary não contêm memory corruption ou panic |
 | parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
 | mensagem HTTP, ownership e admission | **Possível agora** | types, stream e limits estão fechados; adapters ainda precisam de corpus |
 | adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
@@ -15444,6 +16109,7 @@ horizon     → event time, sensor fusion e tensors
 accelerator → kernels e device bundles
 AI lab      → treino no host e oracle CPU/device
 benchmark   → HTTP/database workloads e performance evidence
+ABI lab     → static W, dynamic C, components e version skew
 ```
 
 O repository do produto é um workspace:
@@ -15473,6 +16139,7 @@ RestaurantApi
   → controle PID com `init`, computed property, ranges e units
   → tensor de previsão
   → sensor C + fn<C>
+  → WInterface + WAbiKey + RepresentationMap + façade fn<abi: .c>
   → grafo shared/weak + callback pinned
   → pricing + billing idempotente
   → DiningRoom service
@@ -15493,7 +16160,8 @@ Os gates são cumulativos:
 4. package, lock e build reproduzem cada target;
 5. mobile, firmware, áudio e devices passam seus resource gates;
 6. AI lab e device kernels preservam shapes e numeric mode;
-7. benchmarks preservam semântica e publicam evidence suficiente.
+7. ABI lab valida source rebuild, C header, symbols, runtime e version skew;
+8. benchmarks preservam semântica e publicam evidence suficiente.
 
 Enquanto o compiler não existe, o documento deve informar quais gates são
 oracles e quais possuem evidência executável. Um parse do Tree-sitter não prova
@@ -15576,6 +16244,7 @@ alternativa preservada.
 - consolidar este documento;
 - criar corpus W positivo, negativo e comparativo;
 - completar o restaurante cósmico;
+- fixar ABI oracles de source, W exact, C e component;
 - fixar diagnostic IDs e formatter examples.
 
 Saída: toda forma implementada possui contrato, alternativa e teste.
@@ -15606,6 +16275,7 @@ Saída: parse/format/parse estável e diagnostics preparados.
 
 - AST e module graph;
 - imports, visibilidade efetiva e interface normalizada;
+- reader limitado e fuzzer de `WInterface`;
 - primitives, `()`, `Never`, structs, enums, functions, Option e error sets;
 - literais exatos, widths numéricas, conversões seguras e ranges;
 - function pointers, callable modes, opaque callables e erased callables;
@@ -15622,7 +16292,8 @@ Saída: parse/format/parse estável e diagnostics preparados.
 - grafo const, ConstIR, quotas e ConstValue;
 - verificação de parâmetros de chamada `const` no call site;
 - `ProofFacts` para intervalos, case-sets, comprimentos, shapes e flow;
-- interface compilada inicial.
+- `WInterface` canônica e cache interno separado;
+- `w interface show` e diff source inicial.
 
 Saída: `w check` verifica o subset síncrono do restaurante.
 
@@ -15635,11 +16306,15 @@ frontend self-hosted.
 - propagation de facts, eliminação de checks e optimization record;
 - witnesses sintetizados e descriptors alcançáveis;
 - dialeto W/MLIR e verifiers;
+- ABI semântica e lowering físico por target;
+- `WAbiKey`, `RepresentationMap`, ABI notes e symbol manifest;
+- readers limitados e fuzzers de ABI note e symbol manifest;
+- mangling e export map determinísticos;
 - arithmetic/control lowering;
 - integer checked, float strict, total order e numeric conversion lowering;
 - String UTF-8, views, decoder incremental e maximal-subpart tests;
-- LLVM/native e runtime core;
-- seed C aceita o primeiro `bootstrap.w0` e emite C11;
+- LLVM/native e runtime core por contract set;
+- seed C aceita o primeiro `bootstrap.w0` e emite o subset C conservador;
 - corpus diferencial entre o caminho seed-C e W/MLIR.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
@@ -15657,6 +16332,9 @@ e cancelamento.
 - typed errors e panic boundary;
 - allocator hooks;
 - `foreign c`, unsafe e wrappers;
+- `export foreign c` e `export unsafe fn<abi: .c>`;
+- header C, status/result carriers e deallocator de origem;
+- validação de runtime `.none` e `.explicitContext`;
 - primeiro adapter `fn<C>` com body opaco e static archive.
 
 Saída: sanitizers e corpus negativo não encontram dangling/double drop.
@@ -15683,9 +16361,9 @@ capacidade necessária para o gate seguinte.
 | SH1 | parser, recovery, AST, static contracts, ConstIR, modules, imports e names | cria AST e tabela const de forma estável |
 | SH2 | scalars, aggregates, enums, generics, associated members e type checking | verifica os módulos do core |
 | SH3 | initialization, move, borrow, drop, errors e collections | constrói HIR sem GC |
-| SH4 | HIR tipada, verifier, serialization e deterministic order | round-trip preserva a HIR |
-| SH5 | C ABI, foreign units, filesystem, argv, path, environment e backend adapter | gera um compiler executável |
-| SH6 | recipes herméticas, stages A/B/C e comparação normalizada | recompila o mesmo source |
+| SH4 | HIR tipada, `WInterface`, verifier, serialization e deterministic order | round-trip preserva HIR e interface |
+| SH5 | C ABI, runtime core contracts, foreign units, filesystem e backend adapter | gera um compiler executável |
+| SH6 | `WAbiKey`, recipes herméticas, stages A/B/C e comparação normalizada | recompila o mesmo source |
 | SH7 | seed C por toolchains diversos e recipe de recovery | reproduz a rota auditável |
 
 Todos os gates usam allocation fallible. Nenhum gate depende de clock, random,
@@ -15757,6 +16435,10 @@ de marcar a versão como reproduced.
 - target variants, source inventory e active source sets por context;
 - interface matrix uniforme e diagnostics de case overlap;
 - separação entre lock, recipe e artifact record;
+- library products `.wExact` e `.c`;
+- seleção de artifact W por `WAbiKey` com source fallback;
+- loader por digest para W dynamic library;
+- `w abi`, `w symbols`, `w runtime explain` e `w c header`;
 - builds `--locked`/offline;
 - `w add`, `w remove`, graph diff e mutation atômica do lock;
 - host `build-transform@1`, action graph e outputs no CAS;
@@ -15798,6 +16480,7 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
 | performance | facts aceleram sem mudar semântica ou layout público? | differential oracles, optimization records e benchmarks |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
+| ABI | source, W exact, C e component ficam distintos? | mismatch, header, symbols, allocator e version-skew oracles |
 | self-host | SH0–SH7 fecham e convergem? | mini compiler, builds diversos e diff de outputs |
 
 ### 27.12 Checkpoint por fase
@@ -15928,7 +16611,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-073 | parser | recursive-descent/Pratt + EBNF | generated parser; Tree-sitter compiler |
 | W-074 | editor parser | Tree-sitter projection | compiler CST compartilhada |
 | W-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
-| W-076 | bootstrap | C11 seed, self-host cedo | TypeScript/Bun; C++ compiler inteiro |
+| W-076 | bootstrap | seed C conservador aceito em modo C11; self-host cedo | TypeScript/Bun; C++ compiler inteiro |
 | W-077 | build tool | CMake/Ninja no seed | xmake; custom builder antes do self-host |
 | W-078 | packages | manifests de package/workspace data-only + lock compartilhado | executable manifest; lock opcional |
 | W-079 | resolver | determinístico, uma versão por identity em cada resolution realm | múltiplas versões no mesmo realm |
@@ -15964,7 +16647,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-109 | compactação | portátil → niche → low-bit; high-bit em pesquisa | tagged address obrigatório |
 | W-110 | hardening | sanitizer, PAC, MTE e capability têm precedência | compactação vence o profile |
 | W-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
-| W-112 | seed output | W0 para C11, backend normal W/MLIR | MLIR completo no seed; C como backend público |
+| W-112 | seed output | W0 para subset C conservador, backend normal W/MLIR | exigir features C11; MLIR completo no seed; C como backend público |
 | W-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após o design completo |
 | W-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
 | W-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
@@ -16459,6 +17142,33 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-604 | platform availability | grafo alcançável precisa caber no `platformContract`; compiler não aumenta o minimum | SDK version vira runtime floor; link falha tarde; API nova eleva target em silêncio |
 | W-605 | requirement transitiva | dependency pode pedir role; somente root autoriza language/source e escolhe provider | dependency fixa compiler; download precede policy; foreign adapter implícito |
 | W-606 | ownership da toolchain policy | workspace, flag da root ou default seguro do consumer; package não concede autorização | policy transitiva; package autoriza próprio compiler; reprodução ignora deny local |
+| W-607 | camadas de compatibilidade | API, interface, W exact, runtime, component, foreign e schema são contratos separados | uma ABI universal; source implica wire; component usa layout W |
+| W-608 | interface semântica | `WInterface` separa semantic, documentation, diagnostic map e body chunks; `SemanticInterfaceKey` dirige compatibilidade | um digest mistura docs e type-check; AST serializada como autoridade; header textual |
+| W-609 | cache de interface | AST/HIR interna usa toolchain key e não é artifact publicável | formato interno estável; package distribui cache; reparse obrigatório |
+| W-610 | chave ABI W | `WAbiKey` cobre policies globais; `RepresentationMap` cobre tipos nas boundaries; requirements ficam separados | type set privado ou requirement set na key; target triple somente |
+| W-611 | mismatch W | plan fixa artifact exato, source rebuild ou boundary explícita; candidate incompatível falha | fallback por disponibilidade; adaptar layout; escolher library por filename |
+| W-612 | ABI semântica de call | signature registra ownership, effects, provenance, generic metadata e address space | somente tipos físicos; caller infere cleanup; throws por unwind |
+| W-613 | ABI física de call | `WAbiKey` escolhe direct/indirect, registers, hidden context e error channel | calling convention fixa universal; source escolhe registers; C ABI interna |
+| W-614 | generic binary-only | shared body, instâncias fechadas ou HIR aceita pela mesma distribuição; source-first é fallback | compiler futuro interpreta IR antiga; machine code generic universal |
+| W-615 | symbol W | `SymbolId` semântico + mangling versionado e manifest completo; ordem e path não participam | nome source global; node ID; hash curto sem collision check |
+| W-616 | runtime contract set | objects pedem operações versionadas; provider oferece; reachability produz `RuntimeClosureKey` fora da `WAbiKey` | `libwrt` monolítica; runtime implícito do host; requirement set dentro da `WAbiKey` |
+| W-617 | inicialização de runtime | entry shim valida host e passa contexto bounded; sem module/library constructor implícito | globals exportados; init por import; scheduler descoberto no executable |
+| W-618 | product de library | exports exatos + `.wExact` ou `.c`; container static/dynamic não muda semântica | todos exports do módulo; ABI inferida pelo suffix; library é module |
+| W-619 | W dynamic library | artifact index e digest selecionam; loader valida ABI/runtime antes de entregar handle | `PATH`; soname sem digest; hot-swap in-place |
+| W-620 | ABI W resiliente | **Pesquisa** fora da baseline; v0 recompila dependentes | estabilidade eterna; layout frozen por default; runtime permanente obrigatório |
+| W-621 | função W com ABI C | `export unsafe fn<abi: .c>` possui body W; `fn<C>` continua ilha C | annotation; wrapper externo obrigatório; interpretar C como W |
+| W-622 | export C | identifier é link name exato; header e export list são gerados; const inteira não cria storage; collision falha antes do link | mangling W; symbol alias ambiental; export de todos os symbols |
+| W-623 | memória na façade C | owner cruza com destroy symbol ou context/drop; borrow termina na call | caller usa `free`; allocator global presumido; W collection direta |
+| W-624 | falha na façade C | typed error vira carrier; panic é `.forbid` ou `.abortProcess` e nunca atravessa | exception unwind; panic como status automático; catch de panic em C |
+| W-625 | plugin e version skew | process/Wasm/component usa schema; nova instance inicia e antiga drena | native library vira sandbox; copiar globals; trocar bytes sob instance ativa |
+| W-626 | LTO e IR | HIR, MLIR e bitcode são artifacts exatos da recipe; LTO não define package ABI | bitcode público eterno; static library por module; LTO muda ownership |
+| W-627 | diagnóstico de compatibilidade | `interface diff` e `abi show/diff` produzem resultados separados; symbol/runtime tools explicam a causa | um Boolean compatible; erro final do linker; versão como proxy |
+| W-628 | runtime de façade C | `.none` não recebe contexto oculto; `.explicitContext` usa create/destroy e handle C | runtime global; lazy init; TLS implícita; context descoberto no host |
+| W-629 | unload de library nativa | release fecha lookup e calls; v0 mantém mapeamento até o fim do runtime island | desmapear por refcount de handle; copiar globals; assumir que nenhum owner retém código |
+| W-630 | metadata binária não confiável | readers de interface, ABI note e manifests são data-only, bounded e fuzzed | confiar em assinatura; deserialização sem limites; plugin durante decode |
+| W-631 | header C por target | sidecar determinístico inclui calling convention, export macros e layout assertions; index liga header à slice | header universal por nome; path e timestamp; confiar só no linker |
+| W-632 | resolução de symbol dinâmico | loader W usa handle + manifest e visibilidade local; calls não dependem de interposition | lookup process-global; primeiro symbol carregado; override por environment |
+| W-633 | encoding de metadata | **Pesquisa:** comparar `WMeta1` e subset CBOR determinístico antes do formato público | JSON como autoridade; cache interno como contrato eterno; escolher sem fuzzer W0 |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

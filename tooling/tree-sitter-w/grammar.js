@@ -212,7 +212,7 @@ module.exports = grammar({
         optional(field("receiver_modifier", choice("mut", "take"))),
         optional("async"),
         "fn",
-        optional($.language_tag),
+        optional(choice($.language_tag, $.abi_contract)),
         field("name", $.identifier),
         optional($.type_parameters),
         field("parameters", $.parameter_list),
@@ -228,6 +228,16 @@ module.exports = grammar({
           field("language", $.identifier),
           seq("lang", ":", field("language", $.contextual_member_expression)),
         ),
+        ">",
+      ),
+
+    abi_contract: ($) =>
+      seq(
+        "<",
+        "abi",
+        ":",
+        field("abi", $.contextual_member_expression),
+        optional(","),
         ">",
       ),
 
@@ -681,6 +691,7 @@ module.exports = grammar({
           choice(
             $.foreign_type_declaration,
             $.foreign_struct_declaration,
+            $.const_declaration,
             $.function_declaration,
           ),
         ),
