@@ -2,16 +2,35 @@
 
 package {
   schema: "w.package/1"
+  authority: .registry("w")
   name: "last-light/restaurant"
   version: "0.1.0"
   edition: "2026"
+  namespace: "restaurant"
+  license: {
+    expression: "MIT"
+    files: ["LICENSE"]
+  }
+  publish: {
+    source: .required
+    files: [
+      .modules,
+      .path("deployments/local.w"),
+      .path("deployments/distributed.w"),
+      .path("deployments/benchmark.w"),
+      .path("menus/final.menu"),
+      .path("README.md"),
+      .path("BUILD.md"),
+      .path("LICENSE"),
+    ]
+  }
 
   moduleSets: [
     {
       namespace: "restaurant"
       root: "."
       include: ["*.w"]
-      exclude: ["package.w"]
+      exclude: ["package.w", "workspace.w"]
       layout: .fileStem
     },
   ]
@@ -311,6 +330,9 @@ package {
       runtime: "restaurant-core"
       packing: "single-process"
       capabilities: [.stdio, .network, .signals, .clock, .services, .devices]
+      resources: [
+        .action("compile-final-menu", output: "bytecode"),
+      ]
     },
     {
       name: "last-light-worker"
@@ -515,11 +537,39 @@ package {
     },
   ]
 
-  dependencies: []
+  dependencies: [
+    {
+      alias: "menuCompiler"
+      package: "last-light/menu-compiler"
+      version: "^0.1.0"
+      use: .build
+      source: .registry("w")
+    },
+  ]
 
   build: {
     network: .deny
     environment: []
+    actions: [
+      {
+        name: "compile-final-menu"
+        tool: .dependency("menuCompiler", product: "menu-compiler")
+        inputs: [
+          {
+            binding: "menu"
+            source: .file("menus/final.menu")
+            maximumBytes: 64KiB
+          },
+        ]
+        outputs: [
+          {
+            binding: "bytecode"
+            kind: .resource
+            maximumBytes: 1MiB
+          },
+        ]
+      },
+    ]
     profiles: [
       {
         name: "debug"

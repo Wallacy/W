@@ -150,6 +150,8 @@ fn inspect(service: ServiceRef): Bool {
   let nanoservice = worker
   let on = worker
   let where = on
+  let workspace = where
+  let lock = workspace
   return true
 }
 
@@ -168,6 +170,14 @@ fn inspect(service: ServiceRef): Bool {
       (type_name
         (type_identifier)))
     (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
       (binding_declaration
         (pattern
           (identifier))

@@ -73,7 +73,8 @@ lifecycle diferente             -> outro product e, normalmente, outro artifact
 
 ## 3. Products
 
-O manifest vigente está em [`package.w`](package.w).
+O workspace vigente está em [`workspace.w`](workspace.w). O package principal
+está em [`package.w`](package.w).
 
 | Product | Kind | Host | Finalidade |
 |---|---|---|---|
@@ -281,30 +282,95 @@ validada e grava a evidence com os digests do artifact, deployment e harness.
 
 ## 6. Packages e releases
 
-### 6.1 Resolução
+### 6.1 Workspace e resolução
+
+[`workspace.w`](workspace.w) contém dois members:
 
 ```text
+.                       -> last-light/restaurant
+packages/menu-compiler  -> last-light/menu-compiler
+```
+
+O segundo member satisfaz uma `.build` dependency do primeiro. Identity e
+version precisam conferir com a dependency publicada. Os dois manifests
+declaram a registry authority `w`. O workspace não altera os imports W e não
+vira uma release conjunta.
+
+```text
+w context
+w workspace check
 w resolve
 w diff-lock
 w fetch --locked
 w build last-light-native --locked
+w publish check last-light/restaurant
 ```
 
 `package.lock` fixa:
 
+- digest do workspace manifest e dos package manifests;
+- roots e dependency usages;
+- target roles e identities dos resolution contexts;
 - versões e origins;
-- source e artifact digests;
-- adapters e toolchains;
-- target e profile;
+- external source tree digests;
+- member paths, manifests e source-set digests;
 - features;
-- grafo de módulos;
+- build-tool packages;
 - expansão de `moduleSets`;
-- recipe e provenance.
+- metadata snapshots e razões da resolução.
 
-### 6.2 Publicação
+A recipe por product, target e profile fixa:
+
+- content tree digest de cada source local;
+- lock digest;
+- entry, host, runtime graph e packing;
+- target, profile, compiler, runtime, adapters, sysroot e SDK;
+- execution target e artifact de cada build tool;
+- action recipes, input digests, output schemas e budgets;
+- generated output digests usados como product inputs;
+- environment permitido e valores usados.
+
+O artifact record liga o recipe digest aos payloads, resources, sidecars e
+provenance. Um action result liga a action recipe aos generated output digests.
+Nenhum result digest entra na recipe que o produz.
+
+`w publish check` resolve o package sem substituição por workspace. Assim, uma
+release local ausente não fica escondida por um member.
+
+### 6.2 Build transform do cardápio
+
+`compile-final-menu` usa o `.tool` product `menu-compiler`:
 
 ```text
-w package last-light-native --matrix desktop --locked
+menus/final.menu
+  -> build.Input<String>("menu")
+  -> last-light/menu-compiler::menu-compiler
+  -> build.Output<Bytes>("bytecode")
+  -> CAS resource
+  -> last-light-native
+```
+
+O tool executa para o execution target. O executable continua no product
+target. Um build Windows para Cortex-M não tenta executar um tool Cortex-M.
+
+```text
+w explain dependency last-light/menu-compiler
+w explain action compile-final-menu
+w build last-light-native \
+  --target x86_64-unknown-linux-gnu \
+  --locked
+```
+
+A action recebe um input de até 64 KiB e produz um output de até 1 MiB. Ela não
+recebe network, environment, clock, random, secret ou filesystem geral. Error,
+panic, cancellation ou output ausente não confirmam objeto no CAS.
+
+### 6.3 Publicação
+
+```text
+w package list last-light/restaurant
+w package check last-light/restaurant
+w package assemble last-light-native --matrix desktop --locked
 w publish --release 0.1.0 --artifacts dist/release.windex
 w verify registry:last-light/restaurant@0.1.0
 w reproduce registry:last-light/restaurant@0.1.0
@@ -313,6 +379,10 @@ w reproduce registry:last-light/restaurant@0.1.0
 O maintainer autoriza a release. Um builder produz provenance. Um segundo
 builder pode publicar evidência de reprodução. Um auditor publica análise
 separada.
+
+O source snapshot usa a allowlist de `package.w`. Ele não consulta
+`.gitignore`. Cada member inclui seu próprio `LICENSE`, e `package check`
+reconstrói usando somente o snapshot.
 
 Nenhum selo combina essas propriedades em uma afirmação vaga de “seguro”.
 
@@ -393,6 +463,7 @@ Cada product precisa de um oracle observável.
 
 | Product | Oracle |
 |---|---|
+| menu compiler | execution/target separados e mesmo bytecode por input |
 | simulation | mesmos eventos e totais para a mesma recipe |
 | native | CLI, TUI e HTTP produzem a mesma resposta tipada |
 | worker | request limits, cancellation e status são equivalentes |
@@ -418,20 +489,22 @@ O produto de referência se torna parte da suíte de:
 
 Os arquivos atuais exigem contratos ainda não implementados:
 
-1. parser data-only e schemas de package e deployment;
-2. expansão determinística de `moduleSets`;
-3. host profiles e slot registry;
-4. std de process, mobile, device, audio e accelerator;
-5. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
-6. codecs JSON explícitos ou derivados por synthesis autorizada;
-7. pool, adapters de protocolo e validação de schema do database;
-8. implementação de cache local, eviction e single-flight;
-9. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
-10. validator do runtime graph e da interface de cada unit;
-11. platform packaging e signing;
-12. device memory e kernel ABI;
-13. harness TechEmpower versionado e seus validadores;
-14. deployment resolver, lock e validator;
-15. compiler e backends.
+1. schemas semânticos de package, workspace e deployment;
+2. resolver, lock contexts e standalone publish check;
+3. expansão determinística de `moduleSets`;
+4. `build-transform@1`, sandbox e action CAS;
+5. host profiles e slot registry;
+6. std de process, mobile, device, audio e accelerator;
+7. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
+8. codecs JSON explícitos ou derivados por synthesis autorizada;
+9. pool, adapters de protocolo e validação de schema do database;
+10. implementação de cache local, eviction e single-flight;
+11. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
+12. validator do runtime graph e da interface de cada unit;
+13. platform packaging e signing;
+14. device memory e kernel ABI;
+15. harness TechEmpower versionado e seus validadores;
+16. deployment resolver, lock e validator;
+17. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

@@ -12,7 +12,8 @@ conformance, benchmarks, documentação e treinamento.
 O produto não prova que a linguagem está implementada. Ele pressiona a forma
 integrada de [DESIGN.md](../../DESIGN.md). O
 [plano de build](BUILD.md) aplica products, targets, host profiles e artifacts.
-O manifest data-only está em [`package.w`](package.w).
+O workspace data-only está em [`workspace.w`](workspace.w). O package principal
+está em [`package.w`](package.w).
 
 ## 1. Rotas operacionais
 
@@ -49,6 +50,11 @@ last-light-audio / LastLightAudio
 last-light-accelerators / LastLightKernels
   → tensor kernels
   → NVVM, ROCDL ou SPIR-V
+
+compile-final-menu / menu-compiler
+  → build.transform
+  → input e output tipados
+  → resource imutável no CAS
 ```
 
 `LastLightSimulation` é o primeiro alvo operacional. Ele não usa relógio,
@@ -129,7 +135,10 @@ alvo de execução independente.
 | `memory.w` | ownership, enum subset, niches, pinning e callback C |
 | `allocation.w` | placement, allocator, arena, budget e rehome |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
-| `menu_compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
+| `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
+| `packages/menu-compiler/transform.w` | entry hermética de build e bindings tipados |
+| `packages/menu-compiler/package.w` | `.tool` product publicável do compiler |
+| `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
@@ -146,6 +155,7 @@ alvo de execução independente.
 | `app.w` | processo nativo multimodo, linha por evento e Context |
 | `worker_app.w` | component HTTP com lifecycle do host |
 | `package.w` | products, runtime graphs, packings, targets e build profiles |
+| `workspace.w` | members, defaults e patches locais |
 | `BUILD.md` | matriz de artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
 | `deployments/distributed.w` | plano heterogêneo com services, devices e WASI |
@@ -182,7 +192,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
-| self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
+| self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `presentation.w`, `app.w` | um modelo tipado atende CLI, TUI e HTTP |
 | products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, packing, target e placement ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
@@ -587,7 +597,7 @@ Famílias: package, lock, digest, mirror e capability.
 
 Aceite:
 
-- lock fixa source e artifact;
+- lock fixa source externo; recipe fixa tool artifact e demais inputs;
 - mirror diferente entrega os mesmos bytes;
 - bytes diferentes falham antes do build;
 - tool target sem network não consegue abrir network;
@@ -669,7 +679,11 @@ determinístico.
 
 Aceite:
 
-- `menu_compiler.w` usa somente o profile `bootstrap.w0`;
+- `packages/menu-compiler/compiler.w` usa somente o profile `bootstrap.w0`;
+- `packages/menu-compiler/transform.w` recebe somente `menu` e `bytecode`;
+- o tool compila para o execution target, não para o product target;
+- nenhum path, environment, clock, random ou network fica disponível;
+- error ou output acima de 1 MiB não confirma objeto no CAS;
 - `const fn buildInstructionOpcodes` executa no evaluator CE0;
 - a mesma `const fn` continua callable em runtime;
 - o ConstValue de Map preserva pares em ordem de inserção e não preserva hash;
@@ -1298,6 +1312,18 @@ Famílias: package, product, entry, runtime graph, packing, deployment e artifac
 Aceite:
 
 - `package.w` usa somente o subset data-only;
+- `workspace.w` lista paths exatos e usa um lock compartilhado;
+- o member `last-light/menu-compiler` satisfaz a `.build` dependency local;
+- a authority, o name e a version do member conferem com a dependency;
+- `w publish check` resolve a mesma dependency sem o workspace;
+- build, product, test e benchmark mantêm graphs e target roles distintos;
+- o lock fixa resolução, a recipe fixa inputs e o artifact record liga outputs;
+- `compile-final-menu` declara tool, input, output e budgets;
+- o compiler não entra no payload de `last-light-native`;
+- o resource gerado entra na artifact key do product;
+- cada package usa source allowlist e inclui seu próprio `LICENSE`;
+- `.gitignore` não muda o source snapshot;
+- `w package check` reconstrói somente com os arquivos publicáveis;
 - `moduleSets` expande para a mesma lista em qualquer filesystem;
 - build locked falha quando um arquivo novo não está no lock;
 - `.default` resolve o descriptor anônimo de `app.w`;

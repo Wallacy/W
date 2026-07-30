@@ -129,7 +129,7 @@
         },
         {
           "name": "keyword.declaration.w",
-          "match": "\\b(?:alias|behavior|const|deployment|dimension|entry|enum|export|extension|fn|foreign|from|import|let|object|package|protocol|service|struct|test|type|unit|var)\\b"
+          "match": "\\b(?:alias|behavior|const|deployment|dimension|entry|enum|export|extension|fn|foreign|from|import|let|lock|object|package|protocol|service|struct|test|type|unit|var|workspace)\\b"
         },
         {
           "name": "keyword.effect.w",

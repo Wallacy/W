@@ -28,7 +28,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `entry(handler)`, descriptors nomeados e bindings de host;
-- manifests `package { ... }` e `deployment { ... }` com values data-only;
+- manifests `package`, `workspace`, `lock` e `deployment` com values data-only;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
@@ -49,6 +49,7 @@ npm install
 npm run generate
 npm test
 npm run parse:reference
+npm run parse:packages
 npm run parse:deployments
 npm run parse:std
 npm run parse:fixture

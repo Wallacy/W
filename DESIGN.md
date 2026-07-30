@@ -1266,7 +1266,7 @@ moduleSets: [
     namespace: "restaurant"
     root: "."
     include: ["*.w"]
-    exclude: ["package.w"]
+    exclude: ["package.w", "workspace.w"]
     layout: .fileStem
   },
 ]
@@ -8922,6 +8922,7 @@ T1 contém:
 - clock, calendar, timezone e random;
 - Task, TaskOutcome, TaskGroup, Stream e Channel;
 - synchronization, executors e blocking adapters;
+- build transforms com inputs, outputs e capabilities fechados;
 - ServiceRef, ServiceBinding, ServiceFamily, ServiceIdentity e service host APIs;
 - SupervisorRef, WorkKeyRef, WorkRef, WorkContext, WorkSnapshot e WorkOutcome;
 - TCP, UDP, TLS e DNS;
@@ -13015,6 +13016,7 @@ Perfis iniciais:
 | `audio-device@1` | `audio.render` | callback com deadline e sem allocation |
 | `accelerator-module@1` | nenhum | kernels chamados por um host |
 | `test-harness@1` | `test.run` | testes determinísticos |
+| `build-transform@1` | `build.transform` | geração hermética com inputs e outputs tipados |
 
 Um profile pode incluir slots opcionais. O product precisa ligar todos os slots
 required. Um `entry` não inventa um slot e um target não concede capability.
@@ -13095,9 +13097,11 @@ type ou outro manifest.
 ```w
 package {
   schema: "w.package/1"
+  authority: .registry("w")
   name: "last-light/restaurant"
   version: "0.1.0"
   edition: "2026"
+  namespace: "restaurant"
 
   runtimeGraphs: [
     {
@@ -13165,6 +13169,7 @@ package {
       alias: "http"
       package: "w/http"
       version: "^1.0"
+      use: .product
       source: .registry("w")
     },
   ]
@@ -13214,12 +13219,443 @@ e independente do parser W completo.
 - `package.w` é um formato data-only;
 - `package.lock` é obrigatório para build reprodutível;
 - o resolver é determinístico e registra sua versão;
-- o design vigente usa uma versão por package identity em cada product;
+- o design vigente usa uma versão por package identity em cada resolution
+  realm;
 - o resolver escolhe a maior versão compatível no snapshot assinado;
 - pre-release exige opt-in;
 - aliases são locais e não mudam identity;
 - múltiplas versões ficam fora da v0;
-- features são aditivas, locais à instância e entram na chave do artefato.
+- features são aditivas, explícitas e entram na chave do artefato.
+
+#### 21.1.1 Workspace
+
+**Exemplo:** o Última Luz desenvolve o restaurante e o compiler de cardápio no
+mesmo checkout, mas cada package mantém identity e release próprias:
+
+```w
+workspace {
+  schema: "w.workspace/1"
+  members: [
+    ".",
+    "packages/menu-compiler",
+  ]
+  defaultMembers: ["."]
+  patches: []
+}
+```
+
+`workspace.w` usa o mesmo codec data-only dos outros manifests. Ele é uma
+fronteira de desenvolvimento e resolução. Ele não é package, module, product ou
+release. O arquivo não é publicado como parte da identidade de um member.
+
+`members` contém `PackagePath` relativos e exatos. A v0 não aceita glob, path
+absoluto, `..` ou symlink que saia da raiz. Cada path precisa conter um
+`package.w`, e duas entries não podem resolver para a mesma árvore ou identity.
+Um workspace com um único member continua válido.
+
+Todos os members compartilham um `package.lock` na raiz e o mesmo CAS. O lock
+mantém contexts separados por product, target e usage de dependência. Outputs
+continuam imutáveis; packages não escrevem no diretório de outro member.
+
+Uma dependência usa automaticamente um member quando package identity e version
+constraint conferem. O field `authority` do member participa dessa prova.
+Version incompatível produz error. O resolver não usa uma release do registry
+no lugar do member local sem informar o usuário. O lock grava o manifest digest,
+o source-set digest e a razão da seleção. A recipe grava o content tree digest.
+
+O discovery local procura o `workspace.w` ancestral mais próximo que liste o
+package atual. `w context` mostra manifest, workspace, lock e roots antes de
+qualquer mutation. CI e release usam `--workspace <path>` ou `--standalone`;
+eles não dependem de discovery ambiental.
+
+`defaultMembers` afeta somente comandos sem seleção, como `w check --workspace`.
+Ele não muda dependências ou artifacts. `w publish check` resolve cada member
+como package externo, sem substituição automática por workspace. Assim, um
+workspace verde não esconde uma dependência que ainda não pode ser publicada.
+
+**Alternativa:** manter configuração de workspace apenas fora do repository
+facilita overlays pessoais. Ela torna CI, lock e seleção de members menos
+observáveis.
+
+#### 21.1.2 Usages de dependência
+
+**Exemplo:** o restaurante usa o compiler de cardápio durante o build. O
+compiler não entra no executable:
+
+```w
+dependencies: [
+  {
+    alias: "menuCompiler"
+    package: "last-light/menu-compiler"
+    version: "^0.1.0"
+    use: .build
+    source: .registry("w")
+  },
+]
+```
+
+`use` é obrigatório e possui quatro cases na v0:
+
+| Use | Grafo habilitado | Configuração |
+|---|---|---|
+| `.product` | modules e artifacts alcançáveis pelo product | target |
+| `.build` | tools executadas para produzir inputs | execution |
+| `.test` | tests e seus fixtures | test target |
+| `.benchmark` | harness e medição | benchmark target |
+
+Uma `.build` dependency não fica importável por um module `.product`. Uma
+`.test` ou `.benchmark` dependency não entra em library interface, runtime
+graph, release payload ou SBOM do product. Ela aparece na provenance do test ou
+benchmark correspondente.
+
+Dependências transitivas preservam seu usage. Um build tool pode ter suas
+próprias `.product` dependencies; elas pertencem ao artifact do tool na
+configuração de execution. Elas não se misturam com uma versão da mesma library
+compilada para o target final.
+
+O resolver deriva o grafo alcançável por root. Uma dependency que product,
+action, test, benchmark ou feature não referencia é error. Uma dependency
+referenciada somente por feature permanece inativa até um root selecionar essa
+feature; isso não é erro nem causa download preventivo.
+
+Cada package declara um `namespace` de module. Todos os modules públicos do
+package ficam nessa raiz. O `alias` da dependency substitui essa raiz no source
+consumer:
+
+```w
+// Package acme/telemetry declares namespace "acme.telemetry".
+// The dependency alias is "telemetry".
+import telemetry.codec
+import { Frame } from telemetry.model
+```
+
+O alias é um W identifier e não participa de type identity, ABI ou wire schema.
+O compiler resolve `telemetry.codec` para `acme.telemetry.codec` antes de name
+lookup. Um module local, std module e dependency alias não podem ocupar a mesma
+raiz no mesmo package.
+
+O namespace canônico contém um ou mais W identifiers separados por `.`. Um
+module público precisa ser o namespace ou seu descendant. A raiz `std` é
+reservada ao SDK. O alias usa um único identifier e pode seguir o vocabulário
+local do consumer.
+
+Modules do próprio package usam o namespace canônico. Interfaces e diagnostics
+mostram alias e identity resolvida. URL, version e digest não entram no import.
+
+#### 21.1.3 Features sem defaults ocultos
+
+**Exemplo:** uma feature ativa uma dependency inativa e um module set adicional.
+O product escolhe a feature:
+
+```w
+features: [
+  {
+    name: "compressed-telemetry"
+    enables: [
+      .dependency("zstd")
+      .moduleSet("telemetry-zstd")
+    ]
+  },
+]
+
+products: [
+  {
+    name: "observatory"
+    features: ["compressed-telemetry"]
+  },
+]
+```
+
+Uma feature é uma seleção aditiva do grafo. Ela pode ativar dependency,
+module set, resource ou action declarados. Na v0, source W não possui
+`if feature`, annotation ou macro de feature. Código opcional ocupa um module
+set próprio e mantém imports normais.
+
+W não cria uma feature implícita para dependency opcional. W também não ativa
+um conjunto `default` de outro package. Cada product e cada dependency edge
+lista as features que solicita. Lista ausente significa lista vazia.
+
+Features não removem API, não trocam implementation existente e não são
+mutuamente exclusivas. Casos incompatíveis usam products, packages ou runtime
+configuration distintos. Essa regra permite unir pedidos de features sem
+alterar a semântica de um pedido anterior.
+
+O fechamento ocorre dentro de:
+
+```text
+ResolutionRealm = root selection + dependency use + target role + target identity
+```
+
+`dependency use` é a configuração da seleção raiz. Dependências `.product` de
+um build tool continuam no realm `.build` desse tool. Elas não abrem um realm
+do payload final.
+
+Dentro do mesmo realm, pedidos para a mesma package identity e version formam a
+união aditiva. Product, build tool, test, benchmark e targets diferentes mantêm
+realms distintos. O lock e a artifact key gravam o conjunto final e a origem de
+cada feature.
+
+`w explain feature <package>::<feature>` mostra os roots e edges que ativaram a
+feature. `w diff-lock` separa mudança de version, source e feature.
+
+**Alternativa:** features condicionais dentro de qualquer statement reduzem o
+número de modules. Elas aumentam o número de programas possíveis por arquivo e
+dificultam interface diff, testes e leitura por ferramentas.
+
+#### 21.1.4 Sources e patches
+
+**Exemplo:** uma dependency pública usa registry. Um root privado pode fixar um
+commit Git. O workspace pode testar uma correção local com a mesma identity:
+
+```w
+dependencies: [
+  {
+    alias: "http"
+    package: "w/http"
+    version: "^1.0"
+    use: .product
+    source: .registry("w")
+  },
+  {
+    alias: "telemetry"
+    package: "acme/telemetry"
+    version: "0.8.2"
+    use: .product
+    source: .git(
+      "https://github.com/acme/telemetry.git",
+      revision: "9b6d4a1f4bb8f4a8d6935e4b2c1a28cfac70f334",
+    )
+  },
+]
+
+patches: [
+  {
+    package: "acme/telemetry"
+    version: "0.8.2"
+    source: .path("patches/telemetry")
+  },
+]
+```
+
+Uma source localiza metadata e source. O manifest encontrado declara a
+authority esperada; a source não concede outra package identity. Para uma
+release externa, o lock grava tree digest, origin imutável e metadata snapshot.
+Para source local editável, a recipe grava o content tree digest.
+
+Package identity é:
+
+```text
+PackageIdentity = declared authority + scoped package name
+```
+
+Todo `package.w` declara um field `authority`:
+
+```w
+authority: .registry("w")
+authority: .git("https://github.com/acme/telemetry.git")
+authority: .local
+```
+
+Um registry authority usa um ID estável ancorado na linhagem de root metadata.
+URL, alias local `"w"` e chave atual não são a identidade. Uma rotação
+autorizada preserva a linhagem; trocar para uma root sem essa delegação cria
+outra authority. Uma Git authority usa a canonical repository identity. A
+revision identifica uma source tree, não uma package identity. Mudar registry
+authority ou repository cria outra identity, mesmo quando o texto `owner/name`
+coincide.
+
+`.local` identifica somente um root não publicável. Ele não pode satisfazer uma
+dependency, receber patch ou entrar em release metadata. Um package que precisa
+ser compartilhado declara registry ou Git authority desde o início.
+
+O scoped name possui duas partes ASCII lowercase separadas por `/`. Cada parte
+começa por letra e contém letras, digits ou `-`, com 1 a 63 caracteres. Registry
+metadata controla delegation, transfer e revocation do owner. Unicode fica no
+display name, não no identificador usado por filesystem, URL e type identity.
+
+- `.registry(name)` exige a mesma registry authority no package encontrado;
+- `.git(url, revision:)` exige a mesma Git authority e um commit completo na
+  dependency;
+- dependency source `.path(path)` existe somente em `workspace.w` e aponta
+  para um `package.w`;
+- um member compatível é uma source local implícita e registrada no lock;
+- binary artifacts são candidatos de uma release resolvida, não outra source
+  declarada na dependency.
+
+Branch, tag, `latest` e URL de archive mutável não entram em `package.w`. Um
+comando de conveniência pode resolver uma referência humana, mas grava o commit
+imutável antes do build.
+
+`patches` pertence somente à raiz do workspace. O package encontrado precisa
+declarar a mesma identity e uma version compatível. Trocar por um fork com outra
+identity exige alterar a dependency. Isso impede que um override local mude
+silenciosamente type identity ou authority.
+
+Patch ativo entra no lock, recipe, provenance e diagnostics. `w publish check`
+rejeita patches. Para publicar a correção, o autor publica uma release da mesma
+identity ou usa uma identity nova.
+
+O registry público inicial aceita somente dependencies de release por registry.
+Git continua disponível para roots privados e experimentos. Essa policy pode
+evoluir sem mudar o formato do manifest.
+
+`--locked` rejeita uma configuração local que aponte o alias de registry para
+outra linhagem de authority. Mirrors podem mudar sem trocar a authority, porque
+servem objetos já identificados por digest.
+
+#### 21.1.5 Contexts de resolução e lock
+
+**Exemplo:** o mesmo source pode exigir três resolutions sem misturar bytes:
+
+```text
+last-light-native / linux-aarch64 / product
+menu-compiler     / windows-x86_64 / build
+last-light-tests  / linux-aarch64 / test
+```
+
+O design vigente mantém no máximo uma version de cada package identity dentro
+de um resolution realm. Um conflito de constraints falha com paths mínimos do
+grafo. Realms diferentes podem escolher versões ou features diferentes e
+produzem artifact keys diferentes.
+
+`package.lock` reutiliza o codec data-only e possui top-level `lock`. O resolver
+gera o arquivo em UTF-8, LF e ordem canônica:
+
+```w
+lock {
+  schema: "w.package-lock/1"
+  resolver: "w.resolver/1"
+  workspace: "sha256:..."
+  contexts: [
+    {
+      root: .product("last-light-native")
+      use: .product
+      targetRole: .target
+      target: "x86_64-unknown-linux-gnu"
+      features: []
+      nodes: []
+    },
+    {
+      root: .tool("menu-compiler")
+      use: .build
+      targetRole: .execution
+      target: "x86_64-pc-windows-msvc"
+      features: []
+      nodes: ["sha256:package-node..."]
+    },
+  ]
+  packages: [
+    {
+      id: "sha256:package-node..."
+      authority: "w:sha256:..."
+      name: "last-light/menu-compiler"
+      version: "0.1.0"
+      source: .member(
+        path: "packages/menu-compiler",
+        manifest: "sha256:...",
+        sourceSet: "sha256:...",
+      )
+      dependencies: []
+    },
+  ]
+}
+```
+
+`id` é uma referência interna ao lock. Ele é o digest do package identity,
+version, source descriptor e dependency edges normalizados. Um member usa
+manifest e source-set digests; o content tree local fica na recipe. Um package
+externo usa metadata snapshot e content tree digest. Realms ou feature sets
+distintos podem produzir nodes distintos para a mesma identity e version. O
+node ID não participa de type identity.
+
+O lock de workspace registra:
+
+- schema e resolver version;
+- digest de cada manifest e do workspace;
+- roots, usages, features e target roles;
+- versões, sources, external tree digests e edges transitivos;
+- member e patch paths, manifest digests e source-set digests;
+- build-tool packages e metadata snapshots;
+- razão de cada seleção e exceção de policy.
+
+Um source-set digest cobre a lista ordenada de `PackagePath`, module identity e
+role. Ele muda quando um arquivo entra, sai ou muda de role. Ele não muda quando
+o conteúdo de um arquivo existente muda. Assim, edição local normal não exige
+nova resolução, mas um arquivo novo não entra em `--locked` por discovery.
+
+O lock não contém payload digest, action output, profile, compiler, sysroot ou
+provenance do build. Esses facts pertencem à recipe e ao artifact record. `w
+resolve` grava o lock de forma atômica. `w diff-lock` mostra mudanças semânticas.
+Um lock modificado não recebe confiança especial; o resolver valida todos os
+digests e invariants antes do uso.
+
+O lock de uma library publicado com sua release preserva a resolução usada nos
+próprios tests e artifacts. A recipe correspondente conclui a reprodução. O
+lock não força a resolution dos consumers. O consumer usa as constraints do
+`package.w` e grava o resultado no próprio lock.
+
+Fontes primárias usadas para os invariantes:
+
+- [Cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html);
+- [Cargo features](https://doc.rust-lang.org/cargo/reference/features.html);
+- [Cargo dependency sources](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html);
+- [Go workspaces e replacements](https://go.dev/ref/mod#workspaces).
+
+#### 21.1.6 Source snapshot publicável
+
+**Exemplo:** o package principal publica somente os arquivos necessários para
+rebuild, documentação e licença:
+
+```w
+license: {
+  expression: "MIT"
+  files: ["LICENSE"]
+}
+
+publish: {
+  source: .required
+  files: [
+    .modules,
+    .path("deployments/local.w"),
+    .path("deployments/distributed.w"),
+    .path("menus/final.menu"),
+    .path("README.md"),
+    .path("BUILD.md"),
+    .path("LICENSE"),
+  ]
+}
+```
+
+`publish.files` é uma allowlist obrigatória. A serialização canônica do
+`package.w` atual é metadata obrigatória e participa do snapshot digest.
+`.modules` inclui os arquivos declarados por `modules` e `moduleSets`; ele não
+inclui `package.w`, `workspace.w` ou manifest de subpackage. `.path` usa
+`PackagePath` exato, não aceita glob, não segue symlink e não sai da raiz. A
+lista normalizada entra no release recipe. Um arquivo novo fora de `.modules`
+não é publicado até a allowlist mudar.
+
+`.gitignore`, excludes globais do editor e estado do VCS não alteram o
+snapshot. Eles servem ao checkout, não à supply chain. Subpackages também não
+entram por traversal; cada member publica sua própria árvore.
+
+`w package list` mostra path, size, digest e razão de inclusão. `w package
+check` cria o snapshot sem publicar, verifica que todos os modules, resources,
+license files e build inputs necessários estão presentes e reconstrói o
+package usando somente esse snapshot.
+
+`license.expression` usa uma
+[SPDX License Expression](https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/).
+Um package sem licença open source usa `.proprietary`; ausência de informação
+usa `.noAssertion`. Esses cases são facts distintos. Cada `LicenseRef` exige o
+texto correspondente em `license.files`.
+
+Repository, homepage, display name e descrição são metadata. Eles não mudam
+package identity ou o field `authority`. O registry pode aplicar limites de
+tamanho e policy, mas não acrescenta arquivos ao snapshot enviado pelo
+maintainer.
+
+**Alternativa:** publicar todos os arquivos não ignorados reduz configuração.
+Ela transforma uma policy local e mutável em boundary de distribuição.
 
 `kind` seleciona um schema fechado. O manifest não usa um record com fields
 opcionais sem relação.
@@ -13262,9 +13698,14 @@ O algoritmo inicial deve ser PubGrub ou outro solver que produza explicações
 equivalentes e determinísticas. O resultado, não o nome do algoritmo, é o
 contrato.
 
-O lock registra versões, digests, origem imutável, grafo, features, target,
-profile, artifact key, toolchain, provenance e snapshot de metadata. Alteração
-manual invalida o arquivo.
+O lock registra a resolução. A recipe registra uma build concreta. O artifact
+record registra os outputs dessa recipe. Os três schemas não se fundem:
+
+| Record | Inputs principais | Não contém |
+|---|---|---|
+| `package.lock` | versões, sources, features, contexts e metadata | payloads e resultados de actions |
+| recipe | source trees, lock digest, product, target, profile e toolchain | payload digest autorreferente |
+| artifact record | recipe digest, payloads, resources e sidecars | inputs ambientais não declarados |
 
 ### 21.2 Build
 
@@ -13299,17 +13740,20 @@ payloads. O resultado inclui um index que aponta para cada digest.
 - cada foreign unit possui source digest, toolchain, target, ABI e symbol manifest;
 - cache é content-addressed;
 - recipe fixa toolchain, target, profile, inputs e environment permitido;
+- recipe fixa source tree digests, source sets e lock digest;
 - recipe fixa quotas e evaluator version de compile-time;
 - CBOR determinístico é a representação canônica inicial;
 - SHA-256 tagged é o digest inicial e possui algorithm agility.
 
-`w build --locked` falha se manifest, context ou lock divergirem. CI/release usa
-esse modo. `w update package` mostra o diff mínimo do grafo. Offline não acessa a
-rede; frozen pode buscar somente objetos já fixados.
+`w build --locked` falha se manifest, resolution context ou source-set
+membership divergir do lock. Editar o conteúdo de um source local existente é
+permitido e gera outra recipe. CI/release usa esse modo. `w update package`
+mostra o diff mínimo do grafo. Offline não acessa a rede; frozen pode buscar
+somente objetos já fixados.
 
-Mesma fonte, recipe e ambiente fixado devem produzir o mesmo payload bit a bit.
-Data, commit, paths, locale, timezone, seeds e environment são inputs explícitos
-ou são removidos.
+`w reproduce <recipe>` exige os content tree digests exatos. A mesma recipe deve
+produzir o mesmo payload bit a bit. Data, commit, paths, locale, timezone, seeds
+e environment são inputs explícitos ou são removidos.
 
 #### 21.2.1 Artifact identity
 
@@ -13318,7 +13762,7 @@ A chave mínima inclui:
 ```text
 package graph + product + expanded entry + host profile + runtime graph + packing
 + target + CPU/features + sysroot/SDK + profile
-+ compiler/runtime + adapters + build inputs + lock
++ compiler/runtime + adapters + build inputs + lock digest
 ```
 
 O artifact record separa:
@@ -13362,6 +13806,144 @@ binding: process.signal -> restaurant.app::shutdown
 reachable adapter: http.Server (selected by LaunchMode.serve)
 excluded entry: restaurant.worker_app::LastLightWorker
 ```
+
+#### 21.2.3 Build transforms tipadas
+
+**Exemplo:** o compiler de cardápio recebe um input nomeado e confirma um output
+nomeado. Ele não recebe argv ou filesystem:
+
+```w
+import std.build
+import { MenuCompileError, compileMenu } from last_light.menu.compiler
+
+const menuSource = build.Input<String>(name: "menu")
+const menuBytecode = build.Output<Bytes>(name: "bytecode")
+
+enum MenuTransformError: Error {
+  build(build.Error)
+  compile(MenuCompileError)
+}
+
+async fn transform(ctx: build.Context): () throws MenuTransformError {
+  let source = try await ctx.read(menuSource, maximumBytes: 64<KiB>)
+  let compiled = try compileMenu(source)
+  let MenuBytecode(bytes, _) = take compiled
+  try await ctx.write(menuBytecode, take bytes)
+}
+
+entry(transform)
+```
+
+O package root liga o tool a paths e budgets:
+
+```w
+actions: [
+  {
+    name: "compile-final-menu"
+    tool: .dependency("menuCompiler", product: "menu-compiler")
+    inputs: [
+      {
+        binding: "menu"
+        source: .file("menus/final.menu")
+        maximumBytes: 64KiB
+      },
+    ]
+    outputs: [
+      {
+        binding: "bytecode"
+        kind: .resource
+        maximumBytes: 1MiB
+      },
+    ]
+  },
+]
+```
+
+Um product consome o output por identity lógica:
+
+```w
+resources: [
+  .action("compile-final-menu", output: "bytecode"),
+]
+```
+
+Declarar a action não a executa por si só. Um product, module set, test,
+benchmark ou outra action precisa alcançar um output. Action ou dependency sem
+consumer é error. Vários consumers podem compartilhar o mesmo objeto do CAS.
+
+Um build transform é um `.tool` product com host
+`w.host/build-transform@1`. O slot default é:
+
+```text
+build.transform:
+  async fn(build.Context) -> () throws E
+```
+
+`build.Context` concede somente bindings declarados. `build.Input<T>` e
+`build.Output<T>` usam nomes const, tipos e codecs fechados. A v0 oferece
+`String`, `Bytes`, source tree, artifact e metadata target tipada. Um transform
+não enumera diretórios, abre path arbitrário ou consulta environment.
+
+Um binding possui de 1 a 64 caracteres ASCII lowercase, digits e `-`; o
+primeiro caractere é uma letra. Input e output compartilham o namespace da
+action. Duplicata ou binding declarado somente de um lado falha antes de
+executar o tool.
+
+Network, clock, random e secrets são negados. Uma evolução pode conceder uma
+capability específica, mas ela entra no action schema, lock, recipe e policy.
+Install scripts, shell fragments e callbacks de package não são transforms.
+
+O runtime cria um diretório de trabalho descartável ou uma sandbox equivalente.
+Inputs são read-only. Outputs começam privados e entram no CAS somente quando o
+handler termina com success, todos os outputs obrigatórios existem e cada budget
+confere. Error, panic ou cancellation descartam a tentativa. O tool nunca
+escreve no source tree.
+
+Tool e payload usam configurações distintas:
+
+```text
+execution target -> artifact executável do menu-compiler
+product target   -> artifact last-light-native
+```
+
+Uma cross-build em Windows para Cortex-M ainda executa o tool em Windows. Se um
+transform precisa de facts do target final, o action declara
+`.targetMetadata(...)` como input. O host não fica observável por acidente.
+
+Action identity inclui:
+
+```text
+tool artifact + expanded entry + execution target + typed inputs
++ target metadata declarada + output schema + budgets + allowed capabilities
+```
+
+Essa identidade é a action recipe key. Ela não contém os output digests. Após a
+execução, um action result liga a key aos output digests. A product recipe usa
+esses digests como build inputs. Assim, nenhum record inclui o próprio resultado
+na chave:
+
+```text
+action recipe -> action result -> generated input -> product recipe
+               output digests                    -> artifact record
+```
+
+Dois executores que produzem outputs diferentes para a mesma action recipe
+revelam uma violação de determinismo. O cache não escolhe um resultado em
+silêncio: ele preserva a evidência conflitante, rejeita publicação automática e
+exige nova tool identity ou correção.
+
+O scheduler pode executar a mesma action local ou remotamente. O resultado
+correto não depende do executor. Cache hit não executa o tool e mantém a mesma
+provenance de input e output.
+
+`w explain action compile-final-menu` mostra tool, execution target, inputs,
+budgets, capabilities, cache key e consumers. `w run tool` não concede mais
+authority que a action.
+
+Esse contrato segue o princípio de hermeticidade do
+[Bazel](https://bazel.build/concepts/hermeticity): toolchains e inputs fazem
+parte do grafo, e influência externa precisa ser eliminada ou declarada. W usa
+um host profile tipado no lugar de uma linguagem geral de build.
 
 ### 21.3 Verificação
 
@@ -13428,20 +14010,30 @@ Install scripts arbitrários são rejeitados. Tool targets de geração declaram
 inputs, outputs e capabilities. Network é denied por default. Outputs entram no
 CAS e na provenance.
 
-Dependências transitivas não recebem capabilities do app. Build-time tools e
-runtime dependencies aparecem como relações distintas no SBOM.
+`build-transform@1` é a rota W normal para geração. Um adapter de toolchain
+foreign precisa declarar executable, argv canônico, inputs, outputs, execution
+target e sandbox. Ele não transforma uma string em shell command.
+
+Dependências transitivas não recebem capabilities do app. Build tools e product
+dependencies aparecem como relações distintas na provenance e no SBOM.
 
 ### 21.6 CLI
 
 ```text
+w context
+w workspace check
 w resolve
 w update <package>
 w fetch --locked
+w package list [package]
+w package check [package]
 w build <product> --target <target> [--packing <packing>] --locked
 w build --matrix <set> --product <product> --locked
 w run <product> [--deployment <plan>] -- <arguments>
 w test [product] --locked
 w explain dependency <package>
+w explain feature <package>::<feature>
+w explain action <action>
 w explain product <product>
 w explain artifact <digest>
 w explain workflow <supervisor> --key <key>
@@ -13454,6 +14046,7 @@ w deploy check <plan> --locked
 w deploy apply <plan> --locked
 w bundle offline
 w cache import <bundle>
+w publish check [package]
 ```
 
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
@@ -13479,7 +14072,7 @@ mostra fases. `--json` emite eventos estáveis.
 #### 21.6.2 Publicação e reprodução
 
 ```text
-w package last-light-native --target x86_64-unknown-linux-gnu --locked
+w package assemble last-light-native --target x86_64-unknown-linux-gnu --locked
 w publish --release 0.1.0 --artifacts dist/release.windex
 w verify registry:last-light/restaurant@0.1.0
 w reproduce registry:last-light/restaurant@0.1.0 \
@@ -13885,6 +14478,11 @@ Uma pesquisa só avança quando possui:
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
 | descriptor anônimo e overlay local | **Possível agora** | expansão é estática; diagnostics precisam mostrar origem |
 | package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
+| workspace data-only com lock compartilhado | **Possível agora** | members exatos, identity e contexts são verificações estáticas |
+| usages separados de dependência | **Possível agora** | reachability e target role fecham product, build, test e benchmark |
+| features somente no grafo | **Possível agora** | união aditiva evita conditional source e defaults ocultos |
+| source snapshot por allowlist | **Possível agora** | module expansion, PackagePath e digest produzem uma árvore fechada |
+| build transform tipada | **Provável** | host profile e CAS são diretos; sandbox cross-platform exige protótipo |
 | parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
 | mensagem HTTP, ownership e admission | **Possível agora** | types, stream e limits estão fechados; adapters ainda precisam de corpus |
 | adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
@@ -14052,12 +14650,24 @@ accelerator → kernels e device bundles
 benchmark   → HTTP/database workloads e performance evidence
 ```
 
+O repository do produto é um workspace:
+
+```text
+last-light/restaurant      → products e runtime do restaurante
+last-light/menu-compiler   → build tool bootstrap.w0
+compile-final-menu         → menu source -> resource no CAS
+```
+
+O segundo package é uma `.build` dependency. Ele executa no execution target e
+não entra no payload nativo. O workspace usa o member local; `w publish check`
+prova que a release também resolve fora do workspace.
+
 O gate final é o **Turno do Horizonte Violeta**:
 
 ```text
 RestaurantApi
   → parser streaming de comanda
-  → compiler de cardápio restrito a bootstrap.w0
+  → build transform do cardápio restrito a bootstrap.w0
   → Restaurant service
   → keyed coordinator + fulfillment supervisor
   → workflow journal + typed event inbox
@@ -14343,7 +14953,12 @@ e restart de instance.
 de marcar a versão como reproduced.
 
 - package parser, resolver, lock e CAS;
+- workspace parser, members exatos e resolução standalone;
+- usages `.product`, `.build`, `.test` e `.benchmark`;
+- feature closure por root, target role e usage;
+- separação entre lock, recipe e artifact record;
 - builds `--locked`/offline;
+- host `build-transform@1`, action graph e outputs no CAS;
 - T0/T1 mínimos;
 - descriptors SQL, codecs de row e adapters database com pool limitado;
 - cache local com limite, replacement, expiration e loader compartilhado;
@@ -14513,8 +15128,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
 | W-076 | bootstrap | C11 seed, self-host cedo | TypeScript/Bun; C++ compiler inteiro |
 | W-077 | build tool | CMake/Ninja no seed | xmake; custom builder antes do self-host |
-| W-078 | packages | manifest data-only + lock | executable manifest; lock opcional |
-| W-079 | resolver | determinístico, uma versão por identity | múltiplas versões default |
+| W-078 | packages | manifests de package/workspace data-only + lock compartilhado | executable manifest; lock opcional |
+| W-079 | resolver | determinístico, uma versão por identity em cada resolution realm | múltiplas versões no mesmo realm |
 | W-080 | artifact | source-first, static preferred | binary-only; dynamic-only |
 | W-081 | canonical bytes | deterministic CBOR | WLO imediato; JSON assinada |
 | W-082 | digest | tagged SHA-256 inicial | hash fixo eterno; hash recebido sem metadata |
@@ -14949,7 +15564,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-511 | aplicação multimodo | um `process.main` escolhe CLI/TUI/server; slots de host continuam distintos | vários mains no mesmo payload; OS chama `http.fetch` |
 | W-512 | identidade de target | architecture-vendor-system-ABI + CPU/features/sysroot separados | string livre; target igual a OS; backend implica suporte |
 | W-513 | host profile | slots, capabilities e lifecycle versionados, separados do target | APIs condicionais por `#ifdef`; target concede capabilities |
-| W-514 | product kind | `kind` seleciona schema fechado; executable, libraries, component, firmware, device bundle, test, benchmark e tool | record de fields opcionais; executable universal; kind inferido pelo entry |
+| W-514 | product kind | `kind` seleciona schema fechado; executable, libraries, component, firmware, device bundle, test, benchmark e tool tipada | record de fields opcionais; executable universal; kind inferido pelo entry |
 | W-515 | matriz de build | cada product/target/profile gera recipe e digest próprios; index agrega resultados | hash único entre architectures; matrix muda payload |
 | W-516 | produto de referência | Última Luz é especificação executável, regressão e benchmark do W | exemplo descartável; snippets independentes como oracle principal |
 | W-517 | nanoservice | service é fronteira lógica; runtime pode co-localizar sem apagar effects | processo por service; call remota transparente |
@@ -15000,6 +15615,21 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-562 | versão de workflow | root fixa operation, point/event schemas e adapter ABI; migration é explícita | hot-swap do history; worker antigo executa versão nova |
 | W-563 | adapter de workflow | contrato portátil; SQLite profile é explícito e memory serve ao oracle volátil | SQLite universal; deployment reduz garantia; storage oculto |
 | W-564 | confidencialidade de journal | artifact fixa mínimo e retention; payload não entra em diagnostics; adapter prova storage | plaintext implícito; secret handle serializado; deployment reduz proteção |
+| W-565 | workspace | `workspace.w` data-only lista members exatos; não cria identity publicável | discovery recursivo; workspace executável; package e workspace fundidos |
+| W-566 | lock de workspace | um lock compartilhado com contexts por root, usage e target | lock por member sem visão global; um grafo único para todos os targets |
+| W-567 | member local | identity + version compatíveis selecionam member e tree digest; mismatch falha | fallback silencioso para registry; import por path |
+| W-568 | usage de dependência | `.product`, `.build`, `.test` e `.benchmark` fecham reachability e target role | uma lista universal; dev dependency entra no payload |
+| W-569 | feature | seleção aditiva de grafo, sem default implícito ou conditional source na v0 | `if feature` livre; optional dependency cria feature; negation |
+| W-570 | união de feature | união por resolution realm; realms distintos não vazam | união global do workspace; uma build por edge |
+| W-571 | source de dependency | registry ou Git por commit; path somente em workspace; lock fixa tree externo e source set local | branch/tag no build; URL no import; binary URL como identity |
+| W-572 | patch | somente workspace root, mesma identity/version, sempre visível e não publicável | dependency troca por fork invisível; patch transitivo; release patched |
+| W-573 | build tool W | `.tool` usa `build-transform@1` e bindings tipados | install script; shell fragment; process com filesystem ambiental |
+| W-574 | action hermética | tool, inputs, outputs, execution target, budgets e capabilities formam a key; commit vai ao CAS | output no source tree; host implícito; cache por path/mtime |
+| W-575 | namespace de dependency | package declara raiz canônica; alias local substitui a raiz no import sem mudar identity | package name dentro do import; URL import; namespace global sem alias |
+| W-576 | package identity | `authority` declarada + scoped ASCII name; revision, mirror e alias local não mudam identity | nome global sem authority; source concede identity; Unicode no path canônico |
+| W-577 | source snapshot | `publish.files` allowlist usa modules e PackagePath; VCS ignore não altera release | publicar tudo; usar `.gitignore`; registry acrescenta arquivos |
+| W-578 | licença de package | SPDX expression + files; proprietary e no-assertion são states distintos | string livre; ausência implica licença; metadata externa substitui texto |
+| W-579 | lock, recipe e artifact | lock fixa resolução; recipe fixa inputs; artifact record liga outputs | lock contém resultados; recipe autorreferente; provenance decide resolução |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

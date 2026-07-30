@@ -140,6 +140,8 @@ module.exports = grammar({
         repeat(choice($.import_statement, $._declaration)),
         $.package_manifest,
         $.deployment_manifest,
+        $.workspace_manifest,
+        $.lock_manifest,
       ),
 
     import_statement: ($) =>
@@ -610,6 +612,16 @@ module.exports = grammar({
     deployment_manifest: ($) =>
       seq(
         "deployment",
+        field("body", $.manifest_record),
+      ),
+    workspace_manifest: ($) =>
+      seq(
+        "workspace",
+        field("body", $.manifest_record),
+      ),
+    lock_manifest: ($) =>
+      seq(
+        "lock",
         field("body", $.manifest_record),
       ),
     manifest_record: ($) =>
