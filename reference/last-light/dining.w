@@ -32,6 +32,11 @@ export protocol AudienceApi {
 
 export protocol DiningRoomApi {
   async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError
+  async fn serve(
+    at tableId: TableId,
+    dish: take Dish,
+    payment: PaymentProof,
+  ): Receipt throws DiningRoomError
 }
 
 fn defaultTables(): Map<TableId, Table> {
@@ -55,6 +60,17 @@ export service PrismDiningRoom as DiningRoomApi {
   mut async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError {
     guard payment.canServe else throw .paymentIncomplete
     guard let tableId = tables.first(where: (entry) => entry.value.state == .available)?.key else throw .full
+
+    return try await serve(at: tableId, dish: take dish, payment: payment)
+  }
+
+  mut async fn serve(
+    at tableId: TableId,
+    dish: take Dish,
+    payment: PaymentProof,
+  ): Receipt throws DiningRoomError {
+    guard payment.canServe else throw .paymentIncomplete
+    guard tables[tableId]?.state == .some(.available) else throw .full
 
     setTableState(tableId, state: .serving)
     defer {

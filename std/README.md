@@ -30,14 +30,17 @@ std/
     contracts.w
   runtime/
     work.w
+    workflow.w
 ```
 
 `runtime/work.w` materializa os tipos públicos usados por trabalho
-supervisionado. `io/contracts.w` materializa byte I/O de T1. Os outros arquivos
-materializam values e protocols de T2.
+supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
+delivery de workflows por steps. `io/contracts.w` materializa byte I/O de T1.
+Os outros arquivos materializam values e protocols de T2.
 
-O rascunho fixa quatro fronteiras:
+O rascunho fixa cinco fronteiras:
 
+- workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
 - database exige SQL const em parâmetros de chamada, usa binds nomeados, rows
@@ -48,12 +51,16 @@ O rascunho fixa quatro fronteiras:
 `ByteSink.writeMany` usa segments borrowed e um fallback sem allocation.
 Scatter read e transferência zero-copy permanecem em **Pesquisa**.
 
+`StepEffect.atMostOnce` é o default seguro. Retry só ocorre quando o effect
+contract permite. Timer e event wait não mantêm um worker ativo.
+
 Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
 otimizar transporte, mas não pode mudar statements, results, ownership ou
 failure semantics.
 
-`WorkId`, `EffectId`, `Cancellation`, `Request`, `Response`, `http.Context` e
-handles de capability ainda são intrinsics do compiler/runtime.
+`WorkId`, `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`,
+`StepContext`, `Cancellation`, `Request`, `Response`, `http.Context` e handles
+de capability ainda são intrinsics do compiler/runtime.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:

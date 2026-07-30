@@ -116,11 +116,11 @@ package {
         {
           binding: "fulfillment"
           keyType: "restaurant.domain::OrderId"
-          inputType: "restaurant.supervision::FulfillmentInput"
+          inputType: "restaurant.workflow::FulfillmentInput"
           progressType: "restaurant.domain::ServiceStage"
           outputType: "restaurant.domain::Receipt"
           failureType: "restaurant.restaurant::RestaurantError"
-          operation: "restaurant.supervision::fulfillOrder"
+          operation: "restaurant.workflow::fulfillOrderDurably"
           domain: .io
           context: {
             services: [
@@ -132,14 +132,38 @@ package {
               "dining-room",
             ]
           }
-          capacity: { active: 64, queued: 128, queuedBytes: 16MiB }
+          capacity: {
+            roots: 4_096
+            running: 64
+            admissionQueued: 128
+            queuedBytes: 16MiB
+          }
           retention: { terminalItems: 4_096, terminalBytes: 64MiB }
           deduplication: {
             tombstones: 16_384
             tombstoneBytes: 8MiB
           }
           restart: .never
-          durability: [.memory]
+          durability: {
+            recovery: .required
+            confidentiality: .hostEncrypted
+            points: "restaurant.workflow::FulfillmentPoint"
+            events: ["restaurant.workflow::fulfillmentSignals"]
+            adapters: ["w.std/sqlite-workflow@1"]
+            history: {
+              recordsPerRoot: 8_192
+              bytesPerRoot: 64MiB
+              retainedBytes: 512MiB
+            }
+            step: { inputBytes: 4MiB, outputBytes: 4MiB, attempts: 8 }
+            inbox: {
+              itemsPerRoot: 1_024
+              bytesPerRoot: 8MiB
+              retainedBytes: 64MiB
+              tombstonesPerRoot: 4_096
+            }
+            retention: { terminal: 604_800<si.s> }
+          }
         },
       ]
 
