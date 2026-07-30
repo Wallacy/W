@@ -159,6 +159,86 @@ deployment {
   ]
 
   limits: {
+    execution: [
+      {
+        unit: "core/gateway"
+        tasks: {
+          live: 8_192
+          frameBytes: 128MiB
+          timers: 8_192
+        }
+        pools: [
+          { name: "cpu", capacity: 16 }
+          { name: "blocking", capacity: 8 }
+        ]
+      },
+      {
+        unit: "core/planning"
+        tasks: {
+          live: 4_096
+          frameBytes: 128MiB
+          timers: 4_096
+        }
+        pools: [
+          { name: "cpu", capacity: 16 }
+          { name: "blocking", capacity: 1 }
+        ]
+      },
+      {
+        unit: "core/finance"
+        tasks: {
+          live: 4_096
+          frameBytes: 64MiB
+          timers: 4_096
+        }
+        pools: [
+          { name: "cpu", capacity: 8 }
+          { name: "blocking", capacity: 8 }
+        ]
+      },
+      {
+        unit: "core/dining"
+        tasks: {
+          live: 2_048
+          frameBytes: 64MiB
+          timers: 2_048
+        }
+        pools: [
+          { name: "cpu", capacity: 4 }
+          { name: "blocking", capacity: 2 }
+        ]
+      },
+      {
+        unit: "http/main"
+        tasks: {
+          live: 8_192
+          frameBytes: 128MiB
+          timers: 16_384
+        }
+        pools: [{ name: "cpu", capacity: 16 }]
+      },
+      {
+        unit: "wifi/main"
+        tasks: {
+          live: 4_096
+          frameBytes: 64MiB
+          timers: 8_192
+        }
+        pools: [{ name: "cpu", capacity: 8 }]
+      },
+      {
+        unit: "observatory/main"
+        tasks: {
+          live: 4_096
+          frameBytes: 64MiB
+          timers: 8_192
+        }
+        pools: [
+          { name: "cpu", capacity: 8 }
+          { name: "blocking", capacity: 1 }
+        ]
+      },
+    ]
     supervisors: [
       {
         artifact: "core"

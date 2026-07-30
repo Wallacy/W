@@ -1672,7 +1672,7 @@ consultar tipos:
 ```w
 export fn expectedEnergy(
   telemetry: ref OvenTelemetry,
-  during duration: Duration,
+  during duration: PhysicalDuration,
 ): Energy {
   return energy(telemetry.power * telemetry.duty, during: duration)
 }
@@ -1680,7 +1680,7 @@ export fn expectedEnergy(
 export fn expectedEnergy(
   power: Power,
   duty: DutyCycle,
-  during duration: Duration,
+  during duration: PhysicalDuration,
 ): Energy {
   return energy(power * duty, during: duration)
 }
@@ -1974,9 +1974,9 @@ pertencem à declaração. Uma call direta usa a forma declarada. Uma call por v
 usa todos os argumentos em ordem:
 
 ```w
-fn energy(power: Power, during duration: Duration): Energy { ... }
+fn energy(power: Power, during duration: PhysicalDuration): Energy { ... }
 
-let estimate: fn(Power, Duration): Energy =
+let estimate: fn(Power, PhysicalDuration): Energy =
   (power, duration) => energy(power, during: duration)
 
 let result = estimate(2<si.W>, 3<si.s>)
@@ -6050,8 +6050,23 @@ recebem os ingredientes por `Channel<Ingredient>` ou são children de um group.
 `Task<T, E>` é lexical, linear e one-shot. O estado conceitual é:
 
 ```text
-created → scheduled → running → success(T) | error(E) | canceled
+lifetime:  reserved → published → body settled → cleanup → outcome committed → joined
+scheduler:             ready ↔ running ↔ suspended
 ```
+
+O estado de scheduler não muda o lifetime. Uma task pode alternar entre ready,
+running e suspended muitas vezes. Ela publica somente um outcome.
+
+O body seleciona success, application error ou cancellation quando fica
+settled. Depois desse ponto, cancelamentos novos não substituem a seleção.
+Cleanup executa em LIFO conforme a seção 11.6. O runtime publica o outcome
+somente depois do cleanup. Portanto, o join nunca observa um valor enquanto um
+cleanup daquele child ainda pode usá-lo.
+
+O body de `defer async` trata os próprios errors. Um error registrado pelo
+cleanup fica como evidence secundária. Ele não troca a seleção do body. Panic
+durante cleanup encerra a fault boundary e não produz um quarto case de
+`TaskOutcome`.
 
 As regras são:
 
@@ -6062,6 +6077,11 @@ As regras são:
 5. retorno antecipado cancela e faz join dos children restantes;
 6. esquecer ou destruir o handle não destaca a task;
 7. o compiler diagnostica um handle sem consumo.
+
+O handle normal fica disponível somente depois que o child foi publicado. Uma
+falha durante a avaliação dos argumentos não publica task nem handle. Budget
+exhaustion liga um handle inline canceled sem publicar o child. Uma reserva de
+runtime não usada volta ao scope.
 
 Um segundo `await` é inválido. `SharedTask<T, E>` é explícito e guarda o outcome
 para vários observers. O scope produtor continua sendo o único owner de
@@ -6109,14 +6129,26 @@ Um join de tuple usa ordem lexical:
 let (stock, plan) = try await (stock, plan)
 ```
 
-O runtime observa `stock` antes de selecionar o outcome de `plan`. Uma falha
-posterior não cancela um child lexicalmente anterior que ainda pode definir o
-error primário. Depois da seleção, o scope cancela os children restantes e
-aguarda o cleanup.
+O tuple join usa fail-fast cancellation. O primeiro application error que fica
+settled solicita cancelamento dos siblings ainda ativos. O scope aguarda todos
+os cleanups. Depois do drain, ele seleciona como error primário o primeiro
+application error pela ordem lexical do tuple. Outros application errors ficam
+como evidence secundária.
 
-Erros de siblings e cleanup ficam anexos ao error primário. Eles aparecem em
-trace e diagnostics. APIs `collect` retornam todos os outcomes. APIs `race`
-declaram que completion order faz parte do resultado.
+Essa regra não espera um child lexicalmente anterior antes de cancelar os
+demais. Portanto, um child suspenso não impede fail-fast. A ordem lexical torna
+a arbitragem explícita; ela não promete que um child cancelado produziria o
+mesmo error se tivesse continuado. Código que precisa de todos os fatos usa
+`outcome()` ou uma API `collect`.
+
+`TaskGroup` aplica a mesma regra com a ordem indicada por `ordering`. Em
+`.input`, o error primário é o primeiro input entre os application errors que
+ficaram settled. Em `.completion`, o programa aceita que a escolha depende do
+scheduler. As variantes `collect` não cancelam por application error. APIs
+`race` também declaram que completion order faz parte do resultado.
+
+Cleanup errors tratados conforme a seção 11.6 e faults de siblings aparecem no
+trace. Eles não entram em `E` sem uma conversão explícita da aplicação.
 
 ### 12.5 Cancelamento
 
@@ -6125,7 +6157,6 @@ export enum CancellationReason {
   userRequest
   shutdown
   superseded
-  budgetExceeded
 }
 
 report.cancel(reason: .userRequest)
@@ -6140,8 +6171,50 @@ faz unwind assíncrono de foreign frames.
 observer não publica esse método. O type checker reconhece a operação para
 preservar structured cancellation e trace.
 
-`CancellationReason` é fechado. Deadline e ancestry ficam em campos próprios de
-`Cancellation`; eles não fingem ser um motivo escolhido pelo caller.
+`CancellationReason` é fechado e contém somente motivos escolhidos por um
+caller. O valor `Cancellation` também registra causas estruturais:
+
+```text
+requested reasons: fixed set of CancellationReason
+deadline exceeded: yes or no
+exceeded budgets: fixed set of TaskBudgetKind
+scope exit: yes or no
+sibling failure: yes or no
+nearest ancestor cancellation ID: optional
+```
+
+`TaskBudgetKind` possui cases estáveis para live tasks, task-frame bytes,
+timers e ready jobs. `Cancellation` tem tamanho bounded e não aloca ao receber
+outro sinal. Seus sets crescem de forma monotônica. A ordem de chegada não
+seleciona um “motivo vencedor”.
+
+`Deadline`, budget, scope exit e sibling failure não fingem ser um motivo
+escolhido pelo caller. Um diagnostic ou trace pode anexar valores medidos. Esses
+valores não mudam equality nem serialization do snapshot estável.
+
+O valor expõe queries, não sua bit layout:
+
+```w
+switch outcome {
+  case .success(let value): use(value)
+  case .error(let error): report(error)
+  case .canceled(let cancellation):
+    if cancellation.wasRequested(.shutdown) {
+      recordGracefulShutdown()
+    }
+
+    if cancellation.exceeded(.liveTasks) {
+      recordRuntimePressure()
+    }
+
+    if cancellation.deadlineExceeded {
+      recordTimeout()
+    }
+}
+```
+
+As properties `scopeExited`, `siblingFailed` e `nearestAncestor` completam a
+superfície. Um caller não pode inserir uma causa estrutural manualmente.
 
 Uma task observa o sinal:
 
@@ -6150,9 +6223,15 @@ Uma task observa o sinal:
 - em uma boundary de task group;
 - em `Task.checkCancellation()` para loops longos.
 
-Uma completion committed vence a corrida com cancellation. O caller recebe o
-valor owned. O sinal continua pendente para o próximo suspension point ou
-`Task.checkCancellation()`. O runtime não injeta cancelamento entre statements:
+`Task.checkCancellation()` só existe em código async. Ele executa uma saída de
+controle distinta de `throws E`. `catch` não intercepta essa saída. Cleanup
+estruturado ainda executa. Uma API que precisa inspecionar cancelamento observa
+`TaskOutcome` no owner.
+
+Um body settled vence a corrida com cancellation. O caller recebe o outcome
+selecionado depois do cleanup. O sinal continua pendente no parent para o
+próximo suspension point ou `Task.checkCancellation()`. O runtime não injeta
+cancelamento entre statements:
 
 ```w
 let payment = try await billing.capture(amount)
@@ -6167,9 +6246,14 @@ O cancelamento do parent propaga para descendants. Cancelar um child não cancel
 siblings, salvo policy explícita do group. Um deadline cria o mesmo sinal com
 metadata de causa.
 
-O motivo serve a policy e observabilidade. O programa não deve usar a ordem de
-dois motivos concorrentes como dado de domínio. O trace mantém todos os sinais e
-sua causalidade.
+Cada solicitação é idempotente. Duas fontes podem adicionar causas diferentes
+ao mesmo snapshot. O programa consulta presença, não ordem. O trace mantém os
+sinais, a causalidade e os instantes locais.
+
+W v0 não publica um shield geral de cancelamento. Somente o runtime mascara o
+sinal durante a janela bounded de `defer async`. Um adapter pode declarar que
+uma operação externa não é cancelável; isso não permite que código W esconda um
+scope inteiro do shutdown.
 
 Cancelamento não é rollback. Uma operação externa deve declarar um commit point
 ou um outcome desconhecido. Antes do commit, o adapter pode garantir ausência de
@@ -6233,11 +6317,11 @@ para thread pool. O enum fechado `StandardDomain` oferece estes IDs lógicos:
 
 | ID | Uso | Capability mínima |
 |---|---|---|
-| `.default` | trabalho async geral | concorrente e non-blocking |
-| `.io` | I/O async sem distinção de transporte | I/O non-blocking |
-| `.network` | I/O de rede quando o host separa essa lane | I/O non-blocking |
-| `.compute` | trabalho CPU parallel | intenção paralela e budget CPU |
-| `.blocking` | adapter que pode bloquear uma thread | blocking bounded |
+| `.default` | trabalho async geral | `.concurrent`, `.nonBlockingIO` |
+| `.io` | I/O async sem distinção de transporte | `.concurrent`, `.nonBlockingIO` |
+| `.network` | I/O de rede quando o host separa essa lane | `.concurrent`, `.nonBlockingIO` |
+| `.compute` | trabalho CPU parallel | `.concurrent`, `.parallel` |
+| `.blocking` | adapter que pode bloquear uma thread | `.concurrent`, `.parallel`, `.blocking` |
 
 Um case contextual sem qualificação resolve em `StandardDomain`. Por isso,
 `spawn<.compute>` é curto e não é ambíguo. O exemplo abaixo mostra a forma
@@ -6296,26 +6380,34 @@ instrumentation identity
 
 `ExecutionCapability` é um enum. O schema valida a lista, rejeita duplicatas e a
 normaliza como set. Ele não dá ao enum uma semântica OR oculta. `parallel`,
-`nonBlockingIO`, `blocking`, `affine` e `device` são capabilities distintas.
+`concurrent`, `nonBlockingIO`, `blocking`, `affine` e `device` são capabilities
+distintas.
 
 **Exemplo normalizado:**
 
 ```text
 StandardDomain.compute
-  capabilities = [.parallel]
+  capabilities = [.concurrent, .parallel]
   capacity = 1...host.cpuQuota
 
 LastLightDomain.thermal
-  capabilities = [.parallel]
+  capabilities = [.concurrent, .parallel]
   fallback = .compute
 ```
 
-O deployment pode reduzir capacity. Ele pode juntar domains quando o target
-conserva capabilities. Ele não pode remover affinity, isolation, ordering,
-mobility ou a capacidade necessária a `spawn`.
+O execution profile pode ligar vários domains ao mesmo pool quando conserva os
+capabilities. O deployment pode somente reduzir a capacity desse pool. Ele não
+pode remover affinity, isolation, ordering, mobility ou a capacidade necessária
+a `spawn`.
 
-**Exemplo:** um deployment pode mapear `.network` em `.io`. Ele não pode mapear
-`LastLightDomain.thermal` num strand UI serial quando o source usa `spawn`.
+**Exemplo:** o profile pode ligar `.network` e `.io` ao pool `cpu`.
+`LastLightDomain.thermal` pode compartilhar esse pool com `.compute`. O
+deployment não pode trocar `.thermal` por um strand UI serial.
+
+`.device` não autoriza um `spawn` comum a migrar W code para GPU, DSP ou ASIC.
+Device transfer, kernel selection, launch e synchronization usam as APIs T2 da
+seção 18.5. Um adapter pode usar um domain com `.device` para seus jobs de host;
+o kernel continua sendo outro artifact e outro contrato.
 
 A declaração de um módulo não escolhe domain default. Importar um módulo nunca
 cria executor, queue ou thread. Service, entry e product descriptor podem
@@ -6354,6 +6446,226 @@ O resultado precisa continuar sendo child lexical. A API também precisa
 representar admission failure sem criar uma task perdida. Implementar um
 executor customizado exige a interface de runtime `unsafe`; uma library comum
 não substitui o scheduler global por conformar um protocol.
+
+#### 12.6.3 Deadline e relógio operacional
+
+`Deadline` é um valor opaco ligado a um clock monotônico local. Ele não contém
+wall-clock time e não é serializável. Ajustes de data e timezone não alteram sua
+ordem.
+
+Um child herda o menor deadline entre parent e operação. Nenhuma API pode
+ampliar o deadline herdado. Um timeout local cria um deadline relativo ao clock
+operacional:
+
+```w
+let timeout: TaskTimeout = 250<si.ms>
+let outcome = await Task.withTimeout(
+  for: timeout,
+  input: take request,
+  using: fetchMenu,
+)
+```
+
+`Duration` é o intervalo operacional exato de T1. Seu valor semântico é um
+total signed de nanoseconds no intervalo de `i128`. Seu layout físico é opaco.
+Ele não possui NaN nem infinity. A aritmética mantém a semântica checked dos
+integers.
+
+Um unit literal de tempo materializa `Duration` quando o expected type pede esse
+tipo. A conversão precisa ser exata:
+
+```w
+let poll: Duration = 250<si.us>
+// let invalid: Duration = 0.5<si.ns> // não cabe na resolução operacional
+```
+
+Uma quantity dinâmica ou baseada em float não entra implicitamente no clock
+operacional. Use `Duration.exactly(quantity)` ou
+`Duration.rounding(quantity, rule:)`. As duas operações rejeitam valores
+nonfinite e out-of-range. Essa boundary deixa rounding visível.
+
+`TaskTimeout` é o alias `Duration<(0...)>`. Literais negativos falham no compile
+time. Um valor dinâmico precisa de narrowing antes da call. Ausência de timeout
+usa `none`; infinity não representa essa ausência.
+`Task.withTimeout` cria e drena um child lexical. Ele devolve
+`TaskOutcome<T, E>` para tornar timeout observável sem inserir `E`. A variante
+`Task.withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
+Uma duração zero devolve cancellation antes de executar o body.
+
+Nanoseconds são a resolução pública da baseline. Eles cobrem clocks e timers
+dos targets iniciais e mantêm o bootstrap simples. Quantities físicas podem
+usar `f64`, decimal ou rational. Device cycles também usam um tipo próprio.
+Picoseconds, femtoseconds e attoseconds para o clock operacional permanecem
+**Alternativa**. Eles não devem ampliar `Duration` sem um caso mensurável.
+
+Precedentes oficiais ajudam a separar as escolhas. Rust usa uma duração
+nonnegative em seconds e nanoseconds. Swift também documenta components em
+seconds e attoseconds. Kotlin aceita durações signed e infinity. W usa signed
+para diferenças, fixa nanoseconds na baseline e não usa infinity como sentinel.
+
+- [Rust `Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html)
+- [Swift time e duration](https://developer.apple.com/documentation/swift/time-and-duration)
+- [Kotlin `Duration`](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/)
+
+O runtime pode medir tempo para scheduling, deadline e trace sem conceder a
+capability de application clock. O programa só lê tempo quando seu `Context`
+fornece essa authority. Testes substituem o clock operacional por um clock
+virtual.
+
+`Duration` atravessa uma service boundary; `Deadline` não. A seção 13.6 define
+como a boundary propaga o budget de tempo sem fingir que dois clocks monotônicos
+são o mesmo clock.
+
+#### 12.6.4 Admission de task
+
+**Exemplo:** `prepareInput` executa uma vez no parent. Se o task budget estiver
+cheio, `cook` não inicia e o staged input recebe cleanup:
+
+```w
+async let dish = cook(prepareInput(take order, audit: inout audit))
+let outcome = await dish.outcome()
+```
+
+Uma declaração `async let` ou `spawn let` usa esta ordem:
+
+1. o parent avalia callee, argumentos e captures em ordem lexical e guarda
+   owners num staging local;
+2. uma falha de avaliação limpa o staging e não cria handle;
+3. o runtime reserva task control block, task-frame bytes, timer e ready credit;
+4. o commit transfere o staging, publica o child e cria o handle;
+5. o child fica eligible imediatamente.
+
+Antes do commit, o child não existe. O staging já consumiu os argumentos `take`,
+mas ainda pertence ao parent scope. Depois do commit, somente o child possui
+esses valores. O parent pode continuar enquanto o child executa.
+
+Exaustão de um budget declarado não adiciona um error effect à expressão. O
+runtime cria um handle inline já settled como
+`TaskOutcome.canceled(Cancellation)` com o `TaskBudgetKind` correspondente. Ele
+limpa o staging uma vez e não inicia o body. Avaliação de argumentos nunca
+desaparece por causa da carga do runtime. Um `try await` propaga essa saída
+estrutural. `outcome()` e as variantes `collect` permitem observá-la.
+
+Physical OOM segue a seção 11.5. Ele não finge ser budget exhaustion. Uma API
+que precisa recusar overload como dado recuperável usa admission explícita,
+como `tryCall`, `tryStart` ou uma operação `TaskGroup.try...`. A criação lexical
+continua pequena e não recebe `throws AllocationError`.
+
+Cada live task possui storage de queue intrusivo reservado. Portanto, um wakeup
+não aloca e não exige uma fila de overflow sem limite. O runtime pode executar
+o child inline, ajudar a queue ou mover o ready credit entre executors
+compatíveis. Ele não perde trabalho admitido.
+
+O task mantém seu ready credit até o join. Uma task suspended não ocupa uma
+posição ativa da queue, mas conserva a capacidade de voltar a ready. Assim, um
+wakeup nunca falha por falta de bookkeeping. `ready.jobs` também limita quantas
+tasks podem ficar vivas naquele domain.
+
+#### 12.6.5 Execution profile e product
+
+Um execution profile é um record data-only do package. Ele fixa o envelope do
+task runtime:
+
+```w
+executionProfiles: [
+  {
+    name: "native-bounded"
+    parallelDefault: .compute
+    tasks: {
+      live: 16_384
+      frameBytes: 256MiB
+      timers: 16_384
+    }
+    pools: [
+      {
+        name: "cpu"
+        capacity: { minimum: 1, maximum: .hostCpuQuota }
+      },
+      {
+        name: "blocking"
+        capacity: { minimum: 1, maximum: 32 }
+      },
+    ]
+    domains: {
+      default: {
+        pool: "cpu"
+        ready: { jobs: 16_384, frameBytes: 256MiB }
+        fallback: .reject
+      }
+      io: {
+        pool: "cpu"
+        ready: { jobs: 8_192, frameBytes: 128MiB }
+        fallback: .default
+      }
+      network: {
+        pool: "cpu"
+        ready: { jobs: 8_192, frameBytes: 128MiB }
+        fallback: .io
+      }
+      compute: {
+        pool: "cpu"
+        ready: { jobs: 8_192, frameBytes: 256MiB }
+        fallback: .reject
+      }
+      blocking: {
+        pool: "blocking"
+        ready: { jobs: 256, frameBytes: 32MiB }
+        fallback: .reject
+      }
+      custom: [
+        {
+          id: "restaurant.execution::LastLightDomain.thermal"
+          capabilities: [.concurrent, .parallel]
+          pool: "cpu"
+          ready: { jobs: 1_024, frameBytes: 64MiB }
+          fallback: .compute
+        },
+      ]
+    }
+    cleanup: {
+      asyncGrace: 5<si.s>
+      blockingDrainGrace: 30<si.s>
+    }
+  },
+]
+```
+
+Os capabilities dos standard domains são fixos pela linguagem. O profile
+fornece pool, ready budget e fallback. Um custom domain também declara seu
+symbol ID e capabilities. Dois domains podem compartilhar o mesmo pool. Assim,
+`.compute` e `LastLightDomain.thermal` não criam oversubscription por possuírem
+nomes distintos.
+
+Um product que alcança tasks seleciona um profile:
+
+```w
+{
+  name: "last-light-native"
+  executionProfile: "native-bounded"
+}
+```
+
+O linker verifica todos os domains alcançáveis. Binding ausente, capability
+insuficiente, fallback cíclico e budget impossível para o host profile são
+errors. Um library ou device bundle sem task runtime alcançável omite
+`executionProfile`.
+
+Depois do packing, cada unit com task runtime recebe o profile selecionado pelo
+product. Os budgets são por unit, pois units podem ocupar hosts diferentes. O
+artifact index registra o máximo por unit e a soma de todos os máximos. Uma unit
+sem task alcançável não recebe pool apenas porque outra unit do product usa
+tasks.
+
+O build profile escolhe optimization, checks e representação. O execution
+profile escolhe budgets e scheduler contracts. Um não substitui o outro. O
+artifact grava o digest do execution profile e seus máximos.
+
+Um deployment pode reduzir capacity e budgets dentro desse envelope. Ele não
+pode aumentar um máximo, alterar capabilities, mudar pool mapping, trocar
+fallback ou remover affinity. A redução fica no deployment digest e não exige
+recompilar o artifact. `w explain execution <product>` mostra source
+requirements, bindings, shared pools, limites do artifact e reduções do
+deployment.
 
 ### 12.7 Mobilidade e captures
 
@@ -7380,6 +7692,31 @@ Sem metadata, o importer usa a policy conservadora. Uma call blocking exige um
 adapter ou uma isolation boundary dedicada. Enviar a call para um blocking pool
 não torna o código cancel-safe.
 
+```w
+spawn<.blocking> let packet = legacy.read(take buffer)
+```
+
+O blocking pool e sua ready queue são bounded pelo execution profile.
+Cancellation antes do início remove o job da queue e executa cleanup sem chamar
+a função foreign. Depois que a função entra no foreign frame, W não presume que
+ela pode ser interrompida. O signal fica pendente, e o owner mantém frame,
+buffers e library code vivos até a função retornar.
+
+Deadline encerra a espera lógica do caller somente quando a boundary consegue
+manter outro owner para o job. Ele não interrompe uma system call ou library
+call sem suporte declarado. Para uma `Task` lexical, o parent continua ligado e
+faz join depois que a call retorna. O adapter informa um dos contratos:
+
+- cancelável antes do commit;
+- cancelável com outcome conhecido;
+- não cancelável e drenado;
+- isolado numa fault boundary física que pode ser encerrada.
+
+O runtime nunca destaca silenciosamente uma thread bloqueada. Se
+`blockingDrainGrace` termina, o host encerra a fault boundary física ou rejeita
+esse adapter para o profile. Um process que precisa permanecer vivo executa
+código foreign não confiável ou sem bound num helper process.
+
 Um callback estrangeiro cria um job em executor conhecido. Ele não retoma uma
 task arbitrária em qualquer thread. Raw pointers capturados continuam locais até
 um wrapper `unsafe` provar mobilidade e lifetime.
@@ -7408,6 +7745,8 @@ O runtime mínimo possui:
 - task control block e árvore parent/child;
 - executor concorrente single-thread;
 - pool paralelo bounded;
+- task, frame, timer e ready budgets;
+- queues intrusivas sem allocation no wakeup;
 - wakeups, timers e uma integração I/O por plataforma de teste;
 - cancellation state, cleanup e memory reclamation;
 - task IDs, logical stack e trace.
@@ -7789,8 +8128,30 @@ Uma call transporta:
 
 ```text
 callId, parentCallId, serviceId, generationHint, operationId, schemaVersion,
-deadline, cancellationId, callerCapability, payload
+timeBudget, cancellationId, callerCapability, payload
 ```
+
+O lifecycle conceitual é:
+
+```text
+prepared → envelope committed → admitted → turn running
+         → outcome committed → delivered
+```
+
+Antes de `envelope committed`, um staging owner no caller guarda cada valor
+`take`. No commit, o envelope recebe ownership. Falha, cancellation e queda de
+boundary executam exatamente um cleanup desse owner. A linguagem não restaura o
+valor consumido ao caller.
+
+Cancellation antes de `admitted` remove o envelope. O handler não executa e
+nenhum application effect começa. Depois de `admitted`, o callee recebe o sinal
+e observa os mesmos cancellation points de uma task local. O caller permanece
+estruturalmente ligado até drain ou failure da boundary. Ele não abandona um
+turn em execução.
+
+Um outcome committed vence cancellation. Se a boundary não consegue provar se
+admission ou effect ocorreu, ela retorna `unknownOutcome(effectId)`. Ela não
+converte dúvida em cancellation.
 
 `ServiceRef<P>` sempre exige `await`, inclusive no mesmo processo. O callee
 mantém required isolation. O trace informa hop ou fast path.
@@ -7835,6 +8196,18 @@ exigem deadline.
 Retry mutante nunca é implícito. Idempotência ou deduplication podem autorizar
 uma policy. Queda depois da entrega pode retornar `unknownOutcome`. W não promete
 exactly-once sem protocol e storage adequados.
+
+Um `Deadline` local não entra no envelope. A boundary envia o remaining
+`Duration` e mantém o timer do caller como authority. Cada intermediary subtrai
+o tempo em que reteve a call. O receiver cria um deadline no próprio clock.
+
+Clocks com timebase compartilhado ou synchronization comprovada também subtraem
+transit time e uncertainty. Sem essa prova, o deadline remoto é aproximado: ele
+limita trabalho depois da admission, mas pode terminar depois do deadline
+absoluto do caller por causa do trânsito. O caller ainda cancela no instante
+local e continua o drain. Trace e descriptor informam `.strict` ou
+`.approximate`; nenhum adapter afirma uma garantia end-to-end que seus clocks
+não podem provar.
 
 Uma API explícita `CallOutcome<T, E>` permite inspecionar `success(T)`,
 `application(E)`, `canceled(Cancellation)` e `boundary(ServiceFailure)`. O
@@ -8989,6 +9362,16 @@ deployment {
   ]
 
   limits: {
+    execution: [
+      {
+        unit: "restaurant/main"
+        tasks: { live: 1_024, frameBytes: 32MiB, timers: 1_024 }
+        pools: [
+          { name: "cpu", capacity: 1 }
+          { name: "blocking", capacity: 2 }
+        ]
+      },
+    ]
     supervisors: [
       {
         artifact: "restaurant"
@@ -9005,6 +9388,11 @@ deployment {
 `deployment.w` é um plano data-only. `.product(...)` referencia uma recipe
 reproduzível. `w deploy resolve` grava cada artifact e unit por digest em
 `deployment.lock`.
+
+`limits.execution` identifica uma unit. Ele pode reduzir task, frame, timer,
+ready e pool capacity do profile gravado nessa unit. O resolver rejeita um
+valor maior, um pool desconhecido ou um mínimo que o host não satisfaz. Uma
+redução não muda source, artifact bytes ou semantic interface.
 
 `.release(...)` referencia um artifact publicado por package, product, target e
 version. O resolver fixa seu release index e seus payloads. Ele não recompila
@@ -9035,6 +9423,7 @@ O deployment não pode:
 - religar uma edge privada a outro provider;
 - trocar código, protocol, operation ou target;
 - aumentar o envelope;
+- trocar pool, domain, fallback ou execution capability;
 - converter uma call normal em uma service call;
 - conceder uma capability ausente no artifact.
 
@@ -9205,7 +9594,8 @@ T1 contém:
 - console e `print`;
 - process, environment, filesystem e paths;
 - clock, calendar, timezone e random;
-- Task, TaskOutcome, TaskGroup, Stream e Channel;
+- Duration, Task, TaskOutcome, TaskTimeout, Deadline, Cancellation, TaskGroup,
+  Stream e Channel;
 - synchronization, executors e blocking adapters;
 - build transforms com inputs, outputs e capabilities fechados;
 - ServiceRef, ServiceBinding, ServiceFamily, ServiceIdentity e service host APIs;
@@ -10570,6 +10960,23 @@ parênteses e expoentes inteiros. `^` continua XOR fora desse contexto. Nomes
 qualificados são permitidos. O literal `1` pode ocupar o numerator
 dimensionless, como em `1/mol`; outros coefficients são rejeitados. O resolver
 aceita somente símbolos de kind `Unit`.
+
+A dimensão já participa da identidade de `Quantity`. Um nome local comum usa
+`alias`, não um newtype. Use um nome que não oculte um tipo operacional de T1:
+
+```w
+export alias PhysicalDuration = Quantity<si.Duration, f64>
+export alias Energy = Quantity<si.Energy, f64>
+```
+
+Use `type` somente quando valores da mesma dimensão não forem intercambiáveis
+por regra de domínio. Essa escolha exige constructors ou conversions
+deliberadas. Um nome de conveniência não deve bloquear APIs genéricas de units.
+
+`std.time.Duration` e `PhysicalDuration` não são aliases entre si. O primeiro
+mede budgets e prazos com nanoseconds exatos. O segundo participa de modelos
+físicos com a representação numérica escolhida pelo programa. A seção 12.6.3
+define a conversão explícita entre eles.
 
 ### 15.4 Units customizadas
 
@@ -14161,6 +14568,43 @@ package {
     },
   ]
 
+  executionProfiles: [
+    {
+      name: "edge-bounded"
+      parallelDefault: .compute
+      tasks: { live: 4_096, frameBytes: 64MiB, timers: 4_096 }
+      pools: [
+        {
+          name: "cpu"
+          capacity: { minimum: 1, maximum: .hostCpuQuota }
+        },
+      ]
+      domains: {
+        default: {
+          pool: "cpu"
+          ready: { jobs: 4_096, frameBytes: 64MiB }
+          fallback: .reject
+        }
+        io: {
+          pool: "cpu"
+          ready: { jobs: 4_096, frameBytes: 64MiB }
+          fallback: .default
+        }
+        network: {
+          pool: "cpu"
+          ready: { jobs: 4_096, frameBytes: 64MiB }
+          fallback: .io
+        }
+        compute: {
+          pool: "cpu"
+          ready: { jobs: 1_024, frameBytes: 32MiB }
+          fallback: .reject
+        }
+      }
+      cleanup: { asyncGrace: 5<si.s>, blockingDrainGrace: 0<si.s> }
+    },
+  ]
+
   products: [
     {
       name: "last-light-native"
@@ -14171,6 +14615,7 @@ package {
       targets: ["desktop"]
       runtime: "restaurant-edge"
       packing: "entry-only"
+      executionProfile: "edge-bounded"
     },
     {
       name: "last-light-worker"
@@ -14957,12 +15402,18 @@ publicados no artifact index. Todo product e toda unit precisam de ao menos um
 root alcançável.
 
 Vários products podem usar os mesmos módulos. Escolher outro entry, host,
-target, runtime graph ou packing cria outra recipe.
+target, runtime graph, packing ou execution profile cria outra recipe.
 
 `limits` usa um schema fechado pelo host profile e pelas capabilities. Ele
 define o maior envelope do artifact. Um limite exigido por um slot precisa
 estar no product ou numa const call alcançável, como `http.serve`. Deployment
 pode reduzir o envelope. Ele não pode aumentá-lo.
+
+`executionProfile` seleciona o envelope do task runtime definido em
+`executionProfiles`. Ele é obrigatório quando o grafo alcançável exige tasks e
+o host não fixa um profile mais estreito. Ele é inválido em library ou device
+bundle sem task runtime. Limites de HTTP, database e service mailbox continuam
+separados dos budgets de task.
 
 Product kinds iniciais:
 
@@ -15074,7 +15525,7 @@ cardápio executa em Windows. Os dois usos precisam de providers diferentes:
 w toolchain resolve \
   --product last-light-native \
   --target x86_64-unknown-linux-gnu \
-  --execution windows-x64 \
+  --execution-platform windows-x64 \
   --profile release \
   --output build/last-light-linux.wplan
 
@@ -15197,7 +15648,8 @@ O resolver aplica esta ordem:
 8. escolhe a maior versão compatível dessa lineage no snapshot fixo;
 9. emite a plan e explica cada escolha.
 
-`--execution <name>` restringe a análise a uma execution platform da policy. Sem
+`--execution-platform <name>` restringe a análise a uma execution platform da
+policy. Sem
 esse argumento, a ordem de `executionPlatforms` resolve somente as entries
 compatíveis. Provider lineage é `authority + name`. Se duas lineages permanecem
 na primeira posição compatível de `providerOrder`, a resolução falha. Se a mesma
@@ -15296,7 +15748,7 @@ resolve novamente contra o estado atual do host.
 ```text
 $ w toolchain explain last-light-mobile \
     --target aarch64-apple-ios \
-    --execution macos-arm64
+    --execution-platform macos-arm64
 
 role .platformSdk
   selected apple/xcode-sdk sha256:...
@@ -15741,9 +16193,9 @@ w fetch --locked
 w package list [package]
 w package check [package]
 w toolchain import <provider> [provider options]
-w toolchain inventory [--execution <platform>] --output <inventory>
-w toolchain resolve --product <product> (--target <target> | --matrix <set>) [--toolchain-policy <file>] [--execution <platform>] [--providers <inventory>] --output <plan>
-w toolchain explain <product> --target <target> [--execution <platform>]
+w toolchain inventory [--execution-platform <platform>] --output <inventory>
+w toolchain resolve --product <product> (--target <target> | --matrix <set>) [--toolchain-policy <file>] [--execution-platform <platform>] [--providers <inventory>] --output <plan>
+w toolchain explain <product> --target <target> [--execution-platform <platform>]
 w build <product> --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
 w build --matrix <set> --product <product> [--toolchains <plan>] [--output-index <path>] --locked
 w run <product> [--deployment <plan>] -- <arguments>
@@ -16278,7 +16730,14 @@ Uma pesquisa só avança quando possui:
 | high-bit addresses e NaN boxing | **Pesquisa** | dependem de target, processo e tooling; não integram o profile portátil |
 | universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
 | fingerprint de representação sem provider noise | **Possível agora** | schema físico, `WAbiKey`, runtime closure e recipe já estão separados |
+| task lexical com outcome após cleanup | **Possível agora** | state machine, ownership, cleanup e join possuem ordem fechada |
+| fail-fast com arbitragem declarada | **Possível agora** | cancel edge e drain são conhecidos; ordem lexical/input é estática |
+| cancellation snapshot bounded | **Possível agora** | enums e bitsets fechados não exigem allocation no sinal |
+| deadline monotônico local | **Provável** | timers e clock virtual são conhecidos; races exigem corpus adversarial |
+| deadline remoto strict | **Pesquisa por transport profile** | timebase ou synchronization precisa de prova; fallback approximate permanece honesto |
 | schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
+| execution profile data-only | **Possível agora** | domains, pools, fallbacks e máximos fecham no link |
+| task admission sem fila ilimitada | **Provável** | reserva e handle canceled são fechados; pressure e wakeups exigem protótipo |
 | capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
 | `Stream<Item, Failure>` single-pass | **Possível agora** | cursor mutável, Optional terminal e error effect possuem lowering direto |
 | `for try await` | **Possível agora** | sugar local para `next()`; borrow do cursor e effects permanecem visíveis |
@@ -16515,7 +16974,9 @@ Os gates são cumulativos:
 5. mobile, firmware, áudio e devices passam seus resource gates;
 6. AI lab e device kernels preservam shapes e numeric mode;
 7. ABI lab valida source rebuild, C header, symbols, runtime e version skew;
-8. benchmarks preservam semântica e publicam evidence suficiente.
+8. execution profiles passam budget exhaustion, deadline, blocking drain e
+   scheduler replay;
+9. benchmarks preservam semântica e publicam evidence suficiente.
 
 Enquanto o compiler não existe, o documento deve informar quais gates são
 oracles e quais possuem evidência executável. Um parse do Tree-sitter não prova
@@ -16558,6 +17019,7 @@ Métricas de modelos:
 O corpus compara, no mínimo:
 
 - units `<>` contra `[]`;
+- alias de quantity contra newtype para todo nome físico;
 - `spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`;
 - `T<(.member predicate)>` contra `value.member`, `where` e constructor;
 - `Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope;
@@ -16584,6 +17046,9 @@ O corpus compara, no mínimo:
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
 - import de namespace compacto contra a forma histórica com `from`.
+- fail-fast com arbitragem lexical/input contra espera estritamente lexical;
+- cancellation como control effect contra `throws Cancellation`;
+- execution profile por product/unit contra domain default por módulo.
 
 ## 27. Plano de implementação
 
@@ -16742,12 +17207,18 @@ antes de sair do scope.
 
 - async state machine;
 - `async<.domain> let`, `spawn<.domain> let` e inheritance de preference;
-- linear Task, `TaskOutcome` e cancellation;
+- lifetime e scheduler state separados;
+- linear Task, body settled, cleanup e `TaskOutcome`;
+- cancellation snapshot bounded e `Task.checkCancellation()`;
+- fail-fast, drain e arbitragem lexical/input;
+- `TaskTimeout`, deadline monotônico e clock virtual;
 - `concurrentMap`/`parallelMap` bounded;
-- blocking adapter e callback scheduling;
+- admission avalia staging uma vez, reserva antes do publish e limpa uma vez;
+- blocking adapter, drain e callback scheduling;
 - HIR verificada antes do lowering async;
 - executor cooperativo e pool paralelo bounded;
-- schema de domain e bindings de profile;
+- schema de domain e `executionProfiles` data-only;
+- validation de `executionProfile` por product e budgets por unit;
 - budget compartilhado para groups paralelos aninhados;
 - deterministic test executor.
 
@@ -16764,6 +17235,8 @@ backpressure e cleanup reproduzíveis.
 - closed turn, generation e drain;
 - mailbox com três quotas;
 - `ServiceFailure`, cycle detection e `ServiceRef`;
+- lifecycle de call entre envelope, admission, turn, commit e delivery;
+- propagation de deadline strict/approximate e unknown outcome;
 - `ServiceBinding`, `ServiceFamily` e validation do runtime graph;
 - imports, exports e provider injection por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
@@ -16832,7 +17305,7 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 | Gate | Pergunta | Evidência mínima |
 |---|---|---|
 | memória | `shared`, arena e allocator compõem sem surpresa? | benchmarks, cycles, FFI e cancellation |
-| tasks | lowering preserva join, cancelamento e mobilidade? | testes diferenciais e scheduler reproduzível |
+| tasks | lowering preserva join, cancelamento, budget, deadline e mobilidade? | testes diferenciais, fault injection e scheduler reproduzível |
 | services | closed turn, admission e cycle são previsíveis? | três workloads, failure injection e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
@@ -16935,7 +17408,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco e `CancellationReason` fechado | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
+| W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco; reasons do caller são separados de deadline, budget e saída estrutural | statement `cancel` (**Rejeitado por enquanto**); budget como reason; async thread cancellation |
 | W-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | W-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes W-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
 | W-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em W-424–429 | `Send`/`Sync` públicos; runtime checks |
@@ -17013,9 +17486,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
 | W-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
 | W-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
-| W-120 | outcome de task | success/error/canceled; panic encerra fault boundary | cancel em `E`; panic como Result |
+| W-120 | outcome de task | body settled, cleanup e só então success/error/canceled observável; panic encerra fault boundary | outcome antes do cleanup; cancel em `E`; panic como Result |
 | W-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
-| W-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
+| W-122 | cancelamento | cooperativo, idempotente, snapshot bounded e sem rollback ou shield geral | matar thread; transação ou shield implícito |
 | W-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
 | W-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
 | W-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em W-454–472 | generator unbounded; channel bidirecional universal |
@@ -17243,12 +17716,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
 | W-348 | domains portáteis | `StandardDomain` fecha defaults; enum payload-free conforme a `ExecutionDomain` declara IDs customizados | toda finalidade vira keyword; string |
 | W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
-| W-350 | defaults de execução | `async` herda; `spawn` e parallel group usam parallel default | herdar domain serial e degradar `spawn` |
+| W-350 | defaults de execução | `async` herda; `spawn` e parallel group usam o `parallelDefault` do execution profile | herdar domain serial e degradar `spawn` |
 | W-351 | domain de módulo | nenhum default por módulo; instance/entry/product possui binding | import cria queue/thread |
 | W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
 | W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
-| W-354 | fairness | eventual sob tasks bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica |
-| W-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
+| W-354 | fairness | eventual sob budgets bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica; queue ilimitada |
+| W-355 | priority e deadline | priority é policy; deadline monotônico vira cancellation; `Task.withTimeout` cria child lexical | `.background` como domain; priority garante prazo; deadline wall-clock |
 | W-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
 | W-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
 | W-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
@@ -17372,7 +17845,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-476 | progress e error | progress retorna agora e error simultâneo fica latched para a próxima call | lançar depois de mutar sem informar; perder progress; outcome com estados impossíveis |
 | W-477 | resultado de write | `.complete` ou `.partial(positive)`; `writeAll` informa prefixo já committed | Boolean; assumir write integral; rollback fictício |
 | W-478 | cancellation de I/O | cancellation disputa com completion e só libera borrow depois do drain | liberar buffer no pedido; fingir zero progress; matar worker thread |
-| W-479 | blocking I/O | interfaces separadas e adapter explícito em executor bounded | blocking invisível no worker cooperativo; pool ilimitado; uma interface condicional |
+| W-479 | blocking I/O | adapter explícito, pool/queue bounded e drain após foreign entry; cancel só interrompe quando metadata prova | blocking invisível no worker cooperativo; pool ilimitado; destacar thread; uma interface condicional |
 | W-480 | rights de arquivo | `File<[.read, ...]>` usa static list fechada e mantém checks dinâmicos do host | flags somente runtime; capability implica permissão de path; annotations |
 | W-481 | offsets de arquivo | I/O seekable é posicional por default; `.end` observa o offset; shared File exige offset explícito | cursor compartilhado default; EOF latched no handle posicional; metadata.size + write |
 | W-482 | cursor sequencial | adapter opaque `some ByteSource<IoError>` possui File + offset; sem classe utilitária pública | `FileReader` público; cursor dentro de todo File; offset global |
@@ -17394,7 +17867,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
 | W-499 | workflow durável | replay desde o começo usa points e outcomes explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
 | W-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
-| W-501 | product runtime graph | `runtimeGraphs` fixa providers, imports, exports, injection e envelope; compiler deriva requirements | manifest executável; reflection encontra implementação; limite só no host |
+| W-501 | product runtime graph | `runtimeGraphs` fixa providers, imports, exports e injection; execution profile fixa task runtime; compiler deriva requirements | manifest executável; reflection encontra implementação; limite só no host |
 | W-502 | deployment | plano e lock data-only ligam units prebuilt por digest; só placement, binding permitido e redução | rebuild por ambiente; config invisível; deployment troca packing ou semântica |
 | W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
 | W-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
@@ -17439,7 +17912,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-543 | cache local | limita entries, loaders e fila; devolve owned duplicate; bytes ficam no envelope do product | Map global; fila livre; view sobre entry; cache como source of truth |
 | W-544 | cache load | um loader por key; waiter cancela só a espera; admission e commit são explícitos | task detached; waiter cancela loader; errors cached por default; loaders iguais |
 | W-545 | cache remoto | usa `ServiceRef` async separado; deployment não converte cache local em rede | API sync location-transparent; timeout invisível; remote fallback |
-| W-546 | limits de product | schema do host/capability fixa envelope máximo; deployment somente reduz | config aumenta authority; limite só operacional; defaults sem artifact contract |
+| W-546 | limits de product | host/capability e execution profile fixam envelopes máximos por unit; deployment somente reduz | config aumenta authority; limite só operacional; defaults sem artifact contract |
 | W-547 | configuração de host | schema fechado do profile entra na recipe; deployment somente reduz policies permitidas | mapa de opções livre; config concede capability; proxy oculto corrige semântica |
 | W-548 | parâmetro de chamada `const` | `name: const T` exige ConstRepresentable conhecido no call site; ABI pode apagar | `comptime` em cada call; runtime descriptor na API estática; monomorphization obrigatória |
 | W-549 | gather write | `writeMany(_ sources: view Bytes...)` confirma prefixo da concatenação lógica; default usa um `write` | `IoSlice` público; concatenação; exigir backend vetorizado; erro por excesso de segments |
@@ -17483,7 +17956,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-587 | mutation do package graph | `w add/remove` atualiza manifest e lock atomicamente, com dry-run e sem scripts | editar lock à mão; resolver depois; executar install hook |
 | W-588 | inventário de source | package fixa todo source inventory; cada context fixa o active source set após selectors | um digest ambíguo; somente files ativos na release; discovery por checkout |
 | W-589 | target spec | `TargetId` + CPU/features + platform contract; profile só impõe `cpuPolicy` | triple inclui SDK; CPU duplicada no profile; host completa campos |
-| W-590 | execution platform | root ordena platform specs; cada phase fixa uma; executor compatível não muda a plan | host global ou automático; target final executa build tool; endpoint na recipe |
+| W-590 | execution platform | root ordena platform specs; cada phase fixa uma; CLI usa `--execution-platform`; executor compatível não muda a plan | `--execution` ambíguo; host global ou automático; endpoint na recipe |
 | W-591 | requirement de toolchain | analyzer pede roles e capabilities; package não escolhe executable por path | compiler path no manifest; shell environment; toolchain monolítica obrigatória |
 | W-592 | provider de toolchain | `runsOn`, `producesFor`, roles e artifacts por digest são independentes | backend implica SDK/linker; provider concede capabilities não declaradas |
 | W-593 | resolução de provider | root ordena source/authority/provider; versão é comparada dentro de uma lineage no snapshot fixo; empate falha | comparar versões de providers distintos; registration order; primeiro executable em `PATH` |
@@ -17538,6 +18011,20 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-642 | carrier de `Bytes` | empty/static/inline/dynamic permitem conversão consuming com String sem layout público comum | sempre Array<u8>; cópia obrigatória; pointer tag define interpretação |
 | W-643 | `CString` | payload sem NUL + terminador; count exclui NUL; UTF-8 só após decode explícito | CString sempre UTF-8; count inclui sentinela; scan inbound ilimitado |
 | W-644 | address space | `Address` seleciona o space default; `Address<space: S>` preserva identidade e index width; casts exigem adapter `unsafe` | um integer universal; LLVM address-space ID no source; equality cross-space |
+| W-645 | lifetime de task | scheduler state é ortogonal; body settled precede cleanup; outcome só fica observável depois do cleanup | running como lifetime; outcome antes do cleanup; cancel substitui resultado settled |
+| W-646 | arbitragem de join | application error causa fail-fast; drain precede seleção lexical/input entre errors settled; completion order só quando declarado | esperar child anterior antes de cancelar; primeiro erro do scheduler como default |
+| W-647 | snapshot de cancellation | reasons do caller, deadline, budgets, scope exit, sibling failure e ancestry formam valor fixed-size monotônico | um reason vencedor; lista alocada; budget como caller reason |
+| W-648 | deadline | `Deadline` é monotônico e local; `TaskTimeout` é refinado; ausência usa `none`; boundary distingue propagation strict e approximate | wall clock; serializar Instant local; infinity como ausência; afirmar clocks distribuídos iguais |
+| W-649 | admission de task | argumentos/captures avaliam uma vez em staging; reserva precede publish; falha limpa owners e produz handle canceled inline | pular efeitos sob carga; fila ilimitada; novo error effect em `async let` |
+| W-650 | capabilities de domain | default/I/O são concurrent; compute é parallel; blocking também é parallel e bounded | `spawn<.blocking>` sem capability paralela; domain implica thread |
+| W-651 | execution profile | package fixa tasks, frames, timers, ready queues, pools, fallbacks e cleanup; product seleciona `executionProfile` | scheduler ambiental; limites somente no deployment; profile de build acumula runtime |
+| W-652 | envelope por unit | packing aplica profile a cada unit com tasks; artifact index grava máximos; deployment reduz por unit | budget global impossível entre hosts; deployment aumenta ou troca pool |
+| W-653 | blocking drain | cancel remove job não iniciado; foreign frame iniciado mantém owner até retorno ou fault boundary física | matar thread; liberar buffer cedo; task detached após deadline |
+| W-654 | lifecycle de service call | envelope commit, admission, turn e outcome commit fixam ownership, cancellation e unknown outcome | cancellation presume ausência de efeito; retry mutante; abandono do turn |
+| W-655 | deadline remoto | caller local mantém authority; remaining duration cruza; strict exige timebase/synchronization provada | resetar timeout em cada hop; garantia end-to-end sem clock proof |
+| W-656 | device execution | ordinary `spawn` não faz offload; transfer, kernel artifact, launch e sync ficam explícitos em T2 | `.device` migra closure; auto-transfer; GPU como thread pool |
+| W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
+| W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

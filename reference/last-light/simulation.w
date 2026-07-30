@@ -19,7 +19,7 @@ import {
 } from restaurant.domain
 import { BillingError, PricingPolicy, loadPriceTable, quote } from restaurant.billing
 import { DutyCycle, expectedEnergy } from restaurant.kitchen
-import { Duration, Energy, Power } from restaurant.units
+import { Energy, PhysicalDuration, Power } from restaurant.units
 
 export type SimulationTick = u16
 export type SimulationTicks = u16<(1...1_000)>
@@ -55,7 +55,7 @@ export struct SimulationReport {
   maximumTicks: SimulationTicks
   cooks: SimulationCooks
   tables: SimulationTables
-  tickDuration: Duration
+  tickDuration: PhysicalDuration
   ticksRun: SimulationTick
   completed: usize
   departed: usize
@@ -78,7 +78,7 @@ struct SimulationConfig {
   tables: SimulationTables
   ovenPower: Power
   ovenDuty: DutyCycle
-  tickDuration: Duration
+  tickDuration: PhysicalDuration
 }
 
 struct SimulatedOrder {

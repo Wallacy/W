@@ -22,8 +22,6 @@ profile e toolchain plan. O kind fecha os outros fields:
 Uma library não recebe entry ou host por default omitido. Esses fields são
 inválidos para seu kind.
 
-O product iniciado por host usa:
-
 O source usa:
 
 ```w
@@ -48,6 +46,7 @@ O manifest escolhe a forma anônima:
   module: "restaurant.app"
   entry: ".default"
   host: "w.host/native-process@1"
+  executionProfile: "native-bounded"
 }
 ```
 
@@ -62,6 +61,7 @@ Outro product pode escolher o descriptor nomeado:
   module: "restaurant.app"
   entry: "LastLightTui"
   host: "w.host/native-process@1"
+  executionProfile: "native-bounded"
 }
 ```
 
@@ -156,7 +156,42 @@ As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
 imports do runtime graph. Essa diferença impede lookup livre por string.
 
-### 3.2 Workflow de pedidos
+### 3.2 Execution profiles
+
+Build profile e execution profile respondem a perguntas diferentes:
+
+| Seleção | Pergunta |
+|---|---|
+| `--profile release` | como compiler, checks e representação produzem bytes? |
+| `executionProfile: "native-bounded"` | quais tasks, pools, domains e cleanups o artifact permite? |
+| `--execution-platform linux-x64` | em qual plataforma hermética o build executa? |
+
+`package.w` contém três execution profiles:
+
+| Profile | Products | Contrato |
+|---|---|---|
+| `native-bounded` | native, TUI, simulation e observatory | CPU e blocking pools bounded; domain térmico compartilha o CPU pool |
+| `edge-bounded` | worker, Wi-Fi e mobile | tasks de I/O bounded; sem blocking domain alcançável |
+| `benchmark-bounded` | benchmark | envelope maior, ainda com queue, frame e timer limits |
+
+Cada unit criada pelo packing recebe seu próprio envelope. O packing
+`single-process` cria um runtime compartilhado. O packing `split-services`
+produz um runtime por unit. `deployments/distributed.w` reduz cada unit
+separadamente.
+
+O deployment não cria domain nem muda fallback. Ele reduz somente números
+dentro do envelope. `LastLightDomain.thermal` e `.compute` usam o mesmo pool
+`cpu`. Portanto, dois nomes lógicos não duplicam workers.
+
+```text
+w explain execution last-light-native \
+  --deployment deployments/local.w
+```
+
+O relatório deve mostrar requirements alcançáveis, pool compartilhado, budgets
+do artifact, redução por unit e digest do profile.
+
+### 3.3 Workflow de pedidos
 
 O supervisor `fulfillment` liga `fulfillOrderDurably`. O artifact fixa:
 
@@ -189,7 +224,7 @@ volátil, mas não satisfaz `recovery: .required`. Storage sem encryption at res
 não satisfaz `.hostEncrypted`. Essas regras impedem o deployment de reduzir as
 garantias do product.
 
-### 3.3 Libraries e fronteiras ABI
+### 3.4 Libraries e fronteiras ABI
 
 O laboratório do horizonte produz duas libraries:
 
@@ -372,7 +407,7 @@ global de `malloc`.
 w toolchain resolve \
   --product last-light-benchmark \
   --target x86_64-unknown-linux-gnu \
-  --execution linux-x64 \
+  --execution-platform linux-x64 \
   --cpu x86-64-v3 \
   --features +avx2,+fma \
   --profile benchmark-mimalloc \
@@ -415,13 +450,13 @@ w build last-light-tui \
 w toolchain resolve \
   --product last-light-native \
   --target x86_64-unknown-linux-gnu \
-  --execution linux-x64 \
+  --execution-platform linux-x64 \
   --profile release \
   --output build/linux-x64.wplan
 
 w toolchain explain last-light-native \
   --target x86_64-unknown-linux-gnu \
-  --execution linux-x64
+  --execution-platform linux-x64
 
 w build last-light-native \
   --target x86_64-unknown-linux-gnu \
@@ -476,6 +511,8 @@ w explain target-variant last-light/restaurant::native-terminal \
   --target x86_64-pc-windows-msvc
 w explain artifact sha256:...
 w explain runtime restaurant-core
+w explain execution last-light-native \
+  --deployment deployments/local.w
 w explain workflow fulfillment --key order:42
 w explain performance restaurant.horizon::forecast
 w explain memory restaurant.allocation::countStagedMenuInParallel
@@ -884,7 +921,7 @@ w package check --matrix last-light/restaurant
 w toolchain resolve \
   --product last-light-native \
   --target x86_64-unknown-linux-gnu \
-  --execution linux-x64 \
+  --execution-platform linux-x64 \
   --profile release \
   --output build/release-linux-x64.wplan
 w build last-light-native \
@@ -1013,6 +1050,7 @@ Cada product precisa de um oracle observável.
 | native | CLI, TUI e HTTP produzem a mesma resposta tipada |
 | TUI dedicada | backend do target é único e modes não alcançáveis saem do artifact |
 | worker | request limits, cancellation e status são equivalentes |
+| task runtime | budgets, fail-fast, deadline, drain e shared pools passam scheduler adversarial |
 | Wi-Fi | authority, rate limit e session binding permanecem explícitos |
 | observatory | satélites e horizonte fazem join sem task solta ou dado stale |
 | fulfillment workflow | crash em todo commit preserva effect ID, outcome e ownership |
@@ -1051,7 +1089,7 @@ Os arquivos atuais exigem contratos ainda não implementados:
 10. pool, adapters de protocolo e validação de schema do database;
 11. implementação de cache local, eviction e single-flight;
 12. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
-13. validator do runtime graph e da interface de cada unit;
+13. validator do runtime graph, execution profile e interface de cada unit;
 14. schemas de provider, inventory, catalog, system importer e toolchain plan;
 15. executor local/remoto, sandbox, build-performance harness e corpus de
     parity entre execution platforms;
@@ -1063,6 +1101,7 @@ Os arquivos atuais exigem contratos ainda não implementados:
 21. `WAbiKey`, ABI note, symbol manifest e diagnostics de compatibilidade;
 22. gerador de header C, export list e harness para C callers;
 23. loader por digest para artifacts W exatos;
-24. compiler e backends.
+24. task runtime, clocks virtuais, scheduler replay e blocking adapters;
+25. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

@@ -2,7 +2,7 @@
 
 import std.si
 import std.tensor
-import { Duration, Distance, Velocity } from restaurant.units
+import { Distance, PhysicalDuration, Velocity } from restaurant.units
 
 export type SatelliteId = u32
 export alias Vector3<T> = Tensor<T, shape: [3]>
@@ -10,13 +10,13 @@ export alias Vector3<T> = Tensor<T, shape: [3]>
 export struct StateVector {
   position: Vector3<Distance>
   velocity: Vector3<Velocity>
-  epoch: Duration
+  epoch: PhysicalDuration
 }
 
 export enum SatelliteHealth {
   nominal
   degraded(reason: String)
-  silent(since: Duration)
+  silent(since: PhysicalDuration)
   lost
 }
 
@@ -41,7 +41,7 @@ export protocol SatelliteApi {
 
 export const satelliteSwarm = ServiceFamily<SatelliteApi, SatelliteId>(name: "satellites")
 
-export fn propagate(state: ref StateVector, during elapsed: Duration): StateVector {
+export fn propagate(state: ref StateVector, during elapsed: PhysicalDuration): StateVector {
   return StateVector(
     position: state.position + state.velocity * elapsed,
     velocity: state.velocity,
@@ -69,7 +69,7 @@ export struct CollisionWindow {
   left: SatelliteId
   right: SatelliteId
   separation: Distance
-  at: Duration
+  at: PhysicalDuration
 }
 
 export fn closestApproach(
@@ -78,7 +78,7 @@ export fn closestApproach(
   left: ref StateVector,
   right: ref StateVector,
   samples: usize<(1...4_096)>,
-  step: Duration,
+  step: PhysicalDuration,
 ): CollisionWindow {
   var bestIndex = 0_usize
   var bestDistance = Distance.MAX
