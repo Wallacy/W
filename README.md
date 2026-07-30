@@ -43,8 +43,10 @@ import std.http
 import { Command } from restaurant.command
 import { RestaurantApi } from restaurant.restaurant
 
+const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
+
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let restaurant = try await ctx.services.get<RestaurantApi>(key: "last-light")
+  let restaurant = try await ctx.services.get(restaurantService)
   let command = try request.json.decode<Command>()
   let response = try await dispatch(take command, restaurant: restaurant)
   return try http.Response.json(response)
@@ -58,6 +60,11 @@ entry LastLight {
 
 O mesmo `Command` e a mesma resposta tipada atendem CLI, TUI e HTTP. O runtime
 pode co-localizar services sem mudar esses contratos.
+
+O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
+resolve `ServiceFamily<OrderCoordinatorApi, OrderId>`. O descriptor injeta um
+`WorkKeyRef` limitado ao pedido. Consulte
+[`supervision.w`](examples/restaurant/supervision.w).
 
 ## Histórico
 

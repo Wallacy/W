@@ -80,7 +80,7 @@ struct OrderState {
   }
 }
 
-async fn prepareDish(
+package async fn prepareDish(
   order: take Order,
   pantry: ref ServiceRef<PantryApi>,
   ovens: ref ServiceRef<OvenApi>,
