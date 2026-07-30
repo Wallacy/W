@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 29 de julho de 2026
+> **Status:** **Candidato experimental** · 30 de julho de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
@@ -7283,8 +7283,8 @@ identity e observabilidade. O toolchain mede o custo da granularidade física.
 #### 13.3.1 Nanoservices
 
 W usa “nanoservice” como nome de arquitetura, não como novo tipo da linguagem.
-Uma service pequena continua sendo uma instance tipada. O runtime decide o
-packing físico.
+Uma service pequena continua sendo uma instance tipada. O build seleciona um
+packing declarado. O runtime executa as units resultantes.
 
 O objetivo é combinar:
 
@@ -7304,27 +7304,29 @@ W não copia o runtime JavaScript nem torna toda call remota transparente. Uma
 admission e `unknownOutcome`. O local fast path pode remover serialização. Ele
 não remove esses efeitos.
 
-Uma aplicação pode começar como um artifact:
+O grafo lógico pode ter um packing de processo único:
 
 ```text
-last-light-native
+single-process/main
   ├─ Restaurant
   ├─ Billing
-  ├─ Observatory
-  └─ WifiPortal
+  ├─ Oracle
+  └─ DiningRoom
 ```
 
-O deployment pode separar as mesmas instances:
+Outra recipe pode materializar o mesmo grafo como units:
 
 ```text
-edge process       -> WifiPortal, HTTP gateway
-kitchen process    -> Restaurant, OvenController
-orbital process    -> Observatory, SatelliteCoordinator
-accelerator host   -> Forecast kernels
+split-services/gateway  -> Restaurant
+split-services/planning -> Oracle
+split-services/finance  -> Billing
+split-services/dining   -> DiningRoom
 ```
 
-O source muda somente quando autoridade, consistency ou effects mudam. Mover
-uma binding não pode alterar uma call síncrona comum para rede silenciosamente.
+O deployment coloca essas units prebuilt em hosts. Ele não separa um executable
+já ligado. O source muda somente quando authority, consistency ou effects
+mudam. Trocar o packing ou o placement não pode converter uma call síncrona
+comum em rede silenciosamente.
 
 O workerd avisa que seu processo isolado não é, sozinho, um sandbox para código
 malicioso. W mantém a mesma separação: packing fino e capability bindings
@@ -7997,94 +7999,257 @@ O product descriptor liga cada field pelo nome e pelo tipo exato. Para um
 `WorkKeyRef`, ele também liga a origem da key. Falta, duplicata, cycle estático
 ou authority incompatível falha no build.
 
-#### 13.8.1 Envelope do product
+#### 13.8.1 Grafo lógico do product
 
-`package.w` declara o grafo máximo do artifact. O campo `runtime` fica no record
-do product. Este trecho começa nesse campo e omite os descriptors das seis
-dependências do workflow:
+**Exemplo:** o product nativo fornece `last-light` e importa os controladores
+físicos da despensa e dos fornos.
+
+`package.w` declara grafos nomeados. Um product seleciona no máximo um grafo.
+Não existe herança ou overlay entre grafos na primeira edição.
 
 ```w
-runtime: {
-  services: [
-    {
-      binding: "orders"
-      protocol: "restaurant.OrderCoordinatorApi"
-      implementation: "restaurant.OrderCoordinator"
-      scope: { kind: .keyed, keyType: "restaurant.OrderId" }
-      mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
-      inject: {
-        fulfillment: { supervisor: "fulfillment", key: .serviceIdentity }
-      }
-    },
-  ]
+runtimeGraphs: [
+  {
+    name: "restaurant-core"
+    providers: [
+      {
+        binding: "last-light"
+        protocol: "restaurant.restaurant::RestaurantApi"
+        implementation: "restaurant.restaurant::LastLightRestaurant"
+        scope: .process
+        mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
+        inject: {
+          pantry: .service("pantry")
+          ovens: .service("ovens")
+          oracle: .service("oracle")
+          probe: .service("aroma-probe")
+          billing: .service("billing")
+          diningRoom: .service("dining-room")
+        }
+      },
+      {
+        binding: "orders"
+        protocol: "restaurant.supervision::OrderCoordinatorApi"
+        implementation: "restaurant.supervision::OrderCoordinator"
+        scope: .keyed(keyType: "restaurant.domain::OrderId")
+        mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
+        inject: {
+          fulfillment: .supervisor("fulfillment", key: .serviceIdentity)
+        }
+      },
+    ]
 
-  supervisors: [
-    {
-      binding: "fulfillment"
-      keyType: "restaurant.OrderId"
-      inputType: "restaurant.FulfillmentInput"
-      progressType: "restaurant.ServiceStage"
-      outputType: "restaurant.Receipt"
-      failureType: "restaurant.RestaurantError"
-      operation: "restaurant.supervision::fulfillOrder"
-      domain: .io
-      context: {
-        services: ["pantry", "ovens", "oracle", "aroma-probe", "billing", "dining-room"]
-      }
-      capacity: { active: 64, queued: 128, queuedBytes: 16MiB }
-      retention: { terminalItems: 4_096, terminalBytes: 64MiB }
-      deduplication: { tombstones: 16_384, tombstoneBytes: 8MiB }
-      restart: .never
-      durability: [.memory]
-    },
-  ]
-}
+    imports: [
+      {
+        binding: "pantry"
+        protocol: "restaurant.kitchen::PantryApi"
+        source: .deployment
+      },
+      {
+        binding: "ovens"
+        protocol: "restaurant.kitchen::OvenApi"
+        source: .deployment
+      },
+      {
+        binding: "aroma-device"
+        capability: "restaurant.hardware::AromaProbeDevice"
+        source: .host
+      },
+    ]
+
+    exports: ["last-light", "orders"]
+  },
+]
 ```
 
-O descriptor usa dados. Ele não executa código. Símbolos são resolvidos pelo
-compiler e gravados por identity na interface.
+Um `provider` seleciona implementation, scope, isolation, quotas e injections.
+Um service import declara `protocol` e key type opcional. Um host import declara
+um tipo de `capability`. Um `export` torna um provider visível para composição
+externa.
 
-Os limites são parte do artifact contract. Um deployment pode reduzi-los. Ele
+O compiler deriva requirements a partir do entry, das funções alcançáveis e dos
+fields de injection. O manifest precisa satisfazer cada requirement com um
+provider, supervisor, host capability ou import declarado. Uma string não cria
+uma requirement nova.
+
+O linker resolve protocol, implementation, key type e schema por identity. Ele
+rejeita estes casos:
+
+- provider ausente ou duplicado;
+- import sem uso ou requirement não declarado;
+- injection com tipo, key ou rights incompatíveis;
+- ciclo estático proibido;
+- capability maior que o envelope;
+- símbolo textual que não corresponde à interface compilada.
+
+Um grafo fechado não possui imports. Um grafo aberto grava seus imports na
+interface do artifact. O host profile precisa permitir composição. `w run`
+exige um deployment local quando um executable possui imports abertos.
+
+Os limites pertencem ao artifact contract. Um deployment pode reduzi-los. Ele
 não pode trocar operation, protocol, key type, rights ou required isolation.
 
-#### 13.8.2 Manifest de deployment
+#### 13.8.2 Packing de build
 
-Deployment não altera o executável reproduzível. Um arquivo data-only separado
-liga placement, quotas e capabilities a um artifact digest:
+**Exemplo:** o mesmo grafo gera um artifact único ou um index com quatro units.
+
+`packing` é uma decisão de build. Ele divide providers e supervisors em artifact
+units. O nome e a expansão do packing entram na recipe.
+
+O product seleciona um packing default. `--packing` pode escolher outro packing
+do mesmo grafo. Se o grafo possui uma opção, o build pode inferi-la.
+
+```w
+packings: [
+  {
+    name: "single-process"
+    units: [
+      {
+        name: "main"
+        entry: true
+        providers: [
+          "last-light",
+          "orders",
+          "oracle",
+          "aroma-probe",
+          "billing",
+          "dining-room",
+        ]
+        supervisors: ["fulfillment"]
+      },
+    ]
+  },
+  {
+    name: "split-services"
+    units: [
+      {
+        name: "gateway"
+        entry: true
+        providers: ["last-light", "orders"]
+        supervisors: ["fulfillment"]
+      },
+      { name: "planning", providers: ["oracle", "aroma-probe"] },
+      { name: "finance", providers: ["billing"] },
+      { name: "dining", providers: ["dining-room"] },
+    ]
+  },
+]
+```
+
+Cada provider e supervisor aparece em uma unit. Um product com entry marca uma
+unit com `entry: true`. Uma unit sem entry continua válida quando publica um
+provider no artifact index. O instance manager inicia essa unit.
+
+O packer deriva interfaces privadas entre units a partir de injections e
+requirements do supervisor. Essas interfaces entram no artifact index. Elas não
+tornam o provider um export público do runtime graph.
+
+Cada edge privada fixa a unit de origem, a unit provedora, o binding, o protocol
+e o key type. O deployment roteia essa edge entre os placements selecionados.
+Ele não pode religá-la a outro provider. Somente um import aberto do runtime
+graph recebe um provider no manifest de deployment.
+
+Uma edge entre units usa a service ABI. Ela preserva `await`, schemas, quotas,
+ordering, cancellation, failures e trace. Uma call normal, um borrow ou mutable
+state compartilhado não pode cruzar essa edge.
+
+`single-process` pode gerar um executable ligado. `split-services` gera um
+artifact index e um payload por unit. Os dois resultados possuem digests
+distintos. Um deployment não extrai services de um executable já ligado.
+
+Static libraries, objects, MLIR e Wasm Components podem materializar uma unit.
+Essa escolha não muda a semântica da linguagem. Um módulo não vira sandbox só
+porque o build produziu uma static library intermediária.
+
+#### 13.8.3 Manifest e lock de deployment
+
+**Exemplo:** o plano local seleciona uma recipe. O lock grava os digests
+resultantes.
 
 ```w
 deployment {
   schema: "w.deployment/1"
-  artifact: "sha256:<artifact-digest>"
-  product: "last-light"
+  name: "last-light/local"
+
+  artifacts: [
+    {
+      name: "restaurant"
+      source: .product(
+        "last-light-native",
+        target: "x86_64-unknown-linux-gnu",
+        profile: "debug",
+        packing: "single-process",
+      )
+    },
+  ]
+
+  placement: [
+    { unit: "restaurant/main", host: .local },
+  ]
+
+  bindings: [
+    {
+      import: "restaurant/pantry"
+      provider: .adapter("last-light.dev/pantry@1")
+    },
+    {
+      import: "restaurant/ovens"
+      provider: .adapter("last-light.dev/ovens@1")
+    },
+  ]
 
   limits: {
     supervisors: [
-      { binding: "fulfillment", active: 32, queued: 64 },
+      { artifact: "restaurant", binding: "fulfillment", active: 8, queued: 32 },
     ]
   }
-
-  placement: [
-    { binding: "orders", target: "api-processes" },
-  ]
-
-  adapters: [
-    { binding: "fulfillment", durability: .memory },
-  ]
 }
 ```
 
-O deployment precisa respeitar o envelope do product. O validator rejeita uma
-expansão, capability ausente ou placement incompatível.
+`deployment.w` é um plano data-only. `.product(...)` referencia uma recipe
+reproduzível. `w deploy resolve` grava cada artifact e unit por digest em
+`deployment.lock`.
 
-Secrets não entram em `package.w` nem no artifact. O deployment referencia uma
-capability do host. O runtime entrega um handle, nunca o secret como metadata
-global.
+`.release(...)` referencia um artifact publicado por package, product, target e
+version. O resolver fixa seu release index e seus payloads. Ele não recompila
+essa release durante deploy.
 
-Artifact digest e deployment digest aparecem em trace, audit e crash report.
-Assim, duas instalações usam os mesmos bytes e mantêm configuração observável.
+`w deploy apply --locked` não executa build. Ele rejeita um source plan que
+difere do lock. Production não aceita placeholder, tag mutável ou product sem
+digest resolvido.
 
-#### 13.8.3 Versionamento e rolling update
+O deployment pode:
+
+- colocar units prebuilt em hosts;
+- rotear edges privadas já fixadas pelo packing;
+- conectar imports abertos a exports compatíveis;
+- selecionar adapters permitidos;
+- reduzir quotas;
+- referenciar secrets por capability.
+
+O deployment não pode:
+
+- reagrupar providers;
+- religar uma edge privada a outro provider;
+- trocar código, protocol, operation ou target;
+- aumentar o envelope;
+- converter uma call normal em uma service call;
+- conceder uma capability ausente no artifact.
+
+Secrets não entram em `package.w`, artifact ou deployment lock. O plano
+referencia uma capability do host. O runtime entrega um handle.
+
+Artifact, packing, deployment e adapter digests aparecem em trace, audit e
+crash report. Duas instalações podem usar os mesmos bytes e configurações
+distintas sem perder observabilidade.
+
+Fontes primárias:
+
+- [Wasm Components e composição por imports/exports](https://component-model.bytecodealliance.org/design/components.html);
+- [WIT worlds como contracts de imports e exports](https://component-model.bytecodealliance.org/design/worlds.html);
+- [OCI manifests e indexes content-addressed](https://github.com/opencontainers/image-spec/blob/main/manifest.md).
+
+#### 13.8.4 Versionamento e rolling update
 
 **Exemplo:** um root iniciado com `fulfillOrder@v3` termina nessa versão. O
 deploy de `v4` recebe somente starts novos.
@@ -11798,7 +11963,7 @@ Exemplos:
 x86_64-unknown-linux-gnu
 aarch64-apple-darwin
 aarch64-unknown-linux-android
-wasm32-wasi-preview2
+wasm32-wasip3
 thumbv7em-none-eabihf
 nvptx64-nvidia-cuda
 amdgcn-amd-amdhsa
@@ -11871,7 +12036,7 @@ O plano inicial, ainda sem implementação, usa esta ordem:
 |---|---|---|
 | desktop/server | Linux x86-64 e AArch64; Windows x86-64; macOS AArch64 | process, files, TCP, TLS, tasks e debugger |
 | mobile | Android AArch64/x86-64; iOS AArch64 e simulator | lifecycle, package, signing e platform SDK |
-| WebAssembly | `wasm32-wasi-preview2` | component, capabilities e deterministic host tests |
+| WebAssembly | `wasm32-wasip3` | native async component, capabilities e deterministic host tests |
 | embedded | ARM Cortex-M e RISC-V bare metal | no-heap profile, interrupts, MMIO e linker script |
 | accelerator | NVIDIA, AMD e SPIR-V devices | kernel subset, address spaces, transfer e launch |
 | research | BPF, FPGA/HDL e ASIC descriptions | verifier ou synthesis pipeline específico |
@@ -11886,6 +12051,14 @@ gates de runtime e SDK.
 O Android NDK atual expõe `arm64-v8a`, `armeabi-v7a`, `x86` e `x86_64`. O plano
 W começa por AArch64 e x86-64. Outros ABIs entram após evidence de demanda e CI.
 
+WASI 0.3 é a baseline de Component Model. Ela possui `async func`, `stream<T>` e
+`future<T>` na Canonical ABI. Esses contratos correspondem melhor ao runtime W
+que os adapters de polling do WASI 0.2.
+
+O target `wasm32-wasip3` permanece experimental para W até existir toolchain e
+corpus próprios. `wasm32-wasip2` continua como target de compatibilidade. Um
+adapter pode satisfazer imports 0.2. Ele não muda a interface W para polling.
+
 O dialeto GPU do MLIR oferece uma abstração intermediária para launch e separa
 os address spaces `global`, `workgroup`, `private` e `constant`. Ele não
 paraleliza um algoritmo por conta própria. O frontend W precisa provar ou pedir
@@ -11895,6 +12068,8 @@ Fontes primárias:
 
 - [targets configuráveis do LLVM](https://llvm.org/docs/CMake.html);
 - [política de targets experimentais do LLVM](https://llvm.org/docs/DeveloperPolicy.html);
+- [lançamento do WASI 0.3](https://bytecodealliance.org/articles/WASI-0.3);
+- [WIT e seus tipos async](https://component-model.bytecodealliance.org/design/wit.html);
 - [dialeto GPU do MLIR](https://mlir.llvm.org/docs/Dialects/GPU/);
 - [dialeto NVVM](https://mlir.llvm.org/docs/Dialects/NVVMDialect/),
   [dialeto ROCDL](https://mlir.llvm.org/docs/Dialects/ROCDLDialect/) e
@@ -11909,12 +12084,36 @@ Fontes primárias:
 numbers, size literals, booleans e enum values. Ele não executa imports, loops,
 funções ou I/O.
 
+O manifest ocupa o arquivo inteiro. Ele não pode coexistir com import, função,
+type ou outro manifest.
+
 ```w
 package {
   schema: "w.package/1"
   name: "last-light/restaurant"
   version: "0.1.0"
   edition: "2026"
+
+  runtimeGraphs: [
+    {
+      name: "restaurant-edge"
+      providers: []
+      imports: [
+        {
+          binding: "last-light"
+          protocol: "restaurant.restaurant::RestaurantApi"
+          source: .deployment
+        },
+      ]
+      exports: []
+      packings: [
+        {
+          name: "entry-only"
+          units: [{ name: "main", entry: true, providers: [] }]
+        },
+      ]
+    },
+  ]
 
   products: [
     {
@@ -11924,6 +12123,8 @@ package {
       entry: ".default"
       host: "w.host/native-process@1"
       targets: ["desktop"]
+      runtime: "restaurant-edge"
+      packing: "entry-only"
     },
     {
       name: "last-light-worker"
@@ -11932,6 +12133,8 @@ package {
       entry: "LastLightWorker"
       host: "w.host/http-worker@1"
       targets: ["wasi"]
+      runtime: "restaurant-edge"
+      packing: "entry-only"
     },
   ]
 
@@ -11960,7 +12163,11 @@ package {
     },
     {
       name: "wasi"
-      targets: ["wasm32-wasi-preview2"]
+      targets: ["wasm32-wasip3"]
+    },
+    {
+      name: "wasi-compat"
+      targets: ["wasm32-wasip2"]
     },
   ]
 
@@ -11997,8 +12204,16 @@ e independente do parser W completo.
 - múltiplas versões ficam fora da v0;
 - features são aditivas, locais à instância e entram na chave do artefato.
 
-Um product liga exatamente um descriptor expandido. Vários products podem usar
-os mesmos módulos. Escolher outro entry, host ou target cria outra recipe.
+`kind` seleciona um schema fechado. O manifest não usa um record com fields
+opcionais sem relação.
+
+Um product iniciado por host liga exatamente um descriptor expandido. Uma
+library usa symbols exportados como roots. Uma service-only unit usa providers
+publicados no artifact index. Todo product e toda unit precisam de ao menos um
+root alcançável.
+
+Vários products podem usar os mesmos módulos. Escolher outro entry, host,
+target, runtime graph ou packing cria outra recipe.
 
 Product kinds iniciais:
 
@@ -12007,7 +12222,7 @@ Product kinds iniciais:
 | `.executable` | payload iniciado por um process ou application host |
 | `.staticLibrary` | archive e interface para link |
 | `.dynamicLibrary` | library com ABI declarada |
-| `.component` | componente carregado por host, inicialmente Wasm Component |
+| `.component` | component com entry, imports ou providers exportados |
 | `.firmware` | imagem e metadata de device |
 | `.deviceBundle` | kernels/objects para um accelerator e manifest de launch |
 | `.test` | harness e corpus selecionado |
@@ -12031,16 +12246,19 @@ manual invalida o arquivo.
 
 ### 21.2 Build
 
-**Exemplo:** o build escolhe product e target. O product escolhe entry e host:
+**Exemplo:** o build escolhe product, target e packing. O product escolhe entry,
+host e runtime graph:
 
 ```text
 w build last-light-native \
   --target x86_64-unknown-linux-gnu \
+  --packing single-process \
   --profile release \
   --locked
 
 w build last-light-worker \
-  --target wasm32-wasi-preview2 \
+  --target wasm32-wasip3 \
+  --packing entry-only \
   --profile release \
   --locked
 
@@ -12076,7 +12294,7 @@ ou são removidos.
 A chave mínima inclui:
 
 ```text
-package graph + product + expanded entry + host profile
+package graph + product + expanded entry + host profile + runtime graph + packing
 + target + CPU/features + sysroot/SDK + profile
 + compiler/runtime + adapters + build inputs + lock
 ```
@@ -12101,8 +12319,9 @@ Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
 `process.main` escolhe o modo e mantém um só descriptor:
 
 ```text
-w run last-light-native -- --tui
-w run last-light-native -- --serve 127.0.0.1:8080
+w run last-light-native --deployment deployments/local.w -- --tui
+w run last-light-native --deployment deployments/local.w \
+  -- --serve 127.0.0.1:8080
 ```
 
 Um worker HTTP usa outro host lifecycle. Ele recebe outro product e, em geral,
@@ -12196,9 +12415,9 @@ runtime dependencies aparecem como relações distintas no SBOM.
 w resolve
 w update <package>
 w fetch --locked
-w build <product> --target <target> --locked
+w build <product> --target <target> [--packing <packing>] --locked
 w build --matrix <set> --product <product> --locked
-w run <product> -- <arguments>
+w run <product> [--deployment <plan>] -- <arguments>
 w test [product] --locked
 w explain dependency <package>
 w explain product <product>
@@ -12206,6 +12425,9 @@ w explain artifact <digest>
 w diff-lock
 w verify <artifact>
 w reproduce <release>
+w deploy resolve <plan>
+w deploy check <plan> --locked
+w deploy apply <plan> --locked
 w bundle offline
 w cache import <bundle>
 ```
@@ -12224,7 +12446,7 @@ built last-light-native
 payload sha256:7e...
 recipe  sha256:21...
 
-$ w run last-light-native -- --cli
+$ w run last-light-native --deployment deployments/local.w -- --cli
 ```
 
 O CLI não imprime download, compile unit ou cache hit por default. `--verbose`
@@ -12622,8 +12844,9 @@ Uma pesquisa só avança quando possui:
 | `fn`, `some fn` e `any fn` | **Provável** | tipos e drop são conhecidos; escape e erasure exigem corpus de custo |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
-| bindings tipados e runtime graph data-only | **Possível agora** | resolução nominal e validação do envelope ocorrem no link |
-| deployment separado por artifact digest | **Provável** | schema é simples; placement, secrets e rolling update exigem adapters |
+| bindings tipados e runtime graph data-only | **Possível agora** | requirements, providers, imports e exports fecham por interface no link |
+| packing de service graph | **Provável** | partição e index são simples; ABI entre units e fast path exigem protótipo |
+| deployment plan e lock por digest | **Provável** | resolução é direta; placement, adapters e rolling update exigem runtime |
 | workflow durável por steps | **Provável T2** | SQLite e outbox ajudam; retry, migration e effect ID exigem protótipo |
 | `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
 | refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
@@ -12639,6 +12862,7 @@ Uma pesquisa só avança quando possui:
 | descriptor anônimo e overlay local | **Possível agora** | expansão é estática; diagnostics precisam mostrar origem |
 | package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
 | target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
+| WASI 0.3 native async component | **Provável** | standard estável; target e guest toolchains ainda amadurecem |
 | desktop/server LLVM targets | **Provável** | backends existem; runtime, SDK e CI ainda são trabalho W |
 | Android e Apple mobile | **Provável** | ABI e SDK existem; lifecycle, packaging e signing exigem adapters |
 | Cortex-M e RISC-V firmware | **Provável** | backends existem; freestanding runtime e device descriptions exigem corpus |
@@ -12741,6 +12965,20 @@ last-light-worker / LastLightWorker
   → JSON
 ```
 
+O grafo lógico possui duas materializações:
+
+```text
+restaurant-core
+  ├─ single-process → main
+  └─ split-services → gateway + planning + finance + dining
+
+deployment local       → uma host placement
+deployment distributed → native units + WASI 0.3 + device releases
+```
+
+Os dois packings preservam providers, imports, supervisor e service effects.
+O deployment seleciona somente units prebuilt.
+
 A rota de trabalho longo testa o owner runtime:
 
 ```text
@@ -12820,7 +13058,8 @@ type-check, lowering ou comportamento runtime.
 
 O produto detalhado está em
 [Restaurante Última Luz](reference/last-light/README.md). Products, targets e
-comandos estão em [BUILD.md](reference/last-light/BUILD.md).
+comandos estão em [BUILD.md](reference/last-light/BUILD.md). Os planos ficam em
+[deployments/](reference/last-light/deployments/).
 
 ## 26. Protocolo de revisão
 
@@ -13045,11 +13284,13 @@ backpressure e cleanup reproduzíveis.
 - mailbox com três quotas;
 - `ServiceFailure`, cycle detection e `ServiceRef`;
 - `ServiceBinding`, `ServiceFamily` e validation do runtime graph;
+- imports, exports e provider injection por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
-- validation data-only de deployment contra o product envelope;
+- packing em service-only units e artifact index;
+- validation de deployment plan e lock contra o product envelope;
 - tracing e local fast path;
-- process/Wasm boundary experimental.
+- process e `wasm32-wasip3` boundary experimentais.
 
 Saída: CLI e HTTP exibem hops, queues, overload, cycle, trabalho supervisionado
 e restart de instance.
@@ -13650,8 +13891,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
 | W-499 | workflow durável | steps e schemas explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
 | W-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
-| W-501 | product runtime graph | `package.w` fixa símbolos, envelope, injection e operation | manifest executável; reflection encontra implementação; limite só no host |
-| W-502 | deployment | data-only separado e ligado ao artifact digest; só reduz envelope | rebuild por ambiente; config invisível; deployment troca semântica estática |
+| W-501 | product runtime graph | `runtimeGraphs` fixa providers, imports, exports, injection e envelope; compiler deriva requirements | manifest executável; reflection encontra implementação; limite só no host |
+| W-502 | deployment | plano e lock data-only ligam units prebuilt por digest; só placement, binding permitido e redução | rebuild por ambiente; config invisível; deployment troca packing ou semântica |
 | W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
 | W-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
 | W-505 | identity keyed de service | `ServiceIdentity<K>` read-only e injetada; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
@@ -13659,11 +13900,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-507 | completion versus cancellation | completion committed entrega o valor; cancellation fica pendente; unknown outcome permanece distinto | descartar valor committed; injetar cancel entre statements; rollback presumido |
 | W-508 | entry anônimo | `entry(handler)` fornece descriptor default e base local para entries nomeados | repetir bindings; `entry defaults`; herança entre módulos |
 | W-509 | shorthand de entry | `entry Name(handler)` liga o slot default único do host profile | escrever `process.main`; inferir pelo nome da função |
-| W-510 | seleção de entry | product escolhe um descriptor expandido no link; import não registra entry | seleção runtime por nome; registry global |
+| W-510 | seleção de entry | product iniciado por host escolhe descriptor; library usa export e service-only unit usa provider no index | entry obrigatório para todo artifact; seleção runtime por nome; registry global |
 | W-511 | aplicação multimodo | um `process.main` escolhe CLI/TUI/server; slots de host continuam distintos | vários mains no mesmo payload; OS chama `http.fetch` |
 | W-512 | identidade de target | architecture-vendor-system-ABI + CPU/features/sysroot separados | string livre; target igual a OS; backend implica suporte |
 | W-513 | host profile | slots, capabilities e lifecycle versionados, separados do target | APIs condicionais por `#ifdef`; target concede capabilities |
-| W-514 | product kind | executable, libraries, component, firmware, device bundle, test, benchmark e tool | um executable universal; kind inferido pelo entry |
+| W-514 | product kind | `kind` seleciona schema fechado; executable, libraries, component, firmware, device bundle, test, benchmark e tool | record de fields opcionais; executable universal; kind inferido pelo entry |
 | W-515 | matriz de build | cada product/target/profile gera recipe e digest próprios; index agrega resultados | hash único entre architectures; matrix muda payload |
 | W-516 | produto de referência | Última Luz é especificação executável, regressão e benchmark do W | exemplo descartável; snippets independentes como oracle principal |
 | W-517 | nanoservice | service é fronteira lógica; runtime pode co-localizar sem apagar effects | processo por service; call remota transparente |
@@ -13671,6 +13912,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-519 | benchmark externo | profile versionado reproduz workload e registra diferenças; ranking não é semântica | otimizar para placar sem oracle; prometer posição |
 | W-520 | module set | `.fileStem` expande paths de forma determinística e grava a lista no lock | descoberta livre do diretório; `module` em cada source |
 | W-521 | std em W | contratos públicos são source W; handles e operações intrínsecas têm fronteira explícita | std toda no compiler; wrappers utilitários por operação |
+| W-522 | fechamento do runtime graph | cada requirement recebe provider, supervisor, host capability ou import declarado | lookup por string; import implícito; provider descoberto por reflection |
+| W-523 | interface de graph aberto | imports e exports tipados entram na interface do artifact; executable aberto exige deployment | esconder import no Context; rede global; executable presume provider |
+| W-524 | packing | partição de providers em units ocorre no build e entra na recipe | extrair service de executable durante deploy; processo por módulo |
+| W-525 | crossing de unit | somente service ABI cruza unit; preserva async, schema, quotas, failures e trace | call normal remota; borrow ou mutable state entre units |
+| W-526 | deployment lock | source plan resolve products e releases para artifact, unit e adapter digests | tag mutável em production; build durante apply; secret dentro do lock |
+| W-527 | WASI baseline | `wasm32-wasip3` usa Component Model native async; `wasm32-wasip2` é compatibilidade | polling 0.2 como semântica W; Wasm implica DOM |
+| W-528 | unit root | entry unit é explícita; service-only unit publica provider no artifact index; toda unit possui root | unit vazia; initializer implícito; entry sintético pelo nome |
+| W-529 | interface privada de unit | packer deriva endpoints privados e fixos; deployment só roteia a edge | tornar provider público; religar edge interna no deployment |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

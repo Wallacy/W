@@ -134,7 +134,12 @@ module.exports = grammar({
   ],
 
   rules: {
-    source_file: ($) => repeat(choice($.import_statement, $._declaration)),
+    source_file: ($) =>
+      choice(
+        repeat(choice($.import_statement, $._declaration)),
+        $.package_manifest,
+        $.deployment_manifest,
+      ),
 
     import_statement: ($) =>
       seq(
@@ -188,7 +193,6 @@ module.exports = grammar({
         $.extension_declaration,
         $.behavior_declaration,
         $.entry_declaration,
-        $.package_manifest,
         $.foreign_declaration,
         $.const_declaration,
         $.test_declaration,
@@ -595,6 +599,11 @@ module.exports = grammar({
     package_manifest: ($) =>
       seq(
         "package",
+        field("body", $.manifest_record),
+      ),
+    deployment_manifest: ($) =>
+      seq(
+        "deployment",
         field("body", $.manifest_record),
       ),
     manifest_record: ($) =>

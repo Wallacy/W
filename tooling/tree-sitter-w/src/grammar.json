@@ -4,20 +4,33 @@
   "word": "identifier",
   "rules": {
     "source_file": {
-      "type": "REPEAT",
-      "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "SYMBOL",
-            "name": "import_statement"
-          },
-          {
-            "type": "SYMBOL",
-            "name": "_declaration"
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "import_statement"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "_declaration"
+              }
+            ]
           }
-        ]
-      }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "package_manifest"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "deployment_manifest"
+        }
+      ]
     },
     "import_statement": {
       "type": "SEQ",
@@ -341,10 +354,6 @@
         {
           "type": "SYMBOL",
           "name": "entry_declaration"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "package_manifest"
         },
         {
           "type": "SYMBOL",
@@ -3067,6 +3076,23 @@
         {
           "type": "STRING",
           "value": "package"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "manifest_record"
+          }
+        }
+      ]
+    },
+    "deployment_manifest": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "deployment"
         },
         {
           "type": "FIELD",

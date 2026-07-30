@@ -28,7 +28,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `entry(handler)`, descriptors nomeados e bindings de host;
-- manifest `package { ... }` com values data-only;
+- manifests `package { ... }` e `deployment { ... }` com values data-only;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
@@ -49,6 +49,7 @@ npm install
 npm run generate
 npm test
 npm run parse:reference
+npm run parse:deployments
 npm run parse:std
 npm run parse:fixture
 npm run check:design
@@ -60,10 +61,11 @@ Ou execute todos os checks:
 npm run check
 ```
 
-`npm run check` executa corpus, produto de referência, std, fixture do VS Code e
-cobertura de exemplos do design. O CLI está fixado em `tree-sitter-cli` 0.26.11. Após
-`generate`, `src/` e o parser C gerado tornam a gramática consumível sem copiar
-regras para outro lexer. Um binding Node nativo é responsabilidade do
+`npm run check` executa corpus, produto, deployments, std, fixture do VS Code e
+cobertura de exemplos. O CLI está fixado em `tree-sitter-cli` 0.26.11.
+
+Após `generate`, `src/` e o parser C gerado tornam a gramática consumível sem
+copiar regras para outro lexer. Um binding Node nativo é responsabilidade do
 consumidor. Ele não é necessário para gerar ou testar esta pasta.
 
 ## Próximos consumidores

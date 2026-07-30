@@ -16,6 +16,239 @@ package {
     },
   ]
 
+  runtimeGraphs: [
+    {
+      name: "restaurant-core"
+      providers: [
+        {
+          binding: "last-light"
+          protocol: "restaurant.restaurant::RestaurantApi"
+          implementation: "restaurant.restaurant::LastLightRestaurant"
+          scope: .process
+          mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
+          inject: {
+            pantry: .service("pantry")
+            ovens: .service("ovens")
+            oracle: .service("oracle")
+            probe: .service("aroma-probe")
+            billing: .service("billing")
+            diningRoom: .service("dining-room")
+          }
+        },
+        {
+          binding: "orders"
+          protocol: "restaurant.supervision::OrderCoordinatorApi"
+          implementation: "restaurant.supervision::OrderCoordinator"
+          scope: .keyed(keyType: "restaurant.domain::OrderId")
+          mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
+          inject: {
+            fulfillment: .supervisor("fulfillment", key: .serviceIdentity)
+          }
+        },
+        {
+          binding: "oracle"
+          protocol: "restaurant.oracle::OracleApi"
+          implementation: "restaurant.oracle::TableOracle"
+          scope: .process
+          mailbox: { items: 64, bytes: 4MiB, inFlight: 1 }
+        },
+        {
+          binding: "aroma-probe"
+          protocol: "restaurant.hardware::AromaProbeApi"
+          implementation: "restaurant.hardware::AromaProbeService"
+          scope: .process
+          mailbox: { items: 16, bytes: 1MiB, inFlight: 1 }
+          inject: {
+            device: .capability("aroma-device")
+          }
+        },
+        {
+          binding: "billing"
+          protocol: "restaurant.billing::BillingApi"
+          implementation: "restaurant.billing::BillingLedger"
+          scope: .process
+          mailbox: { items: 64, bytes: 4MiB, inFlight: 1 }
+          inject: {
+            gateway: .service("payment-gateway")
+          }
+        },
+        {
+          binding: "dining-room"
+          protocol: "restaurant.dining::DiningRoomApi"
+          implementation: "restaurant.dining::PrismDiningRoom"
+          scope: .process
+          mailbox: { items: 32, bytes: 4MiB, inFlight: 1 }
+          inject: {
+            audience: .service("audience")
+          }
+        },
+      ]
+
+      imports: [
+        {
+          binding: "pantry"
+          protocol: "restaurant.kitchen::PantryApi"
+          source: .deployment
+        },
+        {
+          binding: "ovens"
+          protocol: "restaurant.kitchen::OvenApi"
+          source: .deployment
+        },
+        {
+          binding: "payment-gateway"
+          protocol: "restaurant.billing::PaymentGatewayApi"
+          source: .deployment
+        },
+        {
+          binding: "audience"
+          protocol: "restaurant.dining::AudienceApi"
+          source: .deployment
+        },
+        {
+          binding: "aroma-device"
+          capability: "restaurant.hardware::AromaProbeDevice"
+          source: .host
+        },
+      ]
+
+      supervisors: [
+        {
+          binding: "fulfillment"
+          keyType: "restaurant.domain::OrderId"
+          inputType: "restaurant.supervision::FulfillmentInput"
+          progressType: "restaurant.domain::ServiceStage"
+          outputType: "restaurant.domain::Receipt"
+          failureType: "restaurant.restaurant::RestaurantError"
+          operation: "restaurant.supervision::fulfillOrder"
+          domain: .io
+          context: {
+            services: [
+              "pantry",
+              "ovens",
+              "oracle",
+              "aroma-probe",
+              "billing",
+              "dining-room",
+            ]
+          }
+          capacity: { active: 64, queued: 128, queuedBytes: 16MiB }
+          retention: { terminalItems: 4_096, terminalBytes: 64MiB }
+          deduplication: {
+            tombstones: 16_384
+            tombstoneBytes: 8MiB
+          }
+          restart: .never
+          durability: [.memory]
+        },
+      ]
+
+      exports: ["last-light", "orders"]
+
+      packings: [
+        {
+          name: "single-process"
+          units: [
+            {
+              name: "main"
+              entry: true
+              providers: [
+                "last-light",
+                "orders",
+                "oracle",
+                "aroma-probe",
+                "billing",
+                "dining-room",
+              ]
+              supervisors: ["fulfillment"]
+            },
+          ]
+        },
+        {
+          name: "split-services"
+          units: [
+            {
+              name: "gateway"
+              entry: true
+              providers: ["last-light", "orders"]
+              supervisors: ["fulfillment"]
+            },
+            {
+              name: "planning"
+              providers: ["oracle", "aroma-probe"]
+            },
+            {
+              name: "finance"
+              providers: ["billing"]
+            },
+            {
+              name: "dining"
+              providers: ["dining-room"]
+            },
+          ]
+        },
+      ]
+    },
+    {
+      name: "restaurant-client"
+      providers: []
+      imports: [
+        {
+          binding: "last-light"
+          protocol: "restaurant.restaurant::RestaurantApi"
+          source: .deployment
+        },
+      ]
+      supervisors: []
+      exports: []
+      packings: [
+        {
+          name: "entry-only"
+          units: [{ name: "main", entry: true, providers: [] }]
+        },
+      ]
+    },
+    {
+      name: "wifi-edge"
+      providers: []
+      imports: [
+        {
+          binding: "wifi-sessions"
+          protocol: "restaurant.wifi::WifiSessionApi"
+          source: .deployment
+        },
+      ]
+      supervisors: []
+      exports: []
+      packings: [
+        {
+          name: "entry-only"
+          units: [{ name: "main", entry: true, providers: [] }]
+        },
+      ]
+    },
+    {
+      name: "observatory-client"
+      providers: []
+      imports: [
+        {
+          binding: "satellites"
+          protocol: "restaurant.orbit::SatelliteApi"
+          keyType: "restaurant.orbit::SatelliteId"
+          source: .deployment
+        },
+      ]
+      supervisors: []
+      exports: []
+      packings: [
+        {
+          name: "entry-only"
+          units: [{ name: "main", entry: true, providers: [] }]
+        },
+      ]
+    },
+  ]
+
   products: [
     {
       name: "last-light-native"
@@ -24,7 +257,9 @@ package {
       entry: ".default"
       host: "w.host/native-process@1"
       targets: ["desktop"]
-      capabilities: [.stdio, .network, .signals, .clock]
+      runtime: "restaurant-core"
+      packing: "single-process"
+      capabilities: [.stdio, .network, .signals, .clock, .services, .devices]
     },
     {
       name: "last-light-worker"
@@ -33,7 +268,9 @@ package {
       entry: "LastLightWorker"
       host: "w.host/http-worker@1"
       targets: ["wasi"]
-      capabilities: [.network, .clock]
+      runtime: "restaurant-client"
+      packing: "entry-only"
+      capabilities: [.network, .clock, .services]
     },
     {
       name: "last-light-wifi"
@@ -42,7 +279,9 @@ package {
       entry: "LastLightWifi"
       host: "w.host/http-worker@1"
       targets: ["server", "wasi"]
-      capabilities: [.network, .clock, .storage, .secrets]
+      runtime: "wifi-edge"
+      packing: "entry-only"
+      capabilities: [.network, .clock, .storage, .secrets, .services]
     },
     {
       name: "last-light-simulation"
@@ -60,7 +299,9 @@ package {
       entry: "LastLightObservatory"
       host: "w.host/native-process@1"
       targets: ["server"]
-      capabilities: [.stdio, .network, .clock]
+      runtime: "observatory-client"
+      packing: "entry-only"
+      capabilities: [.stdio, .network, .clock, .services]
     },
     {
       name: "last-light-mobile"
@@ -69,7 +310,9 @@ package {
       entry: "LastLightMobile"
       host: "w.host/mobile-app@1"
       targets: ["mobile"]
-      capabilities: [.network, .clock, .notifications]
+      runtime: "restaurant-client"
+      packing: "entry-only"
+      capabilities: [.network, .clock, .notifications, .services]
     },
     {
       name: "last-light-controller"
@@ -137,7 +380,11 @@ package {
     },
     {
       name: "wasi"
-      targets: ["wasm32-wasi-preview2"]
+      targets: ["wasm32-wasip3"]
+    },
+    {
+      name: "wasi-compat"
+      targets: ["wasm32-wasip2"]
     },
     {
       name: "embedded"

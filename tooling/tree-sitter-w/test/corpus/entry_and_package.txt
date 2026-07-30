@@ -233,3 +233,84 @@ package {
               (identifier)
               (manifest_value
                 (size_literal)))))))))
+
+==================
+Data-only deployment plan
+==================
+
+deployment {
+  schema: "w.deployment/1"
+  name: "last-light/local"
+  artifacts: [
+    {
+      name: "restaurant"
+      source: .product(
+        "last-light-native",
+        target: "x86_64-unknown-linux-gnu",
+        packing: "single-process",
+      )
+    },
+  ]
+  placement: [
+    {
+      unit: "restaurant/main"
+      host: .local
+    },
+  ]
+}
+
+---
+
+(source_file
+  (deployment_manifest
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_constructor
+                      (contextual_member_expression
+                        (identifier))
+                      (manifest_argument
+                        (manifest_value
+                          (string_literal)))
+                      (manifest_argument
+                        (identifier)
+                        (manifest_value
+                          (string_literal)))
+                      (manifest_argument
+                        (identifier)
+                        (manifest_value
+                          (string_literal)))))))))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (contextual_member_expression
+                      (identifier))))))))))))

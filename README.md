@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 29 de julho de 2026**
+> **Working Draft · 30 de julho de 2026**
 >
 > **Prazer para humanos. Clareza para máquinas.**
 
@@ -18,14 +18,16 @@ Leia estes artefatos nesta ordem:
    oracles e fontes `.w`;
 3. [Build do Última Luz](reference/last-light/BUILD.md) — products, targets,
    artifacts e gates;
-4. [Rascunho da std](std/README.md) — contratos da standard library em W;
-5. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+4. [Deployments](reference/last-light/deployments/README.md) — planos local e
+   distribuído;
+5. [Rascunho da std](std/README.md) — contratos da standard library em W;
+6. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
 
-`DESIGN.md` é a única autoridade para o estado atual. O Book e o produto de referência
-mostram esse contrato, mas não criam regras próprias.
+`DESIGN.md` é a única autoridade para o estado atual. O Book e o produto de
+referência mostram esse contrato, mas não criam regras próprias.
 
 ## Estado atual
 

@@ -3282,6 +3282,22 @@
     }
   },
   {
+    "type": "deployment_manifest",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_record",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "dimension_declaration",
     "named": true,
     "fields": {
@@ -8414,6 +8430,10 @@
           "named": true
         },
         {
+          "type": "deployment_manifest",
+          "named": true
+        },
+        {
           "type": "dimension_declaration",
           "named": true
         },
@@ -10733,6 +10753,10 @@
   },
   {
     "type": "deinit",
+    "named": false
+  },
+  {
+    "type": "deployment",
     "named": false
   },
   {

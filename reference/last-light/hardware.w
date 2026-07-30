@@ -21,7 +21,6 @@ foreign c from "last_light_probe.h" {
 // runs it outside service and cooperative executor threads.
 
 export enum ProbeError: Error {
-  closed
   readFailed(status: c.int)
   nonFinite
   invalidAroma(RefinementError)
@@ -36,24 +35,30 @@ export protocol AromaProbeApi {
   async fn sample(): ProbeSample throws ProbeError
 }
 
+export object AromaProbeDevice {
+  package handle: c.ptr<ll_probe>
+
+  package init(handle: c.ptr<ll_probe>) {
+    self.handle = handle
+  }
+
+  deinit {
+    unsafe { ll_probe_close(handle) }
+  }
+}
+
 unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
   return status;
 }
 
 export service AromaProbeService as AromaProbeApi {
-  handle: c.ptr<ll_probe>?
-
-  deinit {
-    if let handle = handle {
-      unsafe { ll_probe_close(handle) }
-    }
-  }
+  device: AromaProbeDevice
 
   mut async fn sample(): ProbeSample throws ProbeError {
-    guard let handle = handle else throw .closed
-
     var raw: ll_sample
-    let status = unsafe { legacyProbeStatus(ll_probe_read(handle, inout raw)) }
+    let status = unsafe {
+      legacyProbeStatus(ll_probe_read(device.handle, inout raw))
+    }
     guard status == 0 else throw .readFailed(status: status)
     guard raw.aroma.isFinite && raw.kelvin.isFinite else throw .nonFinite
 

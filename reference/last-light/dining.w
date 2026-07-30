@@ -34,9 +34,18 @@ export protocol DiningRoomApi {
   async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError
 }
 
+fn defaultTables(): Map<TableId, Table> {
+  return [
+    1: Table(id: 1, seats: 2, state: .available),
+    2: Table(id: 2, seats: 4, state: .available),
+    3: Table(id: 3, seats: 8, state: .available),
+    42: Table(id: 42, seats: 42, state: .available),
+  ]
+}
+
 export service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
-  var tables: Map<TableId, Table> = Map()
+  var tables: Map<TableId, Table> = defaultTables()
 
   mut fn setTableState(tableId: TableId, state: TableState) {
     guard let inout table = tables[tableId] else panic("reserved table disappeared")

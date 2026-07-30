@@ -2,7 +2,8 @@
 
 import std.tensor
 import { Course, Order, Probability } from restaurant.domain
-import { KitchenPlan, Recipe } from restaurant.kitchen
+import { Ingredient, KitchenPlan, Recipe } from restaurant.kitchen
+import { serviceTemperature } from restaurant.units
 
 export enum OracleError: Error {
   invalidShape(ShapeError)
@@ -63,9 +64,60 @@ export fn forecast<const tables: usize, const features: usize, const courses: us
   return Forecast(demand: demand, confidence: confidence)
 }
 
+fn defaultWeights(): Tensor<f32, shape: [8, 4]> {
+  return [
+    [0.8, 0.2, 0.1, 0.4],
+    [0.1, 0.9, 0.3, 0.2],
+    [0.3, 0.2, 0.8, 0.4],
+    [0.4, 0.3, 0.2, 0.9],
+    [0.2, 0.3, 0.4, 0.5],
+    [0.5, 0.4, 0.3, 0.2],
+    [0.6, 0.2, 0.5, 0.3],
+    [0.3, 0.5, 0.2, 0.6],
+  ]
+}
+
+fn defaultRecipes(): Map<Course, Recipe> {
+  return [
+    .nebulaBroth: Recipe(
+      course: .nebulaBroth,
+      ingredients: [.quietWater, .ionizedSugar],
+      target: serviceTemperature,
+      duration: 12<si.s>,
+      energyBudget: 360_000<si.J>,
+    ),
+    .photonSouffle: Recipe(
+      course: .photonSouffle,
+      ingredients: [.cometFlour, .vacuumButter, .ionizedSugar],
+      target: serviceTemperature,
+      duration: 18<si.s>,
+      energyBudget: 540_000<si.J>,
+    ),
+    .quietSalad: Recipe(
+      course: .quietSalad,
+      ingredients: [.horizonFruit, .quietWater],
+      target: serviceTemperature,
+      duration: 4<si.s>,
+      energyBudget: 120_000<si.J>,
+    ),
+    .horizonCake: Recipe(
+      course: .horizonCake,
+      ingredients: [
+        .cometFlour,
+        .vacuumButter,
+        .ionizedSugar,
+        .horizonFruit,
+      ],
+      target: serviceTemperature,
+      duration: 42<si.s>,
+      energyBudget: 1_260_000<si.J>,
+    ),
+  ]
+}
+
 export service TableOracle as OracleApi {
-  weights: Tensor<f32, shape: [8, 4]>
-  recipes: Map<Course, Recipe>
+  weights: Tensor<f32, shape: [8, 4]> = defaultWeights()
+  recipes: Map<Course, Recipe> = defaultRecipes()
 
   async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError {
     let prediction = try forecast(request.features, weights: weights)
