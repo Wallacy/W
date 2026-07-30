@@ -1,6 +1,7 @@
 // Allocator and region oracles for the Last Light restaurant.
 
 import std.memory
+import std.task
 
 export struct MenuSnapshot {
   title: String
@@ -44,6 +45,24 @@ export fn countEmergencyTokens(source: ref String): usize throws AllocationError
   return if source.bytes.count == 0 { 0 } else { separators.count + 1 }
 }
 
+fn snapshotBytes(snapshot: take MenuSnapshot): usize {
+  var total = snapshot.title.bytes.count
+  for ref dish in snapshot.dishes {
+    total += dish.bytes.count
+  }
+  return total
+}
+
+export async fn countStagedMenuInParallel(
+  title: ref String,
+  dishes: ref Array<String>,
+  processMemory: ref Allocator<(.crossDomain)>,
+): usize throws AllocationError {
+  let snapshot = try stageMenu(title, dishes: dishes, memory: processMemory)
+  spawn let count = snapshotBytes(take snapshot)
+  return await count
+}
+
 test "a staged menu leaves its temporary region" for stageMenu {
   var storage: [u8; 64<KiB>] = [0; 64<KiB>]
   let destination = Arena.fixed(inout storage)
@@ -54,4 +73,7 @@ test "a staged menu leaves its temporary region" for stageMenu {
 
   expect snapshot.title == title
   expect snapshot.dishes == dishes
+
+  // Compile-fail assay: fixed arena storage is local to this execution domain.
+  // let count = await countStagedMenuInParallel(title, dishes, destination)
 }

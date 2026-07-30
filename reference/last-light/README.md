@@ -136,8 +136,8 @@ alvo de execução independente.
 |---|---|
 | `domain.w` | newtypes, refinements, enums e errors |
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
-| `text.w` | UTF-8, unidades de texto, normalização, bytes, paths e C strings |
-| `string_storage.w` | construção incremental, reserva, reuse e carrier binário |
+| `text.w` | UTF-8, unidades de texto, normalização, paths e contrato de C string |
+| `string_storage.w` | construção, reserva, reuse e carrier String/Bytes consuming |
 | `collections.w` | arrays, views, iteration, Map/Set, hashing e stable sort |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
@@ -153,8 +153,8 @@ alvo de execução independente.
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
-| `memory.w` | ownership, enum subset, niches, pinning e callback C |
-| `allocation.w` | placement, allocator, arena, budget e rehome |
+| `memory.w` | ownership, Address, provenance, niches, pinning e callback C |
+| `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `packages/menu-compiler/transform.w` | entry hermética de build e bindings tipados |
@@ -344,11 +344,16 @@ Aceite:
 - `takeAll()` transfere o conteúdo e deixa o receiver vazio;
 - `String.adoptingUtf8` e `String.intoBytes` transferem o carrier sem allocation
   geral;
+- Bytes preserva empty, static, inline opcional ou dynamic carrier sem virar
+  alias público de String;
 - uma source view do mesmo owner não entra numa mutation;
 - reads não alocam nem atualizam uma cache lazy;
 - um summary eager, como `isAscii`, muda somente durante mutation;
 - raw pointer fica dentro de uma closure scoped;
+- `address(of: string)` observa o descriptor, não o content pointer;
 - CString ou Bytes pinned atende uma API que guarda o pointer;
+- pinning do descriptor não permite uma mutation que realoca o conteúdo;
+- `CString.bytes.count` exclui o NUL terminal e decode UTF-8 continua explícito;
 - String com allocator explícito usa a mesma origem em todo growth e drop.
 
 O oracle executa vazio, literal, limite de SSO menos um, limite, limite mais um e
@@ -688,6 +693,8 @@ Aceite:
 
 - children mantêm descendants vivos e o parent fraco não forma ciclo forte;
 - `upgrade()` retorna ausência depois do último shared owner;
+- `upgrade()` e o último release possuem uma ordem linearizável;
+- o value morre no strong zero e o control block no weak zero;
 - mover ownership por `spawn` exige `transferable`;
 - compartilhar um borrow por `spawn` exige `shareable`;
 - um borrow após `await` só compila com owner e task frame estáveis;
@@ -697,8 +704,8 @@ Aceite:
 - não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;
 - unsubscribe ocorre antes de liberar o callback state;
-- converter pointer em address não permite reconstruir um pointer seguro;
-- profiles portátil e compacto produzem o mesmo resultado.
+- converter pointer em address não permite reconstruir um pointer;
+- profiles portátil e otimizado produzem o mesmo resultado.
 
 ### 3.15 Cardápio de Fótons
 
@@ -1080,9 +1087,18 @@ Aceite:
 - adicionar `corrupted` ao resultado invalida o switch anterior;
 - `Option<Option<shared BellState>>` preserva três estados;
 - o profile portátil pode usar tag e payload explícitos;
-- o profile compacto produz o mesmo resultado;
+- o profile otimizado produz o mesmo resultado;
+- `Address` observa os bits sem manter owner ou provenance;
+- `Address<space: S>` não se compara nem converte implicitamente com outro
+  address space;
+- W v0 não converte `Address` em pointer;
+- `withAddress` precisa do pointer original e conserva sua provenance;
+- cópia tipada preserva estado externo de pointers; Bytes não faz round-trip;
+- low-bit exige alignment real, address space, lowering provenance-aware,
+  tooling e boundary canônica;
 - `f64` preserva todos os NaNs e signed zero;
 - sanitizer ou hardening pode desativar compactação;
+- `RepresentationMap` não muda somente porque o allocator provider mudou;
 - `w explain layout BellTarget` mostra a prova e o fallback.
 
 Um fixture negativo deve remover `.unavailable` de `describeBell`. Outro deve
@@ -1180,6 +1196,10 @@ Aceite:
 - somente calls com `using: staging` usam a região;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem da região;
+- a origem registra instance lifetime, deallocator, mobility e adoption family;
+- storage de uma arena local não atende a `transferable`;
+- `Allocator<(.crossDomain)>` é necessário para produzir um owner que cruza
+  `spawn`;
 - `rehome` move storage independente e realoca somente storage dependente;
 - uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
 - `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
@@ -1188,6 +1208,8 @@ Aceite:
 - drop executa em ordem inversa da construção concluída;
 - um child paralelo não compartilha a arena default;
 - `Arena.fixed` não pede storage ao OS;
+- importar um módulo não cria uma heap implícita;
+- o build profile fixa `generalAllocator` e `representation`;
 - o snapshot retornado não depende da região temporária;
 - `w check memory --require no-general-allocation` mostra a call chain que viola
   o profile.
@@ -1196,7 +1218,8 @@ O oracle executa `stageMenu` com um allocator de falha injetada em cada
 allocation. Antes de `rehome`, toda falha limpa os valores pela região. Durante
 `rehome`, toda falha limpa source e destino parcial uma vez. Depois do success,
 destruir a região não altera o snapshot. O teste repete com allocator do sistema,
-buffer fixo e profile mimalloc. Os valores e drops são os mesmos; somente
+buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os valores, errors
+e drops são os mesmos. Cada allocation mantém a origem declarada; provider
 measurements podem mudar.
 
 ### 3.34 As Três Últimas Noites
@@ -1564,6 +1587,9 @@ Aceite:
 - metadata de interface e ABI é lida como input não confiável e bounded;
 - a library W publica `WInterface`, `WAbiKey` e `RepresentationMap` separadas;
 - requirements alcançáveis produzem `RuntimeClosureKey` fora da `WAbiKey`;
+- trocar system allocator por mimalloc preserva o representation fingerprint
+  quando os bytes e carriers compartilhados são iguais;
+- allocator provider e mode continuam na recipe e no runtime closure;
 - reuse exige key igual e mismatch com source causa rebuild;
 - `HorizonStatus` usa layout W somente na boundary `.wExact`;
 - a façade C aceita e devolve somente carriers C;

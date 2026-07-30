@@ -4582,7 +4582,7 @@ Ownership não escolhe um endereço. O compiler escolhe register, stack, static
 storage, task frame, arena ou allocator conforme escape, tamanho e target.
 Source comum não recebe annotation de placement.
 
-**Garantio design vigente:** uma função síncrona não causa alocação no allocator geral
+**Garantia vigente:** uma função síncrona não causa alocação no allocator geral
 somente para guardar um local de tamanho fixo que não escapa. Register pressure
 pode criar um stack spill. Ela não autoriza boxing no heap.
 
@@ -4743,6 +4743,22 @@ Overflow de contador nunca faz wrap. Ele encerra a fault boundary antes de
 perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
 de o storage ser reutilizado.
 
+`upgrade()` é linearizável em relação ao último release forte. Ele devolve
+`.some` somente quando adquiriu um owner forte antes da destruição do valor. Se
+as duas operações competirem, o resultado corresponde a uma dessas duas ordens
+completas. Depois da destruição, todo `upgrade()` devolve `.none`.
+
+O fallback portátil usa um control block com estado forte, estado weak, origem
+de allocation e operação de drop. Quando o strong count chega a zero, o valor
+executa `deinit`. O control block continua vivo até o último weak handle morrer.
+Um weak handle aponta para esse estado, não para um payload que pode ser
+reutilizado. Assim, reuse de endereço não reanima um owner antigo.
+
+O optimizer pode juntar valor e control block ou usar contagem local. Ele precisa
+preservar o mesmo ponto de linearização, a mesma ordem de drop e a mesma origem.
+Uma representação compacta não pode substituir essa obrigação por um contador
+curto em bits do pointer.
+
 `ServiceRef<T>` não é `shared T`. O host controla o lifecycle da instance. Um
 handle de service mantém identity e capability, não ownership direto do estado.
 
@@ -4877,7 +4893,8 @@ explícita nunca converte `BudgetExceeded` em OOM.
 
 O profile portátil começa com o allocator do sistema. O host pode selecionar
 mimalloc ou outro allocator compatível. A seleção participa da recipe, do
-artifact fingerprint e do profile de performance. Ela não altera ownership.
+artifact digest e do profile de performance. Ela não altera ownership nem muda
+o representation fingerprint quando os carriers permanecem iguais.
 
 [mimalloc](https://github.com/microsoft/mimalloc) permanece uma opção forte para
 benchmark. Sua portabilidade, heaps separados e modos de segurança justificam o
@@ -4897,6 +4914,48 @@ mitigations; ele não promete memory safety.
 | `mimalloc-secure` | candidato de hardening com custo medido |
 | `fixed` | buffer fornecido pelo host; nenhuma allocation do OS |
 
+O build profile fixa o default geral. A escolha não muda calls que recebem
+`using:`:
+
+```w
+memory: {
+  generalAllocator: .system
+  representation: .portable
+}
+```
+
+Os cases iniciais de `generalAllocator` são:
+
+| Case | Contrato |
+|---|---|
+| `.system` | adapter do sistema fixado pelo target e pela toolchain plan |
+| `.none` | o grafo alcançável não pode solicitar allocation geral |
+| `.runtime(contract:, mode:)` | runtime contract tipado, resolvido para um provider exato |
+
+Um ensaio com mimalloc usa um contrato, não um path ou import de source:
+
+```w
+memory: {
+  generalAllocator: .runtime(
+    contract: "w.runtime/allocator.mimalloc@3",
+    mode: .default,
+  )
+  representation: .optimized
+}
+```
+
+O profile `.secure` usa o mesmo mecanismo com `mode: .secure`. O resolver
+seleciona um provider que oferece esse mode e grava o artifact digest na
+toolchain plan e na recipe. A dependency não escolhe o provider. A string acima
+é uma identity de runtime contract versionada, não um nome livre de library.
+O contract entra nos runtime requirements e no `RuntimeClosureKey`. Ele não
+entra na `WAbiKey` quando o carrier de ABI permanece igual.
+
+`representation: .portable` força os fallbacks de layout do target. A forma
+`.optimized` permite niches e compactação aprovadas pelo profile. Sanitizer,
+debugger ou hardening ainda podem escolher o fallback. Os dois profiles precisam
+passar o mesmo oracle semântico.
+
 O modelo de arenas pre-reservadas do
 [mimalloc](https://microsoft.github.io/mimalloc/group__arenas.html) pode ajudar
 um host fixed. Os
@@ -4907,13 +4966,59 @@ profile, não uma suposição pelo nome do allocator.
 Cada allocation possui uma origem lógica:
 
 ```text
-origin = allocator identity + instance + deallocator contract
+AllocationOrigin = {
+  allocator contract identity,
+  instance identity and lifetime,
+  deallocation operation,
+  mobility,
+  adoption family,
+  bulk-release owner, when present,
+}
 ```
 
 A origem pode ficar no owner, num control block ou numa side table. Ela não
 precisa ocupar bits do pointer. Move preserva a origem. FFI preserva o
 deallocator estrangeiro. W nunca chama `free` num pointer de origem
 desconhecida.
+
+`mobility` possui pelo menos `.local` e `.crossDomain`. Um owner que depende de
+uma origem local não atende a `transferable`, mesmo quando seus elements atendem.
+Ele precisa morrer no mesmo domain ou usar `rehome` antes de cruzar `spawn`,
+service, channel ou callback estrangeira. Um allocator apagado por `Allocator`
+sem prova de mobilidade é local por conservação.
+
+Uma API que precisa produzir storage transferível aceita a capability refinada
+`Allocator<(.crossDomain)>`. Isso é um requisito do tipo, não uma annotation de
+placement.
+
+O compiler mantém essa informação como um fato de origem. O source não recebe um
+argumento de tipo para cada container:
+
+```w
+async fn stageForParallel(
+  payload: ref Bytes,
+  processMemory: ref Allocator<(.crossDomain)>,
+): () throws AllocationError {
+  region scratch(limit: 8<MiB>) {
+    let local = try Menu.parse(payload, using: scratch)
+    // spawn let invalid = consume(take local)
+
+    let portable = try (take local).rehome(using: processMemory)
+    spawn let valid = consume(take portable)
+    try await valid
+  }
+}
+```
+
+O diagnostic do primeiro `spawn` aponta a allocation que mantém o valor local.
+Um provider pode permitir deallocation cross-thread e ainda proibir allocation
+concorrente na mesma instance. Esses são fatos separados.
+
+A hipótese histórica de uma heap implícita por módulo não entra no contrato.
+Importar um módulo não cria instance, lifetime ou fault boundary. Um service,
+request ou task pode criar uma arena ou heap própria e liberar tudo junto. Essa
+policy usa `region`, um owner de service ou um allocator explícito. Ela não muda
+ownership de todo valor do módulo.
 
 Zero-sized values não solicitam storage. Alignment precisa ser uma potência de
 dois suportada pelo allocator. Soma ou multiplicação de tamanho que excede
@@ -4940,33 +5045,119 @@ mostra allocator, origem, escape, stack estimate e motivo de cada allocation.
 
 ### 9.7 Provenance, pointer e address
 
-**Exemplo:** converter um pointer para um endereço inteiro e voltar não restaura
-authority sem uma API `unsafe` específica.
+**Exemplo:** observar o endereço de um valor não cria um pointer nem mantém o
+valor vivo:
+
+```w
+fn observedLocation(state: ref BellState): Address {
+  return address(of: state)
+}
+```
 
 Um pointer não é somente um número. Ele carrega um endereço e a autorização para
 acessar uma allocation durante um intervalo. Essa autorização inclui alcance,
 lifetime e mutabilidade.
 
+**Forma vigente:** `Address` é um valor `Copy` opaco para o address space de
+dados comum do target. O head possui o slot estático `space`; omitir o slot
+seleciona `AddressSpace.default`:
+
+```w
+let location: Address = address(of: state)
+let rawBits: Address.Bits = location.bits
+print("state storage: ${location.hex}")
+```
+
+`Address<space: S>` identifica outro address space source-visible. `S` é um
+valor compile-time de `AddressSpace`, não o número do address space no LLVM.
+`AddressSpace` é um descriptor T0 opaco. Source comum não o constrói de integer
+ou string. O compiler fornece `.default`; um target adapter pode publicar
+associated constants adicionais. O target spec registra a identidade estável e
+o mapping para o backend. Um adapter de accelerator pode, por exemplo, publicar
+`AcceleratorSpace.global`:
+
+```w
+let hostLocation: Address = hostPointer.address
+let deviceLocation: Address<space: AcceleratorSpace.global> =
+  devicePointer.address
+let deviceBits: Address<space: AcceleratorSpace.global>.Bits =
+  deviceLocation.bits
+
+// Erro: address spaces distintos não possuem equality implícita.
+// let same = hostLocation == deviceLocation
+```
+
+Cada especialização possui o associated type `Bits`, um unsigned integer com a
+index width daquele address space. `Address.Bits` é `usize`. Um target v0 usa
+`u32` ou `u64` para os outros spaces e registra a escolha no data layout. A
+representação completa do pointer pode ser maior que `Bits`, pois provenance,
+bounds ou metadata não fazem parte do endereço.
+
+`Address<space: S>` expõe equality somente com o mesmo `S`, process-local hash,
+formatação hexadecimal e `bits: Address<space: S>.Bits`. Ele não atende a
+`Numeric` ou `Comparable`. Operar em `bits` não cria um pointer, identidade ou
+provenance.
+
+`address(of:)` termina seu borrow depois da avaliação. Ele cria uma barreira de
+placement durante essa avaliação, mas não fixa o valor para usos futuros. Move,
+reallocation, drop ou reuse podem tornar o número antigo. Igualdade de `Address`
+não prova object identity, lifetime ou origem comum.
+
+Um raw pointer também oferece a observação sem provenance:
+
+```w
+let location: Address = pointer.address
+```
+
 As regras de W são:
 
 - `ref`, `inout` e `view` preservam provenance;
 - `c.ptr<T>` só permite dereference, arithmetic ou cast em `unsafe`;
-- offset válido permanece na mesma allocation;
+- um pointer derivado não amplia bounds, lifetime ou mutabilidade;
+- pointer arithmetic válida permanece na mesma allocation ou no one-past;
+- o one-past pointer pode ser formado e comparado, mas não dereferenced;
 - comparar endereços não prova que dois pointers possuem a mesma provenance;
 - converter pointer em address não transfere autoridade;
 - converter um integer arbitrário em pointer não recria provenance;
 - null de C entra em W como `c.ptr<T>?` ou wrapper tipado.
 
-**Pesquisa:** `Address` será um valor inteiro próprio para logging, hashing e
-comparação. `address(of:)` não retorna um pointer dereferenceable. Uma API
-separada e `unsafe` poderá expor provenance somente para adapters que realmente
-recebem essa autoridade do host.
+Código low-level pode alterar os bits de endereço sem perder a origem somente
+quando mantém o pointer original. O novo address precisa pertencer ao mesmo
+space:
 
-Essa direção acompanha a distinção entre endereço e provenance descrita pela
-[documentação de pointers do Rust](https://doc.rust-lang.org/stable/std/ptr/) e
-pela [LLVM LangRef](https://llvm.org/docs/LangRef.html#ptrtoaddr-to-instruction).
-O lowering usa operações que preservam a distinção. Ele não faz round-trip
-pointer-integer por conveniência.
+```w
+let location = pointer.address
+let masked = location.withBits(location.bits & addressMask)
+let candidate = unsafe { pointer.withAddress(masked) }
+```
+
+`Address.withBits` aceita o `Bits` do mesmo space e cria somente outro address.
+`withAddress` conserva a provenance do receiver. Ele não valida que o novo
+endereço pode ser dereferenced. O caller precisa provar bounds, alignment,
+lifetime e canonical form antes do acesso. O lowering usa uma operação baseada
+no pointer original, como GEP ou uma intrinsic target-specific. Ele não baixa
+para um round-trip `pointer → integer → pointer`.
+
+`pointer.address` retorna `Address<space: S>` quando o pointer pertence a `S`.
+`pointer.withAddress` aceita somente o mesmo `S`. Uma conversão entre spaces
+exige uma operação `unsafe` publicada pelo target adapter. Essa operação recebe
+a capability necessária e declara se preserva a allocation e a provenance. W
+não oferece um cast universal entre address spaces.
+
+W v0 não oferece `Address.toPointer` nem uma operação de exposed provenance.
+MMIO, memória mapeada e handles fornecidos pelo host usam adapters `unsafe` que
+recebem a authority correspondente e devolvem um owner ou raw pointer com
+provenance. Um integer sozinho não satisfaz esse contrato.
+
+O lowering de `pointer.address` e `address(of:)` usa
+[`ptrtoaddr` do LLVM](https://llvm.org/docs/LangRef.html#ptrtoaddr-to-instruction),
+que captura a index width do address space e não a provenance. O
+[`ptrtoint` do LLVM](https://llvm.org/docs/LangRef.html#ptrtoint-to-instruction)
+captura ambos e não é um substituto. Pointers com estado externo podem perder
+esse estado num `inttoptr`. A
+[Strict Provenance do Rust](https://doc.rust-lang.org/std/ptr/index.html#strict-provenance)
+mostra a operação `with_addr`; a própria documentação classifica exposed
+provenance como ambígua. W mantém somente o caminho estrito na baseline.
 
 ### 9.8 Layout, addressability e ABI
 
@@ -4986,6 +5177,27 @@ Layout observável exige uma fronteira:
 Obter address, criar `ref`/`inout`, exportar por ABI ou persistir bytes cria uma
 barreira de representação. O compiler não compacta o storage atrás de um proxy
 com write-back oculto.
+
+Uma cópia tipada de um valor preserva todo o estado de seus pointers, inclusive
+metadata externa do target. O compiler pode baixar essa cópia para loads/stores
+tipados ou para uma operação que o target declara equivalente. Converter o mesmo
+storage em `Bytes` não cria uma serialização reversível:
+
+```w
+struct SensorLease {
+  device: c.ptr<Sensor>
+  limit: usize
+}
+
+let duplicate = copy lease             // preserva o pointer tipado
+let raw: Bytes = lease                  // Erro: não existe conversão bitwise safe.
+```
+
+Um tipo que contém pointer, borrow, allocator origin, drop state, atomic ou
+capability não recebe uma conformance bitwise pública por ter size conhecido.
+Wire e persistência usam schema. FFI usa layout e address space declarados. Isso
+preserva targets nos quais um pointer possui non-address bits, bounds ou estado
+externo que não cabe nos bytes comuns.
 
 `packed` e `aligned` são modifiers de layout seguros e restritos. Eles não são
 annotations genéricas. Unaligned access nunca produz uma referência W normal.
@@ -5082,7 +5294,22 @@ real da allocation e controla todo o storage do valor.
 allocation estrangeira com alignment de 4 bytes oferece somente dois, mesmo que
 o tipo nominal tenha alignment maior.
 
-O lowering mantém a provenance original. Ele mascara a tag antes de:
+Alignment é necessário, mas não suficiente. O profile também precisa provar:
+
+1. que o address space aceita uma representação tagged estável;
+2. que inserir e remover a tag preserva non-address bits e estado externo;
+3. que o lowering mantém o pointer original como fonte de provenance;
+4. que GC maps, unwind, debugger e sanitizer conhecem a forma ou usam fallback;
+5. que toda fronteira recebe a forma canônica.
+
+O lowering mantém a provenance original. Para remover bits, ele pode usar
+[`llvm.ptrmask`](https://llvm.org/docs/LangRef.html#llvm-ptrmask-intrinsic), que
+mantém o underlying object. Para inserir bits, ele usa uma operação baseada no
+pointer original e aprovada pelo target. Um `Address` salvo não substitui esse
+pointer. Se a toolchain não possui uma operação que conserva a origem, o
+compiler usa tag e payload explícitos.
+
+O compiler remove a tag antes de:
 
 - dereference;
 - call FFI;
@@ -5160,15 +5387,32 @@ boxing, mas precisa de fallback e não pode alterar operações IEEE.
 **Exemplo:** guardar `f64` em `Array<f64>` preserva os bits de um NaN. O
 compiler não usa o payload desse NaN para representar `.none`.
 
+#### 9.9.5 Hipóteses históricas e resultado
+
+Os spikes históricos permanecem úteis como adversarial corpus. Eles não formam
+o modelo semântico:
+
+| Hipótese | Estado | Motivo |
+|---|---|---|
+| dois low bits distinguem integer, float, compound e shared | **Rejeitado** | reduz range e precisão, altera IEEE e exige alignment universal |
+| high bits guardam length, subtype ou reference count | **Pesquisa especializada** | address width, MTE, PAC, ABI e mutation variam por target |
+| pointer identifica owner, object ou generation | **Rejeitado** | reuse de endereço, ABA, move e provenance são fatos diferentes |
+| uma word tagged substitui todos os valores W | **Rejeitado** | aggregates, capabilities, SIMD, C ABI e device pointers exigem carriers próprios |
+| heap implícita por módulo controla todo lifetime | **Rejeitado como default** | import não cria instance; `region` e service ownership cobrem o caso delimitado |
+
+Uma implementação pode recuperar uma técnica rejeitada em um container interno
+especializado. Ela precisa manter o valor lógico completo, oferecer fallback e
+passar os oracles diferenciais.
+
 ### 9.10 Negociação, hardening e instrumentação
 
-**Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar low-bit
-tagging sem mudar a semântica do valor.
+**Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar uma
+representação tagged de W sem mudar a semântica do valor.
 
-Cada object W registra a policy de representação e um fingerprint para cada
-tipo que cruza sua interface binária. O linker compara fingerprints somente
-quando duas signatures compartilham o tipo. Caso contrário, recompila do
-source, usa adapter canônico ou rejeita o link.
+Cada arquivo-objeto W registra um `RepresentationMap`. A map contém uma entrada
+para cada tipo que cruza sua interface binária. O linker compara fingerprints
+somente quando duas signatures compartilham o tipo. Caso contrário, recompila
+do source, usa adapter canônico ou rejeita o link.
 
 Hardening e diagnóstico têm precedência sobre compactação opcional. ASan,
 HWASan, TSan, MTE, pointer authentication, debugger e profiler podem desativar
@@ -5206,17 +5450,38 @@ Hardening vence compactação. MTE, pointer authentication, HWASan ou uma
 capability architecture podem ocupar bits ou impor provenance que W não pode
 reutilizar.
 
-Testes diferenciais executam o mesmo corpus em profile portátil e compacto.
-Sanitizers executam o fallback. Um resultado diferente bloqueia a otimização.
+Testes diferenciais executam o mesmo corpus em profile portátil e otimizado.
+Sanitizers executam o fallback e, quando suportado, também a forma compacta. Um
+resultado diferente bloqueia a otimização.
 
-O fingerprint de representação inclui target data layout, schema de valores
-válidos, ABI, allocator, hardening, sanitizer e versão do compiler. Dois objetos
-binários só compartilham um layout W quando esses componentes compatíveis
-produzem o mesmo fingerprint.
+Uma entrada de representação contém:
+
+```text
+RepresentationEntry = {
+  logical type identity and arguments,
+  validity schema and enum-case mapping,
+  size, alignment, field offsets and spare bits,
+  logical pointer address spaces, mapped carrier classes and index widths,
+  owner, drop and indirectness fields present in the value,
+  representation-policy revision,
+}
+```
+
+O fingerprint inclui somente fatos que mudam esses bytes, valores válidos ou
+operações de ABI. O nome do allocator, sua versão, optimization level,
+instrumentation e compiler patch não entram quando produzem a mesma entrada.
+Eles continuam na recipe.
+
+Quando a origem do allocator ocupa o value, o schema desse carrier entra. A
+identity da instance e o nome do provider não entram. Quando um sanitizer ou
+hardening muda layout, a entrada resultante já registra essa mudança. Fatos ABI
+globais ficam na `WAbiKey`. Runtime operations ficam no `RuntimeClosureKey`.
+Assim, o mesmo layout não recebe fingerprints diferentes por razões que não
+afetam interoperabilidade.
 
 **Exemplo:** mudar o alignment garantido pelo allocator pode remover dois low
-bits. O linker adapta, recompila ou rejeita; ele não interpreta o layout antigo
-como novo.
+bits. O builder recompila do source fixado, usa uma boundary canônica que já
+estava na plan ou rejeita; ele não interpreta o layout antigo como novo.
 
 ### 9.11 Destruição e recuperação de storage
 
@@ -5302,6 +5567,8 @@ logical states: open(c.ptr<ll_bell>), unavailable
 portable:       tag + payload
 selected:       null niche
 ffi form:       canonical c.ptr<ll_bell>
+provenance:     pointer-typed carrier; no integer round-trip
+fingerprint:    validity + target layout + selected carrier
 high-bit:       rejected; profile portable
 ```
 
@@ -8908,7 +9175,8 @@ T0 contém:
 
 - tipos primitivos, numeric modes/errors, `TotalFloat`, Option, Result e Error;
 - String, Bytes, Array, Map, Set, Range e access mode `view`;
-- `pin`, `Pinned<T>`, AllocationError e allocator hooks;
+- `Address`, `AddressSpace`, `pin`, `Pinned<T>`, AllocationError e allocator
+  hooks;
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
@@ -10392,6 +10660,21 @@ precisa de SSO para compilar W. A representação dinâmica mínima contém poin
 byte count, reserva física e allocator origin. Esses fields são internos e não
 formam ABI pública.
 
+`address(of: text)` observa o endereço do valor `String`, não o endereço de seus
+bytes. A forma literal, inline ou dinâmica pode colocar o conteúdo em lugares
+diferentes. Acesso ao conteúdo usa um borrow:
+
+```w
+text.bytes.withPointer((pointer, count) => unsafe {
+  consume(pointer, count)
+})
+```
+
+O pointer permanece válido somente durante a closure. O borrow bloqueia move,
+mutation e drop. Fixar o descriptor com `pin` não promete que uma mutation
+futura manterá o buffer. Uma API que guarda o pointer recebe um `CString`, um
+buffer pinned sem operações de relocation ou outro adapter com esse contrato.
+
 `copy text` possui custo semântico O(bytes) e produz outro owner. A baseline
 duplica storage dinâmico durante o `copy`. COW não entra na baseline, pois pode
 mover allocation failure, budget e deallocator para uma mutation posterior. O
@@ -10710,6 +10993,21 @@ packet.append(0xff_u8)
 let byte: u8 = packet[0]
 ```
 
+`Bytes` possui as mesmas classes de carrier necessárias para a conversão
+consuming com `String`: empty, literal/static, inline opcional e buffer dinâmico.
+Isso não torna os layouts públicos iguais. Mutation de bytes static materializa
+storage exclusivo. Move preserva a origem; `copy` de storage dinâmico duplica o
+payload.
+
+```w
+var signature: Bytes = b"WPKG"
+signature.append(1_u8) // materializa storage quando o literal ainda é static
+```
+
+O carrier T0 registra o conteúdo, a forma de ownership e a origem. A interpretação
+UTF-8 pertence a `String`. O terminador pertence a `CString`. Nenhum bit do
+pointer muda essa distinção.
+
 `Array<u8>` expressa uma collection numérica genérica. `Bytes` expressa um
 payload binário, um digest ou uma operação de I/O. Uma conversão que copia,
 move ou muda a interpretação é explícita.
@@ -10747,7 +11045,8 @@ let text = switch adopted {
 tipos ou layouts públicos iguais. A compatibilidade garante que
 `adoptingUtf8` valida e transfere o carrier sem copiar o payload nem pedir uma
 allocation geral. Uma forma inline pode mover seus bytes limitados dentro do
-valor. Uma falha devolve o mesmo owner de `Bytes`:
+valor. Uma forma static transfere o descriptor read-only e materializa somente
+numa mutation futura. Uma falha devolve o mesmo owner de `Bytes`:
 
 ```w
 enum Utf8Adoption {
@@ -11217,6 +11516,21 @@ name.withPointer((pointer) => unsafe {
 })
 ```
 
+O payload de `CString` pode conter bytes que não são UTF-8. A invariant é
+binária: nenhum NUL no payload e um NUL terminal. `bytes.count` exclui o
+terminador. `withPointer` entrega o payload seguido por esse terminador. Uma
+conversão a `String` valida UTF-8:
+
+```w
+expect name.bytes.count == 10
+let text = try name.decodeUtf8()
+```
+
+`CString.from(view String)` copia UTF-8 válido e acrescenta o terminador.
+`CString.from(view Bytes)` também existe, mas valida somente NUL. O nome
+`decodeUtf8` impede que um buffer estrangeiro receba a invariant de `String` por
+presunção.
+
 Um pointer C recebido precisa de limite máximo. O wrapper procura o terminador
 dentro desse limite e valida a codificação separadamente.
 
@@ -11226,6 +11540,9 @@ let bytes: view CString = unsafe {
 }
 let text = try bytes.decodeUtf8()
 ```
+
+Se o terminador não aparece antes de `maxBytes`, a construção falha com
+`.missingTerminator(limit:)`. O scan nunca lê o byte no offset `maxBytes`.
 
 `WideCString` cobre APIs Windows que exigem UTF-16 terminado em zero. Arrays e
 strings W não recebem terminação sentinela como semântica geral.
@@ -11293,6 +11610,11 @@ buffer:
 let bytes = (take text).intoBytes()
 let stable = try pin take bytes
 ```
+
+Depois que a API publica o content pointer, `Pinned<Bytes>` não oferece uma
+mutation que possa crescer, reduzir ou realocar o buffer. Escrita in-place exige
+um adapter com extent fixo. Drop do handle revoga o pointer conforme o contrato
+da callback. Pinning do descriptor sem essa restrição não seria suficiente.
 
 O compiler W0 precisa somente deste subset:
 
@@ -12366,6 +12688,10 @@ profiles: [
     optimize: .speed
     cpuPolicy: .explicit
     pgoUse: "sha256:..."
+    memory: {
+      generalAllocator: .system
+      representation: .optimized
+    }
   },
 ]
 ```
@@ -12579,10 +12905,11 @@ C não pode armazená-lo. Uma callback que persiste usa storage pinned e um
 destroy callback. O adapter registra se a função captura somente address,
 provenance de leitura ou provenance de escrita.
 
-`c.ptr<T>` preserva a provenance recebida da fronteira. `address(of:)`, quando
-existir, não substitui o pointer original. Um `c.ptr<T>` criado de integer sem
-authority do host não pode ser dereferenced em W seguro nem receber uma
-provenance inventada pelo lowering.
+`c.ptr<T>` preserva a provenance recebida da fronteira. `address(of:)` e
+`pointer.address` observam somente o endereço. `pointer.withAddress` mantém a
+origem do receiver e continua `unsafe`. Um `c.ptr<T>` criado de integer sem
+authority do host não pode ser dereferenced nem receber provenance inventada
+pelo lowering.
 
 ### 19.2 `fn<Language>`
 
@@ -12936,6 +13263,17 @@ runtime diferentes podem compartilhar a mesma ABI W.
 boundary ao seu fingerprint. A signature de um symbol referencia essas
 entradas. Objects com tipos privados distintos continuam compatíveis. Dois
 objects que compartilham um tipo precisam publicar o mesmo fingerprint.
+
+Cada entry usa o schema da seção 9.10. Ela publica validity, size, alignment,
+offsets, carrier classes, identidade e index width dos address spaces e fields
+de owner/drop que participam do value. Ela não publica allocator instance,
+provider name, optimization level ou diagnostics quando esses fatos não mudam o
+layout.
+
+**Exemplo:** dois builds usam system allocator e mimalloc. `HorizonStatus` possui
+os mesmos bytes e o mesmo fingerprint. A recipe e o `RuntimeClosureKey` são
+diferentes. Se um carrier passa a guardar um deallocator adicional, a entry
+muda e o link exato falha.
 
 Um object W contém uma nota mínima com:
 
@@ -13415,7 +13753,7 @@ serializer e driver. Ele também precisa chamar o backend pelo adapter C.
 | números | widths fixas, `usize`, checked arithmetic, bit operations e endian explícito |
 | dados | String, Bytes, `view`, Array, Map, Set e Range de T0 |
 | generics | type parameters, constraints, inference fechada, coherence e monomorphization |
-| memória | owner único, whole-value move, `ref`, `inout`, drop, `defer` e Arena API |
+| memória | owner único, whole-value move, `ref`, `inout`, `Address`, drop, `defer` e Arena API |
 | falha | `throws E`, `try`, `do`/`catch`, panic e allocation fallible |
 | C | opaque type, scalar, struct, pointer, function e callback + context |
 | entry | forma curta para `process.main` |
@@ -13900,6 +14238,10 @@ package {
         name: "release"
         optimize: .speed
         cpuPolicy: .portable
+        memory: {
+          generalAllocator: .system
+          representation: .optimized
+        }
       },
     ]
     constEval: {
@@ -13914,6 +14256,11 @@ package {
 
 Unknown fields são erro. Extensões usam namespace. O parser do manifest é menor
 e independente do parser W completo.
+
+Cada build profile possui um record `memory`. `generalAllocator` fixa o default
+do product. `representation` escolhe o fallback portátil ou permite a seleção
+otimizada descrita na seção 9. A ausência desses fields é erro; a distribuição
+não consulta environment nem instala um allocator implícito.
 
 - `package.w` é um formato data-only;
 - `package.lock` é obrigatório para build reprodutível;
@@ -15810,12 +16157,18 @@ Uma pesquisa só avança quando possui:
 |---|---|---|
 | owner único, borrow e whole-value move | **Possível agora** | análise e lowering conhecidos |
 | provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
+| `Address` sem reconstrução de pointer | **Possível agora** | `ptrtoaddr` e index width por address space são conhecidos |
+| `Address<space: S>` | **Possível agora** | static contract separa spaces; target data layout fixa mapping e `Bits` |
+| `withAddress` com provenance do receiver | **Possível agora** | lowering pointer-based evita exposed provenance |
+| cópia tipada de pointers com estado externo | **Possível agora** | loads/stores tipados e target data layout preservam o carrier |
 | pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
 | `pin` e `Pinned<T>` públicos | **Provável** | contrato claro; FFI persistente precisa de protótipo |
 | placement local sem annotation | **Possível agora** | escape e frame analysis conservadores fornecem fallback stack |
 | gate sem allocator geral | **Provável** | call graph e allocation facts são conhecidos; FFI exige summary |
 | `Arena` T0 e bloco `region` | **Provável** | lifetime lexical e bulk release são conhecidos; async e rehome exigem corpus |
 | allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
+| mobilidade derivada da origem | **Provável** | análise é conhecida; allocators locais, FFI e cross-domain exigem corpus |
+| allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
 | `shared` + `weak` sem cycle collector | **Provável** | RC é conhecido; tooling de ciclos precisa de avaliação |
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
@@ -15924,6 +16277,7 @@ Uma pesquisa só avança quando possui:
 | low-bit interno por alignment provado | **Provável** | exige lowering de provenance e corpus de FFI, atomics e sanitizer |
 | high-bit addresses e NaN boxing | **Pesquisa** | dependem de target, processo e tooling; não integram o profile portátil |
 | universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
+| fingerprint de representação sem provider noise | **Possível agora** | schema físico, `WAbiKey`, runtime closure e recipe já estão separados |
 | schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
 | capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
 | `Stream<Item, Failure>` single-pass | **Possível agora** | cursor mutável, Optional terminal e error effect possuem lowering direto |
@@ -16330,7 +16684,11 @@ e cancelamento.
 - transições typestate consuming e outcomes que devolvem o novo owner;
 - borrows, drop e defer;
 - typed errors e panic boundary;
-- allocator hooks;
+- `Address`, strict provenance e pointer operations baseadas na origem;
+- cópia tipada de aggregates com pointer e estado externo;
+- allocator hooks, origem, mobilidade e `rehome`;
+- profiles portátil/otimizado com oracle diferencial e sanitizers;
+- carrier flat de `String`/`Bytes` e fronteira `CString`;
 - `foreign c`, unsafe e wrappers;
 - `export foreign c` e `export unsafe fn<abi: .c>`;
 - header C, status/result carriers e deallocator de origem;
@@ -16642,8 +17000,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
 | W-105 | pinning | interno sem annotation; `pin` explícito produz `Pinned<T>` público | annotation universal; raw pointer |
 | W-106 | ciclos shared | `weak`, close, região ou lifecycle owner; sem collector default | cycle collector universal |
-| W-107 | pointer provenance | address separado; round-trip não restaura authority | pointer como integer |
-| W-108 | origem de allocation | owner/control block/side table preserva deallocator | bits do pointer obrigatórios |
+| W-107 | pointer provenance | `Address` observa index bits do mesmo space; `withAddress` preserva a origem do receiver; sem exposed provenance na v0 | pointer como integer; `Address.toPointer` |
+| W-108 | origem de allocation | owner/control block/side table preserva deallocator, instance lifetime, mobility e adoption family | bits do pointer obrigatórios; `free` universal |
 | W-109 | compactação | portátil → niche → low-bit; high-bit em pesquisa | tagged address obrigatório |
 | W-110 | hardening | sanitizer, PAC, MTE e capability têm precedência | compactação vence o profile |
 | W-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
@@ -16879,7 +17237,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-341 | object header | nenhum header universal; cada ownership/runtime usa metadata necessária | header W em toda allocation |
 | W-342 | NaN boxing | rejeitado para `f64` e valor universal; somente pesquisa para container interno | reduzir payload ou range do float |
 | W-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
-| W-344 | fingerprint de representação | inclui validity, target, ABI, allocator, hardening, sanitizer e compiler | fingerprint só por target triple |
+| W-344 | fingerprint de representação | inclui somente validity, bytes, carrier e fatos ABI que mudam a entry; provider, options e patch ficam na recipe | fingerprint por target triple; allocator name sempre entra; compiler completo como proxy |
 | W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
 | W-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
 | W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
@@ -16946,8 +17304,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-408 | escape de arena | inline independente pode sair; storage dependente exige consuming `rehome` | copiar sempre no return; escape unchecked; adoção presumida |
 | W-409 | arena e tasks | Arena move-only e não shareable; child paralelo recebe arena filha exclusiva | arena monotônica concorrente default; proibir todo child |
 | W-410 | budget de arena | cobra span alinhado, padding, growth retido e drop metadata; host mede resident separado | cobrar somente live payload; usar resident bytes como semântica |
-| W-411 | origem | owner preserva allocator instance e deallocator; zero-size não aloca; family não mistura | `free` universal; origem em low bits |
-| W-412 | allocator profiles | system baseline; mimalloc e secure por recipe/benchmark; fixed sem OS allocation | override global obrigatório; allocator escolhido por import |
+| W-411 | origem | owner preserva instance, lifetime, deallocator, mobility e adoption family; zero-size não aloca | `free` universal; origem em low bits; transfer sempre permitido |
+| W-412 | allocator profiles | build profile fixa `.system`, `.none` ou runtime contract; plan fixa provider; mimalloc exige benchmark | override global obrigatório; allocator escolhido por import; path no manifest |
 | W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
 | W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
 | W-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
@@ -16965,7 +17323,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
 | W-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
 | W-429 | FFI mobility | local por default; fato trusted exige adapter/digest e boundary unsafe ainda em Pesquisa | raw pointer deriva facts; assertion segura do usuário |
-| W-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
+| W-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin; Bytes usa carrier T0 compatível | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
 | W-431 | COW de String | fora da baseline; optimizer exige efeitos de allocation e cleanup não observáveis | refcount em toda String; COW como contrato; proibir otimização |
 | W-432 | reserva de String | mínimo total por bytes; exact capacity não é pública; `tryReserve` tem strong guarantee | bytes adicionais; growth fixo na linguagem; capacity property |
 | W-433 | mutation de String | append/replace recebem view válida; source do mesmo owner é erro; índices são invalidados | mutable byte view; temporary de alias implícito; byte offsets unchecked |
@@ -16973,7 +17331,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-435 | String e Bytes | carrier T0 compatível; adoption e `intoBytes` consomem sem allocation geral | layout público igual; cópia obrigatória; cast implícito |
 | W-436 | caches de texto | reads não alocam nem mutam; summaries eager permitidos; índice alocante usa tipo próprio | cache lazy invisível; owner muta por read; grapheme ordinal O(1) |
 | W-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
-| W-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
+| W-438 | ponteiro textual | somente borrow scoped; persistência usa CString ou buffer pinned sem relocation; pin do descriptor não basta | pointer estável de String; NUL obrigatório; raw pointer safe |
 | W-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
 | W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
 | W-441 | happens-before | task start/join, channel em W-467, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
@@ -17169,6 +17527,17 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-631 | header C por target | sidecar determinístico inclui calling convention, export macros e layout assertions; index liga header à slice | header universal por nome; path e timestamp; confiar só no linker |
 | W-632 | resolução de symbol dinâmico | loader W usa handle + manifest e visibilidade local; calls não dependem de interposition | lookup process-global; primeiro symbol carregado; override por environment |
 | W-633 | encoding de metadata | **Pesquisa:** comparar `WMeta1` e subset CBOR determinístico antes do formato público | JSON como autoridade; cache interno como contrato eterno; escolher sem fuzzer W0 |
+| W-634 | `Address` | `Copy` opaco por address space, equality local, hash local, hex e `Bits`; não é pointer, identity ou ordem | alias de `usize`; integer com dereference; object ID |
+| W-635 | reconstrução de pointer | `withAddress` usa a provenance e o address space do receiver; v0 não possui exposed provenance ou `Address.toPointer` | round-trip integer; provenance global implícita; pointer forge safe |
+| W-636 | cópia de pointer | cópia tipada preserva non-address bits e estado externo; Bytes não faz round-trip | mesmo size implica bitwise; serializar pointer; integer load/store equivalente |
+| W-637 | `shared` e `weak` | `upgrade` linearizável; value morre no strong zero e control block no weak zero | weak aponta ao payload reutilizável; contador curto no pointer; ressurreição |
+| W-638 | mobilidade de allocator | origem local impede `transferable`; `Allocator<(.crossDomain)>` publica a prova necessária | todo allocator cruza domain; annotation por container; teste runtime tardio |
+| W-639 | profile de memória | `memory.generalAllocator` e `memory.representation` são obrigatórios por build profile | default ambiental; allocator por dependency; compactação sem oracle |
+| W-640 | low-bit lowering | alignment + address-space + provenance + tooling + canonical boundary; fallback quando qualquer prova falta | alignment nominal basta; ptr-int-ptr; tag cruza FFI |
+| W-641 | entrada de representação | fingerprint descreve logical identity, validity e carrier físico; recipe retém provider e options | provider noise na ABI; fingerprint só por compiler; adaptação heurística |
+| W-642 | carrier de `Bytes` | empty/static/inline/dynamic permitem conversão consuming com String sem layout público comum | sempre Array<u8>; cópia obrigatória; pointer tag define interpretação |
+| W-643 | `CString` | payload sem NUL + terminador; count exclui NUL; UTF-8 só após decode explícito | CString sempre UTF-8; count inclui sentinela; scan inbound ilimitado |
+| W-644 | address space | `Address` seleciona o space default; `Address<space: S>` preserva identidade e index width; casts exigem adapter `unsafe` | um integer universal; LLVM address-space ID no source; equality cross-space |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
