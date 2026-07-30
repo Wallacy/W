@@ -27,14 +27,17 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `try`/`await`, `for try await`, `async let`, `spawn let` e `Task.cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
+- `entry(handler)`, descriptors nomeados e bindings de host;
+- manifest `package { ... }` com values data-only;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
-- casos estruturais internos, incluindo a superfície integrada da DB2.
+- casos estruturais internos, incluindo a superfície integrada vigente.
 
 O corpus usa snippets autocontidos para que compiler, formatter, portal e
 extensão possam futuramente reutilizar os mesmos fixtures. Os arquivos do
-restaurante são também um smoke test, mas continuam pseudocódigo pedagógico.
+produto Última Luz também são um smoke test. Eles continuam source de design
+até existir type checker e runtime.
 
 ## Executar
 
@@ -45,7 +48,8 @@ desta pasta:
 npm install
 npm run generate
 npm test
-npm run parse:restaurant
+npm run parse:reference
+npm run parse:std
 npm run parse:fixture
 npm run check:design
 ```
@@ -56,8 +60,8 @@ Ou execute todos os checks:
 npm run check
 ```
 
-`npm run check` executa corpus, restaurante, fixture do VS Code e cobertura de
-exemplos do design. O CLI está fixado em `tree-sitter-cli` 0.26.11. Após
+`npm run check` executa corpus, produto de referência, std, fixture do VS Code e
+cobertura de exemplos do design. O CLI está fixado em `tree-sitter-cli` 0.26.11. Após
 `generate`, `src/` e o parser C gerado tornam a gramática consumível sem copiar
 regras para outro lexer. Um binding Node nativo é responsabilidade do
 consumidor. Ele não é necessário para gerar ou testar esta pasta.
@@ -72,7 +76,8 @@ consumidor. Ele não é necessário para gerar ou testar esta pasta.
 
 O VS Code não consome Tree-sitter automaticamente, e não há adapter ou WASM
 neste corte. Eles só devem entrar depois de
-`tree-sitter generate`, corpus e smoke test do restaurante passarem no host.
+`tree-sitter generate`, corpus e smoke test do produto de referência passarem
+no host.
 
 ## Lacunas deliberadas
 

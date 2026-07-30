@@ -100,6 +100,8 @@
 ] @keyword
 
 (function_declaration name: (identifier) @function)
+(entry_declaration default_handler: (identifier) @function)
+(entry_binding handler: (identifier) @function)
 (call_expression function: (identifier) @function.call)
 (call_expression
   function: (member_expression property: (identifier) @function.method.call))
@@ -125,6 +127,7 @@
 (labeled_struct_pattern_field field: (identifier) @property)
 
 (field_declaration name: (identifier) @property)
+(manifest_field name: (identifier) @property)
 (computed_property_declaration name: (identifier) @property)
 (property_requirement name: (identifier) @property)
 (member_expression property: (identifier) @property)

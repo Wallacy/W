@@ -13,10 +13,11 @@
   "scripts": {
     "generate": "tree-sitter generate",
     "test": "tree-sitter test",
-    "parse:restaurant": "tree-sitter parse --grammar-path . --quiet --stat ../../examples/restaurant/*.w",
+    "parse:reference": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/*.w",
+    "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w",
     "parse:fixture": "tree-sitter parse --grammar-path . --quiet --stat ../vscode-w/fixtures/*.w",
     "check:design": "node ../check-design-examples.mjs",
-    "check": "npm run generate && npm test && npm run parse:restaurant && npm run parse:fixture && npm run check:design"
+    "check": "npm run generate && npm test && npm run parse:reference && npm run parse:std && npm run parse:fixture && npm run check:design"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"

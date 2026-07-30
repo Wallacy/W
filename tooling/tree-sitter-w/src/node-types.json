@@ -3366,6 +3366,16 @@
           }
         ]
       },
+      "default_handler": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": false,
@@ -5512,6 +5522,161 @@
     }
   },
   {
+    "type": "manifest_argument",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "manifest_constructor",
+    "named": true,
+    "fields": {
+      "constructor": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "contextual_member_expression",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "manifest_argument",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "manifest_field",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_value",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "manifest_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "manifest_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "manifest_record",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "manifest_field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "manifest_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "boolean_literal",
+          "named": true
+        },
+        {
+          "type": "contextual_member_expression",
+          "named": true
+        },
+        {
+          "type": "manifest_constructor",
+          "named": true
+        },
+        {
+          "type": "manifest_list",
+          "named": true
+        },
+        {
+          "type": "manifest_record",
+          "named": true
+        },
+        {
+          "type": "number_literal",
+          "named": true
+        },
+        {
+          "type": "quantity_literal",
+          "named": true
+        },
+        {
+          "type": "size_literal",
+          "named": true
+        },
+        {
+          "type": "string_literal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "map_entry",
     "named": true,
     "fields": {
@@ -7011,6 +7176,22 @@
     }
   },
   {
+    "type": "package_manifest",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_record",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "panic_expression",
     "named": true,
     "fields": {
@@ -8262,6 +8443,10 @@
         },
         {
           "type": "object_declaration",
+          "named": true
+        },
+        {
+          "type": "package_manifest",
           "named": true
         },
         {

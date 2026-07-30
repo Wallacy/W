@@ -17,7 +17,9 @@ const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
 
 export enum AppError: Error {
   command(CommandError)
+  conflictingLaunchModes
   decode(DecodeError)
+  http(http.ServerError)
   io(IoError)
   restaurant(RestaurantError)
   response(ResponseError)
@@ -29,6 +31,30 @@ export enum AppError: Error {
 enum HostAuthority {
   localOperator
   remoteClient
+}
+
+enum LaunchMode {
+  cli
+  tui
+  serve
+}
+
+fn launchMode(args: ref ProcessArguments): LaunchMode throws AppError {
+  let cli = args.contains("--cli")
+  let tui = args.contains("--tui")
+  let serve = args.contains("--serve")
+  guard !(cli && tui) && !(cli && serve) && !(tui && serve)
+    else throw .conflictingLaunchModes
+
+  if tui {
+    return .tui
+  }
+
+  if serve {
+    return .serve
+  }
+
+  return .cli
 }
 
 const fn canDispatch(command: ref Command, authority: HostAuthority): Bool {
@@ -92,12 +118,28 @@ async fn runConsole(
   return .success
 }
 
-async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
-  return try await runConsole(ctx, mode: .plain)
-}
-
 async fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
   return try await runConsole(ctx, mode: .ansi)
+}
+
+async fn runServer(ctx: ProcessContext): ExitCode throws AppError {
+  try await http.serve(
+    at: .loopback(port: 8_080),
+    using: ctx.network,
+    handler: fetch,
+  )
+  return .success
+}
+
+async fn runNative(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
+  return switch try launchMode(args) {
+    case .cli:
+      try await runConsole(ctx, mode: .plain)
+    case .tui:
+      try await runConsole(ctx, mode: .ansi)
+    case .serve:
+      try await runServer(ctx)
+  }
 }
 
 async fn readCommand(line: String, ctx: CliContext): () throws AppError {
@@ -112,7 +154,10 @@ async fn readCommand(line: String, ctx: CliContext): () throws AppError {
   try await ctx.stdout.write(output)
 }
 
-async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
+package async fn fetch(
+  request: http.Request,
+  ctx: http.Context,
+): http.Response throws AppError {
   let restaurant = try await ctx.services.get(restaurantService)
   let command = try request.json.decode<Command>()
   let response = try await dispatch(
@@ -128,20 +173,14 @@ async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): () {
   await ctx.services.drain(deadline: ctx.deadline)
 }
 
-entry LastLight {
-  process.main = run
+entry(runNative) {
   process.signal = shutdown
-  http.fetch = fetch
 }
 
-entry LastLightTui {
-  process.main = runTui
-  process.signal = shutdown
-}
+entry LastLightTui(runTui)
 
 entry LastLightLineHost {
   process.stdinLine = readCommand
-  process.signal = shutdown
 }
 
 test "a remote command cannot stop the process" for canDispatch {

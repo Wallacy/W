@@ -22,6 +22,4 @@ async fn runSimulation(args: ProcessArguments, ctx: ProcessContext): ExitCode th
   return .success
 }
 
-entry LastLightSimulation {
-  process.main = runSimulation
-}
+entry LastLightSimulation(runSimulation)

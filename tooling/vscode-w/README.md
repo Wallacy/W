@@ -39,7 +39,7 @@ artefato.
 2. Pressione `F5` ou escolha **Run Extension**. Uma janela **Extension
    Development Host** será aberta.
 3. Nessa janela, abra qualquer arquivo `.w`, por exemplo
-   `../../examples/restaurant/kitchen.w`.
+   `../../reference/last-light/kitchen.w`.
 
 Para instalação local persistente, gere um `.vsix` em uma cópia ou diretório
 temporário e instale-o pelo VS Code:
