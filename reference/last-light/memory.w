@@ -76,6 +76,19 @@ export struct BellState {
   var atomic rings: u64
 }
 
+// Address observes the current storage. It does not keep state alive and cannot
+// be converted back to a pointer without an existing provenance source.
+export fn bellStorageAddress(state: ref BellState): Address {
+  return address(of: state)
+}
+
+export fn foreignBellAddress(target: BellTarget): Address? {
+  return switch target {
+    case .open(let pointer): .some(pointer.address)
+    case .unavailable: .none
+  }
+}
+
 export fn classifyBell(state: shared BellState?): BellSignal<[.ringing, .silent, .unavailable]> {
   guard let state = state else return .unavailable
   if state.rings == 0 { return .silent }
@@ -136,4 +149,18 @@ export fn watchClosingBell(
     registration: registration,
     state: take pinned,
   )
+}
+
+test "Address observes storage without creating authority" for bellStorageAddress {
+  let state = BellState(label: "Closing bell", rings: 0)
+  let first = bellStorageAddress(state)
+  let second = bellStorageAddress(state)
+  let sameBits = first.withBits(first.bits)
+
+  expect first == second
+  expect sameBits == first
+  expect first.bits == second.bits
+
+  // Compile-fail assay: W v0 has no Address.toPointer().
+  // let forged = first.toPointer<BellState>()
 }

@@ -353,6 +353,43 @@ w build last-light-benchmark \
 O comando não consulta a CPU do runner. Outra CPU ou outra lista de features
 produz outra recipe.
 
+### 4.8 Profiles de memória
+
+Cada build profile fixa o allocator geral e a policy de representação:
+
+| Profile | Allocator geral | Representação | Uso |
+|---|---|---|---|
+| `debug` | `.system` | `.portable` | fallback e diagnóstico |
+| `release` | `.system` | `.optimized` | payload normal |
+| `benchmark` | `.system` | `.optimized` | baseline de medição |
+| `benchmark-mimalloc` | runtime contract mimalloc@3 | `.optimized` | comparação do provider |
+
+O último profile adiciona uma runtime requirement. A toolchain plan seleciona e
+fixa o provider que oferece o contrato. Ele não usa `PATH`, preload ou override
+global de `malloc`.
+
+```text
+w toolchain resolve \
+  --product last-light-benchmark \
+  --target x86_64-unknown-linux-gnu \
+  --execution linux-x64 \
+  --cpu x86-64-v3 \
+  --features +avx2,+fma \
+  --profile benchmark-mimalloc \
+  --output build/benchmark-mimalloc.wplan
+
+w build last-light-benchmark \
+  --target x86_64-unknown-linux-gnu \
+  --cpu x86-64-v3 \
+  --features +avx2,+fma \
+  --profile benchmark-mimalloc \
+  --toolchains build/benchmark-mimalloc.wplan \
+  --locked
+```
+
+System e mimalloc podem produzir o mesmo `RepresentationMap`. A recipe,
+`RuntimeClosureKey` e measurements continuam diferentes.
+
 ## 5. Comandos previstos
 
 ### 5.1 Build único
@@ -441,6 +478,8 @@ w explain artifact sha256:...
 w explain runtime restaurant-core
 w explain workflow fulfillment --key order:42
 w explain performance restaurant.horizon::forecast
+w explain memory restaurant.allocation::countStagedMenuInParallel
+w explain layout restaurant.memory::BellTarget
 w explain resources restaurant.audio::renderFinalSong
 w audit effects last-light-native
 ```

@@ -661,6 +661,10 @@ package {
         checks: .full
         debug: .sidecar
         cpuPolicy: .portable
+        memory: {
+          generalAllocator: .system
+          representation: .portable
+        }
       },
       {
         name: "release"
@@ -668,6 +672,10 @@ package {
         checks: .safe
         debug: .sidecar
         cpuPolicy: .portable
+        memory: {
+          generalAllocator: .system
+          representation: .optimized
+        }
       },
       {
         name: "benchmark"
@@ -675,6 +683,24 @@ package {
         checks: .safe
         debug: .none
         cpuPolicy: .explicit
+        memory: {
+          generalAllocator: .system
+          representation: .optimized
+        }
+      },
+      {
+        name: "benchmark-mimalloc"
+        optimize: .speed
+        checks: .safe
+        debug: .none
+        cpuPolicy: .explicit
+        memory: {
+          generalAllocator: .runtime(
+            contract: "w.runtime/allocator.mimalloc@3",
+            mode: .default,
+          )
+          representation: .optimized
+        }
       },
     ]
     constEval: {

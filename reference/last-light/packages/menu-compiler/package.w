@@ -55,6 +55,10 @@ package {
         checks: .safe
         debug: .sidecar
         cpuPolicy: .portable
+        memory: {
+          generalAllocator: .system
+          representation: .portable
+        }
       },
     ]
     constEval: {

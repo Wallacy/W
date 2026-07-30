@@ -1,6 +1,7 @@
 // String storage and mutation for the Last Light restaurant.
 
 import std.memory
+import std.text
 
 export fn joinAnnouncements(
   lines: ref Array<String>,
@@ -65,6 +66,11 @@ export fn encodeAnnouncement(value: take String): Bytes {
   return (take value).intoBytes()
 }
 
+export fn roundTripCarrier(value: take String): Utf8Adoption {
+  let payload = (take value).intoBytes()
+  return String.adoptingUtf8(take payload)
+}
+
 export fn joinPair(left: take String, right: view String): String {
   return (take left) + right
 }
@@ -99,6 +105,24 @@ test "a consuming conversion preserves the UTF-8 bytes" for encodeAnnouncement {
   let message = "Violet Horizon"
   let payload = encodeAnnouncement(take message)
   expect payload == b"Violet Horizon"
+}
+
+test "static and dynamic carriers keep the same text" for roundTripCarrier {
+  let literal = roundTripCarrier("End of service")
+  switch literal {
+    case .text(let text): expect text == "End of service"
+    case .invalid(_, _): panic("a UTF-8 literal became invalid")
+  }
+
+  var dynamic = String(reservingBytes: 128)
+  dynamic.append("A table at the ")
+  dynamic.append("observable edge\0")
+
+  let rebuilt = roundTripCarrier(take dynamic)
+  switch rebuilt {
+    case .text(let text): expect text == "A table at the observable edge\0"
+    case .invalid(_, _): panic("valid dynamic UTF-8 became invalid")
+  }
 }
 
 test "String mutation never creates an implicit alias temporary" {

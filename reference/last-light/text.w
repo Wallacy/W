@@ -164,10 +164,27 @@ test "raw and multiline strings keep exact content" {
 }
 
 test "C strings reject an interior terminator" for cLabel {
+  let valid = try cLabel("last-light")
+  expect valid.bytes.count == 10
+  expect try valid.decodeUtf8() == "last-light"
+
   do {
     let _ = try cLabel("closing\0bell")
     panic("interior NUL was accepted")
   } catch .interiorNul(let offset) {
     expect offset == 7
+  }
+}
+
+test "a C string does not claim UTF-8 before decoding" {
+  let foreignBytes = try CString.from(b"\xFF")
+  expect foreignBytes.bytes.count == 1
+
+  do {
+    let _ = try foreignBytes.decodeUtf8()
+    panic("invalid foreign UTF-8 was accepted")
+  } catch error {
+    expect error.offset == 0
+    expect error.reason == .outOfRange
   }
 }
