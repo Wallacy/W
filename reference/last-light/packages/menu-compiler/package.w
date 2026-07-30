@@ -22,6 +22,8 @@ package {
 
   moduleSets: [
     {
+      name: "menu-compiler-modules"
+      activation: .always
       namespace: "last_light.menu"
       root: "."
       include: ["*.w"]

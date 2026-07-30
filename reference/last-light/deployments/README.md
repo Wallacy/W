@@ -6,7 +6,8 @@ Estes planos testam a separação entre grafo lógico, packing e placement.
 [`W/DESIGN.md`](../../../DESIGN.md) define a semântica.
 
 - [`local.w`](local.w) usa uma unit e adapters locais de desenvolvimento.
-- [`distributed.w`](distributed.w) usa vários artifacts e hosts.
+- [`distributed.w`](distributed.w) usa venue, edge, satellite, horizon e device
+  artifacts em vários hosts.
 - [`benchmark.w`](benchmark.w) fixa HTTP, PostgreSQL e cache local para o
   corpus TechEmpower.
 

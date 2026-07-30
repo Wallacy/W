@@ -46,7 +46,7 @@ Os estados usados são:
 Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
 
-O histórico da DB1 e as notas anteriores ficam em
+O histórico das consolidações anteriores e as notas originais ficam em
 [`Y/W/`](../Y/W/). O Git preserva autoria, datas e diffs. Este arquivo é a única
 fonte de verdade para o estado atual.
 
@@ -878,7 +878,8 @@ import platform.clock
 ```
 
 O build graph seleciona uma implementação de `platform.clock` para o target. A
-interface importada permanece a mesma.
+interface importada permanece a mesma. A seção 21.1.4 define os
+`targetVariants`, cases disjuntos e interface matrix desse mecanismo.
 
 #### 3.6.5 Termination, quotas e cache
 
@@ -1263,6 +1264,8 @@ Um package com um módulo por arquivo pode usar uma expansão data-only:
 ```w
 moduleSets: [
   {
+    name: "restaurant-modules"
+    activation: .always
     namespace: "restaurant"
     root: "."
     include: ["*.w"]
@@ -1273,9 +1276,15 @@ moduleSets: [
 ```
 
 `.fileStem` transforma `oracle.w` em `restaurant.oracle`. A expansão usa paths
-portáteis, ordem lexical por bytes e erro em colisão. O resolver grava a lista
-expandida no lock. Um arquivo novo não entra em um build `--locked` sem atualizar
-essa lista.
+portáteis e ordem lexical por bytes. Duas definições no mesmo active source set
+causam erro. Cases exclusivos de uma target variant podem fornecer a mesma
+module identity. O resolver grava path, module, activation owner e case no
+lock. Um arquivo novo não entra em um build `--locked` sem atualizar essa lista.
+
+`name` é obrigatório. `activation` é `.always` ou `.selected`. Um module set
+`.selected` entra no grafo somente quando uma feature ou variante por target o
+habilita. Habilitar um module set `.always` é erro. Essa distinção impede que a
+presença de um arquivo no checkout altere o programa.
 
 Patterns não atravessam `root`, não seguem symlinks por default e não dependem
 da ordem do filesystem. O mapeamento explícito continua a forma para exceções.
@@ -7233,6 +7242,10 @@ entry {
 Ela cria um handler anônimo. O product precisa escolher um host profile com um
 único slot default. O body ignora os parâmetros desse slot.
 
+O source não escreve `process.main` nessa forma. O host profile fornece o slot
+default e o compiler liga o handler a esse slot. A interface e o manifest
+chamam o descriptor anônimo de `.default`.
+
 Uma função normal pode ocupar o slot default sem repetir seu nome:
 
 ```w
@@ -10260,7 +10273,7 @@ O design vigente compara quatro formas:
 | Forma | Estado | Motivo |
 |---|---|---|
 | `9.81<m/s^2>` | **Forma vigente** | preserva `[]`, comunica aplicação estática e possui precedente no F# |
-| `9.81[m/s^2]` | **Reserva DB1** | parse simples, mas parece indexação e sobrecarrega `[]` |
+| `9.81[m/s^2]` | **Reserva histórica** | parse simples, mas parece indexação e sobrecarrega `[]` |
 | `9.81{m/s^2}` | **Rejeitado por enquanto** | chaves devem continuar a indicar body/scope |
 | `9.81 m/s^2` | **Pesquisa** | aproxima SI, mas não mostra onde a unit expression termina |
 
@@ -13261,7 +13274,8 @@ Uma dependência usa automaticamente um member quando package identity e version
 constraint conferem. O field `authority` do member participa dessa prova.
 Version incompatível produz error. O resolver não usa uma release do registry
 no lugar do member local sem informar o usuário. O lock grava o manifest digest,
-o source-set digest e a razão da seleção. A recipe grava o content tree digest.
+o source-inventory digest e a razão da seleção. Cada context grava seu active
+source-set digest. A recipe grava o content tree digest.
 
 O discovery local procura o `workspace.w` ancestral mais próximo que liste o
 package atual. `w context` mostra manifest, workspace, lock e roots antes de
@@ -13402,7 +13416,162 @@ feature. `w diff-lock` separa mudança de version, source e feature.
 número de modules. Elas aumentam o número de programas possíveis por arquivo e
 dificultam interface diff, testes e leitura por ferramentas.
 
-#### 21.1.4 Sources e patches
+#### 21.1.4 Variantes por target
+
+**Exemplo:** o processo nativo importa sempre
+`restaurant.platform.native`. O manifest escolhe uma implementação. O source
+não contém `#if`, annotation ou import condicional:
+
+```w
+moduleSets: [
+  {
+    name: "native-terminal-posix"
+    activation: .selected
+    namespace: "restaurant.platform"
+    root: "platform/posix"
+    include: ["*.w"]
+    layout: .fileStem
+  },
+  {
+    name: "native-terminal-windows"
+    activation: .selected
+    namespace: "restaurant.platform"
+    root: "platform/windows"
+    include: ["*.w"]
+    layout: .fileStem
+  },
+]
+
+targetVariants: [
+  {
+    name: "native-terminal"
+    interface: .uniform
+    cases: [
+      {
+        name: "posix"
+        target: { systems: [.linux, .darwin] }
+        enables: [.moduleSet("native-terminal-posix")]
+      },
+      {
+        name: "windows"
+        target: { systems: [.windows] }
+        enables: [.moduleSet("native-terminal-windows")]
+      },
+    ]
+    fallback: { name: "not-native", enables: [] }
+  },
+]
+```
+
+Cada grupo escolhe exatamente um case por resolution realm. Todos os fields de
+`target` formam AND. Os valores de um field formam OR. Um field ausente não
+restringe o target. A v0 aceita somente estas dimensões:
+
+- `architectures`;
+- `vendors`;
+- `systems`;
+- `abis`;
+- `endianness`;
+- `pointerWidths`.
+
+Os valores vêm do registry fechado de targets. Um case para uma identidade
+exata informa architecture, vendor, system e ABI. `targetSets` não são
+predicados: eles pertencem ao package raiz e servem à matriz de build.
+
+Os cases concretos precisam ser disjuntos. Se dois cases conferem, o resolver
+falha mesmo quando eles habilitam o mesmo resultado. A ordem textual não cria
+priority. `fallback` é opcional e só confere quando nenhum case concreto
+confere. Sem fallback, ausência de match é erro. Um fallback vazio é uma
+decisão explícita: o package não oferece aquela implementação para o target.
+
+`enables` é aditivo. Ele pode habilitar:
+
+- dependency;
+- module set;
+- resource;
+- build action.
+
+Ele não pode habilitar feature, product, host profile, runtime graph, packing
+ou deployment. Essa regra evita ciclos entre resolução e seleção. Uma
+dependency ou action habilitada por target mantém sua declaration completa,
+incluindo usage, features, inputs e budgets.
+
+Habilitar a mesma declaration por mais de uma origem é idempotente. O lock
+preserva todas as origens. Habilitar declarations distintas que produzem a
+mesma module identity, resource binding ou action output continua sendo erro.
+
+Dois module sets em cases exclusivos podem fornecer a mesma module identity.
+No exemplo, os dois arquivos `native.w` viram
+`restaurant.platform.native`. Uma colisão dentro do case selecionado continua
+sendo erro.
+
+`interface: .uniform` exige a mesma interface exportada normalizada em todos
+os cases não vazios. Bodies, object format e calling convention podem mudar.
+Tipos, signatures, visibilidade, const values exportados e effects não podem
+mudar. O compiler compara a matriz antes de publicar.
+
+`interface: .targetSpecific` permite interfaces diferentes. O target passa a
+fazer parte do interface record e do compatibility check. Essa forma atende
+APIs inevitavelmente específicas de uma plataforma. Ela não pode aparecer
+como uma interface supostamente uniforme em outro package.
+
+O selector usa o target de compilação da instância do package:
+
+```text
+package do product    -> target final
+package de build tool -> execution target
+package de test       -> test target
+package de benchmark  -> benchmark target
+```
+
+Uma variante do package raiz pode escolher uma action com base no target
+final. A dependency `.build` dessa action ainda é compilada para o execution
+target. O tool só observa facts do target final quando a action declara
+`targetMetadata` como input.
+
+CPU features, profile, feature de package, host capability, environment e
+máquina que executa o build não entram no predicate da v0. CPU multiversioning
+e kernels especializados possuem contracts próprios. Essa separação evita que
+um novo `-march` mude imports e interface sem aviso.
+
+O lock grava, por context:
+
+- target usado para a seleção;
+- nome e digest de cada grupo e case escolhido;
+- declarations habilitadas;
+- source-set e dependency edges resultantes.
+
+`w explain target-variant <package>::<name> --target <target>` mostra cada
+field que conferiu ou falhou. `w package check --matrix` verifica matches,
+disjointness, interfaces e targets anunciados. Dependencies de inactive cases
+não causam download preventivo. O comando testa todas as linhas publicáveis.
+
+`w.target` continua disponível para valores const, layout e lowering. Ele não
+remove declarations, imports ou files do source. Uma diferença de module graph
+fica no manifest.
+
+Esta forma combina constraints tipados de
+[Bazel platforms](https://bazel.build/versions/9.0.0/extending/platforms) com
+a seleção de dependencies por target do
+[Cargo](https://doc.rust-lang.org/stable/cargo/reference/specifying-dependencies.html)
+e do
+[Swift Package Manager](https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html).
+W rejeita o
+[`cfg` de Rust](https://doc.rust-lang.org/reference/conditional-compilation.html)
+dentro do source e as
+[build constraints de Go](https://pkg.go.dev/cmd/go#hdr-Build_constraints)
+em comentários ou filenames. Essas formas aumentam o número de programas que
+uma ferramenta precisa reconstruir ao ler um único arquivo.
+
+**Alternativa:** uma expressão Boolean geral permite `not`, flags privadas e
+nesting. Ela dificulta prova de disjointness e deixa o resultado dependente de
+inputs abertos.
+
+**Alternativa:** escolher o case mais específico permite overrides curtos. A
+regra cria priority implícita quando o manifest cresce. A v0 exige cases
+disjuntos.
+
+#### 21.1.5 Sources e patches
 
 **Exemplo:** uma dependency pública usa registry. Um root privado pode fixar um
 commit Git. O workspace pode testar uma correção local com a mesma identity:
@@ -13503,7 +13672,7 @@ evoluir sem mudar o formato do manifest.
 outra linhagem de authority. Mirrors podem mudar sem trocar a authority, porque
 servem objetos já identificados por digest.
 
-#### 21.1.5 Contexts de resolução e lock
+#### 21.1.6 Contexts de resolução e lock
 
 **Exemplo:** o mesmo source pode exigir três resolutions sem misturar bytes:
 
@@ -13533,6 +13702,10 @@ lock {
       targetRole: .target
       target: "x86_64-unknown-linux-gnu"
       features: []
+      targetVariants: [
+        "last-light/restaurant::native-terminal/posix",
+      ]
+      activeSourceSet: "sha256:..."
       nodes: []
     },
     {
@@ -13541,6 +13714,8 @@ lock {
       targetRole: .execution
       target: "x86_64-pc-windows-msvc"
       features: []
+      targetVariants: []
+      activeSourceSet: "sha256:..."
       nodes: ["sha256:package-node..."]
     },
   ]
@@ -13553,7 +13728,7 @@ lock {
       source: .member(
         path: "packages/menu-compiler",
         manifest: "sha256:...",
-        sourceSet: "sha256:...",
+        sourceInventory: "sha256:...",
       )
       dependencies: []
     },
@@ -13563,25 +13738,29 @@ lock {
 
 `id` é uma referência interna ao lock. Ele é o digest do package identity,
 version, source descriptor e dependency edges normalizados. Um member usa
-manifest e source-set digests; o content tree local fica na recipe. Um package
-externo usa metadata snapshot e content tree digest. Realms ou feature sets
-distintos podem produzir nodes distintos para a mesma identity e version. O
-node ID não participa de type identity.
+manifest e source-inventory digests; o content tree local fica na recipe. Um
+package externo usa metadata snapshot e content tree digest. Realms, feature
+sets ou target variants distintos podem produzir nodes distintos para a mesma
+identity e version. O node ID não participa de type identity.
 
 O lock de workspace registra:
 
 - schema e resolver version;
 - digest de cada manifest e do workspace;
-- roots, usages, features e target roles;
+- roots, usages, features, target variants e target roles;
 - versões, sources, external tree digests e edges transitivos;
-- member e patch paths, manifest digests e source-set digests;
+- member e patch paths, manifest digests e source-inventory digests;
+- active source-set digest de cada context;
 - build-tool packages e metadata snapshots;
 - razão de cada seleção e exceção de policy.
 
-Um source-set digest cobre a lista ordenada de `PackagePath`, module identity e
-role. Ele muda quando um arquivo entra, sai ou muda de role. Ele não muda quando
-o conteúdo de um arquivo existente muda. Assim, edição local normal não exige
-nova resolução, mas um arquivo novo não entra em `--locked` por discovery.
+O source-inventory digest cobre todas as declarations de source, inclusive
+activation owner e cases inativos. O active source-set digest cobre a lista
+ordenada de `PackagePath`, module identity e role após features e target
+variants. Ambos mudam quando um arquivo entra, sai ou muda de role. Eles não
+mudam quando o conteúdo de um arquivo existente muda. Assim, edição local
+normal não exige nova resolução, mas um arquivo novo não entra em `--locked`
+por discovery.
 
 O lock não contém payload digest, action output, profile, compiler, sysroot ou
 provenance do build. Esses facts pertencem à recipe e ao artifact record. `w
@@ -13601,7 +13780,7 @@ Fontes primárias usadas para os invariantes:
 - [Cargo dependency sources](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html);
 - [Go workspaces e replacements](https://go.dev/ref/mod#workspaces).
 
-#### 21.1.6 Source snapshot publicável
+#### 21.1.7 Source snapshot publicável
 
 **Exemplo:** o package principal publica somente os arquivos necessários para
 rebuild, documentação e licença:
@@ -13628,7 +13807,8 @@ publish: {
 
 `publish.files` é uma allowlist obrigatória. A serialização canônica do
 `package.w` atual é metadata obrigatória e participa do snapshot digest.
-`.modules` inclui os arquivos declarados por `modules` e `moduleSets`; ele não
+`.modules` inclui os arquivos de todos os `modules` e `moduleSets`, inclusive
+cases inativos. Isso permite reconstruir toda a matriz publicável. Ele não
 inclui `package.w`, `workspace.w` ou manifest de subpackage. `.path` usa
 `PackagePath` exato, não aceita glob, não segue symlink e não sai da raiz. A
 lista normalizada entra no release recipe. Um arquivo novo fora de `.modules`
@@ -13740,16 +13920,17 @@ payloads. O resultado inclui um index que aponta para cada digest.
 - cada foreign unit possui source digest, toolchain, target, ABI e symbol manifest;
 - cache é content-addressed;
 - recipe fixa toolchain, target, profile, inputs e environment permitido;
-- recipe fixa source tree digests, source sets e lock digest;
+- recipe fixa source tree digests, source inventory, active source sets e lock
+  digest;
 - recipe fixa quotas e evaluator version de compile-time;
 - CBOR determinístico é a representação canônica inicial;
 - SHA-256 tagged é o digest inicial e possui algorithm agility.
 
-`w build --locked` falha se manifest, resolution context ou source-set
-membership divergir do lock. Editar o conteúdo de um source local existente é
-permitido e gera outra recipe. CI/release usa esse modo. `w update package`
-mostra o diff mínimo do grafo. Offline não acessa a rede; frozen pode buscar
-somente objetos já fixados.
+`w build --locked` falha se manifest, source inventory, resolution context ou
+active source-set membership divergir do lock. Editar o conteúdo de um source
+local existente é permitido e gera outra recipe. CI/release usa esse modo.
+`w update package` mostra o diff mínimo do grafo. Offline não acessa a rede;
+frozen pode buscar somente objetos já fixados.
 
 `w reproduce <recipe>` exige os content tree digests exatos. A mesma recipe deve
 produzir o mesmo payload bit a bit. Data, commit, paths, locale, timezone, seeds
@@ -13761,7 +13942,7 @@ A chave mínima inclui:
 
 ```text
 package graph + product + expanded entry + host profile + runtime graph + packing
-+ target + CPU/features + sysroot/SDK + profile
++ target + selected target variants + CPU/features + sysroot/SDK + profile
 + compiler/runtime + adapters + build inputs + lock digest
 ```
 
@@ -13779,6 +13960,10 @@ Um macOS universal binary, um Android App Bundle e um firmware bundle são
 artifacts compostos. Seus componentes continuam identificados por digest.
 Assinatura, notarization ou timestamp não alteram o digest do payload interno.
 
+Um product descreve uma família de recipes. `product + target + profile`
+identifica uma build concreta. Um matrix index agrega artifacts. Ele não cria
+um executável universal.
+
 #### 21.2.2 Multimode e múltiplos artifacts
 
 Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
@@ -13793,6 +13978,16 @@ w run last-light-native --deployment deployments/local.w \
 Um worker HTTP usa outro host lifecycle. Ele recebe outro product e, em geral,
 outro artifact. Compartilhar source não exige compartilhar entry, runtime ou
 bytes finais.
+
+Um process também pode abrir uma janela GTK, hospedar um servidor e oferecer
+CLI no mesmo artifact. Nesse caso, `process.main` cria os adapters e coordena
+seu shutdown. GTK, .NET ou outra bridge é uma dependency ou adapter alcançável.
+Ela não cria outro slot do sistema operacional.
+
+Um lifecycle controlado por outra plataforma usa outro host profile. Android,
+iOS, um HTTP worker e um audio callback não viram modes de `process.main`.
+Cada um recebe um product compatível. Um deployment pode instalar vários
+artifacts e ligar seus services.
 
 O build pode incluir vários handlers alcançáveis, mas dead stripping remove os
 que nenhum binding ou call referencia. `w explain product` mostra por que um
@@ -14023,7 +14218,10 @@ dependencies aparecem como relações distintas na provenance e no SBOM.
 w context
 w workspace check
 w resolve
+w add <package>@<constraint> --as <alias> --use <use>
+w remove <alias>
 w update <package>
+w tree [product]
 w fetch --locked
 w package list [package]
 w package check [package]
@@ -14033,6 +14231,7 @@ w run <product> [--deployment <plan>] -- <arguments>
 w test [product] --locked
 w explain dependency <package>
 w explain feature <package>::<feature>
+w explain target-variant <package>::<variant> --target <target>
 w explain action <action>
 w explain product <product>
 w explain artifact <digest>
@@ -14046,11 +14245,27 @@ w deploy check <plan> --locked
 w deploy apply <plan> --locked
 w bundle offline
 w cache import <bundle>
-w publish check [package]
+w interface --matrix [package]
+w package check --matrix [package]
+w publish check --matrix [package]
+w publish <package> --artifacts <index> --locked
 ```
 
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
+
+`w add` e `w remove` alteram o `package.w` e resolvem o lock em uma única
+transação. Falha de resolução não deixa um dos arquivos atualizado. `--dry-run`
+mostra o diff de manifest, lock, authorities, versions, features e target
+variants. O comando não executa build tool ou install script.
+
+`w tree` mostra o realm e a razão de cada edge. O default não mistura product,
+build, test e benchmark. `--all-realms` mostra as quatro visões.
+
+`w publish` não executa um build implícito. Ele consome um source snapshot,
+matrix index, recipes, artifact records e attestations já fixados. A version
+vem do manifest. Um upload parcial não torna a release visível; o registry
+publica metadata somente depois de validar o conjunto.
 
 #### 21.6.1 Fluxo local
 
@@ -14481,6 +14696,7 @@ Uma pesquisa só avança quando possui:
 | workspace data-only com lock compartilhado | **Possível agora** | members exatos, identity e contexts são verificações estáticas |
 | usages separados de dependência | **Possível agora** | reachability e target role fecham product, build, test e benchmark |
 | features somente no grafo | **Possível agora** | união aditiva evita conditional source e defaults ocultos |
+| target variants disjuntas | **Possível agora** | predicates positivos, case único e interface matrix são verificações estáticas |
 | source snapshot por allowlist | **Possível agora** | module expansion, PackagePath e digest produzem uma árvore fechada |
 | build transform tipada | **Provável** | host profile e CAS são diretos; sandbox cross-platform exige protótipo |
 | parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
@@ -14562,6 +14778,38 @@ executável do W. O projeto usa o produto para:
 - validar targets e host profiles;
 - produzir material do Book e de treinamento.
 
+O produto possui cinco planos operacionais:
+
+```text
+venue
+  ├─ processo multimodo, TUI dedicada e mobile shell
+  ├─ pedidos, cozinha, salão, cobrança e áudio
+  └─ captive portal do Wi-Fi
+
+edge
+  ├─ component HTTP
+  ├─ sessions duráveis
+  └─ nanoservices com bindings de capability
+
+observatory
+  ├─ swarm de satélites
+  ├─ sensores do horizonte
+  └─ previsão tensorial e alarmes
+
+device
+  ├─ controllers bare metal
+  ├─ interrupts, MMIO e rádio
+  └─ audio callback com deadline
+
+compute
+  ├─ simulação determinística
+  ├─ treinamento e kernels de inferência
+  └─ benchmark HTTP/database
+```
+
+Esses planos compartilham packages e protocolos. Eles não precisam compartilhar
+artifact, host lifecycle ou deployment.
+
 O primeiro product é um oracle determinístico e não exige deployment:
 
 ```text
@@ -14583,6 +14831,15 @@ last-light-native / entry .default
   → RestaurantApi
   → AppResponse
   → texto plain / ANSI / JSON
+```
+
+O mesmo módulo também produz um artifact menor:
+
+```text
+last-light-tui / entry LastLightTui
+  → herda process.signal de .default
+  → substitui somente process.main
+  → seleciona o terminal adapter do target
 ```
 
 O component product usa outro lifecycle:
@@ -14647,6 +14904,7 @@ wifi        → HTTP, secrets, rate limit e durable sessions
 orbit       → satellite services, units e telemetry
 horizon     → event time, sensor fusion e tensors
 accelerator → kernels e device bundles
+AI lab      → treino no host e oracle CPU/device
 benchmark   → HTTP/database workloads e performance evidence
 ```
 
@@ -14695,7 +14953,8 @@ Os gates são cumulativos:
 3. o turno completo passa deployment, FFI, fault injection e provenance;
 4. package, lock e build reproduzem cada target;
 5. mobile, firmware, áudio e devices passam seus resource gates;
-6. benchmarks preservam semântica e publicam evidence suficiente.
+6. AI lab e device kernels preservam shapes e numeric mode;
+7. benchmarks preservam semântica e publicam evidence suficiente.
 
 Enquanto o compiler não existe, o documento deve informar quais gates são
 oracles e quais possuem evidência executável. Um parse do Tree-sitter não prova
@@ -14763,7 +15022,7 @@ O corpus compara, no mínimo:
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
-- import de namespace compacto contra a forma DB1 com `from`.
+- import de namespace compacto contra a forma histórica com `from`.
 
 ## 27. Plano de implementação
 
@@ -14956,8 +15215,11 @@ de marcar a versão como reproduced.
 - workspace parser, members exatos e resolução standalone;
 - usages `.product`, `.build`, `.test` e `.benchmark`;
 - feature closure por root, target role e usage;
+- target variants, source inventory e active source sets por context;
+- interface matrix uniforme e diagnostics de case overlap;
 - separação entre lock, recipe e artifact record;
 - builds `--locked`/offline;
+- `w add`, `w remove`, graph diff e mutation atômica do lock;
 - host `build-transform@1`, action graph e outputs no CAS;
 - T0/T1 mínimos;
 - descriptors SQL, codecs de row e adapters database com pool limitado;
@@ -15014,12 +15276,13 @@ Cada checkpoint executa:
 6. atualização deste documento;
 7. commit pequeno com resultado e limitações.
 
-## 28. Relação com a tentativa DB1
+## 28. Relação com a consolidação histórica
 
-A “DB1” foi uma consolidação intermediária. Ela não foi um design concluído.
-Esta tabela existe somente para explicar mudanças rastreáveis.
+A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
+foi um design concluído. Esta tabela existe somente para explicar mudanças
+rastreáveis.
 
-| Tema | Tentativa DB1 | Forma vigente |
+| Tema | Forma histórica | Forma vigente |
 |---|---|---|
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
 | namespace import | `import name as alias from path` | `import path [as alias]` |
@@ -15031,15 +15294,15 @@ Esta tabela existe somente para explicar mudanças rastreáveis.
 | unsafe | decisão sem grammar completa | `unsafe fn` e `unsafe {}` |
 | async cleanup | lacuna | `defer async` |
 | scalar literal | lacuna | `'x'` e `b'x'` |
-| modules multi-file | DB1 ratificada, spec divergente | manifest é source of truth |
-| resolver/digest | DB1 ratificada, docs divergentes | contrato consolidado |
+| modules multi-file | ratificada, com spec divergente | manifest é source of truth |
+| resolver/digest | ratificada, com docs divergentes | contrato consolidado |
 | pointer tagging | mecanismo de memória candidato | otimização de representação com fallback |
 | bootstrap | seed C e self-host cedo | profile W0 fechado antes de tasks |
 | static contract | aplicações pontuais | envelope `<...>` fechado por head |
 | ilha multilíngue | `fn<lang>` em pesquisa | adapter externo, façade C e static archive |
 | callable | `CallbackType` e capture dispersos | `fn`, `some fn` e `any fn` separam pointer, ambiente, owner e drop |
 
-Estas mudanças são experimentais. A fotografia da tentativa DB1 continua
+Estas mudanças são experimentais. A fotografia da consolidação continua
 acessível no
 [arquivo histórico](../Y/W/archive/db1-2026-07-27/README.md) e no histórico do
 Git.
@@ -15059,7 +15322,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
 | W-007 | visibility | módulo default, `package`, `export`; sem `private` | public universal; `public/private`; block export |
 | W-008 | import seletivo | `{X} from path` | `path.{X}`; imports livres |
-| W-009 | import namespace | `import path as alias` | forma DB1 `name as alias from path` |
+| W-009 | import namespace | `import path as alias` | forma histórica `name as alias from path` |
 | W-010 | módulos | manifest multi-file, DAG | declaração `module`; cycles de interface |
 | W-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | W-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
@@ -15630,6 +15893,15 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-577 | source snapshot | `publish.files` allowlist usa modules e PackagePath; VCS ignore não altera release | publicar tudo; usar `.gitignore`; registry acrescenta arquivos |
 | W-578 | licença de package | SPDX expression + files; proprietary e no-assertion são states distintos | string livre; ausência implica licença; metadata externa substitui texto |
 | W-579 | lock, recipe e artifact | lock fixa resolução; recipe fixa inputs; artifact record liga outputs | lock contém resultados; recipe autorreferente; provenance decide resolução |
+| W-580 | ativação de module set | nome e `.always`/`.selected` são explícitos; selector habilita somente `.selected` | todo arquivo declarado sempre ativo; inferir por referência textual; glob ambiental |
+| W-581 | predicate de target | record positivo e fechado sobre architecture, vendor, system, ABI, endianness e pointer width | expressão Boolean geral; `cfg` no source; target set como predicate |
+| W-582 | resolução de variante | um case concreto disjunto ou fallback explícito; ordem não cria priority | case mais específico vence; first match; merge de matches |
+| W-583 | efeito de variante | seleção aditiva habilita dependency, module set, resource ou action | remover graph existente; trocar product/profile/host; ativar feature circular |
+| W-584 | interface entre targets | `.uniform` compara interface normalizada; `.targetSpecific` marca a diferença | presumir paridade; esconder diferença no linker; uma API universal artificial |
+| W-585 | role de target | package do payload usa target final; package do tool usa execution target; metadata cruza só como input | host ambiental; build dependency avaliada pelo target errado; um target global |
+| W-586 | adaptação de plataforma | manifest escolhe module implementation; source mantém import normal e target facts não removem declarations | `#if`; filename condition; import ou annotation condicional |
+| W-587 | mutation do package graph | `w add/remove` atualiza manifest e lock atomicamente, com dry-run e sem scripts | editar lock à mão; resolver depois; executar install hook |
+| W-588 | inventário de source | package fixa todo source inventory; cada context fixa o active source set após selectors | um digest ambíguo; somente files ativos na release; discovery por checkout |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
