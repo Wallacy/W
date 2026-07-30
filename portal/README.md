@@ -6,9 +6,9 @@ O portal registra uma direção inicial para o Livro, a referência, o status e 
 playground lexical. Ele não precisa acompanhar cada mudança antes do design
 freeze. [`W/DESIGN.md`](../DESIGN.md) continua sendo a única fonte de verdade.
 
-Após o freeze, as páginas serão geradas de `DESIGN.md`, do registro D2 e dos
+Após o freeze, as páginas serão geradas de `DESIGN.md`, do registro W e dos
 arquivos `.w`. Astro é uma alternativa de renderização, não uma escolha atual.
-Consulte D2-096 antes de retomar o desenvolvimento.
+Consulte W-096 antes de retomar o desenvolvimento.
 
 ## Executar
 
@@ -31,7 +31,7 @@ Abra `http://127.0.0.1:3000`.
 | `/playground` | edição e análise lexical local |
 | `/status` | maturidade das camadas |
 | `/docs/DESIGN.md` | contrato integral canônico |
-| `/examples/restaurant/README.md` | ensaio e oracles |
+| `/reference/last-light/README.md` | ensaio e oracles |
 
 Os seis arquivos `.w` do restaurante também possuem rotas diretas.
 
@@ -49,4 +49,4 @@ Os seis arquivos `.w` do restaurante também possuem rotas diretas.
 
 `bun run check` compila os scripts do browser e o servidor em memória. A
 verificação final também deve testar links, tema, navegação por teclado e os
-snippets DB2.
+snippets do design vigente.

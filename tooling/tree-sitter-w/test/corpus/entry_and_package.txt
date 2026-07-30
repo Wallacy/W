@@ -1,0 +1,235 @@
+==================
+Entry default descriptors
+==================
+
+fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode {
+  return .success
+}
+
+fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode {
+  return .success
+}
+
+fn shutdown(signal: ProcessSignal, ctx: ProcessContext) {}
+fn fetch(request: Request, ctx: Context): Response {}
+
+entry(run) {
+  process.signal = shutdown
+}
+
+entry LastLightTui(runTui)
+
+entry LastLightWorker {
+  http.fetch = fetch
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (contextual_member_expression
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (contextual_member_expression
+          (identifier)))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block))
+  (entry_declaration
+    (identifier)
+    (entry_binding
+      (module_path
+        (identifier)
+        (identifier))
+      (identifier)))
+  (entry_declaration
+    (type_identifier)
+    (identifier))
+  (entry_declaration
+    (type_identifier)
+    (entry_binding
+      (module_path
+        (identifier)
+        (identifier))
+      (identifier))))
+
+==================
+Data-only package manifest
+==================
+
+package {
+  schema: "w.package/1"
+  name: "last-light/restaurant"
+  products: [
+    {
+      name: "last-light-native"
+      kind: .executable
+      entry: ".default"
+      capabilities: [.stdio, .network]
+    },
+  ]
+  targetSets: [
+    {
+      name: "desktop"
+      targets: ["x86_64-unknown-linux-gnu"]
+    },
+  ]
+  dependencies: [
+    {
+      source: .registry("w")
+    },
+  ]
+  build: {
+    network: .deny
+    heap: 64MiB
+  }
+}
+
+---
+
+(source_file
+  (package_manifest
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (contextual_member_expression
+                      (identifier))))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_list
+                      (manifest_value
+                        (contextual_member_expression
+                          (identifier)))
+                      (manifest_value
+                        (contextual_member_expression
+                          (identifier)))))))))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_list
+                      (manifest_value
+                        (string_literal))))))))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_constructor
+                      (contextual_member_expression
+                        (identifier))
+                      (manifest_argument
+                        (manifest_value
+                          (string_literal)))))))))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_record
+            (manifest_field
+              (identifier)
+              (manifest_value
+                (contextual_member_expression
+                  (identifier))))
+            (manifest_field
+              (identifier)
+              (manifest_value
+                (size_literal)))))))))

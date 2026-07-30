@@ -46,7 +46,7 @@ for (let index = 0; index < headings.length; index += 1) {
     body.includes("```") ||
     body.includes("|---") ||
     body.includes("**Exemplo:") ||
-    body.includes("examples/restaurant");
+    body.includes("reference/last-light");
 
   if (!hasEvidence) {
     gaps.push(`${heading.line}: ${heading.title}`);

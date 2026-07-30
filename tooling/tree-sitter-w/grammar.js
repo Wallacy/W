@@ -188,6 +188,7 @@ module.exports = grammar({
         $.extension_declaration,
         $.behavior_declaration,
         $.entry_declaration,
+        $.package_manifest,
         $.foreign_declaration,
         $.const_declaration,
         $.test_declaration,
@@ -564,19 +565,80 @@ module.exports = grammar({
         choice(
           field("body", $.block),
           seq(
+            $._entry_default_handler,
+            optional($._entry_descriptor_body),
+          ),
+          seq(
             field("name", $._type_identifier),
-            "{",
-            repeat($.entry_binding),
-            "}",
+            choice(
+              $._entry_descriptor_body,
+              seq(
+                $._entry_default_handler,
+                optional($._entry_descriptor_body),
+              ),
+            ),
           ),
         ),
       ),
+    _entry_default_handler: ($) =>
+      seq("(", field("default_handler", $.identifier), ")"),
+    _entry_descriptor_body: ($) =>
+      seq("{", repeat($.entry_binding), "}"),
     entry_binding: ($) =>
       seq(
         field("slot", $.module_path),
         "=",
         field("handler", $.identifier),
         optional(";"),
+      ),
+
+    package_manifest: ($) =>
+      seq(
+        "package",
+        field("body", $.manifest_record),
+      ),
+    manifest_record: ($) =>
+      seq("{", repeat($.manifest_field), "}"),
+    manifest_field: ($) =>
+      seq(
+        field("name", $.identifier),
+        ":",
+        field("value", $.manifest_value),
+        optional(","),
+      ),
+    manifest_value: ($) =>
+      choice(
+        $.manifest_record,
+        $.manifest_list,
+        $.manifest_constructor,
+        $.contextual_member_expression,
+        $.string_literal,
+        $.size_literal,
+        $.quantity_literal,
+        $.number_literal,
+        $.boolean_literal,
+      ),
+    manifest_list: ($) =>
+      seq(
+        "[",
+        repeat(seq($.manifest_value, optional(","))),
+        "]",
+      ),
+    manifest_constructor: ($) =>
+      prec(
+        17,
+        seq(
+          field("constructor", $.contextual_member_expression),
+          "(",
+          commaSep($.manifest_argument),
+          optional(","),
+          ")",
+        ),
+      ),
+    manifest_argument: ($) =>
+      seq(
+        optional(seq(field("label", $.identifier), ":")),
+        field("value", $.manifest_value),
       ),
 
     deinit_declaration: ($) => seq("deinit", field("body", $.block)),

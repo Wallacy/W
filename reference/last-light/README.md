@@ -1,13 +1,18 @@
 # Restaurante Última Luz
 
-> **Status:** corpus experimental da DB2 · 29 de julho de 2026
+> **Status:** produto de referência experimental · 29 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
 do universo. O cenário homenageia o absurdo cósmico popularizado por Douglas
 Adams. Os personagens, diálogos, pratos e eventos deste corpus são originais.
 
-O ensaio não prova que a linguagem está implementada. Ele pressiona a forma
-integrada de [DESIGN.md](../../DESIGN.md).
+Este é o produto de referência oficial do W. Ele orienta design, regressão,
+conformance, benchmarks, documentação e treinamento.
+
+O produto não prova que a linguagem está implementada. Ele pressiona a forma
+integrada de [DESIGN.md](../../DESIGN.md). O
+[plano de build](BUILD.md) aplica products, targets, host profiles e artifacts.
+O manifest data-only está em [`package.w`](package.w).
 
 ## 1. Rotas operacionais
 
@@ -17,7 +22,7 @@ LastLightSimulation
   → simulação por ticks
   → relatório determinístico
 
-LastLight / LastLightTui / LastLightLineHost
+last-light-native / entry .default
   → Command
   → dispatch único
   → RestaurantApi
@@ -25,15 +30,37 @@ LastLight / LastLightTui / LastLightLineHost
   ├─ texto portátil
   ├─ terminal ANSI
   └─ JSON por HTTP
+
+last-light-worker / LastLightWorker
+  → http.fetch fornecido pelo host
+  → o mesmo dispatch e RestaurantApi
+
+last-light-mobile / LastLightMobile
+  → lifecycle Android ou iOS
+  → domain logic compartilhada
+
+last-light-controller / LastLightController
+  → sensors, interrupts e satellite telemetry
+
+last-light-audio / LastLightAudio
+  → callback com deadline
+  → sem allocation ou blocking
+
+last-light-accelerators / LastLightKernels
+  → tensor kernels
+  → NVVM, ROCDL ou SPIR-V
 ```
 
 `LastLightSimulation` é o primeiro alvo operacional. Ele não usa relógio,
 aleatoriedade, network nem deployment de services. O mesmo profile deve produzir
 os mesmos eventos, totais e consumo de energia em qualquer execução compatível.
 
-`LastLight` expõe CLI de texto e `http.fetch`. `LastLightTui` reutiliza a mesma
-resposta tipada e adiciona somente controle ANSI. `LastLightLineHost` recebe uma
-linha por evento do host. Nenhuma dessas rotas exige uma biblioteca gráfica.
+O descriptor anônimo de `app.w` liga `runNative` a `process.main`. Ele escolhe
+CLI, TUI ou servidor local por argumento. `LastLightTui` continua como descriptor
+de teste. `LastLightLineHost` recebe uma linha por evento.
+
+`LastLightWorker` possui outro módulo de entry. Seu host chama `http.fetch`.
+Importar `app.w` não registra o entry nativo.
 
 A rota distribuída mantém o gate **Turno do Horizonte Violeta**:
 
@@ -72,7 +99,7 @@ exige esta divisão:
 4. a identidade do pedido seleciona a instance keyed;
 5. trace e idempotency ligam todos os turns ao mesmo efeito.
 
-`SupervisorRef` e o descriptor data-only agora são **Líder DB2**. A API final
+`SupervisorRef` e o descriptor data-only agora são **Forma vigente**. A API final
 de steps duráveis permanece em **Pesquisa**. Até existir runtime,
 `LastLightSimulation` continua o primeiro alvo de execução independente.
 
@@ -114,9 +141,23 @@ de steps duráveis permanece em **Pesquisa**. Até existir runtime,
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `simulation_app.w` | entry determinística sem deployment de services |
-| `app.w` | CLI, TUI ANSI, linha por evento, HTTP, Context e entries |
+| `app.w` | processo nativo multimodo, linha por evento e Context |
+| `worker_app.w` | component HTTP com lifecycle do host |
+| `package.w` | products, targets, capabilities e build profiles |
+| `BUILD.md` | matriz de artifacts, comandos e gates |
+| `orbit.w` | swarm de satélites, telemetria e propagação tipada |
+| `horizon.w` | sensores do buraco negro, event time e tensor fusion |
+| `observatory_app.w` | processo nativo do swarm e da telemetria |
+| `audio.w` | render de áudio com buffers fixos e sem allocation |
+| `audio_app.w` | callback do audio device |
+| `wifi.w` | captive portal, sessions, authority e limits |
+| `wifi_app.w` | component HTTP do Wi-Fi |
+| `ai_harness.w` | kernels, shapes e device bundle |
+| `mobile_app.w` | lifecycle Android/iOS sem UI toolkit W |
+| `controller_app.w` | reset, tick, interrupt e MMIO adapter |
+| `benchmark_app.w` | workloads HTTP e database para benchmark |
 
-Esses arquivos usam a forma líder da DB2. A versão DB1 está no
+Esses arquivos usam a forma vigente. A tentativa DB1 está no
 [arquivo histórico](../../../Y/W/archive/db1-2026-07-27/examples/restaurant/).
 
 ### 2.1 Cobertura e alcance
@@ -138,10 +179,15 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | self-host e build reproduzível | `menu_compiler.w` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `presentation.w`, `app.w` | um modelo tipado atende CLI, TUI e HTTP |
+| products e targets | `package.w`, `BUILD.md` | entry, host, target e deployment ficam separados |
+| satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
+| device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
+| mobile e Wi-Fi | `mobile_app.w`, `wifi.w` | lifecycle e authority usam capabilities |
+| AI e benchmarks | `ai_harness.w`, `benchmark_app.w` | kernels e desempenho preservam oracles |
 
-A tabela cobre as famílias aceitas da DB2. Itens em **Pesquisa**, alternativas
-contrafactuais e propostas rejeitadas não são requisitos do executável. Cada um
-continua preservado em `DESIGN.md`.
+A tabela cobre as famílias aceitas no design vigente. Itens em **Pesquisa**,
+alternativas contrafactuais e propostas rejeitadas não são requisitos do
+executável. Cada um continua preservado em `DESIGN.md`.
 
 ## 3. Casos e oracles
 
@@ -151,8 +197,10 @@ Famílias: entry, host profile, imports e capabilities.
 
 Aceite:
 
-- `entry { ... }` só funciona com um default slot único;
-- `entry LastLight` liga slots tipados;
+- `entry { ... }` cria um handler curto para um default slot único;
+- `entry(runNative)` cria o descriptor anônimo `.default`;
+- `entry LastLightTui(runTui)` herda defaults locais e troca o handler;
+- o product escolhe um descriptor expandido;
 - importar `app` não executa um handler;
 - Context não concede filesystem ou network ausentes.
 
@@ -550,7 +598,7 @@ Famílias: todas.
 
 Aceite:
 
-- um product seleciona `entry LastLight`;
+- `last-light-native` seleciona o descriptor `.default`;
 - CLI e HTTP chegam ao mesmo service;
 - parser, units, tensor, C, billing e resposta ficam alcançáveis;
 - shared graph, pinned callback e W0 compiler ficam alcançáveis;
@@ -1200,12 +1248,152 @@ O oracle adversarial enche admission, cancela em cada suspension point, derruba
 o supervisor e troca o deployment. Cada caso precisa terminar com ownership,
 outcome e trace definidos.
 
+### 3.36 Bilheteria para Nove Universos
+
+Famílias: package, product, entry, host profile, target e artifact.
+
+Aceite:
+
+- `package.w` usa somente o subset data-only;
+- `moduleSets` expande para a mesma lista em qualquer filesystem;
+- build locked falha quando um arquivo novo não está no lock;
+- `.default` resolve o descriptor anônimo de `app.w`;
+- `LastLightTui` herda `process.signal` e troca somente o slot default;
+- `LastLightWorker` não herda bindings de outro módulo;
+- um product liga exatamente um descriptor expandido;
+- CLI, TUI e servidor local podem compartilhar um `process.main`;
+- o worker HTTP possui outro product e outro artifact;
+- cada target possui recipe e digest próprios;
+- uma matriz publica um index, não um hash falso entre architectures;
+- `w explain product` informa origem de cada binding;
+- importar um entry module não executa ou registra handlers.
+
+O oracle gera todos os products de [`package.w`](package.w). Ele compara o
+grafo alcançável e rejeita slot ausente, host incompatível e target sem SDK.
+
+### 3.37 Coreografia das Luas que Perderam o Planeta
+
+Famílias: units, tensor vectors, services, network concurrency e swarm identity.
+
+`orbit.w` modela um swarm de satélites. Cada device possui `SatelliteId`,
+telemetry revisionada e uma capability `ServiceRef<SatelliteApi>`.
+
+Aceite:
+
+- posição, velocidade, duração e distância não se misturam;
+- propagação preserva shape `[3]`;
+- duas telemetrias usam I/O concorrente e mantêm ordering por source;
+- um satellite silencioso não vira zero telemetry;
+- sequence stale produz error tipado;
+- `ServiceFamily` seleciona a instance pela identidade;
+- o solver de aproximação usa um número de samples refinado;
+- CPU scalar, SIMD e device produzem o mesmo resultado no mode escolhido;
+- deployment pode co-localizar ou separar satélites sem mudar a API.
+
+### 3.38 Observatório do Horizonte que Já Aconteceu
+
+Famílias: event time, observed time, tensor fusion, ranges e numeric modes.
+
+`horizon.w` separa o instante físico do instante de observação. O sensor não
+finge que latência de rede altera a ordem causal.
+
+Aceite:
+
+- samples fora de sequence falham antes do tensor kernel;
+- valores não finitos não entram no forecast;
+- `@` fixa as shapes de calibration;
+- redução `.reproducible` mantém o oracle cross-target;
+- os ranges de anomaly são exaustivos e não se sobrepõem;
+- CPU e accelerator registram diferenças de precisão;
+- cancellation devolve buffers e device leases;
+- o trace mantém event time, observed time e processing time separados.
+
+### 3.39 A Última Música sem uma Única Allocation
+
+Famílias: fixed arrays, deadline, host entry, real time e resource gates.
+
+`audio.w` renderiza um bloco estéreo fixo. `audio_app.w` liga o callback ao host.
+
+Aceite:
+
+- o callback não aloca, bloqueia, faz I/O ou aguarda task;
+- `AudioBlock<frames, channels>` fixa o tamanho no compile time;
+- o host passa state exclusivo; não existe mutable global;
+- uma falha preenche o bloco com silêncio;
+- phase e frame count sobrevivem entre callbacks;
+- `w check resources --require no-general-allocation` fecha o call graph;
+- o benchmark registra deadline misses, mas métricas não mudam o áudio;
+- o target embedded pode usar a mesma função sem runtime de process.
+
+### 3.40 Porteiro do Wi-Fi que Não Conhece a Senha
+
+Famílias: HTTP, secrets, rate limit, durable state e capability attenuation.
+
+`wifi.w` modela login e revogação. O handler recebe uma capability de sessions.
+Ele não recebe o secret usado para verificar vouchers.
+
+Aceite:
+
+- request body possui limite antes da decode;
+- device ID e voucher possuem refinements;
+- rate limit informa `retryAfter`;
+- session ID não concede authority sem `WifiSessionApi`;
+- logs não contêm voucher, secret ou session token;
+- logout é idempotente ou informa outcome desconhecido;
+- worker e processo local usam a mesma interface;
+- storage durable é adapter do product, não propriedade de `String`;
+- o mobile app recebe somente state e notification capabilities declaradas.
+
+### 3.41 Cozinheiro de Silício com Avental Vetorial
+
+Famílias: shape generics, `@`, host/device transfer e kernel bundles.
+
+`ai_harness.w` declara kernels sem esconder placement.
+
+Aceite:
+
+- shapes incompatíveis falham no type checker;
+- device memory é capability distinta da memória do host;
+- transfer, launch e synchronization aparecem no host graph;
+- o kernel não executa network, filesystem ou service calls;
+- NVVM, ROCDL e SPIR-V usam a mesma HIR verificada;
+- address spaces permanecem explícitos no lowering;
+- `.reproducible` e `.fast` possuem oracles diferentes;
+- o training step preserva shapes e exige learning rate em `0.0>..<1.0`;
+- fallback CPU não altera shape, ownership ou error contract;
+- um device bundle registra cada object e target por digest.
+
+### 3.42 Garçom dos Sete Benchmarks
+
+Famílias: HTTP, JSON, database, allocation, admission e performance evidence.
+
+`benchmark_app.w` mantém as sete famílias do TechEmpower como profile futuro.
+
+Aceite:
+
+- plaintext e JSON usam o mesmo HTTP runtime do produto;
+- query count fica em `1...500` por narrowing exaustivo;
+- queries usam APIs normais de database;
+- fortunes escapam HTML no template adapter;
+- updates e cached queries serão adicionados antes do primeiro resultado;
+- nenhuma rota retorna dados constantes quando o workload exige database;
+- configuração, hardware, compiler e artifact digest acompanham o resultado;
+- monolito e nanoservices executam o mesmo oracle;
+- uma regressão de segurança não é aceita por ganho de throughput;
+- ranking é measurement, não promessa da linguagem.
+
 ## 4. Alternativas visuais obrigatórias
 
 O Book deve mostrar pares lado a lado:
 
-| Tema | Forma líder | Contrafactual |
+| Tema | Forma vigente | Contrafactual |
 |---|---|---|
+| entry anônimo | `entry(run) { process.signal = shutdown }` | repetir bindings ou `entry defaults` |
+| handler default | `entry Name(run)` | escrever `process.main = run` em cada descriptor |
+| seleção | product escolhe descriptor no link | nome de entry escolhido livremente no runtime |
+| multimodo | um `process.main` escolhe CLI/TUI/server | vários mains ou OS chama `http.fetch` |
+| target | tuple canônica + CPU/features/sysroot | string livre, OS apenas ou backend implica suporte |
+| matriz | payload e digest por target + index | um hash para bytes de architectures diferentes |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
@@ -1285,7 +1473,7 @@ Preferência visual não é medida antes das tarefas de leitura e correção.
 
 ## 5. Gate para uma implementação
 
-Cada arquivo DB2 precisa passar:
+Cada arquivo W precisa passar:
 
 1. Tree-sitter sem error node;
 2. formatter duas vezes sem diff;
@@ -1295,13 +1483,17 @@ Cada arquivo DB2 precisa passar:
 6. runtime test ou oracle explícito quando houver lowering;
 7. origem e revision disponíveis para geração do Book após o design freeze.
 
-A integração avança em três gates cumulativos:
+A integração avança em seis gates cumulativos:
 
 1. **Simulação:** `LastLightSimulation` gera os três relatórios sem deployment;
 2. **Host:** CLI, TUI, line host e HTTP chegam ao mesmo `Command` e
    `AppResponse`;
 3. **Turno do Horizonte Violeta:** o grafo real de services, FFI, compensação e
-   observabilidade passa fault injection.
+   observabilidade passa fault injection;
+4. **Products:** package, lock e build geram artifacts reproduzíveis por target;
+5. **Devices:** mobile, firmware, áudio e accelerator passam os próprios
+   resource gates;
+6. **Performance:** benchmarks internos e externos mantêm semântica e evidence.
 
 No estado atual, somente o gate sintático do Tree-sitter é executável. Os outros
 gates são contratos de implementação. A documentação não os apresenta como

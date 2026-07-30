@@ -1,5 +1,5 @@
 ==================
-DB2 units refinements and imports
+W units refinements and imports
 ==================
 
 import std.si
@@ -155,7 +155,7 @@ fn inspectStaticPayloads() {
           (argument_list))))))
 
 ==================
-DB2 domains unsafe and entries
+W domains unsafe and entries
 ==================
 
 enum LastLightDomain: ExecutionDomain {
@@ -328,7 +328,7 @@ entry LastLight {
       (identifier))))
 
 ==================
-DB2 tensors and switch expressions
+W tensors and switch expressions
 ==================
 
 fn classify<const batch: usize>(
@@ -435,7 +435,7 @@ fn classify<const batch: usize>(
               (identifier))))))))
 
 ==================
-DB2 property behavior accessors
+W property behavior accessors
 ==================
 
 behavior Versioned<Value> for Value {
@@ -509,7 +509,7 @@ behavior Versioned<Value> for Value {
               (number_literal))))))))
 
 ==================
-DB2 static and mutable receivers
+W static and mutable receivers
 ==================
 
 protocol Additive {
@@ -625,7 +625,7 @@ fn touch(): () {
         (unit_literal)))))
 
 ==================
-DB2 static lists and callable types
+W static lists and callable types
 ==================
 
 enum Stage {

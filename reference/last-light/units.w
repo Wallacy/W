@@ -19,7 +19,11 @@ export type Power = Quantity<si.Power, f64>
 export type Energy = Quantity<si.Energy, f64>
 export type Duration = Quantity<si.Duration, f64>
 export type Distance = Quantity<si.Length, f64>
+export type Velocity = Quantity<si.Velocity, f64>
+export type Acceleration = Quantity<si.Acceleration, f64>
 export type Mass = Quantity<si.Mass, f64>
+export type Frequency = Quantity<si.Frequency, f64>
+export type Pressure = Quantity<si.Pressure, f64>
 export type MemorySize = Quantity<iec.Information, u64>
 export type ApplauseLevel = Quantity<Applause, u64>
 

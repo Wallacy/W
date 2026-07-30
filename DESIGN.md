@@ -3,14 +3,13 @@
 > **Status:** **Candidato experimental** · 29 de julho de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
-compilador, packages, distribuição, tooling, plano e alternativas. A forma
-integrada atual se chama Baseline de Design 2 (DB2). Ela aplica as decisões da
-DB1, corrige contradições entre os documentos e seleciona líderes para as
-questões recuperadas depois da DB1.
+compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
+a forma integrada vigente. O documento corrige contradições das tentativas
+anteriores e mantém alternativas rastreáveis para cada decisão.
 
-A implementação pode usar estes líderes antes da ratificação humana. Cada líder
-tem uma alternativa preservada. O objetivo é permitir uma revisão visual com
-parser, realce, Book e exemplos coerentes.
+A implementação pode usar estas formas antes da ratificação humana. Cada forma
+mantém alternativas relevantes. O objetivo é permitir revisão visual com
+parser, realce e o produto de referência.
 
 ## 0. Como ler este documento
 
@@ -27,10 +26,10 @@ Os estados usados são:
 | Estado | Significado |
 |---|---|
 | **Direção** | princípio estável que limita as soluções |
-| **Líder DB2** | forma implementada para avaliação visual |
+| **Forma vigente** | forma integrada no design e no produto de referência |
 | **Alternativa** | solução legítima que continua no corpus de comparação |
 | **Pesquisa** | hipótese com baseline funcional que não depende dela |
-| **Rejeitado por enquanto** | não entra na DB2 sem nova evidência |
+| **Rejeitado por enquanto** | não entra no design vigente sem nova evidência |
 
 ### Mapa do sistema
 
@@ -42,9 +41,9 @@ Os estados usados são:
 | execução | 12–13 | tasks, paralelismo, domains, services, entries, estado e sandbox |
 | SDK e domínios | 14–19 | tiers, numéricos, texto, tensors, performance, C e ilhas de linguagem |
 | implementação e produto | 20–24 | frontend, runtime, packages, tooling, pesquisas e viabilidade |
-| validação e sequência | 25–29 | ensaio integrado, revisão, roadmap, delta DB1 e decisões |
+| validação e sequência | 25–29 | produto de referência, revisão, roadmap, histórico e decisões |
 
-Leia o bloco que contém a dúvida e depois use o ID D2 correspondente. Não é
+Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
 
 O histórico da DB1 e as notas anteriores ficam em
@@ -97,7 +96,7 @@ criar um statement especial.
 **Exemplo:** o target Wasm não concede DOM nem transforma W em substituto de
 JavaScript.
 
-A DB2 não tenta:
+O design vigente não tenta:
 
 - substituir JavaScript no navegador;
 - criar um sistema operacional ou uma plataforma serverless completa;
@@ -142,7 +141,7 @@ exemplo pode ser source válido, diagnostic esperado ou cenário canônico. Uma
 afirmação sobre runtime deve mostrar também o estado após erro ou cancelamento.
 
 **Exemplo:** a decisão de callable mostra `fn`, `some fn` e `any fn` na seção
-7.5. O ensaio correspondente fica em `examples/restaurant`.
+7.5. O ensaio correspondente fica em `reference/last-light`.
 
 ## 1. Limite da alegação
 
@@ -150,7 +149,7 @@ afirmação sobre runtime deve mostrar também o estado após erro ou cancelamen
 de medir preferência.
 
 Não existe um estudo que prove a melhor sintaxe para W. Familiaridade também não
-prova facilidade de uso. A DB2 usa três classes de evidência:
+prova facilidade de uso. O design vigente usa três classes de evidência:
 
 1. contratos que podem ser verificados pelo compilador;
 2. precedentes de linguagens e ferramentas em produção;
@@ -166,14 +165,14 @@ Os estudos de
 [Stefik e Siebert](https://doi.org/10.1145/2534973) e sua
 [replicação](https://doi.org/10.1007/s11219-023-09631-7) mostram outro limite:
 uma escolha comum para especialistas pode continuar difícil para iniciantes.
-Por isso, a DB2 mede acerto antes de medir preferência.
+Por isso, o design vigente mede acerto antes de medir preferência.
 
 ## 2. Invariantes
 
 **Exemplo:** um build release não pode aceitar overflow que o mesmo programa
 rejeita em debug.
 
-Estas regras limitam todas as escolhas da DB2:
+Estas regras limitam todas as escolhas do design vigente:
 
 1. O source mostra efeitos que podem suspender, falhar, bloquear uma fronteira
    ou transferir ownership.
@@ -197,7 +196,7 @@ Estas regras limitam todas as escolhas da DB2:
 
 Cada delimitador mantém uma função mental principal:
 
-| Forma | Função principal na DB2 | Exemplos |
+| Forma | Função principal no design vigente | Exemplos |
 |---|---|---|
 | `{...}` | corpo, scope ou record delimitado por contexto | função, `entry`, `<{...}>` |
 | `(...)` | chamada, parâmetros, agrupamento ou expressão estática | `cook(order)`, `<(value > 0)>` |
@@ -215,7 +214,7 @@ esquerda é o head. O head publica um schema fechado com slots, tipos, defaults 
 cardinalidade. Esse schema é um contrato estático. Ele não precisa ser um
 `protocol`. Um slot pode exigir conformance a um `protocol`.
 
-`where` e `on` não são keywords da DB2. `where` permanece em comparação com
+`where` e `on` não são keywords do design vigente. `where` permanece em comparação com
 refinements angulares. `on` fica **Rejeitado por enquanto**. Ele cria uma frase
 especial para uma informação que já pertence ao contrato de `spawn`.
 
@@ -232,7 +231,7 @@ semântica:
 | `<{name: value}>` | um record compile-time | fields não criam storage no head |
 | `<[a, b]>` | uma lista compile-time ordenada | a lista não vira set implicitamente |
 
-Exemplos da forma líder:
+Exemplos da forma vigente:
 
 ```w
 Array<u8>
@@ -298,7 +297,7 @@ String<(.graphemes.count == 10)>
 String<(value.graphemes.count == 10)>
 ```
 
-A forma curta é **Líder DB2**. `value` continua disponível para
+A forma curta é **Forma vigente**. `value` continua disponível para
 desambiguação e diagnostics.
 
 Um tipo generic já aplicado recebe o refinement em outro envelope.
@@ -395,14 +394,14 @@ compatibilidade source. O experimento de
 mostra esse custo.
 
 `spawn` publica `domain` como slot primário. Por isso, `spawn<.compute>` é a
-forma líder. `spawn<domain: .compute>` permanece **Alternativa** para corpus e
+forma vigente. `spawn<domain: .compute>` permanece **Alternativa** para corpus e
 diagnostics.
 
 ### 3.3 Refinement, composição e layout
 
 As operações abaixo permanecem distintas:
 
-| Intenção | Forma líder | Muda storage? |
+| Intenção | Forma vigente | Muda storage? |
 |---|---|---:|
 | restringir valores | `T<(predicate)>` | não |
 | criar identidade nominal | `type X = T` | não por default |
@@ -413,7 +412,7 @@ As operações abaixo permanecem distintas:
 | sobrepor storage C | `foreign c union` ou wrapper `unsafe` | sim e explícito |
 
 Uma extension nunca adiciona storage. Herança de implementação não entra na
-DB2. Um safe sum usa `enum`. Uma C union sobrepõe bytes e pertence à fronteira
+design vigente. Um safe sum usa `enum`. Uma C union sobrepõe bytes e pertence à fronteira
 de layout. Essas operações não usam `<{...}>`.
 
 **Pesquisa:** `A | B` pode representar um anonymous sum. `A & B` pode
@@ -475,7 +474,7 @@ O corpus precisa verificar:
 5. diagnostics que nomeiam head e slot;
 6. leitura humana e por modelos sem consulta à HIR.
 
-**Líder DB2:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
+**Forma vigente:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
 literal sem label.
 
 **Alternativa:** preservar `where` e receiver implícito no corpus comparativo.
@@ -483,7 +482,7 @@ Slots primários nomeados continuam aceitos para comparação e diagnostics. O
 formatter emite a forma curta quando o schema não é ambíguo.
 
 **Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
-medir leitura e migração. O parser DB2 não a aceita.
+medir leitura e migração. O parser vigente não a aceita.
 
 ### 3.6 Avaliação compile-time
 
@@ -1020,7 +1019,7 @@ quotas na recipe e nenhuma inspeção da fase.
 
 ## 4. Superfície integrada
 
-O exemplo abaixo mostra a forma líder. Ele não tenta mostrar toda a biblioteca.
+O exemplo abaixo mostra a forma vigente. Ele não tenta mostrar toda a biblioteca.
 
 ```w
 import { Request, Response } from std.http
@@ -1061,14 +1060,14 @@ fn score(features: ref Tensor<f32, shape: [1, 8]>,
   return features @ weights
 }
 
-entry LastLight {
-  process.main = run
-  http.fetch = fetch
+entry(run) {
+  process.signal = shutdown
 }
 ```
 
 O formatter mantém uma assinatura em uma linha quando ela cabe em 120 colunas.
 O exemplo `score` quebra porque a forma completa ultrapassa esse limite.
+O worker HTTP usa `entry LastLightWorker(fetch)` em outro módulo.
 
 ## 5. Source, nomes e edição
 
@@ -1112,7 +1111,7 @@ Debug symbols e documentação compilada são artefatos separados e removíveis.
 semicolon.
 
 O formatter não emite `;`. O parser aceita `;` como separador de migração.
-Semicolon não separa linhas de matriz na DB2.
+Semicolon não separa linhas de matriz no design vigente.
 
 ### 5.4 Controle e patterns
 
@@ -1157,7 +1156,7 @@ expression produzem o mesmo tipo após conversões seguras.
 vários statements termina em expressão, `return`, `throw` ou `panic`.
 
 **Pesquisa:** um protocol pode definir custom pattern matching. A proposta
-precisa fechar pureza, custo, exhaustividade, captures e diagnostics. A DB2 usa
+precisa fechar pureza, custo, exhaustividade, captures e diagnostics. O design vigente usa
 uma conversão nomeada ou um guard até esse contrato existir:
 
 ```w
@@ -1204,6 +1203,39 @@ release preservam a mesma ordem observável.
 
 O manifest define os arquivos de cada módulo. Um módulo pode conter vários
 arquivos. O source não repete uma declaração `module`.
+
+O mapeamento explícito atende módulos com vários arquivos:
+
+```w
+modules: [
+  {
+    name: "restaurant.menu"
+    sources: ["menu/model.w", "menu/parser.w"]
+  },
+]
+```
+
+Um package com um módulo por arquivo pode usar uma expansão data-only:
+
+```w
+moduleSets: [
+  {
+    namespace: "restaurant"
+    root: "."
+    include: ["*.w"]
+    exclude: ["package.w"]
+    layout: .fileStem
+  },
+]
+```
+
+`.fileStem` transforma `oracle.w` em `restaurant.oracle`. A expansão usa paths
+portáteis, ordem lexical por bytes e erro em colisão. O resolver grava a lista
+expandida no lock. Um arquivo novo não entra em um build `--locked` sem atualizar
+essa lista.
+
+Patterns não atravessam `root`, não seguem symlinks por default e não dependem
+da ordem do filesystem. O mapeamento explícito continua a forma para exceções.
 
 ```w
 import std.http
@@ -1349,7 +1381,7 @@ líder exporta somente os componentes de um struct transparente.
 ### 6.1 Evolução da interface exportada
 
 W promete compatibilidade de source entre versões compatíveis de um package.
-Uma atualização recompila os dependentes. A DB2 não promete substituir uma
+Uma atualização recompila os dependentes. O design vigente não promete substituir uma
 library compilada por outra versão sem rebuild.
 
 Um struct transparente exportado é resiliente no source por default. Um pattern
@@ -1393,8 +1425,8 @@ Patterns externos continuam válidos porque já possuem `...`. Um field com
 visibilidade menor também pode reduzir a visibilidade do initializer. Nesse
 caso, a mudança é major.
 
-Enums da DB2 são fechados. Um `switch` exaustivo recebe um diagnostic quando a
-versão adiciona um case. W não inclui uma forma `nonexhaustive` na DB2.
+Enums do design vigente são fechados. Um `switch` exaustivo recebe um diagnostic quando a
+versão adiciona um case. W não inclui uma forma `nonexhaustive` no design vigente.
 
 Compatibilidade de source não define layout, ABI, JSON, WLO ou wRPC. Um schema
 de wire ou persistência possui versão e regras próprias. O compiler não deriva
@@ -1663,7 +1695,7 @@ O expected type da variável não escolhe a declaração. Um seletor explícito 
 forma permanece **Alternativa**. A forma pode ser parecida com
 `fn expectedEnergy(_:, duty:, during:)`.
 
-A HIR registra o function type de todo callable. A DB2 infere o tipo de closures
+A HIR registra o function type de todo callable. O design vigente infere o tipo de closures
 e referências singulares. A seção 7.5 define a annotation e a representação
 observável desses valores.
 
@@ -1687,10 +1719,10 @@ A regra também evita a seleção frágil por tipos descrita no
 [FAQ de Go](https://go.dev/doc/faq#overloading).
 
 **Alternativa:** tipos e constraints podem escolher o melhor candidato. Outra
-alternativa proíbe todo overload e exige nomes distintos. A forma líder permite
+alternativa proíbe todo overload e exige nomes distintos. A forma vigente permite
 APIs naturais e mantém a seleção local, finita e reproduzível.
 
-Parâmetros rest homogêneos entram na DB2. A forma `T...` aceita zero ou mais
+Parâmetros rest homogêneos entram no design vigente. A forma `T...` aceita zero ou mais
 argumentos do mesmo tipo. A seção 8.9.5 define labels, ownership, overlap e
 lowering. Type packs heterogêneos continuam em **Pesquisa**.
 
@@ -1754,7 +1786,7 @@ duplicate.append("!")
 expect original == "Last Light"
 ```
 
-Partial move exige destructuring. A DB2 não permite mover um field e continuar a
+Partial move exige destructuring. O design vigente não permite mover um field e continuar a
 usar o aggregate parcialmente inicializado.
 
 ### 7.4 Patterns de struct
@@ -1793,7 +1825,7 @@ Um pattern emprestado aceita somente `let`. A mutation vem do modo `inout`, não
 de `var`. Os borrows de fields distintos podem coexistir. O owner completo não
 pode ser movido enquanto um desses borrows estiver vivo.
 
-A DB2 não mistura `copy`, `ref`, `inout` e `take` dentro do mesmo pattern. O
+O design vigente não mistura `copy`, `ref`, `inout` e `take` dentro do mesmo pattern. O
 programa usa projeções de field quando precisa de modos diferentes.
 
 Somente stored fields visíveis no ponto de uso participam do pattern. Um struct
@@ -1806,12 +1838,12 @@ emprestado continua válido dentro do módulo. Essa regra impede que um pattern
 ignore ou execute duas vezes o cleanup customizado.
 
 **Alternativa:** usar `{field}` como record pattern. Outra alternativa usa
-posições sem nomes. A forma líder reutiliza `Type(...)`, mantém labels nominais
+posições sem nomes. A forma vigente reutiliza `Type(...)`, mantém labels nominais
 e evita reservar `{}` para um segundo modelo de record.
 
 ### 7.5 Valores callable e closures
 
-A DB2 separa três formas. A separação torna capture, erasure e ABI observáveis:
+O design vigente separa três formas. A separação torna capture, erasure e ABI observáveis:
 
 | Tipo | Conteúdo | Uso |
 |---|---|---|
@@ -1959,7 +1991,7 @@ return e `throws`. A omissão do return type significa `()`.
 Uma call preserva os markers da assinatura. `unsafe` exige bloco `unsafe`.
 `async` exige `await`. `throws E` exige `try` ou propagação de `E`.
 
-Function types são invariantes na DB2. Parameter types, ownership, return,
+Function types são invariantes no design vigente. Parameter types, ownership, return,
 error, `async`, `unsafe` e ABI precisam coincidir. Somente a relação entre
 callable modes definida acima permite adaptação automática. Outra mudança usa
 uma closure explícita:
@@ -2016,7 +2048,7 @@ Esse tipo aceita somente carriers C. Ele não aceita capture, `async` ou
 explícitos. O ABI de `fn(A): B` normal é interno ao build e não é uma promessa de
 package ABI.
 
-`(args) => body` é a única forma de closure da DB2. `{ args in body }` e
+`(args) => body` é a única forma de closure do design vigente. `{ args in body }` e
 `fn(args) { body }` ficam como alternativas de corpus.
 
 A separação segue três precedentes. Swift removeu labels dos function types.
@@ -2030,7 +2062,7 @@ invoke, ambiente, copy e dispose explícitos no ABI:
 
 **Alternativa:** um único `fn` apagado simplifica annotations, mas oculta capture,
 dispatch e possível allocation. Outra alternativa usa protocols `Fn`, `FnMut` e
-`FnOnce`. A forma líder reutiliza `some`, `any`, `mut` e `take`.
+`FnOnce`. A forma vigente reutiliza `some`, `any`, `mut` e `take`.
 
 ## 8. Tipos e conversões
 
@@ -2047,7 +2079,7 @@ dispatch e possível allocation. Outra alternativa usa protocols `Fn`, `FnMut` e
 | `any P` | existential com identidade concreta apagada |
 | `some P` | tipo concreto preservado; a interface expõe somente `P` |
 
-Herança de implementação não entra na DB2. Composição, protocols e funções
+Herança de implementação não entra no design vigente. Composição, protocols e funções
 livres são a baseline.
 
 `some P` em um parâmetro é shorthand para um generic anônimo. `some P` em um
@@ -2140,7 +2172,7 @@ O corpo que define um `struct` ou `object` pode declarar instance fields.
 Protocol e extension não adicionam instance storage. Uma extension pode
 adicionar `const`, `static fn` e `static const fn` quando coherence permite.
 
-W não possui `static var` nem outro mutable type storage na DB2. Esse storage
+W não possui `static var` nem outro mutable type storage no design vigente. Esse storage
 criaria estado global, ordem de inicialização, sincronização e destruction
 ocultas. Um associated value runtime usa `static fn`. Estado compartilhado usa
 um owner explícito criado por `entry` ou uma service instance com key explícita.
@@ -2155,7 +2187,7 @@ entry {
 Um `object Catalog` pode ter várias instances. O binding acima expressa um
 singleton do product, não da linguagem. Um módulo também não é singleton.
 
-W não reifica tipos como `Type<T>` na DB2. Associated member lookup continua
+W não reifica tipos como `Type<T>` no design vigente. Associated member lookup continua
 compile-time. `reflect.TypeId` oferece identidade runtime local. Uma conformance
 a `reflect.Reflectable` solicita metadata estrutural. A seção 8.9 define os dois
 contratos.
@@ -2325,7 +2357,7 @@ mostra o valor de validar antes de publicar o aggregate.
 
 **Alternativa:** usar somente um initializer canônico e factories nomeadas.
 Outra alternativa permite `init?`, `async init` ou delegação após inicialização
-parcial. A forma líder aceita vários initializers por forma, delegação total e
+parcial. A forma vigente aceita vários initializers por forma, delegação total e
 falha tipada.
 
 ### 8.4 Propriedades computadas
@@ -2612,7 +2644,7 @@ também separa um subtype restringido por range do base type. O trabalho sobre
 predicates verificáveis. W usa esses precedentes sem adotar seu source syntax.
 
 As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
-continuam como **Alternativa**. A forma líder mantém o predicate dentro do
+continuam como **Alternativa**. A forma vigente mantém o predicate dentro do
 contrato estático sem criar um slot chamado `where`.
 
 #### 8.6.1 Subconjuntos de cases de enum
@@ -2989,7 +3021,7 @@ alias KitchenStage =
 Formas como `ActiveStage - [.accepted]` e
 `CancellableStage & WorkStage` permanecem **Alternativa**. A HIR já usa união,
 interseção e diferença de case-sets para flow analysis, mas a API pública não
-precisa expor essa álgebra na DB2.
+precisa expor essa álgebra no design vigente.
 
 O
 [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
@@ -3067,7 +3099,7 @@ W separa dois fatos:
 | estado conhecido em runtime | enum em storage | `OrderState.stage: ServiceStage` |
 | estado provado pelo código chamador | argumento `const` de enum | `OvenSession<.ready>` |
 
-**Líder DB2:** use estado runtime para valores persistidos, compartilhados ou
+**Forma vigente:** use estado runtime para valores persistidos, compartilhados ou
 escolhidos por entrada. Use typestate para um owner local cuja transição consome o
 estado anterior.
 
@@ -3311,7 +3343,7 @@ Ele não transforma o snapshot em authority sobre a instância.
 
 ##### Limites e alternativas
 
-W não adiciona keywords `state` ou `transition` na DB2. Const generics,
+W não adiciona keywords `state` ou `transition` no design vigente. Const generics,
 extensions, `take fn`, enums e refinements já expressam o protocolo.
 
 Uma `StateGraph<E>` declarativa permanece **Pesquisa**:
@@ -3397,7 +3429,7 @@ Named type arguments permanecem **Alternativa**:
 Result<Success: Dish, Failure: KitchenError>
 ```
 
-A DB2 usa `Result<Dish, KitchenError>`. Inlay hints e documentação mostram os
+O design vigente usa `Result<Dish, KitchenError>`. Inlay hints e documentação mostram os
 nomes `Success` e `Failure` sem duplicar tokens no source.
 
 Um parâmetro entra em scope depois de sua declaração. Uma constraint pode usar
@@ -3423,7 +3455,7 @@ Um parâmetro não pode ser redeclarado ou sombreado dentro da mesma declaraçã
 W não possui lifetime parameters no source. Borrow relations são inferidas,
 verificadas na HIR e gravadas na interface.
 
-W também não possui estes kinds na DB2:
+W também não possui estes kinds no design vigente:
 
 - type constructors de ordem superior, como `F<_>`;
 - effects genéricos separados de tipos;
@@ -3487,7 +3519,7 @@ struct Tile<
 O evaluator verifica a constraint quando instancia o head. A interface guarda o
 predicate normalizado.
 
-Generic defaults não entram na DB2. Um alias nomeado oferece um default sem
+Generic defaults não entram no design vigente. Um alias nomeado oferece um default sem
 mudar inference:
 
 ```w
@@ -3562,7 +3594,7 @@ mantém a interface estável.
 
 Generic associated types, defaults de associated type e constraints sobre uma
 projection não primária permanecem **Pesquisa**. Um associated type que callers
-precisam restringir deve ser primário na DB2.
+precisam restringir deve ser primário no design vigente.
 
 #### 8.7.4 Verificação e inference
 
@@ -3636,7 +3668,7 @@ let compare: fn(ref Dish, ref Dish): Bool = equal
 let unresolved = equal // error: generic function is not fully instantiated
 ```
 
-Polymorphic function values e inference pelo body ficam fora da DB2.
+Polymorphic function values e inference pelo body ficam fora do design vigente.
 
 #### 8.7.5 Coherence e conformances condicionais
 
@@ -3760,7 +3792,7 @@ let dishes: any Sequence<Dish> = menu
 tipo. Um owned existential pode usar inline storage ou box. `ref any P` é uma
 fat borrow sem alocação.
 
-`any P` não conforma automaticamente a `P`. A DB2 também não abre existentials
+`any P` não conforma automaticamente a `P`. O design vigente também não abre existentials
 de forma implícita para uma função generic:
 
 ```w
@@ -3873,7 +3905,7 @@ let all: Array<ServiceStage> = work // error: Array is invariant
 ```
 
 Use `map` para converter elementos. W não possui declaration-site variance na
-DB2. Borrow e function conversions seguem suas regras próprias.
+design vigente. Borrow e function conversions seguem suas regras próprias.
 
 `bootstrap.w0` inclui:
 
@@ -3979,7 +4011,7 @@ ou transmitir esse valor.
 Um schema ID possui outro contrato. Ele usa nome, versão e codificação
 canônicos. Um package digest também não usa `TypeId`.
 
-DB2 não possui `Type<T>`, `T.type` ou construção por metatype. Um `TypeId`:
+O design vigente não possui `Type<T>`, `T.type` ou construção por metatype. Um `TypeId`:
 
 - não constrói valores;
 - não resolve associated members;
@@ -4101,7 +4133,7 @@ struct ReservationKey: Hashable & reflect.Reflectable {
 O compiler reconhece o protocol por identidade de módulo. Um protocol com o
 mesmo nome não ativa síntese.
 
-DB2 sintetiza somente estas famílias:
+O design vigente sintetiza somente estas famílias:
 
 | Protocol | Struct | Enum | Object |
 |---|---:|---:|---:|
@@ -4146,7 +4178,7 @@ Computed properties e associated members não participam de synthesis
 estrutural. Eles não fazem parte do stored value.
 
 Um type com property behavior não recebe synthesis estrutural de `Equatable`,
-`Hashable` ou `Duplicable` na DB2. O author fornece witnesses manuais. Essa
+`Hashable` ou `Duplicable` no design vigente. O author fornece witnesses manuais. Essa
 regra evita confundir o valor lógico com cache ou backing storage.
 
 `Reflectable` continua disponível. Ele descreve a propriedade lógica e ignora
@@ -4302,7 +4334,7 @@ tipado ou `c.vaList`. Default argument promotions não entram no type checker W.
 
 #### 8.9.7 Formas adiadas
 
-Três famílias não entram na DB2:
+Três famílias não entram no design vigente:
 
 | Família | Estado | Baseline |
 |---|---|---|
@@ -4311,7 +4343,7 @@ Três famílias não entram na DB2:
 | type/value parameter pack | **Pesquisa** | rest homogêneo, tuple ou collection |
 
 Uma typed property path precisa preservar place, borrow, accessors e
-visibilidade. A forma líder de pesquisa usa um construtor explícito:
+visibilidade. A forma vigente de pesquisa usa um construtor explícito:
 
 ```w
 let guestName = path<Order>(.guest.name)
@@ -4395,7 +4427,7 @@ As regras são:
 - um borrow nunca estende o lifetime do owner;
 - um move invalida o binding em todos os caminhos que o executam;
 - joins de controle exigem o mesmo estado de inicialização;
-- partial move de field não existe na DB2;
+- partial move de field não existe no design vigente;
 - destructuring owned move o aggregate inteiro e inicializa novos bindings;
 - destructuring `ref` ou `inout` cria borrows de projections visíveis;
 - reatribuição avalia o novo valor antes de destruir o valor anterior.
@@ -4465,7 +4497,7 @@ Ownership não escolhe um endereço. O compiler escolhe register, stack, static
 storage, task frame, arena ou allocator conforme escape, tamanho e target.
 Source comum não recebe annotation de placement.
 
-**Garantia DB2:** uma função síncrona não causa alocação no allocator geral
+**Garantio design vigente:** uma função síncrona não causa alocação no allocator geral
 somente para guardar um local de tamanho fixo que não escapa. Register pressure
 pode criar um stack spill. Ela não autoriza boxing no heap.
 
@@ -4520,7 +4552,7 @@ self-referential ou um task frame que contém borrows internos.
 Task frames gerados pelo compiler ficam estáveis enquanto uma suspensão exigir
 isso. Essa escolha não aparece no source e não exige annotation.
 
-**Líder DB2:** `pin` é uma operação unary de storage e ownership:
+**Forma vigente:** `pin` é uma operação unary de storage e ownership:
 
 ```w
 let state = try pin take callbackState
@@ -4552,7 +4584,7 @@ pode falhar antes de publicar o endereço. `Pinned<T>` pode mudar de endereço; 
 `Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um segundo
 owner.
 
-A DB2 não possui keyword `unpin`. Consumir ou destruir `Pinned<T>` executa drop
+O design vigente não possui keyword `unpin`. Consumir ou destruir `Pinned<T>` executa drop
 no endereço estável. Mover `T` para fora depois que seu endereço foi publicado
 exigiria provar que nenhum safe borrow, self-reference ou foreign pointer
 permanece. Um consuming `intoValue` com proof token fica em **Pesquisa**.
@@ -4639,7 +4671,7 @@ Região agrupa lifetimes. Budget limita recursos. Eles são conceitos diferentes
 `Arena` é a capacidade de alocação. `region` é a boundary lexical que possui essa
 capacidade.
 
-**Líder DB2:** o bloco cria uma arena, liga seu lifetime ao nome e fecha a arena
+**Forma vigente:** o bloco cria uma arena, liga seu lifetime ao nome e fecha a arena
 em todas as saídas:
 
 ```w
@@ -4650,7 +4682,7 @@ region request(using: ctx.memory, limit: 64<MiB>) {
 ```
 
 O argumento `using` é opcional. Quando ele não existe, a região usa o allocator
-default fixado pelo product. `limit` é obrigatório na DB2. O nome `request`
+default fixado pelo product. `limit` é obrigatório no design vigente. O nome `request`
 aceita os mesmos lugares que esperam um `Allocator` borrowed. Ele não é uma
 variável global nem um allocator thread-local.
 
@@ -5071,7 +5103,7 @@ Essa precedência é necessária porque:
 Uma otimização de high-bit não pode ser inferida somente pelo nome da CPU. O
 processo, OS, allocator, ABI e toolchain precisam confirmar a capacidade.
 
-High-bit tagging não faz parte do profile portátil DB2. Um profile experimental
+High-bit tagging não faz parte do profile portátil vigente. Um profile experimental
 precisa confirmar, no mínimo:
 
 1. CPU e modo de paginação;
@@ -5330,7 +5362,7 @@ Quando suspensão e error aparecem juntos, a ordem canônica é `try await`:
 let response = try await client.fetch(request)
 ```
 
-Toda função fallible declara um error type concreto ou genérico. A DB2 não
+Toda função fallible declara um error type concreto ou genérico. O design vigente não
 possui `throws` sem tipo:
 
 ```w
@@ -5791,7 +5823,7 @@ Cancelamento não é rollback. Uma operação externa deve declarar um commit po
 ou um outcome desconhecido. Antes do commit, o adapter pode garantir ausência de
 efeito. Depois do commit, cleanup não desfaz o efeito sem compensação explícita.
 
-**Líder DB2:** cancellation safety é uma propriedade da operação e de seu estado.
+**Forma vigente:** cancellation safety é uma propriedade da operação e de seu estado.
 Não existe um marker público `CancelSafe`. O verifier usa ownership, cleanup,
 commit points e metadata do adapter. Uma API que não informa o contrato recebe a
 policy conservadora.
@@ -5837,7 +5869,7 @@ await renderer.show(plan)
 A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
 executor preference de actor isolation. W mantém essa separação na HIR.
 
-`spawn<.compute>` é **Líder DB2**. O slot `domain` é primário e fechado.
+`spawn<.compute>` é **Forma vigente**. O slot `domain` é primário e fechado.
 `spawn<domain: .compute>` fica como **Alternativa**. `spawn on .compute` fica
 **Rejeitado por enquanto** porque duplica o contrato estático com uma frase
 especial.
@@ -5945,7 +5977,7 @@ também separa queues de threads e permite que a capacidade varie com o sistema.
 #### 12.6.2 Priority, deadline e seleção dinâmica
 
 Priority e domain são contratos diferentes. `.background` não é um domain
-standard na DB2. Um profile pode oferecer QoS como policy, mas priority não muda
+standard no design vigente. Um profile pode oferecer QoS como policy, mas priority não muda
 ownership, ordering, isolation ou resultado.
 
 Deadline cria cancellation com causa. Priority continua uma preferência de
@@ -6055,7 +6087,7 @@ separa `Send` de `Sync` e deriva ambos estruturalmente. O
 combina value transfer, immutable state e state serializado sob `Sendable`. W
 mantém duas provas para não confundir move exclusivo com aliases concorrentes.
 
-**Líder DB2:** `transferable` e `shareable` são predicates intrínsecos. Código
+**Forma vigente:** `transferable` e `shareable` são predicates intrínsecos. Código
 comum não declara annotations e tipos não conformam a marker protocols
 `Send`/`Sync`.
 
@@ -6102,7 +6134,7 @@ usuário precisa de uma boundary `unsafe`; sua forma source permanece
 
 **Alternativas:** `T<mobility: .transferable>` usa um static slot nomeado.
 `T: Send`, `T: Sync` e `T: Sendable` usam marker protocols públicos. As formas
-ficam rejeitadas na DB2 porque permitem conformance nominal para uma propriedade
+ficam rejeitadas no design vigente porque permitem conformance nominal para uma propriedade
 que safe W deve derivar.
 
 ### 12.8 Task groups e backpressure
@@ -6197,7 +6229,7 @@ fila entre eles sem compartilhar a semântica pública.
 
 #### 12.9.1 Contrato de `Stream`
 
-**Líder DB2:** `Stream<Item, Failure>` é um protocol pull com um único cursor:
+**Forma vigente:** `Stream<Item, Failure>` é um protocol pull com um único cursor:
 
 ```w
 export protocol Stream<Item, Failure: Error> {
@@ -6303,7 +6335,7 @@ lifetimes e limites das views.
 
 #### 12.9.3 Endpoint e topologia de `Channel`
 
-**Líder DB2:** o channel básico é MPSC: vários senders e um receiver. A criação
+**Forma vigente:** o channel básico é MPSC: vários senders e um receiver. A criação
 devolve endpoints distintos:
 
 ```w
@@ -6476,7 +6508,7 @@ Capacity é obrigatória:
 - `capacity: 0` cria rendezvous;
 - `capacity: N`, com `N > 0`, mantém no máximo `N` itens ou permits aceitos;
 - o item `N + 1` aguarda capacity ou cancellation;
-- a DB2 não oferece channel unbounded.
+- o design vigente não oferece channel unbounded.
 
 Um channel limita a fila. Ele não limita o número de tasks suspensas que tentam
 enviar. `TaskGroup.limit`, budgets do execution domain e a estrutura lexical
@@ -6637,7 +6669,7 @@ cleanup. Nenhum item some entre esses estados.
 
 ### 12.10 Memory model, atomics e locks
 
-**Líder DB2:** safe W não permite data races. `atomic`, isolation e locks
+**Forma vigente:** safe W não permite data races. `atomic`, isolation e locks
 continuam mecanismos explícitos.
 
 #### 12.10.1 Data race e happens-before
@@ -6796,7 +6828,7 @@ O uso de argumentos constantes segue o precedente das
 | `.acquireRelease` | combina acquire e release numa read-modify-write |
 | `.sequential` | adiciona a operação à ordem total dos atomics sequential |
 
-`consume` não entra na DB2. Memory scopes de GPU e device também não entram no
+`consume` não entra no design vigente. Memory scopes de GPU e device também não entram no
 core. Eles pertencem aos contratos T2 de device.
 
 Fences soltas permanecem **Pesquisa**. O programa deve preferir uma order na
@@ -7071,7 +7103,7 @@ export service DiningRoom as DiningRoomApi {
 }
 ```
 
-**Líder DB2:** cada instance usa um turn serial e fechado. Um handler externo
+**Forma vigente:** cada instance usa um turn serial e fechado. Um handler externo
 executa do início ao fim. `await` não admite outro handler da mesma instance.
 Outras instances podem progredir.
 
@@ -7115,6 +7147,9 @@ exige processo, OS sandbox ou Wasm.
 
 ### 13.2 Entry
 
+Um `entry` descreve como funções W ocupam slots de um host profile. Ele não
+declara um executável, abre uma porta ou cria uma thread.
+
 Forma curta:
 
 ```w
@@ -7123,26 +7158,106 @@ entry {
 }
 ```
 
-Ela só é válida quando o product escolhe um profile com um slot default único.
-O body ignora os parâmetros do slot. Para usar argumentos ou Context, o source
-declara uma função normal e um descriptor:
+Ela cria um handler anônimo. O product precisa escolher um host profile com um
+único slot default. O body ignora os parâmetros desse slot.
+
+Uma função normal pode ocupar o slot default sem repetir seu nome:
 
 ```w
-entry LastLight {
-  process.main = run
+entry(run) {
   process.stdinLine = readCommand
-  http.fetch = fetch
   process.signal = handleSignal
 }
 ```
 
-`entry { ... }` é um handler curto. `entry Name { ... }` é um descriptor de
-bindings. Bindings não usam vírgula.
+Esse descriptor anônimo também fornece a base local para descriptors nomeados:
+
+```w
+entry(run) {
+  process.signal = handleSignal
+}
+
+entry LastLightLineHost {
+  process.stdinLine = readCommand
+}
+
+entry LastLightTui(runTui)
+```
+
+O resultado expandido é:
+
+```text
+.default       = { default slot: run,    process.signal: handleSignal }
+LastLightLineHost
+               = { default slot: run,    process.signal: handleSignal,
+                   process.stdinLine: readCommand }
+LastLightTui   = { default slot: runTui, process.signal: handleSignal }
+```
+
+`entry Name(handler)` substitui somente o binding do slot default. O body
+adiciona ou substitui bindings qualificados. Dois bindings para o mesmo slot no
+mesmo descriptor são erro.
+
+Existe no máximo um descriptor anônimo por módulo. Somente descriptors nomeados
+do mesmo módulo recebem sua base. Imports não combinam defaults. Um binding
+herdado que não existe no host profile escolhido produz erro; o compiler não o
+remove silenciosamente.
+
+O product escolhe `.default` ou um nome. Quando ele omite `entry`, o module
+precisa conter somente um descriptor resolvível. A interface compilada grava o
+descriptor expandido. `w explain product` mostra cada binding e sua origem.
+
+Bindings não usam vírgula. O header sem body é válido:
+
+```w
+entry LastLightSimulation(runSimulation)
+```
 
 Slots são símbolos tipados e versionados do profile. O build escolhe um
 descriptor por product. Importar o módulo não registra nem executa o entry.
 
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
+
+#### 13.2.1 Entry, product e modo de execução
+
+Um descriptor selecionado é uma escolha de link. Ele não é um modo escolhido
+automaticamente no runtime.
+
+Um único artifact pode servir CLI, TUI e HTTP quando o host profile contém os
+slots necessários. Em um processo nativo, `process.main` normalmente interpreta
+os argumentos e inicia os adapters selecionados:
+
+```w
+async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
+  return switch try LaunchMode.parse(args) {
+    case .cli: try await runConsole(ctx, mode: .plain)
+    case .tui: try await runConsole(ctx, mode: .ansi)
+    case .serve(let address): try await serveHttp(address, ctx: ctx)
+  }
+}
+```
+
+O sistema operacional não chama `http.fetch`. Esse slot pertence a um host que
+despacha requests, como um component host ou um adapter embutido. Um executável
+nativo que abre seu próprio socket usa `process.main` e uma API de servidor.
+
+O mesmo package pode gerar artifacts distintos:
+
+```text
+last-light-native  -> entry .default -> native-process@1
+last-light-worker  -> entry LastLightWorker -> http-worker@1
+last-light-sim     -> entry LastLightSimulation -> native-process@1
+```
+
+Esses products podem compartilhar todos os módulos de domínio. Cada artifact
+mantém seu próprio grafo alcançável, target, recipe e digest.
+
+**Alternativa:** exigir todos os bindings em cada descriptor elimina a base
+anônima, mas repete shutdown, telemetry e lifecycle hooks.
+
+**Alternativa:** selecionar vários descriptors no runtime torna o artifact mais
+dinâmico. O design vigente prefere um descriptor expandido por product e um
+handler explícito para modos runtime.
 
 ### 13.3 Unidade lógica e packing físico
 
@@ -7164,6 +7279,59 @@ O runtime pode:
 
 A regra *as-if* preserva ordering, errors, cancellation, deadline, capability,
 identity e observabilidade. O toolchain mede o custo da granularidade física.
+
+#### 13.3.1 Nanoservices
+
+W usa “nanoservice” como nome de arquitetura, não como novo tipo da linguagem.
+Uma service pequena continua sendo uma instance tipada. O runtime decide o
+packing físico.
+
+O objetivo é combinar:
+
+- fronteiras lógicas finas;
+- bindings por capability;
+- calls locais próximas do custo de uma função;
+- placement remoto sem trocar a interface;
+- identity, quotas e traces por instance;
+- deployment independente quando necessário.
+
+O modelo segue uma ideia demonstrada pelo workerd: services podem ser
+independentes no grafo e co-localizadas na mesma thread ou no mesmo processo.
+Bindings explícitos também reduzem autoridade ambiente e risco de SSRF.
+
+W não copia o runtime JavaScript nem torna toda call remota transparente. Uma
+`ServiceRef` preserva `await`, failure boundary, cancellation, deadline,
+admission e `unknownOutcome`. O local fast path pode remover serialização. Ele
+não remove esses efeitos.
+
+Uma aplicação pode começar como um artifact:
+
+```text
+last-light-native
+  ├─ Restaurant
+  ├─ Billing
+  ├─ Observatory
+  └─ WifiPortal
+```
+
+O deployment pode separar as mesmas instances:
+
+```text
+edge process       -> WifiPortal, HTTP gateway
+kitchen process    -> Restaurant, OvenController
+orbital process    -> Observatory, SatelliteCoordinator
+accelerator host   -> Forecast kernels
+```
+
+O source muda somente quando autoridade, consistency ou effects mudam. Mover
+uma binding não pode alterar uma call síncrona comum para rede silenciosamente.
+
+O workerd avisa que seu processo isolado não é, sozinho, um sandbox para código
+malicioso. W mantém a mesma separação: packing fino e capability bindings
+reduzem superfície; isolamento adversarial exige boundary física adequada.
+
+Fonte primária:
+[workerd — design e nanoservices](https://github.com/cloudflare/workerd).
 
 ### 13.4 Descriptor, identity e lifecycle
 
@@ -7331,7 +7499,7 @@ failure e `unknownOutcome`. Ele não muda `ServiceRef` para uma Promise lazy. O
 **Exemplo:** o handler aceita um pedido e retorna. O preparo continua sob um
 owner runtime. Outro turn consulta o progresso ou solicita cancelamento.
 
-**Líder DB2:** `Task<T, E>` permanece lexical. Ela nunca escapa por `return`,
+**Forma vigente:** `Task<T, E>` permanece lexical. Ela nunca escapa por `return`,
 drop, `spawn` ou `await`. Trabalho que ultrapassa o caller usa uma capability
 explícita `SupervisorRef`.
 
@@ -7696,7 +7864,7 @@ Um error `E` conclui o trabalho com `.error(E)`. Cancellation conclui com
 `.canceled`. Panic ou perda da fault boundary produz `.boundary(...)` quando o
 supervisor sobrevive para registrar o evento.
 
-**Líder DB2:** restart automático de uma operação arbitrária usa `.never`. O
+**Forma vigente:** restart automático de uma operação arbitrária usa `.never`. O
 runtime não executa novamente efeitos desconhecidos.
 
 Uma policy de retry exige:
@@ -7784,7 +7952,7 @@ Alternativas:
 
 | Forma | Estado |
 |---|---|
-| `WorkKeyRef.start` ou `tryStart` com operação fechada | **Líder DB2** |
+| `WorkKeyRef.start` ou `tryStart` com operação fechada | **Forma vigente** |
 | channel consumido por um entry root | implementação process-local possível |
 | `ctx.waitUntil(task)` | adapter bounded, não owner geral |
 | `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de paralelismo |
@@ -8012,6 +8180,24 @@ precisa passar o mesmo oracle observável.
 
 ## 14. Prelude e SDK
 
+APIs públicas da standard library são escritas em W quando a linguagem consegue
+expressá-las. Compiler intrinsics ficam atrás de declarations pequenas e
+auditáveis. O source inicial está em [`std/`](std/).
+
+Uma operação pertence ao tipo que possui seu estado ou contrato. A std não cria
+uma classe utilitária apenas para agrupar nomes:
+
+```w
+var output = String()
+output.reserve(minimumBytes: 4<KiB>)
+output.append("Last Light")
+
+let menu: view String = output.view
+```
+
+`StringBuilder` e `StringView` não são tipos core. Um tipo especializado pode
+existir quando possui representação, complexity ou ownership próprios.
+
 ### 14.1 T0 — core independente do ambiente
 
 **Exemplo:** `Array.map` e `String.scalars` funcionam em target freestanding sem
@@ -8064,7 +8250,7 @@ como capability explícita.
 
 #### 14.2.1 Contratos de bytes
 
-**Líder DB2:** I/O comum usa dois protocols async-first:
+**Forma vigente:** I/O comum usa dois protocols async-first:
 
 ```w
 export enum ReadStep {
@@ -8300,7 +8486,7 @@ portabilidade sem esconder thread consumption.
 
 #### 14.2.6 Filesystem, rights e offsets
 
-**Líder DB2:** `FileSystem` é uma capability concedida pelo host. `File` é um
+**Forma vigente:** `FileSystem` é uma capability concedida pelo host. `File` é um
 handle move-first com rights estáticos:
 
 ```w
@@ -8581,7 +8767,7 @@ truncamento no lexer.
 `isize` e `usize` são tipos distintos com a largura de address do target. Os
 integers de largura fixa são `i8`, `i16`, `i32`, `i64`, `i128` e seus pares
 unsigned. Signed integers usam representação two's complement. `Bool` não é
-integer. Os target profiles da DB2 possuem address width de 32 ou 64 bits.
+integer. Os target profiles do design vigente possuem address width de 32 ou 64 bits.
 
 ```w
 let guests: Int = 42       // i64 semântico
@@ -8607,7 +8793,7 @@ O lexer aceita:
 
 `2.` é erro; use `2.0`. Um sinal é um operador, não parte do literal numérico.
 O checker trata `-128_i8` como o limite representável, mas rejeita `128_i8` e
-`-(129_i8)`. Hexadecimal float não entra na DB2. Controle de bits usa
+`-(129_i8)`. Hexadecimal float não entra no design vigente. Controle de bits usa
 `f32.fromBits` ou `f64.fromBits`.
 
 Antes do expected type, um literal integer guarda magnitude arbitrária. Um
@@ -8864,7 +9050,7 @@ storage e expressed type de
 Posit, Unum, IEEE decimal float e arbitrary-precision real ficam em
 **Pesquisa** como tipos T2. Cada candidato precisa definir rounding, special
 values, serialization, FFI, vector fallback e differential oracle. Nenhum deles
-substitui `f32` ou `f64` na DB2. Tipos `fast8` ou `fast16` dependentes do target
+substitui `f32` ou `f64` no design vigente. Tipos `fast8` ou `fast16` dependentes do target
 ficam **Rejeitado por enquanto**; ProofFacts e o optimizer escolhem a largura
 física sem mudar o tipo source.
 
@@ -8931,11 +9117,11 @@ o mesmo token.
 
 ### 15.3 Delimitador de unidade
 
-A DB2 compara quatro formas:
+O design vigente compara quatro formas:
 
-| Forma | Estado DB2 | Motivo |
+| Forma | Estado | Motivo |
 |---|---|---|
-| `9.81<m/s^2>` | **Líder experimental** | preserva `[]`, comunica aplicação estática e possui precedente no F# |
+| `9.81<m/s^2>` | **Forma vigente** | preserva `[]`, comunica aplicação estática e possui precedente no F# |
 | `9.81[m/s^2]` | **Reserva DB1** | parse simples, mas parece indexação e sobrecarrega `[]` |
 | `9.81{m/s^2}` | **Rejeitado por enquanto** | chaves devem continuar a indicar body/scope |
 | `9.81 m/s^2` | **Pesquisa** | aproxima SI, mas não mostra onde a unit expression termina |
@@ -8944,7 +9130,7 @@ O [F#](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-
 usa angle brackets em quantidades e apaga units no runtime. Isso é um precedente,
 não uma prova de preferência.
 
-Na DB2, o literal exige adjacência:
+No design vigente, o literal exige adjacência:
 
 ```w
 let gravity = 9.80665<m/s^2>
@@ -8956,7 +9142,7 @@ A produção aceita somente um literal numérico adjacente a
 `<unit-expression>`. O sinal continua um operador unary aplicado à quantity.
 Uma expressão runtime não usa essa forma. Ela usa `Quantity(value, unit: m)`.
 
-Dentro da unit expression, a DB2 aceita nomes de units, `*`, `/`, `^`,
+Dentro da unit expression, o design vigente aceita nomes de units, `*`, `/`, `^`,
 parênteses e expoentes inteiros. `^` continua XOR fora desse contexto. Nomes
 qualificados são permitidos. O literal `1` pode ocupar o numerator
 dimensionless, como em `1/mol`; outros coefficients são rejeitados. O resolver
@@ -9016,7 +9202,7 @@ mostra a expansão. Source gerado e API pública preferem a forma delimitada.
 
 ### 16.1 `String` e unidades de texto
 
-**Líder DB2:** `String` é um valor owned, contíguo e UTF-8 válido. Uma mutação
+**Forma vigente:** `String` é um valor owned, contíguo e UTF-8 válido. Uma mutação
 exige acesso exclusivo e preserva UTF-8 válido.
 
 ```w
@@ -9161,7 +9347,7 @@ Uma API que precisa prometer um snapshot recebe ou devolve um valor owned.
 `ref T` impede escrita por aquele acesso, mas outro alias autorizado ainda pode
 mudar o owner. `view T` tem a mesma limitação temporal.
 
-**Líder DB2:** `view` é um access mode genérico. W não publica uma família
+**Forma vigente:** `view` é um access mode genérico. W não publica uma família
 `StringView`, `Slice<T>`, `MutableSlice<T>` ou `CStringView`:
 
 ```w
@@ -9229,13 +9415,13 @@ model, contiguidade, shape/strides, mutabilidade e provenance. Esses fatos não
 exigem o mesmo layout runtime para todas as famílias.
 
 Somente `Array`, fixed array, `Bytes`, `String`, `CString` e `Tensor` publicam
-views na DB2. Um tipo de usuário expõe uma view dessas sobre seu storage ou um
+views no design vigente. Um tipo de usuário expõe uma view dessas sobre seu storage ou um
 borrow nominal próprio. Uma extensão futura para views customizadas precisa de
 um modelo de descriptor verificável; um protocol comum não pode inventar
 provenance.
 
 `inout view` existe para `Array`, fixed array, `Bytes` e `Tensor` quando a
-projeção permite escrita. A DB2 não oferece `inout view String` nem
+projeção permite escrita. O design vigente não oferece `inout view String` nem
 `inout view CString`. Escrita arbitrária poderia invalidar UTF-8 ou o
 terminador. Uma mutação de texto usa `inout String`; um buffer C mutável usa
 `inout view Bytes` e valida o contrato sentinela quando volta à fronteira.
@@ -9662,7 +9848,7 @@ line.append(suffix) // Erro: source e destination possuem o mesmo owner.
 ```
 
 O programa materializa `suffix` ou usa uma operação futura que declare
-explicitamente self-copy. A DB2 não cria esse temporary de forma implícita.
+explicitamente self-copy. O design vigente não cria esse temporary de forma implícita.
 
 W não concatena literais adjacentes. W também não concatena valores separados
 somente por whitespace.
@@ -10562,7 +10748,7 @@ let transform: Matrix<f32, rows: 2, columns: 3> = [
 ]
 ```
 
-`[1 2; 3 4]` fica preservado como alternativa. Ele perde na DB2 porque usa
+`[1 2; 3 4]` fica preservado como alternativa. Ele perde no design vigente porque usa
 whitespace e semicolon como parte do shape e não generaliza com simplicidade.
 
 Shapes usam value parameters:
@@ -11083,7 +11269,59 @@ RCU favorece reads, mas exige publication e reclamation corretas. Trocar um
 pointer atomicamente não mantém o objeto anterior vivo. Uma API de snapshot só
 avança depois de comparar epochs, hazard pointers e `shared T`.
 
+### 18.8 Perfis de benchmark
+
+**Exemplo:** `last-light-benchmark` executa o mesmo handler em um processo
+monolítico e em nanoservices co-localizados.
+
+Um ranking externo não define a semântica W. Ele oferece um workload
+reproduzível para encontrar custos em HTTP, JSON, database access, scheduling,
+allocation e backpressure.
+
+O produto Última Luz mantém um profile compatível com as famílias públicas do
+TechEmpower:
+
+1. JSON serialization;
+2. single database query;
+3. multiple queries;
+4. cached queries;
+5. fortunes;
+6. data updates;
+7. plaintext.
+
+Cada resultado registra:
+
+- versão e configuração do benchmark;
+- hardware, kernel, database e network topology;
+- source, lock, compiler, runtime e artifact digests;
+- concorrência, warmup, duração e número de repetições;
+- throughput, latency distribution, errors e resource use;
+- todas as diferenças da configuração oficial.
+
+“Primeiro lugar” não é um gate de correção. O gate inicial é completar o corpus
+sem bypass semântico, manter os oracles e explicar o custo por request. Depois,
+profiles separados medem:
+
+- um processo monolítico;
+- nanoservices co-localizados;
+- services separados por processo;
+- worker/component host;
+- allocators e storage adapters permitidos.
+
+As rotas compartilham business logic. Uma variante não pode retornar constants,
+remover validação ou usar SQL diferente somente para ganhar o ranking.
+
+O repositório público histórico do FrameworkBenchmarks foi arquivado em 24 de
+março de 2026. A versão, a origem do harness e o canal vigente de submissão
+precisam ser fixados antes de publicar um resultado.
+
 Fontes primárias:
+
+- [TechEmpower Framework Benchmarks](https://www.techempower.com/benchmarks/);
+- [visão dos testes](https://github.com/TechEmpower/FrameworkBenchmarks/wiki/Project-Information-Framework-Tests-Overview);
+- [repositório FrameworkBenchmarks](https://github.com/TechEmpower/FrameworkBenchmarks).
+
+Outras fontes primárias da camada de desempenho:
 
 - [LLVM `range` metadata](https://llvm.org/docs/LangRef.html#range-metadata)
   representa intervalos de integer e vectors;
@@ -11261,7 +11499,7 @@ o toolchain gera objects para o mesmo target. JS, TypeScript e outras linguagens
 com runtime entram somente se um adapter AOT fornecer runtime e artefato
 herméticos.
 
-`fn<C>` é **Líder DB2**. `fn<lang: .c>` permanece **Alternativa**. Um source
+`fn<C>` é **Forma vigente**. `fn<lang: .c>` permanece **Alternativa**. Um source
 separado com `from` e compilation units nomeadas permanecem **Pesquisa**.
 
 ## 20. Compilador e bootstrap
@@ -11526,8 +11764,95 @@ nem muda o payload executável além das sections declaradas.
 
 ### 20.8 Targets e profiles
 
-Uma linha de suporte declara architecture, operating environment, ABI, profile,
-SDK capabilities, compiler/runtime version, status e test evidence.
+W separa quatro identidades:
+
+| Identidade | Pergunta |
+|---|---|
+| target | Para qual architecture, vendor, system e ABI o código é emitido? |
+| host profile | Quais slots, capabilities e regras de lifecycle o host oferece? |
+| product | Qual entry, module graph, runtime envelope e artifact kind serão ligados? |
+| deployment | Onde os artifacts e instances serão colocados? |
+
+Misturar essas identidades faria `linux`, `CLI`, `server` e `GPU` parecerem
+variações da mesma propriedade. Elas não são.
+
+#### 20.8.1 Target identity
+
+O target possui um record canônico:
+
+```text
+TargetId = {
+  architecture,
+  vendor,
+  system,
+  abiOrEnvironment,
+}
+```
+
+A forma textual segue triples usuais e pode omitir o componente final quando
+ele é `none`. O parser não infere campos pela máquina de build.
+
+Exemplos:
+
+```text
+x86_64-unknown-linux-gnu
+aarch64-apple-darwin
+aarch64-unknown-linux-android
+wasm32-wasi-preview2
+thumbv7em-none-eabihf
+nvptx64-nvidia-cuda
+amdgcn-amd-amdhsa
+spirv64-unknown-vulkan
+```
+
+O schema normaliza aliases antes de calcular a recipe. Um target também fixa
+data layout, endianness, pointer width, object format e calling conventions.
+CPU, features, sysroot, SDK e linker são campos separados e entram na chave do
+artifact.
+
+Um nome aceito pelo LLVM não constitui suporte W. O target W precisa de:
+
+1. backend funcional;
+2. runtime subset;
+3. host adapter;
+4. SDK profile;
+5. linker, sysroot e packaging;
+6. testes e evidence publicados.
+
+Targets de device, como NVPTX, AMDGPU e SPIR-V, não prometem um processo
+standalone. Eles geram objects ou kernels consumidos por um host product.
+
+#### 20.8.2 Host profiles
+
+Um host profile versionado declara:
+
+- slots e suas assinaturas;
+- slot default, quando existe;
+- capabilities de I/O, clock, random, storage e network;
+- lifecycle, shutdown, deadlines e fault boundaries;
+- execution domains disponíveis;
+- limites de threads, memória, stack e file descriptors;
+- regras de dynamic loading e sandbox.
+
+Perfis iniciais:
+
+| Profile | Slot default | Uso |
+|---|---|---|
+| `native-process@1` | `process.main` | CLI, TUI, daemon e servidor próprio |
+| `http-worker@1` | `http.fetch` | request host e nanoservice |
+| `mobile-app@1` | `app.start` | Android e plataformas Apple |
+| `firmware@1` | `device.reset` | bare metal e RTOS |
+| `audio-device@1` | `audio.render` | callback com deadline e sem allocation |
+| `accelerator-module@1` | nenhum | kernels chamados por um host |
+| `test-harness@1` | `test.run` | testes determinísticos |
+
+Um profile pode incluir slots opcionais. O product precisa ligar todos os slots
+required. Um `entry` não inventa um slot e um target não concede capability.
+
+#### 20.8.3 Matriz de suporte
+
+Uma linha de suporte declara target, host profile, artifact kind, SDK
+capabilities, compiler/runtime version, status e test evidence.
 
 | Tier | Garantia |
 |---|---|
@@ -11539,6 +11864,42 @@ SDK capabilities, compiler/runtime version, status e test evidence.
 
 Tier não mede a segurança de um programa. Um target estreito pode ser correto
 sem oferecer rede, threads, dynamic linking ou Unicode completo.
+
+O plano inicial, ainda sem implementação, usa esta ordem:
+
+| Grupo | Targets candidatos | Primeiro gate |
+|---|---|---|
+| desktop/server | Linux x86-64 e AArch64; Windows x86-64; macOS AArch64 | process, files, TCP, TLS, tasks e debugger |
+| mobile | Android AArch64/x86-64; iOS AArch64 e simulator | lifecycle, package, signing e platform SDK |
+| WebAssembly | `wasm32-wasi-preview2` | component, capabilities e deterministic host tests |
+| embedded | ARM Cortex-M e RISC-V bare metal | no-heap profile, interrupts, MMIO e linker script |
+| accelerator | NVIDIA, AMD e SPIR-V devices | kernel subset, address spaces, transfer e launch |
+| research | BPF, FPGA/HDL e ASIC descriptions | verifier ou synthesis pipeline específico |
+
+Esta tabela define candidatos, não suporte entregue. A primeira release publica
+somente linhas que passaram o gate correspondente.
+
+O backend LLVM fornece muitas architectures. A política de LLVM inicia targets
+novos como experimentais. W aplica a mesma prudência e adiciona seus próprios
+gates de runtime e SDK.
+
+O Android NDK atual expõe `arm64-v8a`, `armeabi-v7a`, `x86` e `x86_64`. O plano
+W começa por AArch64 e x86-64. Outros ABIs entram após evidence de demanda e CI.
+
+O dialeto GPU do MLIR oferece uma abstração intermediária para launch e separa
+os address spaces `global`, `workgroup`, `private` e `constant`. Ele não
+paraleliza um algoritmo por conta própria. O frontend W precisa provar ou pedir
+o mapeamento antes do lowering para NVVM, ROCDL ou SPIR-V.
+
+Fontes primárias:
+
+- [targets configuráveis do LLVM](https://llvm.org/docs/CMake.html);
+- [política de targets experimentais do LLVM](https://llvm.org/docs/DeveloperPolicy.html);
+- [dialeto GPU do MLIR](https://mlir.llvm.org/docs/Dialects/GPU/);
+- [dialeto NVVM](https://mlir.llvm.org/docs/Dialects/NVVMDialect/),
+  [dialeto ROCDL](https://mlir.llvm.org/docs/Dialects/ROCDLDialect/) e
+  [dialeto SPIR-V](https://mlir.llvm.org/docs/Dialects/SPIR-V/);
+- [ABIs do Android NDK](https://developer.android.com/ndk/guides/abis).
 
 ## 21. Packages, builds e releases
 
@@ -11557,10 +11918,20 @@ package {
 
   products: [
     {
-      name: "last-light"
+      name: "last-light-native"
       kind: .executable
       module: "restaurant.app"
-      entry: "LastLight"
+      entry: ".default"
+      host: "w.host/native-process@1"
+      targets: ["desktop"]
+    },
+    {
+      name: "last-light-worker"
+      kind: .component
+      module: "restaurant.worker_app"
+      entry: "LastLightWorker"
+      host: "w.host/http-worker@1"
+      targets: ["wasi"]
     },
   ]
 
@@ -11575,6 +11946,21 @@ package {
       package: "w/http"
       version: "^1.0"
       source: .registry("w")
+    },
+  ]
+
+  targetSets: [
+    {
+      name: "desktop"
+      targets: [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+      ]
+    },
+    {
+      name: "wasi"
+      targets: ["wasm32-wasi-preview2"]
     },
   ]
 
@@ -11604,12 +11990,36 @@ e independente do parser W completo.
 - `package.w` é um formato data-only;
 - `package.lock` é obrigatório para build reprodutível;
 - o resolver é determinístico e registra sua versão;
-- a DB2 usa uma versão por package identity em cada product;
+- o design vigente usa uma versão por package identity em cada product;
 - o resolver escolhe a maior versão compatível no snapshot assinado;
 - pre-release exige opt-in;
 - aliases são locais e não mudam identity;
 - múltiplas versões ficam fora da v0;
 - features são aditivas, locais à instância e entram na chave do artefato.
+
+Um product liga exatamente um descriptor expandido. Vários products podem usar
+os mesmos módulos. Escolher outro entry, host ou target cria outra recipe.
+
+Product kinds iniciais:
+
+| Kind | Resultado |
+|---|---|
+| `.executable` | payload iniciado por um process ou application host |
+| `.staticLibrary` | archive e interface para link |
+| `.dynamicLibrary` | library com ABI declarada |
+| `.component` | componente carregado por host, inicialmente Wasm Component |
+| `.firmware` | imagem e metadata de device |
+| `.deviceBundle` | kernels/objects para um accelerator e manifest de launch |
+| `.test` | harness e corpus selecionado |
+| `.benchmark` | harness, workload e evidence schema |
+| `.tool` | executável hermético usado pelo build |
+
+`.dynamicLibrary` não estabiliza a ABI W. A superfície exportada precisa escolher
+uma ABI, como C, Wasm Component ou schema W versionado.
+
+`targetSets` servem à matriz de CI e release. Eles não produzem um payload
+universal por inferência. Cada combinação de product, target e profile possui
+uma chave própria.
 
 O algoritmo inicial deve ser PubGrub ou outro solver que produza explicações
 equivalentes e determinísticas. O resultado, não o nome do algoritmo, é o
@@ -11621,8 +12031,24 @@ manual invalida o arquivo.
 
 ### 21.2 Build
 
-**Exemplo:** `w build --locked` recebe target, profile, flags, environment
-declarado e lockfile como inputs da recipe.
+**Exemplo:** o build escolhe product e target. O product escolhe entry e host:
+
+```text
+w build last-light-native \
+  --target x86_64-unknown-linux-gnu \
+  --profile release \
+  --locked
+
+w build last-light-worker \
+  --target wasm32-wasi-preview2 \
+  --profile release \
+  --locked
+
+w build --matrix desktop --product last-light-native --locked
+```
+
+`--matrix` agenda recipes independentes. Ele não muda a identidade dos
+payloads. O resultado inclui um index que aponta para cada digest.
 
 - source é o fallback normativo;
 - binaries são otimização sob uma chave ABI completa;
@@ -11644,6 +12070,57 @@ rede; frozen pode buscar somente objetos já fixados.
 Mesma fonte, recipe e ambiente fixado devem produzir o mesmo payload bit a bit.
 Data, commit, paths, locale, timezone, seeds e environment são inputs explícitos
 ou são removidos.
+
+#### 21.2.1 Artifact identity
+
+A chave mínima inclui:
+
+```text
+package graph + product + expanded entry + host profile
++ target + CPU/features + sysroot/SDK + profile
++ compiler/runtime + adapters + build inputs + lock
+```
+
+O artifact record separa:
+
+- payload primário;
+- interface e symbol manifest;
+- resources;
+- device payloads;
+- debug sidecars;
+- provenance e attestations;
+- envelope de plataforma.
+
+Um macOS universal binary, um Android App Bundle e um firmware bundle são
+artifacts compostos. Seus componentes continuam identificados por digest.
+Assinatura, notarization ou timestamp não alteram o digest do payload interno.
+
+#### 21.2.2 Multimode e múltiplos artifacts
+
+Um executável nativo pode oferecer `--cli`, `--tui` e `--serve`. Seu único
+`process.main` escolhe o modo e mantém um só descriptor:
+
+```text
+w run last-light-native -- --tui
+w run last-light-native -- --serve 127.0.0.1:8080
+```
+
+Um worker HTTP usa outro host lifecycle. Ele recebe outro product e, em geral,
+outro artifact. Compartilhar source não exige compartilhar entry, runtime ou
+bytes finais.
+
+O build pode incluir vários handlers alcançáveis, mas dead stripping remove os
+que nenhum binding ou call referencia. `w explain product` mostra por que um
+símbolo permaneceu:
+
+```text
+$ w explain product last-light-native
+entry: restaurant.app::.default
+default slot: process.main -> restaurant.app::run
+binding: process.signal -> restaurant.app::shutdown
+reachable adapter: http.Server (selected by LaunchMode.serve)
+excluded entry: restaurant.worker_app::LastLightWorker
+```
 
 ### 21.3 Verificação
 
@@ -11719,9 +12196,13 @@ runtime dependencies aparecem como relações distintas no SBOM.
 w resolve
 w update <package>
 w fetch --locked
-w build --locked
-w test --locked
+w build <product> --target <target> --locked
+w build --matrix <set> --product <product> --locked
+w run <product> -- <arguments>
+w test [product] --locked
 w explain dependency <package>
+w explain product <product>
+w explain artifact <digest>
 w diff-lock
 w verify <artifact>
 w reproduce <release>
@@ -11731,6 +12212,37 @@ w cache import <bundle>
 
 Saída humana é curta. `--json` fornece o grafo, diagnostics e evidências
 completos.
+
+#### 21.6.1 Fluxo local
+
+```text
+$ w resolve
+resolved 14 packages; wrote package.lock
+
+$ w build last-light-native --target x86_64-unknown-linux-gnu --locked
+built last-light-native
+payload sha256:7e...
+recipe  sha256:21...
+
+$ w run last-light-native -- --cli
+```
+
+O CLI não imprime download, compile unit ou cache hit por default. `--verbose`
+mostra fases. `--json` emite eventos estáveis.
+
+#### 21.6.2 Publicação e reprodução
+
+```text
+w package last-light-native --target x86_64-unknown-linux-gnu --locked
+w publish --release 0.1.0 --artifacts dist/release.windex
+w verify registry:last-light/restaurant@0.1.0
+w reproduce registry:last-light/restaurant@0.1.0 \
+  --target x86_64-unknown-linux-gnu
+```
+
+`publish` envia metadata autorizada e objetos por digest. Ele não executa um
+build oculto. A CI de reprodução baixa source e recipe, usa um builder
+independente e publica uma attestation separada.
 
 ### 21.7 Evolução e governança
 
@@ -11787,14 +12299,14 @@ acompanhar cada mudança durante o endurecimento da linguagem.
 
 Depois do design freeze, um gerador usa:
 
-1. a estrutura Markdown e o registro D2 deste arquivo;
+1. a estrutura Markdown e o registro W deste arquivo;
 2. snippets extraídos dos arquivos `.w` canônicos;
 3. resultados estruturados da grammar, formatter e testes;
 4. metadata de versão e provenance do build.
 
 O source do portal não duplica contratos nem snippets. Cada bloco gerado aponta
 para arquivo, região e revisão de origem. CI falha quando um include desaparece,
-um snippet não parseia ou um ID D2 não existe.
+um snippet não parseia ou um ID W não existe.
 
 Astro é uma opção de renderização, não uma decisão de arquitetura. Ele só será
 comparado depois do freeze com um gerador mínimo. A escolha depende de build
@@ -11856,7 +12368,7 @@ W não possui uma sintaxe curta exclusiva para IA. Em vez disso, oferece:
 - testes de compilação e comportamento;
 - source maps para código gerado e ilhas de linguagem.
 
-Contagem de tokens depende do tokenizer. A DB2 mede vários modelos antes de
+Contagem de tokens depende do tokenizer. O design vigente mede vários modelos antes de
 trocar uma keyword por pontuação. Compile success, testes e edit distance têm
 mais peso que token count isolado.
 
@@ -11934,7 +12446,7 @@ diagnostics {
 }
 ```
 
-Source annotations de suppressão não entram na DB2. Elas esconderiam policy no
+Source annotations de suppressão não entram no design vigente. Elas esconderiam policy no
 programa e adicionariam syntax permanente.
 
 O schema JSON não é localizado. Um renderer pode localizar a mensagem. LSP e
@@ -12052,7 +12564,7 @@ Uma pesquisa só avança quando possui:
 
 ## 24. Classificação de viabilidade
 
-| Família | Classe DB2 | Motivo |
+| Família | Classe vigente | Motivo |
 |---|---|---|
 | owner único, borrow e whole-value move | **Possível agora** | análise e lowering conhecidos |
 | provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
@@ -12124,6 +12636,16 @@ Uma pesquisa só avança quando possui:
 | property behaviors | **Provável** | expansão HIR é viável; composição ainda precisa de teste |
 | obrigação linear de async close | **Pesquisa** | evita leak oculto; receiver e cancellation precisam de protótipo |
 | entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
+| descriptor anônimo e overlay local | **Possível agora** | expansão é estática; diagnostics precisam mostrar origem |
+| package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
+| target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
+| desktop/server LLVM targets | **Provável** | backends existem; runtime, SDK e CI ainda são trabalho W |
+| Android e Apple mobile | **Provável** | ABI e SDK existem; lifecycle, packaging e signing exigem adapters |
+| Cortex-M e RISC-V firmware | **Provável** | backends existem; freestanding runtime e device descriptions exigem corpus |
+| NVVM, ROCDL e SPIR-V device bundle | **Provável T2** | MLIR oferece lowerings; kernel subset e transfer precisam de protótipo |
+| ASIC/FPGA como target geral | **Pesquisa** | timing, synthesis e verification não seguem o runtime CPU |
+| nanoservices co-localizados | **Provável** | service graph permite fast path; equivalência física exige trace e fault tests |
+| profile TechEmpower | **Provável** | workloads são conhecidos; harness vigente e configuração precisam ser fixados |
 | tensors ranked, `@` e views | **Provável T2** | MLIR ajuda; API e device model precisam de protótipo |
 | integer tensor com accumulator inferido por range | **Provável T2** | prova é conhecida; panic, widening e kernel dispatch exigem corpus |
 | float matrix modes strict/fast/reproducible | **Provável T2** | cada mode precisa de oracle numérico e matriz de targets |
@@ -12168,7 +12690,7 @@ Uma pesquisa só avança quando possui:
 | custom operators e precedência do usuário | **Rejeitado** | piora parser, tooling e previsibilidade |
 | macros/annotations universais | **Rejeitado** | cria uma segunda linguagem e hidden behavior |
 
-## 25. Ensaio do restaurante cósmico
+## 25. Produto de referência Última Luz
 
 O Restaurante Última Luz homenageia o absurdo cósmico popularizado por Douglas
 Adams. Os personagens, diálogos, pratos e eventos do corpus são originais. O
@@ -12176,21 +12698,32 @@ humor vem de situações técnicas: reservas em fusos relativísticos, cozinha
 térmica, estoque por telemetria, previsão tensorial, cobrança idempotente e
 burocracia de encerramento.
 
-O corpus tem três rotas. A primeira é um oracle determinístico e não exige
-deployment:
+Última Luz não é um exemplo descartável. Ele é o alvo de especificação
+executável do W. O projeto usa o produto para:
+
+- experimentar a superfície da linguagem;
+- fechar contratos de std, runtime e build;
+- testar parser, formatter e type checker;
+- executar regressão semântica e de performance;
+- validar targets e host profiles;
+- produzir material do Book e de treinamento.
+
+O primeiro product é um oracle determinístico e não exige deployment:
 
 ```text
-entry LastLightSimulation
+last-light-simulation / LastLightSimulation
   → profile fechado
   → simulação por ticks
   → energia + receita + filas
   → relatório estável
 ```
 
-A segunda usa um protocolo de aplicação compartilhado:
+O process product usa um protocolo de aplicação compartilhado:
 
 ```text
-CLI / TUI / line host / HTTP
+last-light-native / entry .default
+  → process.main
+  → CLI / TUI / servidor local
   → Command
   → dispatch
   → RestaurantApi
@@ -12198,7 +12731,17 @@ CLI / TUI / line host / HTTP
   → texto plain / ANSI / JSON
 ```
 
-A terceira testa o owner runtime:
+O component product usa outro lifecycle:
+
+```text
+last-light-worker / LastLightWorker
+  → http.fetch
+  → Command
+  → RestaurantApi
+  → JSON
+```
+
+A rota de trabalho longo testa o owner runtime:
 
 ```text
 ServiceFamily<OrderCoordinatorApi, OrderId>
@@ -12222,8 +12765,20 @@ mantém esse handler como oracle adversarial.
 O gate operacional exige um turn curto de aceitação. Um owner supervisionado
 continua o workflow por pedido. Status e cancelamento usam turns curtos. A key
 do pedido seleciona a instance. `SupervisorRef` e deployment data-only são
-**Líder DB2**. A terceira rota ainda não possui um entry ligado ao product
-runtime graph. Steps duráveis permanecem em **Pesquisa**.
+**Forma vigente**. Steps duráveis permanecem em **Pesquisa**.
+
+Products adicionais aumentam a superfície sem criar linguagens paralelas:
+
+```text
+mobile      → app lifecycle e shell de UI nativa
+controller  → sensors, interrupts, radio e MMIO
+audio       → callback com deadline e fixed buffer
+wifi        → HTTP, secrets, rate limit e durable sessions
+orbit       → satellite services, units e telemetry
+horizon     → event time, sensor fusion e tensors
+accelerator → kernels e device bundles
+benchmark   → HTTP/database workloads e performance evidence
+```
 
 O gate final é o **Turno do Horizonte Violeta**:
 
@@ -12253,15 +12808,19 @@ cardápio precisa continuar dentro do fechamento W0.
 Os gates são cumulativos:
 
 1. `LastLightSimulation` passa parser, type-check, replay e runtime;
-2. os quatro adapters de host preservam `Command` e `AppResponse`;
-3. o turno completo passa deployment, FFI, fault injection e provenance.
+2. os adapters de host preservam `Command` e `AppResponse`;
+3. o turno completo passa deployment, FFI, fault injection e provenance;
+4. package, lock e build reproduzem cada target;
+5. mobile, firmware, áudio e devices passam seus resource gates;
+6. benchmarks preservam semântica e publicam evidence suficiente.
 
 Enquanto o compiler não existe, o documento deve informar quais gates são
 oracles e quais possuem evidência executável. Um parse do Tree-sitter não prova
 type-check, lowering ou comportamento runtime.
 
-O ensaio detalhado está no
-[Restaurante Última Luz](examples/restaurant/README.md).
+O produto detalhado está em
+[Restaurante Última Luz](reference/last-light/README.md). Products, targets e
+comandos estão em [BUILD.md](reference/last-light/BUILD.md).
 
 ## 26. Protocolo de revisão
 
@@ -12329,11 +12888,11 @@ corpus ou na CLI. O portal gerado começa somente depois do design freeze.
 
 ### 27.1 Fase -1 — design e corpus
 
-**Exemplo:** cada forma líder possui um caso positivo, um negativo e uma
+**Exemplo:** cada forma vigente possui um caso positivo, um negativo e uma
 alternativa preservada.
 
 - consolidar este documento;
-- criar corpus DB2 positivo, negativo e comparativo;
+- criar corpus W positivo, negativo e comparativo;
 - completar o restaurante cósmico;
 - fixar diagnostic IDs e formatter examples.
 
@@ -12450,7 +13009,7 @@ locale, ordem de `Map` ou variável de environment não declarada. SH5 é o meno
 ponto que permite dizer “W compila W”. SH6 prova convergência. SH7 reduz a
 confiança necessária no seed.
 
-Em SH5, o parser self-hosted reconhece toda a grammar congelada da DB2. Ele pode
+Em SH5, o parser self-hosted reconhece toda a grammar congelada do design vigente. Ele pode
 emitir um diagnostic de profile para semantics que ainda não possuem lowering.
 As fases seguintes adicionam esses verificadores e lowerings ao compiler
 self-hosted. O source de `compiler/core-w0` continua restrito a W0. Assim, tasks,
@@ -12477,8 +13036,8 @@ backpressure e cleanup reproduzíveis.
 
 ### 27.8 Fase 6 — services e host entries
 
-**Exemplo:** `entry LastLight` valida `process.main` e `http.fetch` contra o
-profile do host.
+**Exemplo:** `.default` valida `runNative` contra `process.main`.
+`LastLightWorker` valida `fetch` contra `http.fetch` em outro product.
 
 - `entry` e host profiles;
 - service instance manager;
@@ -12524,7 +13083,7 @@ Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 - suíte de conformidade;
 - decisão sobre mover W para repository próprio.
 
-Saída: DB2 demonstrada de ponta a ponta e pronta para revisão pública.
+Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 
 ### 27.11 Gates
 
@@ -12554,9 +13113,12 @@ Cada checkpoint executa:
 6. atualização deste documento;
 7. commit pequeno com resultado e limitações.
 
-## 28. Mudanças da DB1 para a DB2
+## 28. Relação com a tentativa DB1
 
-| Tema | DB1 | Líder DB2 |
+A “DB1” foi uma consolidação intermediária. Ela não foi um design concluído.
+Esta tabela existe somente para explicar mudanças rastreáveis.
+
+| Tema | Tentativa DB1 | Forma vigente |
 |---|---|---|
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
 | namespace import | `import name as alias from path` | `import path [as alias]` |
@@ -12576,525 +13138,539 @@ Cada checkpoint executa:
 | ilha multilíngue | `fn<lang>` em pesquisa | adapter externo, façade C e static archive |
 | callable | `CallbackType` e capture dispersos | `fn`, `some fn` e `any fn` separam pointer, ambiente, owner e drop |
 
-Estas mudanças são experimentais. A fotografia completa da DB1 continua
+Estas mudanças são experimentais. A fotografia da tentativa DB1 continua
 acessível no
 [arquivo histórico](../Y/W/archive/db1-2026-07-27/README.md) e no histórico do
 Git.
 
 ## 29. Registro de decisões e alternativas
 
-Esta tabela é o checklist de revisão humana. **Líder** significa “implementar e
-experimentar”, não “decisão irreversível”.
+Esta tabela é o checklist de revisão humana. **Forma vigente** significa
+“integrar e experimentar”, não “decisão irreversível”.
 
-| ID | Tema | Líder DB2 | Alternativas preservadas |
+| ID | Tema | Forma vigente | Alternativas preservadas |
 |---|---|---|---|
-| D2-001 | função | `fn name(...): Return` | `func`; retorno `->`; sem keyword |
-| D2-002 | bindings | `const`/`let`/`var` | `let mut`; uma única keyword |
-| D2-003 | modifiers | ordem fixa antes de `fn` | ordem livre; effects após retorno |
-| D2-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
-| D2-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
-| D2-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
-| D2-007 | visibility | módulo default, `package`, `export`; sem `private` | public universal; `public/private`; block export |
-| D2-008 | import seletivo | `{X} from path` | `path.{X}`; imports livres |
-| D2-009 | import namespace | `import path as alias` | forma DB1 `name as alias from path` |
-| D2-010 | módulos | manifest multi-file, DAG | declaração `module`; cycles de interface |
-| D2-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
-| D2-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
-| D2-013 | alias | `alias X = T` | `typealias`; context-dependent `type` |
-| D2-014 | refinement | `T<(.member predicate)>`; range como sugar | `value.member`; `T where (...)`; `T(where:)` |
-| D2-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
-| D2-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
-| D2-017 | opaque type | `some P` em local, retorno e parâmetro generic anônimo | existential; generic nomeado |
-| D2-018 | reflection | `reflect.Reflectable` opt-in e alcançável | metadata universal; annotations |
-| D2-019 | Option | `T?` com some/none | null; sentinel; result-like |
-| D2-020 | conversão | total, única e sem perda | tudo explícito; promotions amplas |
-| D2-021 | owner | único/move-first | ARC universal; GC |
-| D2-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
-| D2-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
-| D2-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| D2-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; region-only |
-| D2-026 | region | `region name(using:, limit:)` lidera e baixa para `Arena`; W0 implementa API primeiro | lifetime annotations; heap por módulo; API sem bloco |
-| D2-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
-| D2-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
-| D2-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
-| D2-030 | tagged values | otimização invisível com fallback | tagged address obrigatório; annotation |
-| D2-031 | property behavior | `var Behavior name` | prefix before var; `by`; wrapper type |
-| D2-032 | behavior composition | composite nomeado | lista ordenada; nesting arbitrário |
-| D2-033 | erro | `throws E` + `try` | exceptions abertas; Result em toda assinatura |
-| D2-034 | error widening | case único compatível | mapping sempre explícito; `From` livre |
-| D2-035 | panic | encerra a fault boundary física mais próxima | unwind recuperável; tratar toda isolation como fault boundary |
-| D2-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
-| D2-037 | concorrência | `async let` | Future/Promise; task API somente |
-| D2-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
-| D2-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name` (**Rejeitado por enquanto**); descriptor-only |
-| D2-040 | Task | linear, lexical, one-await | Future clonável; detached default |
-| D2-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| D2-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco e `CancellationReason` fechado | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
-| D2-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
-| D2-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes D2-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
-| D2-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em D2-424–429 | `Send`/`Sync` públicos; runtime checks |
-| D2-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
-| D2-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
-| D2-048 | mailbox | bounded por itens, bytes e trabalho em voo; detalhes em D2-458–472 não mudam a call boundary | drop; unbounded; tratar como channel local |
-| D2-049 | entry curto | default slot único | main mágico; manifest-only |
-| D2-050 | entry composto | descriptor de slots tipados | handlers inline; conformance |
-| D2-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
-| D2-052 | custom unit | `dimension`/`unit` declarations | wrapper types; runtime registry |
-| D2-053 | affine/log units | metaconstrutores distintos | scale universal; runtime-only |
-| D2-054 | range | quatro closures; unilateral em argumento/pattern; intervalo | dois ranges; producer universal |
-| D2-055 | membership | `value in (a, b)` | `.isOneOf`; equality chain |
-| D2-056 | exponent | `**`; `^` somente em unit grammar | `^` universal; `pow` only |
-| D2-057 | integer safety | checked, panic; APIs alternatives | wrapping default; Result operators |
-| D2-058 | float | IEEE strict default | fast default; build-mode semantics |
-| D2-059 | String | owned UTF-8 contíguo | tree/rope default; COW contract |
-| D2-060 | String indexing | access mode `view`, sem `string[i]` | scalar index; grapheme index default |
-| D2-061 | raw string | `#"..."#` | `r"..."`; backtick |
-| D2-062 | scalar/byte | `'x'` e `b'x'` | constructor only; char=grapheme |
-| D2-063 | arrays/maps | `[]` e `[key: value]` | braces para map/set |
-| D2-064 | matrix literal | nested arrays | semicolon/whitespace; constructor only |
-| D2-065 | matrix multiply | `@` | `*` + `.*`; `matmul` only |
-| D2-066 | broadcast | diferente shape explícito | Array API implicit; dotted operators |
-| D2-067 | device | transfer explícita | automatic placement |
-| D2-068 | SDK | T0/T1/T2 | uma stdlib plana; packages somente |
-| D2-069 | prelude | pequena, edition-frozen | toda std implícita; nada implícito |
-| D2-070 | print | T1 contextual ao host | T0 intrinsic; `io.print` obrigatório |
-| D2-071 | C | `foreign c` + unsafe wrapper | C superset; generated bridge only |
-| D2-072 | inline language | `fn<C>` com adapter externo | `fn<lang: .c>`; library import; multi-language v0 |
-| D2-073 | parser | recursive-descent/Pratt + EBNF | generated parser; Tree-sitter compiler |
-| D2-074 | editor parser | Tree-sitter projection | compiler CST compartilhada |
-| D2-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
-| D2-076 | bootstrap | C11 seed, self-host cedo | TypeScript/Bun; C++ compiler inteiro |
-| D2-077 | build tool | CMake/Ninja no seed | xmake; custom builder antes do self-host |
-| D2-078 | packages | manifest data-only + lock | executable manifest; lock opcional |
-| D2-079 | resolver | determinístico, uma versão por identity | múltiplas versões default |
-| D2-080 | artifact | source-first, static preferred | binary-only; dynamic-only |
-| D2-081 | canonical bytes | deterministic CBOR | WLO imediato; JSON assinada |
-| D2-082 | digest | tagged SHA-256 inicial | hash fixo eterno; hash recebido sem metadata |
-| D2-083 | registry | metadata authority; mirrors por digest | registry hospeda tudo e define trust |
-| D2-084 | evidence | eixos separados | selo único; estrelas |
-| D2-085 | resource lens | facts/estimates/measurements | número exato universal; nada no import |
-| D2-086 | formatter | 120 colunas e uma forma | user-configurable style amplo |
-| D2-087 | tests | runner único com modos | ferramentas sem grafo comum |
-| D2-088 | AI | schemas/diagnostics comuns | dialeto AI; token count como objetivo único |
-| D2-089 | SQLite | durable adapter T2 | storage universal |
-| D2-090 | sandbox | capability + process/OS/Wasm | seccomp por módulo |
-| D2-091 | wRPC/wQL | packages após core | keywords DB2; protocolo universal |
-| D2-092 | WLO/tree strings | pesquisa com fallback | formato/representação default |
-| D2-093 | GPU/HDL | lowerings posteriores | requisito da v0 |
-| D2-094 | custom operators | rejeitado | precedência e operators do usuário |
-| D2-095 | annotations/macros | rejeitado na v0 | `@annotations`; macro AST universal |
-| D2-096 | portal | gerar após design freeze; protótipo congelado | páginas manuais; escolher Astro agora |
-| D2-097 | aplicação `<...>` | contrato fechado por head e payload tipado | slots universais; mapa aberto |
-| D2-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
-| D2-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
-| D2-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
-| D2-101 | recurso async | `defer async` + `take async fn`; obrigação linear em pesquisa | async destructor; `using await`; lint |
-| D2-102 | receiver | `fn` borrow, `mut fn` exclusivo, `take fn` owned, `static fn` sem receiver | `self`; inferir static; função livre |
-| D2-103 | camadas de memória | semântica separada de lowering, representação e host | tag ou allocator como semântica |
-| D2-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
-| D2-105 | pinning | interno sem annotation; `pin` explícito produz `Pinned<T>` público | annotation universal; raw pointer |
-| D2-106 | ciclos shared | `weak`, close, região ou lifecycle owner; sem collector default | cycle collector universal |
-| D2-107 | pointer provenance | address separado; round-trip não restaura authority | pointer como integer |
-| D2-108 | origem de allocation | owner/control block/side table preserva deallocator | bits do pointer obrigatórios |
-| D2-109 | compactação | portátil → niche → low-bit; high-bit em pesquisa | tagged address obrigatório |
-| D2-110 | hardening | sanitizer, PAC, MTE e capability têm precedência | compactação vence o profile |
-| D2-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
-| D2-112 | seed output | W0 para C11, backend normal W/MLIR | MLIR completo no seed; C como backend público |
-| D2-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após DB2 completa |
-| D2-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
-| D2-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
-| D2-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda a DB2 |
-| D2-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
-| D2-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
-| D2-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
-| D2-120 | outcome de task | success/error/canceled; panic encerra fault boundary | cancel em `E`; panic como Result |
-| D2-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
-| D2-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
-| D2-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
-| D2-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
-| D2-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em D2-454–472 | generator unbounded; channel bidirecional universal |
-| D2-126 | memory model | safe W data-race-free; edges fechados e DRF-SC salvo orders explícitas | race definida em safe code; somente “thread-safe” nominal |
-| D2-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
-| D2-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
-| D2-129 | lifecycle de instance | identity + generation; restart invalida state anterior | reuse de pointers/frames |
-| D2-130 | admission | quotas de itens, bytes e in-flight | unbounded; limite só por item |
-| D2-131 | falha de call | `E` e `ServiceFailure` são effects separados | transporte dentro de todo `E` |
-| D2-132 | call cycle | ancestry causal rejeita ciclo closed-turn conhecido | esperar somente deadline |
-| D2-133 | output durável | commit confirmado ou outbox; output gate em pesquisa | gate inferido na v0 |
-| D2-134 | scheduler de teste | clock/I/O/schedule injetáveis e replay | teste somente por timing real |
-| D2-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
-| D2-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
-| D2-137 | RPC encadeado | `CallPipeline` explícito em pesquisa | toda `ServiceRef` vira Promise lazy |
-| D2-138 | payload angular | `()`, `{}` e `[]` são expression, record e list | três operadores universais |
-| D2-139 | extensão de tipo | refinement, extension, struct, enum e C union separados | `T<{...}>` universal |
-| D2-140 | foreign artifact | unit agrupada, archive/object e façade C | archive por função; C source obrigatório |
-| D2-141 | foreign parser | body opaco entregue ao adapter da linguagem | parser W interpreta subset externo |
-| D2-142 | foreign delimiter | body braced com scanner do adapter | raw fence hash; parser W conhece strings externas |
-| D2-143 | language tag | `LanguageAdapterId` fixada no lock | enum eterno no compiler; string ou command livre |
-| D2-144 | referência contextual | `.member` usa subject ou enum esperado; HIR qualificada | somente `value.member`; `.case` apenas |
-| D2-145 | generic refinado | `Array<T><(predicate)>` separa aplicação e refinement | `Array<[T, predicate]>`; slot misto |
-| D2-146 | unit e bottom | `()` e `Never` | `Void`; `!`; retorno omitido dependente do contexto |
-| D2-147 | retorno fluente | `: self` explícito como reborrow | retorno `self` implícito; `Self` owned; builder externo |
-| D2-148 | associated member | `const`, `static fn` e `type` requerido | companion object; metatype runtime obrigatório |
-| D2-149 | associated type witness | `type Name` exige `alias Name = T` | `associatedtype`; `type Name = T` contextual |
-| D2-150 | mutable type storage | ausente; owner de `entry` ou service explícito | `static var`; módulo singleton |
-| D2-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
-| D2-152 | construção | `Type(...)` baixa para `construct`; sem promessa de placement | `new Type`; literal `Type {...}` |
-| D2-153 | initializer sintetizado | struct usa menor nível; object fica no módulo | visibilidade do tipo sempre; sempre privado |
-| D2-154 | initializer customizado | vários `init` com formas disjuntas; `throws E`; factory nomeada | initializer único; `init?`; `async init` |
-| D2-155 | definite initialization | duas fases; sem uso de `self` parcial; cleanup por field | zero universal; runtime check; partial safe value |
-| D2-156 | computed property | `name: T { get }`; `var` exige write accessor | getter implícito; method obrigatório |
-| D2-157 | efeitos de property | property-safe, síncrona, local e sem `throws` | `async`/`throws` property; custo irrestrito |
-| D2-158 | mutation de property | `set(value)` e `modify` com `return inout` escopado | get-modify-set implícito; observers |
-| D2-159 | property requirement | `{ get [set] [modify] }`; stored field pode ser witness | protocol exige storage; reflection estrutural |
-| D2-160 | struct transparente | sem `init`: stored fields herdam visibilidade do tipo | `export` por field; todos os members herdam |
-| D2-161 | struct encapsulado | `init` explícito restaura default de módulo nos fields | keyword `opaque`; field sempre público |
-| D2-162 | object | storage e initializer sintetizado ficam no módulo | herdar visibilidade do object; constructor público |
-| D2-163 | enum e protocol | cases e requirements herdam; witness não repete modifier | `export` repetido; todos os members públicos |
-| D2-164 | service | storage nunca cruza módulo; API usa protocol async | field público; computed property remota |
-| D2-165 | interface exportada | signature não expõe tipo menos visível; HIR normaliza | lint apenas; defaults preservados na HIR |
-| D2-166 | pattern de struct | `Type(field, field: pattern, ...)`; nominal e ordenado | `{field}`; tuple posicional |
-| D2-167 | evolução de pattern | `...` obrigatório fora do package | exaustivo externo; modifier no tipo |
-| D2-168 | ownership de pattern | modo uniforme owned, `ref` ou `inout` | qualifier por field; partial move |
-| D2-169 | limite de destructuring | struct visível; object e service rejeitados | destructuring estrutural universal |
-| D2-170 | evolução de struct | field com default é minor se a resolução não muda; field obrigatório é major | todo field novo é major |
-| D2-171 | evolução de enum | enum fechado; case novo é major | `nonexhaustive`; default case obrigatório |
-| D2-172 | source contra schema | source, ABI e wire evoluem por contratos separados | derivar schema do struct |
-| D2-173 | verificação SemVer | `w interface diff` classifica e sinaliza revisão | revisão manual; só major/minor binário |
-| D2-174 | consuming receiver | `take fn`; call usa `(take value).method()` | consumo implícito; `consuming fn`; free function |
-| D2-175 | saída consuming | success, error e cancellation consomem; owner pode ser retornado | restaurar no error; abortar sem drop |
-| D2-176 | authority de `deinit` | exclusivo e não consuming; mutation sem move | borrow read-only; consumir fields |
-| D2-177 | supressão de drop | ausente em safe W; wrapper mantém estado válido | `discard self`; `forget` geral |
-| D2-178 | limite de receiver | protocol exige mode exato; service e handles aliases não usam `take fn` | adaptação com copy; service consuming |
-| D2-179 | `deinit` e copy | tipo com cleanup customizado não atende a `Copy` | copiar e contar drops; lint |
-| D2-180 | identidade de overload | owner, nome e forma de call | tipos, return type ou constraints |
-| D2-181 | resolução de overload | forma antes do type-check; sem backtracking | ranking de melhor candidato |
-| D2-182 | defaults e overload | famílias de formas devem ser disjuntas | preferência por menos defaults |
-| D2-183 | ownership do overload set | um owner; imports não fundem sets | overload set aberto entre módulos |
-| D2-184 | overload como valor | closure explícita seleciona a forma | expected type; seletor de forma |
-| D2-185 | vários initializers | labels e formas disjuntas | ranking por tipos; initializer único |
-| D2-186 | delegação de initializer | `self = Type(...)` antes de qualquer field | `self.init`; delegação parcial |
-| D2-187 | falha de initializer | cleanup parcial; `deinit` após self completo | zero universal; leak parcial |
-| D2-188 | efeitos de initializer | síncrono; `throws E`; sem `init?` | `async init`; initializer failable |
-| D2-189 | evolução de overload | set existente: minor; primeiro overload: major; forma alterada: major | classificação somente por nome |
-| D2-190 | ordem de argumentos | ordem da declaração; labels não reordenam | named arguments livres |
-| D2-191 | parâmetros rest | `T...` homogêneo e final; `each` expande collection | somente collection; type pack; C varargs |
-| D2-192 | function type | source usa `fn(A): B`; labels e defaults ficam na declaração | labels no tipo; somente inference |
-| D2-193 | callable concreto | `some fn(A): B` preserva tipo, captures e specialization | generic nomeado; `fn` sempre apagado |
-| D2-194 | callable apagado | `any fn(A): B` guarda owner, invoke e drop | `CallbackType`; box manual |
-| D2-195 | callable mode | `fn`, `mut fn` e `take fn` descrevem uso do ambiente | `Fn`/`FnMut`/`FnOnce`; inferência sem annotation |
-| D2-196 | call por valor | posicional, aridade completa e sem defaults | labels cosméticos; labels significativos |
-| D2-197 | capture e escape | HIR registra place, modo, lifetime, owner e drop | capture sempre weak; heap por default |
-| D2-198 | method reference | closure explícita mostra receiver e ownership | bound method implícito |
-| D2-199 | callback C | `unsafe fn<abi: .c>` fino + context/owner explícitos | converter closure W; callback universal |
-| D2-200 | static list | `StaticList<T>` compile-time, ordenada e apagada | named index runtime; set implícito |
-| D2-201 | operador `@` | família rank-1/rank-2 sem broadcast; APIs nomeadas para rank maior | contração geral implícita; `*` linalg |
-| D2-202 | exemplo normativo | cada contrato aponta para exemplo válido, erro ou cenário canônico | afirmação sem evidência local |
-| D2-203 | opaque parameter | `some P` é generic anônimo e especializado | exigir generic nomeado; existential |
-| D2-204 | switch | expressão exaustiva, sem fallthrough ou `break` | switch statement; fallthrough explícito |
-| D2-205 | ordem de case | ordem lexical, first-match e diagnostic de inalcançável | exigir patterns disjuntos; ranking |
-| D2-206 | múltiplos scrutinees | tuple subject e tuple pattern | `switch a, b`; matching relacional implícito |
-| D2-207 | custom pattern | pesquisa; conversão nomeada ou guard na DB2 | handler arbitrário; protocol de pattern na v0 |
-| D2-208 | callable transfer | `fn` é transferível/compartilhável; closure deriva predicates do ambiente | `Send`/`Sync` nominais; confiar no pointer |
-| D2-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
-| D2-210 | semântica de String | owner único, bytes UTF-8 contíguos e mutation exclusiva; static/SSO ficam internos | tree/rope default; UTF-16; COW baseline |
-| D2-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
-| D2-212 | elementos de texto | `UnicodeScalar` Copy e grapheme como `view String` refinada; owned usa String refinado | Character/Grapheme nominal; scalar chamado Char |
-| D2-213 | índices de texto | origem borrowed, custo visível e uso terminal em edição | ordinal em subscript; índice universal |
-| D2-214 | slices de texto | byte slice é `view Bytes`; byte range para `view String` é fallible | arredondar boundary; slice sempre String |
-| D2-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
-| D2-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes D2-358–362 | replacement implícito; locale codec default |
-| D2-217 | construção de String | interpolation e Display escrevem num `String`; `+` consome left; reserve/append lideram loops | builder público; concat adjacente; String intermediário por campo |
-| D2-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
-| D2-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
-| D2-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
-| D2-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
-| D2-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
-| D2-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
-| D2-224 | storage textual | refinement não fixa layout; reserva mínima é operação; capacity/SSO exatos não são properties | capacity pública; SSO observável |
-| D2-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
-| D2-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
-| D2-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
-| D2-228 | array dinâmico | `Array<T>` owned, contíguo, count/capacity O(1) e append amortizado O(1) | linked chunks default; `[T]` |
-| D2-229 | literais de array | `[a, b]`, `[]` contextual e `[value; count]` fixo com Copy | `[:]`; repeat clona move-only |
-| D2-230 | views de array | `view Array<T>` read-only Copy e `inout view Array<T>` exclusiva move-only | tipos Slice públicos; pointer público; resize pela view |
-| D2-231 | iteração | single-pass; borrow default, `ref`/`inout`/`copy` explícitos e `take` consome | copiar sempre; mutation estrutural durante loop |
-| D2-232 | pipelines | Array eager; `.lazy` e Iterator lazy; `collect()` materializa | tudo lazy; tudo eager |
-| D2-233 | `Map` | hashing keyed e ordem de inserção estável; full key confirma colisão | ordem de bucket; guardar somente hash |
-| D2-234 | `Set` | ordem de inserção; equality ignora ordem; sem literal próprio | set não ordenado; literal com chaves |
-| D2-235 | hashing | `Hashable: Equatable`; algoritmo/seed process-local e não persistente | XXH como ABI; hash como identity |
-| D2-236 | lookup borrowed | `EquivalentKey<K>` permite view com a mesma equality e hash feed | alocar key em todo lookup; equivalência ad hoc |
-| D2-237 | ordenação | `sort` stable por default; `sortUnstable` explícito; comparator `Ordering` | algoritmo fixo no contrato; Bool comparator |
-| D2-238 | maps ordenados | `SortedMap` por total order para range e key order | tornar todo Map tree; B-tree no ABI |
-| D2-239 | cleanup de collections | ordem inversa de índice/inserção; capacity e buckets invisíveis | drop order não especificada |
-| D2-240 | escopo da std | core em T0; Deque/PriorityQueue/BitSet em `std.collections`; concorrentes fora de T0 | todas as estruturas no prelude |
-| D2-241 | duplicação owned | `Copy` barato e implícito; `Duplicable` explícito via `copy value` | clone method; copiar owned implicitamente |
-| D2-242 | ausência | `Option<T>` com some/none; sem null/undefined universal | sentinela universal; pointer null por default |
-| D2-243 | estado de memória | definite init e move no compiler; `MaybeUninit<T>` unsafe | gravar none após move; uninitialized como valor comum |
-| D2-244 | controle Option | `?.`, lazy/right-associative `??` e postfix `?` só para none | force unwrap; postfix `?` para Result |
-| D2-245 | ownership Option | binding owned por default; `ref`/`inout`/`copy`; `take()` esvazia | copiar payload owned; mutation por optional chain |
-| D2-246 | Result | enum T0 success/error para storage e composição | Result implícito só em debug; exceptions abertas |
-| D2-247 | `try` | propaga `throws E` ou `Result<T,E>`; cada closure é outro effect scope | postfix `?` para ambos; propagação implícita |
-| D2-248 | error type | enum fechado e estruturado; `throws E` sempre tipado | throws sem tipo; string obrigatória |
-| D2-249 | effect polymorphism | generic `E: Error`; bottom `Never` é aceito e especializa como nonthrowing | keyword `rethrows`; erasure universal |
-| D2-250 | catch | ordem lexical, guard e exaustividade no contexto nonthrowing | ranking de catches; catch implícito |
-| D2-251 | uso de valores | todo valor non-unit/non-Never deve ser usado ou descartado com `let _` | annotation must-use; ignorar Result |
-| D2-252 | lowering de error | tagged result e cleanup edges; trace sidecar não observável | host exception unwind; sem trace estruturado |
-| D2-253 | fault boundary | process, Wasm instance ou compartment com teardown próprio | service lógico sempre recuperável; panic capturável |
-| D2-254 | panic | payload limitado, code estável e sem user cleanup garantido | payload alocável obrigatório; user recovery |
-| D2-255 | OOM | alocação normal pode panic; APIs `try*` retornam AllocationError | toda alocação fallible; emergency handler universal |
-| D2-256 | cleanup | saídas estruturadas e cancel executam LIFO; panic não garante user cleanup | panic unwind; defer que propaga error |
-| D2-257 | diagnostic | code estável, spans em bytes, facts e relação root/cascade | texto livre como API; reutilizar code |
-| D2-258 | fix e policy | edits com applicability/digest; ordem estável; error não suprimível | fix sem precondition; source suppression na DB2 |
-| D2-259 | `try?` | converte falha recuperável em Option e flatten; não captura panic/cancel | excluir o sugar; `try!`; preservar error oculto |
-| D2-260 | const context | `const`, value argument, contract, fixed size, unit e refinement exigem avaliação | confiar no optimizer; executar tudo em compile time |
-| D2-261 | const callable | `const fn` e `const init` explícitos; mesma semântica runtime | inferir API pelo body; função exclusiva da fase |
-| D2-262 | modifier const | depois de `static`; incompatível com unsafe/async; combina com mut/take | annotation; `comptime fn`; combinação irrestrita |
-| D2-263 | const-safe | local mutation, loops, recursion, dados e typed errors; sem capabilities/FFI | subset expression-only; executar host code |
-| D2-264 | fase | sem `isComptime`; mesmo input produz o mesmo valor nas duas fases | branch por fase; implementação separada |
-| D2-265 | const failure | error não tratado, panic e quota viram diagnostics W-CONST | fault boundary no compiler; AllocationError catchable |
-| D2-266 | ConstRepresentable | predicate derivado para valores estruturais sem identity/authority | protocol implementável; qualquer tipo serializável |
-| D2-267 | materialização | const sem owner; uso owned cria valor independente; borrow não escapa | singleton mutable; endereço estável público |
-| D2-268 | target | evaluator usa target e módulo `w.target`; nunca a máquina host | host semantics; target facts implícitos |
-| D2-269 | build input | módulo gerado e recipe declarada; sem env/file/clock no evaluator | `#define`; env intrinsic; acesso sandboxed ad hoc |
-| D2-270 | quotas | steps, heap, depth e result na recipe; wall clock não semântico | quota por source; sem limite; timeout como semântica |
-| D2-271 | cache const | chave inclui ConstIR, args, target, bundles, evaluator, quotas e generated modules | cache por source text; omitir target |
-| D2-272 | type builder | identidade declarada + const parse/refinement; sem função que retorna Type | `type(regex)`; type function arbitrária |
-| D2-273 | geração | ConstIR para ConstValue; codegen em tool target; WLO continua codec | stringify/reparse; macro AST universal |
-| D2-274 | feedback | PGO declarado só orienta otimização; nunca altera const/tipo/interface | substituir const com execução anterior |
-| D2-275 | implementação const | evaluator HIR antes de MLIR; folding MLIR não define correção | JIT host; canonicalizer como evaluator semântico |
-| D2-276 | bootstrap const | CE0 no seed C e core W0; ConstValue normalizado deve coincidir | excluir const fn do seed; evaluator só no compiler final |
-| D2-277 | force expression | sem `comptime expr` na baseline; binding const nomeia o resultado | keyword obrigatória; const block na v0 |
-| D2-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
-| D2-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
-| D2-280 | generic kinds | type e `const`; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
-| D2-281 | generic labels | type positional; `const` nomeado; `const _` cria slot primário posicional | todos posicionais; named type args |
-| D2-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
-| D2-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
-| D2-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
-| D2-285 | generic inference | depois da forma de call; argumentos, receiver e expected result; solução única | ranking; busca por tipo conforme; body inference |
-| D2-286 | explicit generic args | type prefix e `const` labeled podem compor com inference; sem `_` | placeholders; lista completa obrigatória |
-| D2-287 | primary associated type | protocol head declara projection de `Self`; aplicação restringe o witness | generic protocol por conformance; somente body |
-| D2-288 | associated witness | `alias` explícito; sem inference/default/GAT na DB2 | inferir por method; associated type default |
-| D2-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
-| D2-290 | conditional conformance | `extension<T: P> Nominal<T>: Q`; sem overlap ou specialization | blanket conformance; prioridade |
-| D2-291 | default witness | somente o módulo do protocol publica; seleção gravada na conformance | extension importada muda witness |
-| D2-292 | existential compatibility | sem generic method, Self externo ou associated type não ligado | aceitar tudo com traps; banir existential |
-| D2-293 | existential opening | `any P` não conforma a P e não abre implicitamente | self-conformance; implicit opening |
-| D2-294 | opaque identity | `some P` preserva um tipo por instantiation; occurrence de parâmetro é independente | existential; união de returns |
-| D2-295 | generic lowering | monomorphization, shared body e witness são escolhas equivalentes | monomorphization universal; erasure universal |
-| D2-296 | generic interface | signature, witness requirements e HIR generic por digest/CAS | reparse de source; somente machine code |
-| D2-297 | generic termination | grafo finito, quotas de instance/depth e cache completo | expansão sem limite; timeout semântico |
-| D2-298 | generic variance | type constructors invariantes por default | variance inferida; covariance de Array |
-| D2-299 | bootstrap generics | constraints, primary associated types, coherence e monomorphization; sem any/some | seed sem protocols; runtime dictionaries |
-| D2-300 | enum subset | enum possui slot primário `cases`; `Enum<[.a, .b]>` | enum base + guard; anonymous union |
-| D2-301 | subset normalization | conjunto por ordem de declaração; duplicata/empty rejeitados; all vira base | StaticList ordenada na identity |
-| D2-302 | subset conversion | subset→superset/base implícito; base→subset checked | cast implícito nos dois sentidos |
-| D2-303 | subset flow | switch usa case-set e flow narrowing elimina checks | exhaustividade sempre pelo enum base |
-| D2-304 | subset payload/layout | payload preservado; layout público do enum base; tag interno pode sumir | wrapper/tag novo; payload subset |
-| D2-305 | subset evolution | retorno widening e parâmetro narrowing são major | qualquer mudança minor; variance automática |
-| D2-306 | subset de error | `throws Enum<[...]>`; throw e catch usam o case-set publicado | error enum inteiro; effect union separado |
-| D2-307 | planos de introspecção | interface/HIR para tooling; descriptor opt-in no runtime | runtime metadata universal; debug como API |
-| D2-308 | type identity | `reflect.TypeId` local ao build; sem persistência ou layout | ID estável global; nome como identidade |
-| D2-309 | metatype | sem `Type<T>`/`T.type`; generic, factory ou enum | metatype universal; dynamic construction |
-| D2-310 | reflection trigger | conformance explícita a `reflect.Reflectable`; sem annotation | inferir por uso; decorator; registro manual |
-| D2-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
-| D2-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
-| D2-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
-| D2-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object | qualquer protocol; Display/codec automáticos |
-| D2-315 | synthesis witness | all-or-none por protocol; constraints explícitas | completar witness parcial; inferir constraints |
-| D2-316 | rest syntax | último `T...`; zero ou mais; um label inicial | `params`; `*args`; overloads por aridade |
-| D2-317 | rest shape | conjunto infinito deve ser disjunto de todo overload | fixed vence rest; ranking por tipos |
-| D2-318 | rest binding | `Arguments<T>` não escapante; mode por elemento | Array alocado obrigatório; tuple runtime |
-| D2-319 | rest expansion | `each collection` somente no argumento final | `values...`; spread universal; expansão implícita |
-| D2-320 | rest ownership | value/ref/take; sem `inout`; cleanup por elemento | ownership apagado; inout dinâmico |
-| D2-321 | C varargs | adapter unsafe tipado ou `c.vaList`; rest W não cruza ABI | mapear rest diretamente; promotions implícitas |
-| D2-322 | formas type-level adiadas | property path, GAT e heterogeneous packs continuam Pesquisa | incluir no W0; reflection por string |
-| D2-323 | resolução de enum case | `.case` exige expected enum; `Enum.case` resolve colisão | escolher por import, frequência ou ranking |
-| D2-324 | sequência e case-set | o head decide: `StagePath<[...]>` preserva ordem; `Enum<[...]>` normaliza conjunto | tratar toda static list como conjunto |
-| D2-325 | enum e flags | enum representa uma alternativa; simultaneidade usa Set ou tipo de flags separado | enum com semântica AND/OR contextual |
-| D2-326 | álgebra de case-set | somente na HIR; source nomeia a lista resultante | operadores públicos de union/intersection/difference na DB2 |
-| D2-327 | dois estados | enum em storage para runtime; argumento `const` de enum para typestate local | typestate universal; enum runtime universal |
-| D2-328 | argumento const enum | slot primário aceita `.case`; slot normal usa `label: .case` | marker type vazio; string; annotation |
-| D2-329 | transição typestate | extension especializada + `take fn`; novo tipo no retorno | mudar tipo do binding no lugar; pre/post annotations |
-| D2-330 | falha consuming | outcome enum devolve cada novo owner; `throws` não restaura owner | rollback implícito; owner escondido no error |
-| D2-331 | path estático | `StaticList<Enum>` refinada por `const fn`; primeiro edge inválido vira diagnostic | lista sem validação; DSL obrigatória |
-| D2-332 | estado de service | enum persistido + snapshot revisionado; closed turn por call | `ServiceRef<State>` muda depois da call |
-| D2-333 | erasure de typestate | envelope enum explícito para collections mistas | `T<?>`; existential implícito; tag escondida |
-| D2-334 | DSL de transição | sem keywords novas; `StateGraph<E>` declarativa em Pesquisa | `state`/`transition` na DB2; annotations |
-| D2-335 | validity e niche | HIR registra bit patterns válidos; niche só representa estados impossíveis | sentinel sem contrato; colapsar estados aninhados |
-| D2-336 | layout de enum | mapping determinístico; tag explícita é fallback; subset não promete tamanho público | niche obrigatório; wrapper por subset |
-| D2-337 | low-bit | somente storage interno com alignment real provado e canonicalização nas fronteiras | annotation de source; alignment nominal |
-| D2-338 | high-bit | profile experimental após negociação completa; ausente do portátil | inferir por CPU; requisito de linguagem |
-| D2-339 | metadata mutável | count, generation, allocator e deallocator ficam em owner/control block/side table | esconder tudo no pointer |
-| D2-340 | atomics tagged | operação cobre a palavra inteira; lock-free e ABA exigem provas separadas | atomicidade por associação; generation curta universal |
-| D2-341 | object header | nenhum header universal; cada ownership/runtime usa metadata necessária | header W em toda allocation |
-| D2-342 | NaN boxing | rejeitado para `f64` e valor universal; somente pesquisa para container interno | reduzir payload ou range do float |
-| D2-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
-| D2-344 | fingerprint de representação | inclui validity, target, ABI, allocator, hardening, sanitizer e compiler | fingerprint só por target triple |
-| D2-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
-| D2-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
-| D2-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
-| D2-348 | domains portáteis | `StandardDomain` fecha defaults; enum payload-free conforme a `ExecutionDomain` declara IDs customizados | toda finalidade vira keyword; string |
-| D2-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
-| D2-350 | defaults de execução | `async` herda; `spawn` e parallel group usam parallel default | herdar domain serial e degradar `spawn` |
-| D2-351 | domain de módulo | nenhum default por módulo; instance/entry/product possui binding | import cria queue/thread |
-| D2-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
-| D2-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
-| D2-354 | fairness | eventual sob tasks bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica |
-| D2-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
-| D2-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
-| D2-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
-| D2-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
-| D2-359 | erro UTF-8 | offset, maximal-subpart length e reason estáveis | byte inválido apenas; mensagem livre; decoder-dependent |
-| D2-360 | reparo UTF-8 | um U+FFFD por maximal subpart; nunca implícito | um por byte; descartar bytes; replacement configurável global |
-| D2-361 | UTF-8 incremental | até três bytes pendentes; `finish` decide incomplete; offset do stream | validar cada chunk isolado; buffer sem limite |
-| D2-362 | BOM UTF-8 | core preserva U+FEFF; adapter nomeado aplica policy | remover sempre; preservar sempre em todo protocolo |
-| D2-363 | índices de texto | origem emprestada, custo visível e uso terminal em edição | integer offset universal; índice persistível |
-| D2-364 | grapheme owned | `String<(.graphemes.count == 1)>`; sem `Character` | tipo Character universal; Grapheme owned implícito |
-| D2-365 | interpolação | um `String` de destino + `Display.write`; `display()` é conveniência | builder público; String intermediário por campo; concatenação implícita |
-| D2-366 | edição Unicode | bundle e digests no semantic fingerprint; índices não persistem | versão do sistema; boundary congelada no valor |
-| D2-367 | PackagePath | NFC e colisão normalizada rejeitada | nomes distintos por bytes; escolher o primeiro |
-| D2-368 | semântica de performance | profiles preservam valor, panic, effects, ownership e numeric policy | release muda overflow/float; optimizer como semântica |
-| D2-369 | facts de otimização | `ProofFacts` na HIR para interval, case-set, length, shape, alignment e alias | annotations de usuário; confiar só no backend |
-| D2-370 | predicate opaco | invariant válido; optimizer usa somente fatos extraídos e verificados | SMT obrigatório; ignorar todo predicate |
-| D2-371 | largura interna | operation, accumulator, SIMD lane e storage são escolhas separadas | menor tipo único para tudo; carrier sempre obrigatório |
-| D2-372 | resultado refinado | expressão provada satisfaz expected refinement sem check; caso geral é fallible | `try` mesmo com prova; narrowing runtime implícito |
-| D2-373 | storage estreito | somente não escapante e após cost model; boundaries usam carrier | layout menor público por refinement; nunca comprimir |
-| D2-374 | custo de texto | complexidade por bytes e unidade explícita; caches/ASCII/SIMD invisíveis | `length` O(1) universal; cache obrigatório no layout |
-| D2-375 | integer `@` | checked semantics; widening fixo; `matmul<R>` muda redução/resultado | wrap; accumulator sempre igual ao elemento |
-| D2-376 | float `@` | strict default; fast e reproducible por mode explícito | fast global em release; operator dependente do target |
-| D2-377 | device e fusion | transfer explícita; fusion pode apagar intermediário, não mover device | auto-transfer; toda operação materializa |
-| D2-378 | PGO | input por digest só orienta optimization | muda const/interface; profile implícito da máquina |
-| D2-379 | explicação de performance | facts, decisions, estimates, measurements e missed reasons separados | assembly como única explicação; número exato universal |
-| D2-380 | proof budget | quotas determinísticas; interval/case-set/shape/alias baseline; SMT em Pesquisa | solver sem limite; timeout como resultado semântico |
-| D2-381 | gate de otimização | benchmark reproduzível + differential oracle + fallback | microbenchmark único; otimização sem profile portátil |
-| D2-382 | largura de `Int` | `Int`/`UInt` têm 64 bits; `isize`/`usize` seguem address width | Int segue target; literal default `i32`; BigInt default |
-| D2-383 | representação integer | widths fixas; signed two's complement; Bool distinto | signed dependente do target; Bool como integer |
-| D2-384 | token numérico | decimal/binário/octal/hex; exponent decimal; suffix após `_` | suffix colado; trailing dot; hex float |
-| D2-385 | valor do literal | magnitude/rational exato até expected type; uma materialização | truncar no lexer; converter decimal por f64 intermediário |
-| D2-386 | defaults de literal | integer `Int`; decimal `f64`; expected type prevalece quando válido | i32 default; BigInt/Decimal default |
-| D2-387 | tipagem binária | identidade ou uma conversão segura para um tipo operando; sem terceiro tipo | promoções C; ranking de common type |
-| D2-388 | conversão implícita | total, exata, única e sem authority oculta; refinement pode provar | cast implícito narrowing; exigir todo cast |
-| D2-389 | conversão explícita | `exactly`, `rounding`, `saturating`, `truncatingBits` e bits nomeados | um cast com policy dependente do par |
-| D2-390 | overflow integer | operators checked em todo profile; const vira diagnostic | wrap em release; undefined behavior |
-| D2-391 | divisão integer | zero e min/-1 causam panic; quotient toward zero; Euclidean nomeado | floor universal; resultado Option implícito |
-| D2-392 | shift | count `UInt`; bound e perda à esquerda causam panic; bit policies nomeadas | mask do count; regras C; wrap silencioso |
-| D2-393 | float baseline | f32/f64 IEEE strict, nearest-even, subnormal e sem FMA implícito | fast-math em release; flush-to-zero default |
-| D2-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
-| D2-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |
-| D2-396 | numeric T2 | BigInt/UInt, FixedDecimal, Rational e Complex com custo explícito | número universal; Decimal como Money |
-| D2-397 | ML storage | f16/bf16 sem scalar operators e com tensor accumulator f32; Quantized separa storage/expressed | aritmética f16 implícita; float8 core |
-| D2-398 | range | intervalo; quatro closures; reversed vazio; stride para direção/step | range como collection; range descendente implícito |
-| D2-399 | superfície de pinning | `try pin take value`; `pin` é fallible e separado de `take` | `Pinned.make`; `take<.pin>`; modifier no binding |
-| D2-400 | saída de pinning | sem `unpin` na DB2; drop in-place; `intoValue` com proof token em Pesquisa | unpin seguro irrestrito; unpin keyword unsafe |
-| D2-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
-| D2-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
-| D2-403 | construção de String | reserva e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
-| D2-404 | view genérica | `view T` é access mode DB2; sem família pública `XView` | `Slice<T>`/`Span<T>`; `Readonly<T>` profundo; usar somente `ref` |
-| D2-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
-| D2-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
-| D2-407 | alocação em region | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
-| D2-408 | escape de arena | inline independente pode sair; storage dependente exige consuming `rehome` | copiar sempre no return; escape unchecked; adoção presumida |
-| D2-409 | arena e tasks | Arena move-only e não shareable; child paralelo recebe arena filha exclusiva | arena monotônica concorrente default; proibir todo child |
-| D2-410 | budget de arena | cobra span alinhado, padding, growth retido e drop metadata; host mede resident separado | cobrar somente live payload; usar resident bytes como semântica |
-| D2-411 | origem | owner preserva allocator instance e deallocator; zero-size não aloca; family não mistura | `free` universal; origem em low bits |
-| D2-412 | allocator profiles | system baseline; mimalloc e secure por recipe/benchmark; fixed sem OS allocation | override global obrigatório; allocator escolhido por import |
-| D2-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
-| D2-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
-| D2-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
-| D2-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
-| D2-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
-| D2-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
-| D2-419 | materialização | `materialize()` normal e `tryMaterialize(using:)` fallible produzem `T` | constructor por família; adoção borrowed; conversão implícita |
-| D2-420 | escopo de view | core families e Tensor; custom type expõe core view ou borrow nominal | protocol inventa provenance; view automática de todo tipo |
-| D2-421 | ABI de view | descriptor W por família; C usa pointer + count somente quando contígua | descriptor universal; layout W cruza FFI |
-| D2-422 | lifetime de view | provenance inferida; `await` exige owner estável; child estruturado termina antes do owner | lifetime annotation; view mantém owner vivo; escape detached |
-| D2-423 | read-only e imutabilidade | `ref` é acesso read-only; `view` é projeção; imutabilidade profunda é fato inferido sem syntax | `Readonly<T>` universal; modifier `immutable`; `let` promete grafo congelado |
-| D2-424 | mobilidade pública | facts intrínsecos `transferable`/`shareable`; sem marker protocols | `Send`/`Sync`; `Sendable`; check runtime |
-| D2-425 | transferência | owner/acesso exclusivo, fields, allocator, cleanup e affinity; origem perde acesso | exigir synchronization para move único; copiar sempre |
-| D2-426 | sharing | storage vivo e reads sem race; interior mutation precisa de mecanismo verificado | exigir imutabilidade profunda; aceitar todo `ref` |
-| D2-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
-| D2-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
-| D2-429 | FFI mobility | local por default; fato trusted exige adapter/digest e boundary unsafe ainda em Pesquisa | raw pointer deriva facts; assertion segura do usuário |
-| D2-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
-| D2-431 | COW de String | fora da baseline; optimizer exige efeitos de allocation e cleanup não observáveis | refcount em toda String; COW como contrato; proibir otimização |
-| D2-432 | reserva de String | mínimo total por bytes; exact capacity não é pública; `tryReserve` tem strong guarantee | bytes adicionais; growth fixo na linguagem; capacity property |
-| D2-433 | mutation de String | append/replace recebem view válida; source do mesmo owner é erro; índices são invalidados | mutable byte view; temporary de alias implícito; byte offsets unchecked |
-| D2-434 | esvaziar String | `clear` mantém storage; `reset` libera; `takeAll` transfere conteúdo | Boolean `keepingCapacity`; um método ambíguo; builder separado |
-| D2-435 | String e Bytes | carrier T0 compatível; adoption e `intoBytes` consomem sem allocation geral | layout público igual; cópia obrigatória; cast implícito |
-| D2-436 | caches de texto | reads não alocam nem mutam; summaries eager permitidos; índice alocante usa tipo próprio | cache lazy invisível; owner muta por read; grapheme ordinal O(1) |
-| D2-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
-| D2-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
-| D2-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
-| D2-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
-| D2-441 | happens-before | task start/join, channel em D2-467, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
-| D2-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
-| D2-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
-| D2-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential` | argumento runtime; suffix por método; relaxed default |
-| D2-445 | compare-exchange | result enum; success/failure estáticas e válidas; weak é explícita | Boolean; expected inout; combinação inválida em runtime |
-| D2-446 | aritmética atômica | policy checked normal; wrapping/saturating/fetch nomeados | wrap do hardware implícito; closure update com retries ocultos |
-| D2-447 | borrow atômico | `ref` obtém Atomic; acesso ao payload somente com exclusividade ou consumo | `ref T` comum; misturar views atômicas e não atômicas |
-| D2-448 | lock-free | não é implícito; const `isLockFree` e contrato `lockFree: true` | garantir toda largura; runtime query sem target fixo |
-| D2-449 | ABI atômica | layout W opaco; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal |
-| D2-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
-| D2-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
-| D2-452 | RwLock e RCU | tipos T1 especializados em Pesquisa; service/channel/snapshot lideram state maior | policy automática por property; RCU default universal |
-| D2-453 | contenção | explanation record mostra lowering, lock-free e waits; cache isolation em Pesquisa | prometer performance por `atomic`; padding universal |
-| D2-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
-| D2-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
-| D2-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
-| D2-457 | item borrowed de stream | `Stream<view T, E>` registra o stream como origem e impede outro `next` conflitante | família `TView`; view transferable; proibir todo item borrowed |
-| D2-458 | topologia de channel | MPSC bounded com endpoints separados | bidirecional copiável; MPMC default; unbounded |
-| D2-459 | endpoint de channel | `Channel<T><.send>` shareable move-first e `<.receive>` único move-only | `Sender<T>`/`Receiver<T>` nominais; direção dinâmica |
-| D2-460 | payload de channel | `T<(.transferable)>` owned; borrow e `view` são rejeitados | cópia implícita; raw pointer; lifetime runtime |
-| D2-461 | falha de envio | `ChannelSendError<T>` devolve owner; `send` usa subset `.closed` | panic; Boolean; perder item em erro |
-| D2-462 | capacity | obrigatória; zero é rendezvous; positiva limita itens + permits; sem unbounded DB2 | default zero; hint elástico; fila ilimitada |
-| D2-463 | permit | reserva linear sem item; drop libera; close gracioso honra permit aceito | construir item antes de esperar sempre; reservation invisível |
-| D2-464 | cancellation de channel | commit linear; antes dele não envia, depois dele receiver possui; waiter sai da fila | resultado ambíguo; rollback do item recebido |
-| D2-465 | ordering de channel | FIFO de admission, ordem por sender e sem total order concorrente; `trySend` não ultrapassa | ordem global determinística; fairness não especificada |
-| D2-466 | close de channel | último sender ou receiver.close faz drain; drop do receiver aborta; sem close global no sender | close por qualquer producer; sentinel; panic em close duplicado |
-| D2-467 | happens-before de channel | send→receive, slot liberado→send admitido e close→fim observado | somente ownership; fence manual pelo usuário |
-| D2-468 | buffering de stream | nenhum prefetch default; adapter bounded com scope estruturado | watermark na assinatura; buffer ilimitado; producer detached |
-| D2-469 | `yield` | adiado até IR provar borrow, cleanup, erro, cancellation e capacity | generator define semântica; callback oculto |
-| D2-470 | outras topologias | `WorkQueue`, `Broadcast`, `Watch` e weighted channel permanecem tipos pesquisados | um `Channel<mode: ...>` muda loss e fan-out |
-| D2-471 | implementation de channel | target escolhe ring, segmentos, mutex ou atomics; lock-free não é contrato | algoritmo único no ABI; tagged pointer obrigatório |
-| D2-472 | accounting de channel | lens separa storage, itens, payload desconhecido, waiters, permits e watermark medido | capacity promete bytes transitivos; número único exato |
-| D2-473 | byte I/O | `ByteSource<Failure>` e `ByteSink<Failure>` async-first; cursor lógico no source | Reader/Writer nominal por backend; prefixo `Async`; interface sync única |
-| D2-474 | destino de read | append em `inout Bytes`; initialized count e spare privados; sem `ReadBuffer` público | `MaybeUninit` safe; `read(into: inout view Bytes)` genérico; allocation escondida inevitável |
-| D2-475 | resultado de read | `.data(positive)` ou `.end`; EOF é estável e progress vence EOF simultâneo | zero significa EOF; tuple count/error; EOF como error |
-| D2-476 | progress e error | progress retorna agora e error simultâneo fica latched para a próxima call | lançar depois de mutar sem informar; perder progress; outcome com estados impossíveis |
-| D2-477 | resultado de write | `.complete` ou `.partial(positive)`; `writeAll` informa prefixo já committed | Boolean; assumir write integral; rollback fictício |
-| D2-478 | cancellation de I/O | cancellation disputa com completion e só libera borrow depois do drain | liberar buffer no pedido; fingir zero progress; matar worker thread |
-| D2-479 | blocking I/O | interfaces separadas e adapter explícito em executor bounded | blocking invisível no worker cooperativo; pool ilimitado; uma interface condicional |
-| D2-480 | rights de arquivo | `File<[.read, ...]>` usa static list fechada e mantém checks dinâmicos do host | flags somente runtime; capability implica permissão de path; annotations |
-| D2-481 | offsets de arquivo | I/O seekable é posicional por default; `.end` observa o offset; shared File exige offset explícito | cursor compartilhado default; EOF latched no handle posicional; metadata.size + write |
-| D2-482 | cursor sequencial | adapter opaque `some ByteSource<IoError>` possui File + offset; sem classe utilitária pública | `FileReader` público; cursor dentro de todo File; offset global |
-| D2-483 | sockets | TCP pode virar halves únicos; UDP preserva datagrams em protocol separado | duas reads concorrentes; UDP como byte stream; message boundary implícita |
-| D2-484 | error de I/O | kind e operation portáteis; cause nativa opaca; task cancellation não é IoError | errno universal; wouldBlock em async; retriable Boolean |
-| D2-485 | finish e durability | protocols base não exigem close/flush; tipos concretos nomeiam finish, sync e half-close | async destructor; drop durável; flush universal |
-| D2-486 | adapters de stream | chunks borrowed/owned, lines e read-to-end exigem limites explícitos | buffer ilimitado; item borrowed transferable; framing invisível |
-| D2-487 | backend de I/O | target escolhe readiness, completion, blocking bounded ou immediate sem mudar source | backend na syntax; um algoritmo universal; thread por operação |
-| D2-488 | lifetime de buffer I/O | pinning é interno; handles, callbacks e borrows vivem até completion drain | `pin` obrigatório no caller; raw pointer escapa; cancellation encerra lifetime cedo |
-| D2-489 | vectored e zero-copy | especializados e explícitos em Pesquisa; fallback mantém bytes e progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
-| D2-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
-| D2-491 | trabalho runtime-owned | `SupervisorRef` é owner explícito; `Task` permanece lexical | drop destaca; `spawn<owner: ...>`; task global |
-| D2-492 | operação supervisionada | descriptor fixa função e versão; key, input e bindings explícitos | closure arbitrária; capture de state; body trocado em work ativo |
-| D2-493 | admission de work | bounded; commit transfere input; rejeição pré-commit devolve input; unknown outcome reconcilia por key | fila ilimitada; input perdido; start fire-and-forget |
-| D2-494 | identity de work | supervisor + key completa + incarnation; attempt separado; hash nunca é identity | PID/pointer; hash persistente; nome solto |
-| D2-495 | observação de work | state, progress e cancellation separados; snapshot revisionado; retention bounded | event list ilimitada; ref para frame; polling sem revision |
-| D2-496 | rights de work | SupervisorRef → WorkKeyRef → WorkRef; key e rights atenuam authority | Boolean runtime; todo observer cancela; ID concede authority |
-| D2-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
-| D2-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
-| D2-499 | workflow durável | steps e schemas explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
-| D2-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
-| D2-501 | product runtime graph | `package.w` fixa símbolos, envelope, injection e operation | manifest executável; reflection encontra implementação; limite só no host |
-| D2-502 | deployment | data-only separado e ligado ao artifact digest; só reduz envelope | rebuild por ambiente; config invisível; deployment troca semântica estática |
-| D2-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
-| D2-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
-| D2-505 | identity keyed de service | `ServiceIdentity<K>` read-only e injetada; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
-| D2-506 | dedup de work | outcome e tombstone têm budgets separados; key só é reutilizada em nova incarnation | outcome eterno; expiração permite duplicação silenciosa; key global única |
-| D2-507 | completion versus cancellation | completion committed entrega o valor; cancellation fica pendente; unknown outcome permanece distinto | descartar valor committed; injetar cancel entre statements; rollback presumido |
+| W-001 | função | `fn name(...): Return` | `func`; retorno `->`; sem keyword |
+| W-002 | bindings | `const`/`let`/`var` | `let mut`; uma única keyword |
+| W-003 | modifiers | ordem fixa antes de `fn` | ordem livre; effects após retorno |
+| W-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
+| W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
+| W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
+| W-007 | visibility | módulo default, `package`, `export`; sem `private` | public universal; `public/private`; block export |
+| W-008 | import seletivo | `{X} from path` | `path.{X}`; imports livres |
+| W-009 | import namespace | `import path as alias` | forma DB1 `name as alias from path` |
+| W-010 | módulos | manifest multi-file, DAG | declaração `module`; cycles de interface |
+| W-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
+| W-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
+| W-013 | alias | `alias X = T` | `typealias`; context-dependent `type` |
+| W-014 | refinement | `T<(.member predicate)>`; range como sugar | `value.member`; `T where (...)`; `T(where:)` |
+| W-015 | value generics | `const` parameters e labels | positional only; contrato universal aberto |
+| W-016 | existential | `any P` | `P` sozinho; `dyn P`; `Any` universal |
+| W-017 | opaque type | `some P` em local, retorno e parâmetro generic anônimo | existential; generic nomeado |
+| W-018 | reflection | `reflect.Reflectable` opt-in e alcançável | metadata universal; annotations |
+| W-019 | Option | `T?` com some/none | null; sentinel; result-like |
+| W-020 | conversão | total, única e sem perda | tudo explícito; promotions amplas |
+| W-021 | owner | único/move-first | ARC universal; GC |
+| W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
+| W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
+| W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
+| W-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; region-only |
+| W-026 | region | `region name(using:, limit:)` lidera e baixa para `Arena`; W0 implementa API primeiro | lifetime annotations; heap por módulo; API sem bloco |
+| W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
+| W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
+| W-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
+| W-030 | tagged values | otimização invisível com fallback | tagged address obrigatório; annotation |
+| W-031 | property behavior | `var Behavior name` | prefix before var; `by`; wrapper type |
+| W-032 | behavior composition | composite nomeado | lista ordenada; nesting arbitrário |
+| W-033 | erro | `throws E` + `try` | exceptions abertas; Result em toda assinatura |
+| W-034 | error widening | case único compatível | mapping sempre explícito; `From` livre |
+| W-035 | panic | encerra a fault boundary física mais próxima | unwind recuperável; tratar toda isolation como fault boundary |
+| W-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
+| W-037 | concorrência | `async let` | Future/Promise; task API somente |
+| W-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
+| W-039 | execution domain | `async/spawn<.domain>` | `<domain: .name>`; `on .name` (**Rejeitado por enquanto**); descriptor-only |
+| W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
+| W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
+| W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco e `CancellationReason` fechado | statement `cancel` (**Rejeitado por enquanto**); async thread cancellation |
+| W-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
+| W-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes W-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
+| W-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em W-424–429 | `Send`/`Sync` públicos; runtime checks |
+| W-046 | service | keyword + protocol + closed turn | object+metadata; actor reentrant |
+| W-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
+| W-048 | mailbox | bounded por itens, bytes e trabalho em voo; detalhes em W-458–472 não mudam a call boundary | drop; unbounded; tratar como channel local |
+| W-049 | entry curto | `entry { ... }` usa o default slot único | main mágico; manifest-only |
+| W-050 | entry composto | descriptor de slots tipados; anonymous base e header handler | repetição total; `entry defaults`; conformance |
+| W-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
+| W-052 | custom unit | `dimension`/`unit` declarations | wrapper types; runtime registry |
+| W-053 | affine/log units | metaconstrutores distintos | scale universal; runtime-only |
+| W-054 | range | quatro closures; unilateral em argumento/pattern; intervalo | dois ranges; producer universal |
+| W-055 | membership | `value in (a, b)` | `.isOneOf`; equality chain |
+| W-056 | exponent | `**`; `^` somente em unit grammar | `^` universal; `pow` only |
+| W-057 | integer safety | checked, panic; APIs alternatives | wrapping default; Result operators |
+| W-058 | float | IEEE strict default | fast default; build-mode semantics |
+| W-059 | String | owned UTF-8 contíguo | tree/rope default; COW contract |
+| W-060 | String indexing | access mode `view`, sem `string[i]` | scalar index; grapheme index default |
+| W-061 | raw string | `#"..."#` | `r"..."`; backtick |
+| W-062 | scalar/byte | `'x'` e `b'x'` | constructor only; char=grapheme |
+| W-063 | arrays/maps | `[]` e `[key: value]` | braces para map/set |
+| W-064 | matrix literal | nested arrays | semicolon/whitespace; constructor only |
+| W-065 | matrix multiply | `@` | `*` + `.*`; `matmul` only |
+| W-066 | broadcast | diferente shape explícito | Array API implicit; dotted operators |
+| W-067 | device | transfer explícita | automatic placement |
+| W-068 | SDK | T0/T1/T2 | uma stdlib plana; packages somente |
+| W-069 | prelude | pequena, edition-frozen | toda std implícita; nada implícito |
+| W-070 | print | T1 contextual ao host | T0 intrinsic; `io.print` obrigatório |
+| W-071 | C | `foreign c` + unsafe wrapper | C superset; generated bridge only |
+| W-072 | inline language | `fn<C>` com adapter externo | `fn<lang: .c>`; library import; multi-language v0 |
+| W-073 | parser | recursive-descent/Pratt + EBNF | generated parser; Tree-sitter compiler |
+| W-074 | editor parser | Tree-sitter projection | compiler CST compartilhada |
+| W-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
+| W-076 | bootstrap | C11 seed, self-host cedo | TypeScript/Bun; C++ compiler inteiro |
+| W-077 | build tool | CMake/Ninja no seed | xmake; custom builder antes do self-host |
+| W-078 | packages | manifest data-only + lock | executable manifest; lock opcional |
+| W-079 | resolver | determinístico, uma versão por identity | múltiplas versões default |
+| W-080 | artifact | source-first, static preferred | binary-only; dynamic-only |
+| W-081 | canonical bytes | deterministic CBOR | WLO imediato; JSON assinada |
+| W-082 | digest | tagged SHA-256 inicial | hash fixo eterno; hash recebido sem metadata |
+| W-083 | registry | metadata authority; mirrors por digest | registry hospeda tudo e define trust |
+| W-084 | evidence | eixos separados | selo único; estrelas |
+| W-085 | resource lens | facts/estimates/measurements | número exato universal; nada no import |
+| W-086 | formatter | 120 colunas e uma forma | user-configurable style amplo |
+| W-087 | tests | runner único com modos | ferramentas sem grafo comum |
+| W-088 | AI | schemas/diagnostics comuns | dialeto AI; token count como objetivo único |
+| W-089 | SQLite | durable adapter T2 | storage universal |
+| W-090 | sandbox | capability + process/OS/Wasm | seccomp por módulo |
+| W-091 | wRPC/wQL | packages após core | keywords W; protocolo universal |
+| W-092 | WLO/tree strings | pesquisa com fallback | formato/representação default |
+| W-093 | GPU/HDL | lowerings posteriores | requisito da v0 |
+| W-094 | custom operators | rejeitado | precedência e operators do usuário |
+| W-095 | annotations/macros | rejeitado na v0 | `@annotations`; macro AST universal |
+| W-096 | portal | gerar após design freeze; protótipo congelado | páginas manuais; escolher Astro agora |
+| W-097 | aplicação `<...>` | contrato fechado por head e payload tipado | slots universais; mapa aberto |
+| W-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
+| W-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
+| W-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
+| W-101 | recurso async | `defer async` + `take async fn`; obrigação linear em pesquisa | async destructor; `using await`; lint |
+| W-102 | receiver | `fn` borrow, `mut fn` exclusivo, `take fn` owned, `static fn` sem receiver | `self`; inferir static; função livre |
+| W-103 | camadas de memória | semântica separada de lowering, representação e host | tag ou allocator como semântica |
+| W-104 | borrow suspenso | permitido somente com owner, frame e alias provados | proibir sempre; lifetime annotation |
+| W-105 | pinning | interno sem annotation; `pin` explícito produz `Pinned<T>` público | annotation universal; raw pointer |
+| W-106 | ciclos shared | `weak`, close, região ou lifecycle owner; sem collector default | cycle collector universal |
+| W-107 | pointer provenance | address separado; round-trip não restaura authority | pointer como integer |
+| W-108 | origem de allocation | owner/control block/side table preserva deallocator | bits do pointer obrigatórios |
+| W-109 | compactação | portátil → niche → low-bit; high-bit em pesquisa | tagged address obrigatório |
+| W-110 | hardening | sanitizer, PAC, MTE e capability têm precedência | compactação vence o profile |
+| W-111 | subset self-host | profile `bootstrap.w0` fechado | compiler exige a linguagem inteira |
+| W-112 | seed output | W0 para C11, backend normal W/MLIR | MLIR completo no seed; C como backend público |
+| W-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após o design completo |
+| W-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
+| W-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
+| W-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda o design vigente |
+| W-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
+| W-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
+| W-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |
+| W-120 | outcome de task | success/error/canceled; panic encerra fault boundary | cancel em `E`; panic como Result |
+| W-121 | seleção de error | ordem lexical declarada | primeira completion sempre vence |
+| W-122 | cancelamento | cooperativo, idempotente e sem rollback implícito | matar thread; transação implícita |
+| W-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
+| W-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
+| W-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em W-454–472 | generator unbounded; channel bidirecional universal |
+| W-126 | memory model | safe W data-race-free; edges fechados e DRF-SC salvo orders explícitas | race definida em safe code; somente “thread-safe” nominal |
+| W-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
+| W-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
+| W-129 | lifecycle de instance | identity + generation; restart invalida state anterior | reuse de pointers/frames |
+| W-130 | admission | quotas de itens, bytes e in-flight | unbounded; limite só por item |
+| W-131 | falha de call | `E` e `ServiceFailure` são effects separados | transporte dentro de todo `E` |
+| W-132 | call cycle | ancestry causal rejeita ciclo closed-turn conhecido | esperar somente deadline |
+| W-133 | output durável | commit confirmado ou outbox; output gate em pesquisa | gate inferido na v0 |
+| W-134 | scheduler de teste | clock/I/O/schedule injetáveis e replay | teste somente por timing real |
+| W-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
+| W-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
+| W-137 | RPC encadeado | `CallPipeline` explícito em pesquisa | toda `ServiceRef` vira Promise lazy |
+| W-138 | payload angular | `()`, `{}` e `[]` são expression, record e list | três operadores universais |
+| W-139 | extensão de tipo | refinement, extension, struct, enum e C union separados | `T<{...}>` universal |
+| W-140 | foreign artifact | unit agrupada, archive/object e façade C | archive por função; C source obrigatório |
+| W-141 | foreign parser | body opaco entregue ao adapter da linguagem | parser W interpreta subset externo |
+| W-142 | foreign delimiter | body braced com scanner do adapter | raw fence hash; parser W conhece strings externas |
+| W-143 | language tag | `LanguageAdapterId` fixada no lock | enum eterno no compiler; string ou command livre |
+| W-144 | referência contextual | `.member` usa subject ou enum esperado; HIR qualificada | somente `value.member`; `.case` apenas |
+| W-145 | generic refinado | `Array<T><(predicate)>` separa aplicação e refinement | `Array<[T, predicate]>`; slot misto |
+| W-146 | unit e bottom | `()` e `Never` | `Void`; `!`; retorno omitido dependente do contexto |
+| W-147 | retorno fluente | `: self` explícito como reborrow | retorno `self` implícito; `Self` owned; builder externo |
+| W-148 | associated member | `const`, `static fn` e `type` requerido | companion object; metatype runtime obrigatório |
+| W-149 | associated type witness | `type Name` exige `alias Name = T` | `associatedtype`; `type Name = T` contextual |
+| W-150 | mutable type storage | ausente; owner de `entry` ou service explícito | `static var`; módulo singleton |
+| W-151 | object singleton | `object` permite várias instances; singleton é composição | object declaration singleton; module singleton |
+| W-152 | construção | `Type(...)` baixa para `construct`; sem promessa de placement | `new Type`; literal `Type {...}` |
+| W-153 | initializer sintetizado | struct usa menor nível; object fica no módulo | visibilidade do tipo sempre; sempre privado |
+| W-154 | initializer customizado | vários `init` com formas disjuntas; `throws E`; factory nomeada | initializer único; `init?`; `async init` |
+| W-155 | definite initialization | duas fases; sem uso de `self` parcial; cleanup por field | zero universal; runtime check; partial safe value |
+| W-156 | computed property | `name: T { get }`; `var` exige write accessor | getter implícito; method obrigatório |
+| W-157 | efeitos de property | property-safe, síncrona, local e sem `throws` | `async`/`throws` property; custo irrestrito |
+| W-158 | mutation de property | `set(value)` e `modify` com `return inout` escopado | get-modify-set implícito; observers |
+| W-159 | property requirement | `{ get [set] [modify] }`; stored field pode ser witness | protocol exige storage; reflection estrutural |
+| W-160 | struct transparente | sem `init`: stored fields herdam visibilidade do tipo | `export` por field; todos os members herdam |
+| W-161 | struct encapsulado | `init` explícito restaura default de módulo nos fields | keyword `opaque`; field sempre público |
+| W-162 | object | storage e initializer sintetizado ficam no módulo | herdar visibilidade do object; constructor público |
+| W-163 | enum e protocol | cases e requirements herdam; witness não repete modifier | `export` repetido; todos os members públicos |
+| W-164 | service | storage nunca cruza módulo; API usa protocol async | field público; computed property remota |
+| W-165 | interface exportada | signature não expõe tipo menos visível; HIR normaliza | lint apenas; defaults preservados na HIR |
+| W-166 | pattern de struct | `Type(field, field: pattern, ...)`; nominal e ordenado | `{field}`; tuple posicional |
+| W-167 | evolução de pattern | `...` obrigatório fora do package | exaustivo externo; modifier no tipo |
+| W-168 | ownership de pattern | modo uniforme owned, `ref` ou `inout` | qualifier por field; partial move |
+| W-169 | limite de destructuring | struct visível; object e service rejeitados | destructuring estrutural universal |
+| W-170 | evolução de struct | field com default é minor se a resolução não muda; field obrigatório é major | todo field novo é major |
+| W-171 | evolução de enum | enum fechado; case novo é major | `nonexhaustive`; default case obrigatório |
+| W-172 | source contra schema | source, ABI e wire evoluem por contratos separados | derivar schema do struct |
+| W-173 | verificação SemVer | `w interface diff` classifica e sinaliza revisão | revisão manual; só major/minor binário |
+| W-174 | consuming receiver | `take fn`; call usa `(take value).method()` | consumo implícito; `consuming fn`; free function |
+| W-175 | saída consuming | success, error e cancellation consomem; owner pode ser retornado | restaurar no error; abortar sem drop |
+| W-176 | authority de `deinit` | exclusivo e não consuming; mutation sem move | borrow read-only; consumir fields |
+| W-177 | supressão de drop | ausente em safe W; wrapper mantém estado válido | `discard self`; `forget` geral |
+| W-178 | limite de receiver | protocol exige mode exato; service e handles aliases não usam `take fn` | adaptação com copy; service consuming |
+| W-179 | `deinit` e copy | tipo com cleanup customizado não atende a `Copy` | copiar e contar drops; lint |
+| W-180 | identidade de overload | owner, nome e forma de call | tipos, return type ou constraints |
+| W-181 | resolução de overload | forma antes do type-check; sem backtracking | ranking de melhor candidato |
+| W-182 | defaults e overload | famílias de formas devem ser disjuntas | preferência por menos defaults |
+| W-183 | ownership do overload set | um owner; imports não fundem sets | overload set aberto entre módulos |
+| W-184 | overload como valor | closure explícita seleciona a forma | expected type; seletor de forma |
+| W-185 | vários initializers | labels e formas disjuntas | ranking por tipos; initializer único |
+| W-186 | delegação de initializer | `self = Type(...)` antes de qualquer field | `self.init`; delegação parcial |
+| W-187 | falha de initializer | cleanup parcial; `deinit` após self completo | zero universal; leak parcial |
+| W-188 | efeitos de initializer | síncrono; `throws E`; sem `init?` | `async init`; initializer failable |
+| W-189 | evolução de overload | set existente: minor; primeiro overload: major; forma alterada: major | classificação somente por nome |
+| W-190 | ordem de argumentos | ordem da declaração; labels não reordenam | named arguments livres |
+| W-191 | parâmetros rest | `T...` homogêneo e final; `each` expande collection | somente collection; type pack; C varargs |
+| W-192 | function type | source usa `fn(A): B`; labels e defaults ficam na declaração | labels no tipo; somente inference |
+| W-193 | callable concreto | `some fn(A): B` preserva tipo, captures e specialization | generic nomeado; `fn` sempre apagado |
+| W-194 | callable apagado | `any fn(A): B` guarda owner, invoke e drop | `CallbackType`; box manual |
+| W-195 | callable mode | `fn`, `mut fn` e `take fn` descrevem uso do ambiente | `Fn`/`FnMut`/`FnOnce`; inferência sem annotation |
+| W-196 | call por valor | posicional, aridade completa e sem defaults | labels cosméticos; labels significativos |
+| W-197 | capture e escape | HIR registra place, modo, lifetime, owner e drop | capture sempre weak; heap por default |
+| W-198 | method reference | closure explícita mostra receiver e ownership | bound method implícito |
+| W-199 | callback C | `unsafe fn<abi: .c>` fino + context/owner explícitos | converter closure W; callback universal |
+| W-200 | static list | `StaticList<T>` compile-time, ordenada e apagada | named index runtime; set implícito |
+| W-201 | operador `@` | família rank-1/rank-2 sem broadcast; APIs nomeadas para rank maior | contração geral implícita; `*` linalg |
+| W-202 | exemplo normativo | cada contrato aponta para exemplo válido, erro ou cenário canônico | afirmação sem evidência local |
+| W-203 | opaque parameter | `some P` é generic anônimo e especializado | exigir generic nomeado; existential |
+| W-204 | switch | expressão exaustiva, sem fallthrough ou `break` | switch statement; fallthrough explícito |
+| W-205 | ordem de case | ordem lexical, first-match e diagnostic de inalcançável | exigir patterns disjuntos; ranking |
+| W-206 | múltiplos scrutinees | tuple subject e tuple pattern | `switch a, b`; matching relacional implícito |
+| W-207 | custom pattern | pesquisa; conversão nomeada ou guard no design vigente | handler arbitrário; protocol de pattern na v0 |
+| W-208 | callable transfer | `fn` é transferível/compartilhável; closure deriva predicates do ambiente | `Send`/`Sync` nominais; confiar no pointer |
+| W-209 | compatibilidade callable | signature invariável; somente callable-mode possui lattice | variance; effect widening; ranking |
+| W-210 | semântica de String | owner único, bytes UTF-8 contíguos e mutation exclusiva; static/SSO ficam internos | tree/rope default; UTF-16; COW baseline |
+| W-211 | unidades e custos | sem `length`; bytes O(1), scalars/graphemes podem ser O(n) | grapheme default; cache obrigatório |
+| W-212 | elementos de texto | `UnicodeScalar` Copy e grapheme como `view String` refinada; owned usa String refinado | Character/Grapheme nominal; scalar chamado Char |
+| W-213 | índices de texto | origem borrowed, custo visível e uso terminal em edição | ordinal em subscript; índice universal |
+| W-214 | slices de texto | byte slice é `view Bytes`; byte range para `view String` é fallible | arredondar boundary; slice sempre String |
+| W-215 | Bytes | tipo binário owned distinto de `String` e `Array<u8>` | alias de Array; String aceita UTF-8 inválido |
+| W-216 | conversão UTF-8 | strict, repair, borrow, copy e adoption explícitos; detalhes W-358–362 | replacement implícito; locale codec default |
+| W-217 | construção de String | interpolation e Display escrevem num `String`; `+` consome left; reserve/append lideram loops | builder público; concat adjacente; String intermediário por campo |
+| W-218 | raw/multiline | `#"..."#`, `${}`, multiline com dedent determinístico | hashes arbitrários; `r` prefix; três delimitadores equivalentes |
+| W-219 | byte string | `b"..."` produz Bytes ASCII/escapes, sem interpolation | Unicode direto; Array literal somente |
+| W-220 | igualdade Unicode | sequência exata; normalização e collation nomeadas | equivalência canônica em `==`; locale global |
+| W-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
+| W-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
+| W-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
+| W-224 | storage textual | refinement não fixa layout; reserva mínima é operação; capacity/SSO exatos não são properties | capacity pública; SSO observável |
+| W-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
+| W-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
+| W-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
+| W-228 | array dinâmico | `Array<T>` owned, contíguo, count/capacity O(1) e append amortizado O(1) | linked chunks default; `[T]` |
+| W-229 | literais de array | `[a, b]`, `[]` contextual e `[value; count]` fixo com Copy | `[:]`; repeat clona move-only |
+| W-230 | views de array | `view Array<T>` read-only Copy e `inout view Array<T>` exclusiva move-only | tipos Slice públicos; pointer público; resize pela view |
+| W-231 | iteração | single-pass; borrow default, `ref`/`inout`/`copy` explícitos e `take` consome | copiar sempre; mutation estrutural durante loop |
+| W-232 | pipelines | Array eager; `.lazy` e Iterator lazy; `collect()` materializa | tudo lazy; tudo eager |
+| W-233 | `Map` | hashing keyed e ordem de inserção estável; full key confirma colisão | ordem de bucket; guardar somente hash |
+| W-234 | `Set` | ordem de inserção; equality ignora ordem; sem literal próprio | set não ordenado; literal com chaves |
+| W-235 | hashing | `Hashable: Equatable`; algoritmo/seed process-local e não persistente | XXH como ABI; hash como identity |
+| W-236 | lookup borrowed | `EquivalentKey<K>` permite view com a mesma equality e hash feed | alocar key em todo lookup; equivalência ad hoc |
+| W-237 | ordenação | `sort` stable por default; `sortUnstable` explícito; comparator `Ordering` | algoritmo fixo no contrato; Bool comparator |
+| W-238 | maps ordenados | `SortedMap` por total order para range e key order | tornar todo Map tree; B-tree no ABI |
+| W-239 | cleanup de collections | ordem inversa de índice/inserção; capacity e buckets invisíveis | drop order não especificada |
+| W-240 | escopo da std | core em T0; Deque/PriorityQueue/BitSet em `std.collections`; concorrentes fora de T0 | todas as estruturas no prelude |
+| W-241 | duplicação owned | `Copy` barato e implícito; `Duplicable` explícito via `copy value` | clone method; copiar owned implicitamente |
+| W-242 | ausência | `Option<T>` com some/none; sem null/undefined universal | sentinela universal; pointer null por default |
+| W-243 | estado de memória | definite init e move no compiler; `MaybeUninit<T>` unsafe | gravar none após move; uninitialized como valor comum |
+| W-244 | controle Option | `?.`, lazy/right-associative `??` e postfix `?` só para none | force unwrap; postfix `?` para Result |
+| W-245 | ownership Option | binding owned por default; `ref`/`inout`/`copy`; `take()` esvazia | copiar payload owned; mutation por optional chain |
+| W-246 | Result | enum T0 success/error para storage e composição | Result implícito só em debug; exceptions abertas |
+| W-247 | `try` | propaga `throws E` ou `Result<T,E>`; cada closure é outro effect scope | postfix `?` para ambos; propagação implícita |
+| W-248 | error type | enum fechado e estruturado; `throws E` sempre tipado | throws sem tipo; string obrigatória |
+| W-249 | effect polymorphism | generic `E: Error`; bottom `Never` é aceito e especializa como nonthrowing | keyword `rethrows`; erasure universal |
+| W-250 | catch | ordem lexical, guard e exaustividade no contexto nonthrowing | ranking de catches; catch implícito |
+| W-251 | uso de valores | todo valor non-unit/non-Never deve ser usado ou descartado com `let _` | annotation must-use; ignorar Result |
+| W-252 | lowering de error | tagged result e cleanup edges; trace sidecar não observável | host exception unwind; sem trace estruturado |
+| W-253 | fault boundary | process, Wasm instance ou compartment com teardown próprio | service lógico sempre recuperável; panic capturável |
+| W-254 | panic | payload limitado, code estável e sem user cleanup garantido | payload alocável obrigatório; user recovery |
+| W-255 | OOM | alocação normal pode panic; APIs `try*` retornam AllocationError | toda alocação fallible; emergency handler universal |
+| W-256 | cleanup | saídas estruturadas e cancel executam LIFO; panic não garante user cleanup | panic unwind; defer que propaga error |
+| W-257 | diagnostic | code estável, spans em bytes, facts e relação root/cascade | texto livre como API; reutilizar code |
+| W-258 | fix e policy | edits com applicability/digest; ordem estável; error não suprimível | fix sem precondition; source suppression no design vigente |
+| W-259 | `try?` | converte falha recuperável em Option e flatten; não captura panic/cancel | excluir o sugar; `try!`; preservar error oculto |
+| W-260 | const context | `const`, value argument, contract, fixed size, unit e refinement exigem avaliação | confiar no optimizer; executar tudo em compile time |
+| W-261 | const callable | `const fn` e `const init` explícitos; mesma semântica runtime | inferir API pelo body; função exclusiva da fase |
+| W-262 | modifier const | depois de `static`; incompatível com unsafe/async; combina com mut/take | annotation; `comptime fn`; combinação irrestrita |
+| W-263 | const-safe | local mutation, loops, recursion, dados e typed errors; sem capabilities/FFI | subset expression-only; executar host code |
+| W-264 | fase | sem `isComptime`; mesmo input produz o mesmo valor nas duas fases | branch por fase; implementação separada |
+| W-265 | const failure | error não tratado, panic e quota viram diagnostics W-CONST | fault boundary no compiler; AllocationError catchable |
+| W-266 | ConstRepresentable | predicate derivado para valores estruturais sem identity/authority | protocol implementável; qualquer tipo serializável |
+| W-267 | materialização | const sem owner; uso owned cria valor independente; borrow não escapa | singleton mutable; endereço estável público |
+| W-268 | target | evaluator usa target e módulo `w.target`; nunca a máquina host | host semantics; target facts implícitos |
+| W-269 | build input | módulo gerado e recipe declarada; sem env/file/clock no evaluator | `#define`; env intrinsic; acesso sandboxed ad hoc |
+| W-270 | quotas | steps, heap, depth e result na recipe; wall clock não semântico | quota por source; sem limite; timeout como semântica |
+| W-271 | cache const | chave inclui ConstIR, args, target, bundles, evaluator, quotas e generated modules | cache por source text; omitir target |
+| W-272 | type builder | identidade declarada + const parse/refinement; sem função que retorna Type | `type(regex)`; type function arbitrária |
+| W-273 | geração | ConstIR para ConstValue; codegen em tool target; WLO continua codec | stringify/reparse; macro AST universal |
+| W-274 | feedback | PGO declarado só orienta otimização; nunca altera const/tipo/interface | substituir const com execução anterior |
+| W-275 | implementação const | evaluator HIR antes de MLIR; folding MLIR não define correção | JIT host; canonicalizer como evaluator semântico |
+| W-276 | bootstrap const | CE0 no seed C e core W0; ConstValue normalizado deve coincidir | excluir const fn do seed; evaluator só no compiler final |
+| W-277 | force expression | sem `comptime expr` na baseline; binding const nomeia o resultado | keyword obrigatória; const block na v0 |
+| W-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
+| W-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
+| W-280 | generic kinds | type e `const`; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
+| W-281 | generic labels | type positional; `const` nomeado; `const _` cria slot primário posicional | todos posicionais; named type args |
+| W-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
+| W-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
+| W-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
+| W-285 | generic inference | depois da forma de call; argumentos, receiver e expected result; solução única | ranking; busca por tipo conforme; body inference |
+| W-286 | explicit generic args | type prefix e `const` labeled podem compor com inference; sem `_` | placeholders; lista completa obrigatória |
+| W-287 | primary associated type | protocol head declara projection de `Self`; aplicação restringe o witness | generic protocol por conformance; somente body |
+| W-288 | associated witness | `alias` explícito; sem inference/default/GAT no design vigente | inferir por method; associated type default |
+| W-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
+| W-290 | conditional conformance | `extension<T: P> Nominal<T>: Q`; sem overlap ou specialization | blanket conformance; prioridade |
+| W-291 | default witness | somente o módulo do protocol publica; seleção gravada na conformance | extension importada muda witness |
+| W-292 | existential compatibility | sem generic method, Self externo ou associated type não ligado | aceitar tudo com traps; banir existential |
+| W-293 | existential opening | `any P` não conforma a P e não abre implicitamente | self-conformance; implicit opening |
+| W-294 | opaque identity | `some P` preserva um tipo por instantiation; occurrence de parâmetro é independente | existential; união de returns |
+| W-295 | generic lowering | monomorphization, shared body e witness são escolhas equivalentes | monomorphization universal; erasure universal |
+| W-296 | generic interface | signature, witness requirements e HIR generic por digest/CAS | reparse de source; somente machine code |
+| W-297 | generic termination | grafo finito, quotas de instance/depth e cache completo | expansão sem limite; timeout semântico |
+| W-298 | generic variance | type constructors invariantes por default | variance inferida; covariance de Array |
+| W-299 | bootstrap generics | constraints, primary associated types, coherence e monomorphization; sem any/some | seed sem protocols; runtime dictionaries |
+| W-300 | enum subset | enum possui slot primário `cases`; `Enum<[.a, .b]>` | enum base + guard; anonymous union |
+| W-301 | subset normalization | conjunto por ordem de declaração; duplicata/empty rejeitados; all vira base | StaticList ordenada na identity |
+| W-302 | subset conversion | subset→superset/base implícito; base→subset checked | cast implícito nos dois sentidos |
+| W-303 | subset flow | switch usa case-set e flow narrowing elimina checks | exhaustividade sempre pelo enum base |
+| W-304 | subset payload/layout | payload preservado; layout público do enum base; tag interno pode sumir | wrapper/tag novo; payload subset |
+| W-305 | subset evolution | retorno widening e parâmetro narrowing são major | qualquer mudança minor; variance automática |
+| W-306 | subset de error | `throws Enum<[...]>`; throw e catch usam o case-set publicado | error enum inteiro; effect union separado |
+| W-307 | planos de introspecção | interface/HIR para tooling; descriptor opt-in no runtime | runtime metadata universal; debug como API |
+| W-308 | type identity | `reflect.TypeId` local ao build; sem persistência ou layout | ID estável global; nome como identidade |
+| W-309 | metatype | sem `Type<T>`/`T.type`; generic, factory ou enum | metatype universal; dynamic construction |
+| W-310 | reflection trigger | conformance explícita a `reflect.Reflectable`; sem annotation | inferir por uso; decorator; registro manual |
+| W-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
+| W-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
+| W-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
+| W-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object | qualquer protocol; Display/codec automáticos |
+| W-315 | synthesis witness | all-or-none por protocol; constraints explícitas | completar witness parcial; inferir constraints |
+| W-316 | rest syntax | último `T...`; zero ou mais; um label inicial | `params`; `*args`; overloads por aridade |
+| W-317 | rest shape | conjunto infinito deve ser disjunto de todo overload | fixed vence rest; ranking por tipos |
+| W-318 | rest binding | `Arguments<T>` não escapante; mode por elemento | Array alocado obrigatório; tuple runtime |
+| W-319 | rest expansion | `each collection` somente no argumento final | `values...`; spread universal; expansão implícita |
+| W-320 | rest ownership | value/ref/take; sem `inout`; cleanup por elemento | ownership apagado; inout dinâmico |
+| W-321 | C varargs | adapter unsafe tipado ou `c.vaList`; rest W não cruza ABI | mapear rest diretamente; promotions implícitas |
+| W-322 | formas type-level adiadas | property path, GAT e heterogeneous packs continuam Pesquisa | incluir no W0; reflection por string |
+| W-323 | resolução de enum case | `.case` exige expected enum; `Enum.case` resolve colisão | escolher por import, frequência ou ranking |
+| W-324 | sequência e case-set | o head decide: `StagePath<[...]>` preserva ordem; `Enum<[...]>` normaliza conjunto | tratar toda static list como conjunto |
+| W-325 | enum e flags | enum representa uma alternativa; simultaneidade usa Set ou tipo de flags separado | enum com semântica AND/OR contextual |
+| W-326 | álgebra de case-set | somente na HIR; source nomeia a lista resultante | operadores públicos de union/intersection/difference no design vigente |
+| W-327 | dois estados | enum em storage para runtime; argumento `const` de enum para typestate local | typestate universal; enum runtime universal |
+| W-328 | argumento const enum | slot primário aceita `.case`; slot normal usa `label: .case` | marker type vazio; string; annotation |
+| W-329 | transição typestate | extension especializada + `take fn`; novo tipo no retorno | mudar tipo do binding no lugar; pre/post annotations |
+| W-330 | falha consuming | outcome enum devolve cada novo owner; `throws` não restaura owner | rollback implícito; owner escondido no error |
+| W-331 | path estático | `StaticList<Enum>` refinada por `const fn`; primeiro edge inválido vira diagnostic | lista sem validação; DSL obrigatória |
+| W-332 | estado de service | enum persistido + snapshot revisionado; closed turn por call | `ServiceRef<State>` muda depois da call |
+| W-333 | erasure de typestate | envelope enum explícito para collections mistas | `T<?>`; existential implícito; tag escondida |
+| W-334 | DSL de transição | sem keywords novas; `StateGraph<E>` declarativa em Pesquisa | `state`/`transition` no design vigente; annotations |
+| W-335 | validity e niche | HIR registra bit patterns válidos; niche só representa estados impossíveis | sentinel sem contrato; colapsar estados aninhados |
+| W-336 | layout de enum | mapping determinístico; tag explícita é fallback; subset não promete tamanho público | niche obrigatório; wrapper por subset |
+| W-337 | low-bit | somente storage interno com alignment real provado e canonicalização nas fronteiras | annotation de source; alignment nominal |
+| W-338 | high-bit | profile experimental após negociação completa; ausente do portátil | inferir por CPU; requisito de linguagem |
+| W-339 | metadata mutável | count, generation, allocator e deallocator ficam em owner/control block/side table | esconder tudo no pointer |
+| W-340 | atomics tagged | operação cobre a palavra inteira; lock-free e ABA exigem provas separadas | atomicidade por associação; generation curta universal |
+| W-341 | object header | nenhum header universal; cada ownership/runtime usa metadata necessária | header W em toda allocation |
+| W-342 | NaN boxing | rejeitado para `f64` e valor universal; somente pesquisa para container interno | reduzir payload ou range do float |
+| W-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
+| W-344 | fingerprint de representação | inclui validity, target, ABI, allocator, hardening, sanitizer e compiler | fingerprint só por target triple |
+| W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
+| W-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
+| W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
+| W-348 | domains portáteis | `StandardDomain` fecha defaults; enum payload-free conforme a `ExecutionDomain` declara IDs customizados | toda finalidade vira keyword; string |
+| W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
+| W-350 | defaults de execução | `async` herda; `spawn` e parallel group usam parallel default | herdar domain serial e degradar `spawn` |
+| W-351 | domain de módulo | nenhum default por módulo; instance/entry/product possui binding | import cria queue/thread |
+| W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
+| W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
+| W-354 | fairness | eventual sob tasks bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica |
+| W-355 | priority e deadline | priority é policy; deadline vira cancellation; syntax local em Pesquisa | `.background` como domain; priority garante prazo |
+| W-356 | executor dinâmico | `ExecutionDomainRef` lexical em Pesquisa; admission failure precisa ser explícita; executor custom é runtime unsafe | detached escondida; protocol comum substitui scheduler |
+| W-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
+| W-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
+| W-359 | erro UTF-8 | offset, maximal-subpart length e reason estáveis | byte inválido apenas; mensagem livre; decoder-dependent |
+| W-360 | reparo UTF-8 | um U+FFFD por maximal subpart; nunca implícito | um por byte; descartar bytes; replacement configurável global |
+| W-361 | UTF-8 incremental | até três bytes pendentes; `finish` decide incomplete; offset do stream | validar cada chunk isolado; buffer sem limite |
+| W-362 | BOM UTF-8 | core preserva U+FEFF; adapter nomeado aplica policy | remover sempre; preservar sempre em todo protocolo |
+| W-363 | índices de texto | origem emprestada, custo visível e uso terminal em edição | integer offset universal; índice persistível |
+| W-364 | grapheme owned | `String<(.graphemes.count == 1)>`; sem `Character` | tipo Character universal; Grapheme owned implícito |
+| W-365 | interpolação | um `String` de destino + `Display.write`; `display()` é conveniência | builder público; String intermediário por campo; concatenação implícita |
+| W-366 | edição Unicode | bundle e digests no semantic fingerprint; índices não persistem | versão do sistema; boundary congelada no valor |
+| W-367 | PackagePath | NFC e colisão normalizada rejeitada | nomes distintos por bytes; escolher o primeiro |
+| W-368 | semântica de performance | profiles preservam valor, panic, effects, ownership e numeric policy | release muda overflow/float; optimizer como semântica |
+| W-369 | facts de otimização | `ProofFacts` na HIR para interval, case-set, length, shape, alignment e alias | annotations de usuário; confiar só no backend |
+| W-370 | predicate opaco | invariant válido; optimizer usa somente fatos extraídos e verificados | SMT obrigatório; ignorar todo predicate |
+| W-371 | largura interna | operation, accumulator, SIMD lane e storage são escolhas separadas | menor tipo único para tudo; carrier sempre obrigatório |
+| W-372 | resultado refinado | expressão provada satisfaz expected refinement sem check; caso geral é fallible | `try` mesmo com prova; narrowing runtime implícito |
+| W-373 | storage estreito | somente não escapante e após cost model; boundaries usam carrier | layout menor público por refinement; nunca comprimir |
+| W-374 | custo de texto | complexidade por bytes e unidade explícita; caches/ASCII/SIMD invisíveis | `length` O(1) universal; cache obrigatório no layout |
+| W-375 | integer `@` | checked semantics; widening fixo; `matmul<R>` muda redução/resultado | wrap; accumulator sempre igual ao elemento |
+| W-376 | float `@` | strict default; fast e reproducible por mode explícito | fast global em release; operator dependente do target |
+| W-377 | device e fusion | transfer explícita; fusion pode apagar intermediário, não mover device | auto-transfer; toda operação materializa |
+| W-378 | PGO | input por digest só orienta optimization | muda const/interface; profile implícito da máquina |
+| W-379 | explicação de performance | facts, decisions, estimates, measurements e missed reasons separados | assembly como única explicação; número exato universal |
+| W-380 | proof budget | quotas determinísticas; interval/case-set/shape/alias baseline; SMT em Pesquisa | solver sem limite; timeout como resultado semântico |
+| W-381 | gate de otimização | benchmark reproduzível + differential oracle + fallback | microbenchmark único; otimização sem profile portátil |
+| W-382 | largura de `Int` | `Int`/`UInt` têm 64 bits; `isize`/`usize` seguem address width | Int segue target; literal default `i32`; BigInt default |
+| W-383 | representação integer | widths fixas; signed two's complement; Bool distinto | signed dependente do target; Bool como integer |
+| W-384 | token numérico | decimal/binário/octal/hex; exponent decimal; suffix após `_` | suffix colado; trailing dot; hex float |
+| W-385 | valor do literal | magnitude/rational exato até expected type; uma materialização | truncar no lexer; converter decimal por f64 intermediário |
+| W-386 | defaults de literal | integer `Int`; decimal `f64`; expected type prevalece quando válido | i32 default; BigInt/Decimal default |
+| W-387 | tipagem binária | identidade ou uma conversão segura para um tipo operando; sem terceiro tipo | promoções C; ranking de common type |
+| W-388 | conversão implícita | total, exata, única e sem authority oculta; refinement pode provar | cast implícito narrowing; exigir todo cast |
+| W-389 | conversão explícita | `exactly`, `rounding`, `saturating`, `truncatingBits` e bits nomeados | um cast com policy dependente do par |
+| W-390 | overflow integer | operators checked em todo profile; const vira diagnostic | wrap em release; undefined behavior |
+| W-391 | divisão integer | zero e min/-1 causam panic; quotient toward zero; Euclidean nomeado | floor universal; resultado Option implícito |
+| W-392 | shift | count `UInt`; bound e perda à esquerda causam panic; bit policies nomeadas | mask do count; regras C; wrap silencioso |
+| W-393 | float baseline | f32/f64 IEEE strict, nearest-even, subnormal e sem FMA implícito | fast-math em release; flush-to-zero default |
+| W-394 | float equality | comparação IEEE parcial; `TotalFloat` para key e ordem total | float conforma aos protocols totais; bit equality como `==` |
+| W-395 | modes float | strict default; fast e reproducible explícitos e versionados | flag global muda semântica; reproducible sem algoritmo |
+| W-396 | numeric T2 | BigInt/UInt, FixedDecimal, Rational e Complex com custo explícito | número universal; Decimal como Money |
+| W-397 | ML storage | f16/bf16 sem scalar operators e com tensor accumulator f32; Quantized separa storage/expressed | aritmética f16 implícita; float8 core |
+| W-398 | range | intervalo; quatro closures; reversed vazio; stride para direção/step | range como collection; range descendente implícito |
+| W-399 | superfície de pinning | `try pin take value`; `pin` é fallible e separado de `take` | `Pinned.make`; `take<.pin>`; modifier no binding |
+| W-400 | saída de pinning | sem `unpin` no design vigente; drop in-place; `intoValue` com proof token em Pesquisa | unpin seguro irrestrito; unpin keyword unsafe |
+| W-401 | endian numérico | valor independe de endian; bytes exigem `.little`, `.big` ou `.native` | ordem implícita de persistência; reinterpret seguro |
+| W-402 | reals alternativos | Posit, Unum e decimal float como Pesquisa T2; f32/f64 ficam baseline | número universal novo; trocar IEEE sem oracle/hardware |
+| W-403 | construção de String | reserva e mutation pertencem a `String`; sem `StringBuilder` público | builder obrigatório; concatenação repetida |
+| W-404 | view genérica | `view T` é access mode vigente; sem família pública `XView` | `Slice<T>`/`Span<T>`; `Readonly<T>` profundo; usar somente `ref` |
+| W-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
+| W-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
+| W-407 | alocação em region | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
+| W-408 | escape de arena | inline independente pode sair; storage dependente exige consuming `rehome` | copiar sempre no return; escape unchecked; adoção presumida |
+| W-409 | arena e tasks | Arena move-only e não shareable; child paralelo recebe arena filha exclusiva | arena monotônica concorrente default; proibir todo child |
+| W-410 | budget de arena | cobra span alinhado, padding, growth retido e drop metadata; host mede resident separado | cobrar somente live payload; usar resident bytes como semântica |
+| W-411 | origem | owner preserva allocator instance e deallocator; zero-size não aloca; family não mistura | `free` universal; origem em low bits |
+| W-412 | allocator profiles | system baseline; mimalloc e secure por recipe/benchmark; fixed sem OS allocation | override global obrigatório; allocator escolhido por import |
+| W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
+| W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
+| W-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
+| W-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
+| W-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
+| W-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
+| W-419 | materialização | `materialize()` normal e `tryMaterialize(using:)` fallible produzem `T` | constructor por família; adoção borrowed; conversão implícita |
+| W-420 | escopo de view | core families e Tensor; custom type expõe core view ou borrow nominal | protocol inventa provenance; view automática de todo tipo |
+| W-421 | ABI de view | descriptor W por família; C usa pointer + count somente quando contígua | descriptor universal; layout W cruza FFI |
+| W-422 | lifetime de view | provenance inferida; `await` exige owner estável; child estruturado termina antes do owner | lifetime annotation; view mantém owner vivo; escape detached |
+| W-423 | read-only e imutabilidade | `ref` é acesso read-only; `view` é projeção; imutabilidade profunda é fato inferido sem syntax | `Readonly<T>` universal; modifier `immutable`; `let` promete grafo congelado |
+| W-424 | mobilidade pública | facts intrínsecos `transferable`/`shareable`; sem marker protocols | `Send`/`Sync`; `Sendable`; check runtime |
+| W-425 | transferência | owner/acesso exclusivo, fields, allocator, cleanup e affinity; origem perde acesso | exigir synchronization para move único; copiar sempre |
+| W-426 | sharing | storage vivo e reads sem race; interior mutation precisa de mecanismo verificado | exigir imutabilidade profunda; aceitar todo `ref` |
+| W-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
+| W-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
+| W-429 | FFI mobility | local por default; fato trusted exige adapter/digest e boundary unsafe ainda em Pesquisa | raw pointer deriva facts; assertion segura do usuário |
+| W-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
+| W-431 | COW de String | fora da baseline; optimizer exige efeitos de allocation e cleanup não observáveis | refcount em toda String; COW como contrato; proibir otimização |
+| W-432 | reserva de String | mínimo total por bytes; exact capacity não é pública; `tryReserve` tem strong guarantee | bytes adicionais; growth fixo na linguagem; capacity property |
+| W-433 | mutation de String | append/replace recebem view válida; source do mesmo owner é erro; índices são invalidados | mutable byte view; temporary de alias implícito; byte offsets unchecked |
+| W-434 | esvaziar String | `clear` mantém storage; `reset` libera; `takeAll` transfere conteúdo | Boolean `keepingCapacity`; um método ambíguo; builder separado |
+| W-435 | String e Bytes | carrier T0 compatível; adoption e `intoBytes` consomem sem allocation geral | layout público igual; cópia obrigatória; cast implícito |
+| W-436 | caches de texto | reads não alocam nem mutam; summaries eager permitidos; índice alocante usa tipo próprio | cache lazy invisível; owner muta por read; grapheme ordinal O(1) |
+| W-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
+| W-438 | ponteiro textual | somente borrow scoped; move/mutation bloqueados; persistência usa CString/Bytes/Pinned adapter | pointer estável de String; NUL obrigatório; raw pointer safe |
+| W-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
+| W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
+| W-441 | happens-before | task start/join, channel em W-467, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
+| W-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
+| W-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
+| W-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential` | argumento runtime; suffix por método; relaxed default |
+| W-445 | compare-exchange | result enum; success/failure estáticas e válidas; weak é explícita | Boolean; expected inout; combinação inválida em runtime |
+| W-446 | aritmética atômica | policy checked normal; wrapping/saturating/fetch nomeados | wrap do hardware implícito; closure update com retries ocultos |
+| W-447 | borrow atômico | `ref` obtém Atomic; acesso ao payload somente com exclusividade ou consumo | `ref T` comum; misturar views atômicas e não atômicas |
+| W-448 | lock-free | não é implícito; const `isLockFree` e contrato `lockFree: true` | garantir toda largura; runtime query sem target fixo |
+| W-449 | ABI atômica | layout W opaco; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal |
+| W-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
+| W-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
+| W-452 | RwLock e RCU | tipos T1 especializados em Pesquisa; service/channel/snapshot lideram state maior | policy automática por property; RCU default universal |
+| W-453 | contenção | explanation record mostra lowering, lock-free e waits; cache isolation em Pesquisa | prometer performance por `atomic`; padding universal |
+| W-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
+| W-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
+| W-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
+| W-457 | item borrowed de stream | `Stream<view T, E>` registra o stream como origem e impede outro `next` conflitante | família `TView`; view transferable; proibir todo item borrowed |
+| W-458 | topologia de channel | MPSC bounded com endpoints separados | bidirecional copiável; MPMC default; unbounded |
+| W-459 | endpoint de channel | `Channel<T><.send>` shareable move-first e `<.receive>` único move-only | `Sender<T>`/`Receiver<T>` nominais; direção dinâmica |
+| W-460 | payload de channel | `T<(.transferable)>` owned; borrow e `view` são rejeitados | cópia implícita; raw pointer; lifetime runtime |
+| W-461 | falha de envio | `ChannelSendError<T>` devolve owner; `send` usa subset `.closed` | panic; Boolean; perder item em erro |
+| W-462 | capacity | obrigatória; zero é rendezvous; positiva limita itens + permits; sem unbounded no design vigente | default zero; hint elástico; fila ilimitada |
+| W-463 | permit | reserva linear sem item; drop libera; close gracioso honra permit aceito | construir item antes de esperar sempre; reservation invisível |
+| W-464 | cancellation de channel | commit linear; antes dele não envia, depois dele receiver possui; waiter sai da fila | resultado ambíguo; rollback do item recebido |
+| W-465 | ordering de channel | FIFO de admission, ordem por sender e sem total order concorrente; `trySend` não ultrapassa | ordem global determinística; fairness não especificada |
+| W-466 | close de channel | último sender ou receiver.close faz drain; drop do receiver aborta; sem close global no sender | close por qualquer producer; sentinel; panic em close duplicado |
+| W-467 | happens-before de channel | send→receive, slot liberado→send admitido e close→fim observado | somente ownership; fence manual pelo usuário |
+| W-468 | buffering de stream | nenhum prefetch default; adapter bounded com scope estruturado | watermark na assinatura; buffer ilimitado; producer detached |
+| W-469 | `yield` | adiado até IR provar borrow, cleanup, erro, cancellation e capacity | generator define semântica; callback oculto |
+| W-470 | outras topologias | `WorkQueue`, `Broadcast`, `Watch` e weighted channel permanecem tipos pesquisados | um `Channel<mode: ...>` muda loss e fan-out |
+| W-471 | implementation de channel | target escolhe ring, segmentos, mutex ou atomics; lock-free não é contrato | algoritmo único no ABI; tagged pointer obrigatório |
+| W-472 | accounting de channel | lens separa storage, itens, payload desconhecido, waiters, permits e watermark medido | capacity promete bytes transitivos; número único exato |
+| W-473 | byte I/O | `ByteSource<Failure>` e `ByteSink<Failure>` async-first; cursor lógico no source | Reader/Writer nominal por backend; prefixo `Async`; interface sync única |
+| W-474 | destino de read | append em `inout Bytes`; initialized count e spare privados; sem `ReadBuffer` público | `MaybeUninit` safe; `read(into: inout view Bytes)` genérico; allocation escondida inevitável |
+| W-475 | resultado de read | `.data(positive)` ou `.end`; EOF é estável e progress vence EOF simultâneo | zero significa EOF; tuple count/error; EOF como error |
+| W-476 | progress e error | progress retorna agora e error simultâneo fica latched para a próxima call | lançar depois de mutar sem informar; perder progress; outcome com estados impossíveis |
+| W-477 | resultado de write | `.complete` ou `.partial(positive)`; `writeAll` informa prefixo já committed | Boolean; assumir write integral; rollback fictício |
+| W-478 | cancellation de I/O | cancellation disputa com completion e só libera borrow depois do drain | liberar buffer no pedido; fingir zero progress; matar worker thread |
+| W-479 | blocking I/O | interfaces separadas e adapter explícito em executor bounded | blocking invisível no worker cooperativo; pool ilimitado; uma interface condicional |
+| W-480 | rights de arquivo | `File<[.read, ...]>` usa static list fechada e mantém checks dinâmicos do host | flags somente runtime; capability implica permissão de path; annotations |
+| W-481 | offsets de arquivo | I/O seekable é posicional por default; `.end` observa o offset; shared File exige offset explícito | cursor compartilhado default; EOF latched no handle posicional; metadata.size + write |
+| W-482 | cursor sequencial | adapter opaque `some ByteSource<IoError>` possui File + offset; sem classe utilitária pública | `FileReader` público; cursor dentro de todo File; offset global |
+| W-483 | sockets | TCP pode virar halves únicos; UDP preserva datagrams em protocol separado | duas reads concorrentes; UDP como byte stream; message boundary implícita |
+| W-484 | error de I/O | kind e operation portáteis; cause nativa opaca; task cancellation não é IoError | errno universal; wouldBlock em async; retriable Boolean |
+| W-485 | finish e durability | protocols base não exigem close/flush; tipos concretos nomeiam finish, sync e half-close | async destructor; drop durável; flush universal |
+| W-486 | adapters de stream | chunks borrowed/owned, lines e read-to-end exigem limites explícitos | buffer ilimitado; item borrowed transferable; framing invisível |
+| W-487 | backend de I/O | target escolhe readiness, completion, blocking bounded ou immediate sem mudar source | backend na syntax; um algoritmo universal; thread por operação |
+| W-488 | lifetime de buffer I/O | pinning é interno; handles, callbacks e borrows vivem até completion drain | `pin` obrigatório no caller; raw pointer escapa; cancellation encerra lifetime cedo |
+| W-489 | vectored e zero-copy | especializados e explícitos em Pesquisa; fallback mantém bytes e progress | `readv`/`sendfile` invisível; mapa mutável universal; promessa sem target |
+| W-490 | observabilidade de I/O | explanation record e trace mostram backend, progress, waits e cancellation race | backend opaco sem diagnóstico; log muda semântica; timestamps como ordering |
+| W-491 | trabalho runtime-owned | `SupervisorRef` é owner explícito; `Task` permanece lexical | drop destaca; `spawn<owner: ...>`; task global |
+| W-492 | operação supervisionada | descriptor fixa função e versão; key, input e bindings explícitos | closure arbitrária; capture de state; body trocado em work ativo |
+| W-493 | admission de work | bounded; commit transfere input; rejeição pré-commit devolve input; unknown outcome reconcilia por key | fila ilimitada; input perdido; start fire-and-forget |
+| W-494 | identity de work | supervisor + key completa + incarnation; attempt separado; hash nunca é identity | PID/pointer; hash persistente; nome solto |
+| W-495 | observação de work | state, progress e cancellation separados; snapshot revisionado; retention bounded | event list ilimitada; ref para frame; polling sem revision |
+| W-496 | rights de work | SupervisorRef → WorkKeyRef → WorkRef; key e rights atenuam authority | Boolean runtime; todo observer cancela; ID concede authority |
+| W-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
+| W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
+| W-499 | workflow durável | steps e schemas explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
+| W-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
+| W-501 | product runtime graph | `package.w` fixa símbolos, envelope, injection e operation | manifest executável; reflection encontra implementação; limite só no host |
+| W-502 | deployment | data-only separado e ligado ao artifact digest; só reduz envelope | rebuild por ambiente; config invisível; deployment troca semântica estática |
+| W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
+| W-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
+| W-505 | identity keyed de service | `ServiceIdentity<K>` read-only e injetada; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
+| W-506 | dedup de work | outcome e tombstone têm budgets separados; key só é reutilizada em nova incarnation | outcome eterno; expiração permite duplicação silenciosa; key global única |
+| W-507 | completion versus cancellation | completion committed entrega o valor; cancellation fica pendente; unknown outcome permanece distinto | descartar valor committed; injetar cancel entre statements; rollback presumido |
+| W-508 | entry anônimo | `entry(handler)` fornece descriptor default e base local para entries nomeados | repetir bindings; `entry defaults`; herança entre módulos |
+| W-509 | shorthand de entry | `entry Name(handler)` liga o slot default único do host profile | escrever `process.main`; inferir pelo nome da função |
+| W-510 | seleção de entry | product escolhe um descriptor expandido no link; import não registra entry | seleção runtime por nome; registry global |
+| W-511 | aplicação multimodo | um `process.main` escolhe CLI/TUI/server; slots de host continuam distintos | vários mains no mesmo payload; OS chama `http.fetch` |
+| W-512 | identidade de target | architecture-vendor-system-ABI + CPU/features/sysroot separados | string livre; target igual a OS; backend implica suporte |
+| W-513 | host profile | slots, capabilities e lifecycle versionados, separados do target | APIs condicionais por `#ifdef`; target concede capabilities |
+| W-514 | product kind | executable, libraries, component, firmware, device bundle, test, benchmark e tool | um executable universal; kind inferido pelo entry |
+| W-515 | matriz de build | cada product/target/profile gera recipe e digest próprios; index agrega resultados | hash único entre architectures; matrix muda payload |
+| W-516 | produto de referência | Última Luz é especificação executável, regressão e benchmark do W | exemplo descartável; snippets independentes como oracle principal |
+| W-517 | nanoservice | service é fronteira lógica; runtime pode co-localizar sem apagar effects | processo por service; call remota transparente |
+| W-518 | accelerator | device target gera kernels/objects ligados por host product | device como processo geral; offload implícito |
+| W-519 | benchmark externo | profile versionado reproduz workload e registra diferenças; ranking não é semântica | otimizar para placar sem oracle; prometer posição |
+| W-520 | module set | `.fileStem` expande paths de forma determinística e grava a lista no lock | descoberta livre do diretório; `module` em cada source |
+| W-521 | std em W | contratos públicos são source W; handles e operações intrínsecas têm fronteira explícita | std toda no compiler; wrappers utilitários por operação |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

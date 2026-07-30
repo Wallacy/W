@@ -59,7 +59,7 @@
           <h1>O Livro de W</h1>
           <p>Um percurso top-down pela forma integrada que será testada antes da implementação do frontend.</p>
           <div class="book-meta">
-            <span class="badge proposal">Líder DB2</span>
+            <span class="badge proposal">Forma vigente</span>
             <span>10 capítulos</span>
             <a href="/status">Entenda os estados</a>
           </div>
@@ -76,7 +76,7 @@
             <p>Existe uma baseline integrada, uma gramática Tree-sitter e um ensaio visual. Ainda não existem
               compilador, type checker, runtime ou SDK W.</p>
           </div>
-          <p>Uma decisão pode estar como <strong>Direção</strong>, <strong>Líder DB2</strong>,
+          <p>Uma decisão pode estar como <strong>Direção</strong>, <strong>Forma vigente</strong>,
             <strong>Alternativa</strong>, <strong>Pesquisa</strong> ou <strong>Rejeitado por enquanto</strong>.
             O líder permite testar um sistema coerente; ele não congela a linguagem.</p>
         </article>
@@ -261,11 +261,11 @@ w verify artifact last-light.exe</code></pre></div>
           <p>Uma falha injetada em cada seta não pode deixar task, lease, buffer, mailbox item ou pagamento
             sem owner e estado observável.</p>
           <p class="canonical-links">
-            <a href="/examples/restaurant/README.md">Casos e oracles</a> ·
-            <a href="/examples/restaurant/app.w">Entradas</a> ·
-            <a href="/examples/restaurant/restaurant.w">Service</a> ·
-            <a href="/examples/restaurant/oracle.w">Tensor</a> ·
-            <a href="/examples/restaurant/hardware.w">C/unsafe</a>
+            <a href="/reference/last-light/README.md">Casos e oracles</a> ·
+            <a href="/reference/last-light/app.w">Entradas</a> ·
+            <a href="/reference/last-light/restaurant.w">Service</a> ·
+            <a href="/reference/last-light/oracle.w">Tensor</a> ·
+            <a href="/reference/last-light/hardware.w">C/unsafe</a>
           </p>
         </article>
 
@@ -275,11 +275,11 @@ w verify artifact last-light.exe</code></pre></div>
           <p>A seção 28 de <a href="/docs/DESIGN.md">DESIGN.md</a> possui 96 decisões. Cada linha mostra o
             líder atual e as alternativas preservadas. Uma revisão pode citar somente os IDs que deseja
             mudar.</p>
-          <div class="code-shell"><pre><code>D2-014  refinement   T where (predicate)   | T(where:); T&lt;where(...)&gt;
-D2-039  domain       spawn on .compute     | spawn&lt;.compute&gt;; descriptor
-D2-051  unit         9.81&lt;m/s^2&gt;           | []; {}; whitespace SI
-D2-064  matrix       nested arrays         | semicolon; constructor
-D2-073  parser       recursive/Pratt       | generated; Tree-sitter</code></pre></div>
+          <div class="code-shell"><pre><code>W-014  refinement   T where (predicate)   | T(where:); T&lt;where(...)&gt;
+W-039  domain       spawn on .compute     | spawn&lt;.compute&gt;; descriptor
+W-051  unit         9.81&lt;m/s^2&gt;           | []; {}; whitespace SI
+W-064  matrix       nested arrays         | semicolon; constructor
+W-073  parser       recursive/Pratt       | generated; Tree-sitter</code></pre></div>
           <p>O teste mede correção antes de preferência. Cada comparação usa o mesmo programa, perguntas de
             leitura, uma correção de bug e uma alteração. O projeto registra erro, tempo, hesitação e
             explicação. Pessoas e modelos usam o mesmo oracle, mas resultados separados.</p>
@@ -287,7 +287,7 @@ D2-073  parser       recursive/Pratt       | generated; Tree-sitter</code></pre>
             <li>Leia a superfície como um programa completo.</li>
             <li>Use o restaurante para verificar como as peças se encaixam.</li>
             <li>Compare somente os casos que causam dúvida real.</li>
-            <li>Responda por ID D2; a alternativa continua preservada.</li>
+            <li>Responda por ID W; a alternativa continua preservada.</li>
           </ol>
           <div class="book-finish">
             <span aria-hidden="true">W</span>
