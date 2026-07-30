@@ -57,6 +57,18 @@ export async fn relayRecipeChunk<
   }
 }
 
+export async fn writeExtinctRecipeFrame<
+  Failure: Error,
+  Destination: ByteSink<Failure>,
+>(
+  destination: inout Destination,
+  header: view Bytes,
+  recipe: view Bytes,
+  checksum: view Bytes,
+): WriteStep throws Failure {
+  return try await destination.writeMany(header, recipe, checksum)
+}
+
 export async fn readRecipeBlock(
   files: ref FileSystem,
   path: ref Path,
@@ -99,3 +111,5 @@ export async fn countBorrowedChunks<E: Error>(
 // let _ = Channel<view Bytes>.open(capacity: 1) // A view cannot leave its owner.
 // async let pending = source.read(appendTo: inout scratch, maximum: 4096)
 // scratch.reset()                              // `pending` still borrows `scratch`.
+// async let write = output.writeMany(prefix, payloadOwner, checksum)
+// payloadOwner.reset()                         // `write` still borrows the payload.

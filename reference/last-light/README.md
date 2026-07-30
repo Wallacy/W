@@ -480,6 +480,8 @@ Aceite:
 - `ByteSource` acrescenta somente bytes confirmados a `Bytes`;
 - `.data(count)` possui `count > 0`, e `.end` é terminal;
 - `ByteSink.write` informa `.complete` ou um prefixo positivo;
+- `writeMany` preserva a ordem e informa o prefixo da concatenação lógica;
+- o fallback de `writeMany` usa um `write`, sem concatenação ou allocation;
 - `writeAll` informa o prefixo committed quando falha;
 - o relay devolve o owner do chunk quando o source avançou e o sink falhou;
 - cancellation não libera um buffer antes da completion final;
@@ -490,13 +492,18 @@ Aceite:
 - `read(at:)` não altera um cursor compartilhado;
 - o cursor sequencial é um `some ByteSource<IoError>`, não `FileReader`;
 - I/O blocking usa um adapter e uma quota explícitos;
-- readiness, completion e fallback blocking produzem o mesmo trace semântico.
+- readiness, completion e fallback blocking produzem o mesmo trace semântico;
+- scatter read e transferência zero-copy permanecem em **Pesquisa**.
 
 O oracle divide o Arquivo das Receitas Extintas em todos os pontos possíveis.
 Cada execução injeta short read, short write, EOF junto com dados, error depois
 de progress e cancellation nos dois lados da completion. O payload final, o
 prefixo committed e o número de cleanups devem ser iguais em `io_uring`, IOCP,
 readiness e executor blocking.
+
+O teste gather usa zero segments, segments vazios e mais segments que o limite
+do host. Ele injeta progress dentro e entre segments. O payload final deve ser
+idêntico com fallback, `writev` e `WSASend`.
 
 O teste posicional lê blocos sobrepostos com um `shared File`. A ordem de
 completion pode mudar. Cada bloco deve manter o offset solicitado. O cursor
@@ -1495,6 +1502,8 @@ O Book deve mostrar pares lado a lado:
 | EOF | `ReadStep.data(positive)` / `.end` | zero bytes e Boolean adicional |
 | arquivo seekable | `read(at:)` posicional por default | cursor compartilhado e lock invisível |
 | I/O blocking | adapter em executor bounded | bloquear worker cooperativo ou pool ilimitado |
+| gather write | `writeMany(view Bytes...)` com fallback | `IoSlice` público, concatenação ou erro sem backend |
+| scatter read | Pesquisa; append em um `Bytes` continua baseline | `inout view Bytes...` ou `ReadBatch` |
 | zero-copy | operação especializada e explícita em Pesquisa | `sendfile`/`mmap` invisível |
 | construção textual | reserve/append no próprio `String` | `StringBuilder` público |
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |
