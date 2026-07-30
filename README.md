@@ -65,7 +65,9 @@ entry LastLightTui(runTui)
 ```
 
 O descriptor anônimo é o default do product nativo. O mesmo binário atende CLI,
-TUI e servidor local. Um worker usa outro product e outro host lifecycle.
+TUI e servidor local. Um segundo product escolhe `LastLightTui` para gerar uma
+TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
+o module set nativo. Um worker usa outro product e outro host lifecycle.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 fornece uma build transform tipada ao package principal. O tool recebe somente
@@ -79,6 +81,6 @@ resolve `ServiceFamily<OrderCoordinatorApi, OrderId>`. O descriptor injeta um
 ## Histórico
 
 As notas originais e os documentos substituídos ficam em
-[`Y/W/`](../Y/W/). A tentativa de consolidação DB1 está em
+[`Y/W/`](../Y/W/). A consolidação substituída de 27 de julho de 2026 está em
 [`Y/W/archive/db1-2026-07-27/`](../Y/W/archive/db1-2026-07-27/). Esses arquivos
 preservam proveniência. Eles não definem o W atual.

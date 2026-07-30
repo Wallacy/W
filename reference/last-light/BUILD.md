@@ -32,6 +32,9 @@ entry LastLightTui(runTui)
 O descriptor anônimo é `.default`. `LastLightTui` recebe os bindings do
 descriptor anônimo e substitui o slot default.
 
+`entry(runNative)` não escreve `process.main`. O host profile declara esse slot
+como default. O compiler faz o binding e grava a forma expandida na interface.
+
 O manifest escolhe a forma anônima:
 
 ```w
@@ -45,6 +48,21 @@ O manifest escolhe a forma anônima:
 
 `entry` não é escolhido por argumento de runtime. O product resolve o
 descriptor durante o link.
+
+Outro product pode escolher o descriptor nomeado:
+
+```w
+{
+  name: "last-light-tui"
+  module: "restaurant.app"
+  entry: "LastLightTui"
+  host: "w.host/native-process@1"
+}
+```
+
+Esse product herda o binding de signal. Ele não repete `process.signal`. O
+manifest pode omitir `entry` somente quando o módulo possui um único descriptor
+resolvível.
 
 ## 2. Um binário com vários modos
 
@@ -60,6 +78,11 @@ O único `process.main` executa `runNative`. Essa função escolhe o modo.
 
 O modo `--serve` abre um servidor com uma capability do processo. O sistema
 operacional não chama `http.fetch`.
+
+O mesmo `process.main` também pode iniciar uma shell GTK ou .NET, um tray
+service e um servidor. Esses adapters ficam no grafo alcançável do product.
+Eles não exigem outro entry quando o sistema operacional controla um único
+process lifecycle.
 
 `last-light-worker` é diferente. Seu host chama `http.fetch` diretamente. Ele
 usa outro lifecycle e gera outro artifact.
@@ -79,6 +102,7 @@ está em [`package.w`](package.w).
 | Product | Kind | Host | Finalidade |
 |---|---|---|---|
 | `last-light-native` | executable | native process | CLI, TUI e servidor local |
+| `last-light-tui` | executable | native process | TUI dedicada e artifact menor |
 | `last-light-worker` | component | HTTP worker | API do restaurante |
 | `last-light-wifi` | component | HTTP worker | captive portal e sessões |
 | `last-light-simulation` | executable | native process | oracle determinístico |
@@ -87,7 +111,21 @@ está em [`package.w`](package.w).
 | `last-light-controller` | firmware | device | sensores e rádio |
 | `last-light-audio` | firmware | audio device | callback sem allocation |
 | `last-light-accelerators` | device bundle | accelerator | kernels de tensor |
+| `last-light-ai-lab` | executable | native process | treino e oracle CPU/device |
 | `last-light-benchmark` | benchmark | HTTP host | corpus TechEmpower |
+
+Os products formam cinco planos:
+
+```text
+venue       -> native, TUI, mobile, Wi-Fi e áudio
+edge        -> worker HTTP e sessions
+observatory -> swarm, horizonte e control plane
+device      -> controllers, rádio, MMIO e callbacks
+compute     -> simulação, treino, kernels e benchmark
+```
+
+Um plano não é um artifact. Ele é uma visão operacional. O build continua a
+produzir uma recipe por product, target e profile.
 
 Somente o source e a grammar existem. Todos os products dependem de runtime e
 SDK futuros. A tabela define gates, não suporte entregue.
@@ -101,7 +139,7 @@ SDK futuros. A tabela define gates, não suporte entregue.
 | `restaurant-core` | processo nativo e providers do restaurante | pantry, ovens, payment gateway, audience e aroma device |
 | `restaurant-client` | worker e mobile | `last-light` |
 | `wifi-edge` | captive portal | `wifi-sessions` |
-| `observatory-client` | observatório | `satellites` |
+| `observatory-client` | observatório | `satellites` e `horizon-monitor` |
 | `benchmark-host` | sete workloads HTTP | database PostgreSQL e cache local |
 
 O compiler deve derivar requirements do source. O manifest escolhe providers ou
@@ -212,6 +250,33 @@ selection, transfer, launch, synchronization e errors.
 ASIC e FPGA permanecem em **Pesquisa**. Eles exigem um modelo de tempo, memória
 e synthesis que LLVM IR geral não fornece.
 
+### 4.6 Variantes de module graph
+
+O source nativo importa sempre:
+
+```w
+import { nativeTerminalBackend } from restaurant.platform.native
+```
+
+`package.w` oferece dois module sets com a mesma module identity:
+
+```text
+Linux, Darwin -> native-terminal/posix
+Windows       -> native-terminal/windows
+outros        -> fallback vazio
+```
+
+Os cases são disjuntos. A ordem não altera o resultado. Os dois cases concretos
+precisam exportar a mesma interface porque o grupo declara
+`interface: .uniform`.
+
+O fallback vazio permite que products mobile, Wasm, firmware e device ignorem
+o adapter. Se um módulo alcançável importar `restaurant.platform.native` em um
+desses targets, o build falha por implementação ausente.
+
+O lock grava o case escolhido. A recipe inclui o module set expandido. Nem a
+máquina que executa o build nem um filename suffix decide o resultado.
+
 ## 5. Comandos previstos
 
 ### 5.1 Build único
@@ -220,6 +285,12 @@ e synthesis que LLVM IR geral não fornece.
 w resolve
 w build last-light-native \
   --target x86_64-unknown-linux-gnu \
+  --packing single-process \
+  --profile release \
+  --locked
+
+w build last-light-tui \
+  --target x86_64-pc-windows-msvc \
   --packing single-process \
   --profile release \
   --locked
@@ -250,6 +321,9 @@ w run last-light-native --deployment deployments/local.w -- --serve
 
 ```text
 w explain product last-light-native
+w explain product last-light-tui
+w explain target-variant last-light/restaurant::native-terminal \
+  --target x86_64-pc-windows-msvc
 w explain artifact sha256:...
 w explain runtime restaurant-core
 w explain workflow fulfillment --key order:42
@@ -300,11 +374,19 @@ vira uma release conjunta.
 w context
 w workspace check
 w resolve
+w add w/telemetry@^1.0 --as telemetry --use product --dry-run
+w tree last-light-native
 w diff-lock
 w fetch --locked
 w build last-light-native --locked
-w publish check last-light/restaurant
+w package check --matrix last-light/restaurant
+w publish check --matrix last-light/restaurant
 ```
+
+`w add` altera o manifest e o lock na mesma transação. O `--dry-run` acima
+mostra a authority, o alias, o usage, as versions candidatas e os novos edges.
+Ele não executa o package. `w remove` aplica a mesma regra e falha quando um
+product, feature, action ou target variant ainda referencia o alias.
 
 `package.lock` fixa:
 
@@ -313,8 +395,10 @@ w publish check last-light/restaurant
 - target roles e identities dos resolution contexts;
 - versões e origins;
 - external source tree digests;
-- member paths, manifests e source-set digests;
+- member paths, manifests e source-inventory digests;
+- active source-set digest de cada context;
 - features;
+- case e digest de cada target variant;
 - build-tool packages;
 - expansão de `moduleSets`;
 - metadata snapshots e razões da resolução.
@@ -369,9 +453,9 @@ panic, cancellation ou output ausente não confirmam objeto no CAS.
 
 ```text
 w package list last-light/restaurant
-w package check last-light/restaurant
-w package assemble last-light-native --matrix desktop --locked
-w publish --release 0.1.0 --artifacts dist/release.windex
+w package check --matrix last-light/restaurant
+w build --matrix desktop --product last-light-native --locked
+w publish last-light/restaurant --artifacts dist/release.windex --locked
 w verify registry:last-light/restaurant@0.1.0
 w reproduce registry:last-light/restaurant@0.1.0
 ```
@@ -385,6 +469,28 @@ O source snapshot usa a allowlist de `package.w`. Ele não consulta
 reconstrói usando somente o snapshot.
 
 Nenhum selo combina essas propriedades em uma afirmação vaga de “seguro”.
+
+### 6.4 Envelopes de plataforma
+
+O payload interno e o envelope de entrega são records distintos:
+
+| Target family | Payload | Envelope candidato |
+|---|---|---|
+| Linux | ELF | archive, package de sistema ou OCI image |
+| Windows | PE/COFF + PDB sidecar | directory ou MSIX |
+| macOS | Mach-O + dSYM sidecar | app bundle ou signed archive |
+| Android | ELF libraries e resources | APK ou Android App Bundle |
+| iOS | Mach-O e resources | app bundle assinado |
+| bare metal | image, map e symbols | firmware bundle |
+| accelerator | kernels, objects e launch metadata | device bundle |
+
+O target adapter produz o envelope. Signing, notarization e timestamp não
+mudam o digest do payload interno. Eles recebem records próprios.
+
+Uma instalação pode conter vários products. Por exemplo, o observatory instala
+um control plane nativo, firmware de satélite e device kernels. O deployment
+liga esses artifacts por digest. O build não tenta convertê-los em um único
+executável.
 
 ## 7. Packing e deployment de nanoservices
 
@@ -430,7 +536,7 @@ O deployment roteia essas edges. Ele não pode substituir os providers.
 Os planos estão em [`deployments/`](deployments/):
 
 - `local.w` usa `single-process` e adapters locais;
-- `distributed.w` usa `split-services`, WASI 0.3 e controladoras externas;
+- `distributed.w` usa `split-services`, WASI 0.3, swarm e sensores externos;
 - `benchmark.w` fixa PostgreSQL, cache local, admission e logs em disco
   desativados.
 
@@ -466,12 +572,16 @@ Cada product precisa de um oracle observável.
 | menu compiler | execution/target separados e mesmo bytecode por input |
 | simulation | mesmos eventos e totais para a mesma recipe |
 | native | CLI, TUI e HTTP produzem a mesma resposta tipada |
+| TUI dedicada | backend do target é único e modes não alcançáveis saem do artifact |
 | worker | request limits, cancellation e status são equivalentes |
+| Wi-Fi | authority, rate limit e session binding permanecem explícitos |
+| observatory | satélites e horizonte fazem join sem task solta ou dado stale |
 | fulfillment workflow | crash em todo commit preserva effect ID, outcome e ownership |
 | mobile | suspend drena trabalho e resume não duplica efeitos |
 | controller | nenhuma interrupt faz allocation ou blocking |
 | audio | callback não aloca, bloqueia ou perde deadline |
 | accelerators | CPU e device concordam dentro do numeric mode |
+| AI lab | treino no host e kernel de device preservam shapes e numeric mode |
 | benchmark | workload oficial sem bypass e com configuração registrada |
 
 O produto de referência se torna parte da suíte de:
@@ -492,19 +602,20 @@ Os arquivos atuais exigem contratos ainda não implementados:
 1. schemas semânticos de package, workspace e deployment;
 2. resolver, lock contexts e standalone publish check;
 3. expansão determinística de `moduleSets`;
-4. `build-transform@1`, sandbox e action CAS;
-5. host profiles e slot registry;
-6. std de process, mobile, device, audio e accelerator;
-7. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
-8. codecs JSON explícitos ou derivados por synthesis autorizada;
-9. pool, adapters de protocolo e validação de schema do database;
-10. implementação de cache local, eviction e single-flight;
-11. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
-12. validator do runtime graph e da interface de cada unit;
-13. platform packaging e signing;
-14. device memory e kernel ABI;
-15. harness TechEmpower versionado e seus validadores;
-16. deployment resolver, lock e validator;
-17. compiler e backends.
+4. selector de target, prova de disjointness e interface matrix;
+5. `build-transform@1`, sandbox e action CAS;
+6. host profiles e slot registry;
+7. std de process, mobile, device, audio e accelerator;
+8. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
+9. codecs JSON explícitos ou derivados por synthesis autorizada;
+10. pool, adapters de protocolo e validação de schema do database;
+11. implementação de cache local, eviction e single-flight;
+12. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
+13. validator do runtime graph e da interface de cada unit;
+14. platform packaging e signing;
+15. device memory e kernel ABI;
+16. harness TechEmpower versionado e seus validadores;
+17. deployment resolver, lock e validator;
+18. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

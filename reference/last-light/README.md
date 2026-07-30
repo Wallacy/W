@@ -32,6 +32,11 @@ last-light-native / entry .default
   ├─ terminal ANSI
   └─ JSON por HTTP
 
+last-light-tui / entry LastLightTui
+  → herda shutdown de .default
+  → seleciona o terminal adapter do target
+  → remove os modes não alcançáveis
+
 last-light-worker / LastLightWorker
   → http.fetch fornecido pelo host
   → o mesmo dispatch e RestaurantApi
@@ -43,6 +48,10 @@ last-light-mobile / LastLightMobile
 last-light-controller / LastLightController
   → sensors, interrupts e satellite telemetry
 
+last-light-observatory / LastLightObservatory
+  → swarm de satélites e sensores do horizonte
+  → duas calls concorrentes com join estruturado
+
 last-light-audio / LastLightAudio
   → callback com deadline
   → sem allocation ou blocking
@@ -50,6 +59,10 @@ last-light-audio / LastLightAudio
 last-light-accelerators / LastLightKernels
   → tensor kernels
   → NVVM, ROCDL ou SPIR-V
+
+last-light-ai-lab / LastLightAiLab
+  → treino linear no host
+  → o mesmo kernel possui lowering de device
 
 compile-final-menu / menu-compiler
   → build.transform
@@ -61,12 +74,18 @@ compile-final-menu / menu-compiler
 aleatoriedade, network nem deployment de services. O mesmo profile deve produzir
 os mesmos eventos, totais e consumo de energia em qualquer execução compatível.
 
-O descriptor anônimo de `app.w` liga `runNative` a `process.main`. Ele escolhe
-CLI, TUI ou servidor local por argumento. `LastLightTui` continua como descriptor
-de teste. `LastLightLineHost` recebe uma linha por evento.
+O descriptor anônimo de `app.w` é `.default`. O host liga `runNative` a
+`process.main`; o source não repete esse nome. O handler escolhe CLI, TUI ou
+servidor local por argumento.
+
+`LastLightTui` herda `process.signal` de `.default` e substitui somente o handler
+default. O product `last-light-tui` seleciona esse descriptor para gerar um
+artifact menor. `LastLightLineHost` herda a mesma base e acrescenta uma linha
+por evento.
 
 `LastLightWorker` possui outro módulo de entry. Seu host chama `http.fetch`.
-Importar `app.w` não registra o entry nativo.
+Ele importa `gateway.w`, não o módulo nativo. Importar qualquer entry module
+também não registra ou executa seu descriptor.
 
 A rota distribuída mantém o gate **Turno do Horizonte Violeta**:
 
@@ -151,10 +170,14 @@ alvo de execução independente.
 | `workflow.w` | points duráveis, retry, timer, evento e compensação |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
+| `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `simulation_app.w` | entry determinística sem deployment de services |
-| `app.w` | processo nativo multimodo, linha por evento e Context |
+| `app.w` | processo nativo multimodo, terminal, linha por evento e Context |
+| `platform.w` | interface uniforme dos adapters nativos |
+| `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
+| `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, runtime graphs, packings, targets e build profiles |
+| `package.w` | products, variantes, runtime graphs, targets e build profiles |
 | `workspace.w` | members, defaults e patches locais |
 | `BUILD.md` | matriz de artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
@@ -168,11 +191,12 @@ alvo de execução independente.
 | `wifi.w` | captive portal, sessions, authority e limits |
 | `wifi_app.w` | component HTTP do Wi-Fi |
 | `ai_harness.w` | kernels, shapes e device bundle |
+| `ai_lab_app.w` | harness nativo de treinamento e oracle CPU/device |
 | `mobile_app.w` | lifecycle Android/iOS sem UI toolkit W |
 | `controller_app.w` | reset, tick, interrupt e MMIO adapter |
 | `benchmark_app.w` | workloads HTTP e database para benchmark |
 
-Esses arquivos usam a forma vigente. A tentativa DB1 está no
+Esses arquivos usam a forma vigente. A consolidação substituída está no
 [arquivo histórico](../../../Y/W/archive/db1-2026-07-27/examples/restaurant/).
 
 ### 2.1 Cobertura e alcance
@@ -193,12 +217,12 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
-| operação integrada | `simulation.w`, `presentation.w`, `app.w` | um modelo tipado atende CLI, TUI e HTTP |
-| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, packing, target e placement ficam separados |
+| operação integrada | `simulation.w`, `gateway.w`, `app.w` | um dispatch tipado atende CLI, TUI e HTTP |
+| products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, target e placement ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
 | device e tempo real | `controller_app.w`, `audio.w` | interrupts, fixed buffers e deadlines ficam visíveis |
 | mobile e Wi-Fi | `mobile_app.w`, `wifi.w` | lifecycle e authority usam capabilities |
-| AI e benchmarks | `ai_harness.w`, `benchmark_app.w` | kernels e desempenho preservam oracles |
+| AI e benchmarks | `ai_harness.w`, `ai_lab_app.w`, `benchmark_app.w` | treino, kernels e desempenho preservam oracles |
 
 A tabela cobre as famílias aceitas no design vigente. Itens em **Pesquisa**,
 alternativas contrafactuais e propostas rejeitadas não são requisitos do
@@ -1305,7 +1329,7 @@ Ele também injeta event duplicado, timeout concorrente, history divergente e
 versão ausente. Cada caso precisa terminar com ownership, outcome e trace
 definidos.
 
-### 3.36 Bilheteria para Nove Universos
+### 3.36 Bilheteria para Muitos Universos
 
 Famílias: package, product, entry, runtime graph, packing, deployment e artifact.
 
@@ -1325,9 +1349,17 @@ Aceite:
 - `.gitignore` não muda o source snapshot;
 - `w package check` reconstrói somente com os arquivos publicáveis;
 - `moduleSets` expande para a mesma lista em qualquer filesystem;
+- `.always` e `.selected` tornam a ativação de cada module set explícita;
+- `native-terminal` escolhe um único case por target;
+- Linux e Darwin selecionam `platform/posix/native.w`;
+- Windows seleciona `platform/windows/native.w`;
+- os dois cases exportam a mesma interface `restaurant.platform.native`;
+- o worker importa `gateway.w` e não alcança o adapter de terminal;
+- o lock grava o case e os module sets selecionados;
 - build locked falha quando um arquivo novo não está no lock;
 - `.default` resolve o descriptor anônimo de `app.w`;
 - `LastLightTui` herda `process.signal` e troca somente o slot default;
+- `last-light-tui` liga esse descriptor sem repetir seus bindings;
 - `LastLightWorker` não herda bindings de outro módulo;
 - um product iniciado por host liga exatamente um descriptor expandido;
 - uma service-only unit publica seus providers no artifact index como roots;

@@ -49,6 +49,7 @@ npm install
 npm run generate
 npm test
 npm run parse:reference
+npm run parse:platforms
 npm run parse:packages
 npm run parse:deployments
 npm run parse:std
@@ -62,8 +63,9 @@ Ou execute todos os checks:
 npm run check
 ```
 
-`npm run check` executa corpus, produto, deployments, std, fixture do VS Code e
-cobertura de exemplos. O CLI está fixado em `tree-sitter-cli` 0.26.11.
+`npm run check` executa corpus, produto, variantes de plataforma, deployments,
+std, fixture do VS Code e cobertura de exemplos. O CLI está fixado em
+`tree-sitter-cli` 0.26.11.
 
 Após `generate`, `src/` e o parser C gerado tornam a gramática consumível sem
 copiar regras para outro lexer. Um binding Node nativo é responsabilidade do

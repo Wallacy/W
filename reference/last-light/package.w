@@ -27,11 +27,49 @@ package {
 
   moduleSets: [
     {
+      name: "restaurant-modules"
+      activation: .always
       namespace: "restaurant"
       root: "."
       include: ["*.w"]
       exclude: ["package.w", "workspace.w"]
       layout: .fileStem
+    },
+    {
+      name: "native-terminal-posix"
+      activation: .selected
+      namespace: "restaurant.platform"
+      root: "platform/posix"
+      include: ["*.w"]
+      layout: .fileStem
+    },
+    {
+      name: "native-terminal-windows"
+      activation: .selected
+      namespace: "restaurant.platform"
+      root: "platform/windows"
+      include: ["*.w"]
+      layout: .fileStem
+    },
+  ]
+
+  targetVariants: [
+    {
+      name: "native-terminal"
+      interface: .uniform
+      cases: [
+        {
+          name: "posix"
+          target: { systems: [.linux, .darwin] }
+          enables: [.moduleSet("native-terminal-posix")]
+        },
+        {
+          name: "windows"
+          target: { systems: [.windows] }
+          enables: [.moduleSet("native-terminal-windows")]
+        },
+      ]
+      fallback: { name: "not-native", enables: [] }
     },
   ]
 
@@ -280,6 +318,11 @@ package {
           keyType: "restaurant.orbit::SatelliteId"
           source: .deployment
         },
+        {
+          binding: "horizon-monitor"
+          protocol: "restaurant.horizon::HorizonMonitorApi"
+          source: .deployment
+        },
       ]
       supervisors: []
       exports: []
@@ -330,6 +373,20 @@ package {
       runtime: "restaurant-core"
       packing: "single-process"
       capabilities: [.stdio, .network, .signals, .clock, .services, .devices]
+      resources: [
+        .action("compile-final-menu", output: "bytecode"),
+      ]
+    },
+    {
+      name: "last-light-tui"
+      kind: .executable
+      module: "restaurant.app"
+      entry: "LastLightTui"
+      host: "w.host/native-process@1"
+      targets: ["desktop"]
+      runtime: "restaurant-core"
+      packing: "single-process"
+      capabilities: [.stdio, .signals, .clock, .services, .devices]
       resources: [
         .action("compile-final-menu", output: "bytecode"),
       ]
@@ -437,6 +494,15 @@ package {
       host: "w.host/accelerator-module@1"
       targets: ["accelerators"]
       capabilities: [.deviceMemory, .workgroups]
+    },
+    {
+      name: "last-light-ai-lab"
+      kind: .executable
+      module: "restaurant.ai_lab_app"
+      entry: "LastLightAiLab"
+      host: "w.host/native-process@1"
+      targets: ["server"]
+      capabilities: [.stdio]
     },
     {
       name: "last-light-benchmark"

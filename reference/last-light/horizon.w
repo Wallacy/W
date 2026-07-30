@@ -43,7 +43,14 @@ export enum HorizonError: Error {
   emptyWindow
   nonFinite
   outOfOrder(previous: EventSequence, found: EventSequence)
+  service(ServiceFailure)
 }
+
+export protocol HorizonMonitorApi {
+  async fn status(after sequence: EventSequence): HorizonStatus throws HorizonError
+}
+
+export const horizonMonitor = ServiceBinding<HorizonMonitorApi>(name: "horizon-monitor")
 
 fn validate<const samples: usize>(
   window: ref HorizonWindow<samples>,

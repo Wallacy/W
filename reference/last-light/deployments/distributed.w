@@ -81,6 +81,14 @@ deployment {
         target: "riscv32-unknown-none-elf",
       )
     },
+    {
+      name: "horizon"
+      source: .release(
+        "last-light/horizon-monitor@0.1.0",
+        product: "server",
+        target: "aarch64-unknown-linux-gnu",
+      )
+    },
   ]
 
   placement: [
@@ -96,6 +104,7 @@ deployment {
     { unit: "audience/controller", host: .device("audience-meter") },
     { unit: "sessions/main", host: .pool("edge-state") },
     { unit: "satellites/controller", host: .fleet("satellite-swarm") },
+    { unit: "horizon/main", host: .pool("horizon-sensors") },
   ]
 
   bindings: [
@@ -130,6 +139,10 @@ deployment {
     {
       import: "observatory/satellites"
       provider: .service(unit: "satellites/controller", binding: "satellites")
+    },
+    {
+      import: "observatory/horizon-monitor"
+      provider: .service(unit: "horizon/main", binding: "horizon-monitor")
     },
   ]
 
