@@ -3,8 +3,10 @@ import std.http
 import { Order } from restaurant.domain
 import std.reflect as reflect
 import std.tensor as tensor
-package import service pantry: PantryApi
-package import service ovens<key: OvenId>: OvenApi
+export service pantry: PantryApi
+import service {
+  OvenApi as ovens<key: OvenId>,
+} from restaurant.contracts
 
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>

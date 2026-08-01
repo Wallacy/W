@@ -84,8 +84,8 @@ O descriptor anônimo de `app.w` é `.default`. O host liga `runNative` a
 servidor local por argumento.
 
 `LastLightTui` é independente de `.default`. O product `last-light-tui`
-seleciona esse descriptor e liga `process.signal` a `shutdown`. A recipe pode
-remover handlers e modes não alcançáveis.
+seleciona esse descriptor. `runTuiEntry` registra `shutdown` no runtime. A
+recipe pode remover handlers e modes não alcançáveis.
 
 `LastLightWorker` possui outro módulo de entry. Seu host chama `http.fetch`.
 Ele importa `gateway.w`, não o módulo nativo. Importar qualquer entry module
@@ -182,7 +182,7 @@ alvo de execução independente.
 | `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, host bindings, service links, runtime graphs, targets e profiles |
+| `package.w` | products, host bindings, service bindings, runtime graphs, targets e profiles |
 | `workspace.w` | members, defaults, patches e toolchain policy locais |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
@@ -245,9 +245,10 @@ Aceite:
 
 - `entry { ... }` cria um handler curto para um default slot único;
 - `entry(runNative)` cria o descriptor anônimo `.default`;
-- `entry LastLightTui(runTui)` cria um descriptor independente;
-- o product escolhe um descriptor e declara seus `hostBindings`;
-- o source não atribui `process.signal`, `device.tick` ou outro host slot;
+- `entry LastLightTui(runTuiEntry)` cria um descriptor independente;
+- o product escolhe um descriptor e declara callbacks ABI adicionais quando necessários;
+- process signals usam registration runtime e lifetime explícito;
+- callbacks ABI estáticos, como `device.tick`, usam `hostBindings`;
 - importar `app` não executa um handler;
 - Context não concede filesystem ou network ausentes.
 
@@ -567,6 +568,10 @@ Famílias: service, serial turn, mailbox, hop e backpressure.
 
 Aceite:
 
+- `export service lastLight: RestaurantApi` publica uma provider-owned boundary;
+- `import service { OracleApi as oracle }` cria uma caller-owned boundary;
+- o startup resolve as duas para `ServiceRef` antes do entry;
+- launch config só troca uma binding autorizada pelo artifact;
 - a mesma `ServiceRef` funciona local e remotamente;
 - toda call usa `await`;
 - o trace mostra hop e queue wait;
@@ -1300,7 +1305,7 @@ outcome e deployment.
 
 ```text
 host entry (target)
-  → ServiceFamilyImport<OrderCoordinatorApi, OrderId>
+  → ServiceFamilyRef<OrderCoordinatorApi, OrderId>
   → turn curto de submit
   → fulfillment.tryStart
   → root owned pelo supervisor
@@ -1318,8 +1323,8 @@ status / signal / cancel / outcome
 ```
 
 `supervision.w` mantém a coordination boundary curta. O trabalho longo não
-captura state do service. `workflow.w` recebe input owned e obtém os bindings
-novamente em cada step por `StepContext`.
+captura state do service. Service imports são resolvidos para a process
+generation. Um durable step não persiste os handles.
 
 `supervision.fulfillOrder` permanece como oracle process-local de compensação.
 O product liga `workflow.fulfillOrderDurably`.
@@ -1410,14 +1415,15 @@ Aceite:
 - build locked falha quando um arquivo novo não está no lock;
 - `.default` resolve o descriptor anônimo de `app.w`;
 - `LastLightTui` não herda host bindings de `.default`;
-- `last-light-tui` declara seu próprio binding de `process.signal`;
+- `runNative` e `runTuiEntry` registram signals no runtime;
 - `LastLightWorker` usa os slots declarados pelo profile HTTP;
 - um product iniciado por host liga um descriptor e seus host bindings;
 - uma service-only unit publica seus providers no artifact index como roots;
 - CLI, TUI e servidor local podem compartilhar um `process.main`;
 - o worker HTTP possui outro product e outro artifact;
 - cada requirement recebe provider, supervisor, host capability ou import;
-- cada `import service` alcançável recebe um `link` pelo ID de seu symbol;
+- cada service identity alcançável recebe um binding default;
+- startup config só altera bindings com override permitido;
 - cada dependency de provider entra por um initializer argument explícito;
 - um import aberto aparece na interface do artifact;
 - `AromaProbeDevice` permanece na unit que recebe a capability do host;
@@ -1475,7 +1481,7 @@ Aceite:
 - duas telemetrias usam I/O concorrente e mantêm ordering por source;
 - um satellite silencioso não vira zero telemetry;
 - sequence stale produz error tipado;
-- `ServiceFamilyImport` seleciona a instance pela identidade;
+- `ServiceFamilyRef` seleciona a instance pela identidade;
 - o solver de aproximação usa um número de samples refinado;
 - CPU scalar, SIMD e device produzem o mesmo resultado no mode escolhido;
 - deployment pode co-localizar ou separar satélites sem mudar a API.
@@ -1659,8 +1665,8 @@ O Book deve mostrar pares lado a lado:
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
 | QoS | descriptor/policy de group | `.background` como domain |
 | trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
-| binding singular | `ctx.services.get(lastLight)` | lookup normal por string |
-| binding keyed | `ctx.services.get(orderCoordinators, key:)` | singleton global ou key inferida |
+| binding singular | `lastLight.menu()` por `ServiceRef` | lookup runtime por string |
+| binding keyed | `orderCoordinators.at(orderId)` | singleton global ou key inferida |
 | identity keyed | `ServiceIdentity<OrderId>` + `WorkKeyRef` | primeiro argumento redefine a instance |
 | progress | `WorkSnapshot<ServiceStage>` revisionado | borrow do task frame ou event list ilimitada |
 | cancelamento remoto | `WorkRef<[.observe, .cancel]>` | todo observer cancela ou Boolean runtime |

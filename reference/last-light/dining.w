@@ -39,7 +39,7 @@ export protocol DiningRoomApi {
   ): Receipt throws DiningRoomError
 }
 
-package import service diningRoom: DiningRoomApi
+export service diningRoom: DiningRoomApi
 
 fn defaultTables(): Map<TableId, Table> {
   return [
@@ -50,7 +50,7 @@ fn defaultTables(): Map<TableId, Table> {
   ]
 }
 
-export service PrismDiningRoom as DiningRoomApi {
+package service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = defaultTables()
 

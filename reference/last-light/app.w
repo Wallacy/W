@@ -2,7 +2,13 @@
 
 import std.http
 import std.io
-import std.process as process
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+  Signal as ProcessSignal,
+  SignalError as ProcessSignalError,
+} from std.process
 import { CommandError, decodeCommand } from restaurant.command
 import {
   DispatchError,
@@ -41,6 +47,7 @@ export enum AppError: Error {
   gateway(GatewayError)
   http(http.ServerError)
   io(IoError)
+  signal(ProcessSignalError)
   service(ServiceFailure)
 }
 
@@ -57,7 +64,7 @@ const fn terminalBackendLabel(backend: NativeTerminalBackend): String {
   }
 }
 
-fn launchMode(args: ref process.Arguments): LaunchMode throws AppError {
+fn launchMode(args: ref ProcessArguments): LaunchMode throws AppError {
   let cli = args.contains("--cli")
   let tui = args.contains("--tui")
   let serve = args.contains("--serve")
@@ -75,8 +82,7 @@ fn launchMode(args: ref process.Arguments): LaunchMode throws AppError {
   return .cli
 }
 
-async fn runConsole(ctx: process.Context, mode: RenderMode): process.ExitCode throws AppError {
-  let restaurant = try await ctx.services.get(lastLight)
+async fn runConsole(ctx: ProcessContext, mode: RenderMode): ProcessExitCode throws AppError {
   let welcome = renderResponse(.help, mode: mode)
   try await ctx.stdout.write(welcome)
 
@@ -84,7 +90,7 @@ async fn runConsole(ctx: process.Context, mode: RenderMode): process.ExitCode th
     let command = try decodeCommand(line)
     let response = try await dispatch(
       take command,
-      restaurant: restaurant,
+      restaurant: lastLight,
       authority: .localOperator,
     )
     let shouldStop = requestsShutdown(response)
@@ -99,13 +105,13 @@ async fn runConsole(ctx: process.Context, mode: RenderMode): process.ExitCode th
   return .success
 }
 
-async fn runTui(args: process.Arguments, ctx: process.Context): process.ExitCode throws AppError {
+async fn runTui(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode throws AppError {
   let backend = terminalBackendLabel(nativeTerminalBackend())
   print("Opening the final terminal with the ${backend} adapter.")
   return try await runConsole(ctx, mode: .ansi)
 }
 
-async fn runServer(ctx: process.Context): process.ExitCode throws AppError {
+async fn runServer(ctx: ProcessContext): ProcessExitCode throws AppError {
   try await http.serve(
     at: .loopback(port: 8_080),
     using: ctx.network,
@@ -116,9 +122,15 @@ async fn runServer(ctx: process.Context): process.ExitCode throws AppError {
 }
 
 async fn runNative(
-  args: process.Arguments,
-  ctx: process.Context,
-): process.ExitCode throws AppError {
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode throws AppError {
+  let shutdownSignals = try ctx.signals.register(
+    [.interrupt, .terminate],
+    handler: shutdown,
+  )
+  defer { shutdownSignals.cancel() }
+
   return switch try launchMode(args) {
     case .cli:
       try await runConsole(ctx, mode: .plain)
@@ -129,11 +141,23 @@ async fn runNative(
   }
 }
 
-package async fn shutdown(signal: process.Signal, ctx: process.Context): () {
+async fn runTuiEntry(
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode throws AppError {
+  let shutdownSignals = try ctx.signals.register(
+    [.interrupt, .terminate],
+    handler: shutdown,
+  )
+  defer { shutdownSignals.cancel() }
+  return try await runTui(args, ctx: ctx)
+}
+
+async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): () {
   print("Closing the final shift after ${signal}.")
   await ctx.services.drain(deadline: ctx.deadline)
 }
 
 entry(runNative)
 
-entry LastLightTui(runTui)
+entry LastLightTui(runTuiEntry)

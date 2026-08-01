@@ -44,9 +44,10 @@ supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. `io/contracts.w` materializa byte I/O de T1.
 Os outros arquivos materializam values e protocols de T2.
 
-`std.process` é um namespace T1 planejado. Ele fornece
-`process.Arguments`, `process.Context`, `process.ExitCode` e `process.Signal`.
-Ele não fornece um singleton global chamado `process`. Os SDKs de target podem
+`std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
+`ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.
+Um namespace alias, como `process.Arguments`, continua válido. O módulo não
+fornece um singleton global chamado `process`. Os SDKs de target podem
 fornecer namespaces como `std.device`, `std.mobile` e `std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
@@ -74,7 +75,7 @@ failure semantics.
 
 `Duration`, `Task`, `Deadline`, `Cancellation`, `CancellationId`, `WorkId`,
 `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`, `StepContext`,
-`build.Context`, `process.Context`, `Request`, `Response`, `http.Context` e
+`build.Context`, `ProcessContext`, `Request`, `Response`, `http.Context` e
 handles de capability ainda são intrinsics do compiler/runtime.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio

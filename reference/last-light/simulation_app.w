@@ -1,6 +1,10 @@
 // Standalone deterministic target that does not require a service deployment.
 
-import std.process as process
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
 import {
   SimulationError,
   simulateShift,
@@ -9,9 +13,9 @@ import {
 import { SimulationProfile } from restaurant.domain
 
 async fn runSimulation(
-  args: process.Arguments,
-  ctx: process.Context,
-): process.ExitCode throws SimulationError {
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode throws SimulationError {
   for profile in [
     SimulationProfile.quietOrbit,
     SimulationProfile.photonRush,

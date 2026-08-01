@@ -39,7 +39,7 @@ export protocol SatelliteApi {
   async fn command(next: take StateVector, sequence: u64): () throws SatelliteError
 }
 
-package import service satelliteSwarm<key: SatelliteId>: SatelliteApi
+export service satelliteSwarm<key: SatelliteId>: SatelliteApi
 
 export fn propagate(state: ref StateVector, during elapsed: PhysicalDuration): StateVector {
   return StateVector(

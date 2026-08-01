@@ -139,7 +139,7 @@ module.exports = grammar({
       choice(
         repeat(
           choice(
-            $.service_import_declaration,
+            $.service_import_statement,
             $.import_statement,
             $._declaration,
           ),
@@ -150,28 +150,35 @@ module.exports = grammar({
         $.lock_manifest,
       ),
 
-    service_import_declaration: ($) =>
+    service_import_statement: ($) =>
       prec(
         1,
         seq(
-          optional(field("visibility", choice("package", "export"))),
           "import",
           "service",
-          field("name", $.identifier),
-          optional(
-            seq(
-              "<",
-              "key",
-              ":",
-              field("key_type", $.type),
-              optional(","),
-              ">",
-            ),
-          ),
-          ":",
-          field("api", $.type),
+          field("items", $.named_service_imports),
+          "from",
+          field("module", $.module_path),
           optional(";"),
         ),
+      ),
+
+    named_service_imports: ($) =>
+      seq("{", commaSep1($.service_import_item), optional(","), "}"),
+    service_import_item: ($) =>
+      seq(
+        field("name", $.identifier),
+        optional(seq("as", field("alias", $.identifier))),
+        optional($.service_key_contract),
+      ),
+    service_key_contract: ($) =>
+      seq(
+        "<",
+        "key",
+        ":",
+        field("key_type", $.type),
+        optional(","),
+        ">",
       ),
 
     import_statement: ($) =>
@@ -216,6 +223,7 @@ module.exports = grammar({
         $.function_declaration,
         $.struct_declaration,
         $.object_declaration,
+        $.service_binding_declaration,
         $.service_declaration,
         $.enum_declaration,
         $.protocol_declaration,
@@ -324,6 +332,19 @@ module.exports = grammar({
         optional($.type_parameters),
         optional($.conformance_clause),
         $.type_body,
+      ),
+    service_binding_declaration: ($) =>
+      prec(
+        2,
+        seq(
+          optional($.declaration_prefix),
+          "service",
+          field("name", $.identifier),
+          optional($.service_key_contract),
+          ":",
+          field("api", $.type),
+          optional(";"),
+        ),
       ),
     service_declaration: ($) =>
       seq(

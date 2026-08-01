@@ -139,9 +139,9 @@ export protocol BillingApi {
   async fn refund(payment: take Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
 }
 
-package import service billing: BillingApi
+export service billing: BillingApi
 
-export service BillingLedger as BillingApi {
+package service BillingLedger as BillingApi {
   gateway: ServiceRef<PaymentGatewayApi>
   var Versioned payments: Map<IdempotencyKey, Payment> = Map()
 
