@@ -14,6 +14,8 @@ Estes planos testam a separação entre grafo lógico, packing e placement.
 O artifact index já fixa as edges entre as units de `restaurant-core`.
 O plano só escolhe a rota entre os placements. A seção `bindings` satisfaz
 imports abertos do grafo; ela não religa providers internos.
+Os paths de deployment nomeiam artifact e import do grafo. O source usa o ID
+tipado criado por `import service`; ele não conhece esses paths.
 
 A seção `limits.execution` reduz o execution profile de cada unit. Ela não
 altera domains, pools, capabilities ou fallbacks:

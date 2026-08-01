@@ -35,6 +35,8 @@ export protocol AromaProbeApi {
   async fn sample(): ProbeSample throws ProbeError
 }
 
+package import service aromaProbe: AromaProbeApi
+
 export object AromaProbeDevice {
   package handle: c.ptr<ll_probe>
 
@@ -53,6 +55,10 @@ unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
 
 export service AromaProbeService as AromaProbeApi {
   device: AromaProbeDevice
+
+  init(device: AromaProbeDevice) {
+    self.device = device
+  }
 
   mut async fn sample(): ProbeSample throws ProbeError {
     var raw: ll_sample

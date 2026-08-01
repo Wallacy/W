@@ -51,7 +51,7 @@ export protocol HorizonMonitorApi {
   async fn status(after sequence: EventSequence): HorizonStatus throws HorizonError
 }
 
-export const horizonMonitor = ServiceBinding<HorizonMonitorApi>(name: "horizon-monitor")
+package import service horizonMonitor: HorizonMonitorApi
 
 fn validate<const samples: usize>(
   window: ref HorizonWindow<samples>,

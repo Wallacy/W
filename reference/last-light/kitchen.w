@@ -97,6 +97,8 @@ export protocol PantryApi {
   async fn reserve(course: Course, guests: GuestCount): StockReservation throws PantryError
 }
 
+package import service pantry: PantryApi
+
 export protocol OvenLeaseApi {
   async fn preheat(): OvenReady throws OvenError
   async fn bake(mixture: take Mixture, until deadline: Instant): Dish throws OvenError
@@ -110,6 +112,8 @@ export protocol OvenApi {
     duration: PhysicalDuration,
   ): ServiceRef<OvenLeaseApi> throws OvenError
 }
+
+package import service ovens: OvenApi
 
 export struct PidController {
   proportionalGain: f64

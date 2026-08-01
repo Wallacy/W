@@ -76,20 +76,30 @@ package {
   runtimeGraphs: [
     {
       name: "restaurant-core"
+      links: [
+        { requirement: "restaurant.restaurant::lastLight", target: .service("lastLight") },
+        { requirement: "restaurant.supervision::orderCoordinators", target: .service("orders") },
+        { requirement: "restaurant.kitchen::pantry", target: .service("pantry") },
+        { requirement: "restaurant.kitchen::ovens", target: .service("ovens") },
+        { requirement: "restaurant.oracle::oracle", target: .service("oracle") },
+        { requirement: "restaurant.hardware::aromaProbe", target: .service("aromaProbe") },
+        { requirement: "restaurant.billing::billing", target: .service("billing") },
+        { requirement: "restaurant.dining::diningRoom", target: .service("diningRoom") },
+      ]
       providers: [
         {
-          binding: "last-light"
+          binding: "lastLight"
           protocol: "restaurant.restaurant::RestaurantApi"
           implementation: "restaurant.restaurant::LastLightRestaurant"
           scope: .process
           mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
-          inject: {
+          arguments: {
             pantry: .service("pantry")
             ovens: .service("ovens")
             oracle: .service("oracle")
-            probe: .service("aroma-probe")
+            probe: .service("aromaProbe")
             billing: .service("billing")
-            diningRoom: .service("dining-room")
+            diningRoom: .service("diningRoom")
           }
         },
         {
@@ -98,7 +108,8 @@ package {
           implementation: "restaurant.supervision::OrderCoordinator"
           scope: .keyed(keyType: "restaurant.domain::OrderId")
           mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
-          inject: {
+          arguments: {
+            identity: .serviceIdentity
             fulfillment: .supervisor("fulfillment", key: .serviceIdentity)
           }
         },
@@ -110,13 +121,13 @@ package {
           mailbox: { items: 64, bytes: 4MiB, inFlight: 1 }
         },
         {
-          binding: "aroma-probe"
+          binding: "aromaProbe"
           protocol: "restaurant.hardware::AromaProbeApi"
           implementation: "restaurant.hardware::AromaProbeService"
           scope: .process
           mailbox: { items: 16, bytes: 1MiB, inFlight: 1 }
-          inject: {
-            device: .capability("aroma-device")
+          arguments: {
+            device: .capability("aromaDevice")
           }
         },
         {
@@ -125,17 +136,17 @@ package {
           implementation: "restaurant.billing::BillingLedger"
           scope: .process
           mailbox: { items: 64, bytes: 4MiB, inFlight: 1 }
-          inject: {
-            gateway: .service("payment-gateway")
+          arguments: {
+            gateway: .service("paymentGateway")
           }
         },
         {
-          binding: "dining-room"
+          binding: "diningRoom"
           protocol: "restaurant.dining::DiningRoomApi"
           implementation: "restaurant.dining::PrismDiningRoom"
           scope: .process
           mailbox: { items: 32, bytes: 4MiB, inFlight: 1 }
-          inject: {
+          arguments: {
             audience: .service("audience")
           }
         },
@@ -153,7 +164,7 @@ package {
           source: .deployment
         },
         {
-          binding: "payment-gateway"
+          binding: "paymentGateway"
           protocol: "restaurant.billing::PaymentGatewayApi"
           source: .deployment
         },
@@ -163,7 +174,7 @@ package {
           source: .deployment
         },
         {
-          binding: "aroma-device"
+          binding: "aromaDevice"
           capability: "restaurant.hardware::AromaProbeDevice"
           source: .host
         },
@@ -184,9 +195,9 @@ package {
               "pantry",
               "ovens",
               "oracle",
-              "aroma-probe",
+              "aromaProbe",
               "billing",
-              "dining-room",
+              "diningRoom",
             ]
           }
           capacity: {
@@ -224,7 +235,7 @@ package {
         },
       ]
 
-      exports: ["last-light", "orders"]
+      exports: ["lastLight", "orders"]
 
       packings: [
         {
@@ -234,12 +245,12 @@ package {
               name: "main"
               entry: true
               providers: [
-                "last-light",
+                "lastLight",
                 "orders",
                 "oracle",
-                "aroma-probe",
+                "aromaProbe",
                 "billing",
-                "dining-room",
+                "diningRoom",
               ]
               supervisors: ["fulfillment"]
             },
@@ -251,12 +262,12 @@ package {
             {
               name: "gateway"
               entry: true
-              providers: ["last-light", "orders"]
+              providers: ["lastLight", "orders"]
               supervisors: ["fulfillment"]
             },
             {
               name: "planning"
-              providers: ["oracle", "aroma-probe"]
+              providers: ["oracle", "aromaProbe"]
             },
             {
               name: "finance"
@@ -264,7 +275,7 @@ package {
             },
             {
               name: "dining"
-              providers: ["dining-room"]
+              providers: ["diningRoom"]
             },
           ]
         },
@@ -272,10 +283,13 @@ package {
     },
     {
       name: "restaurant-client"
+      links: [
+        { requirement: "restaurant.restaurant::lastLight", target: .service("lastLight") },
+      ]
       providers: []
       imports: [
         {
-          binding: "last-light"
+          binding: "lastLight"
           protocol: "restaurant.restaurant::RestaurantApi"
           source: .deployment
         },
@@ -291,10 +305,13 @@ package {
     },
     {
       name: "wifi-edge"
+      links: [
+        { requirement: "restaurant.wifi::wifiSessions", target: .service("wifiSessions") },
+      ]
       providers: []
       imports: [
         {
-          binding: "wifi-sessions"
+          binding: "wifiSessions"
           protocol: "restaurant.wifi::WifiSessionApi"
           source: .deployment
         },
@@ -310,6 +327,13 @@ package {
     },
     {
       name: "observatory-client"
+      links: [
+        { requirement: "restaurant.orbit::satelliteSwarm", target: .service("satellites") },
+        {
+          requirement: "restaurant.horizon::horizonMonitor"
+          target: .service("horizonMonitor")
+        },
+      ]
       providers: []
       imports: [
         {
@@ -319,7 +343,7 @@ package {
           source: .deployment
         },
         {
-          binding: "horizon-monitor"
+          binding: "horizonMonitor"
           protocol: "restaurant.horizon::HorizonMonitorApi"
           source: .deployment
         },
@@ -513,6 +537,9 @@ package {
       module: "restaurant.app"
       entry: ".default"
       host: "w.host/native-process@1"
+      hostBindings: [
+        { slot: "process.signal", handler: "restaurant.app::shutdown" },
+      ]
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"
@@ -528,6 +555,9 @@ package {
       module: "restaurant.app"
       entry: "LastLightTui"
       host: "w.host/native-process@1"
+      hostBindings: [
+        { slot: "process.signal", handler: "restaurant.app::shutdown" },
+      ]
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"
@@ -631,6 +661,11 @@ package {
       module: "restaurant.mobile_app"
       entry: "LastLightMobile"
       host: "w.host/mobile-app@1"
+      hostBindings: [
+        { slot: "app.resume", handler: "restaurant.mobile_app::resume" },
+        { slot: "app.suspend", handler: "restaurant.mobile_app::suspend" },
+        { slot: "app.notification", handler: "restaurant.mobile_app::notification" },
+      ]
       targets: ["mobile"]
       runtime: "restaurant-client"
       packing: "entry-only"
@@ -643,6 +678,10 @@ package {
       module: "restaurant.controller_app"
       entry: "LastLightController"
       host: "w.host/firmware@1"
+      hostBindings: [
+        { slot: "device.tick", handler: "restaurant.controller_app::sampleTick" },
+        { slot: "device.interrupt", handler: "restaurant.controller_app::interrupt" },
+      ]
       targets: ["embedded"]
       capabilities: [.monotonicClock, .interrupts, .mmio]
     },
@@ -659,7 +698,7 @@ package {
       name: "last-light-accelerators"
       kind: .deviceBundle
       module: "restaurant.ai_harness"
-      entry: "LastLightKernels"
+      exports: ["restaurant.ai_harness::lastLightKernels"]
       host: "w.host/accelerator-module@1"
       targets: ["accelerators"]
       capabilities: [.deviceMemory, .workgroups]

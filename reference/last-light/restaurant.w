@@ -67,6 +67,8 @@ export protocol RestaurantApi {
   async fn snapshot(): RestaurantSnapshot
 }
 
+package import service lastLight: RestaurantApi
+
 struct OrderState {
   var stage: ServiceStage
   var receipt: Receipt?
@@ -139,6 +141,22 @@ export service LastLightRestaurant as RestaurantApi {
   var orders: Map<OrderId, OrderState> = Map()
   var Lazy priceTable = loadPriceTable()
   var completedOrders: u64 = 0
+
+  init(
+    pantry: ServiceRef<PantryApi>,
+    ovens: ServiceRef<OvenApi>,
+    oracle: ServiceRef<OracleApi>,
+    probe: ServiceRef<AromaProbeApi>,
+    billing: ServiceRef<BillingApi>,
+    diningRoom: ServiceRef<DiningRoomApi>,
+  ) {
+    self.pantry = pantry
+    self.ovens = ovens
+    self.oracle = oracle
+    self.probe = probe
+    self.billing = billing
+    self.diningRoom = diningRoom
+  }
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let orderId = order.id

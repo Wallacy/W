@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 30 de julho de 2026
+> **Status:** **Candidato experimental** · 31 de julho de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
@@ -1067,6 +1067,7 @@ O exemplo abaixo mostra a forma vigente. Ele não tenta mostrar toda a bibliotec
 
 ```w
 import { Request, Response } from std.http
+import std.process as process
 import std.tensor as tensor
 
 export type OrderId = u64
@@ -1104,9 +1105,15 @@ fn score(features: ref Tensor<f32, shape: [1, 8]>,
   return features @ weights
 }
 
-entry(run) {
-  process.signal = shutdown
+async fn run(
+  args: process.Arguments,
+  ctx: process.Context,
+): process.ExitCode {
+  print("The kitchen is ready.")
+  return .success
 }
+
+entry(run)
 ```
 
 O formatter mantém uma assinatura em uma linha quando ela cabe em 120 colunas.
@@ -7838,8 +7845,8 @@ exige processo, OS sandbox ou Wasm.
 
 ### 13.2 Entry
 
-Um `entry` descreve como funções W ocupam slots de um host profile. Ele não
-declara um executável, abre uma porta ou cria uma thread.
+Um `entry` declara somente o handler do slot default de um host profile. Ele não
+declara um executável, abre uma porta ou registra callbacks durante a execução.
 
 Forma curta:
 
@@ -7849,67 +7856,102 @@ entry {
 }
 ```
 
-Ela cria um handler anônimo. O product precisa escolher um host profile com um
-único slot default. O body ignora os parâmetros desse slot.
+O body contém código W normal. Ele não é uma tabela de bindings. Essa forma cria
+o descriptor anônimo `.default`.
 
-O source não escreve `process.main` nessa forma. O host profile fornece o slot
-default e o compiler liga o handler a esse slot. A interface e o manifest
-chamam o descriptor anônimo de `.default`.
+O profile precisa declarar um adapter de body simples. `native-process@1`
+adapta `fn(): ()` para seu main portátil. O wrapper descarta arguments, devolve
+success e não cria uma variável `ctx` oculta. APIs alcançáveis ainda precisam
+das capabilities do profile; `print` usa seu lowering T1 declarado. `w explain
+product` mostra o wrapper e essas requirements. Um profile que não declara essa
+adaptação rejeita a forma curta.
 
-Uma função normal pode ocupar o slot default sem repetir seu nome:
+Uma função normal pode ocupar o slot default:
 
 ```w
-entry(run) {
-  process.stdinLine = readCommand
-  process.signal = handleSignal
+import std.process as process
+
+async fn run(
+  args: process.Arguments,
+  ctx: process.Context,
+): process.ExitCode throws AppError {
+  // ...
 }
+
+entry(run)
 ```
 
-Esse descriptor anônimo também fornece a base local para descriptors nomeados:
+Um módulo pode publicar descriptors nomeados:
 
 ```w
-entry(run) {
-  process.signal = handleSignal
-}
-
-entry LastLightLineHost {
-  process.stdinLine = readCommand
-}
-
 entry LastLightTui(runTui)
 ```
 
-O resultado expandido é:
+`entry(run)` cria `.default`. `entry Name(run)` cria `Name`. O handler pode ser
+private, porque o descriptor o mantém como root. O product escolhe um descriptor
+no link.
 
-```text
-.default       = { default slot: run,    process.signal: handleSignal }
-LastLightLineHost
-               = { default slot: run,    process.signal: handleSignal,
-                   process.stdinLine: readCommand }
-LastLightTui   = { default slot: runTui, process.signal: handleSignal }
+Um body nomeado também é válido quando não precisa dos parâmetros do host:
+
+```w
+entry Diagnostics {
+  print("The improbability meter is ready.")
+}
 ```
 
-`entry Name(handler)` substitui somente o binding do slot default. O body
-adiciona ou substitui bindings qualificados. Dois bindings para o mesmo slot no
-mesmo descriptor são erro.
+`entry(args: T, ctx: C) { ... }` e sua variante `async entry` permanecem
+**Alternativa**. Elas duplicam a grammar de `fn`, dificultam teste direto e
+precisam repetir return e error effects. A forma `fn` mais `entry(fnName)` mantém
+a assinatura completa em uma função normal.
 
-Existe no máximo um descriptor anônimo por módulo. Somente descriptors nomeados
-do mesmo módulo recebem sua base. Imports não combinam defaults. Um binding
-herdado que não existe no host profile escolhido produz erro; o compiler não o
-remove silenciosamente.
+Callbacks opcionais pertencem ao product:
 
-O product escolhe `.default` ou um nome. Quando ele omite `entry`, o module
-precisa conter somente um descriptor resolvível. A interface compilada grava o
-descriptor expandido. `w explain product` mostra cada binding e sua origem.
+```w
+{
+  name: "last-light-native"
+  entry: ".default"
+  host: "w.host/native-process@1"
+  hostBindings: [
+    {
+      slot: "process.signal"
+      handler: "restaurant.app::shutdown"
+    },
+  ]
+}
+```
 
-Bindings não usam vírgula. O header sem body é válido:
+`hostBindings` é data-only. Cada `slot` precisa existir no host profile. Cada
+`handler` precisa ser um symbol `package` ou `export` com a assinatura exata.
+Missing required slot, duplicate slot e handler incompatível falham no link.
+
+O source não contém um objeto global `process`, `device`, `app`, `audio` ou
+`accelerator`. Nomes como `process.signal` e `device.interrupt` são IDs de slot
+na metadata versionada do host profile. Eles aparecem no package e na recipe,
+não como assignments executados pela aplicação.
+
+`std.process` é um módulo T1. Ele fornece tipos e APIs portáteis, como
+`process.Arguments`, `process.Context`, `process.ExitCode` e `process.Signal`.
+Ele não fornece um singleton ambiental. Outros SDKs fornecem `std.device`,
+`std.mobile` e `std.audio` para seus contexts.
+
+Informação sobre memory limit, resident memory ou probes exige uma capability
+do context. `process.memory` e `process.probe` permanecem **Pesquisa**. O design
+precisa separar allocator, resource limits, measurements e telemetry antes de
+fixar esses nomes.
+
+O product pode omitir `entry` somente quando o módulo contém um descriptor
+resolvível. A interface grava o descriptor e o handler. `w explain product`
+mostra entry, default slot, host bindings e origem de cada symbol.
+
+O header sem body é válido:
 
 ```w
 entry LastLightSimulation(runSimulation)
 ```
 
-Slots são símbolos tipados e versionados do profile. O build escolhe um
-descriptor por product. Importar o módulo não registra nem executa o entry.
+Importar um módulo não registra nem executa seu entry. O runtime também não
+aceita `ctx.host.bind(...)`. Um programa usa registries comuns para routes ou
+event handlers dinâmicos. Esses registries não alteram o host ABI.
 
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
 
@@ -7918,12 +7960,14 @@ descriptor por product. Importar o módulo não registra nem executa o entry.
 Um descriptor selecionado é uma escolha de link. Ele não é um modo escolhido
 automaticamente no runtime.
 
-Um único artifact pode servir CLI, TUI e HTTP quando o host profile contém os
-slots necessários. Em um processo nativo, `process.main` normalmente interpreta
-os argumentos e inicia os adapters selecionados:
+Um único artifact pode servir CLI, TUI e HTTP. O handler default do process
+interpreta os argumentos e inicia os adapters selecionados:
 
 ```w
-async fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode throws AppError {
+async fn run(
+  args: process.Arguments,
+  ctx: process.Context,
+): process.ExitCode throws AppError {
   return switch try LaunchMode.parse(args) {
     case .cli: try await runConsole(ctx, mode: .plain)
     case .tui: try await runConsole(ctx, mode: .ansi)
@@ -7947,12 +7991,13 @@ last-light-sim     -> entry LastLightSimulation -> native-process@1
 Esses products podem compartilhar todos os módulos de domínio. Cada artifact
 mantém seu próprio grafo alcançável, target, recipe e digest.
 
-**Alternativa:** exigir todos os bindings em cada descriptor elimina a base
-anônima, mas repete shutdown, telemetry e lifecycle hooks.
+Bindings repetidos entre products podem usar um fragmento data-only do package
+no futuro. Herança entre entries fica **Rejeitado por enquanto**. Ela mistura
+source reachability com composição de build.
 
-**Alternativa:** selecionar vários descriptors no runtime torna o artifact mais
-dinâmico. O design vigente prefere um descriptor expandido por product e um
-handler explícito para modos runtime.
+Selecionar vários descriptors no runtime permanece **Alternativa**. A forma
+vigente liga um descriptor por product. Um handler normal escolhe modes dentro
+do mesmo lifecycle.
 
 ### 13.3 Unidade lógica e packing físico
 
@@ -8397,6 +8442,13 @@ Os parâmetros representam key, input, progress, output e failure. O descriptor
 do product liga uma função com esta forma:
 
 ```w
+package import service pantry: PantryApi
+package import service ovens: OvenApi
+package import service oracle: OracleApi
+package import service aromaProbe: AromaProbeApi
+package import service billing: BillingApi
+package import service diningRoom: DiningRoomApi
+
 package async fn fulfillOrder(
   input: take FulfillmentInput,
   work: WorkContext<ServiceStage>,
@@ -8405,27 +8457,27 @@ package async fn fulfillOrder(
   work.report(.accepted)
   Task.checkCancellation()
 
-  let pantry = try await work.services.get(pantryService)
-  let ovens = try await work.services.get(ovenService)
-  let oracle = try await work.services.get(oracleService)
-  let probe = try await work.services.get(aromaProbeService)
-  let billing = try await work.services.get(billingService)
-  let diningRoom = try await work.services.get(diningRoomService)
+  let pantryRef = try await work.services.get(pantry)
+  let ovenRefs = try await work.services.get(ovens)
+  let oracleRef = try await work.services.get(oracle)
+  let probeRef = try await work.services.get(aromaProbe)
+  let billingRef = try await work.services.get(billing)
+  let diningRoomRef = try await work.services.get(diningRoom)
 
   work.report(.reserving)
   Task.checkCancellation()
   work.report(.preparing)
   let dish = try await prepareDish(
     take input.order,
-    pantry: pantry,
-    ovens: ovens,
-    oracle: oracle,
-    probe: probe,
+    pantry: pantryRef,
+    ovens: ovenRefs,
+    oracle: oracleRef,
+    probe: probeRef,
   )
 
   work.report(.serving)
   let amount = try quote(loadPriceTable(), course: dish.course)
-  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
+  let payment = try await billingRef.capture(amount, idempotencyKey: paymentKey(orderId))
   let proof = servingProof(payment)
   let refundIdempotencyKey = refundKey(payment.id)
   var completed = false
@@ -8433,14 +8485,14 @@ package async fn fulfillOrder(
   defer async {
     if !completed {
       do {
-        let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
+        let _ = try await billingRef.refund(take payment, idempotencyKey: refundIdempotencyKey)
       } catch error {
         Trace.current.recordCleanupError(error)
       }
     }
   }
 
-  let receipt = try await diningRoom.serve(take dish, payment: proof)
+  let receipt = try await diningRoomRef.serve(take dish, payment: proof)
   completed = true
   work.report(.completed)
   return receipt
@@ -9117,42 +9169,90 @@ Alternativas:
 
 ### 13.8 Bindings tipados, product e deployment
 
-Um nome textual no source não deve escolher uma service sem type-check. O source
-declara um binding const:
+Um módulo declara uma requirement de service com `import service`:
 
 ```w
-export const restaurantService = ServiceBinding<RestaurantApi>(name: "restaurant")
+package import service lastLight: RestaurantApi
+package import service orderCoordinators<key: OrderId>: OrderCoordinatorApi
 
-export const orderCoordinators = ServiceFamily<OrderCoordinatorApi, OrderId>(name: "orders")
-
-let restaurant = try await ctx.services.get(restaurantService)
+let restaurant = try await ctx.services.get(lastLight)
 let coordinator = try await ctx.services.get(orderCoordinators, key: orderId)
 ```
 
-`ServiceBinding<P>` descreve uma requirement singular. `ServiceFamily<P, K>`
-descreve instances keyed. Esses valores não concedem authority sozinhos. O
-`Context` precisa conter o binding.
+`import service name: P` introduz um `ServiceImport<P>`. O contract
+`<key: K>` introduz um `ServiceFamilyImport<P, K>`. A declaration não importa
+code, cria instance ou concede authority. Ela publica uma requirement tipada.
 
-O compiler resolve protocol, key type, visibility e schema no link. A string é
-somente o nome estável no product. Lookup dinâmica por string fica em
-**Pesquisa** para hosts de plugins.
+`package` e `export` controlam quem reutiliza a mesma requirement. O ID estável
+contém package, module e declaration name. Dois imports com o mesmo nome curto
+não são unificados implicitamente.
 
-Fields sem initializer em uma service são pontos de injection:
+O `Context` precisa conter um link para a requirement. `get` pode suspender e
+falhar antes de devolver `ServiceRef<P>`. Por isso, W não usa
+`ctx.services.lastLight.menu()` nem transforma o import num proxy global. Essas
+formas esconderiam resolution, authority e `ServiceFailure`.
+
+Uma `ServiceRef` nasce somente por resolution de um import, initializer de uma
+service, family lookup ou transferência explícita de outro handle. Lookup por
+string fica em **Pesquisa** para hosts de plugins.
+
+`export service` possui outro papel. Ele exporta uma implementação candidata:
+
+```w
+export service Kitchen as KitchenApi {
+  // ...
+}
+```
+
+Esse export não cria instance nem publica endpoint. Um provider do runtime graph
+seleciona a implementação, o scope e seus limits. A lista `exports` do graph
+decide se a instance fica visível para composição externa.
+
+Uma service com dependencies usa um initializer explícito:
 
 ```w
 export service OrderCoordinator as OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
   fulfillment: FulfillmentKey
+
+  init(
+    identity: ServiceIdentity<OrderId>,
+    fulfillment: FulfillmentKey,
+  ) {
+    self.identity = identity
+    self.fulfillment = fulfillment
+  }
 }
 ```
 
-O product descriptor liga cada field pelo nome e pelo tipo exato. Para um
-`WorkKeyRef`, ele também liga a origem da key. Falta, duplicata, cycle estático
-ou authority incompatível falha no build.
+Fields sem initializer não recebem inicialização implícita. O provider liga cada
+initializer argument pelo nome e tipo exato. Falta, duplicata, cycle estático ou
+authority incompatível falha no build.
 
 #### 13.8.1 Grafo lógico do product
 
-**Exemplo:** o product nativo fornece `last-light` e importa os controladores
+As responsabilidades não se sobrepõem:
+
+| Camada | Declaração | Responsabilidade |
+|---|---|---|
+| source caller | `import service name: P` | requirement tipada e nome estável |
+| source provider | `export service S as P` | implementação candidata |
+| package | `links`, `providers`, `imports`, `exports` | composição lógica e limites |
+| product | graph, packing e `hostBindings` | artifact e host lifecycle |
+| deployment | bindings e placement | satisfazer imports abertos e localizar units |
+| runtime | `ctx.services.get(name)` | criar ou obter um handle e escolher o transporte |
+
+O `entry` não liga services. Um handler pode resolver um import durante a
+execução, mas não pode trocar o target desse import. Essa divisão permite que o
+mesmo source use call direta, IPC ou network sem alterar sua semântica. Ela
+também mantém o grafo alcançável e as capabilities visíveis antes da execução.
+
+`bind service name = handler` e assignment em `ctx.services` ficam
+**Rejeitados por enquanto**. Uma service implementa um protocol completo. Ela
+também precisa de scope, lifecycle, mailbox, limits e initializer. Reduzir essa
+fronteira a um handler esconderia partes necessárias do artifact contract.
+
+**Exemplo:** o product nativo fornece `lastLight` e importa os controladores
 físicos da despensa e dos fornos.
 
 `package.w` declara grafos nomeados. Um product seleciona no máximo um grafo.
@@ -9162,20 +9262,26 @@ Não existe herança ou overlay entre grafos na primeira edição.
 runtimeGraphs: [
   {
     name: "restaurant-core"
+    links: [
+      {
+        requirement: "restaurant.restaurant::lastLight"
+        target: .service("lastLight")
+      },
+    ]
     providers: [
       {
-        binding: "last-light"
+        binding: "lastLight"
         protocol: "restaurant.restaurant::RestaurantApi"
         implementation: "restaurant.restaurant::LastLightRestaurant"
         scope: .process
         mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
-        inject: {
+        arguments: {
           pantry: .service("pantry")
           ovens: .service("ovens")
           oracle: .service("oracle")
-          probe: .service("aroma-probe")
+          probe: .service("aromaProbe")
           billing: .service("billing")
-          diningRoom: .service("dining-room")
+          diningRoom: .service("diningRoom")
         }
       },
       {
@@ -9184,7 +9290,8 @@ runtimeGraphs: [
         implementation: "restaurant.supervision::OrderCoordinator"
         scope: .keyed(keyType: "restaurant.domain::OrderId")
         mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
-        inject: {
+        arguments: {
+          identity: .serviceIdentity
           fulfillment: .supervisor("fulfillment", key: .serviceIdentity)
         }
       },
@@ -9202,24 +9309,27 @@ runtimeGraphs: [
         source: .deployment
       },
       {
-        binding: "aroma-device"
+        binding: "aromaDevice"
         capability: "restaurant.hardware::AromaProbeDevice"
         source: .host
       },
     ]
 
-    exports: ["last-light", "orders"]
+    exports: ["lastLight", "orders"]
   },
 ]
 ```
 
-Um `provider` seleciona implementation, scope, isolation, quotas e injections.
-Um service import declara `protocol` e key type opcional. Um host import declara
-um tipo de `capability`. Um `export` torna um provider visível para composição
-externa.
+Um `link` liga um `import service` alcançável a um provider ou import do graph.
+O target usa um nome local do graph. Ele não usa lookup global.
+
+Um `provider` seleciona implementation, scope, isolation, quotas e initializer
+arguments. Um service import do graph declara protocol e key type opcional. Um
+host import declara um tipo de capability. Um export torna um provider visível
+para composição externa.
 
 O compiler deriva requirements a partir do entry, das funções alcançáveis e dos
-fields de injection. O manifest precisa satisfazer cada requirement com um
+initializer arguments. O manifest precisa satisfazer cada requirement com um
 provider, supervisor, host capability ou import declarado. Uma string não cria
 uma requirement nova.
 
@@ -9228,7 +9338,7 @@ rejeita estes casos:
 
 - provider ausente ou duplicado;
 - import sem uso ou requirement não declarado;
-- injection com tipo, key ou rights incompatíveis;
+- initializer argument com tipo, key ou rights incompatíveis;
 - ciclo estático proibido;
 - capability maior que o envelope;
 - símbolo textual que não corresponde à interface compilada.
@@ -9239,6 +9349,15 @@ exige um deployment local quando um executable possui imports abertos.
 
 Os limites pertencem ao artifact contract. Um deployment pode reduzi-los. Ele
 não pode trocar operation, protocol, key type, rights ou required isolation.
+
+Essa divisão segue dois precedentes. workerd declara service bindings na
+configuração do caller. WebAssembly Components conecta imports tipados a
+exports tipados durante composition. W acrescenta ownership, error effects,
+budgets e `ServiceRef` estruturado.
+
+- [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
+- [workerd](https://github.com/cloudflare/workerd)
+- [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
 
 #### 13.8.2 Packing de build
 
@@ -9259,12 +9378,12 @@ packings: [
         name: "main"
         entry: true
         providers: [
-          "last-light",
+          "lastLight",
           "orders",
           "oracle",
-          "aroma-probe",
+          "aromaProbe",
           "billing",
-          "dining-room",
+          "diningRoom",
         ]
         supervisors: ["fulfillment"]
       },
@@ -9276,12 +9395,12 @@ packings: [
       {
         name: "gateway"
         entry: true
-        providers: ["last-light", "orders"]
+        providers: ["lastLight", "orders"]
         supervisors: ["fulfillment"]
       },
-      { name: "planning", providers: ["oracle", "aroma-probe"] },
+      { name: "planning", providers: ["oracle", "aromaProbe"] },
       { name: "finance", providers: ["billing"] },
-      { name: "dining", providers: ["dining-room"] },
+      { name: "dining", providers: ["diningRoom"] },
     ]
   },
 ]
@@ -9291,8 +9410,9 @@ Cada provider e supervisor aparece em uma unit. Um product com entry marca uma
 unit com `entry: true`. Uma unit sem entry continua válida quando publica um
 provider no artifact index. O instance manager inicia essa unit.
 
-O packer deriva interfaces privadas entre units a partir de injections e
-requirements do supervisor. Essas interfaces entram no artifact index. Elas não
+O packer deriva interfaces privadas entre units a partir de service links,
+initializer arguments e requirements do supervisor. Elas entram no artifact
+index. Elas não
 tornam o provider um export público do runtime graph.
 
 Cada edge privada fixa a unit de origem, a unit provedora, o binding, o protocol
@@ -9598,7 +9718,8 @@ T1 contém:
   Stream e Channel;
 - synchronization, executors e blocking adapters;
 - build transforms com inputs, outputs e capabilities fechados;
-- ServiceRef, ServiceBinding, ServiceFamily, ServiceIdentity e service host APIs;
+- ServiceRef, ServiceImport, ServiceFamilyImport, ServiceIdentity e service host
+  APIs;
 - SupervisorRef, WorkKeyRef, WorkRef, WorkContext, WorkSnapshot e WorkOutcome;
 - TCP, UDP, TLS e DNS;
 - crypto, codecs, JSON e FFI C;
@@ -14443,6 +14564,7 @@ Um host profile versionado declara:
 
 - slots e suas assinaturas;
 - slot default, quando existe;
+- adapter de body simples, quando existe;
 - capabilities de I/O, clock, random, storage e network;
 - lifecycle, shutdown, deadlines e fault boundaries;
 - execution domains disponíveis;
@@ -14463,7 +14585,12 @@ Perfis iniciais:
 | `build-transform@1` | `build.transform` | geração hermética com inputs e outputs tipados |
 
 Um profile pode incluir slots opcionais. O product precisa ligar todos os slots
-required. Um `entry` não inventa um slot e um target não concede capability.
+required. `entry` liga somente o slot default. `hostBindings` liga os demais
+slots. Um target não inventa slot nem concede capability.
+
+O prefixo textual de um slot pertence ao schema do profile. `process.main` não
+declara uma variável `process`. Os types usados pelos handlers vêm de módulos do
+SDK, como `std.process` e `std.device`.
 
 #### 20.8.3 Matriz de suporte
 
@@ -14550,10 +14677,16 @@ package {
   runtimeGraphs: [
     {
       name: "restaurant-edge"
+      links: [
+        {
+          requirement: "restaurant.restaurant::lastLight"
+          target: .service("lastLight")
+        },
+      ]
       providers: []
       imports: [
         {
-          binding: "last-light"
+          binding: "lastLight"
           protocol: "restaurant.restaurant::RestaurantApi"
           source: .deployment
         },
@@ -14612,6 +14745,12 @@ package {
       module: "restaurant.app"
       entry: ".default"
       host: "w.host/native-process@1"
+      hostBindings: [
+        {
+          slot: "process.signal"
+          handler: "restaurant.app::shutdown"
+        },
+      ]
       targets: ["desktop"]
       runtime: "restaurant-edge"
       packing: "entry-only"
@@ -15396,10 +15535,10 @@ products: [
 `kind` seleciona um schema fechado. O manifest não usa um record com fields
 opcionais sem relação.
 
-Um product iniciado por host liga exatamente um descriptor expandido. Uma
-library usa symbols exportados como roots. Uma service-only unit usa providers
-publicados no artifact index. Todo product e toda unit precisam de ao menos um
-root alcançável.
+Um product iniciado por host liga um descriptor ao slot default e liga zero ou
+mais `hostBindings`. Uma library usa symbols exportados como roots. Uma
+service-only unit usa providers publicados no artifact index. Todo product e
+toda unit precisam de ao menos um root alcançável.
 
 Vários products podem usar os mesmos módulos. Escolher outro entry, host,
 target, runtime graph, packing ou execution profile cria outra recipe.
@@ -15906,7 +16045,7 @@ recipe.
 A chave mínima inclui:
 
 ```text
-package graph + product + expanded entry + host profile + runtime graph + packing
+package graph + product + entry + host bindings + host profile + runtime graph + packing
 + target spec + selected target variants + profile + toolchain-plan row
 + WAbiKey + RuntimeClosureKey + adapters + build inputs + lock digest
 ```
@@ -15963,8 +16102,8 @@ símbolo permaneceu:
 ```text
 $ w explain product last-light-native
 entry: restaurant.app::.default
-default slot: process.main -> restaurant.app::run
-binding: process.signal -> restaurant.app::shutdown
+default slot: process.main -> restaurant.app::runNative
+host binding: process.signal -> restaurant.app::shutdown
 reachable adapter: http.Server (selected by LaunchMode.serve)
 excluded entry: restaurant.worker_app::LastLightWorker
 ```
@@ -16075,7 +16214,7 @@ transform precisa de facts do target final, o action declara
 Action identity inclui:
 
 ```text
-tool artifact + expanded entry + execution platform + typed inputs
+tool artifact + entry + host profile + execution platform + typed inputs
 + target metadata declarada + output schema + budgets + allowed capabilities
 ```
 
@@ -16683,8 +16822,8 @@ Uma pesquisa só avança quando possui:
 | theorem prover ou SMT geral no build | **Pesquisa** | custo, diagnostics e reproducibility não fecham a baseline |
 | property behaviors | **Provável** | expansão HIR é viável; composição ainda precisa de teste |
 | obrigação linear de async close | **Pesquisa** | evita leak oculto; receiver e cancellation precisam de protótipo |
-| entries e host profiles | **Provável** | binding é claro; adapters precisam de schemas |
-| descriptor anônimo e overlay local | **Possível agora** | expansão é estática; diagnostics precisam mostrar origem |
+| entries e host profiles | **Provável** | default handler é claro; adapters e slot schemas precisam de protótipo |
+| `hostBindings` no product | **Possível agora** | símbolos e slots são estáticos; o linker valida a assinatura |
 | package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
 | workspace data-only com lock compartilhado | **Possível agora** | members exatos, identity e contexts são verificações estáticas |
 | usages separados de dependência | **Possível agora** | reachability e target role fecham product, build, test e benchmark |
@@ -16853,8 +16992,8 @@ O mesmo módulo também produz um artifact menor:
 
 ```text
 last-light-tui / entry LastLightTui
-  → herda process.signal de .default
-  → substitui somente process.main
+  → process.main = runTui
+  → product liga process.signal → shutdown
   → seleciona o terminal adapter do target
 ```
 
@@ -16885,7 +17024,7 @@ O deployment seleciona somente units prebuilt.
 A rota de trabalho longo testa o owner runtime:
 
 ```text
-ServiceFamily<OrderCoordinatorApi, OrderId>
+ServiceFamilyImport<OrderCoordinatorApi, OrderId>
   → turn curto
   → WorkKeyRef.tryStart
   → root de fulfillment
@@ -17237,8 +17376,8 @@ backpressure e cleanup reproduzíveis.
 - `ServiceFailure`, cycle detection e `ServiceRef`;
 - lifecycle de call entre envelope, admission, turn, commit e delivery;
 - propagation de deadline strict/approximate e unknown outcome;
-- `ServiceBinding`, `ServiceFamily` e validation do runtime graph;
-- imports, exports e provider injection por interface;
+- `ServiceImport`, `ServiceFamilyImport` e validation do runtime graph;
+- imports, exports e initializer arguments por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
 - verificação replayable e journal de steps em memória;
@@ -17416,7 +17555,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
 | W-048 | mailbox | bounded por itens, bytes e trabalho em voo; detalhes em W-458–472 não mudam a call boundary | drop; unbounded; tratar como channel local |
 | W-049 | entry curto | `entry { ... }` usa o default slot único | main mágico; manifest-only |
-| W-050 | entry composto | descriptor de slots tipados; anonymous base e header handler | repetição total; `entry defaults`; conformance |
+| W-050 | callbacks de host | product liga slots tipados adicionais; entry contém somente o handler default | body key/value; anonymous base; registro runtime; conformance no source |
 | W-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
 | W-052 | custom unit | `dimension`/`unit` declarations | wrapper types; runtime registry |
 | W-053 | affine/log units | metaconstrutores distintos | scale universal; runtime-only |
@@ -17866,20 +18005,20 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
 | W-499 | workflow durável | replay desde o começo usa points e outcomes explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
-| W-500 | binding de service | `ServiceBinding<P>` e `ServiceFamily<P, K>` const e link-checked | lookup normal por string; import cria instance; registry global |
-| W-501 | product runtime graph | `runtimeGraphs` fixa providers, imports, exports e injection; execution profile fixa task runtime; compiler deriva requirements | manifest executável; reflection encontra implementação; limite só no host |
+| W-500 | import de service | `import service` cria `ServiceImport<P>` ou `ServiceFamilyImport<P, K>` sem instance ou authority | constructor com string; proxy global; import cria instance; registry global |
+| W-501 | product runtime graph | `runtimeGraphs` fixa links, providers, imports, exports e initializer arguments; execution profile fixa task runtime | manifest executável; reflection encontra implementação; limite só no host |
 | W-502 | deployment | plano e lock data-only ligam units prebuilt por digest; só placement, binding permitido e redução | rebuild por ambiente; config invisível; deployment troca packing ou semântica |
 | W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
 | W-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
-| W-505 | identity keyed de service | `ServiceIdentity<K>` read-only e injetada; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
+| W-505 | identity keyed de service | `ServiceIdentity<K>` read-only entra como initializer argument; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
 | W-506 | dedup de work | outcome e tombstone têm budgets separados; key só é reutilizada em nova incarnation | outcome eterno; expiração permite duplicação silenciosa; key global única |
 | W-507 | completion versus cancellation | completion committed entrega o valor; cancellation fica pendente; unknown outcome permanece distinto | descartar valor committed; injetar cancel entre statements; rollback presumido |
-| W-508 | entry anônimo | `entry(handler)` fornece descriptor default e base local para entries nomeados | repetir bindings; `entry defaults`; herança entre módulos |
-| W-509 | shorthand de entry | `entry Name(handler)` liga o slot default único do host profile | escrever `process.main`; inferir pelo nome da função |
+| W-508 | entry anônimo | `entry { code }` ou `entry(handler)` fornece somente o descriptor `.default`; não cria base ou callback registry | body como mapa; `entry defaults`; herança entre entries |
+| W-509 | entry nomeado | `entry Name(handler)` publica outro handler do slot default | escrever `process.main`; inferir pelo nome da função; body como tabela |
 | W-510 | seleção de entry | product iniciado por host escolhe descriptor; library usa export e service-only unit usa provider no index | entry obrigatório para todo artifact; seleção runtime por nome; registry global |
 | W-511 | aplicação multimodo | um `process.main` escolhe CLI/TUI/server; slots de host continuam distintos | vários mains no mesmo payload; OS chama `http.fetch` |
 | W-512 | identidade de target | architecture-vendor-system-ABI + CPU/features/sysroot separados | string livre; target igual a OS; backend implica suporte |
-| W-513 | host profile | slots, capabilities e lifecycle versionados, separados do target | APIs condicionais por `#ifdef`; target concede capabilities |
+| W-513 | host profile | slots, capabilities e lifecycle versionados; product usa `hostBindings` para slots além do default | assignment em `entry`; APIs por `#ifdef`; target concede capabilities |
 | W-514 | product kind | `kind` seleciona schema fechado; executable, libraries, component, firmware, device bundle, test, benchmark e tool tipada | record de fields opcionais; executable universal; kind inferido pelo entry |
 | W-515 | matriz de build | cada product/target/profile gera recipe e digest próprios; index agrega resultados | hash único entre architectures; matrix muda payload |
 | W-516 | produto de referência | Última Luz é especificação executável, regressão e benchmark do W | exemplo descartável; snippets independentes como oracle principal |
@@ -18025,6 +18164,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-656 | device execution | ordinary `spawn` não faz offload; transfer, kernel artifact, launch e sync ficam explícitos em T2 | `.device` migra closure; auto-transfer; GPU como thread pool |
 | W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
 | W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
+| W-659 | body de entry | body contém statements W; forma simples depende de adapter declarado pelo host profile | body como key/value; registro runtime; ignorar parâmetros sem adapter |
+| W-660 | callback de host | product liga symbol `package` ou `export` a slot versionado; recipe grava a relação | pseudo-global `process`/`device`; callback mutável; convention por nome |
+| W-661 | construção de service | dependencies são initializer arguments ligados pelo provider; field sem initializer não recebe injection | field injection implícita; service locator no init; module constructor |
+| W-662 | APIs de host | `std.process` é T1 sem singleton; device, mobile e audio usam módulos SDK e contexts explícitos | pseudo-global ambiental; um Context universal; target implica authority |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

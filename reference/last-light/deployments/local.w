@@ -33,7 +33,7 @@ deployment {
       provider: .adapter("last-light.dev/ovens@1")
     },
     {
-      import: "restaurant/payment-gateway"
+      import: "restaurant/paymentGateway"
       provider: .adapter("last-light.dev/payments@1")
     },
     {
@@ -41,7 +41,7 @@ deployment {
       provider: .adapter("last-light.dev/audience@1")
     },
     {
-      import: "restaurant/aroma-device"
+      import: "restaurant/aromaDevice"
       provider: .adapter("last-light.dev/aroma-device@1")
     },
   ]

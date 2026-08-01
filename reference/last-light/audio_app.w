@@ -1,5 +1,6 @@
 // Device entry for the restaurant sound controller.
 
+import std.audio as audio
 import {
   AudioRenderState,
   DeviceAudioBlock,
@@ -9,8 +10,8 @@ import {
 fn render(
   block: inout DeviceAudioBlock,
   state: inout AudioRenderState,
-  ctx: AudioRenderContext,
-): AudioRenderResult {
+  ctx: audio.RenderContext,
+): audio.RenderResult {
   return renderFinalSong(inout state, block: inout block, ctx: ctx)
 }
 

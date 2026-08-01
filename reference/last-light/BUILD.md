@@ -25,18 +25,16 @@ inválidos para seu kind.
 O source usa:
 
 ```w
-entry(runNative) {
-  process.signal = shutdown
-}
-
+entry(runNative)
 entry LastLightTui(runTui)
 ```
 
-O descriptor anônimo é `.default`. `LastLightTui` recebe os bindings do
-descriptor anônimo e substitui o slot default.
+O descriptor anônimo é `.default`. `LastLightTui` é outro descriptor. Um não
+herda dados do outro.
 
 `entry(runNative)` não escreve `process.main`. O host profile declara esse slot
-como default. O compiler faz o binding e grava a forma expandida na interface.
+como default. O compiler faz o binding e grava descriptor e handler na
+interface.
 
 O manifest escolhe a forma anônima:
 
@@ -46,6 +44,9 @@ O manifest escolhe a forma anônima:
   module: "restaurant.app"
   entry: ".default"
   host: "w.host/native-process@1"
+  hostBindings: [
+    { slot: "process.signal", handler: "restaurant.app::shutdown" },
+  ]
   executionProfile: "native-bounded"
 }
 ```
@@ -61,13 +62,16 @@ Outro product pode escolher o descriptor nomeado:
   module: "restaurant.app"
   entry: "LastLightTui"
   host: "w.host/native-process@1"
+  hostBindings: [
+    { slot: "process.signal", handler: "restaurant.app::shutdown" },
+  ]
   executionProfile: "native-bounded"
 }
 ```
 
-Esse product herda o binding de signal. Ele não repete `process.signal`. O
-manifest pode omitir `entry` somente quando o módulo possui um único descriptor
-resolvível.
+Cada product declara o binding de signal que usa. Essa repetição deixa a recipe
+e o artifact independentes. O manifest pode omitir `entry` somente quando o
+módulo possui um único descriptor resolvível.
 
 ## 2. Um binário com vários modos
 
@@ -143,14 +147,16 @@ SDK futuros. A tabela define gates, não suporte entregue.
 
 | Graph | Uso | Imports abertos |
 |---|---|---|
-| `restaurant-core` | processo nativo e providers do restaurante | pantry, ovens, payment gateway, audience e aroma device |
-| `restaurant-client` | worker e mobile | `last-light` |
-| `wifi-edge` | captive portal | `wifi-sessions` |
-| `observatory-client` | observatório | `satellites` e `horizon-monitor` |
+| `restaurant-core` | processo nativo e providers do restaurante | `pantry`, `ovens`, `paymentGateway`, `audience` e `aromaDevice` |
+| `restaurant-client` | worker e mobile | `lastLight` |
+| `wifi-edge` | captive portal | `wifiSessions` |
+| `observatory-client` | observatório | `satellites` e `horizonMonitor` |
 | `benchmark-host` | sete workloads HTTP | database PostgreSQL e cache local |
 
-O compiler deve derivar requirements do source. O manifest escolhe providers ou
-declara imports. Um nome textual não cria authority.
+O compiler deriva requirements de caller das declarações `import service`.
+Signatures de initializer declaram dependencies dos providers. `links` liga
+cada requirement de caller a um provider ou import do grafo. Um nome textual
+não cria authority.
 
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
@@ -1000,9 +1006,9 @@ O build gera uma unit por grupo. Cada crossing usa a service ABI. O artifact
 index fixa estas edges privadas:
 
 ```text
-gateway  -> planning : oracle, aroma-probe
+gateway  -> planning : oracle, aromaProbe
 gateway  -> finance  : billing
-gateway  -> dining   : dining-room
+gateway  -> dining   : diningRoom
 ```
 
 O deployment roteia essas edges. Ele não pode substituir os providers.

@@ -139,9 +139,15 @@ export protocol BillingApi {
   async fn refund(payment: take Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
 }
 
+package import service billing: BillingApi
+
 export service BillingLedger as BillingApi {
   gateway: ServiceRef<PaymentGatewayApi>
   var Versioned payments: Map<IdempotencyKey, Payment> = Map()
+
+  init(gateway: ServiceRef<PaymentGatewayApi>) {
+    self.gateway = gateway
+  }
 
   mut async fn capture(amount: Money, idempotencyKey key: IdempotencyKey): Payment throws BillingError {
     if let payment = payments[key] {

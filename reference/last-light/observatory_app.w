@@ -1,5 +1,6 @@
 // Native observatory process for the satellite swarm and event horizon.
 
+import std.process as process
 import {
   HorizonError,
   HorizonStatus,
@@ -25,7 +26,10 @@ const fn horizonStatusLabel(status: ref HorizonStatus): String {
   }
 }
 
-async fn runObservatory(args: ProcessArguments, ctx: ProcessContext): ExitCode throws ObservatoryError {
+async fn runObservatory(
+  args: process.Arguments,
+  ctx: process.Context,
+): process.ExitCode throws ObservatoryError {
   let left = try await ctx.services.get(satelliteSwarm, key: 1)
   let right = try await ctx.services.get(satelliteSwarm, key: 2)
   let horizon = try await ctx.services.get(horizonMonitor)

@@ -39,6 +39,8 @@ export protocol DiningRoomApi {
   ): Receipt throws DiningRoomError
 }
 
+package import service diningRoom: DiningRoomApi
+
 fn defaultTables(): Map<TableId, Table> {
   return [
     1: Table(id: 1, seats: 2, state: .available),
@@ -51,6 +53,10 @@ fn defaultTables(): Map<TableId, Table> {
 export service PrismDiningRoom as DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = defaultTables()
+
+  init(audience: ServiceRef<AudienceApi>) {
+    self.audience = audience
+  }
 
   mut fn setTableState(tableId: TableId, state: TableState) {
     guard let inout table = tables[tableId] else panic("reserved table disappeared")

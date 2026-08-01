@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 30 de julho de 2026**
+> **Working Draft · 31 de julho de 2026**
 >
 > **Prazer para humanos. Clareza para máquinas.**
 
@@ -48,26 +48,24 @@ import std.http
 import { Command } from restaurant.command
 import { RestaurantApi } from restaurant.restaurant
 
-const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
+package import service lastLight: RestaurantApi
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let restaurant = try await ctx.services.get(restaurantService)
+  let restaurant = try await ctx.services.get(lastLight)
   let command = try request.json.decode<Command>()
   let response = try await dispatch(take command, restaurant: restaurant)
   return try http.Response.json(response)
 }
 
-entry(runNative) {
-  process.signal = shutdown
-}
-
+entry(runNative)
 entry LastLightTui(runTui)
 ```
 
 O descriptor anônimo é o default do product nativo. O mesmo binário atende CLI,
 TUI e servidor local. Um segundo product escolhe `LastLightTui` para gerar uma
 TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
-o module set nativo. Um worker usa outro product e outro host lifecycle.
+o module set nativo. O product liga `process.signal` a `shutdown` por
+`hostBindings`. Um worker usa outro product e outro host lifecycle.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 fornece uma build transform tipada ao package principal. O tool recebe somente
@@ -78,8 +76,8 @@ horizon monitor. Esse laboratório separa `WInterface`, ABI W, runtime
 requirements e carriers C.
 
 O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
-resolve `ServiceFamily<OrderCoordinatorApi, OrderId>`. O descriptor injeta um
-`WorkKeyRef` limitado ao pedido. Consulte
+resolve `ServiceFamilyImport<OrderCoordinatorApi, OrderId>`. O runtime graph
+passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
 [`supervision.w`](reference/last-light/supervision.w).
 
 ## Histórico

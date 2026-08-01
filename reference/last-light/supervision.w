@@ -8,29 +8,23 @@ import {
 } from restaurant.domain
 import {
   BillingApi,
+  billing,
   loadPriceTable,
   paymentKey,
   quote,
   refundKey,
   servingProof,
 } from restaurant.billing
-import { DiningRoomApi } from restaurant.dining
-import { AromaProbeApi } from restaurant.hardware
-import { OvenApi, PantryApi } from restaurant.kitchen
-import { OracleApi } from restaurant.oracle
+import { DiningRoomApi, diningRoom } from restaurant.dining
+import { AromaProbeApi, aromaProbe } from restaurant.hardware
+import { OvenApi, PantryApi, ovens, pantry } from restaurant.kitchen
+import { OracleApi, oracle } from restaurant.oracle
 import { RestaurantError, prepareDish } from restaurant.restaurant
 import {
   FulfillmentInput,
   FulfillmentSignal,
   fulfillmentSignals,
 } from restaurant.workflow
-
-const pantryService = ServiceBinding<PantryApi>(name: "pantry")
-const ovenService = ServiceBinding<OvenApi>(name: "ovens")
-const oracleService = ServiceBinding<OracleApi>(name: "oracle")
-const aromaProbeService = ServiceBinding<AromaProbeApi>(name: "aroma-probe")
-const billingService = ServiceBinding<BillingApi>(name: "billing")
-const diningRoomService = ServiceBinding<DiningRoomApi>(name: "dining-room")
 
 export alias FulfillmentSupervisor = SupervisorRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
 export alias FulfillmentKey = WorkKeyRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
@@ -59,23 +53,29 @@ package async fn fulfillOrder(
   work.report(.accepted)
   Task.checkCancellation()
 
-  let pantry = try await work.services.get(pantryService)
-  let ovens = try await work.services.get(ovenService)
-  let oracle = try await work.services.get(oracleService)
-  let probe = try await work.services.get(aromaProbeService)
-  let billing = try await work.services.get(billingService)
-  let diningRoom = try await work.services.get(diningRoomService)
+  let pantryRef = try await work.services.get(pantry)
+  let ovenRefs = try await work.services.get(ovens)
+  let oracleRef = try await work.services.get(oracle)
+  let probe = try await work.services.get(aromaProbe)
+  let billingRef = try await work.services.get(billing)
+  let diningRoomRef = try await work.services.get(diningRoom)
 
   work.report(.reserving)
   Task.checkCancellation()
   work.report(.preparing)
 
-  let dish = try await prepareDish(take input.order, pantry: pantry, ovens: ovens, oracle: oracle, probe: probe)
+  let dish = try await prepareDish(
+    take input.order,
+    pantry: pantryRef,
+    ovens: ovenRefs,
+    oracle: oracleRef,
+    probe: probe,
+  )
 
   work.report(.serving)
   let priceTable = loadPriceTable()
   let amount = try quote(priceTable, course: dish.course)
-  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
+  let payment = try await billingRef.capture(amount, idempotencyKey: paymentKey(orderId))
   let proof = servingProof(payment)
   let refundIdempotencyKey = refundKey(payment.id)
   var completed = false
@@ -83,14 +83,14 @@ package async fn fulfillOrder(
   defer async {
     if !completed {
       do {
-        let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
+        let _ = try await billingRef.refund(take payment, idempotencyKey: refundIdempotencyKey)
       } catch error {
         Trace.current.recordCleanupError(error)
       }
     }
   }
 
-  let receipt = try await diningRoom.serve(take dish, payment: proof)
+  let receipt = try await diningRoomRef.serve(take dish, payment: proof)
   completed = true
   work.report(.completed)
   return receipt
@@ -104,11 +104,19 @@ export protocol OrderCoordinatorApi {
   async fn outcome(): WorkOutcome<Receipt, RestaurantError>? throws CoordinatorError
 }
 
-export const orderCoordinators = ServiceFamily<OrderCoordinatorApi, OrderId>(name: "orders")
+package import service orderCoordinators<key: OrderId>: OrderCoordinatorApi
 
 export service OrderCoordinator as OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
   fulfillment: FulfillmentKey
+
+  init(
+    identity: ServiceIdentity<OrderId>,
+    fulfillment: FulfillmentKey,
+  ) {
+    self.identity = identity
+    self.fulfillment = fulfillment
+  }
 
   fn requireInstance(orderId: OrderId) throws CoordinatorError {
     guard orderId == identity.key else {

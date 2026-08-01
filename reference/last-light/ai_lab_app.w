@@ -1,12 +1,13 @@
 // Native training harness that shares kernels with accelerator products.
 
+import std.process as process
 import {
   TrainingBatch,
   WeightMatrix,
   trainLinearKernel,
 } from restaurant.ai_harness
 
-fn runAiLab(args: ProcessArguments, ctx: ProcessContext): ExitCode {
+fn runAiLab(args: process.Arguments, ctx: process.Context): process.ExitCode {
   var weights: WeightMatrix<inputs: 2, outputs: 1> = [
     [0.25],
     [0.75],

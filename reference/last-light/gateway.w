@@ -3,11 +3,9 @@
 import std.http
 import { Command } from restaurant.command
 import { AppResponse } from restaurant.presentation
-import { RestaurantApi, RestaurantError } from restaurant.restaurant
+import { RestaurantApi, RestaurantError, lastLight } from restaurant.restaurant
 import { SimulationError, simulateShift } from restaurant.simulation
 import { commandLimit } from restaurant.units
-
-package const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
 
 export enum DispatchError: Error {
   restaurant(RestaurantError)
@@ -62,7 +60,7 @@ package async fn dispatch(
 }
 
 package async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
-  let restaurant = try await ctx.services.get(restaurantService)
+  let restaurant = try await ctx.services.get(lastLight)
   let command = try await request.decodeJson<Command>(maximumBytes: commandLimit)
   let response = try await dispatch(
     take command,

@@ -178,10 +178,7 @@ async fn prepare(): Dish {
   return await cook(stock, plan: plan)
 }
 
-entry LastLight {
-  process.main = run
-  http.fetch = fetch
-}
+entry LastLight(run)
 
 ---
 
@@ -316,16 +313,7 @@ entry LastLight {
                 (identifier))))))))
   (entry_declaration
     (type_identifier)
-    (entry_binding
-      (module_path
-        (identifier)
-        (identifier))
-      (identifier))
-    (entry_binding
-      (module_path
-        (identifier)
-        (identifier))
-      (identifier))))
+    (identifier)))
 
 ==================
 W tensors and switch expressions

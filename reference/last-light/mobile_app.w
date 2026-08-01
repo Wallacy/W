@@ -1,39 +1,34 @@
 // Mobile lifecycle adapter. UI remains native to the platform.
 
-import { RestaurantApi, RestaurantError } from restaurant.restaurant
-
-const restaurantService = ServiceBinding<RestaurantApi>(name: "last-light")
+import std.mobile as mobile
+import { RestaurantApi, RestaurantError, lastLight } from restaurant.restaurant
 
 enum MobileError: Error {
   restaurant(RestaurantError)
   service(ServiceFailure)
-  state(StateError)
+  state(mobile.StateError)
 }
 
-async fn start(ctx: MobileAppContext): AppStartResult throws MobileError {
-  let restaurant = try await ctx.services.get(restaurantService)
+async fn start(ctx: mobile.Context): mobile.StartResult throws MobileError {
+  let restaurant = try await ctx.services.get(lastLight)
   let menu = try await restaurant.menu()
   await ctx.state.publish("menu", value: menu)
   return .ready
 }
 
-async fn resume(ctx: MobileAppContext): () {
+package async fn resume(ctx: mobile.Context): () {
   await ctx.state.publish("lifecycle", value: "active")
 }
 
-async fn suspend(ctx: MobileAppContext): () {
+package async fn suspend(ctx: mobile.Context): () {
   await ctx.services.drain(deadline: ctx.deadline)
 }
 
-async fn notification(
-  event: NotificationEvent,
-  ctx: MobileAppContext,
-): NotificationResult {
+package async fn notification(
+  event: mobile.NotificationEvent,
+  ctx: mobile.Context,
+): mobile.NotificationResult {
   return try await ctx.notifications.dispatch(event)
 }
 
-entry LastLightMobile(start) {
-  app.resume = resume
-  app.suspend = suspend
-  app.notification = notification
-}
+entry LastLightMobile(start)

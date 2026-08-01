@@ -67,14 +67,6 @@ export const lastLightKernels = accelerator.module(
   ],
 )
 
-fn loadKernels(ctx: AcceleratorModuleContext): AcceleratorModule {
-  return ctx.load(lastLightKernels)
-}
-
-entry LastLightKernels {
-  accelerator.module = loadKernels
-}
-
 test "matrix contraction fixes the output shape" for forecastKernel {
   let features: FeatureBatch<rows: 2, columns: 3> = [
     [1.0, 2.0, 3.0],

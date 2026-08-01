@@ -43,7 +43,7 @@ export protocol WifiSessionApi {
   async fn revoke(id: SessionId): () throws WifiError
 }
 
-export const wifiSessions = ServiceBinding<WifiSessionApi>(name: "wifi-sessions")
+package import service wifiSessions: WifiSessionApi
 
 package async fn fetchWifi(
   request: take http.Request,
