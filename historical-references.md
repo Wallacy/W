@@ -172,6 +172,8 @@ exemplos. Contextos temáticos abaixo são paráfrases, não transcrições.
 - [D] [SQLite em Durable Objects](https://blog.cloudflare.com/sqlite-in-durable-objects/) — fornecido agora, mas já listado acima como histórico.
 - [A] [Durable Objects: easy, fast, correct](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/) — fornecido pelo usuário; sem proveniência local anterior.
 - [A] [Cap'n Web RPC](https://blog.cloudflare.com/capnweb-javascript-rpc-library/) — fornecido pelo usuário; sem proveniência local anterior.
+- [A] [JavaScript-native RPC](https://blog.cloudflare.com/javascript-native-rpc/)
+  — fornecido pelo usuário; service bindings, stubs tipados e promise pipelining.
 - [A] [“The future of compute is fine-grained”](https://news.ycombinator.com/item?id=31759801) — comentário de Kenton Varda fornecido pelo usuário; inspira granularidade de execução, sem usar ali o termo “nanoservice”.
 - [A] [Introducing workerd](https://blog.cloudflare.com/workerd-open-source-workers-runtime/) — fonte primária localizada na revisão; define a proposta de nanoservices e seus trade-offs.
 - [A] [cloudflare/workerd](https://github.com/cloudflare/workerd) — runtime e princípios de nanoservices, capability bindings e limite de sandbox.
