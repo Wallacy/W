@@ -1,6 +1,6 @@
 # Restaurante Última Luz
 
-> **Status:** produto de referência experimental · 30 de julho de 2026
+> **Status:** produto de referência experimental · 31 de julho de 2026
 
 O Restaurante Última Luz serve a última janela observável antes do encerramento
 do universo. O cenário homenageia o absurdo cósmico popularizado por Douglas
@@ -38,7 +38,7 @@ last-light-native / entry .default
   └─ JSON por HTTP
 
 last-light-tui / entry LastLightTui
-  → herda shutdown de .default
+  → product liga o mesmo shutdown
   → seleciona o terminal adapter do target
   → remove os modes não alcançáveis
 
@@ -61,7 +61,7 @@ last-light-audio / LastLightAudio
   → callback com deadline
   → sem allocation ou blocking
 
-last-light-accelerators / LastLightKernels
+last-light-accelerators / export lastLightKernels
   → tensor kernels
   → NVVM, ROCDL ou SPIR-V
 
@@ -83,10 +83,9 @@ O descriptor anônimo de `app.w` é `.default`. O host liga `runNative` a
 `process.main`; o source não repete esse nome. O handler escolhe CLI, TUI ou
 servidor local por argumento.
 
-`LastLightTui` herda `process.signal` de `.default` e substitui somente o handler
-default. O product `last-light-tui` seleciona esse descriptor para gerar um
-artifact menor. `LastLightLineHost` herda a mesma base e acrescenta uma linha
-por evento.
+`LastLightTui` é independente de `.default`. O product `last-light-tui`
+seleciona esse descriptor e liga `process.signal` a `shutdown`. A recipe pode
+remover handlers e modes não alcançáveis.
 
 `LastLightWorker` possui outro módulo de entry. Seu host chama `http.fetch`.
 Ele importa `gateway.w`, não o módulo nativo. Importar qualquer entry module
@@ -178,12 +177,12 @@ alvo de execução independente.
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `simulation_app.w` | entry determinística sem deployment de services |
-| `app.w` | processo nativo multimodo, terminal, linha por evento e Context |
+| `app.w` | processo nativo multimodo, terminal, signal handler e Context |
 | `platform.w` | interface uniforme dos adapters nativos |
 | `platform/posix/native.w` | implementação selecionada para Linux e Darwin |
 | `platform/windows/native.w` | implementação selecionada para Windows |
 | `worker_app.w` | component HTTP com lifecycle do host |
-| `package.w` | products, variantes, runtime graphs, execution profiles, targets e build profiles |
+| `package.w` | products, host bindings, service links, runtime graphs, targets e profiles |
 | `workspace.w` | members, defaults, patches e toolchain policy locais |
 | `BUILD.md` | matriz de toolchains, artifacts, comandos e gates |
 | `deployments/local.w` | plano local com uma unit e adapters de desenvolvimento |
@@ -246,8 +245,9 @@ Aceite:
 
 - `entry { ... }` cria um handler curto para um default slot único;
 - `entry(runNative)` cria o descriptor anônimo `.default`;
-- `entry LastLightTui(runTui)` herda defaults locais e troca o handler;
-- o product escolhe um descriptor expandido;
+- `entry LastLightTui(runTui)` cria um descriptor independente;
+- o product escolhe um descriptor e declara seus `hostBindings`;
+- o source não atribui `process.signal`, `device.tick` ou outro host slot;
 - importar `app` não executa um handler;
 - Context não concede filesystem ou network ausentes.
 
@@ -1300,7 +1300,7 @@ outcome e deployment.
 
 ```text
 host entry (target)
-  → ServiceFamily<OrderCoordinatorApi, OrderId>
+  → ServiceFamilyImport<OrderCoordinatorApi, OrderId>
   → turn curto de submit
   → fulfillment.tryStart
   → root owned pelo supervisor
@@ -1313,7 +1313,7 @@ host entry (target)
 
 status / signal / cancel / outcome
   → mesma instance keyed
-  → WorkKeyRef injetado para uma única key
+  → initializer recebe WorkKeyRef para uma única key
   → snapshot ou control do supervisor
 ```
 
@@ -1409,14 +1409,16 @@ Aceite:
 - o lock grava o case e os module sets selecionados;
 - build locked falha quando um arquivo novo não está no lock;
 - `.default` resolve o descriptor anônimo de `app.w`;
-- `LastLightTui` herda `process.signal` e troca somente o slot default;
-- `last-light-tui` liga esse descriptor sem repetir seus bindings;
-- `LastLightWorker` não herda bindings de outro módulo;
-- um product iniciado por host liga exatamente um descriptor expandido;
+- `LastLightTui` não herda host bindings de `.default`;
+- `last-light-tui` declara seu próprio binding de `process.signal`;
+- `LastLightWorker` usa os slots declarados pelo profile HTTP;
+- um product iniciado por host liga um descriptor e seus host bindings;
 - uma service-only unit publica seus providers no artifact index como roots;
 - CLI, TUI e servidor local podem compartilhar um `process.main`;
 - o worker HTTP possui outro product e outro artifact;
 - cada requirement recebe provider, supervisor, host capability ou import;
+- cada `import service` alcançável recebe um `link` pelo ID de seu symbol;
+- cada dependency de provider entra por um initializer argument explícito;
 - um import aberto aparece na interface do artifact;
 - `AromaProbeDevice` permanece na unit que recebe a capability do host;
 - o raw pointer do probe não cruza a service ABI;
@@ -1473,7 +1475,7 @@ Aceite:
 - duas telemetrias usam I/O concorrente e mantêm ordering por source;
 - um satellite silencioso não vira zero telemetry;
 - sequence stale produz error tipado;
-- `ServiceFamily` seleciona a instance pela identidade;
+- `ServiceFamilyImport` seleciona a instance pela identidade;
 - o solver de aproximação usa um número de samples refinado;
 - CPU scalar, SIMD e device produzem o mesmo resultado no mode escolhido;
 - deployment pode co-localizar ou separar satélites sem mudar a API.
@@ -1636,8 +1638,9 @@ O Book deve mostrar pares lado a lado:
 
 | Tema | Forma vigente | Contrafactual |
 |---|---|---|
-| entry anônimo | `entry(run) { process.signal = shutdown }` | repetir bindings ou `entry defaults` |
-| handler default | `entry Name(run)` | escrever `process.main = run` em cada descriptor |
+| entry anônimo | `entry(run)` | `entry(args, ctx) { ... }` ou `process.main = run` |
+| host callback | product usa `hostBindings` | assignment no source ou registro em runtime |
+| handler default | `entry Name(run)` | escrever o nome do slot no source |
 | seleção | product escolhe descriptor no link | nome de entry escolhido livremente no runtime |
 | multimodo | um `process.main` escolhe CLI/TUI/server | vários mains ou OS chama `http.fetch` |
 | target | `TargetId` + `TargetSpec` expandido | string livre, OS apenas ou backend implica suporte |
@@ -1656,7 +1659,7 @@ O Book deve mostrar pares lado a lado:
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
 | QoS | descriptor/policy de group | `.background` como domain |
 | trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
-| binding singular | `ctx.services.get(restaurantService)` | lookup normal por string |
+| binding singular | `ctx.services.get(lastLight)` | lookup normal por string |
 | binding keyed | `ctx.services.get(orderCoordinators, key:)` | singleton global ou key inferida |
 | identity keyed | `ServiceIdentity<OrderId>` + `WorkKeyRef` | primeiro argumento redefine a instance |
 | progress | `WorkSnapshot<ServiceStage>` revisionado | borrow do task frame ou event list ilimitada |

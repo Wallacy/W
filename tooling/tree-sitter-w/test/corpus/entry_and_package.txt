@@ -13,14 +13,15 @@ fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode {
 fn shutdown(signal: ProcessSignal, ctx: ProcessContext) {}
 fn fetch(request: Request, ctx: Context): Response {}
 
-entry(run) {
-  process.signal = shutdown
-}
+package import service lastLight: RestaurantApi
+package import service orders<key: OrderId>: OrderCoordinatorApi
+export import service publicMenu: MenuApi
 
+entry(run)
 entry LastLightTui(runTui)
 
-entry LastLightWorker {
-  http.fetch = fetch
+entry Diagnostics {
+  print("The improbability meter is ready.")
 }
 
 ---
@@ -97,23 +98,38 @@ entry LastLightWorker {
       (type_name
         (type_identifier)))
     (block))
-  (entry_declaration
+  (service_import_declaration
     (identifier)
-    (entry_binding
-      (module_path
-        (identifier)
-        (identifier))
-      (identifier)))
+    (type
+      (type_name
+        (type_identifier))))
+  (service_import_declaration
+    (identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier))))
+  (service_import_declaration
+    (identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (entry_declaration
+    (identifier))
   (entry_declaration
     (type_identifier)
     (identifier))
   (entry_declaration
     (type_identifier)
-    (entry_binding
-      (module_path
-        (identifier)
-        (identifier))
-      (identifier))))
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (string_literal))))))))
 
 ==================
 Data-only package manifest
@@ -127,6 +143,9 @@ package {
       name: "last-light-native"
       kind: .executable
       entry: ".default"
+      hostBindings: [
+        { slot: "process.signal", handler: "restaurant.app::shutdown" },
+      ]
       capabilities: [.stdio, .network]
     },
   ]
@@ -179,6 +198,20 @@ package {
                   (identifier)
                   (manifest_value
                     (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_list
+                      (manifest_value
+                        (manifest_record
+                          (manifest_field
+                            (identifier)
+                            (manifest_value
+                              (string_literal)))
+                          (manifest_field
+                            (identifier)
+                            (manifest_value
+                              (string_literal))))))))
                 (manifest_field
                   (identifier)
                   (manifest_value

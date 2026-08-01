@@ -1,5 +1,6 @@
 // Allocation-free audio rendering for the final song.
 
+import std.audio as audio
 import std.math
 
 export const audioFrames = 256_usize
@@ -58,8 +59,8 @@ export struct AudioRenderState {
 export fn renderFinalSong(
   state: inout AudioRenderState,
   block: inout DeviceAudioBlock,
-  ctx: AudioRenderContext,
-): AudioRenderResult {
+  ctx: audio.RenderContext,
+): audio.RenderResult {
   do {
     try renderTone(
       inout state.oscillator,

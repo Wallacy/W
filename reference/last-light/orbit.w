@@ -39,7 +39,7 @@ export protocol SatelliteApi {
   async fn command(next: take StateVector, sequence: u64): () throws SatelliteError
 }
 
-export const satelliteSwarm = ServiceFamily<SatelliteApi, SatelliteId>(name: "satellites")
+package import service satelliteSwarm<key: SatelliteId>: SatelliteApi
 
 export fn propagate(state: ref StateVector, during elapsed: PhysicalDuration): StateVector {
   return StateVector(

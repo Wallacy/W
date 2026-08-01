@@ -3,6 +3,8 @@ import std.http
 import { Order } from restaurant.domain
 import std.reflect as reflect
 import std.tensor as tensor
+package import service pantry: PantryApi
+package import service ovens<key: OvenId>: OvenApi
 
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
@@ -280,7 +282,4 @@ export unsafe fn<abi: .c> ll_status_v1_create(code: c.int): ll_status_v1 {
   return ll_status_v1(code: code)
 }
 
-entry LastLight {
-  process.main = run
-  http.fetch = fetch
-}
+entry LastLight(run)

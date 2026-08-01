@@ -109,8 +109,8 @@ deployment {
 
   bindings: [
     {
-      import: "http/last-light"
-      provider: .service(unit: "core/gateway", binding: "last-light")
+      import: "http/lastLight"
+      provider: .service(unit: "core/gateway", binding: "lastLight")
     },
     {
       import: "core/pantry"
@@ -121,28 +121,28 @@ deployment {
       provider: .service(unit: "kitchen/controller", binding: "ovens")
     },
     {
-      import: "core/payment-gateway"
-      provider: .service(unit: "payments/main", binding: "payment-gateway")
+      import: "core/paymentGateway"
+      provider: .service(unit: "payments/main", binding: "paymentGateway")
     },
     {
       import: "core/audience"
       provider: .service(unit: "audience/controller", binding: "audience")
     },
     {
-      import: "core/aroma-device"
+      import: "core/aromaDevice"
       provider: .device("aroma-probe")
     },
     {
-      import: "wifi/wifi-sessions"
-      provider: .service(unit: "sessions/main", binding: "wifi-sessions")
+      import: "wifi/wifiSessions"
+      provider: .service(unit: "sessions/main", binding: "wifiSessions")
     },
     {
       import: "observatory/satellites"
       provider: .service(unit: "satellites/controller", binding: "satellites")
     },
     {
-      import: "observatory/horizon-monitor"
-      provider: .service(unit: "horizon/main", binding: "horizon-monitor")
+      import: "observatory/horizonMonitor"
+      provider: .service(unit: "horizon/main", binding: "horizonMonitor")
     },
   ]
 

@@ -137,11 +137,41 @@ module.exports = grammar({
   rules: {
     source_file: ($) =>
       choice(
-        repeat(choice($.import_statement, $._declaration)),
+        repeat(
+          choice(
+            $.service_import_declaration,
+            $.import_statement,
+            $._declaration,
+          ),
+        ),
         $.package_manifest,
         $.deployment_manifest,
         $.workspace_manifest,
         $.lock_manifest,
+      ),
+
+    service_import_declaration: ($) =>
+      prec(
+        1,
+        seq(
+          optional(field("visibility", choice("package", "export"))),
+          "import",
+          "service",
+          field("name", $.identifier),
+          optional(
+            seq(
+              "<",
+              "key",
+              ":",
+              field("key_type", $.type),
+              optional(","),
+              ">",
+            ),
+          ),
+          ":",
+          field("api", $.type),
+          optional(";"),
+        ),
       ),
 
     import_statement: ($) =>
@@ -586,33 +616,15 @@ module.exports = grammar({
         "entry",
         choice(
           field("body", $.block),
-          seq(
-            $._entry_default_handler,
-            optional($._entry_descriptor_body),
-          ),
+          $._entry_default_handler,
           seq(
             field("name", $._type_identifier),
-            choice(
-              $._entry_descriptor_body,
-              seq(
-                $._entry_default_handler,
-                optional($._entry_descriptor_body),
-              ),
-            ),
+            choice(field("body", $.block), $._entry_default_handler),
           ),
         ),
       ),
     _entry_default_handler: ($) =>
       seq("(", field("default_handler", $.identifier), ")"),
-    _entry_descriptor_body: ($) =>
-      seq("{", repeat($.entry_binding), "}"),
-    entry_binding: ($) =>
-      seq(
-        field("slot", $.module_path),
-        "=",
-        field("handler", $.identifier),
-        optional(";"),
-      ),
 
     package_manifest: ($) =>
       seq(

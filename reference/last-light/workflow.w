@@ -4,6 +4,7 @@ import {
   BillingApi,
   Payment,
   PaymentProof,
+  billing,
   loadPriceTable,
   paymentKey,
   quote,
@@ -20,18 +21,12 @@ import {
   DiningRoomApi,
   DiningRoomError,
   TableId,
+  diningRoom,
 } from restaurant.dining
-import { AromaProbeApi } from restaurant.hardware
-import { OvenApi, PantryApi } from restaurant.kitchen
-import { OracleApi } from restaurant.oracle
+import { AromaProbeApi, aromaProbe } from restaurant.hardware
+import { OvenApi, PantryApi, ovens, pantry } from restaurant.kitchen
+import { OracleApi, oracle } from restaurant.oracle
 import { RestaurantError, prepareDish } from restaurant.restaurant
-
-const pantryService = ServiceBinding<PantryApi>(name: "pantry")
-const ovenService = ServiceBinding<OvenApi>(name: "ovens")
-const oracleService = ServiceBinding<OracleApi>(name: "oracle")
-const aromaProbeService = ServiceBinding<AromaProbeApi>(name: "aroma-probe")
-const billingService = ServiceBinding<BillingApi>(name: "billing")
-const diningRoomService = ServiceBinding<DiningRoomApi>(name: "dining-room")
 
 export struct FulfillmentInput {
   order: Order
@@ -87,16 +82,16 @@ package async fn prepareDishStep(
   input: take FulfillmentInput,
   step: StepContext,
 ): Dish throws RestaurantError {
-  let pantry = try await step.services.get(pantryService)
-  let ovens = try await step.services.get(ovenService)
-  let oracle = try await step.services.get(oracleService)
-  let probe = try await step.services.get(aromaProbeService)
+  let pantryRef = try await step.services.get(pantry)
+  let ovenRefs = try await step.services.get(ovens)
+  let oracleRef = try await step.services.get(oracle)
+  let probe = try await step.services.get(aromaProbe)
 
   return try await prepareDish(
     take input.order,
-    pantry: pantry,
-    ovens: ovens,
-    oracle: oracle,
+    pantry: pantryRef,
+    ovens: ovenRefs,
+    oracle: oracleRef,
     probe: probe,
   )
 }
@@ -105,10 +100,10 @@ package async fn capturePaymentStep(
   dish: take Dish,
   step: StepContext,
 ): CapturedDish throws RestaurantError {
-  let billing = try await step.services.get(billingService)
+  let billingRef = try await step.services.get(billing)
   let amount = try quote(loadPriceTable(), course: dish.course)
   let key = paymentKey(dish.orderId)
-  let payment = try await billing.capture(amount, idempotencyKey: key)
+  let payment = try await billingRef.capture(amount, idempotencyKey: key)
   return CapturedDish(dish: take dish, payment: take payment)
 }
 
@@ -116,8 +111,8 @@ package async fn serveDishStep(
   input: take ServingInput,
   step: StepContext,
 ): Receipt throws RestaurantError {
-  let diningRoom = try await step.services.get(diningRoomService)
-  return try await diningRoom.serve(
+  let diningRoomRef = try await step.services.get(diningRoom)
+  return try await diningRoomRef.serve(
     at: input.tableId,
     dish: take input.dish,
     payment: input.payment,
@@ -128,9 +123,9 @@ package async fn refundPaymentStep(
   payment: take Payment,
   step: StepContext,
 ): Payment throws RestaurantError {
-  let billing = try await step.services.get(billingService)
+  let billingRef = try await step.services.get(billing)
   let key = refundKey(payment.id)
-  return try await billing.refund(
+  return try await billingRef.refund(
     take payment,
     idempotencyKey: key,
   )
@@ -210,5 +205,5 @@ test "fulfillment signals keep closing distinct from table admission" {
 
 // Compile-fail assays:
 // let now = Clock.now() // Clock observations must occur inside a step.
-// let pantry = try await work.services.get(pantryService) // Direct workflow I/O.
+// let pantryRef = try await work.services.get(pantry) // Direct workflow I/O.
 // try await work.sleep(.awaitTable, for: 1<si.s>) // Point already used by wait.

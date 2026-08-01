@@ -25,6 +25,8 @@ export protocol OracleApi {
   async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError
 }
 
+package import service oracle: OracleApi
+
 export fn planningRequest(order: ref Order): PlanningRequest {
   return PlanningRequest(
     features: [[

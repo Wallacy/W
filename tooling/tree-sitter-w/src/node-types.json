@@ -3359,32 +3359,6 @@
     }
   },
   {
-    "type": "entry_binding",
-    "named": true,
-    "fields": {
-      "handler": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "slot": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "module_path",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "entry_declaration",
     "named": true,
     "fields": {
@@ -3418,16 +3392,6 @@
           }
         ]
       }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "entry_binding",
-          "named": true
-        }
-      ]
     }
   },
   {
@@ -8619,6 +8583,56 @@
     }
   },
   {
+    "type": "service_import_declaration",
+    "named": true,
+    "fields": {
+      "api": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "key_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "visibility": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "export",
+            "named": false
+          },
+          {
+            "type": "package",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "set_accessor",
     "named": true,
     "fields": {
@@ -8731,6 +8745,10 @@
         },
         {
           "type": "service_declaration",
+          "named": true
+        },
+        {
+          "type": "service_import_declaration",
           "named": true
         },
         {
@@ -10966,6 +10984,10 @@
   },
   {
     "type": "is",
+    "named": false
+  },
+  {
+    "type": "key",
     "named": false
   },
   {
