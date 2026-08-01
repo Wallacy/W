@@ -37,7 +37,6 @@ package {
       name: "menu-compiler"
       kind: .tool
       module: "last_light.menu.transform"
-      entry: ".default"
       host: "w.host/build-transform@1"
       capabilities: []
     },

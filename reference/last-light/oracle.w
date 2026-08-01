@@ -25,8 +25,6 @@ export protocol OracleApi {
   async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError
 }
 
-package import service oracle: OracleApi
-
 export fn planningRequest(order: ref Order): PlanningRequest {
   return PlanningRequest(
     features: [[
@@ -117,7 +115,7 @@ fn defaultRecipes(): Map<Course, Recipe> {
   ]
 }
 
-export service TableOracle as OracleApi {
+package service TableOracle as OracleApi {
   weights: Tensor<f32, shape: [8, 4]> = defaultWeights()
   recipes: Map<Course, Recipe> = defaultRecipes()
 

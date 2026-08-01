@@ -105,7 +105,9 @@
 
 (function_declaration name: (identifier) @function)
 (entry_declaration default_handler: (identifier) @function)
-(service_import_declaration name: (identifier) @variable)
+(service_binding_declaration name: (identifier) @variable)
+(service_import_item name: (identifier) @type)
+(service_import_item alias: (identifier) @variable)
 (call_expression function: (identifier) @function.call)
 (call_expression
   function: (member_expression property: (identifier) @function.method.call))

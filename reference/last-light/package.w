@@ -76,15 +76,21 @@ package {
   runtimeGraphs: [
     {
       name: "restaurant-core"
-      links: [
-        { requirement: "restaurant.restaurant::lastLight", target: .service("lastLight") },
-        { requirement: "restaurant.supervision::orderCoordinators", target: .service("orders") },
-        { requirement: "restaurant.kitchen::pantry", target: .service("pantry") },
-        { requirement: "restaurant.kitchen::ovens", target: .service("ovens") },
-        { requirement: "restaurant.oracle::oracle", target: .service("oracle") },
-        { requirement: "restaurant.hardware::aromaProbe", target: .service("aromaProbe") },
-        { requirement: "restaurant.billing::billing", target: .service("billing") },
-        { requirement: "restaurant.dining::diningRoom", target: .service("diningRoom") },
+      servicePolicy: {
+        resolution: .startup
+        transports: [.local, .component, .ipc, .network]
+        dynamicRebinding: .deny
+      }
+      bindings: [
+        { service: "restaurant.restaurant::lastLight", default: .provider("lastLight") },
+        { service: "restaurant.supervision::orderCoordinators", default: .provider("orders") },
+        { service: "restaurant.kitchen::pantry", default: .import("pantry") },
+        { service: "restaurant.kitchen::ovens", default: .import("ovens") },
+        { service: "restaurant.supervision::oracle", default: .provider("oracle") },
+        { service: "restaurant.workflow::oracle", default: .provider("oracle") },
+        { service: "restaurant.hardware::aromaProbe", default: .provider("aromaProbe") },
+        { service: "restaurant.billing::billing", default: .provider("billing") },
+        { service: "restaurant.dining::diningRoom", default: .provider("diningRoom") },
       ]
       providers: [
         {
@@ -283,8 +289,13 @@ package {
     },
     {
       name: "restaurant-client"
-      links: [
-        { requirement: "restaurant.restaurant::lastLight", target: .service("lastLight") },
+      servicePolicy: {
+        resolution: .startup
+        transports: [.component, .ipc, .network]
+        dynamicRebinding: .deny
+      }
+      bindings: [
+        { service: "restaurant.restaurant::lastLight", default: .import("lastLight") },
       ]
       providers: []
       imports: [
@@ -305,8 +316,13 @@ package {
     },
     {
       name: "wifi-edge"
-      links: [
-        { requirement: "restaurant.wifi::wifiSessions", target: .service("wifiSessions") },
+      servicePolicy: {
+        resolution: .startup
+        transports: [.component, .ipc, .network]
+        dynamicRebinding: .deny
+      }
+      bindings: [
+        { service: "restaurant.wifi::wifiSessions", default: .import("wifiSessions") },
       ]
       providers: []
       imports: [
@@ -327,11 +343,16 @@ package {
     },
     {
       name: "observatory-client"
-      links: [
-        { requirement: "restaurant.orbit::satelliteSwarm", target: .service("satellites") },
+      servicePolicy: {
+        resolution: .startup
+        transports: [.component, .ipc, .network]
+        dynamicRebinding: .deny
+      }
+      bindings: [
+        { service: "restaurant.orbit::satelliteSwarm", default: .import("satellites") },
         {
-          requirement: "restaurant.horizon::horizonMonitor"
-          target: .service("horizonMonitor")
+          service: "restaurant.horizon::horizonMonitor"
+          default: .import("horizonMonitor")
         },
       ]
       providers: []
@@ -535,11 +556,7 @@ package {
       name: "last-light-native"
       kind: .executable
       module: "restaurant.app"
-      entry: ".default"
       host: "w.host/native-process@1"
-      hostBindings: [
-        { slot: "process.signal", handler: "restaurant.app::shutdown" },
-      ]
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"
@@ -555,9 +572,6 @@ package {
       module: "restaurant.app"
       entry: "LastLightTui"
       host: "w.host/native-process@1"
-      hostBindings: [
-        { slot: "process.signal", handler: "restaurant.app::shutdown" },
-      ]
       targets: ["desktop"]
       runtime: "restaurant-core"
       packing: "single-process"

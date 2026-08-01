@@ -10,8 +10,7 @@ enum MobileError: Error {
 }
 
 async fn start(ctx: mobile.Context): mobile.StartResult throws MobileError {
-  let restaurant = try await ctx.services.get(lastLight)
-  let menu = try await restaurant.menu()
+  let menu = try await lastLight.menu()
   await ctx.state.publish("menu", value: menu)
   return .ready
 }

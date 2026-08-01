@@ -26,7 +26,7 @@ O source usa:
 
 ```w
 entry(runNative)
-entry LastLightTui(runTui)
+entry LastLightTui(runTuiEntry)
 ```
 
 O descriptor anônimo é `.default`. `LastLightTui` é outro descriptor. Um não
@@ -42,17 +42,14 @@ O manifest escolhe a forma anônima:
 {
   name: "last-light-native"
   module: "restaurant.app"
-  entry: ".default"
   host: "w.host/native-process@1"
-  hostBindings: [
-    { slot: "process.signal", handler: "restaurant.app::shutdown" },
-  ]
   executionProfile: "native-bounded"
 }
 ```
 
 `entry` não é escolhido por argumento de runtime. O product resolve o
-descriptor durante o link.
+descriptor durante o link. A omissão seleciona `.default`. Escrever
+`entry: ".default"` é válido, mas redundante.
 
 Outro product pode escolher o descriptor nomeado:
 
@@ -62,16 +59,15 @@ Outro product pode escolher o descriptor nomeado:
   module: "restaurant.app"
   entry: "LastLightTui"
   host: "w.host/native-process@1"
-  hostBindings: [
-    { slot: "process.signal", handler: "restaurant.app::shutdown" },
-  ]
   executionProfile: "native-bounded"
 }
 ```
 
-Cada product declara o binding de signal que usa. Essa repetição deixa a recipe
-e o artifact independentes. O manifest pode omitir `entry` somente quando o
-módulo possui um único descriptor resolvível.
+`runNative` e `runTuiEntry` registram os signals no runtime. A registration pode
+mudar conforme o estado da aplicação. Ela não faz parte de `hostBindings`.
+
+O manifest omite `entry` somente para `.default`. Um descriptor nomeado precisa
+ser explícito.
 
 ## 2. Um binário com vários modos
 
@@ -153,10 +149,18 @@ SDK futuros. A tabela define gates, não suporte entregue.
 | `observatory-client` | observatório | `satellites` e `horizonMonitor` |
 | `benchmark-host` | sete workloads HTTP | database PostgreSQL e cache local |
 
-O compiler deriva requirements de caller das declarações `import service`.
-Signatures de initializer declaram dependencies dos providers. `links` liga
-cada requirement de caller a um provider ou import do grafo. Um nome textual
-não cria authority.
+As declarações `export service` criam service identities. `import service` cria
+uma identity quando o caller escolhe a boundary. Signatures de initializer
+declaram dependencies dos providers.
+
+`bindings` seleciona providers e imports default. `servicePolicy` permite
+override somente antes do entry. O resolver materializa `ServiceRef` e
+`ServiceFamilyRef` durante o startup. Um nome textual não cria authority.
+
+`restaurant-core` liga `lastLight` ao provider local por default. Uma launch
+config pode selecionar um provider assinado por component, IPC ou network. O
+artifact mantém os mesmos bytes e grava a configuração no startup audit record.
+Um import comum não aceita esse override.
 
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como

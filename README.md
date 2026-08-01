@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 31 de julho de 2026**
+> **Working Draft · 1 de agosto de 2026**
 >
 > **Prazer para humanos. Clareza para máquinas.**
 
@@ -46,26 +46,23 @@ referência mostram esse contrato, mas não criam regras próprias.
 ```w
 import std.http
 import { Command } from restaurant.command
-import { RestaurantApi } from restaurant.restaurant
-
-package import service lastLight: RestaurantApi
+import { lastLight } from restaurant.restaurant
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let restaurant = try await ctx.services.get(lastLight)
   let command = try request.json.decode<Command>()
-  let response = try await dispatch(take command, restaurant: restaurant)
+  let response = try await dispatch(take command, restaurant: lastLight)
   return try http.Response.json(response)
 }
 
 entry(runNative)
-entry LastLightTui(runTui)
+entry LastLightTui(runTuiEntry)
 ```
 
 O descriptor anônimo é o default do product nativo. O mesmo binário atende CLI,
 TUI e servidor local. Um segundo product escolhe `LastLightTui` para gerar uma
 TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
-o module set nativo. O product liga `process.signal` a `shutdown` por
-`hostBindings`. Um worker usa outro product e outro host lifecycle.
+o module set nativo. O entry registra os process signals no runtime. Um worker
+usa outro product e outro host lifecycle.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 fornece uma build transform tipada ao package principal. O tool recebe somente
@@ -76,7 +73,7 @@ horizon monitor. Esse laboratório separa `WInterface`, ABI W, runtime
 requirements e carriers C.
 
 O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
-resolve `ServiceFamilyImport<OrderCoordinatorApi, OrderId>`. O runtime graph
+resolve `ServiceFamilyRef<OrderCoordinatorApi, OrderId>`. O runtime graph
 passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
 [`supervision.w`](reference/last-light/supervision.w).
 

@@ -6404,6 +6404,21 @@
     }
   },
   {
+    "type": "named_service_imports",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "service_import_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "object_declaration",
     "named": true,
     "fields": {
@@ -8539,6 +8554,46 @@
     }
   },
   {
+    "type": "service_binding_declaration",
+    "named": true,
+    "fields": {
+      "api": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "declaration_prefix",
+          "named": true
+        },
+        {
+          "type": "service_key_contract",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "service_declaration",
     "named": true,
     "fields": {
@@ -8583,25 +8638,15 @@
     }
   },
   {
-    "type": "service_import_declaration",
+    "type": "service_import_item",
     "named": true,
     "fields": {
-      "api": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "type",
-            "named": true
-          }
-        ]
-      },
-      "key_type": {
+      "alias": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "type",
+            "type": "identifier",
             "named": true
           }
         ]
@@ -8615,18 +8660,56 @@
             "named": true
           }
         ]
-      },
-      "visibility": {
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "service_key_contract",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "service_import_statement",
+    "named": true,
+    "fields": {
+      "items": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "export",
-            "named": false
-          },
+            "type": "named_service_imports",
+            "named": true
+          }
+        ]
+      },
+      "module": {
+        "multiple": false,
+        "required": true,
+        "types": [
           {
-            "type": "package",
-            "named": false
+            "type": "module_path",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "service_key_contract",
+    "named": true,
+    "fields": {
+      "key_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type",
+            "named": true
           }
         ]
       }
@@ -8744,11 +8827,15 @@
           "named": true
         },
         {
+          "type": "service_binding_declaration",
+          "named": true
+        },
+        {
           "type": "service_declaration",
           "named": true
         },
         {
-          "type": "service_import_declaration",
+          "type": "service_import_statement",
           "named": true
         },
         {

@@ -11,11 +11,13 @@ Estes planos testam a separação entre grafo lógico, packing e placement.
 - [`benchmark.w`](benchmark.w) fixa HTTP, PostgreSQL e cache local para o
   corpus TechEmpower.
 
-O artifact index já fixa as edges entre as units de `restaurant-core`.
-O plano só escolhe a rota entre os placements. A seção `bindings` satisfaz
-imports abertos do grafo; ela não religa providers internos.
-Os paths de deployment nomeiam artifact e import do grafo. O source usa o ID
-tipado criado por `import service`; ele não conhece esses paths.
+O artifact index grava cada service identity, default provider e override
+policy. A seção `bindings` destes planos satisfaz os imports abertos. Um plano
+também poderia trocar uma binding `.startup` dentro do envelope declarado.
+
+Os paths de deployment nomeiam artifact e import do grafo. O source usa IDs
+tipados criados por `export service` ou `import service`. Ele não conhece esses
+paths.
 
 A seção `limits.execution` reduz o execution profile de cada unit. Ela não
 altera domains, pools, capabilities ou fallbacks:

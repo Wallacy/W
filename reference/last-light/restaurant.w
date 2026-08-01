@@ -67,7 +67,7 @@ export protocol RestaurantApi {
   async fn snapshot(): RestaurantSnapshot
 }
 
-package import service lastLight: RestaurantApi
+export service lastLight: RestaurantApi
 
 struct OrderState {
   var stage: ServiceStage
@@ -131,7 +131,7 @@ package async fn prepareDish(
   return try await lease.bake(mixture, until: ready.deadline)
 }
 
-export service LastLightRestaurant as RestaurantApi {
+package service LastLightRestaurant as RestaurantApi {
   pantry: ServiceRef<PantryApi>
   ovens: ServiceRef<OvenApi>
   oracle: ServiceRef<OracleApi>

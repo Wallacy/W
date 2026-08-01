@@ -18,7 +18,8 @@ import {
 import { DiningRoomApi, diningRoom } from restaurant.dining
 import { AromaProbeApi, aromaProbe } from restaurant.hardware
 import { OvenApi, PantryApi, ovens, pantry } from restaurant.kitchen
-import { OracleApi, oracle } from restaurant.oracle
+import { OracleApi } from restaurant.oracle
+import service { OracleApi as oracle } from restaurant.oracle
 import { RestaurantError, prepareDish } from restaurant.restaurant
 import {
   FulfillmentInput,
@@ -53,29 +54,22 @@ package async fn fulfillOrder(
   work.report(.accepted)
   Task.checkCancellation()
 
-  let pantryRef = try await work.services.get(pantry)
-  let ovenRefs = try await work.services.get(ovens)
-  let oracleRef = try await work.services.get(oracle)
-  let probe = try await work.services.get(aromaProbe)
-  let billingRef = try await work.services.get(billing)
-  let diningRoomRef = try await work.services.get(diningRoom)
-
   work.report(.reserving)
   Task.checkCancellation()
   work.report(.preparing)
 
   let dish = try await prepareDish(
     take input.order,
-    pantry: pantryRef,
-    ovens: ovenRefs,
-    oracle: oracleRef,
-    probe: probe,
+    pantry: pantry,
+    ovens: ovens,
+    oracle: oracle,
+    probe: aromaProbe,
   )
 
   work.report(.serving)
   let priceTable = loadPriceTable()
   let amount = try quote(priceTable, course: dish.course)
-  let payment = try await billingRef.capture(amount, idempotencyKey: paymentKey(orderId))
+  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
   let proof = servingProof(payment)
   let refundIdempotencyKey = refundKey(payment.id)
   var completed = false
@@ -83,14 +77,14 @@ package async fn fulfillOrder(
   defer async {
     if !completed {
       do {
-        let _ = try await billingRef.refund(take payment, idempotencyKey: refundIdempotencyKey)
+        let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
       } catch error {
         Trace.current.recordCleanupError(error)
       }
     }
   }
 
-  let receipt = try await diningRoomRef.serve(take dish, payment: proof)
+  let receipt = try await diningRoom.serve(take dish, payment: proof)
   completed = true
   work.report(.completed)
   return receipt
@@ -104,9 +98,9 @@ export protocol OrderCoordinatorApi {
   async fn outcome(): WorkOutcome<Receipt, RestaurantError>? throws CoordinatorError
 }
 
-package import service orderCoordinators<key: OrderId>: OrderCoordinatorApi
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
 
-export service OrderCoordinator as OrderCoordinatorApi {
+package service OrderCoordinator as OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
   fulfillment: FulfillmentKey
 

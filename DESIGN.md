@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 31 de julho de 2026
+> **Status:** **Candidato experimental** · 1 de agosto de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
@@ -1067,7 +1067,11 @@ O exemplo abaixo mostra a forma vigente. Ele não tenta mostrar toda a bibliotec
 
 ```w
 import { Request, Response } from std.http
-import std.process as process
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
 import std.tensor as tensor
 
 export type OrderId = u64
@@ -1106,9 +1110,9 @@ fn score(features: ref Tensor<f32, shape: [1, 8]>,
 }
 
 async fn run(
-  args: process.Arguments,
-  ctx: process.Context,
-): process.ExitCode {
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode {
   print("The kitchen is ready.")
   return .success
 }
@@ -1313,6 +1317,59 @@ Regras:
 - módulos formam um DAG;
 - um ciclo interno precisa ser um único módulo;
 - URL, versão e digest nunca aparecem no import.
+
+O import nomeado é a forma recomendada quando o módulo usa poucos símbolos:
+
+```w
+import {
+  Arguments,
+  Context,
+} from std.process
+```
+
+Aliases qualificam nomes genéricos quando o arquivo usa vários contexts:
+
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+} from std.process
+```
+
+`process.Arguments` continua válido após `import std.process as process`. O
+formatter não troca uma forma pela outra. O linter recomenda named imports
+quando eles reduzem qualificação repetida sem criar colisão.
+
+Um import comum permite análise e otimização entre módulos. `import service`
+declara uma boundary substituível:
+
+```w
+import service {
+  RestaurantApi as restaurant,
+  OrderCoordinatorApi as orderCoordinators<key: OrderId>,
+} from restaurant.contracts
+```
+
+O primeiro item introduz `ServiceRef<RestaurantApi>`. O segundo introduz
+`ServiceFamilyRef<OrderCoordinatorApi, OrderId>`. O resolver liga as referências
+antes de executar o entry. A seção 13.8 define resolução e override.
+
+Um módulo também pode exportar a própria boundary:
+
+```w
+export service lastLight: RestaurantApi
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
+
+import { lastLight, orderCoordinators } from restaurant.restaurant
+```
+
+Nesse caso, o import comum preserva a natureza de service do símbolo exportado.
+O caller não precisa repetir `service`. A forma `import service` existe para o
+caller transformar um protocol exportado em uma requirement substituível.
+
+`import service module.path as name` permanece **Pesquisa**. Sintetizar uma
+interface com todos os runtime exports mistura funções, tipos, constants e
+state de módulo. A baseline exige um protocol ou uma service exportada.
 
 Declarations usam três níveis:
 
@@ -3391,9 +3448,10 @@ enum AnyOvenSession {
 
 ##### Services, snapshots e concorrência
 
-Uma `ServiceRef` pode ter aliases. A instância também pode mudar entre duas
-calls. Portanto, uma service não muda de protocol ou typestate depois de uma
-call.
+Uma `ServiceRef` pode ter aliases. Sua logical identity e provider ficam
+estáveis na process generation. A runtime instance generation pode reiniciar
+entre duas calls. Portanto, uma service não muda de protocol ou typestate após
+uma call.
 
 Uma API publica um snapshot quando o código chamador precisa observar o estado:
 
@@ -7869,12 +7927,16 @@ adaptação rejeita a forma curta.
 Uma função normal pode ocupar o slot default:
 
 ```w
-import std.process as process
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
 
 async fn run(
-  args: process.Arguments,
-  ctx: process.Context,
-): process.ExitCode throws AppError {
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode throws AppError {
   // ...
 }
 
@@ -7904,44 +7966,104 @@ entry Diagnostics {
 precisam repetir return e error effects. A forma `fn` mais `entry(fnName)` mantém
 a assinatura completa em uma função normal.
 
-Callbacks opcionais pertencem ao product:
+Um sinal de processo é um evento runtime. O programa pode registrar, substituir
+ou remover seu handler conforme o estado da aplicação:
+
+```w
+import {
+  Context as ProcessContext,
+  Signal as ProcessSignal,
+} from std.process
+
+async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): () {
+  await ctx.services.drain(deadline: ctx.deadline)
+}
+
+async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {
+  let shutdownSignals = try ctx.signals.register(
+    [.interrupt, .terminate],
+    handler: shutdown,
+  )
+  defer { shutdownSignals.cancel() }
+
+  return try await runApplication(args, ctx: ctx)
+}
+```
+
+`register` devolve uma registration com lifetime explícito. `cancel` remove o
+handler. Uma nova registration pode usar outro handler durante a execução.
+
+Uma registration pode substituir o handler sem mudar o signal set:
+
+```w
+try shutdownSignals.replace(handler: forceShutdown)
+```
+
+Replacement cria uma nova generation. Um evento já aceito usa a generation que
+o aceitou. Handlers da mesma registration não executam juntos. Standard OS
+signals podem coalescer, portanto a API não promete contagem exata.
+
+`Context.signals` exige a capability `.signals`. A T1 portátil contém
+`.interrupt` e `.terminate`. `std.posix` expõe o conjunto POSIX quando o product
+declara essa platform dependency. Um signal não suportado produz `SignalError`
+durante registration.
+
+O handler W não executa dentro do raw POSIX signal handler. O adapter faz a
+operação mínima async-signal-safe e envia um evento para o executor. No Windows,
+o console callback também envia o evento para o executor. O handler W executa
+como task normal e pode usar `await`.
+
+Sinais síncronos fatais, como invalid memory access, não usam essa API para
+recuperação. Eles seguem fault e crash policy. O runtime não promete continuar
+um process cujo memory state pode estar corrompido.
+
+Fontes primárias:
+
+- [POSIX `sigaction`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/sigaction.html)
+- [Windows `SetConsoleCtrlHandler`](https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler)
+
+Alguns callbacks pertencem ao host ABI e precisam existir antes do entry. Um
+firmware reset vector e um mobile lifecycle slot são exemplos. O product liga
+esses callbacks com `hostBindings`:
 
 ```w
 {
-  name: "last-light-native"
-  entry: ".default"
-  host: "w.host/native-process@1"
+  name: "last-light-mobile"
+  entry: "LastLightMobile"
+  host: "w.host/mobile-app@1"
   hostBindings: [
-    {
-      slot: "process.signal"
-      handler: "restaurant.app::shutdown"
-    },
+    { slot: "app.resume", handler: "restaurant.mobile_app::resume" },
   ]
 }
 ```
 
-`hostBindings` é data-only. Cada `slot` precisa existir no host profile. Cada
-`handler` precisa ser um symbol `package` ou `export` com a assinatura exata.
-Missing required slot, duplicate slot e handler incompatível falham no link.
+`hostBindings` é data-only. Cada slot precisa existir no host profile. Cada
+handler precisa ser um symbol `package` ou `export` com a assinatura exata.
+Missing slot, duplicate slot e handler incompatível falham no link.
+
+Service bindings e host callbacks usam metadata tipada, digests e validação
+comuns. Eles não possuem a mesma semântica. Um service concede uma capability
+do caller para o provider. Um host callback concede ao host um ponto de entrada
+no programa. Um signal registration é runtime e não pertence a esses bindings
+estáticos.
 
 O source não contém um objeto global `process`, `device`, `app`, `audio` ou
 `accelerator`. Nomes como `process.signal` e `device.interrupt` são IDs de slot
 na metadata versionada do host profile. Eles aparecem no package e na recipe,
 não como assignments executados pela aplicação.
 
-`std.process` é um módulo T1. Ele fornece tipos e APIs portáteis, como
-`process.Arguments`, `process.Context`, `process.ExitCode` e `process.Signal`.
-Ele não fornece um singleton ambiental. Outros SDKs fornecem `std.device`,
-`std.mobile` e `std.audio` para seus contexts.
+`std.process` é um módulo T1. Ele fornece `Arguments`, `Context`, `ExitCode`,
+`Signal` e APIs portáteis. Ele não fornece um singleton ambiental. Outros SDKs
+fornecem `std.device`, `std.mobile` e `std.audio` para seus contexts.
 
 Informação sobre memory limit, resident memory ou probes exige uma capability
 do context. `process.memory` e `process.probe` permanecem **Pesquisa**. O design
 precisa separar allocator, resource limits, measurements e telemetry antes de
 fixar esses nomes.
 
-O product pode omitir `entry` somente quando o módulo contém um descriptor
-resolvível. A interface grava o descriptor e o handler. `w explain product`
-mostra entry, default slot, host bindings e origem de cada symbol.
+O product omite `entry` quando seleciona `.default`. `entry: ".default"`
+continua válido como forma explícita, mas o linter considera essa field
+redundante. Um descriptor nomeado continua obrigatório no product.
 
 O header sem body é válido:
 
@@ -7965,9 +8087,9 @@ interpreta os argumentos e inicia os adapters selecionados:
 
 ```w
 async fn run(
-  args: process.Arguments,
-  ctx: process.Context,
-): process.ExitCode throws AppError {
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode throws AppError {
   return switch try LaunchMode.parse(args) {
     case .cli: try await runConsole(ctx, mode: .plain)
     case .tui: try await runConsole(ctx, mode: .ansi)
@@ -8012,7 +8134,7 @@ O runtime pode:
 
 - co-localizar instances;
 - agrupar mailboxes;
-- inlinear uma call local;
+- usar direct thunk e mailbox local;
 - usar fast path sem serialização;
 - distribuir instances entre executors ou processos;
 - mover uma instance quando o adapter permite.
@@ -8442,12 +8564,11 @@ Os parâmetros representam key, input, progress, output e failure. O descriptor
 do product liga uma função com esta forma:
 
 ```w
-package import service pantry: PantryApi
-package import service ovens: OvenApi
-package import service oracle: OracleApi
-package import service aromaProbe: AromaProbeApi
-package import service billing: BillingApi
-package import service diningRoom: DiningRoomApi
+import { billing } from restaurant.billing
+import { diningRoom } from restaurant.dining
+import { aromaProbe } from restaurant.hardware
+import { ovens, pantry } from restaurant.kitchen
+import { oracle } from restaurant.oracle
 
 package async fn fulfillOrder(
   input: take FulfillmentInput,
@@ -8457,27 +8578,20 @@ package async fn fulfillOrder(
   work.report(.accepted)
   Task.checkCancellation()
 
-  let pantryRef = try await work.services.get(pantry)
-  let ovenRefs = try await work.services.get(ovens)
-  let oracleRef = try await work.services.get(oracle)
-  let probeRef = try await work.services.get(aromaProbe)
-  let billingRef = try await work.services.get(billing)
-  let diningRoomRef = try await work.services.get(diningRoom)
-
   work.report(.reserving)
   Task.checkCancellation()
   work.report(.preparing)
   let dish = try await prepareDish(
     take input.order,
-    pantry: pantryRef,
-    ovens: ovenRefs,
-    oracle: oracleRef,
-    probe: probeRef,
+    pantry: pantry,
+    ovens: ovens,
+    oracle: oracle,
+    probe: aromaProbe,
   )
 
   work.report(.serving)
   let amount = try quote(loadPriceTable(), course: dish.course)
-  let payment = try await billingRef.capture(amount, idempotencyKey: paymentKey(orderId))
+  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
   let proof = servingProof(payment)
   let refundIdempotencyKey = refundKey(payment.id)
   var completed = false
@@ -8485,14 +8599,14 @@ package async fn fulfillOrder(
   defer async {
     if !completed {
       do {
-        let _ = try await billingRef.refund(take payment, idempotencyKey: refundIdempotencyKey)
+        let _ = try await billing.refund(take payment, idempotencyKey: refundIdempotencyKey)
       } catch error {
         Trace.current.recordCleanupError(error)
       }
     }
   }
 
-  let receipt = try await diningRoomRef.serve(take dish, payment: proof)
+  let receipt = try await diningRoom.serve(take dish, payment: proof)
   completed = true
   work.report(.completed)
   return receipt
@@ -8513,6 +8627,10 @@ supervisor.
 - report de progresso;
 - bindings tipados de service e host;
 - adapter de durability quando declarado.
+
+Uma service identity usada pelo body baixa para um slot tipado desse contexto.
+O source continua a usar `billing.capture(...)`, sem lookup. O journal grava a
+identity e o deployment digest. Ele não serializa `ServiceRef`.
 
 Ele não contém um mapa mutável task-local. Uma capability da aplicação precisa
 de binding ou input explícito.
@@ -9169,49 +9287,79 @@ Alternativas:
 
 ### 13.8 Bindings tipados, product e deployment
 
-Um módulo declara uma requirement de service com `import service`:
+Uma service boundary pode pertencer ao provider ou ao caller. O provider exporta
+uma boundary quando esse é o uso natural do símbolo:
 
 ```w
-package import service lastLight: RestaurantApi
-package import service orderCoordinators<key: OrderId>: OrderCoordinatorApi
+export service lastLight: RestaurantApi
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
 
-let restaurant = try await ctx.services.get(lastLight)
-let coordinator = try await ctx.services.get(orderCoordinators, key: orderId)
-```
-
-`import service name: P` introduz um `ServiceImport<P>`. O contract
-`<key: K>` introduz um `ServiceFamilyImport<P, K>`. A declaration não importa
-code, cria instance ou concede authority. Ela publica uma requirement tipada.
-
-`package` e `export` controlam quem reutiliza a mesma requirement. O ID estável
-contém package, module e declaration name. Dois imports com o mesmo nome curto
-não são unificados implicitamente.
-
-O `Context` precisa conter um link para a requirement. `get` pode suspender e
-falhar antes de devolver `ServiceRef<P>`. Por isso, W não usa
-`ctx.services.lastLight.menu()` nem transforma o import num proxy global. Essas
-formas esconderiam resolution, authority e `ServiceFailure`.
-
-Uma `ServiceRef` nasce somente por resolution de um import, initializer de uma
-service, family lookup ou transferência explícita de outro handle. Lookup por
-string fica em **Pesquisa** para hosts de plugins.
-
-`export service` possui outro papel. Ele exporta uma implementação candidata:
-
-```w
-export service Kitchen as KitchenApi {
-  // ...
+package service LastLightRestaurant as RestaurantApi {
+  // Default implementation selected by package.w.
 }
 ```
 
-Esse export não cria instance nem publica endpoint. Um provider do runtime graph
-seleciona a implementação, o scope e seus limits. A lista `exports` do graph
-decide se a instance fica visível para composição externa.
+`export service name: P` declara uma service identity. A interface expõe o nome
+como `ServiceRef<P>`. A forma keyed expõe `ServiceFamilyRef<P, K>`. A declaração
+não cria instance e não executa o body de uma implementation.
+
+`ServiceFamilyRef<P, K>.at(key)` pode suspender e falhar com `ServiceFailure`.
+Ele seleciona uma instance identity. Chamadas posteriores preservam o mesmo key
+e a mesma process generation.
+
+Um caller usa named import normal porque o símbolo já é uma service:
+
+```w
+import { lastLight, orderCoordinators } from restaurant.restaurant
+
+let menu = try await lastLight.menu()
+let coordinator = try await orderCoordinators.at(orderId)
+```
+
+O caller cria uma boundary quando o provider exporta somente o protocol:
+
+```w
+import service {
+  RestaurantApi as restaurant,
+  OrderCoordinatorApi as coordinators<key: OrderId>,
+} from restaurant.contracts
+```
+
+Essa forma cria service identities locais chamadas `restaurant` e
+`coordinators`. O ID estável contém package, caller module e local name. Dois
+imports com o mesmo nome curto não são unificados.
+
+O resolver satisfaz todas as referências antes de executar o entry. Uma
+requirement ausente impede a inicialização do process. A conexão física pode
+ser lazy. Uma call ainda pode falhar com `ServiceFailure`.
+
+O source usa a referência diretamente. Ele não chama `ctx.services.get` e não
+consulta um proxy global. `ProcessContext.services` mantém somente operações do
+runtime, como `drain` e observação autorizada.
+
+O nome da service não é global storage. Ele baixa para um capability slot do
+entry, service turn ou work context alcançável. O compiler rejeita seu uso num
+product que não concede a binding.
+
+Uma `ServiceRef` também nasce por initializer, family lookup ou transferência
+explícita. Lookup por string fica em **Pesquisa** para plugin hosts.
+
+Uma implementation continua uma declaração distinta:
+
+```w
+export service Kitchen as KitchenApi {
+  // Public provider candidate.
+}
+```
+
+`package service` limita a implementação ao package. `export service S as P`
+permite que outro package escolha `S` como provider. Em ambos os casos, `S` é
+uma implementation candidate, não uma service identity importada pelo código.
 
 Uma service com dependencies usa um initializer explícito:
 
 ```w
-export service OrderCoordinator as OrderCoordinatorApi {
+package service OrderCoordinator as OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
   fulfillment: FulfillmentKey
 
@@ -9229,23 +9377,31 @@ Fields sem initializer não recebem inicialização implícita. O provider liga 
 initializer argument pelo nome e tipo exato. Falta, duplicata, cycle estático ou
 authority incompatível falha no build.
 
+**Forma vigente:** uma service identity usa resolution `.startup`. O resolver
+escolhe o provider uma vez por process generation. A referência não troca de
+provider durante calls ativas. Uma nova configuração inicia outra generation.
+
+Live rebinding fica como **Pesquisa**. Ele exige generation handles, drain,
+state migration e regras para in-flight calls. Um pointer ou vtable mutável não
+resolve esses contratos.
+
 #### 13.8.1 Grafo lógico do product
 
 As responsabilidades não se sobrepõem:
 
 | Camada | Declaração | Responsabilidade |
 |---|---|---|
-| source caller | `import service name: P` | requirement tipada e nome estável |
-| source provider | `export service S as P` | implementação candidata |
-| package | `links`, `providers`, `imports`, `exports` | composição lógica e limites |
+| source provider | `export service name: P` | service identity pública |
+| source caller | `import service { P as name }` | boundary criada pelo caller |
+| implementation | `service S as P` | provider candidate |
+| package | `bindings`, `providers`, `imports`, `exports` | defaults, policy e limites |
 | product | graph, packing e `hostBindings` | artifact e host lifecycle |
-| deployment | bindings e placement | satisfazer imports abertos e localizar units |
-| runtime | `ctx.services.get(name)` | criar ou obter um handle e escolher o transporte |
+| launch ou deployment | bindings e placement | override permitido e localização |
+| runtime | startup resolver | materializar refs e escolher transporte |
 
-O `entry` não liga services. Um handler pode resolver um import durante a
-execução, mas não pode trocar o target desse import. Essa divisão permite que o
-mesmo source use call direta, IPC ou network sem alterar sua semântica. Ela
-também mantém o grafo alcançável e as capabilities visíveis antes da execução.
+O `entry` não liga services. O startup resolver termina antes do handler. Essa
+divisão permite que o mesmo source use call local, IPC ou network sem mudar a
+call. Ela mantém o grafo e as capabilities visíveis antes da execução.
 
 `bind service name = handler` e assignment em `ctx.services` ficam
 **Rejeitados por enquanto**. Uma service implementa um protocol completo. Ela
@@ -9262,10 +9418,15 @@ Não existe herança ou overlay entre grafos na primeira edição.
 runtimeGraphs: [
   {
     name: "restaurant-core"
-    links: [
+    servicePolicy: {
+      resolution: .startup
+      transports: [.local, .component, .ipc, .network]
+      dynamicRebinding: .deny
+    }
+    bindings: [
       {
-        requirement: "restaurant.restaurant::lastLight"
-        target: .service("lastLight")
+        service: "restaurant.restaurant::lastLight"
+        default: .provider("lastLight")
       },
     ]
     providers: [
@@ -9320,18 +9481,21 @@ runtimeGraphs: [
 ]
 ```
 
-Um `link` liga um `import service` alcançável a um provider ou import do graph.
-O target usa um nome local do graph. Ele não usa lookup global.
+Um `binding` liga uma service identity a um provider ou import default. O nome
+do target é local ao graph. Ele não usa lookup global.
+
+`servicePolicy` define quando o resolver escolhe o provider. Ele também limita
+os transports. `.startup` permite override antes do entry. `.deny` impede que
+uma referência ativa troque de provider.
 
 Um `provider` seleciona implementation, scope, isolation, quotas e initializer
 arguments. Um service import do graph declara protocol e key type opcional. Um
 host import declara um tipo de capability. Um export torna um provider visível
 para composição externa.
 
-O compiler deriva requirements a partir do entry, das funções alcançáveis e dos
-initializer arguments. O manifest precisa satisfazer cada requirement com um
-provider, supervisor, host capability ou import declarado. Uma string não cria
-uma requirement nova.
+O compiler deriva requirements a partir de services alcançáveis, service imports
+e initializer arguments. O manifest satisfaz cada requirement com provider,
+supervisor, host capability ou import. Uma string não cria nova requirement.
 
 O linker resolve protocol, implementation, key type e schema por identity. Ele
 rejeita estes casos:
@@ -9347,6 +9511,42 @@ Um grafo fechado não possui imports. Um grafo aberto grava seus imports na
 interface do artifact. O host profile precisa permitir composição. `w run`
 exige um deployment local quando um executable possui imports abertos.
 
+Uma configuração de launch pode substituir somente bindings `.startup`:
+
+```w
+launch {
+  schema: "w.launch/1"
+  artifact: .digest("sha256:...")
+  services: [
+    {
+      service: "restaurant.restaurant::lastLight"
+      provider: .release(
+        "last-light/restaurant-service@2.0.0",
+        digest: "sha256:...",
+      )
+      transport: .ipc
+    },
+  ]
+}
+```
+
+O launch schema é portátil. Cada OS adapter pode localizar o arquivo por
+argumento, app configuration ou system service manager. O adapter normaliza a
+fonte antes da resolução. Um environment variable solto não cria binding.
+
+O artifact grava protocol digest, key type, capability ceiling, transport set e
+override policy. A configuração não pode criar uma nova edge nem ampliar
+authority. Release mode exige provider e configuration digests. Dev mode pode
+aceitar um path local e marca a execução como não reproduzível.
+
+O executable continua bit-reproducible. A configuração altera a execução, não
+os bytes. O runtime grava artifact digest, configuration digest, provider
+digests, endpoints e transports no startup audit record.
+
+Uma native dynamic library só satisfaz `.local` quando possui a W ABI e runtime
+closure exatas. Um provider de versão independente usa a service schema por
+component, IPC ou network. Um filename compatível não prova ABI.
+
 Os limites pertencem ao artifact contract. Um deployment pode reduzi-los. Ele
 não pode trocar operation, protocol, key type, rights ou required isolation.
 
@@ -9355,9 +9555,27 @@ configuração do caller. WebAssembly Components conecta imports tipados a
 exports tipados durante composition. W acrescenta ownership, error effects,
 budgets e `ServiceRef` estruturado.
 
+Cloudflare fixa service bindings no deploy. W permite uma escolha posterior,
+mas somente numa boundary e policy gravadas no artifact. A configuração não
+transforma um import comum em service.
+
 - [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
 - [workerd](https://github.com/cloudflare/workerd)
+- [JavaScript-native RPC](https://blog.cloudflare.com/javascript-native-rpc/)
+- [Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
 - [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
+
+**Pesquisa:** o wire protocol ainda não está escolhido. wRPC, Cap'n Proto e um
+profile derivado de Cap'n Web continuam candidatos. Qualquer transport adapter
+deve preservar schema, ownership, errors, cancellation, deadline, ordering,
+identity, capabilities e unknown outcome. Bidirectional references e promise
+pipelining entram no benchmark do protocolo. wQL não define esse envelope.
+
+O nome do adapter SPI é `ServiceTransport`. `RestaurantApi` já é o service
+protocol da aplicação. Chamar o adapter de `ServiceProtocol` misturaria API e
+wire transport. A primeira versão aceita somente adapters fixados por digest na
+toolchain ou deployment. Uma API pública para adapters customizados permanece
+**Pesquisa**.
 
 #### 13.8.2 Packing de build
 
@@ -9410,15 +9628,15 @@ Cada provider e supervisor aparece em uma unit. Um product com entry marca uma
 unit com `entry: true`. Uma unit sem entry continua válida quando publica um
 provider no artifact index. O instance manager inicia essa unit.
 
-O packer deriva interfaces privadas entre units a partir de service links,
+O packer deriva interfaces privadas entre units a partir de service bindings,
 initializer arguments e requirements do supervisor. Elas entram no artifact
 index. Elas não
 tornam o provider um export público do runtime graph.
 
-Cada edge privada fixa a unit de origem, a unit provedora, o binding, o protocol
-e o key type. O deployment roteia essa edge entre os placements selecionados.
-Ele não pode religá-la a outro provider. Somente um import aberto do runtime
-graph recebe um provider no manifest de deployment.
+Cada edge grava caller unit, service identity, default provider, protocol, key
+type e policy. Uma edge `.startup` aceita override dentro do envelope. Uma edge
+`.fixed` mantém o provider da recipe. Somente exports e imports declarados podem
+atravessar artifacts independentes.
 
 Uma edge entre units usa a service ABI. Ela preserva `await`, schemas, quotas,
 ordering, cancellation, failures e trace. Uma call normal, um borrow ou mutable
@@ -9431,6 +9649,15 @@ distintos. Um deployment não extrai services de um executable já ligado.
 Static libraries, objects, MLIR e Wasm Components podem materializar uma unit.
 Essa escolha não muda a semântica da linguagem. Um módulo não vira sandbox só
 porque o build produziu uma static library intermediária.
+
+Um import comum permite whole-program optimization, devirtualização e inlining.
+Um service import preserva uma dispatch boundary porque o startup pode escolher
+outro provider. O local fast path remove serialization e network overhead. Ele
+não remove turn, failure, cancellation ou observability.
+
+Uma binding `.fixed` permite devirtualização quando o compiler preserva a
+service semantics. Ela não transforma a call em call normal. Para obter inlining
+sem boundary, o programador usa import comum.
 
 #### 13.8.3 Manifest e lock de deployment
 
@@ -9525,7 +9752,7 @@ digest resolvido.
 O deployment pode:
 
 - colocar units prebuilt em hosts;
-- rotear edges privadas já fixadas pelo packing;
+- rotear bindings `.startup` dentro do envelope do artifact;
 - conectar imports abertos a exports compatíveis;
 - selecionar adapters permitidos;
 - reduzir quotas;
@@ -9540,8 +9767,8 @@ pode reduzir essas garantias.
 O deployment não pode:
 
 - reagrupar providers;
-- religar uma edge privada a outro provider;
-- trocar código, protocol, operation ou target;
+- alterar uma binding `.fixed`;
+- trocar protocol, operation ou target;
 - aumentar o envelope;
 - trocar pool, domain, fallback ou execution capability;
 - converter uma call normal em uma service call;
@@ -9592,6 +9819,10 @@ a relação entre state e outputs. A baseline não presume state durável.
 SQLite é o primeiro adapter oficial provável. Ele oferece transações, operação
 local e portabilidade. Ele não é a semântica universal. Memory, files, remote KV
 e engines especializadas podem implementar o contrato.
+
+O [SQLite em Durable Objects](https://blog.cloudflare.com/sqlite-in-durable-objects/)
+mostra o valor de storage local e synchronous dentro de uma owner unit. W usa
+essa evidência para o adapter. Ela não torna SQLite obrigatório para services.
 
 **Forma vigente para workflows:** o adapter confirma input, outcome e progress
 do step antes de liberar o resultado para o código replayable. Um outbox
@@ -9718,8 +9949,7 @@ T1 contém:
   Stream e Channel;
 - synchronization, executors e blocking adapters;
 - build transforms com inputs, outputs e capabilities fechados;
-- ServiceRef, ServiceImport, ServiceFamilyImport, ServiceIdentity e service host
-  APIs;
+- ServiceRef, ServiceFamilyRef, ServiceIdentity e service host APIs;
 - SupervisorRef, WorkKeyRef, WorkRef, WorkContext, WorkSnapshot e WorkOutcome;
 - TCP, UDP, TLS e DNS;
 - crypto, codecs, JSON e FFI C;
@@ -12895,6 +13125,12 @@ preservar:
 - policy numérica;
 - ABI, persistência e FFI declaradas.
 
+O profile `release` usa otimização agressiva dentro dessas regras. Ele habilita
+dead-code elimination, whole-module optimization e LTO quando a recipe permite.
+Ele não habilita fast math, overflow unchecked ou alias assumptions externas.
+W não expõe `-Ofast` como contrato de linguagem. Numeric modes mudam somente por
+source ou profile semântico explícito.
+
 **Exemplo:** `-O3` não transforma overflow verificado em wrap. Ele pode remover
 o check somente quando prova que o overflow é impossível.
 
@@ -14218,6 +14454,10 @@ libraries preservam sua boundary. O optimizer pode:
 - eliminar hidden runtime context não usado;
 - importar bodies permitidos pela interface.
 
+Um service binding `.startup` mantém dispatch e service ABI porque o provider
+pode mudar antes do entry. Um binding `.fixed` permite devirtualização limitada.
+O optimizer ainda preserva turn, failure boundary, cancellation e trace.
+
 Ele não pode:
 
 - mudar C export names;
@@ -14677,10 +14917,15 @@ package {
   runtimeGraphs: [
     {
       name: "restaurant-edge"
-      links: [
+      servicePolicy: {
+        resolution: .startup
+        transports: [.component, .ipc, .network]
+        dynamicRebinding: .deny
+      }
+      bindings: [
         {
-          requirement: "restaurant.restaurant::lastLight"
-          target: .service("lastLight")
+          service: "restaurant.restaurant::lastLight"
+          default: .import("lastLight")
         },
       ]
       providers: []
@@ -14743,14 +14988,7 @@ package {
       name: "last-light-native"
       kind: .executable
       module: "restaurant.app"
-      entry: ".default"
       host: "w.host/native-process@1"
-      hostBindings: [
-        {
-          slot: "process.signal"
-          handler: "restaurant.app::shutdown"
-        },
-      ]
       targets: ["desktop"]
       runtime: "restaurant-edge"
       packing: "entry-only"
@@ -16103,7 +16341,7 @@ símbolo permaneceu:
 $ w explain product last-light-native
 entry: restaurant.app::.default
 default slot: process.main -> restaurant.app::runNative
-host binding: process.signal -> restaurant.app::shutdown
+runtime registration: process signals -> restaurant.app::shutdown
 reachable adapter: http.Server (selected by LaunchMode.serve)
 excluded entry: restaurant.worker_app::LastLightWorker
 ```
@@ -16992,8 +17230,8 @@ O mesmo módulo também produz um artifact menor:
 
 ```text
 last-light-tui / entry LastLightTui
-  → process.main = runTui
-  → product liga process.signal → shutdown
+  → process.main = runTuiEntry
+  → runtime registra shutdown para sinais selecionados
   → seleciona o terminal adapter do target
 ```
 
@@ -17024,7 +17262,7 @@ O deployment seleciona somente units prebuilt.
 A rota de trabalho longo testa o owner runtime:
 
 ```text
-ServiceFamilyImport<OrderCoordinatorApi, OrderId>
+ServiceFamilyRef<OrderCoordinatorApi, OrderId>
   → turn curto
   → WorkKeyRef.tryStart
   → root de fulfillment
@@ -17376,8 +17614,8 @@ backpressure e cleanup reproduzíveis.
 - `ServiceFailure`, cycle detection e `ServiceRef`;
 - lifecycle de call entre envelope, admission, turn, commit e delivery;
 - propagation de deadline strict/approximate e unknown outcome;
-- `ServiceImport`, `ServiceFamilyImport` e validation do runtime graph;
-- imports, exports e initializer arguments por interface;
+- service identities, `ServiceRef`, `ServiceFamilyRef` e startup resolution;
+- imports, exports, override policy e initializer arguments por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
 - verificação replayable e journal de steps em memória;
@@ -17555,7 +17793,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-047 | service call | ServiceRef sempre async | local sync/remoto async; RPC explícito |
 | W-048 | mailbox | bounded por itens, bytes e trabalho em voo; detalhes em W-458–472 não mudam a call boundary | drop; unbounded; tratar como channel local |
 | W-049 | entry curto | `entry { ... }` usa o default slot único | main mágico; manifest-only |
-| W-050 | callbacks de host | product liga slots tipados adicionais; entry contém somente o handler default | body key/value; anonymous base; registro runtime; conformance no source |
+| W-050 | callbacks de host | product liga slots ABI estáticos; registries runtime tratam eventos mutáveis | body key/value; anonymous base; um mecanismo para todos os lifecycles |
 | W-051 | units | `9.81<m/s^2>` | `[]`; `{}`; whitespace SI |
 | W-052 | custom unit | `dimension`/`unit` declarations | wrapper types; runtime registry |
 | W-053 | affine/log units | metaconstrutores distintos | scale universal; runtime-only |
@@ -18005,9 +18243,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
 | W-499 | workflow durável | replay desde o começo usa points e outcomes explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
-| W-500 | import de service | `import service` cria `ServiceImport<P>` ou `ServiceFamilyImport<P, K>` sem instance ou authority | constructor com string; proxy global; import cria instance; registry global |
-| W-501 | product runtime graph | `runtimeGraphs` fixa links, providers, imports, exports e initializer arguments; execution profile fixa task runtime | manifest executável; reflection encontra implementação; limite só no host |
-| W-502 | deployment | plano e lock data-only ligam units prebuilt por digest; só placement, binding permitido e redução | rebuild por ambiente; config invisível; deployment troca packing ou semântica |
+| W-500 | service no source | `export service name: P` publica uma identity; `import service { P as name }` cria boundary no caller; ambos materializam refs no startup | declaration solta; constructor com string; proxy global; import cria instance |
+| W-501 | product runtime graph | `runtimeGraphs` fixa bindings default, providers, imports, exports, override policy e initializer arguments | manifest executável; reflection encontra implementação; limite só no host |
+| W-502 | deployment e launch | planos data-only ligam units e services por digest; override alcança somente bindings `.startup` dentro do envelope | rebuild por ambiente; config invisível; live rebind; configuração cria authority |
 | W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
 | W-504 | after-response | adapter host bounded para cleanup curto; trabalho confiável usa supervisor/queue/workflow | `waitUntil` sem prazo; Promise solta; resposta mantém process vivo |
 | W-505 | identity keyed de service | `ServiceIdentity<K>` read-only entra como initializer argument; descriptor exige o mesmo key type | Context global; string key; inferir pelo primeiro argumento |
@@ -18034,7 +18272,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-526 | deployment lock | source plan resolve products e releases para artifact, unit e adapter digests | tag mutável em production; build durante apply; secret dentro do lock |
 | W-527 | WASI baseline | `wasm32-wasip3` usa Component Model native async; `wasm32-wasip2` é compatibilidade | polling 0.2 como semântica W; Wasm implica DOM |
 | W-528 | unit root | entry unit é explícita; service-only unit publica provider no artifact index; toda unit possui root | unit vazia; initializer implícito; entry sintético pelo nome |
-| W-529 | interface privada de unit | packer deriva endpoints privados e fixos; deployment só roteia a edge | tornar provider público; religar edge interna no deployment |
+| W-529 | interface privada de unit | packer deriva endpoints privados; policy `.fixed` ou `.startup` controla override | tornar provider público; religar edge sem declaração; live rebind implícito |
 | W-530 | tuple com labels | todos os elementos têm label ou nenhum; labels pertencem ao tipo; unitário exige vírgula | mistura de labels; labels decorativos; function arguments viram tuple; struct anônimo universal |
 | W-531 | modelo HTTP | `std.http` representa semântica de mensagem, independente de HTTP/1.1, HTTP/2 ou HTTP/3 | frames no handler; Fetch API copiada integralmente; version decide domínio |
 | W-532 | ownership de request | `Request` move-only transfere body e só permite um consumer | clone implícito; body copiável; stream ambiental |
@@ -18165,9 +18403,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
 | W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
 | W-659 | body de entry | body contém statements W; forma simples depende de adapter declarado pelo host profile | body como key/value; registro runtime; ignorar parâmetros sem adapter |
-| W-660 | callback de host | product liga symbol `package` ou `export` a slot versionado; recipe grava a relação | pseudo-global `process`/`device`; callback mutável; convention por nome |
+| W-660 | callback de host | product liga symbol `package` ou `export` somente a slot ABI estático | pseudo-global `process`/`device`; tratar signal mutável como slot; convention por nome |
 | W-661 | construção de service | dependencies são initializer arguments ligados pelo provider; field sem initializer não recebe injection | field injection implícita; service locator no init; module constructor |
 | W-662 | APIs de host | `std.process` é T1 sem singleton; device, mobile e audio usam módulos SDK e contexts explícitos | pseudo-global ambiental; um Context universal; target implica authority |
+| W-663 | signals de processo | `ctx.signals.register` instala handler runtime; adapter enfileira evento seguro; registration controla lifetime | `hostBindings`; executar W no raw handler; recuperar fault síncrona |
+| W-664 | service resolution | refs são resolvidas antes do entry e ficam estáveis por process generation; live rebind exige drain e migration | `ctx.services.get`; proxy ambiental; trocar provider durante call |
+| W-665 | service transport | `ServiceTransport` nomeia o adapter SPI; wire protocol permanece Pesquisa | chamar transport de `ServiceProtocol`; wQL universal; adapter não fixado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

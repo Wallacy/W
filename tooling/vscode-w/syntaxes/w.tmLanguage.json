@@ -166,6 +166,20 @@
           }
         },
         {
+          "match": "\\b(service)\\s+([a-z_][A-Za-z0-9_]*)(?:<[^>\\r\\n]+>)?\\s*(?=:)",
+          "captures": {
+            "1": { "name": "keyword.declaration.w" },
+            "2": { "name": "variable.other.constant.w" }
+          }
+        },
+        {
+          "match": "\\b(service)\\s+([A-Z][A-Za-z0-9_]*)\\s+(?=as\\b)",
+          "captures": {
+            "1": { "name": "keyword.declaration.w" },
+            "2": { "name": "entity.name.type.w" }
+          }
+        },
+        {
           "match": "\\b(alias|behavior|dimension|entry|struct|object|enum|extension|protocol|type|unit)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.declaration.w" },

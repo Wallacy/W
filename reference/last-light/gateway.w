@@ -60,11 +60,10 @@ package async fn dispatch(
 }
 
 package async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
-  let restaurant = try await ctx.services.get(lastLight)
   let command = try await request.decodeJson<Command>(maximumBytes: commandLimit)
   let response = try await dispatch(
     take command,
-    restaurant: restaurant,
+    restaurant: lastLight,
     authority: .remoteClient,
   )
   return try http.Response.json(response)

@@ -13,9 +13,12 @@ fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode {
 fn shutdown(signal: ProcessSignal, ctx: ProcessContext) {}
 fn fetch(request: Request, ctx: Context): Response {}
 
-package import service lastLight: RestaurantApi
-package import service orders<key: OrderId>: OrderCoordinatorApi
-export import service publicMenu: MenuApi
+export service lastLight: RestaurantApi
+export service orders<key: OrderId>: OrderCoordinatorApi
+import service {
+  MenuApi as publicMenu,
+  OrderCoordinatorApi as remoteOrders<key: OrderId>,
+} from restaurant.contracts
 
 entry(run)
 entry LastLightTui(runTui)
@@ -98,24 +101,37 @@ entry Diagnostics {
       (type_name
         (type_identifier)))
     (block))
-  (service_import_declaration
+  (service_binding_declaration
+    (declaration_prefix)
     (identifier)
     (type
       (type_name
         (type_identifier))))
-  (service_import_declaration
+  (service_binding_declaration
+    (declaration_prefix)
     (identifier)
-    (type
-      (type_name
-        (type_identifier)))
+    (service_key_contract
+      (type
+        (type_name
+          (type_identifier))))
     (type
       (type_name
         (type_identifier))))
-  (service_import_declaration
-    (identifier)
-    (type
-      (type_name
-        (type_identifier))))
+  (service_import_statement
+    (named_service_imports
+      (service_import_item
+        (identifier)
+        (identifier))
+      (service_import_item
+        (identifier)
+        (identifier)
+        (service_key_contract
+          (type
+            (type_name
+              (type_identifier))))))
+    (module_path
+      (identifier)
+      (identifier)))
   (entry_declaration
     (identifier))
   (entry_declaration
@@ -142,10 +158,6 @@ package {
     {
       name: "last-light-native"
       kind: .executable
-      entry: ".default"
-      hostBindings: [
-        { slot: "process.signal", handler: "restaurant.app::shutdown" },
-      ]
       capabilities: [.stdio, .network]
     },
   ]
@@ -194,24 +206,6 @@ package {
                   (manifest_value
                     (contextual_member_expression
                       (identifier))))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (string_literal)))
-                (manifest_field
-                  (identifier)
-                  (manifest_value
-                    (manifest_list
-                      (manifest_value
-                        (manifest_record
-                          (manifest_field
-                            (identifier)
-                            (manifest_value
-                              (string_literal)))
-                          (manifest_field
-                            (identifier)
-                            (manifest_value
-                              (string_literal))))))))
                 (manifest_field
                   (identifier)
                   (manifest_value
