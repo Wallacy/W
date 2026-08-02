@@ -359,10 +359,9 @@ struct StaticContract {
 }
 ```
 
-`StandardDomain` e os enums de domain registrados pelo product profile são
-fechados. `C` e `Rust` resolvem para uma `LanguageAdapterId` fixada no lock. A
-HIR guarda identity, version e digest do adapter. Ela não guarda uma string
-livre.
+`.main` e os domains declarados por módulo ou pacote são fechados. `C` e `Rust`
+resolvem para uma `LanguageAdapterId` fixada no lock. A HIR guarda identity,
+version e digest do adapter. Ela não guarda uma string livre.
 
 O frontend normaliza a superfície para records tipados:
 
@@ -1091,7 +1090,7 @@ export protocol KitchenApi {
   async fn prepare(order: take Order): Dish throws KitchenError
 }
 
-export service Kitchen as KitchenApi {
+export service kitchen: KitchenApi {
   var Lazy calibration = loadCalibration()
   var completed: u64 = 0
 
@@ -1256,138 +1255,137 @@ release preservam a mesma ordem observável.
 
 ## 6. Módulos, imports e visibilidade
 
-O manifest define os arquivos de cada módulo. Um módulo pode conter vários
-arquivos. O source não repete uma declaração `module`.
+**Forma vigente**. Pacote, módulo e arquivo têm funções distintas:
 
-O mapeamento explícito atende módulos com vários arquivos:
+- o pacote é uma unidade de compilação e distribuição;
+- o módulo é uma unidade de nomes, imports, exportação e privacidade;
+- o arquivo é uma unidade física de source.
 
-```w
-modules: [
-  {
-    name: "restaurant.menu"
-    sources: ["menu/model.w", "menu/parser.w"]
-  },
-]
-```
+Um pacote produz uma library, um executable ou outro product. Ele contém um ou
+mais módulos. Um módulo pode usar um ou mais arquivos do mesmo pacote.
 
-Um package com um módulo por arquivo pode usar uma expansão data-only:
+O nome do módulo é o nome do arquivo sem `.w` por default. Um header opcional
+define outro nome e contratos estáticos:
 
 ```w
-moduleSets: [
-  {
-    name: "restaurant-modules"
-    activation: .always
-    namespace: "restaurant"
-    root: "."
-    include: ["*.w"]
-    exclude: ["package.w", "workspace.w"]
-    layout: .fileStem
-  },
-]
+module kitchen
 ```
 
-`.fileStem` transforma `oracle.w` em `restaurant.oracle`. A expansão usa paths
-portáteis e ordem lexical por bytes. Duas definições no mesmo active source set
-causam erro. Cases exclusivos de uma target variant podem fornecer a mesma
-module identity. O resolver grava path, module, activation owner e case no
-lock. Um arquivo novo não entra em um build `--locked` sem atualizar essa lista.
+Todos os arquivos de um módulo composto devem declarar o mesmo nome. Eles devem
+pertencer à mesma unidade de compilação. O builder rejeita nomes divergentes e
+não permite que outro pacote estenda o módulo.
 
-`name` é obrigatório. `activation` é `.always` ou `.selected`. Um module set
-`.selected` entra no grafo somente quando uma feature ou variante por target o
-habilita. Habilitar um module set `.always` é erro. Essa distinção impede que a
-presença de um arquivo no checkout altere o programa.
+O builder pode fornecer o nome quando o header está ausente. Ele não pode
+substituir um header explícito. O lock grava cada arquivo, módulo e condição de
+ativação. Um arquivo novo não entra num build `--locked` sem atualizar o lock.
 
-Patterns não atravessam `root`, não seguem symlinks por default e não dependem
-da ordem do filesystem. O mapeamento explícito continua a forma para exceções.
+Todo arquivo W contribui para um módulo. Um módulo sem `export` possui somente
+interface privada. Outro módulo não pode obter seus símbolos por importar o
+filename. Para dividir implementação privada, os arquivos declaram o mesmo
+módulo. Essa regra evita side effects de import e dois modelos de privacidade.
+
+**Rejeitado por enquanto**. Tratar um arquivo sem `export` como source fragment
+importável criaria dois resultados ruins. O fragment acessaria privados do
+importer ou não teria utilidade além de um módulo normal.
+
+### 6.1 Imports de pacotes e módulos
+
+Um import de pacote expõe os nomes de seus módulos. Ele não achata os símbolos
+de todos os módulos:
 
 ```w
-import std.http
-import std.tensor as tensor
-import { Request, Response as HttpResponse } from std.http
+import std
 
-export import { GuestId } from restaurant.domain
+io.print("Hello")
+let args: process.Arguments
 ```
 
-Regras:
+`import std` torna `io`, `process` e os demais módulos públicos acessíveis no
+módulo atual. O linker remove módulos e símbolos não alcançáveis.
 
-- `import path` importa o namespace com o último segmento como nome local;
-- `as` troca esse nome;
-- `{...} from path` importa símbolos;
-- `export import` cria uma facade;
-- módulos formam um DAG;
-- um ciclo interno precisa ser um único módulo;
-- URL, versão e digest nunca aparecem no import.
-
-O import nomeado é a forma recomendada quando o módulo usa poucos símbolos:
+Um import de módulo achata seus exports:
 
 ```w
-import {
-  Arguments,
-  Context,
-} from std.process
+import io
+
+print("Hello")
 ```
 
-Aliases qualificam nomes genéricos quando o arquivo usa vários contexts:
+O resolver procura primeiro um módulo do pacote atual. Depois, ele procura os
+módulos expostos pelos pacotes importados. Mais de um resultado causa erro.
+
+Um alias preserva o namespace do módulo:
+
+```w
+import io as systemIo
+
+systemIo.print("Hello")
+```
+
+O import nomeado é recomendado quando o caller usa poucos exports:
 
 ```w
 import {
   Arguments as ProcessArguments,
   Context as ProcessContext,
-} from std.process
+} from process
 ```
 
-`process.Arguments` continua válido após `import std.process as process`. O
-formatter não troca uma forma pela outra. O linter recomenda named imports
-quando eles reduzem qualificação repetida sem criar colisão.
-
-Um import comum permite análise e otimização entre módulos. `import service`
-declara uma boundary substituível:
+Uma origem qualificada remove ambiguidade entre pacotes:
 
 ```w
-import service {
-  RestaurantApi as restaurant,
-  OrderCoordinatorApi as orderCoordinators<key: OrderId>,
-} from restaurant.contracts
+import process from std
+import { Request, Response as HttpResponse } from http
 ```
 
-O primeiro item introduz `ServiceRef<RestaurantApi>`. O segundo introduz
-`ServiceFamilyRef<OrderCoordinatorApi, OrderId>`. O resolver liga as referências
-antes de executar o entry. A seção 13.8 define resolução e override.
+`import process from std` achata os exports de `process`. Um alias depois do
+nome preserva o namespace: `import process as systemProcess from std`.
 
-Um módulo também pode exportar a própria boundary:
+Um path qualificado é a forma curta para preservar o namespace:
 
 ```w
-export service lastLight: RestaurantApi
-export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
+import std.http
 
-import { lastLight, orderCoordinators } from restaurant.restaurant
+let response = http.Response(status: .ok)
 ```
 
-Nesse caso, o import comum preserva a natureza de service do símbolo exportado.
-O caller não precisa repetir `service`. A forma `import service` existe para o
-caller transformar um protocol exportado em uma requirement substituível.
+Essa forma seleciona `http` no pacote `std`. Ela não importa os outros módulos
+de `std` e não achata os exports de `http`.
 
-`import service module.path as name` permanece **Pesquisa**. Sintetizar uma
-interface com todos os runtime exports mistura funções, tipos, constants e
-state de módulo. A baseline exige um protocol ou uma service exportada.
+O import amplo com exceções nomeadas permanece **Alternativa**:
 
-Declarations usam três níveis:
+```w
+import *, { Request as HttpRequest } from http
+```
+
+Essa forma achata todos os exports. O item renomeado não conserva o nome
+original. O linter recomenda imports nomeados porque um novo export pode criar
+colisão no caller.
+
+`export import` cria uma facade. URL, versão e digest nunca aparecem no source.
+Módulos formam um grafo acíclico. Um ciclo interno deve formar um único módulo.
+
+### 6.2 Visibilidade
+
+Declarations possuem somente dois níveis:
 
 ```w
 fn localHelper()
-package fn packageHelper()
 export fn publicOperation()
 ```
 
 | Forma | Alcance |
 |---|---|
 | sem modifier | módulo atual |
-| `package` | package atual |
-| `export` | importers do package |
+| `export` | importers do módulo |
 
-O módulo é a menor boundary de encapsulamento. W não possui keyword `private`.
-`friend` também não existe. Um `export { ... }` coletivo fica como
-**Alternativa**. O modifier local melhora diff, busca e interface gerada.
+`package` não é um modifier de visibilidade. `package fn`, `package enum` e
+formas equivalentes são erros. A keyword `package` declara configuração de uma
+unidade de compilação.
+
+O módulo é a menor boundary de encapsulamento. W não possui keywords `private`,
+`internal` ou `friend`. Um `export { ... }` coletivo permanece **Alternativa**.
+O modifier local melhora diff, busca e interface gerada.
 
 A maioria dos membros usa o mesmo default de módulo. Existem três exceções
 deliberadas:
@@ -1410,11 +1408,9 @@ export struct Guest {
 Essa transparência publica nomes, tipos, ordem lógica e mutabilidade. Ela não
 fixa layout físico, ABI ou placement.
 
-Um modifier explícito substitui a herança. `package field: T` pode estreitar um
-componente de um struct exportado. Nesse caso, o initializer sintetizado usa o
-nível menos visível entre tipo e fields. Para manter um field no módulo, o tipo
-deve declarar `init` e ficar encapsulado. `w lint` detecta `export` redundante
-em componente que já herdou esse nível.
+Um field de um struct transparente não pode estreitar a visibilidade herdada.
+Para manter storage no módulo, o tipo declara `init` e fica encapsulado.
+`w lint` detecta `export` redundante num componente que já herdou esse nível.
 
 Um `struct` com `init` explícito é encapsulado. Seus fields voltam ao default de
 módulo. O autor publica somente os initializers, properties e methods
@@ -1446,13 +1442,12 @@ export object StockReservation {
 }
 ```
 
-Um field ou method de object precisa de `package` ou `export` para cruzar o
-módulo. Um field `var` exportado permite mutation direta somente com acesso
-exclusivo. Um `shared` owner continua sujeito às regras de alias e atomics.
+Um field ou method de object precisa de `export` para cruzar o módulo. Um field
+`var` exportado permite mutation direta somente com acesso exclusivo. Um owner
+`shared` continua sujeito às regras de alias e atomics.
 
 Stored fields de `service` são sempre detalhes da implementação. O compiler
-rejeita `package` e `export` nesses fields. Uma `ServiceRef<P>` publica somente
-os requirements async de `P`. Uma computed property síncrona não atravessa uma
+rejeita `export` nesses fields. Uma computed property síncrona não atravessa uma
 service boundary.
 
 Cases de enum não repetem `export`. Um enum exportado seria inútil sem seus cases.
@@ -1494,7 +1489,52 @@ concisão dos
 Outra alternativa exporta todos os membros de qualquer tipo exportado. A forma
 líder exporta somente os componentes de um struct transparente.
 
-### 6.1 Evolução da interface exportada
+### 6.3 Configuração de módulo e pacote
+
+`module` e `package` aceitam contratos estáticos. O contrato do módulo descreve
+requirements locais. O contrato do pacote agrega módulos, products e bindings.
+
+```w
+module kitchen<
+  domains: [
+    .serial(.thermal),
+  ],
+>
+```
+
+```w
+package LastLight<
+  name: "last-light/restaurant",
+  version: "0.1.0",
+  domains: [
+    .concurrent(.compute, maximum: .hostCpuQuota, capabilities: [.parallel]),
+    .concurrent(.io, maximum: 256, capabilities: [.nonBlockingIo]),
+  ],
+>
+```
+
+**Direção**. Esses headers usam o mesmo sistema de contratos `<...>` do resto
+da linguagem. Os valores são enum-like e possuem tipos conhecidos. A forma
+completa do body de `package` continua **Pesquisa**. Ela deve usar declarations
+W tipadas, não um segundo formato JSON-like.
+
+Um arquivo pode conter configuração `package` junto de um módulo. O compiler
+usa essa configuração somente quando o arquivo participa como root do pacote.
+Um import por outro pacote ignora a configuração. Uma package declaration não
+exporta um módulo e não muda sua interface.
+
+Quando as duas declarations ocupam o mesmo arquivo, `package` precede `module`.
+Recomenda-se manter a configuração completa em `package.w` quando ela for longa.
+
+O pacote pode selecionar products, providers e entries privados por identidade
+qualificada. Essa ação cria roots de link. Ela não concede acesso source a outro
+módulo.
+
+Um override de pacote deve preservar contratos do módulo. Ele pode reduzir
+capacity, escolher placement ou unir pools compatíveis. Ele não pode remover
+serialização, ampliar authority ou tornar um domínio serial em paralelo.
+
+### 6.4 Evolução da interface exportada
 
 W promete compatibilidade de source entre versões compatíveis de um package.
 Uma atualização recompila os dependentes. O design vigente não promete
@@ -5908,7 +5948,7 @@ O runtime emite um payload allocation-free e limitado:
 PanicEvent(
   code: .bounds,
   build: buildId,
-  module: "restaurant.collections",
+  module: "collections",
   span: SourceSpan(file: "collections.w", start: 912, end: 926),
 )
 ```
@@ -6378,27 +6418,45 @@ especial.
 #### 12.6.1 Schema de domain
 
 `ExecutionDomainId` é um kind estático do product profile. Ele não é um pointer
-para thread pool. O enum fechado `StandardDomain` oferece estes IDs lógicos:
+para thread pool. A linguagem fornece somente `.main`. Esse domínio é serial e
+pertence ao process host. Um UI profile pode ligá-lo à OS main thread.
 
-| ID | Uso | Capability mínima |
-|---|---|---|
-| `.default` | trabalho async geral | `.concurrent`, `.nonBlockingIO` |
-| `.io` | I/O async sem distinção de transporte | `.concurrent`, `.nonBlockingIO` |
-| `.network` | I/O de rede quando o host separa essa lane | `.concurrent`, `.nonBlockingIO` |
-| `.compute` | trabalho CPU parallel | `.concurrent`, `.parallel` |
-| `.blocking` | adapter que pode bloquear uma thread | `.concurrent`, `.parallel`, `.blocking` |
+`.main` não aceita `spawn`, porque `spawn` declara parallel intent. Uma call ou
+task async pode selecionar `.main` quando o host permite a transição.
 
-Um case contextual sem qualificação resolve em `StandardDomain`. Por isso,
-`spawn<.compute>` é curto e não é ambíguo. O exemplo abaixo mostra a forma
-qualificada para um domain customizado.
+Outros domínios vêm do contrato do módulo ou do pacote:
 
-Um profile pode mapear `.io`, `.network` e `.default` ao mesmo executor. A
-identity lógica continua no trace. Um target single-core pode dar capacity 1 a
-`.compute`; o domain continua válido e o runtime executa os jobs em sequência.
+```w
+module kitchen<
+  domains: [
+    .serial(.thermal),
+  ],
+>
 
-`spawn` sem argumento usa o parallel default, que é `.compute` no profile
-portátil. `async let` sem argumento herda a preference atual. `concurrentMap`
-herda a preference; `parallelMap` sem argumento usa o parallel default.
+package LastLight<
+  domains: [
+    .concurrent(.compute, maximum: .hostCpuQuota, capabilities: [.parallel]),
+    .concurrent(.io, maximum: 256, capabilities: [.nonBlockingIo]),
+  ],
+  parallelDefault: .compute,
+>
+```
+
+Um domínio de módulo fica visível no próprio módulo. Um domínio comum do pacote
+fica visível em seus módulos. Outro módulo importa o nome explicitamente:
+
+```w
+import domain { thermal as ovenThermal } from kitchen
+
+async<.ovenThermal> let profile = sampleOven()
+```
+
+O alias continua um member enum-like no contexto de domain. O import não cria
+queue, thread ou executor. Ele importa uma requirement estática.
+
+`async let` sem argumento herda o domínio atual. `spawn` sem argumento exige um
+`parallelDefault` no contrato efetivo. Sem esse default, a compilação falha.
+`concurrentMap` herda o domínio. `parallelMap` usa o mesmo parallel default.
 
 **Exemplo:**
 
@@ -6408,25 +6466,12 @@ spawn let plan = optimize(snapshot)  // usa o parallel default
 spawn<.compute> let bill = price(order)
 ```
 
-Um product package pode declarar IDs customizados. Eles são members qualificados
-registrados pelo profile, não keywords ou strings:
+O compiler normaliza nomes de domain como um enum fechado por módulo. O usuário
+não declara `enum X: ExecutionDomain`. Essa representação continua disponível
+na interface compilada e no trace.
 
-```w
-export enum LastLightDomain: ExecutionDomain {
-  thermal
-}
-
-spawn<domain: LastLightDomain.thermal> let profile = solveThermalModel(oven)
-```
-
-`LastLightDomain` é outro enum fechado. O product profile registra que
-`.thermal` aceita parallel intent. `ExecutionDomain` é um marker protocol T1
-restrito a enums sem payload e sem parâmetros genéricos. A conformance declara
-nomes que precisam de binding. Ela não cria authority, queue ou executor.
-
-Um valor runtime do enum continua sendo somente um ID. `spawn<...>` exige o case
-compile-time; `any ExecutionDomain` não funciona como executor dinâmico. Esse
-caso usa `ExecutionDomainRef`.
+Um valor runtime continua sendo somente um ID. `spawn<...>` exige o case em
+compile time. Seleção dinâmica usa `ExecutionDomainRef`.
 
 O product descriptor escolhe capacity, queue e fallback. Um package compilado
 preserva a requirement; o link falha quando o product não fornece um binding
@@ -6444,20 +6489,20 @@ instrumentation identity
 ```
 
 `ExecutionCapability` é um enum. O schema valida a lista, rejeita duplicatas e a
-normaliza como set. Ele não dá ao enum uma semântica OR oculta. `parallel`,
-`concurrent`, `nonBlockingIO`, `blocking`, `affine` e `device` são capabilities
-distintas.
+normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial`,
+`parallel`, `concurrent`, `nonBlockingIo`, `blocking`, `affine` e `device` são
+capabilities distintas.
 
 **Exemplo normalizado:**
 
 ```text
-StandardDomain.compute
+LastLight.compute
   capabilities = [.concurrent, .parallel]
   capacity = 1...host.cpuQuota
 
-LastLightDomain.thermal
-  capabilities = [.concurrent, .parallel]
-  fallback = .compute
+kitchen.thermal
+  capabilities = [.serial]
+  capacity = 1
 ```
 
 O execution profile pode ligar vários domains ao mesmo pool quando conserva os
@@ -6465,18 +6510,18 @@ capabilities. O deployment pode somente reduzir a capacity desse pool. Ele não
 pode remover affinity, isolation, ordering, mobility ou a capacidade necessária
 a `spawn`.
 
-**Exemplo:** o profile pode ligar `.network` e `.io` ao pool `cpu`.
-`LastLightDomain.thermal` pode compartilhar esse pool com `.compute`. O
-deployment não pode trocar `.thermal` por um strand UI serial.
+**Exemplo:** o profile pode ligar `.network` e `.io` ao mesmo pool quando o
+pacote declara os dois nomes. Um domínio serial `kitchen.thermal` pode usar o
+pool, mas conserva sua strand serial. O deployment não pode torná-lo paralelo.
 
 `.device` não autoriza um `spawn` comum a migrar W code para GPU, DSP ou ASIC.
 Device transfer, kernel selection, launch e synchronization usam as APIs T2 da
 seção 18.5. Um adapter pode usar um domain com `.device` para seus jobs de host;
 o kernel continua sendo outro artifact e outro contrato.
 
-A declaração de um módulo não escolhe domain default. Importar um módulo nunca
-cria executor, queue ou thread. Service, entry e product descriptor podem
-declarar preference porque possuem instance e lifecycle.
+O contrato do módulo pode escolher `parallelDefault` entre os domínios visíveis.
+Importar um módulo nunca cria executor, queue ou thread. Service, entry e product
+descriptor podem declarar preference porque possuem instance e lifecycle.
 
 Os antigos “thread groups” sobrevivem como domain IDs e bindings de profile.
 Essa forma mantém a finalidade e remove a promessa de uma thread fixa. A
@@ -6652,15 +6697,15 @@ executionProfiles: [
       },
     ]
     domains: {
-      default: {
+      main: {
         pool: "cpu"
-        ready: { jobs: 16_384, frameBytes: 256MiB }
+        ready: { jobs: 1, frameBytes: 16MiB }
         fallback: .reject
       }
       io: {
         pool: "cpu"
         ready: { jobs: 8_192, frameBytes: 128MiB }
-        fallback: .default
+        fallback: .reject
       }
       network: {
         pool: "cpu"
@@ -6679,7 +6724,7 @@ executionProfiles: [
       }
       custom: [
         {
-          id: "restaurant.execution::LastLightDomain.thermal"
+          id: "execution::thermal"
           capabilities: [.concurrent, .parallel]
           pool: "cpu"
           ready: { jobs: 1_024, frameBytes: 64MiB }
@@ -6695,11 +6740,9 @@ executionProfiles: [
 ]
 ```
 
-Os capabilities dos standard domains são fixos pela linguagem. O profile
-fornece pool, ready budget e fallback. Um custom domain também declara seu
-symbol ID e capabilities. Dois domains podem compartilhar o mesmo pool. Assim,
-`.compute` e `LastLightDomain.thermal` não criam oversubscription por possuírem
-nomes distintos.
+Os capabilities de `.main` são fixos pela linguagem. Os outros domains vêm dos
+contratos de pacote e módulo. O profile fornece pool, ready budget e fallback.
+Dois domains podem compartilhar o mesmo pool sem criar novos worker threads.
 
 Um product que alcança tasks seleciona um profile:
 
@@ -7850,7 +7893,7 @@ profile real-time precisa publicar bounds mais fortes e usar adapters próprios.
 ### 13.1 Service e closed turn
 
 ```w
-export service DiningRoom as DiningRoomApi {
+export service diningRoom: DiningRoomApi {
   var tables: Map<TableId, TableState>
 
   mut async fn reserve(request: Reservation): Receipt throws ReservationError {
@@ -8032,14 +8075,15 @@ esses callbacks com `hostBindings`:
   entry: "LastLightMobile"
   host: "w.host/mobile-app@1"
   hostBindings: [
-    { slot: "app.resume", handler: "restaurant.mobile_app::resume" },
+    { slot: "app.resume", handler: "mobile_app::resume" },
   ]
 }
 ```
 
 `hostBindings` é data-only. Cada slot precisa existir no host profile. Cada
-handler precisa ser um symbol `package` ou `export` com a assinatura exata.
-Missing slot, duplicate slot e handler incompatível falham no link.
+handler precisa ser um symbol privado do pacote ou um symbol `export` com a
+assinatura exata. Missing slot, duplicate slot e handler incompatível falham no
+link.
 
 Service bindings e host callbacks usam metadata tipada, digests e validação
 comuns. Eles não possuem a mesma semântica. Um service concede uma capability
@@ -8238,7 +8282,7 @@ ativa conforme a policy. Ela nunca expõe um pointer para state da instance.
 Uma service keyed declara sua identity quando o body precisa da key:
 
 ```w
-export service OrderCoordinator as OrderCoordinatorApi {
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
 
   async fn submit(order: take Order): OrderAccepted throws OrderError {
@@ -8564,13 +8608,14 @@ Os parâmetros representam key, input, progress, output e failure. O descriptor
 do product liga uma função com esta forma:
 
 ```w
-import { billing } from restaurant.billing
-import { diningRoom } from restaurant.dining
-import { aromaProbe } from restaurant.hardware
-import { ovens, pantry } from restaurant.kitchen
-import { oracle } from restaurant.oracle
+import { billing } from billing
+import { diningRoom } from dining
+import { aromaProbe } from hardware
+import { OvenApi, PantryApi } from kitchen
+import service { OvenApi as ovens, PantryApi as pantry } from kitchen
+import { oracle } from oracle
 
-package async fn fulfillOrder(
+async fn fulfillOrder(
   input: take FulfillmentInput,
   work: WorkContext<ServiceStage>,
 ): Receipt throws RestaurantError {
@@ -9158,8 +9203,8 @@ O supervisor grava o envelope no artifact:
 durability: {
   recovery: .required
   confidentiality: .hostEncrypted
-  points: "restaurant.workflow::FulfillmentPoint"
-  events: ["restaurant.workflow::fulfillmentSignals"]
+  points: "workflow::FulfillmentPoint"
+  events: ["workflow::fulfillmentSignals"]
   adapters: ["w.std/sqlite-workflow@1"]
   history: {
     recordsPerRoot: 8_192
@@ -9287,117 +9332,129 @@ Alternativas:
 
 ### 13.8 Bindings tipados, product e deployment
 
-Uma service boundary pode pertencer ao provider ou ao caller. O provider exporta
-uma boundary quando esse é o uso natural do símbolo:
+**Forma vigente**. Uma service declaration contém boundary, implementação e
+provider default. Ela não declara uma variável sem initializer:
 
 ```w
-export service lastLight: RestaurantApi
-export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
+export service lastLight: RestaurantApi {
+  var orders: Map<OrderId, OrderState> = Map()
 
-package service LastLightRestaurant as RestaurantApi {
-  // Default implementation selected by package.w.
+  mut async fn place(order: take Order): Receipt throws RestaurantError {
+    // ...
+  }
 }
 ```
 
-`export service name: P` declara uma service identity. A interface expõe o nome
-como `ServiceRef<P>`. A forma keyed expõe `ServiceFamilyRef<P, K>`. A declaração
-não cria instance e não executa o body de uma implementation.
+`lastLight` é um símbolo de service. Ele não é global storage. O compiler gera
+identity, descriptor e capability slot. O runtime cria a instance antes do
+primeiro handler.
 
-`ServiceFamilyRef<P, K>.at(key)` pode suspender e falhar com `ServiceFailure`.
-Ele seleciona uma instance identity. Chamadas posteriores preservam o mesmo key
-e a mesma process generation.
-
-Um caller usa named import normal porque o símbolo já é uma service:
+Uma família keyed usa o mesmo construct:
 
 ```w
-import { lastLight, orderCoordinators } from restaurant.restaurant
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
+  identity: ServiceIdentity<OrderId>
+
+  init(identity: ServiceIdentity<OrderId>) {
+    self.identity = identity
+  }
+}
+```
+
+`orderCoordinators.at(key)` seleciona uma identity. A operação pode suspender e
+falhar com `ServiceFailure`. Calls posteriores preservam o key e a process
+generation.
+
+O caller usa um import comum quando o módulo já exporta a service:
+
+```w
+import { lastLight } from restaurant
+import { orderCoordinators } from supervision
 
 let menu = try await lastLight.menu()
 let coordinator = try await orderCoordinators.at(orderId)
 ```
 
-O caller cria uma boundary quando o provider exporta somente o protocol:
+O import preserva a natureza de service. O caller não escreve `ServiceRef` e
+não escolhe transporte. O source também não consulta um proxy global.
+
+Uma service declaration privada continua sem modifier. A configuração do
+pacote pode selecioná-la como root ou provider. Isso não concede acesso source
+a outro módulo.
+
+Fields sem initializer não recebem inicialização implícita. O package graph
+deve fornecer cada argumento pelo nome e tipo. Falta, duplicata, cycle estático
+ou authority incompatível falha no build.
+
+#### 13.8.1 ServiceProtocol, adaptação e referências
+
+O compiler faz cada service declaration responder a
+`ServiceProtocol<RestaurantApi>`. Esse protocol representa identity, lifecycle,
+schema e dispatch. Ele não é o protocol da aplicação e não define o wire
+protocol.
+
+`RestaurantApi` continua a interface da aplicação. `ServiceTransport` continua
+o SPI que materializa calls locais, component calls, IPC ou network calls.
+
+Um tipo comum não pode declarar conformance manual com `ServiceProtocol` na v0.
+Somente o compiler e adapters confiáveis produzem a conformance. Essa regra
+impede que um object prometa localização variável sem cumprir lifecycle e
+failure semantics.
+
+`import service` adapta um protocol ou um módulo que não exportou uma service:
 
 ```w
-import service {
-  RestaurantApi as restaurant,
-  OrderCoordinatorApi as coordinators<key: OrderId>,
-} from restaurant.contracts
+import service { OracleApi as oracle } from oracle
+import service legacyPlanner as planner
 ```
 
-Essa forma cria service identities locais chamadas `restaurant` e
-`coordinators`. O ID estável contém package, caller module e local name. Dois
-imports com o mesmo nome curto não são unificados.
+O primeiro import cria uma requirement tipada. O segundo projeta os exports
+service-safe de `legacyPlanner`. O ID contém package, caller module e nome local.
+Dois imports com o mesmo nome curto não são unificados.
 
-O resolver satisfaz todas as referências antes de executar o entry. Uma
-requirement ausente impede a inicialização do process. A conexão física pode
-ser lazy. Uma call ainda pode falhar com `ServiceFailure`.
+A projeção de módulo aceita somente operações que o compiler consegue ligar:
 
-O source usa a referência diretamente. Ele não chama `ctx.services.get` e não
-consulta um proxy global. `ProcessContext.services` mantém somente operações do
-runtime, como `drain` e observação autorizada.
+- parâmetros, resultados e errors possuem schema canônico;
+- nenhum borrow, pointer ou closure escapa da call;
+- uma operação remota é `async` no caller;
+- cancellation, deadline e unknown outcome permanecem observáveis;
+- mutable global state não cruza a boundary.
 
-O nome da service não é global storage. Ele baixa para um capability slot do
-entry, service turn ou work context alcançável. O compiler rejeita seu uso num
-product que não concede a binding.
+Uma função síncrona projetada recebe uma interface `async`. O `import service`
+torna essa mudança explícita. Se o compiler não consegue criar a bridge, a
+compilação falha e lista os exports incompatíveis.
 
-Uma `ServiceRef` também nasce por initializer, family lookup ou transferência
-explícita. Lookup por string fica em **Pesquisa** para plugin hosts.
+Importar com `service` um módulo que já exporta a service é redundante. O linter
+recomenda o import comum. Tipos, constants e outros exports não-callable
+continuam disponíveis somente por import comum.
 
-Uma implementation continua uma declaração distinta:
+`ServiceRef<P>` é a forma reificada de uma referência substituível. Ela serve
+para armazenar, transferir ou receber uma referência criada por adaptação.
+Código que chama uma service importada não precisa escrever esse tipo.
 
-```w
-export service Kitchen as KitchenApi {
-  // Public provider candidate.
-}
-```
+O compiler pode baixar um símbolo de service para `ServiceRef<P>` na HIR. Essa
+representação não altera a superfície. O tipo aparece no source somente quando
+o programa reifica e mantém a referência como valor.
 
-`package service` limita a implementação ao package. `export service S as P`
-permite que outro package escolha `S` como provider. Em ambos os casos, `S` é
-uma implementation candidate, não uma service identity importada pelo código.
+O resolver satisfaz todas as requirements antes de executar o entry. Uma
+requirement ausente impede a inicialização. A conexão física pode ser lazy. Uma
+call ainda pode falhar com `ServiceFailure`.
 
-Uma service com dependencies usa um initializer explícito:
+Lookup por string permanece **Pesquisa** para plugin hosts.
 
-```w
-package service OrderCoordinator as OrderCoordinatorApi {
-  identity: ServiceIdentity<OrderId>
-  fulfillment: FulfillmentKey
-
-  init(
-    identity: ServiceIdentity<OrderId>,
-    fulfillment: FulfillmentKey,
-  ) {
-    self.identity = identity
-    self.fulfillment = fulfillment
-  }
-}
-```
-
-Fields sem initializer não recebem inicialização implícita. O provider liga cada
-initializer argument pelo nome e tipo exato. Falta, duplicata, cycle estático ou
-authority incompatível falha no build.
-
-**Forma vigente:** uma service identity usa resolution `.startup`. O resolver
-escolhe o provider uma vez por process generation. A referência não troca de
-provider durante calls ativas. Uma nova configuração inicia outra generation.
-
-Live rebinding fica como **Pesquisa**. Ele exige generation handles, drain,
-state migration e regras para in-flight calls. Um pointer ou vtable mutável não
-resolve esses contratos.
-
-#### 13.8.1 Grafo lógico do product
+#### 13.8.2 Grafo lógico do product
 
 As responsabilidades não se sobrepõem:
 
 | Camada | Declaração | Responsabilidade |
 |---|---|---|
-| source provider | `export service name: P` | service identity pública |
-| source caller | `import service { P as name }` | boundary criada pelo caller |
-| implementation | `service S as P` | provider candidate |
-| package | `bindings`, `providers`, `imports`, `exports` | defaults, policy e limites |
+| source service | `export service name: P { ... }` | boundary e provider default |
+| source caller | import comum | usa uma service declarada |
+| source adapter | `import service` | cria boundary para source comum |
+| package | services, imports e exports | placement, policy e limites |
 | product | graph, packing e `hostBindings` | artifact e host lifecycle |
 | launch ou deployment | bindings e placement | override permitido e localização |
-| runtime | startup resolver | materializar refs e escolher transporte |
+| runtime | startup resolver | criar slots, instances e transports |
 
 O `entry` não liga services. O startup resolver termina antes do handler. Essa
 divisão permite que o mesmo source use call local, IPC ou network sem mudar a
@@ -9411,8 +9468,8 @@ fronteira a um handler esconderia partes necessárias do artifact contract.
 **Exemplo:** o product nativo fornece `lastLight` e importa os controladores
 físicos da despensa e dos fornos.
 
-`package.w` declara grafos nomeados. Um product seleciona no máximo um grafo.
-Não existe herança ou overlay entre grafos na primeira edição.
+O package graph declara services e requirements nomeadas. Um product seleciona
+no máximo um graph. Não existe herança ou overlay na primeira edição.
 
 ```w
 runtimeGraphs: [
@@ -9423,33 +9480,17 @@ runtimeGraphs: [
       transports: [.local, .component, .ipc, .network]
       dynamicRebinding: .deny
     }
-    bindings: [
-      {
-        service: "restaurant.restaurant::lastLight"
-        default: .provider("lastLight")
-      },
-    ]
-    providers: [
+    services: [
       {
         binding: "lastLight"
-        protocol: "restaurant.restaurant::RestaurantApi"
-        implementation: "restaurant.restaurant::LastLightRestaurant"
+        declaration: "restaurant::lastLight"
         scope: .process
         mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
-        arguments: {
-          pantry: .service("pantry")
-          ovens: .service("ovens")
-          oracle: .service("oracle")
-          probe: .service("aromaProbe")
-          billing: .service("billing")
-          diningRoom: .service("diningRoom")
-        }
       },
       {
         binding: "orders"
-        protocol: "restaurant.supervision::OrderCoordinatorApi"
-        implementation: "restaurant.supervision::OrderCoordinator"
-        scope: .keyed(keyType: "restaurant.domain::OrderId")
+        declaration: "supervision::orderCoordinators"
+        scope: .keyed(keyType: "domain::OrderId")
         mailbox: { items: 8, bytes: 1MiB, inFlight: 1 }
         arguments: {
           identity: .serviceIdentity
@@ -9458,20 +9499,25 @@ runtimeGraphs: [
       },
     ]
 
+    requirements: [
+      { service: "restaurant::pantry", default: .import("pantry") },
+      { service: "workflow::pantry", default: .import("pantry") },
+    ]
+
     imports: [
       {
         binding: "pantry"
-        protocol: "restaurant.kitchen::PantryApi"
+        protocol: "kitchen::PantryApi"
         source: .deployment
       },
       {
         binding: "ovens"
-        protocol: "restaurant.kitchen::OvenApi"
+        protocol: "kitchen::OvenApi"
         source: .deployment
       },
       {
         binding: "aromaDevice"
-        capability: "restaurant.hardware::AromaProbeDevice"
+        capability: "hardware::AromaProbeDevice"
         source: .host
       },
     ]
@@ -9481,26 +9527,37 @@ runtimeGraphs: [
 ]
 ```
 
-Um `binding` liga uma service identity a um provider ou import default. O nome
-do target é local ao graph. Ele não usa lookup global.
+A entrada `services` liga uma service declaration a scope, quotas e argumentos.
+O nome da binding é local ao graph. Ele não usa lookup global.
+
+Uma entrada `requirements` liga a identity criada por `import service` a uma
+service ou import do graph. Vários callers podem usar o mesmo provider sem unir
+suas identities no source.
 
 `servicePolicy` define quando o resolver escolhe o provider. Ele também limita
 os transports. `.startup` permite override antes do entry. `.deny` impede que
 uma referência ativa troque de provider.
 
-Um `provider` seleciona implementation, scope, isolation, quotas e initializer
-arguments. Um service import do graph declara protocol e key type opcional. Um
-host import declara um tipo de capability. Um export torna um provider visível
-para composição externa.
+**Forma vigente**. A v0 não possui live rebinding. O resolver fixa cada provider
+durante uma process generation. Debug reload inicia outra generation e drena a
+anterior. Ele não troca vtables nem migra state dentro de uma instance ativa.
+
+**Rejeitado por enquanto**. Hot reload dentro da mesma generation exigiria
+indirection permanente, drain por instance, state migration e regras para calls
+em voo. Esse custo não atende um objetivo da v0.
+
+Uma service entry seleciona scope, isolation, quotas e initializer arguments.
+Um service import do graph declara protocol e key type opcional. Um host import
+declara uma capability. Um export torna a service visível para composição.
 
 O compiler deriva requirements a partir de services alcançáveis, service imports
 e initializer arguments. O manifest satisfaz cada requirement com provider,
 supervisor, host capability ou import. Uma string não cria nova requirement.
 
-O linker resolve protocol, implementation, key type e schema por identity. Ele
+O linker resolve declaration, protocol, key type e schema por identity. Ele
 rejeita estes casos:
 
-- provider ausente ou duplicado;
+- service ausente ou duplicada;
 - import sem uso ou requirement não declarado;
 - initializer argument com tipo, key ou rights incompatíveis;
 - ciclo estático proibido;
@@ -9511,7 +9568,8 @@ Um grafo fechado não possui imports. Um grafo aberto grava seus imports na
 interface do artifact. O host profile precisa permitir composição. `w run`
 exige um deployment local quando um executable possui imports abertos.
 
-Uma configuração de launch pode substituir somente bindings `.startup`:
+Uma configuração de launch pode substituir somente bindings `.startup` e antes
+do entry:
 
 ```w
 launch {
@@ -9519,7 +9577,7 @@ launch {
   artifact: .digest("sha256:...")
   services: [
     {
-      service: "restaurant.restaurant::lastLight"
+      service: "restaurant::lastLight"
       provider: .release(
         "last-light/restaurant-service@2.0.0",
         digest: "sha256:...",
@@ -9547,6 +9605,11 @@ Uma native dynamic library só satisfaz `.local` quando possui a W ABI e runtime
 closure exatas. Um provider de versão independente usa a service schema por
 component, IPC ou network. Um filename compatível não prova ABI.
 
+Uma dynamic library no mesmo processo não cria uma security boundary. Seccomp
+restringe o processo que instala o filtro e seus children. Portanto, uma policy
+por service exige outro processo, Wasm ou sandbox equivalente. Uma unit local
+compartilha memória e authority com o processo.
+
 Os limites pertencem ao artifact contract. Um deployment pode reduzi-los. Ele
 não pode trocar operation, protocol, key type, rights ou required isolation.
 
@@ -9555,14 +9618,15 @@ configuração do caller. WebAssembly Components conecta imports tipados a
 exports tipados durante composition. W acrescenta ownership, error effects,
 budgets e `ServiceRef` estruturado.
 
-Cloudflare fixa service bindings no deploy. W permite uma escolha posterior,
-mas somente numa boundary e policy gravadas no artifact. A configuração não
-transforma um import comum em service.
+Cloudflare fixa service bindings no deploy. W resolve a escolha no startup,
+dentro da boundary e policy gravadas no artifact. A configuração não transforma
+um import comum em service.
 
 - [Cloudflare service bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/)
 - [workerd](https://github.com/cloudflare/workerd)
 - [JavaScript-native RPC](https://blog.cloudflare.com/javascript-native-rpc/)
 - [Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
+- [Cloudflare sandbox e seccomp](https://blog.cloudflare.com/sandboxing-in-linux-with-zero-lines-of-code/)
 - [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
 
 **Pesquisa:** o wire protocol ainda não está escolhido. wRPC, Cap'n Proto e um
@@ -9571,13 +9635,13 @@ deve preservar schema, ownership, errors, cancellation, deadline, ordering,
 identity, capabilities e unknown outcome. Bidirectional references e promise
 pipelining entram no benchmark do protocolo. wQL não define esse envelope.
 
-O nome do adapter SPI é `ServiceTransport`. `RestaurantApi` já é o service
-protocol da aplicação. Chamar o adapter de `ServiceProtocol` misturaria API e
-wire transport. A primeira versão aceita somente adapters fixados por digest na
+O nome do adapter SPI é `ServiceTransport`. `ServiceProtocol<P>` identifica a
+conformance gerada para a boundary. `RestaurantApi` identifica a API da
+aplicação. A primeira versão aceita somente adapters fixados por digest na
 toolchain ou deployment. Uma API pública para adapters customizados permanece
 **Pesquisa**.
 
-#### 13.8.2 Packing de build
+#### 13.8.3 Packing de build
 
 **Exemplo:** o mesmo grafo gera um artifact único ou um index com quatro units.
 
@@ -9659,7 +9723,7 @@ Uma binding `.fixed` permite devirtualização quando o compiler preserva a
 service semantics. Ela não transforma a call em call normal. Para obter inlining
 sem boundary, o programador usa import comum.
 
-#### 13.8.3 Manifest e lock de deployment
+#### 13.8.4 Manifest e lock de deployment
 
 **Exemplo:** o plano local seleciona uma recipe. O lock grava os digests
 resultantes.
@@ -9787,7 +9851,7 @@ Fontes primárias:
 - [WIT worlds como contracts de imports e exports](https://component-model.bytecodealliance.org/design/worlds.html);
 - [OCI manifests e indexes content-addressed](https://github.com/opencontainers/image-spec/blob/main/manifest.md).
 
-#### 13.8.4 Versionamento e rolling update
+#### 13.8.5 Versionamento e rolling update
 
 **Exemplo:** um root iniciado com `fulfillOrder@v3` termina nessa versão. O
 deploy de `v4` recebe somente starts novos.
@@ -14912,7 +14976,6 @@ package {
   name: "last-light/restaurant"
   version: "0.1.0"
   edition: "2026"
-  namespace: "restaurant"
 
   runtimeGraphs: [
     {
@@ -14922,17 +14985,17 @@ package {
         transports: [.component, .ipc, .network]
         dynamicRebinding: .deny
       }
-      bindings: [
+      services: []
+      requirements: [
         {
-          service: "restaurant.restaurant::lastLight"
+          service: "restaurant::lastLight"
           default: .import("lastLight")
         },
       ]
-      providers: []
       imports: [
         {
           binding: "lastLight"
-          protocol: "restaurant.restaurant::RestaurantApi"
+          protocol: "restaurant::RestaurantApi"
           source: .deployment
         },
       ]
@@ -14958,15 +15021,15 @@ package {
         },
       ]
       domains: {
-        default: {
+        main: {
           pool: "cpu"
-          ready: { jobs: 4_096, frameBytes: 64MiB }
+          ready: { jobs: 1, frameBytes: 8MiB }
           fallback: .reject
         }
         io: {
           pool: "cpu"
           ready: { jobs: 4_096, frameBytes: 64MiB }
-          fallback: .default
+          fallback: .reject
         }
         network: {
           pool: "cpu"
@@ -14987,7 +15050,7 @@ package {
     {
       name: "last-light-native"
       kind: .executable
-      module: "restaurant.app"
+      module: "app"
       host: "w.host/native-process@1"
       targets: ["desktop"]
       runtime: "restaurant-edge"
@@ -14997,7 +15060,7 @@ package {
     {
       name: "last-light-worker"
       kind: .component
-      module: "restaurant.worker_app"
+      module: "worker_app"
       entry: "LastLightWorker"
       host: "w.host/http-worker@1"
       targets: ["wasi"]
@@ -15019,8 +15082,8 @@ package {
   ]
 
   modules: [
-    { name: "restaurant.app", sources: ["src/app/**.w"] },
-    { name: "restaurant.core", sources: ["src/core/**.w"] },
+    { name: "app", sources: ["src/app/**.w"] },
+    { name: "core", sources: ["src/core/**.w"] },
   ]
 
   dependencies: [
@@ -15237,29 +15300,34 @@ action, test, benchmark ou feature não referencia é error. Uma dependency
 referenciada somente por feature permanece inativa até um root selecionar essa
 feature; isso não é erro nem causa download preventivo.
 
-Cada package declara um `namespace` de module. Todos os modules públicos do
-package ficam nessa raiz. O `alias` da dependency substitui essa raiz no source
-consumer:
+Cada dependency possui um nome local de package. O field `alias` substitui o
+nome publicável no source consumer:
 
 ```w
-// Package acme/telemetry declares namespace "acme.telemetry".
 // The dependency alias is "telemetry".
-import telemetry.codec
+import telemetry
+
+let frame: model.Frame
+codec.decode(frame)
+```
+
+O package import expõe os módulos `model` e `codec`. Ele não achata seus
+symbols. Um import mais estreito continua disponível:
+
+```w
+import codec from telemetry
 import { Frame } from telemetry.model
 ```
 
-O alias é um W identifier e não participa de type identity, ABI ou wire schema.
-O compiler resolve `telemetry.codec` para `acme.telemetry.codec` antes de name
-lookup. Um module local, std module e dependency alias não podem ocupar a mesma
-raiz no mesmo package.
+O primeiro import achata os exports de `codec`. O segundo seleciona um symbol
+por path qualificado.
 
-O namespace canônico contém um ou mais W identifiers separados por `.`. Um
-module público precisa ser o namespace ou seu descendant. A raiz `std` é
-reservada ao SDK. O alias usa um único identifier e pode seguir o vocabulário
-local do consumer.
+O alias é um W identifier. Ele não participa de type identity, ABI ou wire
+schema. Um module local, std package e dependency alias não podem ocupar o
+mesmo nome no package consumer.
 
-Modules do próprio package usam o namespace canônico. Interfaces e diagnostics
-mostram alias e identity resolvida. URL, version e digest não entram no import.
+Interfaces e diagnostics mostram alias, package identity e module resolvido.
+URL, version e digest não entram no import.
 
 #### 21.1.3 Features sem defaults ocultos
 
@@ -15285,10 +15353,10 @@ products: [
 ]
 ```
 
-Uma feature é uma seleção aditiva do grafo. Ela pode ativar dependency,
-module set, resource ou action declarados. Na v0, source W não possui
-`if feature`, annotation ou macro de feature. Código opcional ocupa um module
-set próprio e mantém imports normais.
+Uma feature é uma seleção aditiva do grafo. Ela pode ativar dependency, source
+set, resource ou action declarados. Na v0, source W não possui `if feature`,
+annotation ou macro de feature. Código opcional ocupa um source set próprio e
+mantém headers e imports normais.
 
 W não cria uma feature implícita para dependency opcional. W também não ativa
 um conjunto `default` de outro package. Cada product e cada dependency edge
@@ -15332,7 +15400,7 @@ moduleSets: [
   {
     name: "native-terminal-posix"
     activation: .selected
-    namespace: "restaurant.platform"
+    namespace: "platform"
     root: "platform/posix"
     include: ["*.w"]
     layout: .fileStem
@@ -15340,7 +15408,7 @@ moduleSets: [
   {
     name: "native-terminal-windows"
     activation: .selected
-    namespace: "restaurant.platform"
+    namespace: "platform"
     root: "platform/windows"
     include: ["*.w"]
     layout: .fileStem
@@ -15752,16 +15820,16 @@ products: [
   {
     name: "last-light-horizon-w"
     kind: .staticLibrary
-    module: "restaurant.horizon"
-    exports: ["restaurant.horizon::classifyHorizon"]
+    module: "horizon"
+    exports: ["horizon::classifyHorizon"]
     abi: .wExact
     targets: ["desktop"]
   },
   {
     name: "last-light-horizon-c"
     kind: .dynamicLibrary
-    module: "restaurant.abi"
-    exports: ["restaurant.abi::ll_horizon_classify_v1"]
+    module: "abi"
+    exports: ["abi::ll_horizon_classify_v1"]
     abi: .c
     runtime: .none
     panic: .forbid
@@ -17614,7 +17682,7 @@ backpressure e cleanup reproduzíveis.
 - `ServiceFailure`, cycle detection e `ServiceRef`;
 - lifecycle de call entre envelope, admission, turn, commit e delivery;
 - propagation de deadline strict/approximate e unknown outcome;
-- service identities, `ServiceRef`, `ServiceFamilyRef` e startup resolution;
+- service declarations, adapters, refs reificadas e startup resolution;
 - imports, exports, override policy e initializer arguments por interface;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
@@ -17724,7 +17792,7 @@ rastreáveis.
 | unsafe | decisão sem grammar completa | `unsafe fn` e `unsafe {}` |
 | async cleanup | lacuna | `defer async` |
 | scalar literal | lacuna | `'x'` e `b'x'` |
-| modules multi-file | ratificada, com spec divergente | manifest é source of truth |
+| modules multi-file | header e builder concordam | mesmo nome explícito dentro do pacote |
 | resolver/digest | ratificada, com docs divergentes | contrato consolidado |
 | pointer tagging | mecanismo de memória candidato | otimização de representação com fallback |
 | bootstrap | seed C e self-host cedo | profile W0 fechado antes de tasks |
@@ -17750,10 +17818,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
-| W-007 | visibility | módulo default, `package`, `export`; sem `private` | public universal; `public/private`; block export |
-| W-008 | import seletivo | `{X} from path` | `path.{X}`; imports livres |
-| W-009 | import namespace | `import path as alias` | forma histórica `name as alias from path` |
-| W-010 | módulos | manifest multi-file, DAG | declaração `module`; cycles de interface |
+| W-007 | visibility | módulo default e `export`; `package` não é access modifier | package visibility; `public/private`; block export |
+| W-008 | import seletivo | `{X} from module`; package import expõe modules | `path.{X}`; imports livres |
+| W-009 | import de módulo | bare achata exports; `as` preserva namespace | namespace sempre; achatamento universal de package |
+| W-010 | módulos | filename default; header `module`; multi-file explícito; DAG | manifest como única origem; extensão entre packages |
 | W-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | W-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |
 | W-013 | alias | `alias X = T` | `typealias`; context-dependent `type` |
@@ -17821,7 +17889,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-075 | IR | W/MLIR antes de lowering | C IR público; LLVM direto |
 | W-076 | bootstrap | seed C conservador aceito em modo C11; self-host cedo | TypeScript/Bun; C++ compiler inteiro |
 | W-077 | build tool | CMake/Ninja no seed | xmake; custom builder antes do self-host |
-| W-078 | packages | manifests de package/workspace data-only + lock compartilhado | executable manifest; lock opcional |
+| W-078 | packages | unidade de compilação; config tipada e data-only; lock compartilhado | JSON-like; executable manifest; lock opcional |
 | W-079 | resolver | determinístico, uma versão por identity em cada resolution realm | múltiplas versões no mesmo realm |
 | W-080 | artifact | source-first, static preferred | binary-only; dynamic-only |
 | W-081 | canonical bytes | deterministic CBOR | WLO imediato; JSON assinada |
@@ -18091,10 +18159,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
 | W-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
 | W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
-| W-348 | domains portáteis | `StandardDomain` fecha defaults; enum payload-free conforme a `ExecutionDomain` declara IDs customizados | toda finalidade vira keyword; string |
+| W-348 | domains portáteis | somente `.main` é padrão; módulo e pacote declaram os outros IDs | lista global; enum manual; string |
 | W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
-| W-350 | defaults de execução | `async` herda; `spawn` e parallel group usam o `parallelDefault` do execution profile | herdar domain serial e degradar `spawn` |
-| W-351 | domain de módulo | nenhum default por módulo; instance/entry/product possui binding | import cria queue/thread |
+| W-350 | defaults de execução | `async` herda; `spawn` exige domain ou `parallelDefault` efetivo | `.compute` global; herdar domain serial e degradar `spawn` |
+| W-351 | domain de módulo | contrato declara IDs; `import domain` importa requirement, não executor | enum manual; import cria queue/thread |
 | W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
 | W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
 | W-354 | fairness | eventual sob budgets bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica; queue ilimitada |
@@ -18243,7 +18311,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-497 | outcome de work | success, `E`, canceled e boundary separados | cancel em `E`; panic capturável como application error; ausência vira success |
 | W-498 | restart de work | `.never` default; retry bounded exige step/effect ID/idempotência | retry eterno; reiniciar todo async body; retry mutante implícito |
 | W-499 | workflow durável | replay desde o começo usa points e outcomes explícitos; sem persistir frame, pointer, borrow ou capability | serializar stack automaticamente; Durable Object universal |
-| W-500 | service no source | `export service name: P` publica uma identity; `import service { P as name }` cria boundary no caller; ambos materializam refs no startup | declaration solta; constructor com string; proxy global; import cria instance |
+| W-500 | service no source | `export service name: P { ... }` contém boundary e provider; `import service` adapta source comum | identity sem body; implementation separada; proxy global |
 | W-501 | product runtime graph | `runtimeGraphs` fixa bindings default, providers, imports, exports, override policy e initializer arguments | manifest executável; reflection encontra implementação; limite só no host |
 | W-502 | deployment e launch | planos data-only ligam units e services por digest; override alcança somente bindings `.startup` dentro do envelope | rebuild por ambiente; config invisível; live rebind; configuração cria authority |
 | W-503 | rolling work | root fixa operation/schema; drain ou migration explícita | hot-swap do body ativo; retomar com versão ausente |
@@ -18263,7 +18331,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-517 | nanoservice | service é fronteira lógica; runtime pode co-localizar sem apagar effects | processo por service; call remota transparente |
 | W-518 | accelerator | device target gera kernels/objects ligados por host product | device como processo geral; offload implícito |
 | W-519 | benchmark externo | sete source oracles, profile versionado e validators precedem medição; ranking não é semântica | otimizar para placar sem oracle; chamar source de resultado; prometer posição |
-| W-520 | module set | `.fileStem` expande paths de forma determinística e grava a lista no lock | descoberta livre do diretório; `module` em cada source |
+| W-520 | module set | filename define módulo por default; header e builder precisam concordar; lock grava files | manifest como única origem; descoberta livre do diretório |
 | W-521 | std em W | contratos públicos são source W; handles e operações intrínsecas têm fronteira explícita | std toda no compiler; wrappers utilitários por operação |
 | W-522 | fechamento do runtime graph | cada requirement recebe provider, supervisor, host capability ou import declarado | lookup por string; import implícito; provider descoberto por reflection |
 | W-523 | interface de graph aberto | imports e exports tipados entram na interface do artifact; executable aberto exige deployment | esconder import no Context; rede global; executable presume provider |
@@ -18318,7 +18386,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-572 | patch | somente workspace root, mesma identity/version, sempre visível e não publicável | dependency troca por fork invisível; patch transitivo; release patched |
 | W-573 | build tool W | `.tool` usa `build-transform@1` e bindings tipados | install script; shell fragment; process com filesystem ambiental |
 | W-574 | action hermética | tool, inputs, outputs, execution platform, budgets e capabilities formam a key; commit vai ao CAS | output no source tree; host implícito; cache por path/mtime |
-| W-575 | namespace de dependency | package declara raiz canônica; alias local substitui a raiz no import sem mudar identity | package name dentro do import; URL import; namespace global sem alias |
+| W-575 | nome de dependency | package import expõe modules; alias local muda somente o nome source | namespace canônico obrigatório; URL import; alias muda identity |
 | W-576 | package identity | `authority` declarada + scoped ASCII name; revision, mirror e alias local não mudam identity | nome global sem authority; source concede identity; Unicode no path canônico |
 | W-577 | source snapshot | `publish.files` allowlist usa modules e PackagePath; VCS ignore não altera release | publicar tudo; usar `.gitignore`; registry acrescenta arquivos |
 | W-578 | licença de package | SPDX expression + files; proprietary e no-assertion são states distintos | string livre; ausência implica licença; metadata externa substitui texto |
@@ -18393,7 +18461,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-647 | snapshot de cancellation | reasons do caller, deadline, budgets, scope exit, sibling failure e ancestry formam valor fixed-size monotônico | um reason vencedor; lista alocada; budget como caller reason |
 | W-648 | deadline | `Deadline` é monotônico e local; `TaskTimeout` é refinado; ausência usa `none`; boundary distingue propagation strict e approximate | wall clock; serializar Instant local; infinity como ausência; afirmar clocks distribuídos iguais |
 | W-649 | admission de task | argumentos/captures avaliam uma vez em staging; reserva precede publish; falha limpa owners e produz handle canceled inline | pular efeitos sob carga; fila ilimitada; novo error effect em `async let` |
-| W-650 | capabilities de domain | default/I/O são concurrent; compute é parallel; blocking também é parallel e bounded | `spawn<.blocking>` sem capability paralela; domain implica thread |
+| W-650 | capabilities de domain | `.main` é serial; outros domains declaram serial, concurrent, parallel e limits | lista global de finalidade; domain implica thread |
 | W-651 | execution profile | package fixa tasks, frames, timers, ready queues, pools, fallbacks e cleanup; product seleciona `executionProfile` | scheduler ambiental; limites somente no deployment; profile de build acumula runtime |
 | W-652 | envelope por unit | packing aplica profile a cada unit com tasks; artifact index grava máximos; deployment reduz por unit | budget global impossível entre hosts; deployment aumenta ou troca pool |
 | W-653 | blocking drain | cancel remove job não iniciado; foreign frame iniciado mantém owner até retorno ou fault boundary física | matar thread; liberar buffer cedo; task detached após deadline |
@@ -18403,12 +18471,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-657 | nomes de quantity | dimensão já dá identidade; nomes físicos locais usam `alias`; `type` exige distinção adicional de domínio | newtype para toda unit; conversão implícita entre newtypes |
 | W-658 | duração operacional | `Duration` T1 é signed, exact e nanosecond; layout opaco; physical quantity converte com exactness ou rounding explícito | `f64`; infinity; alias de physical quantity; attosecond na baseline |
 | W-659 | body de entry | body contém statements W; forma simples depende de adapter declarado pelo host profile | body como key/value; registro runtime; ignorar parâmetros sem adapter |
-| W-660 | callback de host | product liga symbol `package` ou `export` somente a slot ABI estático | pseudo-global `process`/`device`; tratar signal mutável como slot; convention por nome |
-| W-661 | construção de service | dependencies são initializer arguments ligados pelo provider; field sem initializer não recebe injection | field injection implícita; service locator no init; module constructor |
+| W-660 | callback de host | product pode ligar symbol privado ou `export` a slot ABI estático | package visibility; pseudo-global `process`/`device`; convention por nome |
+| W-661 | construção de service | declaration contém provider; initializer arguments são ligados pelo graph | identity sem body; field injection implícita; service locator no init |
 | W-662 | APIs de host | `std.process` é T1 sem singleton; device, mobile e audio usam módulos SDK e contexts explícitos | pseudo-global ambiental; um Context universal; target implica authority |
 | W-663 | signals de processo | `ctx.signals.register` instala handler runtime; adapter enfileira evento seguro; registration controla lifetime | `hostBindings`; executar W no raw handler; recuperar fault síncrona |
-| W-664 | service resolution | refs são resolvidas antes do entry e ficam estáveis por process generation; live rebind exige drain e migration | `ctx.services.get`; proxy ambiental; trocar provider durante call |
-| W-665 | service transport | `ServiceTransport` nomeia o adapter SPI; wire protocol permanece Pesquisa | chamar transport de `ServiceProtocol`; wQL universal; adapter não fixado |
+| W-664 | service resolution | slots são resolvidos antes do entry e ficam estáveis por process generation | live rebind; `ctx.services.get`; trocar provider durante call |
+| W-665 | service bridge | `ServiceProtocol<P>` é gerado; `ServiceTransport` é o adapter SPI; wire permanece Pesquisa | conformance manual; wQL universal; adapter não fixado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

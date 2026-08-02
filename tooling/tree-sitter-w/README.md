@@ -27,7 +27,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `try`/`await`, `for try await`, `async let`, `spawn let` e `Task.cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
-- `entry { ... }`, descriptors nomeados, service identities e `import service`;
+- `entry { ... }`, descriptors nomeados, service declarations e `import service`;
 - `hostBindings` data-only nos manifests, sem assignments de slots no source;
 - manifests `package`, `workspace`, `lock` e `deployment` com values data-only;
 - `if`, `guard`, loops, `switch`, `do`/`catch`, `defer` e retornos;

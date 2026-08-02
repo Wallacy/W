@@ -5,7 +5,7 @@ import {
   AudioRenderState,
   DeviceAudioBlock,
   renderFinalSong,
-} from restaurant.audio
+} from audio
 
 fn render(
   block: inout DeviceAudioBlock,

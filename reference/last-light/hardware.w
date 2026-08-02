@@ -1,7 +1,7 @@
 // C boundary for the Sonda de Aroma.
 
-import { Probability } from restaurant.domain
-import { Temperature } from restaurant.units
+import { Probability } from domain
+import { Temperature } from units
 import std.si
 
 foreign c from "last_light_probe.h" {
@@ -35,10 +35,8 @@ export protocol AromaProbeApi {
   async fn sample(): ProbeSample throws ProbeError
 }
 
-export service aromaProbe: AromaProbeApi
-
 export object AromaProbeDevice {
-  package handle: c.ptr<ll_probe>
+  handle: c.ptr<ll_probe>
 
   package init(handle: c.ptr<ll_probe>) {
     self.handle = handle
@@ -53,7 +51,7 @@ unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
   return status;
 }
 
-package service AromaProbeService as AromaProbeApi {
+export service aromaProbe: AromaProbeApi {
   device: AromaProbeDevice
 
   init(device: AromaProbeDevice) {

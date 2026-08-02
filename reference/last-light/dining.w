@@ -1,8 +1,8 @@
 // Serial-turn dining room with bounded admission and observable applause.
 
-import { PaymentProof } from restaurant.billing
-import { Dish, Money, Receipt } from restaurant.domain
-import { ApplauseLevel, applauseThreshold } from restaurant.units
+import { PaymentProof } from billing
+import { Dish, Money, Receipt } from domain
+import { ApplauseLevel, applauseThreshold } from units
 
 export type TableId = u32
 
@@ -39,8 +39,6 @@ export protocol DiningRoomApi {
   ): Receipt throws DiningRoomError
 }
 
-export service diningRoom: DiningRoomApi
-
 fn defaultTables(): Map<TableId, Table> {
   return [
     1: Table(id: 1, seats: 2, state: .available),
@@ -50,7 +48,7 @@ fn defaultTables(): Map<TableId, Table> {
   ]
 }
 
-package service PrismDiningRoom as DiningRoomApi {
+export service diningRoom: DiningRoomApi {
   audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = defaultTables()
 

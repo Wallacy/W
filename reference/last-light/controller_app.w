@@ -1,7 +1,7 @@
 // Bare-metal lifecycle for horizon sensors and satellite links.
 
 import std.device as device
-import { HorizonSample } from restaurant.horizon
+import { HorizonSample } from horizon
 
 struct ControllerState {
   var atomic latestSequence: u64
@@ -13,13 +13,13 @@ fn reset(state: inout ControllerState, ctx: device.Context): () {
   ctx.interrupts.enable()
 }
 
-package fn sampleTick(state: inout ControllerState, ctx: device.Context): () {
+fn sampleTick(state: inout ControllerState, ctx: device.Context): () {
   let sample: HorizonSample = ctx.sensors.readHorizon()
   state.latestSequence.store<.release>(sample.sequence)
   let _ = ctx.telemetry.trySend(sample)
 }
 
-package fn interrupt(
+fn interrupt(
   event: device.InterruptEvent,
   state: inout ControllerState,
   ctx: device.Context,

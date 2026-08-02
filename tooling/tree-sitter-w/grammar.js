@@ -49,7 +49,6 @@ const MODIFIER_KEYWORDS = [
   "inout",
   "let",
   "mut",
-  "package",
   "panic",
   "pin",
   "ref",
@@ -76,6 +75,9 @@ const OTHER_KEYWORDS = [
   "in",
   "init",
   "is",
+  "module",
+  "domain",
+  "package",
   "modify",
   "set",
   "some",
@@ -137,17 +139,41 @@ module.exports = grammar({
   rules: {
     source_file: ($) =>
       choice(
-        repeat(
-          choice(
-            $.service_import_statement,
-            $.import_statement,
-            $._declaration,
+        seq(
+          optional($.package_manifest),
+          optional($.module_header),
+          repeat(
+            choice(
+              $.service_import_statement,
+              $.domain_import_statement,
+              $.import_statement,
+              $._declaration,
+            ),
           ),
         ),
-        $.package_manifest,
         $.deployment_manifest,
         $.workspace_manifest,
         $.lock_manifest,
+      ),
+
+    module_header: ($) =>
+      seq(
+        "module",
+        field("name", $.identifier),
+        optional(field("contract", $.module_contract)),
+        optional(";"),
+      ),
+    module_contract: ($) =>
+      seq("<", commaSep1($.manifest_argument), optional(","), ">"),
+
+    domain_import_statement: ($) =>
+      seq(
+        "import",
+        "domain",
+        field("items", $.named_imports),
+        "from",
+        field("module", $.module_path),
+        optional(";"),
       ),
 
     service_import_statement: ($) =>
@@ -156,9 +182,17 @@ module.exports = grammar({
         seq(
           "import",
           "service",
-          field("items", $.named_service_imports),
-          "from",
-          field("module", $.module_path),
+          choice(
+            seq(
+              field("items", $.named_service_imports),
+              "from",
+              field("module", $.module_path),
+            ),
+            seq(
+              field("module", $.module_path),
+              optional(seq("as", field("alias", $.identifier))),
+            ),
+          ),
           optional(";"),
         ),
       ),
@@ -197,6 +231,12 @@ module.exports = grammar({
             field("module", $.module_path),
           ),
           seq(
+            field("module_name", $.identifier),
+            optional(seq("as", field("alias", $.identifier))),
+            "from",
+            field("package", $.module_path),
+          ),
+          seq(
             field("module", $.module_path),
             optional(seq("as", field("alias", $.identifier))),
           ),
@@ -223,7 +263,6 @@ module.exports = grammar({
         $.function_declaration,
         $.struct_declaration,
         $.object_declaration,
-        $.service_binding_declaration,
         $.service_declaration,
         $.enum_declaration,
         $.protocol_declaration,
@@ -239,7 +278,7 @@ module.exports = grammar({
         $.test_declaration,
       ),
 
-    declaration_prefix: (_) => choice("export", "package"),
+    declaration_prefix: (_) => "export",
 
     function_declaration: ($) =>
       seq(
@@ -333,26 +372,13 @@ module.exports = grammar({
         optional($.conformance_clause),
         $.type_body,
       ),
-    service_binding_declaration: ($) =>
-      prec(
-        2,
-        seq(
-          optional($.declaration_prefix),
-          "service",
-          field("name", $.identifier),
-          optional($.service_key_contract),
-          ":",
-          field("api", $.type),
-          optional(";"),
-        ),
-      ),
     service_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
         "service",
-        field("name", $._type_identifier),
-        optional($.type_parameters),
-        "as",
+        field("name", $.identifier),
+        optional($.service_key_contract),
+        ":",
         field("api", $.type),
         $.type_body,
       ),

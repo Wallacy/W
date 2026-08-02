@@ -6,10 +6,10 @@ import {
   Receipt,
   ServiceStage,
   currencyCode,
-} from restaurant.domain
-import { MenuItem } from restaurant.billing
-import { OrderSummary, RestaurantSnapshot } from restaurant.restaurant
-import { SimulationReport, writeSimulation } from restaurant.simulation
+} from domain
+import { MenuItem } from billing
+import { OrderSummary, RestaurantSnapshot } from restaurant
+import { SimulationReport, writeSimulation } from simulation
 
 export enum RenderMode {
   plain

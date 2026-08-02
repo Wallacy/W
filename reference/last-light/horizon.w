@@ -6,7 +6,7 @@ import {
   Frequency,
   Pressure,
   Temperature,
-} from restaurant.units
+} from units
 
 export type SensorId = u32
 export type EventSequence = u64
@@ -50,8 +50,6 @@ export enum HorizonError: Error {
 export protocol HorizonMonitorApi {
   async fn status(after sequence: EventSequence): HorizonStatus throws HorizonError
 }
-
-export service horizonMonitor: HorizonMonitorApi
 
 fn validate<const samples: usize>(
   window: ref HorizonWindow<samples>,

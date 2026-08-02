@@ -4,6 +4,8 @@ Imports and declarations
 
 import { http, Url as Address } from std.net
 import models as domain from app.models
+import process from std
+import http as web from std
 
 export struct Header {
   kind: u32
@@ -38,6 +40,16 @@ protocol Drawable {
       alias: (identifier))
     module: (module_path
       (identifier)
+      (identifier)))
+  (import_statement
+    module_name: (identifier)
+    package: (module_path
+      (identifier)))
+  (import_statement
+    items: (legacy_namespace_import
+      name: (identifier)
+      alias: (identifier))
+    module: (module_path
       (identifier)))
   (struct_declaration
     (declaration_prefix)

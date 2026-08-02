@@ -9,8 +9,8 @@ import {
   SimulationError,
   simulateShift,
   writeSimulation,
-} from restaurant.simulation
-import { SimulationProfile } from restaurant.domain
+} from simulation
+import { SimulationProfile } from domain
 
 async fn runSimulation(
   args: ProcessArguments,

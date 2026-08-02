@@ -7,14 +7,17 @@ import {
 } from std.process
 import {
   HorizonError,
+  HorizonMonitorApi,
   HorizonStatus,
-  horizonMonitor,
-} from restaurant.horizon
+} from horizon
+import service { HorizonMonitorApi as horizonMonitor } from horizon
 import {
+  SatelliteApi,
   SatelliteError,
+  SatelliteId,
   observePair,
-  satelliteSwarm,
-} from restaurant.orbit
+} from orbit
+import service { SatelliteApi as satelliteSwarm<key: SatelliteId> } from orbit
 
 enum ObservatoryError: Error {
   horizon(HorizonError)

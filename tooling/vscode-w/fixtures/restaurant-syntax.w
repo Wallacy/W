@@ -1,12 +1,17 @@
 /// Fixture lexical da superfície integrada. Não é um programa executável.
+module restaurant<
+  domains: [
+    .concurrent(.compute, maximum: 4, capabilities: [.parallel]),
+  ],
+>
+
 import std.http
-import { Order } from restaurant.domain
+import { Order } from domain
 import std.reflect as reflect
 import std.tensor as tensor
-export service pantry: PantryApi
 import service {
   OvenApi as ovens<key: OvenId>,
-} from restaurant.contracts
+} from contracts
 
 export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
@@ -113,7 +118,7 @@ object FixtureMetrics {
   var atomic completed: u64 = 0
 }
 
-export service LastLightRestaurant as RestaurantApi {
+export service lastLight: RestaurantApi {
   pantry: ServiceRef<PantryApi>
   var Lazy calibration = loadCalibration()
   var completed: u64 = 0

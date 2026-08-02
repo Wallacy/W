@@ -1,6 +1,6 @@
 // Absence, recoverable failure, panic, OOM, and cleanup at the last service window.
 
-import { Course, Guest, GuestId, GuestName, Order } from restaurant.domain
+import { Course, Guest, GuestId, GuestName, Order } from domain
 
 export enum ServiceLookupError: Error {
   missingGuest(GuestId)

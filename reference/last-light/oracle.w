@@ -1,9 +1,9 @@
 // Shape-aware planning for the Oráculo de Mesas.
 
 import std.tensor
-import { Course, Order, Probability } from restaurant.domain
-import { Ingredient, KitchenPlan, Recipe } from restaurant.kitchen
-import { serviceTemperature } from restaurant.units
+import { Course, Order, Probability } from domain
+import { Ingredient, KitchenPlan, Recipe } from kitchen
+import { serviceTemperature } from units
 
 export enum OracleError: Error {
   invalidShape(ShapeError)
@@ -115,7 +115,7 @@ fn defaultRecipes(): Map<Course, Recipe> {
   ]
 }
 
-package service TableOracle as OracleApi {
+export service oracle: OracleApi {
   weights: Tensor<f32, shape: [8, 4]> = defaultWeights()
   recipes: Map<Course, Recipe> = defaultRecipes()
 

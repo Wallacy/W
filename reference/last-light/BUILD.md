@@ -149,13 +149,13 @@ SDK futuros. A tabela define gates, não suporte entregue.
 | `observatory-client` | observatório | `satellites` e `horizonMonitor` |
 | `benchmark-host` | sete workloads HTTP | database PostgreSQL e cache local |
 
-As declarações `export service` criam service identities. `import service` cria
-uma identity quando o caller escolhe a boundary. Signatures de initializer
-declaram dependencies dos providers.
+Uma declaração `export service name: P { ... }` contém boundary e provider
+default. `import service` adapta um protocol ou módulo comum quando o caller
+escolhe a boundary.
 
-`bindings` seleciona providers e imports default. `servicePolicy` permite
-override somente antes do entry. O resolver materializa `ServiceRef` e
-`ServiceFamilyRef` durante o startup. Um nome textual não cria authority.
+`services` seleciona scope, limits e argumentos. `servicePolicy` permite
+override somente antes do entry. O resolver cria os slots durante o startup.
+Um nome textual não cria authority.
 
 `restaurant-core` liga `lastLight` ao provider local por default. Uma launch
 config pode selecionar um provider assinado por component, IPC ou network. O
@@ -190,8 +190,8 @@ produz um runtime por unit. `deployments/distributed.w` reduz cada unit
 separadamente.
 
 O deployment não cria domain nem muda fallback. Ele reduz somente números
-dentro do envelope. `LastLightDomain.thermal` e `.compute` usam o mesmo pool
-`cpu`. Portanto, dois nomes lógicos não duplicam workers.
+dentro do envelope. `execution.thermal` e `.compute` usam o mesmo pool `cpu`.
+Portanto, dois nomes lógicos não duplicam workers.
 
 ```text
 w explain execution last-light-native \
@@ -346,7 +346,7 @@ e synthesis que LLVM IR geral não fornece.
 O source nativo importa sempre:
 
 ```w
-import { nativeTerminalBackend } from restaurant.platform.native
+import { nativeTerminalBackend } from platform.native
 ```
 
 `package.w` oferece dois module sets com a mesma module identity:
@@ -986,24 +986,24 @@ O mesmo grafo lógico pode usar vários layouts físicos.
 
 ```text
 main
-  ├─ LastLightRestaurant
-  ├─ OrderCoordinator
+  ├─ lastLight
+  ├─ orderCoordinators
   ├─ fulfillment supervisor
-  ├─ TableOracle
-  ├─ AromaProbeService
-  ├─ BillingLedger
-  └─ PrismDiningRoom
+  ├─ oracle
+  ├─ aromaProbe
+  ├─ billing
+  └─ diningRoom
 ```
 
-Calls locais mantêm `ServiceRef` e podem usar fast path.
+Calls locais mantêm a semântica de service e podem usar fast path.
 
 ### 7.2 Packing `split-services`
 
 ```text
-gateway  -> LastLightRestaurant, OrderCoordinator, fulfillment
-planning -> TableOracle, AromaProbeService
-finance  -> BillingLedger
-dining   -> PrismDiningRoom
+gateway  -> lastLight, orderCoordinators, fulfillment
+planning -> oracle, aromaProbe
+finance  -> billing
+dining   -> diningRoom
 ```
 
 O build gera uma unit por grupo. Cada crossing usa a service ABI. O artifact

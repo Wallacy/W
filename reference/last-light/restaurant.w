@@ -10,20 +10,21 @@ import {
   Receipt,
   ServiceStage,
   canMove,
-} from restaurant.domain
+} from domain
 import {
   BillingApi,
   BillingError,
   MenuItem,
+  billing,
   loadPriceTable,
   menuItems,
   paymentKey,
   quote,
   refundKey,
   servingProof,
-} from restaurant.billing
-import { DiningRoomApi, DiningRoomError } from restaurant.dining
-import { AromaProbeApi, ProbeError } from restaurant.hardware
+} from billing
+import { DiningRoomApi, DiningRoomError, diningRoom } from dining
+import { AromaProbeApi, ProbeError, aromaProbe } from hardware
 import {
   KitchenError,
   OvenApi,
@@ -32,8 +33,12 @@ import {
   PantryError,
   expectedEnergy,
   mix,
-} from restaurant.kitchen
-import { OracleApi, OracleError, planningRequest } from restaurant.oracle
+} from kitchen
+import service {
+  OvenApi as ovens,
+  PantryApi as pantry,
+} from kitchen
+import { OracleApi, OracleError, oracle, planningRequest } from oracle
 
 export enum RestaurantError: Error {
   domain(DomainError)
@@ -67,8 +72,6 @@ export protocol RestaurantApi {
   async fn snapshot(): RestaurantSnapshot
 }
 
-export service lastLight: RestaurantApi
-
 struct OrderState {
   var stage: ServiceStage
   var receipt: Receipt?
@@ -82,7 +85,7 @@ struct OrderState {
   }
 }
 
-package async fn prepareDish(
+async fn prepareDish(
   order: take Order,
   pantry: ref ServiceRef<PantryApi>,
   ovens: ref ServiceRef<OvenApi>,
@@ -131,32 +134,10 @@ package async fn prepareDish(
   return try await lease.bake(mixture, until: ready.deadline)
 }
 
-package service LastLightRestaurant as RestaurantApi {
-  pantry: ServiceRef<PantryApi>
-  ovens: ServiceRef<OvenApi>
-  oracle: ServiceRef<OracleApi>
-  probe: ServiceRef<AromaProbeApi>
-  billing: ServiceRef<BillingApi>
-  diningRoom: ServiceRef<DiningRoomApi>
+export service lastLight: RestaurantApi {
   var orders: Map<OrderId, OrderState> = Map()
   var Lazy priceTable = loadPriceTable()
   var completedOrders: u64 = 0
-
-  init(
-    pantry: ServiceRef<PantryApi>,
-    ovens: ServiceRef<OvenApi>,
-    oracle: ServiceRef<OracleApi>,
-    probe: ServiceRef<AromaProbeApi>,
-    billing: ServiceRef<BillingApi>,
-    diningRoom: ServiceRef<DiningRoomApi>,
-  ) {
-    self.pantry = pantry
-    self.ovens = ovens
-    self.oracle = oracle
-    self.probe = probe
-    self.billing = billing
-    self.diningRoom = diningRoom
-  }
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let orderId = order.id
@@ -172,7 +153,7 @@ package service LastLightRestaurant as RestaurantApi {
       pantry: pantry,
       ovens: ovens,
       oracle: oracle,
-      probe: probe,
+      probe: aromaProbe,
     )
 
     try state.advance(to: .serving)

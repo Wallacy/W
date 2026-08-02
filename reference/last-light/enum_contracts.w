@@ -1,5 +1,5 @@
 /// Closed enum subsets preserve facts across public interfaces.
-import { ServiceStage } from restaurant.domain
+import { ServiceStage } from domain
 
 export alias WorkStage =
   ServiceStage<[.reserving, .preparing, .serving]>
