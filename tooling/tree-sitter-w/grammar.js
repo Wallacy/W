@@ -221,45 +221,34 @@ module.exports = grammar({
         "import",
         choice(
           seq(
+            field("items", $.wildcard_import),
+            "from",
+            field("module", $.module_path),
+          ),
+          seq(
             field("items", $.named_imports),
             "from",
             field("module", $.module_path),
           ),
           seq(
-            field("items", $.legacy_namespace_import),
+            field("item", $.import_item),
             "from",
-            field("module", $.module_path),
+            field("origin", $.module_path),
           ),
-          seq(
-            field("module_name", $.identifier),
-            optional(seq("as", field("alias", $.identifier))),
-            "from",
-            field("package", $.module_path),
-          ),
-          seq(
-            field("module", $.module_path),
-            optional(seq("as", field("alias", $.identifier))),
-          ),
+          field("module", $.module_path),
         ),
         optional(";"),
       ),
 
+    wildcard_import: (_) => "*",
     named_imports: ($) => seq("{", commaSep1($.import_item), optional(","), "}"),
     import_item: ($) =>
       seq(field("name", $.identifier), optional(seq("as", field("alias", $.identifier)))),
-    legacy_namespace_import: ($) =>
-      prec(
-        1,
-        seq(
-          field("name", $.identifier),
-          "as",
-          field("alias", $.identifier),
-        ),
-      ),
     module_path: ($) => seq($.identifier, repeat(seq(".", $.identifier))),
 
     _declaration: ($) =>
       choice(
+        $.export_list_declaration,
         $.function_declaration,
         $.struct_declaration,
         $.object_declaration,
@@ -277,6 +266,17 @@ module.exports = grammar({
         $.const_declaration,
         $.test_declaration,
       ),
+
+    export_list_declaration: ($) =>
+      seq(
+        "export",
+        "{",
+        commaSep1($.export_item),
+        optional(","),
+        "}",
+        optional(";"),
+      ),
+    export_item: ($) => field("name", $.identifier),
 
     declaration_prefix: (_) => "export",
 

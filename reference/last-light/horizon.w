@@ -1,6 +1,6 @@
 // Sensor fusion for the black hole at the final service window.
 
-import std.tensor
+import Tensor from std.tensor
 import {
   PhysicalDuration,
   Frequency,

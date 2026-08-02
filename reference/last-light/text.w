@@ -1,8 +1,8 @@
 // Text and binary boundaries for the Last Light restaurant.
 
-import std.ffi
-import std.fs
-import std.text
+import * from std.ffi
+import * from std.fs
+import * from std.text
 
 export type MenuGlyph = String<(.graphemes.count == 1)>
 export type CompactGlyph =

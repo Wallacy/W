@@ -1,9 +1,9 @@
 // Captive portal and session control for restaurant Wi-Fi.
 
-import std.crypto
-import std.http
-import std.storage
-import std.time
+import * from std.crypto
+import * from std.http
+import * from std.storage
+import * from std.time
 
 export type DeviceId = String<(.graphemes.count <= 128)>
 export type SessionId = u128

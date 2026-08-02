@@ -6,6 +6,9 @@ import { http, Url as Address } from std.net
 import models as domain from app.models
 import process from std
 import http as web from std
+import std.http
+import * from local_http
+import fetch from std.http
 
 export struct Header {
   kind: u32
@@ -19,6 +22,14 @@ enum Result<T, E> {
 
 protocol Drawable {
   fn draw(on canvas: inout Canvas)
+}
+
+fn parseHeader() {}
+
+export {
+  Drawable,
+  Header,
+  parseHeader,
 }
 
 ---
@@ -35,21 +46,36 @@ protocol Drawable {
       (identifier)
       (identifier)))
   (import_statement
-    items: (legacy_namespace_import
+    item: (import_item
       name: (identifier)
       alias: (identifier))
+    origin: (module_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    item: (import_item
+      name: (identifier))
+    origin: (module_path
+      (identifier)))
+  (import_statement
+    item: (import_item
+      name: (identifier)
+      alias: (identifier))
+    origin: (module_path
+      (identifier)))
+  (import_statement
     module: (module_path
       (identifier)
       (identifier)))
   (import_statement
-    module_name: (identifier)
-    package: (module_path
+    items: (wildcard_import)
+    module: (module_path
       (identifier)))
   (import_statement
-    items: (legacy_namespace_import
-      name: (identifier)
-      alias: (identifier))
-    module: (module_path
+    item: (import_item
+      name: (identifier))
+    origin: (module_path
+      (identifier)
       (identifier)))
   (struct_declaration
     (declaration_prefix)
@@ -96,7 +122,18 @@ protocol Drawable {
             name: (identifier)
             type: (type
               base: (type_name
-                name: (type_identifier)))))))))
+                name: (type_identifier))))))))
+  (function_declaration
+    name: (identifier)
+    parameters: (parameter_list)
+    body: (block))
+  (export_list_declaration
+    (export_item
+      name: (identifier))
+    (export_item
+      name: (identifier))
+    (export_item
+      name: (identifier))))
 
 ==================
 Typed errors and foreign boundary

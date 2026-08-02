@@ -1,6 +1,6 @@
 // Borrowed projections for the Last Light restaurant.
 
-import std.ffi
+import * from std.ffi
 
 foreign c from "last_light_telemetry.h" {
   fn ll_telemetry_write(

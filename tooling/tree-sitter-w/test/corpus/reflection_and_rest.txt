@@ -2,7 +2,7 @@
 Reflection and homogeneous rest arguments
 ==================
 
-import std.reflect as reflect
+import reflect from std
 
 struct Ticket: Hashable & reflect.Reflectable {
   id: u64
@@ -41,10 +41,10 @@ fn inspect() {
 
 (source_file
   (import_statement
-    (module_path
-      (identifier)
+    (import_item
       (identifier))
-    (identifier))
+    (module_path
+      (identifier)))
   (struct_declaration
     (type_identifier)
     (conformance_clause

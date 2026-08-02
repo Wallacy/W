@@ -40,7 +40,7 @@ import service {
 } from kitchen
 import { OracleApi, OracleError, oracle, planningRequest } from oracle
 
-export enum RestaurantError: Error {
+enum RestaurantError: Error {
   domain(DomainError)
   oracle(OracleError)
   probe(ProbeError)
@@ -52,19 +52,19 @@ export enum RestaurantError: Error {
   service(ServiceFailure)
 }
 
-export struct OrderSummary {
+struct OrderSummary {
   orderId: OrderId
   stage: ServiceStage
   total: Money?
 }
 
-export struct RestaurantSnapshot {
+struct RestaurantSnapshot {
   orders: Array<OrderSummary>
   activeOrders: usize
   completedOrders: u64
 }
 
-export protocol RestaurantApi {
+protocol RestaurantApi {
   async fn place(order: take Order): Receipt throws RestaurantError
   async fn status(orderId: OrderId): ServiceStage throws RestaurantError
   async fn cancel(orderId: OrderId): CancelledStage throws RestaurantError
@@ -134,7 +134,7 @@ async fn prepareDish(
   return try await lease.bake(mixture, until: ready.deadline)
 }
 
-export service lastLight: RestaurantApi {
+service lastLight: RestaurantApi {
   var orders: Map<OrderId, OrderState> = Map()
   var Lazy priceTable = loadPriceTable()
   var completedOrders: u64 = 0
@@ -224,4 +224,13 @@ export service lastLight: RestaurantApi {
       completedOrders: completedOrders,
     )
   }
+}
+
+export {
+  OrderSummary,
+  RestaurantApi,
+  RestaurantError,
+  RestaurantSnapshot,
+  lastLight,
+  prepareDish,
 }

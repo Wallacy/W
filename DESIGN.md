@@ -1071,7 +1071,7 @@ import {
   Context as ProcessContext,
   ExitCode as ProcessExitCode,
 } from std.process
-import std.tensor as tensor
+import Tensor from std.tensor
 
 export type OrderId = u64
 export type Ratio = f64<(0.0...1.0)>
@@ -1291,7 +1291,7 @@ importer ou não teria utilidade além de um módulo normal.
 ### 6.1 Imports de pacotes e módulos
 
 Um import de pacote expõe os nomes de seus módulos. Ele não achata os símbolos
-de todos os módulos:
+dos módulos:
 
 ```w
 import std
@@ -1303,7 +1303,7 @@ let args: process.Arguments
 `import std` torna `io`, `process` e os demais módulos públicos acessíveis no
 módulo atual. O linker remove módulos e símbolos não alcançáveis.
 
-Um import de módulo achata seus exports:
+Um import bare de módulo achata seus exports:
 
 ```w
 import io
@@ -1311,48 +1311,76 @@ import io
 print("Hello")
 ```
 
-O resolver procura primeiro um módulo do pacote atual. Depois, ele procura os
-módulos expostos pelos pacotes importados. Mais de um resultado causa erro.
-
-Um alias preserva o namespace do módulo:
+Esta forma é equivalente ao wildcard explícito:
 
 ```w
-import io as systemIo
+import * from io
 
-systemIo.print("Hello")
+print("Hello")
 ```
 
-O import nomeado é recomendado quando o caller usa poucos exports:
+O resolver aceita `import io` quando `io` é um módulo do pacote atual ou quando
+um pacote já importado expõe esse módulo. Portanto, este código é válido:
+
+```w
+import std
+import http
+
+let response = fetch("https://example.test")
+```
+
+Sem `import std`, o resolver não procura `http` em todos os pacotes instalados.
+Use um path qualificado para selecionar a origem:
+
+```w
+import std.http
+
+let response = http.fetch("https://example.test")
+```
+
+`import std.http` introduz o nome de módulo `http`. Ele não importa os demais
+módulos de `std` e não achata os exports de `http`.
+
+A forma recomendada também preserva o nome do módulo:
+
+```w
+import http from std
+
+let response = http.fetch("https://example.test")
+```
+
+O lado direito de `from` identifica a origem. O lado esquerdo identifica o nome
+que entra no escopo. Um alias resolve uma colisão:
+
+```w
+import http as web from std
+
+let response = web.fetch("https://example.test")
+```
+
+Quando a origem é um módulo, o lado esquerdo seleciona um export. Esta forma é
+recomendada quando o caller usa um único export:
+
+```w
+import fetch from std.http
+
+let response = fetch("https://example.test")
+```
+
+Use braces para selecionar mais de um export:
 
 ```w
 import {
   Arguments as ProcessArguments,
   Context as ProcessContext,
-} from process
+} from std.process
 ```
 
-Uma origem qualificada remove ambiguidade entre pacotes:
+`from` nunca achata uma origem por inferência. Somente os nomes que aparecem à
+esquerda entram no escopo. `import http from std` introduz `http`.
+`import fetch from std.http` introduz `fetch`.
 
-```w
-import process from std
-import { Request, Response as HttpResponse } from http
-```
-
-`import process from std` achata os exports de `process`. Um alias depois do
-nome preserva o namespace: `import process as systemProcess from std`.
-
-Um path qualificado é a forma curta para preservar o namespace:
-
-```w
-import std.http
-
-let response = http.Response(status: .ok)
-```
-
-Essa forma seleciona `http` no pacote `std`. Ela não importa os outros módulos
-de `std` e não achata os exports de `http`.
-
-O import amplo com exceções nomeadas permanece **Alternativa**:
+O wildcard com exceções nomeadas permanece **Alternativa**:
 
 ```w
 import *, { Request as HttpRequest } from http
@@ -1384,8 +1412,25 @@ formas equivalentes são erros. A keyword `package` declara configuração de um
 unidade de compilação.
 
 O módulo é a menor boundary de encapsulamento. W não possui keywords `private`,
-`internal` ou `friend`. Um `export { ... }` coletivo permanece **Alternativa**.
-O modifier local melhora diff, busca e interface gerada.
+`internal` ou `friend`. O export individual e o export coletivo são formas
+vigentes e equivalentes:
+
+```w
+export fn publicOperation()
+
+fn parseMenu()
+struct Menu
+
+export {
+  Menu,
+  parseMenu,
+}
+```
+
+O bloco coletivo pode ficar no fim do módulo. Ele pode nomear uma declaration
+de qualquer arquivo que compõe o módulo. O formatter não move exports entre as
+duas formas. Exportar o mesmo nome nas duas formas é válido, mas o linter relata
+redundância. O bloco não executa código e não altera a ordem de inicialização.
 
 A maioria dos membros usa o mesmo default de módulo. Existem três exceções
 deliberadas:
@@ -4162,7 +4207,7 @@ Runtime recebe somente metadata solicitada pelo programa. Uma conformance a
 continuam em sidecars removíveis.
 
 ```w
-import std.reflect as reflect
+import reflect from std
 
 export struct MenuCard: Hashable & reflect.Reflectable {
   title: String
@@ -17783,7 +17828,7 @@ rastreáveis.
 | Tema | Forma histórica | Forma vigente |
 |---|---|---|
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
-| namespace import | `import name as alias from path` | `import path [as alias]` |
+| namespace import | `import path [as alias]` | `import name [as alias] from package` |
 | refinement | `T where predicate`, com alternativas | `T<(predicate)>` |
 | execution preference | superfície aberta | `async/spawn<.domain>` |
 | entry | superfície aberta | forma curta + descriptor tipado |
@@ -17818,9 +17863,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
-| W-007 | visibility | módulo default e `export`; `package` não é access modifier | package visibility; `public/private`; block export |
-| W-008 | import seletivo | `{X} from module`; package import expõe modules | `path.{X}`; imports livres |
-| W-009 | import de módulo | bare achata exports; `as` preserva namespace | namespace sempre; achatamento universal de package |
+| W-007 | visibility | módulo default; `export` individual ou coletivo; `package` não é access modifier | package visibility; `public/private` |
+| W-008 | import seletivo | `X from module` ou `{X} from module`; `from` preserva nomes | `path.{X}`; imports livres |
+| W-009 | import de módulo | bare ou `*` achata; `module from package` preserva namespace | namespace sempre; achatamento universal de package |
 | W-010 | módulos | filename default; header `module`; multi-file explícito; DAG | manifest como única origem; extensão entre packages |
 | W-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | W-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |

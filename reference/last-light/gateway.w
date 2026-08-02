@@ -7,13 +7,13 @@ import { RestaurantApi, RestaurantError, lastLight } from restaurant
 import { SimulationError, simulateShift } from simulation
 import { commandLimit } from units
 
-export enum DispatchError: Error {
+enum DispatchError: Error {
   restaurant(RestaurantError)
   simulation(SimulationError)
   unauthorizedCommand
 }
 
-export enum GatewayError: Error {
+enum GatewayError: Error {
   decode(DecodeError)
   dispatch(DispatchError)
   response(ResponseError)
@@ -76,4 +76,10 @@ test "a remote command cannot stop the process" for canDispatch {
   expect canDispatch(shutdown, authority: .localOperator)
   expect !canDispatch(shutdown, authority: .remoteClient)
   expect canDispatch(menu, authority: .remoteClient)
+}
+
+export {
+  DispatchError,
+  GatewayError,
+  fetch,
 }

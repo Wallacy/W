@@ -1,6 +1,6 @@
 // Bare-metal lifecycle for horizon sensors and satellite links.
 
-import std.device as device
+import device from std
 import { HorizonSample } from horizon
 
 struct ControllerState {

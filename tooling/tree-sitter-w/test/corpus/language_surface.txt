@@ -3,7 +3,7 @@ W units refinements and imports
 ==================
 
 import std.si
-import std.tensor as tensor
+import Tensor from std.tensor
 import { Quantity } from std.units
 
 export dimension Applause
@@ -28,10 +28,11 @@ fn inspectStaticPayloads() {
       (identifier)
       (identifier)))
   (import_statement
+    (import_item
+      (identifier))
     (module_path
       (identifier)
-      (identifier))
-    (identifier))
+      (identifier)))
   (import_statement
     (named_imports
       (import_item
