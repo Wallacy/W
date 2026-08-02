@@ -1,7 +1,7 @@
 // Bounded byte I/O for the Archive of Extinct Recipes.
 
-import std.fs
-import std.io
+import * from std.fs
+import * from std.io
 
 export enum RelayStep<ReadFailure: Error, WriteFailure: Error> {
   end

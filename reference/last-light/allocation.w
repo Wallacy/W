@@ -1,7 +1,7 @@
 // Allocator and region oracles for the Last Light restaurant.
 
-import std.memory
-import std.task
+import * from std.memory
+import * from std.task
 
 export struct MenuSnapshot {
   title: String

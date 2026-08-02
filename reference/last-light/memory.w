@@ -1,6 +1,6 @@
 // Memory oracles for the Last Light restaurant.
 
-import std.memory
+import * from std.memory
 import std.task
 
 foreign c from "last_light_bell.h" {

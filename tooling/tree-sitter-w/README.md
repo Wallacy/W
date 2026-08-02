@@ -14,7 +14,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 
 ## Cobertura deste corte
 
-- imports lógicos, aliases e exports;
+- imports de pacote, módulo, símbolo e wildcard, aliases e exports coletivos;
 - `fn`, vários `init`, overloads estruturais, labels, generics e `throws`;
 - `fn(...)`, `some fn(...)`, `any fn(...)` e callable modes;
 - static records, `StaticList<T>` e payloads `<[...]>`;

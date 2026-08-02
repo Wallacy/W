@@ -1,6 +1,6 @@
 // Mobile lifecycle adapter. UI remains native to the platform.
 
-import std.mobile as mobile
+import mobile from std
 import { RestaurantApi, RestaurantError, lastLight } from restaurant
 
 enum MobileError: Error {

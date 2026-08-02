@@ -1,7 +1,7 @@
 // Host/device tensor contracts for forecasting and anomaly detection.
 
 import std.accelerator
-import std.tensor
+import Tensor from std.tensor
 
 export type FeatureBatch<const rows: usize, const columns: usize> =
   Tensor<f32, shape: [rows, columns]>

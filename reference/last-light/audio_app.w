@@ -1,6 +1,6 @@
 // Device entry for the restaurant sound controller.
 
-import std.audio as audio
+import audio from std
 import {
   AudioRenderState,
   DeviceAudioBlock,

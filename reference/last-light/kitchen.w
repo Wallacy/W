@@ -1,6 +1,6 @@
 // Thermal control and resource contracts for the Last Light kitchen.
 
-import std.clock
+import * from std.clock
 import std.si
 import { Course, Dish, GuestCount, Probability } from domain
 import { Energy, Mass, PhysicalDuration, Power, Temperature, energy } from units

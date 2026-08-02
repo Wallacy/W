@@ -1,7 +1,7 @@
 // A small compiler for kitchen cards.
 // This file intentionally uses only the bootstrap.w0 source profile.
 
-import std.text
+import * from std.text
 
 export type MenuSymbol = u32
 

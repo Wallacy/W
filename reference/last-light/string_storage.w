@@ -1,7 +1,7 @@
 // String storage and mutation for the Last Light restaurant.
 
-import std.memory
-import std.text
+import * from std.memory
+import * from std.text
 
 export fn joinAnnouncements(
   lines: ref Array<String>,

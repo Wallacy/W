@@ -1,5 +1,5 @@
 /// Opt-in runtime reflection without a universal dynamic value.
-import std.reflect as reflect
+import reflect from std
 import { Course, OrderId } from domain
 
 export struct ReservationKey: Hashable & reflect.Reflectable {

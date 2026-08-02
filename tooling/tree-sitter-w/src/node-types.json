@@ -3574,6 +3574,37 @@
     }
   },
   {
+    "type": "export_item",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "export_list_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "export_item",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "expression_statement",
     "named": true,
     "fields": {},
@@ -5113,12 +5144,12 @@
     "type": "import_statement",
     "named": true,
     "fields": {
-      "alias": {
+      "item": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "identifier",
+            "type": "import_item",
             "named": true
           }
         ]
@@ -5128,11 +5159,11 @@
         "required": false,
         "types": [
           {
-            "type": "legacy_namespace_import",
+            "type": "named_imports",
             "named": true
           },
           {
-            "type": "named_imports",
+            "type": "wildcard_import",
             "named": true
           }
         ]
@@ -5147,17 +5178,7 @@
           }
         ]
       },
-      "module_name": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "package": {
+      "origin": {
         "multiple": false,
         "required": false,
         "types": [
@@ -5731,32 +5752,6 @@
             "type": "contextual_member_expression",
             "named": true
           },
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "legacy_namespace_import",
-    "named": true,
-    "fields": {
-      "alias": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
           {
             "type": "identifier",
             "named": true
@@ -8856,6 +8851,10 @@
           "named": true
         },
         {
+          "type": "export_list_declaration",
+          "named": true
+        },
+        {
           "type": "extension_declaration",
           "named": true
         },
@@ -10776,6 +10775,11 @@
         }
       ]
     }
+  },
+  {
+    "type": "wildcard_import",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "workspace_manifest",
