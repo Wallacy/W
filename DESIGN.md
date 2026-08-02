@@ -1071,7 +1071,7 @@ import {
   Context as ProcessContext,
   ExitCode as ProcessExitCode,
 } from std.process
-import Tensor from std.tensor
+import { Tensor } from std.tensor
 
 export type OrderId = u64
 export type Ratio = f64<(0.0...1.0)>
@@ -1290,8 +1290,8 @@ importer ou não teria utilidade além de um módulo normal.
 
 ### 6.1 Imports de pacotes e módulos
 
-Um import de pacote expõe os nomes de seus módulos. Ele não achata os símbolos
-dos módulos:
+Um import sem `from` achata os exports da origem no escopo atual. Os exports de
+um pacote são seus módulos públicos:
 
 ```w
 import std
@@ -1301,9 +1301,9 @@ let args: process.Arguments
 ```
 
 `import std` torna `io`, `process` e os demais módulos públicos acessíveis no
-módulo atual. O linker remove módulos e símbolos não alcançáveis.
+módulo atual. Ele não achata os símbolos contidos nesses módulos.
 
-Um import bare de módulo achata seus exports:
+Os exports de um módulo são seus símbolos públicos:
 
 ```w
 import io
@@ -1330,18 +1330,19 @@ let response = fetch("https://example.test")
 ```
 
 Sem `import std`, o resolver não procura `http` em todos os pacotes instalados.
-Use um path qualificado para selecionar a origem:
+Um path qualificado resolve a origem sem um import anterior. Ele também achata
+os exports:
 
 ```w
 import std.http
 
-let response = http.fetch("https://example.test")
+let response = fetch("https://example.test")
 ```
 
-`import std.http` introduz o nome de módulo `http`. Ele não importa os demais
-módulos de `std` e não achata os exports de `http`.
+`import std.http` e `import * from std.http` são equivalentes.
 
-A forma recomendada também preserva o nome do módulo:
+Um nome simples antes de `from` cria um binding de módulo. Quando a origem é um
+pacote, o nome seleciona um módulo público desse pacote:
 
 ```w
 import http from std
@@ -1349,25 +1350,34 @@ import http from std
 let response = http.fetch("https://example.test")
 ```
 
-O lado direito de `from` identifica a origem. O lado esquerdo identifica o nome
-que entra no escopo. Um alias resolve uma colisão:
+Quando a origem já é um módulo, o nome simples vira o nome local desse módulo:
 
 ```w
-import http as web from std
+import stdHTTP from std.http
 
-let response = web.fetch("https://example.test")
+let response = stdHTTP.fetch("https://example.test")
 ```
 
-Quando a origem é um módulo, o lado esquerdo seleciona um export. Esta forma é
-recomendada quando o caller usa um único export:
+`import http from std.http` também é válido. Ele cria o binding local `http`.
+W não possui default export. Portanto, a forma sem braces nunca seleciona um
+símbolo do módulo.
+
+O resolver classifica a origem antes de criar o binding. Se a origem é um
+pacote, o nome deve identificar um módulo público. Se a origem é um módulo, o
+nome pode ser qualquer binding local. Uma origem ambígua causa erro.
+
+A forma lembra o default import do TypeScript, mas a semântica é diferente. O
+TypeScript seleciona um default export. W sempre cria um binding de módulo.
+
+Braces selecionam símbolos do módulo:
 
 ```w
-import fetch from std.http
+import { fetch } from std.http
 
 let response = fetch("https://example.test")
 ```
 
-Use braces para selecionar mais de um export:
+`as` renomeia um símbolo selecionado. W aceita `as` somente dentro das braces:
 
 ```w
 import {
@@ -1376,9 +1386,19 @@ import {
 } from std.process
 ```
 
-`from` nunca achata uma origem por inferência. Somente os nomes que aparecem à
-esquerda entram no escopo. `import http from std` introduz `http`.
-`import fetch from std.http` introduz `fetch`.
+Esta tabela resume a precedência:
+
+| Forma | Binding resultante | Uso |
+|---|---|---|
+| `import std.http` | todos os exports de `std.http` | `fetch()` |
+| `import * from std.http` | todos os exports de `std.http` | `fetch()` |
+| `import http from std` | módulo `std.http` | `http.fetch()` |
+| `import stdHTTP from std.http` | módulo `std.http` como `stdHTTP` | `stdHTTP.fetch()` |
+| `import { fetch } from std.http` | símbolo `fetch` | `fetch()` |
+| `import { fetch as stdFetch } from std.http` | símbolo `fetch` como `stdFetch` | `stdFetch()` |
+
+`import fetch from std.http` cria um binding de módulo chamado `fetch`. Ele não
+seleciona a função `fetch`. Use braces para importar essa função.
 
 O wildcard com exceções nomeadas permanece **Alternativa**:
 
@@ -15364,8 +15384,8 @@ import codec from telemetry
 import { Frame } from telemetry.model
 ```
 
-O primeiro import achata os exports de `codec`. O segundo seleciona um symbol
-por path qualificado.
+O primeiro import cria um binding para o módulo `telemetry.codec`. O segundo
+seleciona um símbolo por path qualificado.
 
 O alias é um W identifier. Ele não participa de type identity, ABI ou wire
 schema. Um module local, std package e dependency alias não podem ocupar o
@@ -16465,7 +16485,7 @@ excluded entry: restaurant.worker_app::LastLightWorker
 nomeado. Ele não recebe argv ou filesystem:
 
 ```w
-import std.build
+import build from std
 import { MenuCompileError, compileMenu } from last_light.menu.compiler
 
 const menuSource = build.Input<String>(name: "menu")
@@ -17535,7 +17555,7 @@ O corpus compara, no mínimo:
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
-- import de namespace compacto contra a forma histórica com `from`.
+- achatamento sem `from` contra binding de módulo e seleção por braces.
 - fail-fast com arbitragem lexical/input contra espera estritamente lexical;
 - cancellation como control effect contra `throws Cancellation`;
 - execution profile por product/unit contra domain default por módulo.
@@ -17828,7 +17848,7 @@ rastreáveis.
 | Tema | Forma histórica | Forma vigente |
 |---|---|---|
 | unit literal | `9.81[m/s^2]` | `9.81<m/s^2>` |
-| namespace import | `import path [as alias]` | `import name [as alias] from package` |
+| namespace import | `import path [as alias]` | `import localName from modulePath` |
 | refinement | `T where predicate`, com alternativas | `T<(predicate)>` |
 | execution preference | superfície aberta | `async/spawn<.domain>` |
 | entry | superfície aberta | forma curta + descriptor tipado |
@@ -17864,8 +17884,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
 | W-007 | visibility | módulo default; `export` individual ou coletivo; `package` não é access modifier | package visibility; `public/private` |
-| W-008 | import seletivo | `X from module` ou `{X} from module`; `from` preserva nomes | `path.{X}`; imports livres |
-| W-009 | import de módulo | bare ou `*` achata; `module from package` preserva namespace | namespace sempre; achatamento universal de package |
+| W-008 | import seletivo | `{X} from module`; `as` somente dentro das braces | `X from module`; `path.{X}`; imports livres |
+| W-009 | import de módulo | sem `from` achata; `name from origin` cria binding de módulo | namespace sempre; default export; `as` fora das braces |
 | W-010 | módulos | filename default; header `module`; multi-file explícito; DAG | manifest como única origem; extensão entre packages |
 | W-011 | runtime top-level | declarations/const somente | init global; ordem de inicializadores |
 | W-012 | tipos nominais | `type X = T` | wrapper struct; `newtype` |

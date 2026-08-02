@@ -5144,12 +5144,12 @@
     "type": "import_statement",
     "named": true,
     "fields": {
-      "item": {
+      "binding": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "import_item",
+            "type": "identifier",
             "named": true
           }
         ]

@@ -3,12 +3,12 @@ Imports and declarations
 ==================
 
 import { http, Url as Address } from std.net
-import models as domain from app.models
+import models from app.models
 import process from std
-import http as web from std
+import web from std.http
 import std.http
 import * from local_http
-import fetch from std.http
+import { fetch, request as stdRequest } from std.http
 
 export struct Header {
   kind: u32
@@ -46,22 +46,18 @@ export {
       (identifier)
       (identifier)))
   (import_statement
-    item: (import_item
-      name: (identifier)
-      alias: (identifier))
+    binding: (identifier)
     origin: (module_path
       (identifier)
       (identifier)))
   (import_statement
-    item: (import_item
-      name: (identifier))
+    binding: (identifier)
     origin: (module_path
       (identifier)))
   (import_statement
-    item: (import_item
-      name: (identifier)
-      alias: (identifier))
+    binding: (identifier)
     origin: (module_path
+      (identifier)
       (identifier)))
   (import_statement
     module: (module_path
@@ -72,9 +68,13 @@ export {
     module: (module_path
       (identifier)))
   (import_statement
-    item: (import_item
-      name: (identifier))
-    origin: (module_path
+    items: (named_imports
+      (import_item
+        name: (identifier))
+      (import_item
+        name: (identifier)
+        alias: (identifier)))
+    module: (module_path
       (identifier)
       (identifier)))
   (struct_declaration

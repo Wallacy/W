@@ -1,6 +1,6 @@
 // Proof-driven performance cases for the Last Light restaurant.
 
-import Tensor from std.tensor
+import { Tensor } from std.tensor
 import { ServiceStage } from domain
 
 export type FlavorSignal = Int<(1...128)>

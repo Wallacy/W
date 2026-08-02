@@ -1,7 +1,7 @@
 // Allocation-free audio rendering for the final song.
 
 import audio from std
-import std.math
+import math from std
 
 export const audioFrames = 256_usize
 export const audioChannels = 2_usize

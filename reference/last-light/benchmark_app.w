@@ -1,9 +1,9 @@
 // TechEmpower-compatible workload profile. No route bypasses normal APIs.
 
-import std.cache
-import std.database
-import std.http
-import std.random
+import cache from std
+import database from std
+import http from std
+import random from std
 
 export struct BenchmarkMessage {
   message: String

@@ -1,7 +1,7 @@
 // Satellite swarm around the Restaurant at the End of the Universe.
 
-import std.si
-import Tensor from std.tensor
+import si from std
+import { Tensor } from std.tensor
 import { Distance, PhysicalDuration, Velocity } from units
 
 export type SatelliteId = u32

@@ -1,7 +1,7 @@
 // Physical and fictional units used by the Last Light.
 
-import std.si
-import std.iec
+import si from std
+import iec from std
 
 export dimension Applause
 export unit clap: Applause

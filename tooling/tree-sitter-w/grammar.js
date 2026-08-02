@@ -231,7 +231,7 @@ module.exports = grammar({
             field("module", $.module_path),
           ),
           seq(
-            field("item", $.import_item),
+            field("binding", $.identifier),
             "from",
             field("origin", $.module_path),
           ),

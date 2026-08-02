@@ -1,6 +1,6 @@
 // Native handlers for CLI, a minimal ANSI TUI, signals, and HTTP.
 
-import std.http
+import http from std
 import std.io
 import {
   Arguments as ProcessArguments,

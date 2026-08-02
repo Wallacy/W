@@ -1,7 +1,7 @@
 // Numeric contracts for the Last Light restaurant.
 
-import std.math
-import FixedDecimal from std.decimal
+import math from std
+import { FixedDecimal } from std.decimal
 import { Quantized, StaticRatio } from std.quant
 
 export type SeatNumber = UInt<(1...128)>

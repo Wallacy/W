@@ -44,7 +44,7 @@ referência mostram esse contrato, mas não criam regras próprias.
 ## Amostra
 
 ```w
-import std.http
+import http from std
 import { Command } from command
 import { lastLight } from restaurant
 

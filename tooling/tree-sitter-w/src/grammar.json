@@ -528,10 +528,10 @@
               "members": [
                 {
                   "type": "FIELD",
-                  "name": "item",
+                  "name": "binding",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "import_item"
+                    "name": "identifier"
                   }
                 },
                 {
