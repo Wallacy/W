@@ -5,7 +5,7 @@ import {
   OrderId,
   Receipt,
   ServiceStage,
-} from restaurant.domain
+} from domain
 import {
   BillingApi,
   billing,
@@ -14,18 +14,21 @@ import {
   quote,
   refundKey,
   servingProof,
-} from restaurant.billing
-import { DiningRoomApi, diningRoom } from restaurant.dining
-import { AromaProbeApi, aromaProbe } from restaurant.hardware
-import { OvenApi, PantryApi, ovens, pantry } from restaurant.kitchen
-import { OracleApi } from restaurant.oracle
-import service { OracleApi as oracle } from restaurant.oracle
-import { RestaurantError, prepareDish } from restaurant.restaurant
+} from billing
+import { DiningRoomApi, diningRoom } from dining
+import { AromaProbeApi, aromaProbe } from hardware
+import { OvenApi, PantryApi } from kitchen
+import service {
+  OvenApi as ovens,
+  PantryApi as pantry,
+} from kitchen
+import { OracleApi, oracle } from oracle
+import { RestaurantError, prepareDish } from restaurant
 import {
   FulfillmentInput,
   FulfillmentSignal,
   fulfillmentSignals,
-} from restaurant.workflow
+} from workflow
 
 export alias FulfillmentSupervisor = SupervisorRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
 export alias FulfillmentKey = WorkKeyRef<OrderId, FulfillmentInput, ServiceStage, Receipt, RestaurantError>
@@ -46,7 +49,7 @@ export enum CoordinatorError: Error {
 }
 
 // Process-local compensation oracle. The product binds fulfillOrderDurably.
-package async fn fulfillOrder(
+async fn fulfillOrder(
   input: take FulfillmentInput,
   work: WorkContext<ServiceStage>,
 ): Receipt throws RestaurantError {
@@ -98,9 +101,7 @@ export protocol OrderCoordinatorApi {
   async fn outcome(): WorkOutcome<Receipt, RestaurantError>? throws CoordinatorError
 }
 
-export service orderCoordinators<key: OrderId>: OrderCoordinatorApi
-
-package service OrderCoordinator as OrderCoordinatorApi {
+export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
   identity: ServiceIdentity<OrderId>
   fulfillment: FulfillmentKey
 

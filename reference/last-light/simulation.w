@@ -16,10 +16,10 @@ import {
   add,
   courseLabel,
   currencyCode,
-} from restaurant.domain
-import { BillingError, PricingPolicy, loadPriceTable, quote } from restaurant.billing
-import { DutyCycle, expectedEnergy } from restaurant.kitchen
-import { Energy, PhysicalDuration, Power } from restaurant.units
+} from domain
+import { BillingError, PricingPolicy, loadPriceTable, quote } from billing
+import { DutyCycle, expectedEnergy } from kitchen
+import { Energy, PhysicalDuration, Power } from units
 
 export type SimulationTick = u16
 export type SimulationTicks = u16<(1...1_000)>

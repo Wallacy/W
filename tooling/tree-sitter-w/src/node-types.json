@@ -3359,6 +3359,32 @@
     }
   },
   {
+    "type": "domain_import_statement",
+    "named": true,
+    "fields": {
+      "items": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "named_imports",
+            "named": true
+          }
+        ]
+      },
+      "module": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "module_path",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "entry_declaration",
     "named": true,
     "fields": {
@@ -5113,7 +5139,27 @@
       },
       "module": {
         "multiple": false,
-        "required": true,
+        "required": false,
+        "types": [
+          {
+            "type": "module_path",
+            "named": true
+          }
+        ]
+      },
+      "module_name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "package": {
+        "multiple": false,
+        "required": false,
         "types": [
           {
             "type": "module_path",
@@ -6367,6 +6413,47 @@
         "types": [
           {
             "type": "block",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "module_contract",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "manifest_argument",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "module_header",
+    "named": true,
+    "fields": {
+      "contract": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "module_contract",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
             "named": true
           }
         ]
@@ -8554,7 +8641,7 @@
     }
   },
   {
-    "type": "service_binding_declaration",
+    "type": "service_declaration",
     "named": true,
     "fields": {
       "api": {
@@ -8580,7 +8667,7 @@
     },
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "declaration_prefix",
@@ -8589,49 +8676,9 @@
         {
           "type": "service_key_contract",
           "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "service_declaration",
-    "named": true,
-    "fields": {
-      "api": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "type",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "type_identifier",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "declaration_prefix",
-          "named": true
         },
         {
           "type": "type_body",
-          "named": true
-        },
-        {
-          "type": "type_parameters",
           "named": true
         }
       ]
@@ -8677,9 +8724,19 @@
     "type": "service_import_statement",
     "named": true,
     "fields": {
+      "alias": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "items": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "named_service_imports",
@@ -8787,6 +8844,10 @@
           "named": true
         },
         {
+          "type": "domain_import_statement",
+          "named": true
+        },
+        {
           "type": "entry_declaration",
           "named": true
         },
@@ -8815,6 +8876,10 @@
           "named": true
         },
         {
+          "type": "module_header",
+          "named": true
+        },
+        {
           "type": "object_declaration",
           "named": true
         },
@@ -8824,10 +8889,6 @@
         },
         {
           "type": "protocol_declaration",
-          "named": true
-        },
-        {
-          "type": "service_binding_declaration",
           "named": true
         },
         {
@@ -10998,6 +11059,10 @@
     "named": false
   },
   {
+    "type": "domain",
+    "named": false
+  },
+  {
     "type": "else",
     "named": false
   },
@@ -11091,6 +11156,10 @@
   },
   {
     "type": "modify",
+    "named": false
+  },
+  {
+    "type": "module",
     "named": false
   },
   {

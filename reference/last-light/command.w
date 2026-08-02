@@ -10,7 +10,7 @@ import {
   Order,
   OrderId,
   SimulationProfile,
-} from restaurant.domain
+} from domain
 
 export type CommandLine = String<(.bytes.count <= 65_536)>
 

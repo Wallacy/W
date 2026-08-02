@@ -1,14 +1,16 @@
 // Bounded parallel work for the Observatory of the Patient Comet.
 
-import { OrderId } from restaurant.domain
-import { Ingredient, KitchenError, Mixture, Recipe } from restaurant.kitchen
+module execution<
+  domains: [
+    .concurrent(.thermal, maximum: 4, capabilities: [.parallel]),
+  ],
+>
+
+import { OrderId } from domain
+import { Ingredient, KitchenError, Mixture, Recipe } from kitchen
 
 export type BatchIndex = usize
 export alias ClosingTimeout = TaskTimeout
-
-export enum LastLightDomain: ExecutionDomain {
-  thermal
-}
 
 export protocol CompletionMetric {
   completionCount: u64 { get }
@@ -87,7 +89,7 @@ export async fn mixPair(
 }
 
 export async fn mixOnThermalLane(job: take MixingJob): MixingResult throws BrigadeError {
-  spawn<domain: LastLightDomain.thermal> let result = mixJob(take job)
+  spawn<.thermal> let result = mixJob(take job)
   return try await result
 }
 

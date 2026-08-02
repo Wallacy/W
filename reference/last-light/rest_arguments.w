@@ -1,5 +1,5 @@
 /// Homogeneous rest arguments preserve labels, ownership, and allocation facts.
-import { Course } from restaurant.domain
+import { Course } from domain
 
 fn courseLoad(course: Course): u32 {
   return switch course {

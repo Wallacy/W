@@ -1,7 +1,7 @@
 // Mobile lifecycle adapter. UI remains native to the platform.
 
 import std.mobile as mobile
-import { RestaurantApi, RestaurantError, lastLight } from restaurant.restaurant
+import { RestaurantApi, RestaurantError, lastLight } from restaurant
 
 enum MobileError: Error {
   restaurant(RestaurantError)
@@ -15,15 +15,15 @@ async fn start(ctx: mobile.Context): mobile.StartResult throws MobileError {
   return .ready
 }
 
-package async fn resume(ctx: mobile.Context): () {
+async fn resume(ctx: mobile.Context): () {
   await ctx.state.publish("lifecycle", value: "active")
 }
 
-package async fn suspend(ctx: mobile.Context): () {
+async fn suspend(ctx: mobile.Context): () {
   await ctx.services.drain(deadline: ctx.deadline)
 }
 
-package async fn notification(
+async fn notification(
   event: mobile.NotificationEvent,
   ctx: mobile.Context,
 ): mobile.NotificationResult {

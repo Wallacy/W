@@ -2,7 +2,7 @@
 
 import std.si
 import std.tensor
-import { Distance, PhysicalDuration, Velocity } from restaurant.units
+import { Distance, PhysicalDuration, Velocity } from units
 
 export type SatelliteId = u32
 export alias Vector3<T> = Tensor<T, shape: [3]>
@@ -38,8 +38,6 @@ export protocol SatelliteApi {
   async fn telemetry(after sequence: u64): SatelliteTelemetry throws SatelliteError
   async fn command(next: take StateVector, sequence: u64): () throws SatelliteError
 }
-
-export service satelliteSwarm<key: SatelliteId>: SatelliteApi
 
 export fn propagate(state: ref StateVector, during elapsed: PhysicalDuration): StateVector {
   return StateVector(

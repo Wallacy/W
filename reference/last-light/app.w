@@ -9,23 +9,23 @@ import {
   Signal as ProcessSignal,
   SignalError as ProcessSignalError,
 } from std.process
-import { CommandError, decodeCommand } from restaurant.command
+import { CommandError, decodeCommand } from command
 import {
   DispatchError,
   GatewayError,
   HostAuthority,
   dispatch,
   fetch,
-} from restaurant.gateway
-import { lastLight } from restaurant.restaurant
+} from gateway
+import { lastLight } from restaurant
 import {
   RenderMode,
   renderResponse,
   requestsShutdown,
-} from restaurant.presentation
-import { NativeTerminalBackend } from restaurant.platform
-import { nativeTerminalBackend } from restaurant.platform.native
-import { commandLimit } from restaurant.units
+} from presentation
+import { NativeTerminalBackend } from platform
+import { nativeTerminalBackend } from platform.native
+import { commandLimit } from units
 
 const nativeServerLimits = http.ServerLimits(
   activeRequests: 1_024,

@@ -70,7 +70,6 @@
   "let"
   "lock"
   "mut"
-  "package"
   "panic"
   "pin"
   "ref"
@@ -94,6 +93,9 @@
   "from"
   "get"
   "import"
+  "module"
+  "domain"
+  "package"
   "in"
   "init"
   "modify"
@@ -105,7 +107,7 @@
 
 (function_declaration name: (identifier) @function)
 (entry_declaration default_handler: (identifier) @function)
-(service_binding_declaration name: (identifier) @variable)
+(service_declaration name: (identifier) @variable)
 (service_import_item name: (identifier) @type)
 (service_import_item alias: (identifier) @variable)
 (call_expression function: (identifier) @function.call)
@@ -144,6 +146,7 @@
 (optional_member_expression property: (tuple_index) @property)
 (import_item name: (identifier) @module)
 (module_path (identifier) @module)
+(module_header name: (identifier) @module)
 
 [
   "=" "+=" "-=" "*=" "/=" "%="

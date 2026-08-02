@@ -1,6 +1,6 @@
 // Deterministic collections for the last service window.
 
-import { Course, Money, OrderId } from restaurant.domain
+import { Course, Money, OrderId } from domain
 
 export struct ArrivalTicket {
   orderId: OrderId

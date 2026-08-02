@@ -1,6 +1,6 @@
 // Windows implementation selected by the package target graph.
 
-import { NativeTerminalBackend } from restaurant.platform
+import { NativeTerminalBackend } from platform
 
 export fn nativeTerminalBackend(): NativeTerminalBackend {
   return .windowsVirtualTerminal

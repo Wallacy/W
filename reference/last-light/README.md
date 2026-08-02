@@ -568,11 +568,11 @@ Famílias: service, serial turn, mailbox, hop e backpressure.
 
 Aceite:
 
-- `export service lastLight: RestaurantApi` publica uma provider-owned boundary;
-- `import service { OracleApi as oracle }` cria uma caller-owned boundary;
-- o startup resolve as duas para `ServiceRef` antes do entry;
+- `export service lastLight: RestaurantApi { ... }` contém boundary e provider;
+- `import service { PantryApi as pantry }` adapta uma caller-owned boundary;
+- o startup resolve todos os slots antes do entry;
 - launch config só troca uma binding autorizada pelo artifact;
-- a mesma `ServiceRef` funciona local e remotamente;
+- a mesma service call funciona local e remotamente;
 - toda call usa `await`;
 - o trace mostra hop e queue wait;
 - mailbox limita itens, bytes e trabalho em voo;
@@ -826,7 +826,7 @@ Aceite:
 - `BrigadeMetrics.completionCount` herda a visibilidade do requirement;
 - `Course.fromOrdinal` usa `export` porque associated functions não herdam;
 - cases de enums exportados não repetem o modifier;
-- storage de service não aceita `package` ou `export`;
+- storage de service é privado e não aceita `export`;
 - `w interface` materializa todos os níveis efetivos.
 
 O ensaio deve rejeitar uma API exportada que menciona um tipo restrito ao
@@ -1126,9 +1126,9 @@ Aceite:
 - `spawn` sem domain usa o parallel default;
 - `.compute` permanece válido quando a capacity efetiva é 1;
 - `.network` pode compartilhar executor físico com `.io`;
-- `LastLightDomain.thermal` precisa de binding parallel no product;
+- `execution` declara `.thermal` e o product fornece binding parallel;
 - `.thermal` e `.compute` compartilham o pool `cpu`;
-- conformar o enum a `ExecutionDomain` não cria um executor;
+- declarar ou importar um domain não cria um executor;
 - um módulo importado não cria domain, queue ou thread;
 - cada unit recebe task, frame, timer e ready budgets bounded;
 - `async let` avalia captures e argumentos uma vez antes de publish;
@@ -1422,7 +1422,7 @@ Aceite:
 - CLI, TUI e servidor local podem compartilhar um `process.main`;
 - o worker HTTP possui outro product e outro artifact;
 - cada requirement recebe provider, supervisor, host capability ou import;
-- cada service identity alcançável recebe um binding default;
+- cada service ou requirement alcançável recebe uma binding default;
 - startup config só altera bindings com override permitido;
 - cada dependency de provider entra por um initializer argument explícito;
 - um import aberto aparece na interface do artifact;
@@ -1661,11 +1661,11 @@ O Book deve mostrar pares lado a lado:
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
 | domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
-| domain customizado | `spawn<domain: LastLightDomain.thermal>` | `"thermal"` ou keyword global |
+| domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
 | QoS | descriptor/policy de group | `.background` como domain |
 | trabalho longo | `fulfillment.tryStart(input:)` por `WorkKeyRef` | `spawn<owner:>` ou Promise solta |
-| binding singular | `lastLight.menu()` por `ServiceRef` | lookup runtime por string |
+| binding singular | `lastLight.menu()` pela service importada | lookup runtime por string |
 | binding keyed | `orderCoordinators.at(orderId)` | singleton global ou key inferida |
 | identity keyed | `ServiceIdentity<OrderId>` + `WorkKeyRef` | primeiro argumento redefine a instance |
 | progress | `WorkSnapshot<ServiceStage>` revisionado | borrow do task frame ou event list ilimitada |

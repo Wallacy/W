@@ -1,6 +1,6 @@
 /// Runtime state and typestate solve different transition problems.
-import { OrderId, ServiceStage, StagePath } from restaurant.domain
-import { OvenId } from restaurant.kitchen
+import { OrderId, ServiceStage, StagePath } from domain
+import { OvenId } from kitchen
 
 export alias StandardStagePath =
   StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>

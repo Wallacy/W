@@ -1,6 +1,6 @@
 // Callable routes for the maître d' at the end of the shift.
 
-import { GuestCount, OrderId } from restaurant.domain
+import { GuestCount, OrderId } from domain
 
 export struct Arrival {
   orderId: OrderId

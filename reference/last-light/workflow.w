@@ -10,24 +10,27 @@ import {
   quote,
   refundKey,
   servingProof,
-} from restaurant.billing
+} from billing
 import {
   Dish,
   Order,
   Receipt,
   ServiceStage,
-} from restaurant.domain
+} from domain
 import {
   DiningRoomApi,
   DiningRoomError,
   TableId,
   diningRoom,
-} from restaurant.dining
-import { AromaProbeApi, aromaProbe } from restaurant.hardware
-import { OvenApi, PantryApi, ovens, pantry } from restaurant.kitchen
-import { OracleApi } from restaurant.oracle
-import service { OracleApi as oracle } from restaurant.oracle
-import { RestaurantError, prepareDish } from restaurant.restaurant
+} from dining
+import { AromaProbeApi, aromaProbe } from hardware
+import { OvenApi, PantryApi } from kitchen
+import service {
+  OvenApi as ovens,
+  PantryApi as pantry,
+} from kitchen
+import { OracleApi, oracle } from oracle
+import { RestaurantError, prepareDish } from restaurant
 
 export struct FulfillmentInput {
   order: Order
@@ -79,7 +82,7 @@ const paymentRetry = StepRetry<RestaurantError>(
   retryWhen: shouldRetryPayment,
 )
 
-package async fn prepareDishStep(
+async fn prepareDishStep(
   input: take FulfillmentInput,
   step: StepContext,
 ): Dish throws RestaurantError {
@@ -92,7 +95,7 @@ package async fn prepareDishStep(
   )
 }
 
-package async fn capturePaymentStep(
+async fn capturePaymentStep(
   dish: take Dish,
   step: StepContext,
 ): CapturedDish throws RestaurantError {
@@ -102,7 +105,7 @@ package async fn capturePaymentStep(
   return CapturedDish(dish: take dish, payment: take payment)
 }
 
-package async fn serveDishStep(
+async fn serveDishStep(
   input: take ServingInput,
   step: StepContext,
 ): Receipt throws RestaurantError {
@@ -113,7 +116,7 @@ package async fn serveDishStep(
   )
 }
 
-package async fn refundPaymentStep(
+async fn refundPaymentStep(
   payment: take Payment,
   step: StepContext,
 ): Payment throws RestaurantError {
@@ -124,7 +127,7 @@ package async fn refundPaymentStep(
   )
 }
 
-package async fn fulfillOrderDurably(
+async fn fulfillOrderDurably(
   input: take FulfillmentInput,
   work: WorkContext<ServiceStage>,
 ): Receipt throws RestaurantError {

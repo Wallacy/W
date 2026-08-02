@@ -2,6 +2,12 @@
 Entry default descriptors
 ==================
 
+package {
+  name: "last-light/app"
+}
+
+module app
+
 fn run(args: ProcessArguments, ctx: ProcessContext): ExitCode {
   return .success
 }
@@ -13,12 +19,13 @@ fn runTui(args: ProcessArguments, ctx: ProcessContext): ExitCode {
 fn shutdown(signal: ProcessSignal, ctx: ProcessContext) {}
 fn fetch(request: Request, ctx: Context): Response {}
 
-export service lastLight: RestaurantApi
-export service orders<key: OrderId>: OrderCoordinatorApi
+export service lastLight: RestaurantApi {}
+export service orders<key: OrderId>: OrderCoordinatorApi {}
 import service {
   MenuApi as publicMenu,
   OrderCoordinatorApi as remoteOrders<key: OrderId>,
-} from restaurant.contracts
+} from contracts
+import service legacyPlanner as planner
 
 entry(run)
 entry LastLightTui(runTui)
@@ -30,6 +37,14 @@ entry Diagnostics {
 ---
 
 (source_file
+  (package_manifest
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))))
+  (module_header
+    (identifier))
   (function_declaration
     (identifier)
     (parameter_list
@@ -101,13 +116,14 @@ entry Diagnostics {
       (type_name
         (type_identifier)))
     (block))
-  (service_binding_declaration
+  (service_declaration
     (declaration_prefix)
     (identifier)
     (type
       (type_name
-        (type_identifier))))
-  (service_binding_declaration
+        (type_identifier)))
+    (type_body))
+  (service_declaration
     (declaration_prefix)
     (identifier)
     (service_key_contract
@@ -116,7 +132,8 @@ entry Diagnostics {
           (type_identifier))))
     (type
       (type_name
-        (type_identifier))))
+        (type_identifier)))
+    (type_body))
   (service_import_statement
     (named_service_imports
       (service_import_item
@@ -130,8 +147,11 @@ entry Diagnostics {
             (type_name
               (type_identifier))))))
     (module_path
-      (identifier)
       (identifier)))
+  (service_import_statement
+    (module_path
+      (identifier))
+    (identifier))
   (entry_declaration
     (identifier))
   (entry_declaration

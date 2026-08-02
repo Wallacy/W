@@ -1,11 +1,11 @@
 // Host-independent command dispatch and HTTP adapter.
 
 import std.http
-import { Command } from restaurant.command
-import { AppResponse } from restaurant.presentation
-import { RestaurantApi, RestaurantError, lastLight } from restaurant.restaurant
-import { SimulationError, simulateShift } from restaurant.simulation
-import { commandLimit } from restaurant.units
+import { Command } from command
+import { AppResponse } from presentation
+import { RestaurantApi, RestaurantError, lastLight } from restaurant
+import { SimulationError, simulateShift } from simulation
+import { commandLimit } from units
 
 export enum DispatchError: Error {
   restaurant(RestaurantError)
@@ -20,19 +20,19 @@ export enum GatewayError: Error {
   service(ServiceFailure)
 }
 
-package enum HostAuthority {
+enum HostAuthority {
   localOperator
   remoteClient
 }
 
-package const fn canDispatch(command: ref Command, authority: HostAuthority): Bool {
+const fn canDispatch(command: ref Command, authority: HostAuthority): Bool {
   return switch (authority, command) {
     case (.remoteClient, .shutdown): false
     case (_, _): true
   }
 }
 
-package async fn dispatch(
+async fn dispatch(
   command: take Command,
   restaurant: ref ServiceRef<RestaurantApi>,
   authority: HostAuthority,
@@ -59,7 +59,7 @@ package async fn dispatch(
   }
 }
 
-package async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
+async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
   let command = try await request.decodeJson<Command>(maximumBytes: commandLimit)
   let response = try await dispatch(
     take command,

@@ -45,8 +45,8 @@ referência mostram esse contrato, mas não criam regras próprias.
 
 ```w
 import std.http
-import { Command } from restaurant.command
-import { lastLight } from restaurant.restaurant
+import { Command } from command
+import { lastLight } from restaurant
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
   let command = try request.json.decode<Command>()

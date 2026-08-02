@@ -5,7 +5,7 @@ import {
   TrainingBatch,
   WeightMatrix,
   trainLinearKernel,
-} from restaurant.ai_harness
+} from ai_harness
 
 fn runAiLab(args: Arguments, ctx: Context): ExitCode {
   var weights: WeightMatrix<inputs: 2, outputs: 1> = [

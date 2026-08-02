@@ -129,7 +129,7 @@
         },
         {
           "name": "keyword.declaration.w",
-          "match": "\\b(?:abi|alias|behavior|const|deployment|dimension|entry|enum|export|extension|fn|foreign|from|import|let|lock|object|package|protocol|service|struct|test|type|unit|var|workspace)\\b"
+          "match": "\\b(?:abi|alias|behavior|const|deployment|dimension|domain|entry|enum|export|extension|fn|foreign|from|import|let|lock|module|object|package|protocol|service|struct|test|type|unit|var|workspace)\\b"
         },
         {
           "name": "keyword.effect.w",
@@ -173,10 +173,10 @@
           }
         },
         {
-          "match": "\\b(service)\\s+([A-Z][A-Za-z0-9_]*)\\s+(?=as\\b)",
+          "match": "\\b(module)\\s+([a-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.declaration.w" },
-            "2": { "name": "entity.name.type.w" }
+            "2": { "name": "entity.name.namespace.w" }
           }
         },
         {
@@ -203,7 +203,7 @@
     "members": {
       "patterns": [
         {
-          "match": "^\\s*(?:(?:export|package)\\s+)?(?:var\\s+)?([a-z_][A-Za-z0-9_]*)\\s*:(?=[^\\r\\n{}=]+\\{\\s*$)",
+          "match": "^\\s*(?:export\\s+)?(?:var\\s+)?([a-z_][A-Za-z0-9_]*)\\s*:(?=[^\\r\\n{}=]+\\{\\s*$)",
           "captures": {
             "1": { "name": "variable.other.member.w" }
           }

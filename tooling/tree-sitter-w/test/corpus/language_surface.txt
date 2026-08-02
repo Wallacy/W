@@ -158,9 +158,13 @@ fn inspectStaticPayloads() {
 W domains unsafe and entries
 ==================
 
-enum LastLightDomain: ExecutionDomain {
-  thermal
-}
+module execution<
+  domains: [
+    .concurrent(.thermal, maximum: 4, capabilities: [.parallel]),
+  ],
+>
+
+import domain { thermal as ovenThermal } from kitchen
 
 unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint {
   return unsafe { c_checksum(data) }
@@ -173,7 +177,8 @@ unsafe fn<lang: .c> namedChecksum(data: c.ptr<c.uchar>): c.uint {
 async fn prepare(): Dish {
   async<.network> let stock = fetchStock()
   spawn<.compute> let plan = calculatePlan()
-  spawn<domain: LastLightDomain.thermal> let heat = calculateHeat()
+  spawn<.thermal> let heat = calculateHeat()
+  async<.ovenThermal> let telemetry = sampleOven()
   defer async { await stock.close() }
   return await cook(stock, plan: plan)
 }
@@ -183,14 +188,39 @@ entry LastLight(run)
 ---
 
 (source_file
-  (enum_declaration
-    (type_identifier)
-    (type
-      (type_name
-        (type_identifier)))
-    (enum_body
-      (enum_case
-        (identifier))))
+  (module_header
+    (identifier)
+    (module_contract
+      (manifest_argument
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_constructor
+                (contextual_member_expression
+                  (identifier))
+                (manifest_argument
+                  (manifest_value
+                    (contextual_member_expression
+                      (identifier))))
+                (manifest_argument
+                  (identifier)
+                  (manifest_value
+                    (number_literal)))
+                (manifest_argument
+                  (identifier)
+                  (manifest_value
+                    (manifest_list
+                      (manifest_value
+                        (contextual_member_expression
+                          (identifier)))))))))))))
+  (domain_import_statement
+    (named_imports
+      (import_item
+        (identifier)
+        (identifier)))
+    (module_path
+      (identifier)))
   (function_declaration
     (language_tag
       (identifier))
@@ -281,12 +311,17 @@ entry LastLight(run)
           (argument_list)))
       (binding_declaration
         (task_contract
+          (contextual_member_expression
+            (identifier)))
+        (pattern
+          (identifier))
+        (call_expression
           (identifier)
-          (static_argument_value
-            (type
-              (type_name
-                (type_identifier)
-                (type_identifier)))))
+          (argument_list)))
+      (binding_declaration
+        (task_contract
+          (contextual_member_expression
+            (identifier)))
         (pattern
           (identifier))
         (call_expression

@@ -8,7 +8,7 @@ import {
   Money,
   OrderId,
   courseLabel,
-} from restaurant.domain
+} from domain
 
 export type PaymentId = u64
 export type IdempotencyKey = String<(.scalars.count in 8...128)>
@@ -139,9 +139,7 @@ export protocol BillingApi {
   async fn refund(payment: take Payment, idempotencyKey: IdempotencyKey): Payment throws BillingError
 }
 
-export service billing: BillingApi
-
-package service BillingLedger as BillingApi {
+export service billing: BillingApi {
   gateway: ServiceRef<PaymentGatewayApi>
   var Versioned payments: Map<IdempotencyKey, Payment> = Map()
 

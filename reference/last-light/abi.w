@@ -6,7 +6,7 @@
 import {
   HorizonStatus,
   classifyHorizon,
-} from restaurant.horizon
+} from horizon
 
 export foreign c {
   const LL_HORIZON_OK_V1: c.int = 0
