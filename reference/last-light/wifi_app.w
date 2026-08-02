@@ -1,6 +1,6 @@
 // Dedicated HTTP component for the captive portal.
 
-import std.http
+import http from std
 import {
   LoginRequest,
   SessionId,

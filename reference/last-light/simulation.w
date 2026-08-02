@@ -1,6 +1,6 @@
 // Deterministic shift simulation for the Last Light restaurant.
 
-import std.si
+import si from std
 import {
   Course,
   Currency,

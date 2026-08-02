@@ -1,6 +1,6 @@
 // Host-independent command dispatch and HTTP adapter.
 
-import std.http
+import http from std
 import { Command } from command
 import { AppResponse } from presentation
 import { RestaurantApi, RestaurantError, lastLight } from restaurant

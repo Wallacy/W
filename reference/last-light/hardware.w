@@ -2,7 +2,7 @@
 
 import { Probability } from domain
 import { Temperature } from units
-import std.si
+import si from std
 
 foreign c from "last_light_probe.h" {
   type ll_probe

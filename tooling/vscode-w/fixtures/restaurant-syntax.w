@@ -8,7 +8,7 @@ module restaurant<
 import std.http
 import { Order } from domain
 import reflect from std
-import Tensor from std.tensor
+import { Tensor } from std.tensor
 import service {
   OvenApi as ovens<key: OvenId>,
 } from contracts

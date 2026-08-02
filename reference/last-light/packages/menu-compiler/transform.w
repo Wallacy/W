@@ -1,6 +1,6 @@
 // Hermetic build-transform entry for kitchen cards.
 
-import std.build
+import build from std
 import {
   MenuBytecode,
   MenuCompileError,

@@ -1709,7 +1709,7 @@ O Book deve mostrar pares lado a lado:
 | frontend inline | `fn<C>` | `fn<lang: .c>` |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
-| namespace import | `import std.http` ou `import http from std` | `import std.http as http` |
+| namespace import | `import http from std` ou `import stdHTTP from std.http` | default export ou `as` externo |
 | região | `region request(using:, limit:)` | somente `Arena` manual |
 | projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
 | stream assíncrono | `Stream<Item, Failure>` single-pass | sequence + iterator obrigatórios ou generator |

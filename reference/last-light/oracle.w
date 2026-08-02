@@ -1,6 +1,6 @@
 // Shape-aware planning for the Oráculo de Mesas.
 
-import Tensor from std.tensor
+import { Tensor } from std.tensor
 import { Course, Order, Probability } from domain
 import { Ingredient, KitchenPlan, Recipe } from kitchen
 import { serviceTemperature } from units
