@@ -184,7 +184,7 @@ alvo de execução independente.
 | `metadata_oracle.w` | separação entre CBOR, WMeta1 e wWire; inputs da recipe |
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
-| `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes |
+| `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |

@@ -10583,6 +10583,29 @@ O trace lógico possui uma sequência estável de eventos como `taskPublished`,
 ficam em um sidecar físico. O replay compara o primeiro conjunto; ele apenas
 expõe o segundo para diagnóstico e performance.
 
+Fault injection usa um record data-only. Cada caso possui `caseId`, `boundary`,
+`point`, `action` e `occurrence` (zero-based):
+
+```w
+FaultSpec(
+  caseId: 2,
+  boundary: .storage,
+  point: .afterCommitBeforeConfirm,
+  action: .loseCommitConfirmation,
+  occurrence: 0,
+)
+```
+
+`caseId` é positivo. `occurrence` é bounded e não usa relógio, random, worker
+ID ou ordem incidental do scheduler. O runner rejeita antes da execução uma
+combinação inválida de boundary, point e action, um ID duplicado ou um valor
+fora do limite. A campanha é ordenada por `(caseId, occurrence)` e a identidade
+do caso entra no logical trace; detalhes de placement continuam no sidecar.
+As ações da baseline são request de cancel, application error, panic boundary,
+commit failure, perda de confirmação, disconnect de transporte e quota
+exhaustion. Elas não colapsam `canceled`, `applicationError`, `commitFailed`,
+`unknownOutcome` e `faultBoundary` em um único error.
+
 ## 14. Prelude e SDK
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
@@ -20616,6 +20639,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-715 | lifecycle cross-boundary | oracle comum exige cleanup antes de outcome/join e commit terminal único; `unknownOutcome` não volta a confirmed | task outcome antecipado; service turn reentrante por default; commit uncertainty tratada como abort |
 | W-716 | replay do scheduler | `scheduleId`, decisões lógicas, trace, outcome e owners fechados são comparados; packing físico diferente vira sidecar | comparar worker IDs; aceitar timing como semântica; esconder fault injection em logs; tratar panic como error recuperável |
 | W-717 | schema do replay | eventos de task, service, commit e owner pertencem ao logical trace; worker, thread, queue e transport ficam no sidecar físico | trace bruto como contrato; worker ID como identidade W; ignorar owner closure; comparar somente payload final |
+| W-718 | fault injection determinístico | `FaultSpec` usa `caseId`, boundary, point, action e occurrence bounded; combinações inválidas falham antes do runner; identidade entra no logical trace | relógio ou random como seletor; worker ID como selector; ocorrência ilimitada; colapsar cancel, error, commit uncertainty e panic |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
