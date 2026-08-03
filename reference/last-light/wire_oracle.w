@@ -200,12 +200,17 @@ enum WireDefect {
   nonMinimalControlInteger
   duplicateFieldId
   unorderedFieldId
+  missingRequiredField
+  invalidWireKind
+  unsupportedWireKind
   invalidBool
   invalidUtf8
   invalidEnumSubset
   unusedPresenceBit
   truncatedBlock
   trailingData
+  controlIntegerOverflow
+  fieldIdOverflow
   countOverflow
   traversalLimit
 }
@@ -219,12 +224,17 @@ const fn expectedDisposition(for defect: WireDefect): DecodeDisposition {
     case .nonMinimalControlInteger: .codecFailure
     case .duplicateFieldId: .codecFailure
     case .unorderedFieldId: .codecFailure
+    case .missingRequiredField: .codecFailure
+    case .invalidWireKind: .codecFailure
+    case .unsupportedWireKind: .codecFailure
     case .invalidBool: .codecFailure
     case .invalidUtf8: .codecFailure
     case .invalidEnumSubset: .codecFailure
     case .unusedPresenceBit: .codecFailure
     case .truncatedBlock: .codecFailure
     case .trailingData: .codecFailure
+    case .controlIntegerOverflow: .codecFailure
+    case .fieldIdOverflow: .codecFailure
     case .countOverflow: .codecFailure
     case .traversalLimit: .codecFailure
   }
@@ -371,6 +381,9 @@ test "compatible directory lengths use checked equality" for directoryLengthIsVa
 test "strict decoding rejects alternate representations" for expectedDisposition {
   expect expectedDisposition(for: .nonMinimalControlInteger) == .codecFailure
   expect expectedDisposition(for: .duplicateFieldId) == .codecFailure
+  expect expectedDisposition(for: .missingRequiredField) == .codecFailure
+  expect expectedDisposition(for: .invalidWireKind) == .codecFailure
+  expect expectedDisposition(for: .unsupportedWireKind) == .codecFailure
   expect expectedDisposition(for: .invalidUtf8) == .codecFailure
   expect expectedDisposition(for: .invalidEnumSubset) == .codecFailure
   expect expectedDisposition(for: .countOverflow) == .codecFailure
