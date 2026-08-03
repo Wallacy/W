@@ -17349,7 +17349,8 @@ WReleaseEnvelope
   maintainerPolicy, reproductionPolicy, securityPolicy
 
 WBuildAttestation
-  builderIdentity, recipeDigest, inputDigests, outputDigests
+  builderIdentity, operatorIdentity, credentialIdentity, executionRootIdentity
+  recipeDigest, inputDigests, outputDigests
   executionPlatform, normalizedEnvironment, comparisonMethod
 
 WPlatformEnvelope
@@ -17405,6 +17406,13 @@ medir independência e quorum, mas não é um input da build. O oracle do Últim
 Luz usa inteiros pequenos somente como rótulos de digest; o record de produção
 usa bytes completos do algoritmo tagged selecionado.
 
+O verifier calcula independência entre cada par de attestations. A dupla só é
+independente quando `builderIdentity`, `operatorIdentity`,
+`credentialIdentity` e `executionRootIdentity` não coincidem. Um contador de
+jobs ou de assinaturas não substitui essa prova. Se o threshold foi alcançado,
+mas a independência não foi provada, o estado é `rejected`, não
+`reproducible`.
+
 A policy do registry define um threshold. O default público de W exige dois
 builders com authorities independentes. Independência significa operadores,
 credentials e execution roots distintos. Dois jobs em uma única CI não formam
@@ -17415,7 +17423,7 @@ Os estados permanecem ortogonais:
 | Estado | Prova mínima |
 |---|---|
 | `published` | envelope e maintainer policy válidos |
-| `reproducible` | threshold de attestations com output digest igual |
+| `reproducible` | threshold de attestations independentes com inputs e output digests iguais |
 | `audited` | `reproducible` e relatório de análise identificado |
 | `rejected` | digest, signature, policy ou recipe inválidos |
 | `yanked` | maintainer retirou a recomendação, sem apagar bytes |
@@ -20749,6 +20757,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
 | W-725 | resolução de execution domain | preference explícita vence herdada, que vence default; `spawn` exige default paralelo; `.main` e domains seriais rejeitam parallel intent; deployment só reduz capacity; domain declaration não cria executor | thread group fixo no source; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
 | W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
+| W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

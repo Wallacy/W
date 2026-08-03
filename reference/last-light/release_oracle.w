@@ -10,6 +10,53 @@ struct ReleasePolicy {
 // The production record uses the selected digest algorithm and full bytes.
 type EvidenceDigest = u64
 
+struct BuilderEvidence {
+  builderIdentity: EvidenceDigest
+  operatorIdentity: EvidenceDigest
+  credentialIdentity: EvidenceDigest
+  executionRootIdentity: EvidenceDigest
+}
+
+enum IndependenceVerdict {
+  independent
+  sameBuilder
+  sameOperator
+  sameCredential
+  sameExecutionRoot
+}
+
+const fn compareBuilderIndependence(
+  first: BuilderEvidence,
+  second: BuilderEvidence,
+): IndependenceVerdict {
+  if first.builderIdentity == second.builderIdentity {
+    return .sameBuilder
+  }
+
+  if first.operatorIdentity == second.operatorIdentity {
+    return .sameOperator
+  }
+
+  if first.credentialIdentity == second.credentialIdentity {
+    return .sameCredential
+  }
+
+  if first.executionRootIdentity == second.executionRootIdentity {
+    return .sameExecutionRoot
+  }
+
+  return .independent
+}
+
+enum QuorumDecision {
+  verified
+  insufficientEvidence
+  duplicateBuilder
+  duplicateOperator
+  duplicateCredential
+  duplicateExecutionRoot
+}
+
 struct BuildEvidence {
   inputsComplete: Bool
   outputsComplete: Bool
@@ -81,6 +128,7 @@ const fn verifyRelease(
   maintainerThresholdMet: Bool,
   payloadDigestMatches: Bool,
   independentRebuilders: u16,
+  quorum: QuorumDecision,
   sourcePublic: Bool,
   transparencyRecorded: Bool,
   revoked: Bool,
@@ -108,6 +156,10 @@ const fn verifyRelease(
 
   if independentRebuilders < policy.requiredRebuilders {
     return .published
+  }
+
+  if quorum != .verified {
+    return .rejectReproduction
   }
 
   if policy.requiresPublicSource && !sourcePublic {
@@ -167,6 +219,7 @@ test "release verification separates signature from reproduction" for verifyRele
     maintainerThresholdMet: true,
     payloadDigestMatches: true,
     independentRebuilders: 0,
+    quorum: .insufficientEvidence,
     sourcePublic: true,
     transparencyRecorded: true,
     revoked: false,
@@ -178,6 +231,7 @@ test "release verification separates signature from reproduction" for verifyRele
     maintainerThresholdMet: true,
     payloadDigestMatches: true,
     independentRebuilders: 2,
+    quorum: .verified,
     sourcePublic: true,
     transparencyRecorded: true,
     revoked: false,
@@ -189,6 +243,7 @@ test "release verification separates signature from reproduction" for verifyRele
     maintainerThresholdMet: true,
     payloadDigestMatches: true,
     independentRebuilders: 2,
+    quorum: .verified,
     sourcePublic: false,
     transparencyRecorded: true,
     revoked: false,
@@ -208,6 +263,7 @@ test "closed source keeps a separate reproduction claim" for verifyRelease {
     maintainerThresholdMet: true,
     payloadDigestMatches: true,
     independentRebuilders: 2,
+    quorum: .verified,
     sourcePublic: false,
     transparencyRecorded: true,
     revoked: false,
@@ -227,6 +283,7 @@ test "revocation and digest mismatch fail before installation" for verifyRelease
     maintainerThresholdMet: true,
     payloadDigestMatches: false,
     independentRebuilders: 1,
+    quorum: .insufficientEvidence,
     sourcePublic: false,
     transparencyRecorded: false,
     revoked: false,
@@ -238,6 +295,7 @@ test "revocation and digest mismatch fail before installation" for verifyRelease
     maintainerThresholdMet: true,
     payloadDigestMatches: true,
     independentRebuilders: 1,
+    quorum: .insufficientEvidence,
     sourcePublic: false,
     transparencyRecorded: false,
     revoked: true,
@@ -258,6 +316,56 @@ test "signing roles remain separate" for rolesMayShareKey {
   expect !rolesMayShareKey(.maintainer, .builder)
   expect !rolesMayShareKey(.builder, .platform)
   expect !rolesMayShareKey(.registry, .platform)
+}
+
+const fn builderEvidence(builderIdentity: EvidenceDigest): BuilderEvidence {
+  return BuilderEvidence(
+    builderIdentity: builderIdentity,
+    operatorIdentity: builderIdentity + 100,
+    credentialIdentity: builderIdentity + 200,
+    executionRootIdentity: builderIdentity + 300,
+  )
+}
+
+test "quorum requires distinct builders, operators, credentials, and roots" for compareBuilderIndependence {
+  let first = builderEvidence(builderIdentity: 1)
+  let second = builderEvidence(builderIdentity: 2)
+  expect compareBuilderIndependence(first: first, second: second) == .independent
+
+  let sameBuilder = builderEvidence(builderIdentity: 1)
+  expect compareBuilderIndependence(first: first, second: sameBuilder) == .sameBuilder
+
+  var sameOperator = builderEvidence(builderIdentity: 3)
+  sameOperator.operatorIdentity = first.operatorIdentity
+  expect compareBuilderIndependence(first: first, second: sameOperator) == .sameOperator
+
+  var sameCredential = builderEvidence(builderIdentity: 4)
+  sameCredential.credentialIdentity = first.credentialIdentity
+  expect compareBuilderIndependence(first: first, second: sameCredential) == .sameCredential
+
+  var sameRoot = builderEvidence(builderIdentity: 5)
+  sameRoot.executionRootIdentity = first.executionRootIdentity
+  expect compareBuilderIndependence(first: first, second: sameRoot) == .sameExecutionRoot
+}
+
+test "a counted but non-independent quorum cannot claim reproduction" for verifyRelease {
+  let policy = ReleasePolicy(
+    requiredRebuilders: 2,
+    requiresPublicSource: true,
+    requiresTransparency: true,
+  )
+
+  expect verifyRelease(
+    policy: policy,
+    maintainerThresholdMet: true,
+    payloadDigestMatches: true,
+    independentRebuilders: 2,
+    quorum: .duplicateOperator,
+    sourcePublic: true,
+    transparencyRecorded: true,
+    revoked: false,
+    yanked: false,
+  ) == .rejectReproduction
 }
 
 const fn completeEvidence(builderIdentity: EvidenceDigest): BuildEvidence {
