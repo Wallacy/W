@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 1 de agosto de 2026**
+> **Working Draft · 3 de agosto de 2026**
 >
 > **Prazer para humanos. Clareza para máquinas.**
 
@@ -14,20 +14,34 @@ Leia estes artefatos nesta ordem:
 
 1. [DESIGN.md](DESIGN.md) — contrato integral de linguagem, runtime, SDK,
    compilador, packages, distribuição, tooling, plano e alternativas;
-2. [Última Luz](reference/last-light/README.md) — produto de referência,
+2. [DESIGN-INDEX.md](DESIGN-INDEX.md) — índice gerado com intervalos, métricas e
+   pesquisas abertas; não define semântica;
+3. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
-3. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+4. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-4. [Deployments](reference/last-light/deployments/README.md) — planos local e
+5. [Deployments](reference/last-light/deployments/README.md) — planos local e
    distribuído;
-5. [Rascunho da std](std/README.md) — contratos da standard library em W;
-6. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+6. [Rascunho da std](std/README.md) — contratos da standard library em W;
+7. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
 
 `DESIGN.md` é a única autoridade para o estado atual. O Book e o produto de
 referência mostram esse contrato, mas não criam regras próprias.
+
+Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
+integral. O check do tooling falha quando o índice fica desatualizado.
+
+Para validar somente documentação e índice:
+
+```powershell
+cd W # omita esta linha quando W for a raiz do repository
+npm --prefix tooling/tree-sitter-w run check:docs
+```
+
+Use `npm run check` quando grammar, corpus, std ou sources `.w` mudarem.
 
 ## Estado atual
 
@@ -82,6 +96,7 @@ passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
 ## Histórico
 
 As notas originais e os documentos substituídos ficam em
-[`Y/W/`](../Y/W/). A consolidação substituída de 27 de julho de 2026 está em
-[`Y/W/archive/db1-2026-07-27/`](../Y/W/archive/db1-2026-07-27/). Esses arquivos
-preservam proveniência. Eles não definem o W atual.
+[`Y/W/`](https://github.com/Wallacy/wallacy.com/tree/master/Y/W). A consolidação
+substituída de 27 de julho de 2026 está no
+[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27).
+Esses arquivos preservam proveniência. Eles não definem o W atual.

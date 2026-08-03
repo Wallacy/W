@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 1 de agosto de 2026
+> **Status:** **Candidato experimental** · 3 de agosto de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
@@ -47,8 +47,40 @@ Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
 
 O histórico das consolidações anteriores e as notas originais ficam em
-[`Y/W/`](../Y/W/). O Git preserva autoria, datas e diffs. Este arquivo é a única
-fonte de verdade para o estado atual.
+[`Y/W/`](https://github.com/Wallacy/wallacy.com/tree/master/Y/W). O Git preserva
+autoria, datas e diffs. Este arquivo é a única fonte de verdade para o estado
+atual.
+
+### Checkpoint de maturidade
+
+Este checkpoint estima trabalho de design. Ele não mede implementação. O
+[índice gerado](DESIGN-INDEX.md) contém as contagens atuais e os intervalos de
+leitura.
+
+| Eixo | Estimativa | Evidência e limite atual |
+|---|---:|---|
+| superfície e semântica estática | 85–90% | a forma integrada e as alternativas estão registradas; o corpus comparativo ainda não ratificou todas as escolhas |
+| compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
+| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
+| validação executável | 25–35% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
+| prontidão para design freeze | 65–75% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
+| prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
+
+As faixas são estimativas de planejamento. Uma contagem de decisões não prova
+correção. Um item **Provável** precisa de um spike quando o resultado pode mudar
+source, tipo, ABI ou comportamento runtime.
+
+Os ciclos restantes para o design freeze são:
+
+1. ratificar syntax, formatter e diagnostics com o corpus da seção 26;
+2. provar o kernel de memória, ownership, ABI e FFI em HIR pequena;
+3. provar tasks, services, transaction e wWire com fault injection;
+4. provar `bootstrap.w0`, metadata, resolver e reprodução com spikes mínimos;
+5. limitar T0/T1/T2, revisar targets e fechar o contrato público.
+
+Pesquisas que possuem fallback não bloqueiam o freeze. Elas permanecem T2 ou
+experimentais. Uma pesquisa bloqueia somente quando pode alterar a baseline.
+Mover W para outro repository também não muda este checkpoint.
 
 ### 0.1 Promessa
 
@@ -19677,8 +19709,8 @@ rastreáveis.
 
 Estas mudanças são experimentais. A fotografia da consolidação continua
 acessível no
-[arquivo histórico](../Y/W/archive/db1-2026-07-27/README.md) e no histórico do
-Git.
+[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27)
+e no histórico do Git.
 
 ## 29. Registro de decisões e alternativas
 
@@ -20392,6 +20424,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-703 | metadata e mirrors | root, targets, snapshot, timestamp, expiry, threshold e digest protegem registry; mirror é transporte | URL como trust; rollback/freeze aceitos; fallback para mirror não listado; bytes mutáveis |
 | W-704 | transparency adapter | Sigstore/Rekor pode atestar identidade e registro; trust policy W continua local e separada | log como única autorização; OIDC como root universal; chave do builder acumula maintainer e platform |
 | W-705 | ergonomia de transaction | contract default permite omitir `<...>`, mas `tx = provider`, body e `commit` continuam explícitos | `try await transaction;`; provider ambient; `tx` implícito; commit por `return` |
+| W-706 | navegação do design | `DESIGN.md` continua canônico e integral; índice gerado publica intervalos e métricas; check impede drift | capítulos com autoridades separadas; resumo manual duplicado; leitura integral por default |
+| W-707 | gate de design freeze | cinco ciclos fecham ergonomia, kernel, execução, toolchain e contrato público; pesquisa com fallback não bloqueia | número de decisões prova completude; toda pesquisa bloqueia; implementação ampla antes dos spikes |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
