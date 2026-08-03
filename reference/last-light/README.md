@@ -177,6 +177,7 @@ alvo de execução independente.
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
 | `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |
@@ -222,7 +223,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, transaction, commit e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
@@ -672,10 +673,33 @@ output gate. A variante durável deverá injetar falha antes, durante e depois d
 confirmação. Falha confirmada produz `commitFailed`. Confirmação perdida produz
 `unknownOutcome`. Nenhum caso repete a captura sem a mesma idempotency key.
 
-O caso de stream usará telemetria de satélite. O receiver concede créditos de
-items e bytes. Um peer lento não aumenta memória sem limite. A syntax de stream
-em um service protocol continua em **Pesquisa**, portanto `SatelliteApi` ainda
-usa uma call unary.
+O caso de stream usa telemetria de satélite. `SatelliteApi` mantém a call unary
+e acrescenta uma edge contínua:
+
+```w
+export protocol SatelliteApi {
+  async fn telemetry(after sequence: u64): SatelliteTelemetry throws SatelliteError
+  async fn follow(
+    after sequence: u64,
+  ): some Stream<SatelliteTelemetry, SatelliteError>
+}
+```
+
+`SatelliteError` possui o case único `service(ServiceFailure)`. Assim, um
+terminal da aplicação e um disconnect continuam no mesmo `for try await` sem
+perder a causa. `Stream<..., Never>`, `view` e `any Stream` são inválidos nessa
+boundary.
+
+`collectTelemetry` aplica `buffer(capacity: 8)` de forma explícita e para em um
+limite refinado. O `break` envia reset e drena o producer. `package.w` limita
+streams abertos, item bytes, items e bytes em voo, fila decoded, traversal,
+capability slots e taxa. Limites `perStream` e `total` impedem multiplicação do
+envelope por streams concorrentes.
+
+O `remote_stream_oracle.w` verifica os dois créditos absolutos. O sender só
+avança quando possui item e bytes. Uma redução de crédito ou envio acima do
+grant produz protocol failure. Mesma route usa ligação direta. Outra route usa
+relay bounded e nunca materializa o feed inteiro.
 
 O corpus de evolução combina dois artifacts:
 

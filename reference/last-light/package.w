@@ -343,6 +343,33 @@ package {
           .wrpc(transports: [.ipc, .network]),
         ]
         dynamicRebinding: .deny
+        streamLimits: {
+          open: 64
+          perStream: {
+            itemBytes: 256KiB
+            inFlight: { items: 8, bytes: 1MiB }
+            queued: { items: 8, bytes: 1MiB }
+            traversalPerItem: 1MiB
+            capabilitySlots: 64
+            rate: {
+              itemsPerSecond: 4_096
+              bytesPerSecond: 16MiB
+              burstItems: 8
+              burstBytes: 1MiB
+            }
+          }
+          total: {
+            inFlight: { items: 256, bytes: 16MiB }
+            queued: { items: 256, bytes: 16MiB }
+            capabilitySlots: 1_024
+            rate: {
+              itemsPerSecond: 32_768
+              bytesPerSecond: 128MiB
+              burstItems: 256
+              burstBytes: 16MiB
+            }
+          }
+        }
       }
       services: []
       requirements: [

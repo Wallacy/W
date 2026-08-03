@@ -158,6 +158,11 @@ permitidos. `.local` usa mailbox e thunk. `.component` usa a component ABI.
 `.wrpc` declara seus transports internos. O resolver cria os slots durante o
 startup. Um nome textual não cria authority.
 
+Um graph que alcança uma service stream também declara `streamLimits`. O
+`observatory-client` limita streams abertos, bytes por item, janelas em voo,
+fila decoded, traversal, capability slots e taxa. O deployment pode reduzir
+esses limites. Ele não pode ampliá-los.
+
 `restaurant-core` liga `lastLight` ao provider local por default. Uma launch
 config pode selecionar um provider assinado por component, IPC ou network. O
 artifact mantém os mesmos bytes e grava a configuração no startup audit record.
@@ -184,6 +189,10 @@ A expressão `pipeline` entra no `ServiceIR` como um DAG de calls dependentes. O
 linker divide o grafo em ilhas de route. O runtime preserva effect IDs, cleanup
 e incerteza quando uma barreira impede o fast path. O build não transforma o
 pipeline em uma transaction nem em uma closure remota.
+
+Uma edge `some Stream<Item, Failure>` também entra no `ServiceIR`. O linker usa
+ligação direta dentro da mesma route. Outra route recebe um relay bounded com
+créditos de items e bytes. `Failure` precisa aceitar `ServiceFailure`.
 
 `transaction<...> tx = provider { ...; commit value }` usa um único provider
 nominal. O product fixa seus limits e capabilities. Um binding local pode usar
