@@ -15344,6 +15344,23 @@ O comando futuro `w bootstrap explain` lista stages, compiler parents, source
 digests, adapters, environment e pontos de convergência. Um artifact sem essa
 recipe pode funcionar, mas não recebe o estado “bootstrap reproduzido”.
 
+#### 20.5.5 Oracle de fechamento
+
+**Exemplo:** `bootstrap_oracle.w` aceita diferença de target metadata, mas
+rejeita HIR, interface, diagnostics ou payload diferentes:
+
+| Fato | Resultado |
+|---|---|
+| stage A → B → C → D mantém um parent único | stage válido |
+| `core-w0` usa somente `core-w0` e o adapter C | dependência válida |
+| `core-w0` importa `compiler/extended` | rejeição de fechamento |
+| stages têm somente target metadata diferente | diferença em sidecar |
+| input declarado ausente ou HIR divergente | drift e falha |
+
+O oracle não afirma que o compiler já existe. Ele torna testável a fronteira que
+o primeiro bootstrap precisa satisfazer. O build futuro deve acrescentar hashes,
+recipes e diagnostics reais sem mudar essas categorias.
+
 ### 20.6 Incrementalidade
 
 **Exemplo:** alterar o corpo privado de `parseLine` não recompila importers
@@ -19979,7 +19996,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-113 | momento do self-host | depois de memória/FFI e antes de tasks | somente após o design completo |
 | W-114 | cláusula estática | `<...>` no source e record tipado na HIR | `where`/`on`; modifier map |
 | W-115 | slots angulares | schema declara posição, labels e slot primário | inferir slot pelo nome do enum case |
-| W-116 | evolução self-host | gates SH0–SH7; W0 fechado e core separado | marco único; compiler usa toda o design vigente |
+| W-116 | evolução self-host | gates SH0–SH7; cadeia seed C → A → B → C → D; oracle rejeita dependência de extended e drift fora de target metadata | marco único; compiler usa todo o design vigente; aceitar igualdade de payload sem comparar HIR |
 | W-117 | eixos de execução | lifetime, intent, preference, isolation e affinity separados | thread group único |
 | W-118 | início de child | `async let`/`spawn let` iniciam na declaração | lazy no primeiro await |
 | W-119 | task longa | owner runtime explícito; sem detached sem owner | drop destaca; task global |

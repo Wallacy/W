@@ -182,6 +182,7 @@ alvo de execução independente.
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, threshold de reprodução, mirrors e revogação |
 | `metadata_oracle.w` | separação entre CBOR, WMeta1 e wWire; inputs da recipe |
+| `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
@@ -959,6 +960,8 @@ Aceite:
 - quota, target e evaluator version entram na recipe e no cache;
 - clock, environment, FFI e filesystem não entram no evaluator;
 - um panic durante const evaluation produz `W-CONST`, não uma fault boundary;
+- `bootstrap_oracle.w` rejeita dependência de `compiler/extended` no core e
+  diferencia drift de target metadata;
 - o ensaio cresce pelos gates SH0–SH7 antes de declarar self-host completo.
 
 Cobertura atual:
