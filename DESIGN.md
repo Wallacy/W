@@ -18979,6 +18979,27 @@ O decoder gerado usa uma state machine iterativa. Um tipo recursive não usa a
 stack nativa sem conferir depth. Large String e Bytes podem adotar frame storage
 quando ownership, alignment e lifetime permitem. Zero-copy não é promessa.
 
+O oracle `wire_oracle.w` trata esses budgets como um produto, não como um limite
+único. `receivedBytes`, `logicalBytes`, `nodes`, `depth` e `allocationBytes`
+devem passar seus limites individuais antes da materialização. O decoder também
+valida `directoryBytes + blockBytes == recordBytes` com arithmetic checked. A
+falha ocorre antes de reservar o destino:
+
+```w
+let limits = WireLimits(
+  maximumReceivedBytes: 4<KiB>,
+  maximumLogicalBytes: 16<KiB>,
+  maximumNodes: 128,
+  maximumDepth: 8,
+  maximumAllocationBytes: 16<KiB>,
+)
+```
+
+Os testes do oracle cobrem budget excedido, soma incompatível e overflow da
+mensagem máxima `u32`. Eles não afirmam que o encoder ou decoder de produção
+já existe. O gate ainda exige duas implementações, fuzzer diferencial e
+benchmark proporcional ao profile.
+
 **Unknown fields e capabilities.** O profile `exact` não possui unknown fields.
 O profile `compatible` valida a estrutura de cada unknown block pela wire kind.
 Um valor W comum descarta esse block. Um gateway explícito pode manter o block
@@ -20648,6 +20669,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-717 | schema do replay | eventos de task, service, commit e owner pertencem ao logical trace; worker, thread, queue e transport ficam no sidecar físico | trace bruto como contrato; worker ID como identidade W; ignorar owner closure; comparar somente payload final |
 | W-718 | fault injection determinístico | `FaultSpec` usa `caseId`, boundary, point, action e occurrence bounded; combinações inválidas falham antes do runner; identidade entra no logical trace | relógio ou random como seletor; worker ID como selector; ocorrência ilimitada; colapsar cancel, error, commit uncertainty e panic |
 | W-719 | lifecycle de stream | oracle distingue abertura, item, terminal, reset, drain e protocol failure; fault points de `open`, `decode` e `close` preservam outcomes próprios | `done()` posterior; reset como fim normal; item tardio entregue; error de boundary oculto; destructor assíncrono |
+| W-720 | preflight do decoder wWire | budgets separados, soma checked de directory e blocks, e rejeição antes da reserva; oracle cobre excesso e overflow | limite único de bytes; reservar por count; soma unchecked; normalizar forma não canônica |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

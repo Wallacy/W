@@ -150,6 +150,52 @@ const fn unsignedWireBytes(for maximum: u64): u8 {
   }
 }
 
+const maximumWireMessageBytes: u64 = 4_294_967_295
+
+struct WireBudget {
+  receivedBytes: u64
+  logicalBytes: u64
+  nodes: u64
+  depth: u32
+  allocationBytes: u64
+}
+
+struct WireLimits {
+  maximumReceivedBytes: u64
+  maximumLogicalBytes: u64
+  maximumNodes: u64
+  maximumDepth: u32
+  maximumAllocationBytes: u64
+}
+
+const fn budgetFits(
+  limits: WireLimits,
+  usage: WireBudget,
+): Bool {
+  return usage.receivedBytes <= limits.maximumReceivedBytes &&
+    usage.logicalBytes <= limits.maximumLogicalBytes &&
+    usage.nodes <= limits.maximumNodes &&
+    usage.depth <= limits.maximumDepth &&
+    usage.allocationBytes <= limits.maximumAllocationBytes
+}
+
+const fn directoryLengthIsValid(
+  directoryBytes: u64,
+  blockBytes: u64,
+  recordBytes: u64,
+): Bool {
+  if directoryBytes > maximumWireMessageBytes ||
+    blockBytes > maximumWireMessageBytes {
+    return false
+  }
+
+  if directoryBytes > maximumWireMessageBytes - blockBytes {
+    return false
+  }
+
+  return directoryBytes + blockBytes == recordBytes
+}
+
 enum WireDefect {
   nonMinimalControlInteger
   duplicateFieldId
@@ -254,6 +300,72 @@ test "a refinement can reduce a fixed wire width" for unsignedWireBytes {
   expect unsignedWireBytes(for: 4_096) == 2
   expect unsignedWireBytes(for: 4_294_967_295) == 4
   expect unsignedWireBytes(for: 4_294_967_296) == 8
+}
+
+test "decoder budgets are independent and bounded" for budgetFits {
+  let limits = WireLimits(
+    maximumReceivedBytes: 4_096,
+    maximumLogicalBytes: 16_384,
+    maximumNodes: 128,
+    maximumDepth: 8,
+    maximumAllocationBytes: 16_384,
+  )
+  let usage = WireBudget(
+    receivedBytes: 512,
+    logicalBytes: 2_048,
+    nodes: 12,
+    depth: 4,
+    allocationBytes: 2_048,
+  )
+  expect budgetFits(limits: limits, usage: usage)
+  expect !budgetFits(
+    limits: limits,
+    usage: WireBudget(
+      receivedBytes: 512,
+      logicalBytes: 16_384 + 1,
+      nodes: 12,
+      depth: 4,
+      allocationBytes: 2_048,
+    ),
+  )
+  expect !budgetFits(
+    limits: limits,
+    usage: WireBudget(
+      receivedBytes: 512,
+      logicalBytes: 2_048,
+      nodes: 129,
+      depth: 4,
+      allocationBytes: 2_048,
+    ),
+  )
+  expect !budgetFits(
+    limits: limits,
+    usage: WireBudget(
+      receivedBytes: 512,
+      logicalBytes: 2_048,
+      nodes: 12,
+      depth: 4,
+      allocationBytes: 16_384 + 1,
+    ),
+  )
+}
+
+test "compatible directory lengths use checked equality" for directoryLengthIsValid {
+  expect directoryLengthIsValid(
+    directoryBytes: 4,
+    blockBytes: 8,
+    recordBytes: 12,
+  )
+  expect !directoryLengthIsValid(
+    directoryBytes: 4,
+    blockBytes: 8,
+    recordBytes: 11,
+  )
+  expect !directoryLengthIsValid(
+    directoryBytes: maximumWireMessageBytes,
+    blockBytes: 1,
+    recordBytes: 0,
+  )
 }
 
 test "strict decoding rejects alternate representations" for expectedDisposition {
