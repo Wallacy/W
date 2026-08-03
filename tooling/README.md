@@ -16,6 +16,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | [Tree-sitter](tree-sitter-w/README.md) | parser incremental e queries estruturais sobre o subset candidato | protótipo; o gate do parser normativo está em `DESIGN.md` |
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
+| `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
 | `design-index.mjs` | gera intervalos e métricas de `DESIGN.md` | projeção navegável; não define decisões |
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
@@ -89,6 +90,8 @@ integrações de editor.
    `node tooling/design-index.mjs --write` na pasta `W`.
 6. Para ler somente um recorte do design, execute
    `node tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
+7. Para validar documentação, links e índice, execute `npm run check:docs` no
+   root do repositório.
 
 ## Caminho até o browser
 

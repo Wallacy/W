@@ -1,0 +1,18 @@
+{
+  "name": "w-language-project",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Design and executable specification workspace for the W language",
+  "license": "MIT",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "tooling:install": "npm ci --prefix tooling/tree-sitter-w",
+    "check": "npm --prefix tooling/tree-sitter-w run check",
+    "check:docs": "npm --prefix tooling/tree-sitter-w run check:docs",
+    "check:links": "node tooling/check-markdown-links.mjs",
+    "design:index": "node tooling/design-index.mjs --write",
+    "design:index:check": "node tooling/design-index.mjs --check"
+  }
+}

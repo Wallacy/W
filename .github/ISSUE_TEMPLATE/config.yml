@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Falha de segurança
+    url: https://github.com/Wallacy/W/security/advisories/new
+    about: Não publique vulnerabilidades em uma issue.
+  - name: Governança e contribuição
+    url: https://github.com/Wallacy/W/blob/main/GOVERNANCE.md
+    about: Leia autoridade, revisão e recurso antes de propor uma mudança de processo.
