@@ -207,3 +207,150 @@ async fn drain(
                 (argument
                   (unary_expression
                     (identifier)))))))))))
+
+==================
+Service stream positions and relay pipeline
+==================
+
+protocol TelemetryApi {
+  async fn follow(
+    after sequence: u64,
+  ): some Stream<Telemetry, TelemetryError>
+}
+
+protocol ArchiveApi {
+  async fn ingest(
+    source: take some Stream<Telemetry, TelemetryError>,
+  ): Receipt throws ArchiveError
+}
+
+async fn relay(
+  telemetry: ServiceRef<TelemetryApi>,
+  archive: ServiceRef<ArchiveApi>,
+  sequence: u64,
+): Receipt throws RelayError {
+  return try await pipeline {
+    let feed = telemetry.follow(after: sequence)
+    let receipt = archive.ingest(source: take feed)
+    return receipt
+  }
+}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))))
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body
+      (function_declaration
+        (identifier)
+        (parameter_list
+          (parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))
+              (type_arguments
+                (type_argument
+                  (type
+                    (type_name
+                      (type_identifier))))
+                (type_argument
+                  (type
+                    (type_name
+                      (type_identifier))))))))
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list
+                      (argument
+                        (identifier)
+                        (identifier)))))
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list
+                      (argument
+                        (identifier)
+                        (unary_expression
+                          (identifier))))))
+                (return_statement
+                  (identifier))))))))))

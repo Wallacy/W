@@ -36,6 +36,9 @@ export enum SatelliteError: Error {
 
 export protocol SatelliteApi {
   async fn telemetry(after sequence: u64): SatelliteTelemetry throws SatelliteError
+  async fn follow(
+    after sequence: u64,
+  ): some Stream<SatelliteTelemetry, SatelliteError>
   async fn command(next: take StateVector, sequence: u64): () throws SatelliteError
 }
 
@@ -61,6 +64,26 @@ export async fn observePair(
   async<.network> let rightSample = right.telemetry(after: sequence)
   let (leftSample, rightSample) = try await (leftSample, rightSample)
   return PairTelemetry(left: leftSample, right: rightSample)
+}
+
+export async fn collectTelemetry(
+  satellite: ServiceRef<SatelliteApi>,
+  after sequence: u64,
+  maximum: usize<(1...256)>,
+): Array<SatelliteTelemetry> throws SatelliteError {
+  let remote = try await satellite.follow(after: sequence)
+  var feed = (take remote).buffer(capacity: 8)
+  var samples = Array<SatelliteTelemetry>(minimumCapacity: maximum)
+
+  for try await sample in feed {
+    samples.append(take sample)
+
+    if samples.count == maximum {
+      break
+    }
+  }
+
+  return samples
 }
 
 export struct CollisionWindow {

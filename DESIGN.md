@@ -7192,6 +7192,10 @@ Interior mutation, capabilities e aliases `shared` impedem que um wrapper
 universal prometa imutabilidade profunda. A seção 16.2 fecha os descriptors,
 lifetimes e limites das views.
 
+Um service stream não aceita `view Item`. A boundary exige um owner
+`WireValue`. O adapter pode materializar uma view antes do envio, mas não pode
+estender seu lifetime por configuração. A seção 23.1.5 fecha essa projeção.
+
 #### 12.9.3 Endpoint e topologia de `Channel`
 
 **Forma vigente:** o channel básico é MPSC: vários senders e um receiver. A criação
@@ -9822,6 +9826,48 @@ suas identities no source.
 `servicePolicy` define quando o resolver escolhe o provider. Ele também limita
 os links e os transports internos de wRPC. `.startup` permite override antes do
 entry. `.deny` impede que uma referência ativa troque de provider.
+
+Um graph que alcança uma service stream deve declarar `streamLimits`:
+
+```w
+streamLimits: {
+  open: 64
+  perStream: {
+    itemBytes: 256KiB
+    inFlight: { items: 8, bytes: 1MiB }
+    queued: { items: 8, bytes: 1MiB }
+    traversalPerItem: 1MiB
+    capabilitySlots: 64
+    rate: {
+      itemsPerSecond: 4_096
+      bytesPerSecond: 16MiB
+      burstItems: 8
+      burstBytes: 1MiB
+    }
+  }
+  total: {
+    inFlight: { items: 256, bytes: 16MiB }
+    queued: { items: 256, bytes: 16MiB }
+    capabilitySlots: 1_024
+    rate: {
+      itemsPerSecond: 32_768
+      bytesPerSecond: 128MiB
+      burstItems: 256
+      burstBytes: 16MiB
+    }
+  }
+}
+```
+
+O product envelope fixa os máximos. Um deployment pode reduzi-los por unit ou
+edge. Ele não pode ampliar uma garantia publicada. O compiler rejeita um graph
+sem limites quando uma interface alcançável contém `Stream`.
+
+Esses totais alimentam a lens de import da seção 9.12. O editor pode
+mostrar o máximo incremental de roots, buffers e capability slots ao lado da
+binding. Ele deve rotular esse valor como envelope estático. Telemetry observada
+permanece uma medida distinta. `w explain memory --service-edge <edge>` mostra
+as duas fontes e a fórmula usada.
 
 O resolver escolhe um link permitido para cada edge:
 
@@ -17573,43 +17619,231 @@ admission, deadline, errors e unknown outcome permanecem na seção 13.6.
 
 #### 23.1.5 Streaming e flow control
 
-**Direção:** W reutiliza `Stream<Item, Failure>`. A API não cria quatro tipos
-RPC para unary, client streaming, server streaming e bidirectional streaming.
-A posição dos streams na signature define a forma da call.
+**Forma vigente:** um service protocol usa o mesmo
+`Stream<Item, Failure>` da seção 12.9. A API não cria tipos distintos para
+server, client ou bidirectional streaming. A posição do stream define a direção:
 
-```text
-async fn readings(query: TelemetryQuery)
-  -> some Stream<Reading, TelemetryError>
+```w
+export protocol TelemetryApi {
+  async fn follow(
+    after sequence: u64,
+  ): some Stream<Telemetry, TelemetryError>
+}
 
-async fn upload(source: take some Stream<Bytes, UploadError>)
-  -> UploadReceipt throws UploadError
+export protocol ArchiveApi {
+  async fn ingest(
+    source: take some Stream<Telemetry, TelemetryError>,
+  ): ArchiveReceipt throws ArchiveError
+}
+
+export protocol RelayApi {
+  async fn exchange(
+    source: take some Stream<Request, RequestStreamError>,
+  ): some Stream<Response, ResponseStreamError> throws OpenError
+}
 ```
 
-A syntax exata de `Stream` em um service protocol permanece **Pesquisa**. O
-contrato já está fechado:
+Uma posição de input exige `take some Stream<Item, Failure>`. Uma posição de
+output exige `some Stream<Item, Failure>`. `any Stream` não aparece numa
+interface de service. Erasure continua disponível dentro de uma implementação,
+mas não altera o contrato publicado.
 
-- um stream possui um único consumer lógico;
-- items owned atravessam com move;
-- `view T` não atravessa a boundary;
-- ordem é preservada dentro do stream;
-- o terminal separa application failure de boundary failure;
-- drop do consumer envia reset e inicia drain do producer;
-- cancellation e deadline cobrem call e streams derivados.
+No output, a identidade opaque pertence ao result path da operation. O tipo
+concreto do producer não entra em `WInterface`, ABI ou wire schema. O
+`ServiceLink` fornece o concrete adapter observado pelo caller. Um local fast
+path pode especializar esse adapter sem alterar a identidade source.
 
-Flow control usa dois créditos: items e bytes. O sender não ultrapassa o menor
-crédito disponível. O receiver concede crédito somente depois de reservar
-buffer, mailbox quota e consumer capacity. Um item grande não contorna uma
-quota curta por contagem.
+Cada stream é uma edge própria no `ServiceIR` e recebe um `streamId`. Uma
+operation pode declarar mais de uma edge direta. Um stream não pode ficar
+oculto dentro de `Array`, `Map` ou outro `WireValue`. Um labeled tuple de output
+pode combinar values comuns e edges de stream. O `ServiceIR` preserva cada path.
 
-Cada stream também possui limites de in-flight bytes, queued items e total
-traversal. Um peer valida lengths antes de allocation. Um producer que ignora
-créditos causa protocol failure; ele não causa crescimento ilimitado.
+`Item` deve ser owned, transferable e `WireValue`. `ref`, `inout` e `view` são
+rejeitados. Um item pode conter uma `ServiceRef`; wRPC usa a capability table.
+O item continua single-consumer e single-pass depois do decode.
 
-gRPC define unary e três formas de streaming, mantém ordem em cada stream e usa
-flow control para proteger o receiver. W preserva essas propriedades, mas as
-integra com ownership e mailbox admission.
-[gRPC core concepts](https://grpc.io/docs/what-is-grpc/core-concepts/),
-[gRPC flow control](https://grpc.io/docs/guides/flow-control/)
+`Failure` precisa representar falhas do producer e da boundary. Ele deve ser
+`ServiceFailure` ou possuir exatamente uma conversão total de `ServiceFailure`.
+O mecanismo é o mesmo usado pelo `try` na seção 11.7:
+
+```w
+export enum TelemetryError: Error {
+  unavailable(SatelliteId)
+  stale(expectedAfter: u64, found: u64)
+  service(ServiceFailure)
+}
+```
+
+Uma interface remota rejeita `Stream<Item, Never>`. Mesmo um producer lógico
+infallible pode perder sua session. Ele declara um failure type que aceite
+`ServiceFailure`. Um stream local com `Never` pode ser alargado pelo adapter
+para esse failure type sem criar um application error.
+
+A abertura e o consumo são fases diferentes. A operation pode declarar
+`throws OpenError` para rejeitar a abertura. Depois de aberta, `.none` indica
+fim normal. `Failure` indica um terminal do producer ou uma falha da boundary.
+O trace distingue `call.open`, `stream.item` e `stream.terminal`.
+
+O terminal fica estável. Depois de `.none` ou de um `Failure`, `next()` devolve
+`.none`. W não adota uma regra em que uma operação de streaming parece concluir
+antes de executar e exige uma call `done()` posterior. Cap'n Proto usa essa
+forma para suas streaming calls e documenta a diferença de error handling. W
+mantém o terminal no próprio `Stream`.
+[Cap'n Proto — streaming flow control](https://capnproto.org/news/2020-04-23-capnproto-0.8.html)
+
+##### 23.1.5.1 Créditos
+
+Flow control usa totais absolutos e monotônicos para items e bytes:
+
+```text
+remainingItems = grantedItemsTotal - sentItemsTotal
+remainingBytes = grantedBytesTotal - sentLogicalBytesTotal
+```
+
+`streamCredit` transporta `grantedItemsTotal` e `grantedBytesTotal` como `u64`.
+Um total menor que o anterior, um overflow ou um item acima do crédito encerra
+a session com protocol failure. Totais absolutos evitam aplicar duas vezes um
+update duplicado por um adapter.
+
+Um item consome um crédito de item e seu tamanho lógico em bytes. Esse tamanho
+é o wWire canônico antes de compression e sem framing do transport. Compression
+não amplia a quota. Capability entries usam uma quota independente. Fragments
+do transport não viram items parciais para o consumer.
+
+O receiver reserva quota antes de conceder crédito. A reserva cobre:
+
+- item slots ainda não entregues;
+- bytes encoded ainda não consumidos;
+- queued decoded items e seus owners;
+- traversal e allocation do próximo decode;
+- capability slots alcançáveis.
+
+O stream comum não faz prefetch. Uma chamada pendente a `next()` concede no
+máximo um item. O adapter explícito `buffer(capacity:)` pode ampliar a janela de
+items até o limite do product. Ele não amplia bytes, item size ou capability
+limits sem outra reserva.
+
+Cada product e link limita:
+
+| Limite | Proteção |
+|---|---|
+| streams abertos | handles, roots e scheduler state |
+| bytes por item | allocation grande e framing |
+| items e bytes em voo | sender e receiver buffers |
+| items e bytes decoded em fila | owners ainda não consumidos |
+| traversal e allocation por item | decoder adversarial |
+| capability slots por stream | authority e table memory |
+| taxa de items e bytes | CPU e network de stream longo |
+
+O grant precisa caber nos limites `perStream` e `total`. Assim, vários streams
+não multiplicam o envelope do link. Admission de um stream novo reserva um root
+e participa do total antes de enviar `streamOpen`.
+
+Um stream longo não precisa de um limite cumulativo de bytes para existir. Ele
+continua bounded em cada instante e recebe rate budget. Um contrato finito pode
+adicionar `maximumItems` ou `maximumBytes` cumulativos.
+
+Rate usa dois token buckets por stream e dois por link. Eles usam clock
+monotônico, começam com o `burst` declarado e não acumulam acima dele. Um grant
+reserva tokens de item e bytes nos dois níveis. Refill usa a taxa como razão
+exata por nanosecond e carry inteiro; ele não usa wall clock ou float. Tokens
+reservados por crédito ainda não consumido não são concedidos a outro stream.
+
+gRPC também usa flow control para proteger o receiver e avisa que aceitar uma
+write não prova envio pela rede. W torna os dois créditos e a reserva parte do
+contrato wRPC. O runtime não os deixa como detalhe variável entre bindings.
+[gRPC — flow control](https://grpc.io/docs/guides/flow-control/)
+
+##### 23.1.5.2 Lifecycle e ownership
+
+**Exemplo:** sair depois de oito samples destrói `feed`. O adapter envia reset
+e o runtime drena o producer:
+
+```w
+let remote = try await satellite.follow(after: sequence)
+var feed = (take remote).buffer(capacity: 8)
+
+for try await sample in feed {
+  inspect(sample)
+  if sample.sequence == target { break }
+}
+```
+
+Um output stream transfere seu readable owner ao caller. O producer vira um
+root runtime-owned depois que a operation retorna. Esse root pertence à call
+ancestry, à service generation e à session. Drain da generation inclui seus
+producers.
+
+O producer não pode manter `ref`, `inout` ou `view` do state da service depois
+do retorno. Ele move um snapshot, outro owner ou uma capability para seu frame.
+Assim, devolver um stream não mantém o closed turn aberto. Um feed que precisa
+de state vivo usa messages ou calls novas em vez de um borrow oculto.
+
+Drop, `break`, cancellation ou deadline do consumer envia `streamReset`. O
+runtime solicita cancellation ao producer e mantém seu owner até o cleanup.
+Não existe `await` no destructor. `streamReset` não afirma rollback de um item
+ou effect já confirmado.
+
+No wire, o producer envia exatamente um destes terminais:
+
+| Terminal | Resultado de `next()` |
+|---|---|
+| `streamEnd.complete` | `.none` |
+| `streamEnd.applicationError(payload)` | lança `Failure` decoded |
+| `streamEnd.boundaryError(failure)` | injeta `ServiceFailure` e lança `Failure` |
+
+Um disconnect local sintetiza `boundaryError`; ele não vira `.none`.
+`streamEnd` não consome crédito. `streamData` depois de um terminal é protocol
+failure. Um `streamReset` concorrente torna o consumer uninterested e o
+producer executa cleanup idempotente. Se o consumer ainda aguardava, a
+arbitragem entre terminal e cancellation segue a regra de task da seção 12.4.
+
+Para um input stream, o envelope commit move o source para um pump runtime-owned
+no caller. O pump só chama `next()` quando recebe crédito. `.none` envia o
+half-close normal. Se o callee parar antes, ele envia reset; o pump cancela e
+drena o source. O owner não volta ao caller.
+
+Cada direção de uma call bidirectional possui créditos e terminal próprios. O
+runtime inicia o input pump junto com a admission; ele não espera a call
+devolver. Código de aplicação ainda pode criar deadlock se os dois lados
+esperarem leitura antes de produzir. O compiler avisa sobre um ciclo local
+provável. Protocols interativos usam structured tasks e limites explícitos.
+
+Cancellation é cooperativa e se propaga aos producers e calls upstream. gRPC
+também exige que handlers parem trabalho e propaguem cancellation. W acrescenta
+drain obrigatório antes de liberar os owners.
+[gRPC — cancellation](https://grpc.io/docs/guides/cancellation/)
+
+##### 23.1.5.3 Routing, pipeline e component
+
+Um pipeline pode mover uma edge de stream para um único dependent node:
+
+```w
+let receipt = try await pipeline {
+  let feed = satellites.follow(after: sequence)
+  let receipt = archive.ingest(source: take feed)
+  return receipt
+}
+```
+
+Quando as duas operations usam a mesma route, o runtime liga producer e
+consumer diretamente. Routes diferentes criam um relay bounded. O relay
+propaga créditos, terminal, cancellation e trace. Ele não materializa o stream
+completo. Copiar uma edge ou passá-la a dois nodes é erro de ownership.
+
+Retornar o stream pelo pipeline transfere seu root ao caller. Um stream órfão é
+resetado e drenado. Um pipeline continua sem rollback e não entra numa
+`transaction`.
+
+No Component Model, a bridge usa `stream<T>` quando o item e o target permitem.
+Esse tipo também transfere ownership único do readable endpoint e permite que o
+reader sinalize perda de interesse. `Failure` W continua explícito no adapter;
+WIT `stream<T>` não substitui o error contract de W.
+[WebAssembly Component Model — concurrency](https://github.com/WebAssembly/component-model/blob/main/design/mvp/Concurrency.md#streams-and-futures)
+
+Alterar item ownership, failure injection ou direção de uma edge é incompatível.
+Adicionar ou remover uma edge também muda a operation. Mudanças de `Item` e
+`Failure` seguem a verificação direcional de schema da seção 23.1.3.
 
 #### 23.1.6 Capability tables e lifetime
 
@@ -18285,7 +18519,7 @@ Uma pesquisa só avança quando possui:
 | `ServiceIR` e `interface.lock` | **Possível agora** | interface semântica, IDs estáveis e diff são técnicas conhecidas |
 | `ServiceLink` separado de `ServiceTransport` | **Possível agora** | local, component, native RPC e foreign RPC exigem lowers completos distintos |
 | wRPC unary e capability tables | **Provável** | lifecycle está fechado; session, disconnect e security exigem fault tests |
-| streams wRPC com dois créditos | **Provável** | `Stream` e quotas existem; terminal dual e fairness exigem protótipo |
+| service streams com dois créditos | **Provável** | source, errors, ownership, créditos e relay estão fechados; fairness e fault injection exigem protótipo |
 | `pipeline` dependente | **Provável** | forma source e DAG estão fechados; runtime, arbitragem e routing exigem protótipo |
 | output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
 | wWire `exact` e `compatible` | **Pesquisa** | layout prefixado é Direção; wire kinds, bytes finais, custo, decoder e fuzzer ainda precisam de protótipo |
@@ -18870,7 +19104,7 @@ backpressure e cleanup reproduzíveis.
 - JSON oracle e wWire unary nos profiles `exact` e `compatible`;
 - records prefixados, strict decoder e budgets de traversal/allocation;
 - corpus hostil para widths, collections, tensors, unknown fields e capabilities;
-- streams com créditos de items e bytes;
+- service streams com failure injection, dois créditos, roots e relay bounded;
 - capability tables, release, revoke e disconnect;
 - expressão `pipeline` com chain, diamond, fan-out e incerteza dominante;
 - closed turn como input gate e output gate por commit dependency;
@@ -19673,7 +19907,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-668 | identities de schema | `interface.lock` versionado guarda IDs, lineage e reservations sem annotation source | ordinals no source; declaration order; hash do nome |
 | W-669 | evolução de service | compatibility é direcional; enum subset limita cases possíveis; unknown fields não ficam ocultos no valor W | SemVer sozinho; aceitar toda mudança aditiva; sidecar invisível em toda struct |
 | W-670 | session wRPC | handshake negocia interface, codec, limits e features; `callId` é attempt e `effectId` é efeito lógico | schema arbitrário recebido; metadata map ilimitado; retry preserva call ID |
-| W-671 | stream remoto | usa `Stream`; créditos independentes de items e bytes; drop envia reset e drain | quatro famílias RPC públicas; buffer ilimitado; `view` remoto |
+| W-671 | stream remoto | usa `some Stream<Item, Failure>` diretamente; direção vem da posição; drop envia reset e drain | quatro famílias RPC públicas; `RpcStream`; `view` remoto; `any Stream` na interface |
 | W-672 | capability remota | table bidirecional, rights attenuated, release no último alias; resource cleanup pertence ao provider descriptor | URL livre; pointer; `capRelease` finge executar `close`; persistent ref default |
 | W-673 | call dependente | wRPC inclui `pipeline` explícito; ancestry, intermediate ownership e orphan capability cleanup permanecem observáveis | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
 | W-674 | codec nativo | wWire é portátil, tipado e canônico; JSON é oracle; Cap'n Proto é foreign link e baseline | layout de memória como wire; codec único para todos os usos; freeze sem fuzzer |
@@ -19693,6 +19927,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-688 | source de transaction | `try await transaction<...> tx = provider { ...; commit value }`; contract pertence ao provider e commit fecha cada caminho de sucesso | method call como forma idiomática; provider implícito; `return` ambíguo; commit manual fora do scope |
 | W-689 | boundary de transaction | um provider nominal, scope borrowed não escapante, output após confirmação e `unknownCommit(EffectId)` após dúvida | retry automático; cancellation significa rollback; devolver output incerto; restaurar owners consumidos |
 | W-690 | composição transacional | somente effects derivados de `tx`; múltiplos providers usam workflow e compensação; nesting e pipeline ficam fora da baseline | transação distribuída implícita; 2PC default; chamada externa aparentemente atômica; savepoint como nested commit |
+| W-691 | failure de service stream | `Failure` é `ServiceFailure` ou possui uma injeção total única; `Never` remoto é rejeitado; abertura e terminal são fases distintas | boundary error oculto; segundo error channel; `done()` posterior; disconnect vira fim normal |
+| W-692 | créditos de service stream | grants absolutos para items e bytes wWire; reserva e token buckets aplicam limites por stream e agregados | crédito apenas por item; bytes compressed; buffer ambiental; limite cumulativo obrigatório para feed longo |
+| W-693 | lifecycle de service stream | producer output vira root runtime-owned sem borrow da instance; input vira pump; reset cancela e drena; cross-route usa relay bounded | manter closed turn aberto; destructor async; producer detached; materializar stream no relay |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
