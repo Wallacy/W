@@ -1,0 +1,28 @@
+{
+  "schema": "w.diagnostics/1",
+  "case": "missing-loop-condition",
+  "source": "negative/11-missing-loop-condition.w",
+  "diagnostics": [
+    {
+      "code": "W-SYN-0011",
+      "severity": "error",
+      "message": "expected a condition after while",
+      "primary": {
+        "start": {
+          "row": 1,
+          "column": 7,
+          "byte": 19
+        },
+        "end": {
+          "row": 1,
+          "column": 7,
+          "byte": 19
+        }
+      },
+      "parser": {
+        "kind": "MISSING",
+        "expectedNode": "true"
+      }
+    }
+  ]
+}
