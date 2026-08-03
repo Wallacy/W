@@ -187,7 +187,7 @@ alvo de execução independente.
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
 | `remote_stream_oracle.w` | eligibility, créditos, lifecycle, fault points e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
-| `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
+| `wire_oracle.w` | profiles wWire, eligibility, decode preflight, strict decode e unknown fields |
 | `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |
 | `simulation_app.w` | entry determinística sem deployment de services |
 | `app.w` | processo nativo multimodo, terminal, signal handler e Context |
