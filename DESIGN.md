@@ -14655,6 +14655,43 @@ detalhes puramente sintáticos. HIR registra:
 - layout/ABI boundaries;
 - source map, diagnostic origin e expansion de sugars.
 
+#### 20.2.1 Kernel mínimo de memória e ABI
+
+**Exemplo:** o verifier rejeita `drop` enquanto uma view de `MenuSnapshot` está
+viva. Ele não espera o backend descobrir o conflito.
+
+O primeiro kernel de HIR mantém somente estados que o compiler pode verificar
+sem runtime geral:
+
+| Fato | Estado mínimo | Transição válida |
+|---|---|---|
+| owner | `owned`, `moved`, `dropped` | initialize → owned; move → moved + novo owned; drop → dropped |
+| borrow | contador no owner | begin somente em `owned`; end reduz uma obrigação |
+| address | `unstable`, `stable`, `published` | `pin` ou placement provado torna storage estável |
+| boundary | internal, W exact, C, wire, persistence, capability | representation é verificada antes do lowering |
+| ABI | target, calling convention, representation policy, runtime ABI | todos os campos precisam coincidir para link exato |
+
+O verifier aplica estas regras:
+
+1. somente `owned` pode mover ou destruir;
+2. move exige zero borrows ativos e invalida o binding de origem;
+3. drop exige zero borrows ativos e ocorre uma única vez;
+4. um borrow não muda o owner, mas bloqueia move e drop;
+5. suspension com borrow exige storage estável, owner válido e ausência de
+   access conflitante;
+6. mover um handle `Pinned<T>` move o handle, não o endereço do payload;
+7. `lowBit` fica interno; `provenNiche` não cruza C, wire ou persistence;
+8. um owner que cruza uma boundary carrega allocator origin conhecido;
+9. mismatch de `WAbiKey` rejeita o link antes de LTO ou lowering físico;
+10. HIR incompleta produz diagnostic e nunca baixa para W/MLIR.
+
+O kernel não fixa stack, heap, register, layout ou calling convention física. Ele
+fixa somente fatos necessários para provar cleanup, alias e fronteira. O
+lowering pode escolher outra representação quando o verifier preserva esses
+fatos. `hir_memory_oracle.w` e o teste Node correspondente são oracles pequenos
+para SH3 e SH4. Eles devem ser substituídos pelo verifier real, não tratados
+como implementação do runtime.
+
 Um verifier rejeita HIR incompleta antes do lowering.
 
 ### 20.3 Dialeto W/MLIR
@@ -19869,6 +19906,7 @@ Saída: payload determinístico para programas síncronos nos dois caminhos.
 e cancelamento.
 
 - initialization e whole-value move;
+- kernel HIR de owner, borrow, suspension, pinning, boundary e `WAbiKey`;
 - operação `pin`, `Pinned<T>`, projections e callback storage estável;
 - receiver `take fn`, deinit e saídas com consumo;
 - transições typestate consuming e outcomes que devolvem o novo owner;
@@ -19885,7 +19923,10 @@ e cancelamento.
 - validação de runtime `.none` e `.explicitContext`;
 - primeiro adapter `fn<C>` com body opaco e static archive.
 
-Saída: sanitizers e corpus negativo não encontram dangling/double drop.
+Saída: o kernel HIR e o modelo de referência rejeitam dangling, active-borrow
+move, double drop, boundary representation inválida e `WAbiKey` divergente.
+Sanitizers e o corpus negativo não encontram dangling/double drop quando o
+runtime real entrar.
 
 ### 27.6 Fase 4 — bootstrap e self-host
 
@@ -20834,6 +20875,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
 | W-728 | provenance e assinatura de platform | recipe, toolchain digest, artifact e platform target precisam apontar para os mesmos records; roles permanecem distintas; divergência resulta em `rejectReproduction` | assinatura platform como prova de source; toolchain implícito; comparar somente payload; um envelope para maintainer, builder e platform |
 | W-729 | resource lens | `ResourceLensRecord` separa reachability, code, static data, instance, operation, peak, accounting, confidence e provenance; intervalos e `unknown` são válidos; medição não vira fact | um número de memória por import; annotation no source; soma sem target/profile; measurement como garantia; wildcard cobra tudo sempre |
+| W-730 | kernel HIR de memória e ABI | owner/borrow/drop, storage estável, representação por boundary e `WAbiKey` são verificados antes do lowering; oracle pequeno cobre SH3/SH4 | backend decide ownership; borrow como ponteiro; pinning universal; niche em C/wire; link por nome ou target apenas |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

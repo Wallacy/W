@@ -157,6 +157,7 @@ alvo de execução independente.
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `memory.w` | ownership, Address, provenance, niches, pinning e callback C |
+| `hir_memory_oracle.w` | estados mínimos de owner/borrow, suspensão, representação e ABI |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
@@ -238,6 +239,7 @@ persistente usam carriers explícitos.
 | tipos, refinements e enum subsets | `domain.w`, `enum_contracts.w` | estados inválidos saem do runtime |
 | controle, patterns e errors | `command.w`, `failure.w`, `state_transitions.w` | fluxo exaustivo e falha tipada |
 | ownership, views e allocation | `memory.w`, `views.w`, `allocation.w` | custo e lifetime aparecem no source |
+| HIR de memória e ABI | `hir_memory_oracle.w`, `representation_oracle.w`, `abi.w` | move, borrow, pinning e fronteiras físicas são verificados antes do lowering |
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
@@ -1920,6 +1922,33 @@ Aceite:
 
 O caso compara a boundary W exata, a façade C e a component schema. As três
 formas resolvem problemas diferentes.
+
+### 3.44 Kernel de HIR para memória e ABI
+
+Famílias: owner único, borrow, pinning, representação e `WAbiKey`.
+
+`hir_memory_oracle.w` é o primeiro recorte do verifier. Ele não executa código
+de produção. Ele modela as transições que o HIR deve rejeitar ou aceitar.
+
+Aceite:
+
+- somente um owner `owned` pode mover ou destruir;
+- um move marca o binding de origem como `moved` e cria um destino `owned`;
+- um borrow ativo bloqueia move e drop;
+- o fim do borrow libera exatamente uma obrigação;
+- drop repetido e encerramento repetido de borrow falham;
+- suspension com borrow exige storage `stable` ou `published`;
+- mover um handle pinned preserva o estado do endereço do payload;
+- `lowBit` só é aceito em `internal`;
+- `provenNiche` não cruza C, wire ou persistence;
+- C e capability usam carriers nativos explícitos;
+- um owner que cruza uma boundary precisa de allocator origin conhecido;
+- mismatch de target, calling convention, representation policy ou runtime ABI
+  rejeita o link antes do lowering.
+
+O modelo Node em `tooling/hir-memory-reference.test.mjs` repete essas regras
+com estados pequenos. Ele é uma referência de contrato, não o futuro verifier.
+O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
 
 ## 4. Alternativas visuais obrigatórias
 
