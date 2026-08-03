@@ -272,6 +272,20 @@ async fn inspectLines<E: Error>(
   }
 }
 
+async fn reserveTable(
+  ledger: ref ServiceRef<TableLedgerApi>,
+  request: take ReservationRequest,
+): ReservationReceipt throws BookingError {
+  return try await transaction<
+    isolation: .serializable,
+    access: .readWrite,
+  > tx = ledger {
+    let reservation = try await tx.reserve(take request)
+    let receipt = try await tx.confirm(take reservation)
+    commit receipt
+  }
+}
+
 foreign c from "last_light_probe.h" {
   type ll_probe
   fn ll_probe_close(probe: c.ptr<ll_probe>)

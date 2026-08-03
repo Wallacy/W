@@ -28,6 +28,7 @@ permite language mode icons e não possui associação mais específica para `.w
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
 - bloco lexical de memória `region`;
+- blocos estruturados `pipeline` e `transaction`, com `commit`;
 - pares, comentário e indentação básicos do editor.
 
 O destaque é tolerante a código incompleto, mas não substitui parser/CST. Em

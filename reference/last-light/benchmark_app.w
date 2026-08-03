@@ -175,26 +175,6 @@ async fn renderFortunes(
   return http.Response.html(page)
 }
 
-async fn persistWorlds(
-  transaction: ref any database.Transaction,
-  worlds: take Array<World>,
-): Array<World> throws database.DatabaseError {
-  var updates = Array<WorldUpdate>(minimumCapacity: worlds.count)
-
-  for world in worlds {
-    updates.append(WorldUpdate(
-      id: world.id,
-      randomNumber: world.randomNumber,
-    ))
-  }
-
-  let _ = try await transaction.executeMany(
-    updateWorld,
-    parameters: take updates,
-  )
-  return worlds
-}
-
 async fn updateWorlds(
   count: usize<(1...500)>,
   ctx: http.Context,
@@ -212,11 +192,22 @@ async fn updateWorlds(
     world.randomNumber = ctx.random.integer(in: 1...10_000)
   }
 
-  return try await store.transaction(
-    take result,
+  return try await transaction<
     isolation: .readCommitted,
-    using: persistWorlds,
-  )
+    access: .readWrite,
+  > tx = store {
+    var updates = Array<WorldUpdate>(minimumCapacity: result.count)
+
+    for world in result {
+      updates.append(WorldUpdate(
+        id: world.id,
+        randomNumber: world.randomNumber,
+      ))
+    }
+
+    let _ = try await tx.executeMany(updateWorld, parameters: take updates)
+    commit take result
+  }
 }
 
 async fn loadCachedWorld(

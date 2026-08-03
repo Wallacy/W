@@ -7975,6 +7975,165 @@ A garantia segue as mesmas premissas bounded e non-blocking documentadas pelo
 W grava as premissas no profile e testa starvation com scheduler virtual. Um
 profile real-time precisa publicar bounds mais fortes e usar adapters próprios.
 
+### 12.13 Transação estruturada
+
+**Forma vigente:** `transaction` é uma expressão async ligada a um único
+provider nominal. O bloco recebe um borrow com escopo. `commit` seleciona o
+resultado e solicita o commit:
+
+```w
+let updated = try await transaction<
+  isolation: .readCommitted,
+  access: .readWrite,
+> tx = store {
+  let world = try await tx.one(worldById, parameters: WorldKey(id: 42))
+  let _ = try await tx.execute(updateWorld, parameters: nextWorld(world))
+  commit world
+}
+```
+
+Os argumentos em `<...>` constroem o `Contract` do provider. Os labels e os
+valores válidos vêm desse tipo. O bloco pode omitir `<...>` somente quando o
+contract fornece todos os defaults. O compiler não troca isolation, durability
+ou access mode por fallback.
+
+`tx` é imutável e possui o tipo `ref Scope`. Ele não pode escapar, ser movido,
+ser armazenado ou ser capturado por uma task que sobreviva ao bloco. Um valor
+derivado de `tx` segue o mesmo limite. `commit` rejeita um resultado que contém
+o scope, um borrow dele ou uma capability derivada dele.
+
+O bloco cria um control scope próprio. Cada caminho de sucesso deve terminar em
+um único `commit value` ou `commit` para `()`. `commit` fora desse scope é erro.
+`return`, `break` e `continue` não podem atravessar o limite. `throw` encerra o
+body com application error e solicita abort. Um `defer` síncrono termina antes
+do commit ou abort. `defer async`, `spawn` e `async let` permanecem rejeitados
+na baseline.
+
+O compiler conhece este protocol T1:
+
+```w
+protocol Transactional<Scope, Contract, Failure: Error> {
+  async fn runTransaction<Output, OperationFailure: Error>(
+    contract: const Contract,
+    using operation: some async fn(ref Scope): Output throws OperationFailure,
+  ): Output throws TransactionFailure<OperationFailure, Failure>
+}
+
+enum TransactionFailure<OperationFailure: Error, ProviderFailure: Error>: Error {
+  operation(OperationFailure)
+  provider(ProviderFailure)
+  unknownCommit(EffectId)
+}
+```
+
+O lowering transforma o body numa closure não escapante para
+`runTransaction`. O provider chama a closure exatamente uma vez. Ele confirma o
+commit antes de liberar o output. O método continua disponível para adapters,
+mas código W idiomático usa a expressão. A conformance é nominal. Um método com
+o mesmo nome não habilita a forma por coincidência estrutural.
+
+O transaction effect scope aceita:
+
+- computação local e calls provadas sem efeito externo;
+- mutation de valores locais;
+- calls feitas pelo scope `tx` ou por uma capability derivada dele;
+- `await` dessas calls;
+- branch, loop, `try`, `throw` e cleanup síncrono.
+
+Uma call de service, database, filesystem, network ou host que não deriva de
+`tx` é rejeitada dentro do bloco. Essa regra evita uma transação que parece
+atômica, mas contém um efeito independente. Inputs como clock, random e dados
+remotos devem ser obtidos antes do bloco. Diagnostics e trace implícitos não
+entram no commit da aplicação.
+
+O provider promete atomicidade somente para efeitos feitos por seu scope. Ele
+também publica isolation, durability, duração, operations, bytes e admission
+limits. `transaction` não significa serializability ou durability por si só.
+O contract seleciona essas propriedades. Um provider rejeita uma combinação
+que não consegue cumprir.
+
+O lifecycle possui estes estados:
+
+```text
+staging -> begun -> body -> commit requested -> committed -> delivered
+                         \-> abort requested  -> aborted
+                                      \-------> unknown commit
+```
+
+Falha de begin não cria um efeito. Error ou cancellation antes do commit
+request exige abort. O provider mantém o owner do transaction state e drena o
+abort antes de reutilizar a resource. Depois do commit request, cancellation
+não pode afirmar rollback. Perda da confirmação produz `unknownCommit` com um
+`EffectId`. W nunca repete o body automaticamente.
+
+Owned inputs consumidos por uma operação não voltam após abort. Atomicidade do
+provider controla seus efeitos, não desfaz moves no programa W. O output de
+`commit` fica em staging. Ele é entregue somente após commit confirmado. Em
+`unknownCommit`, o runtime limpa o output e o caller reconcilia pelo effect ID.
+
+Uma service pode oferecer a mesma forma. O protocol exportado declara a
+conformance e o wRPC cria um transaction scope remoto:
+
+```w
+protocol TableTransaction {
+  async fn reserve(table: TableId, for guest: GuestId): Reservation throws BookingError
+  async fn confirm(reservation: Reservation): Receipt throws BookingError
+}
+
+struct TableTransactionContract {
+  isolation: database.Isolation
+  access: database.TransactionAccess
+}
+
+protocol TableLedgerApi:
+  Transactional<TableTransaction, TableTransactionContract, BookingError> {}
+
+let receipt = try await transaction<
+  isolation: .serializable,
+  access: .readWrite,
+> tx = tableLedger {
+  let reservation = try await tx.reserve(table, for: guest)
+  let receipt = try await tx.confirm(reservation)
+  commit receipt
+}
+```
+
+`tableLedger` pode ser local ou `ServiceRef<TableLedgerApi>`. Um remote scope
+tem lease e budgets. Disconnect antes do commit request causa abort pelo lease.
+Disconnect depois do request pode produzir `unknownCommit`. A closure continua
+no caller. W não envia código arbitrário ao provider.
+
+Um único provider pode coordenar resources internos. Essa implementação não
+transforma duas capabilities independentes numa transação distribuída. A
+baseline rejeita transaction blocks aninhados e múltiplos providers. Ela também
+rejeita `pipeline` dentro de `transaction` até que ordering e concorrência do
+scope sejam parte do contract.
+
+Um fluxo com pagamento, cozinha e entrega usa workflow durável, idempotency keys
+e compensação. Ele não usa `transaction` para esconder uma saga. Two-phase
+commit permanece **Pesquisa**. O custo inclui coordinator recovery, locks e
+transactions preparadas. A documentação do PostgreSQL recomenda encerrar uma
+prepared transaction rapidamente e usar um transaction manager externo.
+[PostgreSQL — `PREPARE TRANSACTION`](https://www.postgresql.org/docs/current/sql-prepare-transaction.html)
+
+Savepoint não é uma transação nested. Ele desfaz uma parte do mesmo provider e
+o outer commit ainda decide a visibilidade final. A primeira versão expõe
+savepoint somente pela API explícita do scope. Uma forma estruturada comum fica
+em **Pesquisa**. SQLite também rejeita `BEGIN` nested e usa `SAVEPOINT` para esse
+caso.
+[SQLite — transactions](https://www.sqlite.org/lang_transaction.html),
+[SQLite — savepoints](https://www.sqlite.org/lang_savepoint.html)
+
+O Transaction HIR registra provider identity, contract, effect ID, scope
+lifetime, body errors, commit request, abort, unknown outcome e cleanup. Fault
+tests cancelam antes e depois de begin, de cada operation e do commit request.
+`w explain transaction` mostra o provider, as garantias e qualquer efeito
+rejeitado por estar fora do scope.
+
+`transaction` não substitui `pipeline`, lock ou workflow. `pipeline` reduz
+round trips sem rollback. Lock controla exclusão sem atomic commit. Workflow
+persiste progress e compensação entre vários effects.
+
 ## 13. Módulos de execução, services e entries
 
 ### 13.1 Service e closed turn
@@ -11109,7 +11268,7 @@ fundamentam o descriptor W.
 #### 14.3.5 Database, pipeline e transaction
 
 **Exemplo:** cada item continua um statement independente, mesmo quando o
-adapter usa pipeline:
+adapter usa pipeline. A mutation usa a transação estruturada da seção 12.13:
 
 ```w
 let rows = try await store.queryMany(
@@ -11118,11 +11277,13 @@ let rows = try await store.queryMany(
   maximumInFlight: 20,
 )
 
-let updated = try await store.transaction(
-  take worlds,
+let updated = try await transaction<
   isolation: .readCommitted,
-  using: persistWorlds,
-)
+  access: .readWrite,
+> tx = store {
+  let _ = try await tx.executeMany(updateWorld, parameters: take updates)
+  commit take worlds
+}
 ```
 
 `database.Binding` seleciona um pool por nome e dialect. O deployment fornece o
@@ -11147,15 +11308,22 @@ transactionality. A
 [pipeline do PostgreSQL 18](https://www.postgresql.org/docs/18/libpq-pipeline-mode.html)
 mostra o ganho e também exige associar cada result à query original.
 
-`transaction` cria um borrow de `Transaction` que não escapa da operação. Em
-success, o adapter confirma commit antes de devolver o output. Em error ou
-cancellation, ele executa rollback e drena o connection antes de devolvê-lo ao
+`Database` conforma a
+`Transactional<Transaction, TransactionContract, DatabaseError>`. O scope
+oferece queries e commands na mesma conexão. O borrow não escapa da operação.
+Em success, o adapter confirma commit antes de devolver o output. Em error ou
+cancellation, ele executa rollback e drena a conexão antes de devolvê-la ao
 pool.
 
 Uma perda de conexão depois de enviar commit produz
 `TransactionFailure.unknownCommit`. W não repete a transaction
 automaticamente. Query read-only também não recebe retry implícito; a policy
 precisa considerar deadline, idempotência e progress.
+
+`TransactionContract` seleciona `isolation` e `access`. SQLite e PostgreSQL
+podem rejeitar um valor não suportado. Nenhum adapter reduz a garantia em
+silêncio. Savepoint permanece uma operação explícita do scope até existir um
+contrato comum comprovado.
 
 Buffers de driver podem alimentar o decoder por view. Nenhuma view de row escapa
 da call. Um stream de rows futuro precisa possuir seu pool lease e declarar
@@ -18159,7 +18327,7 @@ Uma pesquisa só avança quando possui:
 | RestPC com HTTP QUERY | **Possível agora** | RFC 10008 fixa segurança, idempotência, content negotiation e cache key; effect checking e adapters ainda precisam de corpus |
 | adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
 | SQL estático e rows tipadas | **Possível agora** | descriptors e bind são diretos; schema completo depende de bundle |
-| pool, pipeline e transaction database | **Provável** | protocolos existem; admission, cleanup e unknown commit exigem fault tests |
+| `transaction` estruturada local e remota | **Provável** | source, provider único, scope e unknown commit estão fechados; adapters e fault tests ainda faltam |
 | cache local com limite e read-through | **Provável** | algoritmos são conhecidos; eviction, cancellation e custo exigem protótipo |
 | target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
 | target spec com platform contract | **Possível agora** | schema fechado separa runtime floor, CPU e SDK |
@@ -18675,7 +18843,8 @@ antes de sair do scope.
 - schema de domain e `executionProfiles` data-only;
 - validation de `executionProfile` por product e budgets por unit;
 - budget compartilhado para groups paralelos aninhados;
-- deterministic test executor.
+- deterministic test executor;
+- expressão `transaction`, scope não escapante, commit staging e abort.
 
 Saída: restaurante executa I/O concorrente e lotes paralelos com ordering,
 backpressure e cleanup reproduzíveis.
@@ -19521,6 +19690,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-685 | lifecycle de compatibilidade | pre-1.0 não preserva formas descartadas; pós-1.0 toda deprecation exige replacement, migration e milestone de remoção | shim pre-1.0; suporte indefinido; remoção sem aviso após 1.0 |
 | W-686 | source de pipeline | `try await pipeline { let ...; return ... }`; body é DAG estático e não valor first-class | builder fluente; closure record-replay; promise lazy universal |
 | W-687 | falha de pipeline | dependents bloqueiam, independentes cancelam e drenam; qualquer unknown outcome domina e leva todos os effect IDs | primeiro error esconde incerteza; rollback presumido; exatamente uma mutation |
+| W-688 | source de transaction | `try await transaction<...> tx = provider { ...; commit value }`; contract pertence ao provider e commit fecha cada caminho de sucesso | method call como forma idiomática; provider implícito; `return` ambíguo; commit manual fora do scope |
+| W-689 | boundary de transaction | um provider nominal, scope borrowed não escapante, output após confirmação e `unknownCommit(EffectId)` após dúvida | retry automático; cancellation significa rollback; devolver output incerto; restaurar owners consumidos |
+| W-690 | composição transacional | somente effects derivados de `tx`; múltiplos providers usam workflow e compensação; nesting e pipeline ficam fora da baseline | transação distribuída implícita; 2PC default; chamada externa aparentemente atômica; savepoint como nested commit |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

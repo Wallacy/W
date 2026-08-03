@@ -1,0 +1,74 @@
+==================
+Structured transaction
+==================
+
+async fn update(
+  store: ref any Database,
+  world: take World,
+): World throws DatabaseError {
+  return try await transaction<
+    isolation: .serializable,
+    access: .readWrite,
+  > tx = store {
+    let _ = try await tx.execute(updateWorld, parameters: copy world)
+    commit take world
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (unary_expression
+          (unary_expression
+            (transaction_expression
+              (task_contract
+                (identifier)
+                (static_argument_value
+                  (contextual_member_expression
+                    (identifier)))
+                (identifier)
+                (static_argument_value
+                  (contextual_member_expression
+                    (identifier))))
+              (identifier)
+              (identifier)
+              (block
+                (binding_declaration
+                  (pattern)
+                  (unary_expression
+                    (unary_expression
+                      (call_expression
+                        (member_expression
+                          (identifier)
+                          (identifier))
+                        (argument_list
+                          (argument
+                            (identifier))
+                          (argument
+                            (identifier)
+                            (unary_expression
+                              (identifier))))))))
+                (commit_statement
+                  (unary_expression
+                    (identifier)))))))))))
