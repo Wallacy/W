@@ -177,7 +177,7 @@ alvo de execução independente.
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
-| `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, evidência de recipe, threshold de reprodução, mirrors e revogação |
@@ -624,6 +624,10 @@ O oracle executa o mesmo graph em `single-process` e `split-services`. O primeir
 usa local links. O segundo usa wRPC entre gateway, planning, finance e dining.
 Ambos precisam produzir os mesmos application values, errors e causal trace.
 Queue wait, copied bytes e transport spans podem mudar.
+
+`service_oracle.w` também verifica a camada de cada link. Local usa mailbox e
+thunk, component usa component ABI, wRPC usa session/codec/transport e foreign
+usa adapter próprio. Nenhum link local ou component introduz `ServiceTransport`.
 
 O caso de promise pipelining usa `prepareDish`:
 

@@ -9837,6 +9837,11 @@ Um local link usa mailbox e thunk tipado. Um component link usa a component ABI.
 Um wRPC link usa session, codec e `ServiceTransport`. Um Cap'n Proto ou gRPC link
 adapta o `ServiceIR` inteiro e usa seu próprio protocol stack.
 
+O link é a boundary semântica. O transport é uma camada física somente do
+wRPC. Um local link não cria frames wRPC, e um component link não simula uma
+serialização para manter a abstração. Um foreign link recebe um adapter fixado
+por digest e mantém o próprio protocol stack.
+
 Um tipo comum não pode declarar conformance manual com `ServiceProtocol` na v0.
 Somente o compiler e adapters confiáveis produzem a conformance. Essa regra
 impede que um object prometa localização variável sem cumprir lifecycle e
@@ -20743,6 +20748,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores; cada implementação testa erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
 | W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
 | W-725 | resolução de execution domain | preference explícita vence herdada, que vence default; `spawn` exige default paralelo; `.main` e domains seriais rejeitam parallel intent; deployment só reduz capacity; domain declaration não cria executor | thread group fixo no source; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
+| W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
