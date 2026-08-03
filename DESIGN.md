@@ -51,6 +51,25 @@ O histórico das consolidações anteriores e as notas originais ficam em
 autoria, datas e diffs. Este arquivo é a única fonte de verdade para o estado
 atual.
 
+### Validação rápida
+
+Use o índice e o leitor para evitar releitura integral:
+
+```powershell
+node W/tooling/design-slice.mjs --heading 12.13
+node W/tooling/design-slice.mjs --id W-724 --context 2
+```
+
+Valide somente o contrato documental com:
+
+```powershell
+npm --prefix W/tooling/tree-sitter-w run check:docs
+```
+
+Use `npm --prefix W/tooling/tree-sitter-w run check` quando alterar grammar,
+corpus ou fontes W. O segundo comando inclui o primeiro e também executa os
+gates de parsing e dos codecs de referência.
+
 ### Checkpoint de maturidade
 
 Este checkpoint estima trabalho de design. Ele não mede implementação. O
