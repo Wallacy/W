@@ -57,6 +57,7 @@ npm run parse:std
 npm run parse:fixture
 npm run check:wire
 npm run check:wire:c
+npm run check:hir
 npm run check:design
 ```
 
@@ -67,7 +68,8 @@ npm run check
 ```
 
 `npm run check` executa corpus, produto, variantes de plataforma, deployments,
-std, fixture do VS Code e cobertura de exemplos. O CLI está fixado em
+std, fixture do VS Code, oracles de wire e HIR e cobertura de exemplos. O CLI
+está fixado em
 `tree-sitter-cli` 0.26.11.
 
 Após `generate`, `src/` e o parser C gerado tornam a gramática consumível sem
