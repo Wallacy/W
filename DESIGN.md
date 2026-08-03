@@ -9093,9 +9093,9 @@ determinístico de `WorkId`, point e attempt, e precisa gravar essa decisão.
 Const validation rejeita `maximum < initial` e arithmetic overflow no schedule.
 `retryWhen` precisa ser uma função nominal replayable.
 
-Um error elegível confirma a attempt e o próximo wake instant na mesma mudança
-de journal. O workflow não recebe esse error intermediário. O error final vira o
-outcome do point e é lançado em todo replay.
+Um error elegível confirma a attempt e o próximo alarm do adapter na mesma
+mudança de journal. O workflow não recebe esse error intermediário. O error
+final vira o outcome do point e é lançado em todo replay.
 Panic, schema failure e runtime fault não entram em `retryWhen`. Eles seguem a
 boundary policy do supervisor.
 
@@ -9122,17 +9122,24 @@ Timers também são points. Eles não mantêm um task frame ou worker:
 ```w
 extension<P> WorkContext<P> {
   async fn sleep<Point>(_ point: Point, for duration: Duration<(0...)>)
-  async fn sleep<Point>(_ point: Point, until deadline: Instant)
 }
 
 try await work.sleep(.settleProbability, for: 2<si.s>)
 ```
 
-`sleep(for:)` confirma o deadline calculado pelo adapter antes de suspender.
-Replay usa esse deadline. `sleep(until:)` usa o instant fornecido. Ler clock
-diretamente no workflow continua proibido; uma observação de clock variável
-precisa ser output de um step. Duração zero ou deadline passado confirma um
-point imediato; duração negativa não atende ao tipo.
+`sleep(for:)` confirma a duração, a identity do alarm e a decisão do adapter
+antes de suspender. O journal não serializa `Instant`. Replay restaura o mesmo
+alarm. Duração zero confirma um point imediato. Duração negativa não atende ao
+tipo.
+
+O adapter possui um clock durável e uma representação privada do alarm. Um
+restart exige o mesmo provider ou um migration adapter declarado. O runtime não
+converte um clock monotônico local em wall-clock time.
+
+`sleep(until:)` permanece **Pesquisa**. Uma forma absoluta precisa de um tipo de
+tempo civil ou de um shared time domain. Ela não aceita `Instant` ou `Deadline`.
+Ler clock diretamente no workflow continua proibido. Uma observação variável
+precisa ser output de um step.
 
 Eventos usam um binding tipado e versionado:
 
@@ -9148,9 +9155,13 @@ export enum WaitOutcome<Payload> {
 }
 
 export enum WorkSuspension {
-  retry(point: WorkflowPointId, attempt: u32, wakeAt: Instant)
-  sleep(point: WorkflowPointId, wakeAt: Instant)
-  event(point: WorkflowPointId, binding: WorkEventTypeId, deadline: Instant?)
+  retry(point: WorkflowPointId, attempt: u32, remaining: Duration<(0...)>)
+  sleep(point: WorkflowPointId, remaining: Duration<(0...)>)
+  event(
+    point: WorkflowPointId,
+    binding: WorkEventTypeId,
+    remaining: Duration<(0...)>?,
+  )
 }
 
 export enum WorkEventSendResult {
@@ -9177,12 +9188,6 @@ extension<P> WorkContext<P> {
     _ point: Point,
     for event: const WorkEventBinding<Payload>,
     timeout: Duration<(0...)>,
-  ): WaitOutcome<Payload>
-
-  async fn wait<Point, Payload>(
-    _ point: Point,
-    for event: const WorkEventBinding<Payload>,
-    until deadline: Instant,
   ): WaitOutcome<Payload>
 }
 
@@ -9268,9 +9273,12 @@ commit decide uma corrida entre evento, timeout e cancellation. Se timeout
 vence, um evento posterior permanece disponível para outro wait.
 
 `WorkState.waiting` cobre retry, sleep e wait. `WorkSnapshot.suspension` expõe
-point, kind, wake instant ou event binding sem expor payload. Uma espera não
-consome uma execution slot, mas continua contando como root não terminal no
-supervisor e usa bytes de journal, inbox e outcome.
+point, kind, duração restante ou event binding sem expor payload. O runtime
+consulta o adapter uma vez para criar o snapshot e faz clamp em zero. Esse valor
+não altera o journal nem o replay.
+
+Uma espera não consome uma execution slot. Ela continua como root não terminal
+no supervisor e usa bytes de journal, inbox e outcome.
 `WorkflowPointId` e `WorkEventTypeId` são IDs opacos para observabilidade. Eles
 não concedem authority.
 
@@ -17240,6 +17248,7 @@ O compiler deriva um `ServiceIR` data-only. Ele contém:
 - mobility, refinements, units, shapes e enum subsets;
 - idempotência, effect policy, limits e required rights;
 - schemas alcançáveis e regras de compatibilidade;
+- `WireSchemaDigest` por input, output e application error;
 - documentation e source map em chunks separados.
 
 Não existe um segundo IDL escrito à mão. `WInterface` publica o `ServiceIR` e
@@ -17307,10 +17316,13 @@ retém bytes ocultos. Um gateway que precisa retransmitir fields desconhecidos
 usa um carrier opaco e explícito do codec. Assim, uma cópia normal não transporta
 state invisível.
 
-O handshake tenta um `interfaceDigest` exato primeiro. Se os digests diferem,
-ele usa compatibility maps já gerados. A session não baixa schema arbitrário e
-não executa reflection recebida. Falha de negociação produz
-`ServiceFailure.incompatibleSchema`.
+O handshake tenta um `interfaceDigest` exato para o contrato semântico. Se os
+digests diferem, ele usa compatibility maps já gerados. Depois da aceitação,
+cada raiz compara seu `WireSchemaDigest`. Uma raiz igual usa wWire `exact`. Uma
+raiz diferente usa `compatible`.
+
+A session não baixa schema arbitrário e não executa reflection recebida. Falha
+de negociação produz `ServiceFailure.incompatibleSchema`.
 
 Protocol Buffers preserva fields desconhecidos no formato binário, mas algumas
 conversões podem perdê-los. Seus field numbers também não podem ser reutilizados.
@@ -17650,49 +17662,220 @@ hostis e limits baixos. O wire não congela antes desse gate.
 
 #### 23.2.1 wWire
 
-**Direção:** wWire é o codec portátil nativo de services. Ele é tipado e não é
-self-describing. A session já negociou `ServiceIR`, profile e limits.
+**Exemplo:** `SatelliteTelemetry` usa o mesmo encoding em x86-64 e Arm64. Um
+`Instant` local não entra no payload somente porque ambos os peers usam W.
 
-wWire possui dois profiles gerados do mesmo schema:
+**Direção:** wWire é o codec portátil nativo de services. Ele é tipado e não é
+self-describing no nível semântico. A session já negociou `ServiceIR`, schemas,
+profile e limits.
+
+O compiler deriva um `WireSchemaDigest` para cada input, output e application
+error de uma operation. O digest inclui:
+
+- versão do encoding exato;
+- stable IDs, wire kinds e presença dos fields;
+- domínio dos scalars e enum subsets;
+- ordem de collections e shapes de tensors;
+- refinements, units e regras necessárias para validar o valor.
+
+O digest não inclui nome source, documentation, span ou layout de memória. A
+negociação semântica ocorre primeiro. Depois, cada raiz seleciona seu profile:
 
 | Profile | Uso | Regra |
 |---|---|---|
-| `exact` | peers com o mesmo interface digest | layout denso sem tags redundantes |
+| `exact` | writer e reader com o mesmo `WireSchemaDigest` | layout denso sem tags redundantes |
 | `compatible` | schemas provados como compatíveis | stable field IDs e blocks puláveis |
 
 Ambos usam bytes portáveis. `exact` não é o layout de memória, a ABI W ou uma
-cópia de struct. O handshake escolhe `exact` somente para digests iguais.
+cópia de struct. Uma call pode usar `exact` no input e `compatible` no output.
+Adicionar outra operation não força um payload inalterado a usar `compatible`.
 
-O encoding canônico fixa:
+**Elegibilidade estrutural.** O compiler deriva um fato interno `WireValue`.
+Ele não é protocol público e não aceita conformance manual. O fato segue estas
+regras:
 
-- byte order little-endian;
-- width e bit pattern de scalars;
-- bits de float, inclusive signed zero e NaN payload;
-- ordem de fields por stable ID no profile `compatible`;
-- ordem lógica de sequences, maps e sets;
-- lengths mínimas e uma única representação de presença;
-- ausência de padding e memória não inicializada.
+| Forma | Regra wWire |
+|---|---|
+| Bool, integer fixo e float | scalar portátil |
+| newtype, refinement e unit | bytes do base; identidade e validação ficam no schema |
+| String e Bytes | bloco de bytes; String exige UTF-8 válido |
+| struct, tuple, enum, Option e Result | composição fechada de seus membros |
+| Array, array fixo, Map e Set | composição bounded com ordem lógica preservada |
+| Tensor | elements em ordem lexicográfica dos índices |
+| `ServiceRef<P>` | índice em capability table da mensagem |
+| `usize` e `isize` | somente com refinement finito que fixa um domínio portátil |
+| `Instant`, `Deadline` e clock local | proibidos; a call propaga duração restante |
+| ref, inout, view, pointer e Address | proibidos |
+| allocator, region, Task, Domain e handle de host | proibidos |
+| shared, weak e grafo com aliases gerais | proibidos na baseline |
 
-Assim, o mesmo schema, valor, ordem lógica e profile produz os mesmos bytes. Um
-modo não canônico não entra na primeira versão. Se a canonicalização custar
-mais que o benefício, o benchmark pode rejeitar esse requisito antes do freeze.
+Uma service limitada a `.local` pode usar outro valor transferable. Adicionar
+`.component` ou `.wrpc` ao graph executa o checker correspondente. Um package
+público registra os links aceitos por cada interface. Placement não converte um
+tipo inválido silenciosamente.
 
-O decoder valida frame length, nesting, item count, offsets, UTF-8, refinements
-e traversal budget antes de reservar storage proporcional. Um field
-desconhecido no profile `compatible` possui length e pode ser pulado. Duplicate
-ID, overlap, integer overflow ou trailing data proibida causam codec failure.
+```text
+error[W-WIRE-0001]: `Instant` is local to one monotonic clock
+  --> kitchen.w: OvenReady.deadline
+help: return a duration, a provider token, or a value from a shared time domain
+```
 
-Large `Bytes` e `String` podem adotar frame storage quando alignment, ownership
-e lifetime permitem. O decoder não promete zero-copy. O fast path local já
-remove encode e decode inteiros; o wire prioriza segurança e compatibilidade.
+**Layout `exact`.** Um record exato usa esta ordem:
 
-**Pesquisa:** dois layouts seguem para protótipo:
+```text
+presence bitmap | fixed values | variable-length vector | variable blocks
+```
 
-1. header e offset directory para acesso seletivo;
-2. sequência length-delimited gerada em schema order.
+O schema define todas as posições. Fields seguem stable ID crescente. O bitmap
+possui um bit por field optional. Bits sem uso são zero. O record não contém
+field count, field ID, wire kind, offset ou padding.
 
-O gate compara lookup seletivo, encode incremental, decode streaming, size,
-branch misses, allocation, validation cost e implementação em W0/W normal.
+Um fixed value usa a largura derivada do schema. Um variable-length vector usa
+um `u32` LEB128 mínimo por block presente. Os blocks seguem a mesma ordem dos
+fields. Um decoder localiza um field variável ao ler o vetor de lengths. Ele não
+percorre os blocks anteriores.
+
+Um refinement integer pode reduzir a largura de wire quando todo o domínio cabe
+na largura menor. `u16<(1...128)>` usa um byte. A decisão entra no
+`WireSchemaDigest`. Ela não depende do valor runtime.
+
+**Layout `compatible`.** Um record compatível usa esta ordem:
+
+```text
+field count | directory entries | field blocks
+
+directory entry = positive ID delta | wire kind | byte length
+```
+
+Field count, ID delta e length usam `u32` LEB128 mínimo. Entries seguem stable
+ID crescente. Cada required field e cada optional presente possui uma entry.
+Um required field não some porque seu valor é igual ao default.
+
+O primeiro ID é relativo a zero. Cada delta posterior deve ser positivo. A
+wire kind descreve a estrutura necessária para validar e pular um block. Ela
+não contém nome, unit, refinement ou outro significado da aplicação.
+
+Essa directory evita offsets e pointers. O decoder soma lengths com arithmetic
+checked e exige que a soma seja igual ao tamanho do record. Portanto, overlap,
+back-reference e ciclo não são representáveis.
+
+**Scalars e compostos.** As regras de encoding são fechadas:
+
+- Bool usa um byte e aceita somente `0` ou `1`;
+- integers usam little-endian e a largura do wire schema;
+- f32 e f64 preservam todos os bits, inclusive signed zero e NaN payload;
+- String contém somente os bytes UTF-8, sem NUL e sem normalização implícita;
+- Bytes preserva os bytes sem interpretação;
+- enum `exact` usa ordinal denso por stable ID;
+- enum `compatible` usa o stable case ID;
+- enum com payload contém case ID e um block para o payload;
+- Option em field usa presença; Option independente usa discriminant `0` ou `1`;
+- sequence contém count, vetor de lengths quando necessário e elements;
+- Map e Set mantêm ordem de inserção porque essa ordem é observável em W;
+- Map rejeita key duplicada e Set rejeita element duplicado;
+- tensor estático omite shape e usa ordem lexicográfica dos índices;
+- tensor dinâmico escreve rank e dimensions antes dos elements.
+
+No profile `compatible`, sequence declara a wire kind do element. Map declara
+as kinds de key e value. Set declara a kind do element. Um enum payload declara
+sua kind. O profile `exact` deriva essas informações do wire schema.
+
+Static arrays e tensors de scalars fixos usam um bloco packed. Não existe
+alignment entre elements. Um composite sequence usa lengths antes dos blocks.
+O decoder valida count, shape e tamanho total antes de reservar o destino.
+
+**Canonicalização.** O encoding aceita uma única representação para cada valor,
+ordem lógica, schema e profile. Control integers usam a forma LEB128 mínima.
+Um decoder estrito rejeita:
+
+- integer de controle não mínimo;
+- field ID fora de ordem ou duplicado;
+- Bool diferente de `0` ou `1`;
+- optional ausente com bytes residuais;
+- enum case fora do subset negociado;
+- UTF-8 inválido;
+- unused bit diferente de zero;
+- block truncado ou trailing data.
+
+O decoder não normaliza uma forma alternativa. Essa regra evita que um peer
+assine uma forma e execute outra. O canonical digest usa os bytes wWire sem
+compressão.
+
+A ordem de Map e Set faz parte do valor observável, embora equality ignore essa
+ordem. Dois maps iguais com ordens diferentes podem ter bytes diferentes. Eles
+também podem produzir iterações diferentes no programa W.
+
+**Bounds e allocation.** Uma mensagem possui tamanho máximo `u32`. Dados maiores
+usam `Stream<Bytes, E>` ou outro stream tipado. O handshake fixa limites menores
+para frame, block, depth, items, fields, UTF-8 bytes e allocation.
+
+O decoder mantém budgets separados:
+
+- bytes recebidos;
+- bytes lógicos percorridos;
+- nodes e items;
+- nesting depth;
+- allocation reservada;
+- trabalho de validação de keys e UTF-8.
+
+Um item de tamanho zero ainda consome uma traversal unit. Essa regra impede que
+um count grande produza trabalho grande com poucos bytes. O decoder verifica
+todos os produtos e somas com arithmetic checked. Ele reserva storage somente
+depois da validação estrutural correspondente.
+
+O decoder gerado usa uma state machine iterativa. Um tipo recursive não usa a
+stack nativa sem conferir depth. Large String e Bytes podem adotar frame storage
+quando ownership, alignment e lifetime permitem. Zero-copy não é promessa.
+
+**Unknown fields e capabilities.** O profile `exact` não possui unknown fields.
+O profile `compatible` valida a estrutura de cada unknown block pela wire kind.
+Um valor W comum descarta esse block. Um gateway explícito pode manter o block
+canônico em um carrier opaco ligado ao schema lineage.
+
+Uma capability usa um ordinal local à mensagem. O wRPC link associa o ordinal
+a sua capability table. Repetir a mesma referência preserva alias pelo mesmo
+ordinal. A table segue a primeira ocorrência na travessia canônica.
+
+Capability identity não entra nos bytes persistentes. Um payload com
+capabilities não serve como content address entre sessions. `capExport`, rights,
+generation e peer identity continuam no protocolo wRPC.
+
+Compressão ocorre depois do codec e antes do transport. O frame declara tamanho
+comprimido e tamanho lógico. O receiver reserva pelo tamanho lógico e pelo
+budget. Checksums, channel integrity e retransmission não pertencem ao wWire.
+
+**Estado e alternativas.** O layout prefixado por directory e lengths é
+**Direção**. Os números de wire kind e os bytes finais permanecem **Pesquisa**
+até o gate de protótipo.
+
+Um offset directory permanece **Alternativa** para benchmark. Ele permite acesso
+direto, mas exige validar ranges, overlap e canonical placement. O fast path
+local já remove o wire. Esse custo não entra na baseline sem evidência.
+
+TLV intercalado permanece outra **Alternativa**. Ele simplifica encode em uma
+passagem, mas mistura directory e payload. O decoder perde o preflight de
+allocation e precisa percorrer valores para localizar outro field.
+
+O gate compara:
+
+1. measure + encode contra backpatch e buffer temporário;
+2. lookup seletivo, decode incremental e peak memory;
+3. size, branch misses, allocations e validation cost;
+4. records pequenos, blobs, tensors, maps e deeply nested values;
+5. implementação `bootstrap.w0` e implementação W normal;
+6. oracle JSON e adapters Cap'n Proto, FlatBuffers, Protobuf e SBE;
+7. fuzzing diferencial com limits baixos e failure injection.
+
+Cap'n Proto mostra a importância de canonical form, traversal limit e depth
+limit. FlatBuffers mostra o custo e o ganho de offsets. Protobuf mostra que um
+formato determinístico não é necessariamente canônico. SBE mostra o throughput
+de decode em schema order.
+
+- [Cap'n Proto encoding e security](https://capnproto.org/encoding.html)
+- [FlatBuffers internals](https://flatbuffers.dev/internals/)
+- [Protocol Buffers encoding](https://protobuf.dev/programming-guides/encoding/)
+- [Protocol Buffers não canônico](https://protobuf.dev/programming-guides/serialization-not-canonical/)
+- [Simple Binary Encoding](https://github.com/aeron-io/simple-binary-encoding)
 
 #### 23.2.2 Codecs e profiles auxiliares
 
@@ -17873,7 +18056,7 @@ Uma pesquisa só avança quando possui:
 | streams wRPC com dois créditos | **Provável** | `Stream` e quotas existem; terminal dual e fairness exigem protótipo |
 | `CallPipeline` dependente | **Provável** | Cap'n Proto prova a técnica; syntax W, effects e routing exigem corpus |
 | output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
-| wWire `exact` e `compatible` | **Pesquisa** | layouts, canonical cost e decoder bounded precisam de benchmark e fuzzer |
+| wWire `exact` e `compatible` | **Pesquisa** | layout prefixado é Direção; wire kinds, bytes finais, custo, decoder e fuzzer ainda precisam de protótipo |
 | introdução direta entre três services | **Pesquisa** | peer authorization, routing e lifetime aumentam a session v0 |
 | `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
 | bindings tipados e runtime graph data-only | **Possível agora** | requirements, providers, imports e exports fecham por interface no link |
@@ -18450,7 +18633,10 @@ backpressure e cleanup reproduzíveis.
 - `ServiceIR`, `interface.lock` e compatibility checker por direção;
 - `ServiceLink` local, component, wRPC e foreign adapter;
 - session wRPC, `callId`, `effectId` e metadata bounded;
+- `WireValue`, `WireSchemaDigest` e checker por link;
 - JSON oracle e wWire unary nos profiles `exact` e `compatible`;
+- records prefixados, strict decoder e budgets de traversal/allocation;
+- corpus hostil para widths, collections, tensors, unknown fields e capabilities;
 - streams com créditos de items e bytes;
 - capability tables, release, revoke e disconnect;
 - `CallPipeline` com chain, diamond e fan-out dependentes;
@@ -19141,7 +19327,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-555 | effect policy | `.repeatable`, `.idempotent`, `.transactional` ou `.atMostOnce`; at-most-once é default | exactly-once universal; retry automático de efeito desconhecido |
 | W-556 | retry de step | policy const e bounded seleciona application errors, backoff e timeout | defaults infinitos; jitter oculto; Boolean retriable no error |
 | W-557 | commit de step | input precede dispatch; outcome e progress precedem visibilidade ao workflow | devolver output antes do journal; converter falha de storage para application error |
-| W-558 | timer durável | `sleep` registra deadline e não mantém task frame; clock direto fora de step é rejeitado | `Task.sleep` persistido; recalcular deadline em replay |
+| W-558 | timer durável | `sleep` registra duração e alarm do adapter; não mantém task frame nem serializa `Instant` | `Task.sleep` persistido; recalcular timeout em replay; wall clock implícito |
 | W-559 | evento de workflow | binding tipado, `EventId`, inbox bounded e `send`/`trySend` com deduplication | event string sem schema; payload global; fila ilimitada |
 | W-560 | corrida de wait | commit escolhe evento, timeout ou cancelamento; evento posterior permanece disponível | timestamp do sender decide; timeout descarta evento |
 | W-561 | scheduling durável | points sequenciais; paralelismo estruturado pode ocorrer dentro do step | journal dependente do scheduler; fan-out implícito |
@@ -19257,11 +19443,17 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-671 | stream remoto | usa `Stream`; créditos independentes de items e bytes; drop envia reset e drain | quatro famílias RPC públicas; buffer ilimitado; `view` remoto |
 | W-672 | capability remota | table bidirecional, rights attenuated, release no último alias; resource cleanup pertence ao provider descriptor | URL livre; pointer; `capRelease` finge executar `close`; persistent ref default |
 | W-673 | call dependente | wRPC inclui `CallPipeline` explícito; ancestry, intermediate ownership e orphan capability cleanup permanecem observáveis | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
-| W-674 | codec nativo | wWire pesquisa profiles `exact` e `compatible`; JSON é oracle; Cap'n Proto é adapter e baseline | layout de memória como wire; codec único para todos os usos; freeze sem fuzzer |
+| W-674 | codec nativo | wWire é portátil, tipado e canônico; JSON é oracle; Cap'n Proto é foreign link e baseline | layout de memória como wire; codec único para todos os usos; freeze sem fuzzer |
 | W-675 | input gate | closed turn bloqueia outro handler durante qualquer `await`; reentrância exige policy futura | interleaving default; storage library altera admission implicitamente |
 | W-676 | output gate | turn fica `committing`; failure conhecido produz `commitFailed`, dúvida produz `unknownOutcome`; staging não entregue é descartado | próximo turn antes do commit; resposta prematura; rollback fictício |
 | W-677 | seleção de service link | `servicePolicy.links` permite local, component, wRPC ou adapter; deployment lock fixa a escolha por edge | `transports` mistura níveis; escolha ambiental no startup; source seleciona IPC/rede |
 | W-678 | consulta RestPC | QUERY representa somente operação provada safe e idempotent; content tipado exige `Content-Type`; cache key inclui content e metadata | GET com content; POST como fallback de toda query; método HTTP determinar efeitos do handler |
+| W-679 | seleção de profile wWire | compatibilidade semântica ocorre primeiro; `WireSchemaDigest` por raiz seleciona `exact`, senão map compatível seleciona `compatible` | digest da interface inteira; profile por package; fallback ambiental |
+| W-680 | layout wWire | `exact` usa bitmap, fixed values e length vector; `compatible` usa directory ordenada e blocks; nenhum usa offset ou pointer | offset directory baseline; TLV intercalado; raw struct |
+| W-681 | domínio de wire | `WireValue` é fato derivado; refinements podem estreitar width; `usize` exige domínio portátil; clock local e borrow são rejeitados | conformance manual; serializar Instant; aceitar tipo conforme placement runtime |
+| W-682 | decode canônico | decoder rejeita formas alternativas, valida estrutura antes de reservar e cobra bytes, items, depth, traversal e allocation | normalizar input; allocation por count antes de length; limite único de bytes |
+| W-683 | unknown e capability | ordinary value descarta unknown; relay explícito preserva block canônico; capability usa ordinal e table fora do codec | unknown sidecar oculto; endpoint no payload; bytes com capability como content address |
+| W-684 | suspensão observável | journal guarda alarm privado; `WorkSnapshot` publica duração restante com clamp em zero | expor wake `Instant`; usar snapshot como history; `sleep(until: Instant)` durável |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

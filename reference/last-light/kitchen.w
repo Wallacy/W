@@ -1,6 +1,5 @@
 // Thermal control and resource contracts for the Last Light kitchen.
 
-import * from std.clock
 import si from std
 import { Course, Dish, GuestCount, Probability } from domain
 import { Energy, Mass, PhysicalDuration, Power, Temperature, energy } from units
@@ -43,12 +42,12 @@ export struct OvenTelemetry {
   temperature: Temperature
   power: Power
   duty: DutyCycle
-  sampledAt: Instant
+  sampleSequence: u64
 }
 
 export struct OvenReady {
   ovenId: OvenId
-  deadline: Instant
+  token: u64
 }
 
 export enum PantryError: Error {
@@ -99,7 +98,10 @@ export protocol PantryApi {
 
 export protocol OvenLeaseApi {
   async fn preheat(): OvenReady throws OvenError
-  async fn bake(mixture: take Mixture, until deadline: Instant): Dish throws OvenError
+  async fn bake(
+    mixture: take Mixture,
+    readiness: take OvenReady,
+  ): Dish throws OvenError
   async fn close()
 }
 

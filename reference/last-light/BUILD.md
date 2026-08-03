@@ -171,6 +171,15 @@ O futuro `interface.lock` registra identities estáveis de protocols, operations
 fields e enum cases. O source snapshot e a release recipe incluem seu digest.
 `w build` não modifica esse arquivo.
 
+O compiler deriva um `WireSchemaDigest` para cada input, output e application
+error. `.wrpc` exige `WireValue` para todo tipo alcançável. Por isso,
+`RestaurantSnapshot.activeOrders` usa `u32`. `OvenReady` usa um token owned e
+não transporta `Instant`.
+
+O startup negocia `exact` por raiz quando os wire schema digests são iguais. Um
+compatibility map seleciona `compatible` nos outros casos aceitos. O package não
+escolhe o profile por conveniência ou por target.
+
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
 imports do runtime graph. Essa diferença impede lookup livre por string.
@@ -1041,7 +1050,8 @@ Os planos estão em [`deployments/`](deployments/):
 
 O deployment muda placement. Ele não reagrupa providers, não religa edges
 privadas e não remove `await`. O futuro `deployment.lock` grava artifacts,
-units, link kind, protocol, codec, transport, peers e adapters por digest.
+units, link kind, protocol, wire schema, codec profile, transport, peers e
+adapters por digest.
 
 ```text
 w deploy resolve deployments/local.w
@@ -1108,7 +1118,8 @@ Os arquivos atuais exigem contratos ainda não implementados:
 6. host profiles e slot registry;
 7. std de process, mobile, device, audio e accelerator;
 8. implementação de `Request`, `Response`, `http.Context` e adapters HTTP;
-9. codecs JSON explícitos ou derivados por synthesis autorizada;
+9. codecs JSON explícitos ou derivados por synthesis autorizada, mais encoder,
+   decoder, oracle e fuzzer dos profiles wWire;
 10. pool, adapters de protocolo e validação de schema do database;
 11. implementação de cache local, eviction e single-flight;
 12. journal de workflow, replay checker, timer, event inbox e adapter SQLite;
