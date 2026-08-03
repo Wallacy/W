@@ -210,7 +210,7 @@ alvo de execução independente.
 | `benchmark_app.w` | workloads HTTP e database para benchmark |
 
 Esses arquivos usam a forma vigente. A consolidação substituída está no
-[arquivo histórico](../../../Y/W/archive/db1-2026-07-27/examples/restaurant/).
+[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27/examples/restaurant).
 
 ### 2.1 Cobertura e alcance
 

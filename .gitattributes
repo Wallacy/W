@@ -1,0 +1,4 @@
+DESIGN-INDEX.md linguist-generated=true
+tooling/tree-sitter-w/src/grammar.json linguist-generated=true
+tooling/tree-sitter-w/src/node-types.json linguist-generated=true
+tooling/tree-sitter-w/src/parser.c linguist-generated=true

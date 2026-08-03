@@ -1,0 +1,33 @@
+# Dependencies and local tool state
+node_modules/
+.cache/
+.npm/
+.turbo/
+.wrangler/
+.astro/
+.vscode-test/
+
+# Reports and logs
+coverage/
+.nyc_output/
+*.log
+*.tsbuildinfo
+
+# W project outputs
+reference/last-light/build/
+portal/dist/
+tooling/tree-sitter-w/build/
+tooling/vscode-w/dist/
+*.vsix
+*.tgz
+
+# Editor and operating-system artifacts
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
