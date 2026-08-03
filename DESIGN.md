@@ -10144,6 +10144,38 @@ deployment {
 }
 ```
 
+Um deployment distribuído também fixa a policy de session wRPC:
+
+```w
+deployment {
+  security: {
+    wrpc: {
+      channels: {
+        network: [.quicTls13Mutual, .tls13Mutual]
+        ipc: [.ipcPeer]
+      }
+      identity: .unit(trustDomain: "last-light.production")
+      credentials: .capability("last-light/workload-identity")
+      trustRoots: .capability("last-light/workload-trust")
+      earlyData: .deny
+      handshake: {
+        pendingPerAuthority: 32
+        credentialBytes: 64KiB
+        helloBytes: 64KiB
+        interfaces: 128
+        compatibilityMaps: 64
+        timeout: 5<s>
+      }
+      lifecycle: {
+        maximumAge: 1<h>
+        drainTimeout: 5<s>
+        revocation: .terminate
+      }
+    }
+  }
+}
+```
+
 `deployment.w` é um plano data-only. `.product(...)` referencia uma recipe
 reproduzível. `w deploy resolve` grava cada artifact e unit por digest em
 `deployment.lock`.
@@ -10168,6 +10200,7 @@ O deployment pode:
 - conectar imports abertos a exports compatíveis;
 - selecionar adapters permitidos;
 - reduzir quotas;
+- fixar channel profile, trust domain e peer identity esperada por edge;
 - referenciar secrets por capability.
 
 Uma seleção por `role` satisfaz uma requirement já gravada no artifact. O
@@ -10184,10 +10217,16 @@ O deployment não pode:
 - aumentar o envelope;
 - trocar pool, domain, fallback ou execution capability;
 - converter uma call normal em uma service call;
+- reduzir mutual authentication, confidentiality ou integrity exigidas;
 - conceder uma capability ausente no artifact.
 
 Secrets não entram em `package.w`, artifact ou deployment lock. O plano
 referencia uma capability do host. O runtime entrega um handle.
+
+O resolver deriva a identidade esperada de cada peer usando deployment, unit e
+artifact digest. O lock grava essa identidade e o channel profile. Ele não grava
+credential, private key ou trust root. O profile e os limites precisam caber no
+envelope do runtime graph.
 
 Artifact, packing, deployment e adapter digests aparecem em trace, audit e
 crash report. Duas instalações podem usar os mesmos bytes e configurações
@@ -17617,6 +17656,162 @@ antiga depois de reconnect.
 Retry mutante não é implícito. Cancellation não faz rollback. As regras de
 admission, deadline, errors e unknown outcome permanecem na seção 13.6.
 
+##### 23.1.4.1 Channel profile e identidade
+
+**Exemplo:** a edge `observatory/satellites` espera a unit
+`satellites/controller`. Um certificado válido para outra unit não satisfaz a
+binding.
+
+O wRPC não define primitivas criptográficas. Cada `ServiceTransport` entrega um
+`ChannelEvidence` autenticado antes do primeiro `hello`. A evidência contém:
+
+- profile e versão do channel;
+- identidade autenticada de cada peer;
+- confidentiality, integrity e freshness;
+- channel binding único para a conexão;
+- digest do adapter confiável que produziu a evidência.
+
+Uma edge de network exige mutual authentication, confidentiality e integrity.
+A baseline aceita TLS 1.3 mutual sobre um stream e QUIC com TLS 1.3 mutual. Ela
+não aceita TLS anterior, plaintext oportunista ou fallback após falha de
+autenticação. O profile seleciona ALPN `wrpc/1` e fixa suas regras
+criptográficas. O handshake wRPC não negocia cipher suites.
+
+Profiles TLS usam `tls-exporter` de RFC 9266 como channel binding. O valor não é
+uma secret key. O runtime não o expõe ao source W. QUIC deriva sua evidência da
+conexão TLS integrada e das propriedades autenticadas do transport.
+
+IPC usa um profile distinto. O adapter autentica as credenciais dos dois
+processos, prova um channel conectado pelo kernel e combina nonces frescos. Um
+path de socket ou um nome de pipe não prova identidade. Se o host não garante
+confidentiality necessária para a edge, o resolver seleciona um channel
+criptográfico ou rejeita o deployment.
+
+O deployment lock fixa o profile, a trust domain e a identidade esperada para
+cada lado da edge. A identidade lógica contém deployment, unit e artifact
+digest. Um adapter pode representar essa identidade com SPIFFE, X.509 ou uma
+credencial do OS. A representação não altera a identity W.
+
+Credenciais privadas e trust roots entram como capabilities do host. Elas não
+entram no artifact nem no lock. Rotacionar uma credencial não altera a
+identidade lógica. Uma session nova sempre repete autenticação.
+
+Uma session possui idade máxima baseada em monotonic clock local. Ao atingir o
+limite, o runtime envia `goAway`, drena pelo prazo e abre outro channel. Uma
+revogação conhecida bloqueia calls novas e encerra as sessions afetadas. Calls
+já admitidas preservam seus outcomes, inclusive `unknownOutcome`.
+
+Autenticação e authority são contratos separados. Uma identidade autenticada
+recebe somente a root capability fixada pela binding. Cada call ainda verifica
+capability, rights, interface e operation. Um TLS terminator cria outra hop e
+outra session; ele não pode ficar invisível no trace.
+
+##### 23.1.4.2 Transcript e estabelecimento
+
+**Exemplo:** o acceptor seleciona uma versão abaixo do mínimo do deployment. O
+initiator rejeita a seleção antes de `ready`.
+
+Cada lado envia um `hello` canônico e bounded. Ele contém role, nonce aleatório
+de 32 bytes, versões, features, interface digests, codec profiles e limites. O
+initiator e o acceptor definem a ordem canônica. Um nonce vem do CSPRNG do
+runtime e não usa wall clock.
+
+O acceptor seleciona somente valores oferecidos e permitidos pelo artifact e
+deployment. O minimum version e as features obrigatórias não podem ser
+reduzidos. Um peer rejeita valor desconhecido, duplicado ou fora da oferta. Ele
+não faz fallback silencioso.
+
+Os dois peers calculam os digests sobre um tuple wWire canônico e length-delimited.
+Eles não concatenam bytes sem framing:
+
+```text
+transcriptDigest = TaggedSHA256(
+  "wRPC transcript/1",
+  initiatorHello,
+  acceptorHello,
+  selectedParameters,
+  channelBinding,
+)
+
+sessionId = TaggedSHA256(
+  "wRPC session/1",
+  transcriptDigest,
+  initiatorNonce,
+  acceptorNonce,
+)
+```
+
+`ready` confirma `transcriptDigest` e `sessionId` nos dois sentidos. O channel
+autenticado protege os dois valores. W não adiciona um segundo frame MAC ou uma
+segunda camada AEAD sobre TLS. A key schedule, key update e os limites de uso de
+AEAD pertencem ao transport.
+
+O runtime só cria tables de calls, streams e capabilities depois dos dois
+`ready`. Antes disso, ele aceita somente frames de session permitidos pela fase.
+Uma diferença de transcript, channel binding ou identidade encerra a conexão.
+
+##### 23.1.4.3 Replay, admission e lifecycle
+
+**Exemplo:** um `call` chega como QUIC 0-RTT. O receiver encerra a session antes
+de executar o handler.
+
+A baseline proíbe qualquer frame wRPC em TLS ou QUIC 0-RTT. Ela também proíbe
+`call`, stream, capability e pipeline antes de `ready`. Uma versão futura pode
+definir um profile replay-safe por operation. Essa possibilidade permanece
+**Pesquisa** e não altera a baseline.
+
+Cada lane lógica ordenada usa uma sequence estritamente crescente. O receiver
+aceita somente o próximo frame dessa lane. Calls e streams independentes não
+recebem uma ordem global. Retransmission ocorre abaixo de `ServiceTransport`;
+um frame duplicado no wRPC é protocol failure. `callId`, `streamId` e capability
+index também ficam scoped pelo `sessionId` e não são reutilizados.
+
+Reconnect cria nonces, transcript e `sessionId` novos. A nova session rejeita
+capabilities e sequence numbers da anterior. Deduplication de mutation continua
+a usar `effectId` e o contrato da operation. O handshake não converte retry em
+exactly-once.
+
+Admission ocorre em estágios:
+
+1. O transport limita conexões pendentes, handshake bytes e deadline.
+2. O channel autentica o peer e valida seu limite de credential bytes.
+3. O decoder valida o header e o tamanho total de `hello` antes de reservar.
+4. O runtime compara identidade, policy, oferta e seleção.
+5. O runtime confirma transcript e compatibilidade de interfaces.
+6. O runtime reserva tables bounded e envia `ready`.
+
+Os limites cobrem, no mínimo, sessions pendentes por listener e authority,
+credential bytes, `hello` bytes, interfaces, compatibility maps, features e
+tempo. Um erro anterior à autenticação é pequeno e genérico. Ele não revela
+schema, identidade esperada ou policy interna.
+
+O audit registra peer authority, profile, adapter digest, transcript digest,
+session ID, limits e resultado. Ele não registra private keys, credentials ou
+capability tokens. TLS/QUIC key update mantém a session. Credential rotation
+afeta a próxima session. Trocar channel encerra a session e repete todo o
+estabelecimento.
+
+Casos adversariais obrigatórios incluem:
+
+- channel sem mutual authentication ou confidentiality;
+- identidade válida para outra unit;
+- versão ou feature abaixo do mínimo;
+- seleção ausente da oferta;
+- `tls-exporter`, transcript ou `sessionId` divergente;
+- `hello` grande, lento, duplicado ou recebido na fase errada;
+- application frame antes de `ready` ou em 0-RTT;
+- sequence repetida, pulada ou de outra session;
+- capability da session anterior;
+- revogação durante stream, pipeline ou transaction.
+
+Fontes primárias:
+
+- [TLS 1.3, Finished, exporters e riscos de 0-RTT](https://www.rfc-editor.org/rfc/rfc8446.html);
+- [channel binding `tls-exporter`](https://www.rfc-editor.org/rfc/rfc9266.html);
+- [TLS 1.3 como proteção default para RPC](https://www.rfc-editor.org/rfc/rfc9289.html);
+- [TLS, autenticação e 0-RTT em QUIC](https://www.rfc-editor.org/rfc/rfc9001.html);
+- [SPIFFE workload identity e trust domains](https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/).
+
 #### 23.1.5 Streaming e flow control
 
 **Forma vigente:** um service protocol usa o mesmo
@@ -18103,6 +18298,8 @@ O corpus mínimo contém:
 - schema N com N, N+1 e N-1;
 - cancellation antes e depois de admission;
 - backpressure, overload e peer lento;
+- identity mismatch, downgrade, 0-RTT e replay entre sessions;
+- credential rotation, revocation e channel replacement;
 - frame truncado, depth bomb e traversal amplification;
 - local, component, IPC, loopback e network com latency injetada.
 
@@ -18110,7 +18307,7 @@ Cada execução mede p50, p99, throughput, CPU cycles, allocations, copied bytes
 peak memory, wire bytes, code size e compile time. Fault injection verifica
 cleanup, outcome e capability lifetime.
 
-A implementação avança em sete spikes:
+A implementação avança em oito spikes:
 
 1. `ServiceIR`, `interface.lock` e compatibility checker;
 2. recording transport e fast path local;
@@ -18118,7 +18315,8 @@ A implementação avança em sete spikes:
 4. wWire unary em profiles exact e compatible;
 5. streams, credits e capability tables;
 6. expressão `pipeline` e promise pipelining;
-7. IPC e network, com adapters Cap'n Proto e gRPC para comparação.
+7. channel evidence, transcript, quotas e threat oracle;
+8. IPC e network, com adapters Cap'n Proto e gRPC para comparação.
 
 Uma feature só entra no protocolo público depois de duas implementações
 independentes ou um encoder, decoder e oracle diferencial. Fuzzing usa payloads
@@ -19930,6 +20128,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-691 | failure de service stream | `Failure` é `ServiceFailure` ou possui uma injeção total única; `Never` remoto é rejeitado; abertura e terminal são fases distintas | boundary error oculto; segundo error channel; `done()` posterior; disconnect vira fim normal |
 | W-692 | créditos de service stream | grants absolutos para items e bytes wWire; reserva e token buckets aplicam limites por stream e agregados | crédito apenas por item; bytes compressed; buffer ambiental; limite cumulativo obrigatório para feed longo |
 | W-693 | lifecycle de service stream | producer output vira root runtime-owned sem borrow da instance; input vira pump; reset cancela e drena; cross-route usa relay bounded | manter closed turn aberto; destructor async; producer detached; materializar stream no relay |
+| W-694 | channel security wRPC | network usa TLS 1.3 mutual ou QUIC TLS 1.3 mutual; IPC prova peer e channel; deployment lock fixa identity e profile | criptografia própria; TLS oportunista; path de socket como identidade; TLS terminator invisível |
+| W-695 | transcript de session | hellos canônicos, nonces CSPRNG, channel binding, seleção policy-bounded e `ready` bilateral formam um session ID tagged | confiar só em connection ID; negociar cipher no wRPC; fallback silencioso; MAC duplicado sobre TLS |
+| W-696 | replay e admission wRPC | 0-RTT e frames antes de `ready` são proibidos; sequence é exata por direção; autenticação e quotas antecedem tables | mutation em early data; resume baseline; allocation antes do limite; capability entre sessions |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

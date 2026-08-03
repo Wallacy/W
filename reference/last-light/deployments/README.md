@@ -21,6 +21,19 @@ usa `.local`. Uma component boundary usa `.component`. IPC e network usam
 `ServiceTransport` não representa essas quatro opções. Ele carrega frames
 somente dentro do link wRPC.
 
+O plano distribuído reduz o profile wRPC `service-default`. Network exige TLS
+1.3 mutual ou QUIC com TLS 1.3 mutual. IPC exige credenciais dos dois peers. A
+trust domain e cada peer esperado ficam no lock. Credenciais e trust roots
+entram como capabilities do host.
+
+O profile proíbe 0-RTT. Ele limita bytes, interfaces, compatibility maps, tempo
+e sessions pendentes por authority. O runtime autentica o channel e valida o
+`hello` antes de criar tables de calls, streams ou capabilities.
+
+Cada session dura no máximo uma hora. O runtime usa monotonic clock, envia
+`goAway` e drena por cinco segundos. Uma revogação bloqueia calls novas e
+encerra o channel. Credential rotation entra na próxima session.
+
 Os paths de deployment nomeiam artifact e import do grafo. O source usa IDs
 tipados criados por `export service` ou `import service`. Ele não conhece esses
 paths.
