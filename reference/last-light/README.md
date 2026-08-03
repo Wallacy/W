@@ -686,6 +686,9 @@ revogação. A reprodução compara a evidência completa de inputs e outputs; e
 não aceita bytes iguais produzidos por recipes diferentes. O deployment
 distribuído exige maintainer authorization, reprodução e metadata fresca. Um
 mirror com bytes corretos, mas metadata antiga, continua rejeitado.
+O quorum também exige `builderIdentity`, `operatorIdentity`,
+`credentialIdentity` e `executionRootIdentity` distintos. Dois jobs na mesma CI
+não formam independência.
 
 `metadata_oracle.w` mantém três fronteiras: CBOR determinístico para records de
 build e distribuição, `WMeta1` como candidato para interface/cache e wWire para
