@@ -56,6 +56,7 @@ npm run parse:deployments
 npm run parse:std
 npm run parse:fixture
 npm run check:wire
+npm run check:wire:c
 npm run check:design
 ```
 
