@@ -176,6 +176,8 @@ alvo de execução independente.
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
+| `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |
 | `simulation_app.w` | entry determinística sem deployment de services |
 | `app.w` | processo nativo multimodo, terminal, signal handler e Context |
 | `platform.w` | interface uniforme dos adapters nativos |
@@ -218,12 +220,13 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
+| service links e evolução | `service_oracle.w`, `package.w`, `deployments/` | placement, commit e compatibility mantêm o mesmo contrato |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
 | ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
-| operação integrada | `simulation.w`, `gateway.w`, `app.w` | um dispatch tipado atende CLI, TUI e HTTP |
+| operação integrada | `simulation.w`, `gateway.w`, `app.w`, `restpc_oracle.w` | um dispatch tipado atende CLI, TUI e HTTP |
 | products e targets | `package.w`, `BUILD.md`, `deployments/` | grafo, variante, execution envelope, target e placement ficam separados |
 | toolchains e SDKs | `workspace.w`, `BUILD.md` | requirements, providers e execution platforms ficam separados |
 | satélites e horizonte | `orbit.w`, `horizon.w` | units, event time, services e tensors compõem |
@@ -585,7 +588,63 @@ Aceite:
 - `cancel(orderId)` enfileirado não interrompe um turn ativo;
 - a instance `.process` do ensaio expõe head-of-line blocking de propósito;
 - instances keyed permitem progresso paralelo entre pedidos, mas não na mesma key;
-- um futuro `CallPipeline` deve reduzir round trips sem ocultar calls ou effects.
+- `ServiceLink` separa local, component, wRPC e foreign RPC;
+- `ServiceTransport` aparece somente dentro do link wRPC;
+- `CallPipeline` reduz round trips sem ocultar calls, effects ou intermediate owners;
+- o turn continua fechado durante output commit;
+- `commitFailed` e `unknownOutcome` permanecem outcomes distintos.
+
+O oracle executa o mesmo graph em `single-process` e `split-services`. O primeiro
+usa local links. O segundo usa wRPC entre gateway, planning, finance e dining.
+Ambos precisam produzir os mesmos application values, errors e causal trace.
+Queue wait, copied bytes e transport spans podem mudar.
+
+O caso de promise pipelining usa `prepareDish`:
+
+```text
+ovens.acquire(target, duration)
+  → capability OvenLeaseApi
+  → preheat()
+```
+
+O caller envia `preheat()` antes de receber a capability de `acquire()`. O
+pipeline também devolve a capability, pois `bake()` e `close()` ainda precisam
+dela. Uma falha antes da entrega deve liberar a capability intermediária. Uma
+call para uma instance presente na ancestry deve falhar com `callCycle`.
+
+O caso de output gate usa uma futura variante durável de `billing.capture`:
+
+```text
+gateway capture
+  → idempotency record accepted
+  → response staged
+  → durable confirmation
+  → response released
+```
+
+O `billing` atual usa um `Map` volátil. Ele não atende esse oracle e não anuncia
+output gate. A variante durável deverá injetar falha antes, durante e depois da
+confirmação. Falha confirmada produz `commitFailed`. Confirmação perdida produz
+`unknownOutcome`. Nenhum caso repete a captura sem a mesma idempotency key.
+
+O caso de stream usará telemetria de satélite. O receiver concede créditos de
+items e bytes. Um peer lento não aumenta memória sem limite. A syntax de stream
+em um service protocol continua em **Pesquisa**, portanto `SatelliteApi` ainda
+usa uma call unary.
+
+O corpus de evolução combina dois artifacts:
+
+- N+1 adiciona um field optional a `SatelliteTelemetry`;
+- N+1 adiciona um case possível a `SatelliteHealth`;
+- N+1 renomeia `telemetry` com ID preservado no `interface.lock`;
+- N e N+1 usam wWire `exact` somente com o mesmo interface digest;
+- peers compatíveis usam wWire `compatible`;
+- um enum output com case novo falha na negociação, salvo quando o operation
+  subset exclui esse case.
+
+Cada cenário injeta disconnect, cancellation, overload e schema mismatch em
+cada commit point. O oracle compara owner cleanup, capability count, effect ID,
+application outcome, boundary outcome e trace ancestry.
 
 ### 3.7 Conta da Aurora Tardia
 
@@ -1273,6 +1332,26 @@ cancel 42
 shutdown
 ```
 
+O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
+request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
+longa e mantém o filtro tipado.
+
+```http
+QUERY /orders HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+
+{"stage":["accepted","preparing"],"limit":32}
+```
+
+`restpc_oracle.w` fixa o mapeamento sem antecipar a syntax de declaração de
+rotas. O adapter só cria essa rota quando o handler prova `safe` e
+`idempotent`. Ele
+publica `Accept-Query`, inclui o content na cache key e exige CORS preflight no
+browser. POST continua reservado para commands que podem alterar estado. A
+forma source da declaração de rota permanece **Pesquisa**; este request é o
+oracle do protocolo.
+
 Aceite:
 
 - o mesmo profile produz a mesma sequência de `SimulationEvent`;
@@ -1289,6 +1368,7 @@ Aceite:
 - `AppResponse` é o único modelo de saída para CLI, TUI e HTTP;
 - o renderer ANSI não muda os dados da resposta;
 - o adapter HTTP não recebe autoridade para encerrar o processo;
+- a consulta de pedidos usa QUERY e não GET com content ou POST genérico;
 - construção textual usa `append` no próprio `String`, sem um `StringBuilder`
   público;
 - `LastLightSimulation` executa sem service registry;

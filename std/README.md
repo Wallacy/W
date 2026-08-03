@@ -58,6 +58,7 @@ O rascunho fixa seis fronteiras:
 - workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
+  `Method.query` representa o método QUERY do RFC 10008;
 - database exige SQL const em parâmetros de chamada, usa binds nomeados, rows
   tipadas e transactions;
 - cache local possui capacidade, devolve values owned e nunca vira rede por
