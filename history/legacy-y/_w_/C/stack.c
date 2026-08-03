@@ -1,0 +1,51 @@
+#include <sys/resource.h>
+#include <stdio.h>
+
+int main (int argc, char **argv)
+{
+    const rlim_t kStackSize = 16 * 1024 * 1024;   // min stack size = 16 MB
+    struct rlimit rl;
+    int result;
+
+    result = getrlimit(RLIMIT_STACK, &rl);
+    if (result == 0)
+    {
+        if (rl.rlim_cur < kStackSize)
+        {
+            rl.rlim_cur = kStackSize;
+            result = setrlimit(RLIMIT_STACK, &rl);
+            if (result != 0)
+            {
+                fprintf(stderr, "[e] setrlimit returned result = %d\n", result);
+            }
+            result = getrlimit(RLIMIT_STACK, &rl); // double check
+        }
+    }
+
+    fprintf(stdout, "[o] getrlimit returned rl.rlim_cur = %lu l.rlim_max = %lu\n",rl.rlim_cur , rl.rlim_max);
+
+    rl.rlim_cur = 32 * 1024 * 1024;        // Define 16 MB como limite atual
+    if (setrlimit(RLIMIT_STACK, &rl) != 0) {
+        perror("Erro ao definir tamanho da pilha");
+        return 1;
+    }
+    // Restante do seu código aqui
+    result = getrlimit(RLIMIT_STACK, &rl);
+    if (result == 0)
+    {
+        if (rl.rlim_cur < kStackSize)
+        {
+            rl.rlim_cur = kStackSize;
+            result = setrlimit(RLIMIT_STACK, &rl);
+            if (result != 0)
+            {
+                fprintf(stderr, "[e] setrlimit returned result = %d\n", result);
+            }
+            result = getrlimit(RLIMIT_STACK, &rl); // double check
+        }
+    }
+
+    fprintf(stdout, "[o] getrlimit returned rl.rlim_cur = %lu l.rlim_max = %lu\n",rl.rlim_cur , rl.rlim_max);
+
+    return 0;
+}
