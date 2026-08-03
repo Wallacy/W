@@ -13,6 +13,42 @@ enum ReplayVerdict {
   reject
 }
 
+enum ReplayEvent {
+  taskPublished
+  taskSettled
+  cleanupCompleted
+  taskOutcomeCommitted
+  serviceAdmitted
+  commitStarted
+  commitConfirmed
+  commitFailed
+  unknownOutcome
+  ownerClosed
+  workerAssigned
+  threadMigrated
+  queueSlotSelected
+  transportHop
+}
+
+const fn contributesToLogicalTrace(event: ReplayEvent): Bool {
+  return switch event {
+    case .taskPublished: true
+    case .taskSettled: true
+    case .cleanupCompleted: true
+    case .taskOutcomeCommitted: true
+    case .serviceAdmitted: true
+    case .commitStarted: true
+    case .commitConfirmed: true
+    case .commitFailed: true
+    case .unknownOutcome: true
+    case .ownerClosed: true
+    case .workerAssigned: false
+    case .threadMigrated: false
+    case .queueSlotSelected: false
+    case .transportHop: false
+  }
+}
+
 struct ReplayComparison {
   scheduleIdSame: Bool
   decisionsSame: Bool
@@ -116,4 +152,15 @@ test "fault injection keeps cancellation, errors, and commit uncertainty distinc
   expect expectedInjectedOutcome(for: .commitFailure) == .commitFailed
   expect expectedInjectedOutcome(for: .commitConfirmationLost) == .unknownOutcome
   expect expectedInjectedOutcome(for: .panic) == .faultBoundary
+}
+
+test "worker and transport details stay in the physical sidecar" for contributesToLogicalTrace {
+  expect contributesToLogicalTrace(.taskPublished)
+  expect contributesToLogicalTrace(.commitConfirmed)
+  expect contributesToLogicalTrace(.unknownOutcome)
+  expect contributesToLogicalTrace(.ownerClosed)
+  expect !contributesToLogicalTrace(.workerAssigned)
+  expect !contributesToLogicalTrace(.threadMigrated)
+  expect !contributesToLogicalTrace(.queueSlotSelected)
+  expect !contributesToLogicalTrace(.transportHop)
 }

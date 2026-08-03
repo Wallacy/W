@@ -10577,6 +10577,12 @@ para um service remoto sem mudar esses facts. Uma fault injetada preserva a
 distinção entre task cancelada, application error, commit failure, commit
 uncertainty e panic boundary.
 
+O trace lógico possui uma sequência estável de eventos como `taskPublished`,
+`taskSettled`, `cleanupCompleted`, `commitConfirmed`, `unknownOutcome` e
+`ownerClosed`. Worker assignment, thread migration, queue slot e transport hop
+ficam em um sidecar físico. O replay compara o primeiro conjunto; ele apenas
+expõe o segundo para diagnóstico e performance.
+
 ## 14. Prelude e SDK
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
@@ -20609,6 +20615,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre somente a pesquisa de interface/cache; wWire cobre payloads de service | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; WMeta1 virar ABI implícita |
 | W-715 | lifecycle cross-boundary | oracle comum exige cleanup antes de outcome/join e commit terminal único; `unknownOutcome` não volta a confirmed | task outcome antecipado; service turn reentrante por default; commit uncertainty tratada como abort |
 | W-716 | replay do scheduler | `scheduleId`, decisões lógicas, trace, outcome e owners fechados são comparados; packing físico diferente vira sidecar | comparar worker IDs; aceitar timing como semântica; esconder fault injection em logs; tratar panic como error recuperável |
+| W-717 | schema do replay | eventos de task, service, commit e owner pertencem ao logical trace; worker, thread, queue e transport ficam no sidecar físico | trace bruto como contrato; worker ID como identidade W; ignorar owner closure; comparar somente payload final |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
