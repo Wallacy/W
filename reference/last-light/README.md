@@ -158,6 +158,7 @@ alvo de execução independente.
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `memory.w` | ownership, Address, provenance, niches, pinning e callback C |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
+| `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
 | `packages/menu-compiler/transform.w` | entry hermética de build e bindings tipados |
@@ -221,6 +222,10 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 `formatting.w` mantém a forma canônica que o formatter deve preservar. Ele
 combina comments, source order, body curto e call multilinha em um único
 fixture pequeno.
+
+`representation_oracle.w` impede que uma otimização de memória atravesse uma
+fronteira que exige bytes canônicos. Low bits ficam internos. C, wire e storage
+persistente usam carriers explícitos.
 
 | Camada | Testemunho principal | Benefício observado |
 |---|---|---|

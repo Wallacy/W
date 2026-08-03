@@ -5682,6 +5682,24 @@ Uma implementação pode recuperar uma técnica rejeitada em um container intern
 especializado. Ela precisa manter o valor lógico completo, oferecer fallback e
 passar os oracles diferenciais.
 
+**Baseline v0 de representação:** a técnica é escolhida pela fronteira, não pelo
+nome do tipo:
+
+| Fronteira | Escolha permitida |
+|---|---|
+| storage W interno não escapante | tag explícita, niche provado ou low bit provado |
+| ABI W exact | tag explícita ou niche publicado na `RepresentationMap` |
+| façade C ou `foreign c` | carrier C canônico; tags W são removidas antes da call |
+| wWire e storage persistente | bytes explícitos do schema; nenhum endereço ou tag de pointer |
+| capability, `Address` ou device pointer | representação nativa do provider ou do target |
+| high-bit e NaN boxing | somente profile experimental com fallback; não entra na baseline |
+
+Não existe annotation `compact`, `tagged` ou `nanBox` no source W. O compiler
+classifica a oportunidade a partir de alignment, validity, target facts,
+hardening e escape. A ausência de prova seleciona a representação portátil.
+O oracle [`representation_oracle.w`](reference/last-light/representation_oracle.w)
+testa essa matriz contra as fronteiras do Última Luz.
+
 ### 9.10 Negociação, hardening e instrumentação
 
 **Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar uma
@@ -14965,6 +14983,13 @@ W v0 não oferece library evolution binária nativa. Source SemVer e
 `w interface diff` continuam disponíveis. Uma façade C versionada ou uma
 component é a boundary para clients compilados separadamente.
 
+Essa é uma decisão de produto, não uma limitação acidental. Antes de 1.0, uma
+mudança em `WAbiKey`, `RepresentationMap` ou runtime ABI recompila os consumers
+W. A compatibilidade entre organizações usa uma façade C versionada, component
+ABI, service schema ou source rebuild. Uma futura ABI W resiliente só entra após
+um protótipo que meça accessors, witnesses, nonexhaustive enums, metadata e o
+custo de manter um runtime permanente.
+
 **Alternativa:** uma ABI W resiliente permitiria trocar libraries sem rebuild.
 Ela exigiria field accessors, indirect value operations, metadata estável,
 nonexhaustive enums e runtime permanente. O
@@ -20487,6 +20512,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-707 | gate de design freeze | cinco ciclos fecham ergonomia, kernel, execução, toolchain e contrato público; pesquisa com fallback não bloqueia | número de decisões prova completude; toda pesquisa bloqueia; implementação ampla antes dos spikes |
 | W-708 | formatter canônico | CST lossless, trivia, 120 colunas, source order, comments anexados, semicolon removido e saída idempotente | style configurável amplo; import sorting; formatter dependente de HIR; reescrita AST silenciosa |
 | W-709 | formatter e diagnostics | source com error fatal não é gravado; `--check` não modifica; spans continuam em bytes e a recovery fica no editor | saída parcial silenciosa; line/column como autoridade; formatter corrige sem reportar parser error |
+| W-710 | representação por fronteira | low bit somente em storage interno provado; W exact publica niche; C, wire e persistência usam carriers explícitos; high bit fica experimental | tagged pointer universal; tag no source; pointer bits em wire; compactação que ignora hardening |
+| W-711 | evolução da ABI W | v0 recompila consumers W; C, component, service schema e source rebuild atendem evolução independente | ABI resiliente implícita; layout congelado por default; runtime permanente sem protótipo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
