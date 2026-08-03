@@ -77,7 +77,11 @@ package {
       name: "restaurant-core"
       servicePolicy: {
         resolution: .startup
-        transports: [.local, .component, .ipc, .network]
+        links: [
+          .local,
+          .component,
+          .wrpc(transports: [.ipc, .network]),
+        ]
         dynamicRebinding: .deny
       }
       services: [
@@ -274,7 +278,10 @@ package {
       name: "restaurant-client"
       servicePolicy: {
         resolution: .startup
-        transports: [.component, .ipc, .network]
+        links: [
+          .component,
+          .wrpc(transports: [.ipc, .network]),
+        ]
         dynamicRebinding: .deny
       }
       services: []
@@ -301,7 +308,10 @@ package {
       name: "wifi-edge"
       servicePolicy: {
         resolution: .startup
-        transports: [.component, .ipc, .network]
+        links: [
+          .component,
+          .wrpc(transports: [.ipc, .network]),
+        ]
         dynamicRebinding: .deny
       }
       services: []
@@ -328,7 +338,10 @@ package {
       name: "observatory-client"
       servicePolicy: {
         resolution: .startup
-        transports: [.component, .ipc, .network]
+        links: [
+          .component,
+          .wrpc(transports: [.ipc, .network]),
+        ]
         dynamicRebinding: .deny
       }
       services: []

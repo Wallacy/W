@@ -39,7 +39,8 @@ referência mostram esse contrato, mas não criam regras próprias.
 | Tree-sitter e highlighting | protótipo funcional |
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
-| wQL, wRPC, V6, GPU e HDL | **Pesquisa** fora do caminho crítico |
+| services, `ServiceLink` e wRPC | **Direção**; implementação na fase 6 |
+| wQL, V6, GPU e HDL | **Pesquisa** ou T2 fora do bootstrap |
 
 ## Amostra
 

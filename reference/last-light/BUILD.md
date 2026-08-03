@@ -153,14 +153,23 @@ Uma declaração `export service name: P { ... }` contém boundary e provider
 default. `import service` adapta um protocol ou módulo comum quando o caller
 escolhe a boundary.
 
-`services` seleciona scope, limits e argumentos. `servicePolicy` permite
-override somente antes do entry. O resolver cria os slots durante o startup.
-Um nome textual não cria authority.
+`services` seleciona scope, limits e argumentos. `servicePolicy` fecha os links
+permitidos. `.local` usa mailbox e thunk. `.component` usa a component ABI.
+`.wrpc` declara seus transports internos. O resolver cria os slots durante o
+startup. Um nome textual não cria authority.
 
 `restaurant-core` liga `lastLight` ao provider local por default. Uma launch
 config pode selecionar um provider assinado por component, IPC ou network. O
 artifact mantém os mesmos bytes e grava a configuração no startup audit record.
 Um import comum não aceita esse override.
+
+`ServiceLink` materializa a boundary inteira. `ServiceTransport` existe somente
+dentro do link wRPC. Cap'n Proto, Cap'n Web e gRPC entram como foreign links
+fixados por adapter digest. Eles não aparecem como transports.
+
+O futuro `interface.lock` registra identities estáveis de protocols, operations,
+fields e enum cases. O source snapshot e a release recipe incluem seu digest.
+`w build` não modifica esse arquivo.
 
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
@@ -995,7 +1004,9 @@ main
   └─ diningRoom
 ```
 
-Calls locais mantêm a semântica de service e podem usar fast path.
+Calls locais mantêm a semântica de service e usam o `.local` link. Esse link
+pode remover encode, decode e framing. Ele não remove `await`, admission,
+failure boundary ou trace.
 
 ### 7.2 Packing `split-services`
 
@@ -1006,7 +1017,7 @@ finance  -> billing
 dining   -> diningRoom
 ```
 
-O build gera uma unit por grupo. Cada crossing usa a service ABI. O artifact
+O build gera uma unit por grupo. Cada crossing usa um `ServiceLink`. O artifact
 index fixa estas edges privadas:
 
 ```text
@@ -1015,7 +1026,9 @@ gateway  -> finance  : billing
 gateway  -> dining   : diningRoom
 ```
 
-O deployment roteia essas edges. Ele não pode substituir os providers.
+O deployment roteia essas edges. O plano distribuído seleciona wRPC para native
+units em hosts distintos. Uma Wasm edge pode selecionar `.component`. O
+deployment não pode substituir os providers.
 
 ### 7.3 Deployment
 
@@ -1028,7 +1041,7 @@ Os planos estão em [`deployments/`](deployments/):
 
 O deployment muda placement. Ele não reagrupa providers, não religa edges
 privadas e não remove `await`. O futuro `deployment.lock` grava artifacts,
-units e adapters por digest.
+units, link kind, protocol, codec, transport, peers e adapters por digest.
 
 ```text
 w deploy resolve deployments/local.w

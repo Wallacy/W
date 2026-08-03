@@ -15,6 +15,12 @@ O artifact index grava cada service identity, default provider e override
 policy. A seção `bindings` destes planos satisfaz os imports abertos. Um plano
 também poderia trocar uma binding `.startup` dentro do envelope declarado.
 
+O resolver seleciona um `ServiceLink` permitido pelo runtime graph. Co-location
+usa `.local`. Uma component boundary usa `.component`. IPC e network usam
+`.wrpc` na baseline. Um foreign RPC exige um adapter autorizado por digest.
+`ServiceTransport` não representa essas quatro opções. Ele carrega frames
+somente dentro do link wRPC.
+
 Os paths de deployment nomeiam artifact e import do grafo. O source usa IDs
 tipados criados por `export service` ou `import service`. Ele não conhece esses
 paths.
@@ -28,7 +34,8 @@ altera domains, pools, capabilities ou fallbacks:
 - o plano de benchmark mantém o envelope alto, mas continua bounded.
 
 Cada valor precisa ser menor ou igual ao máximo de `package.w`. O futuro
-`deployment.lock` grava a redução e o profile digest.
+`deployment.lock` grava a redução, link, codec, transport, peers e profile
+digest de cada edge.
 
 A seção `adapters` satisfaz roles fechadas pelo artifact. Os planos local e
 distribuído selecionam `w.std/sqlite-workflow@1` para o journal de

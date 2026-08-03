@@ -8422,8 +8422,12 @@ O lifecycle conceitual é:
 
 ```text
 prepared → envelope committed → admitted → turn running
-         → outcome committed → delivered
+         → commit dependencies settled → outcome committed → delivered
 ```
+
+Sem commit dependencies, a etapa intermediária termina imediatamente. Com um
+output gate, a instance não admite o próximo turn até confirmar ou abortar a
+etapa.
 
 Antes de `envelope committed`, um staging owner no caller guarda cada valor
 `take`. No commit, o envelope recebe ownership. Falha, cancellation e queda de
@@ -8462,7 +8466,12 @@ Um method `throws E` chamado por `ServiceRef` possui dois error effects:
 | `unauthorized` | capability não autoriza a operação | não |
 | `incompatibleSchema` | caller e callee não negociaram schema | não |
 | `callCycle` | ancestry formaria ciclo closed-turn | não |
+| `commitFailed(effectId)` | dependency falhou antes de liberar o outcome | não |
 | `unknownOutcome(effectId)` | entrega ou efeito ocorreu, mas não foi confirmado | só com idempotência |
+
+`commitFailed` prova que o output gated não foi entregue. Ele não desfaz um
+efeito externo anterior. Se o commit provider não prova commit ou abort, a call
+retorna `unknownOutcome`.
 
 Deadline e cancellation produzem `TaskOutcome.canceled`. Eles não são
 `ServiceFailure`. O `try` pode injetar cada error effect em um case único do
@@ -9470,8 +9479,14 @@ O compiler faz cada service declaration responder a
 schema e dispatch. Ele não é o protocol da aplicação e não define o wire
 protocol.
 
-`RestaurantApi` continua a interface da aplicação. `ServiceTransport` continua
-o SPI que materializa calls locais, component calls, IPC ou network calls.
+`RestaurantApi` continua a interface da aplicação. `ServiceLink` é o SPI
+confiável que materializa a boundary por uma route local, component, wRPC ou
+foreign RPC. `ServiceTransport` fica abaixo do link wRPC e entrega somente
+frames por IPC ou network.
+
+Um local link usa mailbox e thunk tipado. Um component link usa a component ABI.
+Um wRPC link usa session, codec e `ServiceTransport`. Um Cap'n Proto ou gRPC link
+adapta o `ServiceIR` inteiro e usa seu próprio protocol stack.
 
 Um tipo comum não pode declarar conformance manual com `ServiceProtocol` na v0.
 Somente o compiler e adapters confiáveis produzem a conformance. Essa regra
@@ -9531,7 +9546,7 @@ As responsabilidades não se sobrepõem:
 | package | services, imports e exports | placement, policy e limites |
 | product | graph, packing e `hostBindings` | artifact e host lifecycle |
 | launch ou deployment | bindings e placement | override permitido e localização |
-| runtime | startup resolver | criar slots, instances e transports |
+| runtime | startup resolver | criar slots, instances, links e transports |
 
 O `entry` não liga services. O startup resolver termina antes do handler. Essa
 divisão permite que o mesmo source use call local, IPC ou network sem mudar a
@@ -9554,7 +9569,11 @@ runtimeGraphs: [
     name: "restaurant-core"
     servicePolicy: {
       resolution: .startup
-      transports: [.local, .component, .ipc, .network]
+      links: [
+        .local,
+        .component,
+        .wrpc(transports: [.ipc, .network]),
+      ]
       dynamicRebinding: .deny
     }
     services: [
@@ -9612,8 +9631,25 @@ service ou import do graph. Vários callers podem usar o mesmo provider sem unir
 suas identities no source.
 
 `servicePolicy` define quando o resolver escolhe o provider. Ele também limita
-os transports. `.startup` permite override antes do entry. `.deny` impede que
-uma referência ativa troque de provider.
+os links e os transports internos de wRPC. `.startup` permite override antes do
+entry. `.deny` impede que uma referência ativa troque de provider.
+
+O resolver escolhe um link permitido para cada edge:
+
+| Condição | Link default |
+|---|---|
+| provider na mesma unit | `.local` |
+| provider em outro Wasm component | `.component` |
+| provider em outro processo no host | `.wrpc` com `.ipc` |
+| provider em outro host | `.wrpc` com `.network` |
+
+Um foreign link usa `.adapter(digest)`. O adapter declara quais partes de
+`ServiceIR` preserva. Uma edge com capabilities, pipeline ou errors que o
+adapter não representa falha durante resolution.
+
+O deployment plan pode restringir a escolha. `deployment.lock` grava link,
+adapter, codec, transport, peer e interface digests por edge. Startup não troca
+o link por uma alternativa ambiental.
 
 **Forma vigente**. A v0 não possui live rebinding. O resolver fixa cada provider
 durante uma process generation. Debug reload inicia outra generation e drena a
@@ -9707,17 +9743,16 @@ um import comum em service.
 - [WebAssembly Component Model](https://component-model.bytecodealliance.org/design/components.html)
 
 **Direção:** W possui uma stack de service nativa. `ServiceIR` registra o
-contrato. wRPC define sessions, calls, streams e capabilities. Codecs definem os
-bytes. `ServiceTransport` define a entrega. Cap'n Proto, Cap'n Web e gRPC são
-referências e adapters; nenhum deles é uma dependência estrutural. A seção 23.1
-fecha essa divisão e mantém o layout exato de wWire em pesquisa. wQL não define
-o envelope.
+contrato. `ServiceLink` materializa a route. O link nativo distribuído usa wRPC,
+um codec e `ServiceTransport`. Cap'n Proto, Cap'n Web e gRPC entram como foreign
+links; nenhum deles é uma dependência estrutural. A seção 23.1 fecha essa
+divisão e mantém o layout exato de wWire em pesquisa. wQL não define o envelope.
 
-O nome do adapter SPI é `ServiceTransport`. `ServiceProtocol<P>` identifica a
-conformance gerada para a boundary. `RestaurantApi` identifica a API da
-aplicação. A primeira versão aceita somente adapters fixados por digest na
-toolchain ou deployment. Uma API pública para adapters customizados permanece
-**Pesquisa**.
+`ServiceProtocol<P>` identifica a conformance gerada para a boundary.
+`RestaurantApi` identifica a API da aplicação. `ServiceLink` e
+`ServiceTransport` são SPIs distintos. A primeira versão aceita somente
+adapters fixados por digest na toolchain ou deployment. Uma API pública para
+adapters customizados permanece **Pesquisa**.
 
 #### 13.8.3 Packing de build
 
@@ -10017,6 +10052,10 @@ não atrasa uma saída anterior. O outcome final depende de todas as writes do
 turn. O adapter pode agrupar writes na mesma confirmação quando preserva ordem e
 atomicidade.
 
+Depois que o handler termina, o turn entra em `committing`. Ele não executa
+source, mas mantém in-flight quota, state e serial gate. A instance não admite o
+próximo handler até commit ou fault. Outras instances continuam a executar.
+
 O registro da dependency não é uma annotation source. O storage provider
 implementa um runtime protocol confiável. Sua interface semântica informa que a
 operação pode fechar o output gate. Uma library comum não ganha esse poder.
@@ -10032,10 +10071,14 @@ Se todas as dependencies confirmam, o runtime faz `outcome committed` e libera
 as saídas em ordem. Se uma falha:
 
 1. o runtime descarta as saídas dependentes ainda não enviadas;
-2. o caller recebe application ou boundary failure conforme o adapter contract;
+2. o caller recebe `ServiceFailure.commitFailed(effectId)`;
 3. a service generation entra em fault e não admite outro turn;
 4. o instance manager restaura state confirmado ou reinicia a instance;
 5. o trace registra os effect IDs afetados.
+
+Se o provider perdeu a confirmação de commit, o caller recebe
+`unknownOutcome(effectId)` em vez de `commitFailed`. Nenhum dos dois outcomes
+autoriza retry mutante implícito.
 
 Uma operação não-gated já observável não pode ser desfeita. Por isso, FFI,
 shared memory e I/O externo depois de uma write especulativa exigem uma destas
@@ -15147,7 +15190,10 @@ package {
       name: "restaurant-edge"
       servicePolicy: {
         resolution: .startup
-        transports: [.component, .ipc, .network]
+        links: [
+          .component,
+          .wrpc(transports: [.ipc, .network]),
+        ]
         dynamicRebinding: .deny
       }
       services: []
@@ -17128,7 +17174,7 @@ provider está no módulo, processo, host ou datacenter. O placement não remove
 `await`, quotas, errors ou tracing.
 
 **Direção:** W implementa sua stack de services em W. Cap'n Proto não é a
-runtime interna. Ele permanece um adapter, uma referência de design e um
+runtime interna. Ele permanece um foreign link, uma referência de design e um
 baseline obrigatório de benchmark.
 
 “Melhor” significa melhor ajuste ao contrato de W. Não significa vencer todo
@@ -17153,22 +17199,28 @@ Uma service call atravessa camadas separadas:
 |---|---|---|
 | source W | `protocol`, `service` e import | intenção, tipos, effects e authority |
 | `ServiceIR` | interface semântica normalizada | identities, schemas e compatibilidade |
-| wRPC | operações e outcomes | session, calls, streams, capabilities e cancellation |
-| codec | valor tipado | representação de bytes |
-| `ServiceTransport` | frames bounded | entrega local, component, IPC ou network |
+| `ServiceLink` | `ServiceIR` e route policy | preservar a boundary por um lowering completo |
+| wRPC link | operações e outcomes | session, calls, streams, capabilities e cancellation |
+| codec wRPC | valor tipado | representação de bytes |
+| `ServiceTransport` | frames bounded | entrega wRPC por IPC ou network |
 | deployment | grafo e policy | placement, peer identity, security e limits |
 
-Essa divisão impede cinco acoplamentos:
+Essa divisão impede seis acoplamentos:
 
 1. wRPC não depende de wWire;
 2. wWire não define lifecycle de service;
-3. `ServiceTransport` não interpreta tipos da aplicação;
-4. wQL não vira o envelope universal;
-5. um adapter Cap'n Proto não muda a semântica source.
+3. local e component links não fingem usar um wire;
+4. `ServiceTransport` não interpreta tipos da aplicação;
+5. wQL não vira o envelope universal;
+6. um foreign link não muda a semântica source.
 
-O compiler, o session engine, os codecs e as capability tables ficam em W. Um
-adapter de sistema pode usar uma façade C ou WASI para sockets, shared memory e
-handles. Essa façade não controla a semântica do protocolo.
+O compiler, o native link, o session engine, os codecs e as capability tables
+ficam em W. Um adapter de sistema pode usar uma façade C ou WASI para sockets,
+shared memory e handles. Essa façade não controla a semântica do protocolo.
+
+Cap'n Proto e gRPC são foreign links, não `ServiceTransport`. Cada um substitui
+session, codec e framing. O generator liga seu schema ao mesmo `ServiceIR` e
+rejeita uma interface que perderia um contrato obrigatório.
 
 #### 23.1.2 `ServiceIR` e identidade estável
 
@@ -17375,6 +17427,17 @@ O runtime local conta aliases de `ServiceRef`. O último alias envia
 capabilities efêmeras. Lease existe para detectar peer perdido, não para
 substituir ownership normal.
 
+Um resultado de pipeline pode criar uma capability antes de transferi-la ao
+caller. Se o node falha ou é cancelado, o runtime libera a entrada intermediária.
+Se o pipeline retorna a capability, o outcome transfere sua referência ao
+caller antes de liberar a table temporária.
+
+`capRelease` reduz authority e lifetime. Ele não promete executar uma operação
+de domínio como `OvenLeaseApi.close()`. Uma capability de resource declara
+expiry ou cleanup no provider descriptor. O instance manager executa esse
+cleanup durante drain e registra failure. Código que precisa observar o error
+continua a chamar `close()` explicitamente.
+
 Uma referência durável exige um contrato separado de save/restore e policy do
 provider. Serializar `ServiceRef` comum continua proibido. Persistent
 capabilities permanecem **Pesquisa** depois da primeira versão.
@@ -17398,15 +17461,15 @@ Proto chama essa técnica de “Time Travel”; o nome técnico é promise pipel
 Ela não é apenas execução assíncrona.
 
 ```text
-n0 = call pantry.reserve(order)
-n1 = call n0.result.oven.preheat(temperature)
-n2 = call n0.result.payment.authorize(n0.result.quote)
-await [n1, n2]
+n0 = call ovens.acquire(target, duration)
+n1 = call n0.result.preheat()
+return (n0.result, n1.result)
 ```
 
 O caller envia o grafo antes de receber o resultado de `n0`. O receiver executa
-`n1` e `n2` quando as projeções necessárias ficam disponíveis. Quando as edges
-usam a mesma route, o grafo pode custar um round trip em vez de dois ou três.
+`n1` quando a capability fica disponível. Quando as edges usam a mesma route, o
+grafo pode custar um round trip em vez de dois. O resultado devolve a lease e o
+estado ready porque o caller ainda precisa executar `bake()` e `close()`.
 Se uma edge cruza uma session sem introdução, o runtime espera a projection e
 continua pela route normal. A otimização some; a semântica permanece.
 
@@ -17424,9 +17487,18 @@ independentes seguem a policy estruturada declarada. Cancellation drena os
 nodes já admitidos. Cada mutation mantém seu próprio `effectId` e pode produzir
 `unknownOutcome`.
 
+Todos os nodes herdam a call ancestry do pipeline. Uma dependent call que volta
+a uma instance closed-turn da ancestry falha com `callCycle` antes da admission.
+Batching não remove essa verificação.
+
 O receiver não precisa devolver um resultado intermediário usado somente pelo
 grafo. Tracing ainda cria um span por node. Essa regra permite interfaces
 pequenas e capabilities finas sem pagar um round trip por composição.
+
+O resultado do pipeline seleciona quais valores intermediários chegam ao
+caller. Uma capability selecionada mantém sua referência. Um valor não
+selecionado é destruído no receiver depois do último dependent node. Essa regra
+torna owner e cleanup independentes da otimização de round trip.
 
 A syntax source e o builder de `CallPipeline` permanecem **Pesquisa**. O corpus
 compara duas alternativas visuais:
@@ -17434,17 +17506,16 @@ compara duas alternativas visuais:
 ```text
 // Bloco explícito.
 let result = try await CallPipeline.build {
-  let reservation = pantry.reserve(order)
-  async let heat = reservation.oven.preheat(temperature)
-  async let payment = reservation.payment.authorize(reservation.quote)
-  return (heat, payment)
+  let lease = ovens.acquire(target, duration: duration)
+  let ready = lease.preheat()
+  return (lease, ready)
 }
 
 // Builder fluente.
 let result = try await CallPipeline
-  .call(pantry.reserve, order)
-  .then(.oven.preheat, temperature)
-  .also(.payment.authorize, .result.quote)
+  .call(ovens.acquire, target, duration: duration)
+  .then(.preheat)
+  .returning(.root, .result)
   .run()
 ```
 
@@ -17459,14 +17530,14 @@ aplica a mesma ideia a projections e capabilities sobre JSON.
 
 #### 23.1.8 Transportes e fast paths
 
-**Exemplo:** o mesmo `ServiceIR` pode gerar quatro lowers:
+**Exemplo:** o mesmo `ServiceIR` pode gerar quatro links:
 
-| Placement | Lowering preferido | Boundary real |
+| Placement | Link preferido | Boundary real |
 |---|---|---|
-| mesma unit | mailbox + thunk tipado | turn e capability boundary |
-| Wasm component | canonical lift/lower | component instance |
-| mesmo host | IPC + frame bounded | processo e OS credentials |
-| outro host | session + network transport | channel autenticado |
+| mesma unit | `.local` com mailbox e thunk | turn e capability boundary |
+| Wasm component | `.component` com lift/lower | component instance |
+| mesmo host | `.wrpc` com IPC | processo e OS credentials |
+| outro host | `.wrpc` com network | channel autenticado |
 
 O fast path local não serializa. Ele move values diretamente quando mobility,
 ABI e trust domain permitem. Ele ainda executa validation de refinement,
@@ -17476,9 +17547,16 @@ Um component adapter usa lift/lower e resources tipados. Um IPC adapter pode
 adotar shared segments para `take Bytes`. Um network adapter pode adotar frame
 storage como owner. Nenhum adapter entrega pointer borrowed do caller.
 
-`ServiceTransport` recebe frames bounded e channel policy. Ele não resolve
-package names, não escolhe provider e não inventa retries. Um adapter sem uma
-garantia necessária falha durante resolution.
+`ServiceLink` recebe a interface, provider resolution e route policy. Ele
+preserva calls, outcomes, streams e capabilities. Um local ou component link
+não instancia wRPC somente para manter uma abstração interna.
+
+No wRPC link, `ServiceTransport` recebe frames bounded e channel policy. Ele não
+resolve package names, não escolhe provider e não inventa retries.
+
+Um foreign link, como Cap'n Proto ou gRPC, substitui wRPC, codec e transport SPI
+internos. Seu adapter continua responsável por preservar o contrato ou rejeitar
+a edge durante resolution.
 
 O WebAssembly Component Model separa interfaces de lift/lower e possui
 resources com ownership. Ele é um bom adapter de component, mas não substitui a
@@ -17490,11 +17568,11 @@ session distribuída de wRPC.
 
 | Sistema | Força principal | Lacuna para W | Papel em W |
 |---|---|---|---|
-| Cap'n Proto | capabilities, pipelining e acesso in-place | IDL/ordinals próprios; RPC complexo; encoding comum não é canônico por default | adapter e baseline principal |
-| Cap'n Web | session simétrica, projections e ergonomia | schema dinâmico e erros tardios no proxy JavaScript | referência de ergonomia e adapter web |
-| gRPC + Protobuf | ecossistema, streaming, deadlines e tooling | IDL separado; capability refs não são o núcleo | adapter de interoperabilidade |
+| Cap'n Proto | capabilities, pipelining e acesso in-place | IDL/ordinals próprios; RPC complexo; encoding comum não é canônico por default | foreign link e baseline principal |
+| Cap'n Web | session simétrica, projections e ergonomia | schema dinâmico e erros tardios no proxy JavaScript | referência e foreign web link |
+| gRPC + Protobuf | ecossistema, streaming, deadlines e tooling | IDL separado; capability refs não são o núcleo | foreign link de interoperabilidade |
 | Wasm Component Model | composition e resources owned | não define RPC distribuído completo | boundary de component |
-| FlatBuffers | leitura in-place e evolução de tables | não define calls, outcomes ou capabilities | candidate de codec adapter |
+| FlatBuffers | leitura in-place e evolução de tables | não define calls, outcomes ou capabilities | candidate de codec para um link |
 | SBE | latência baixa e decode sequencial | schema order rígida e framing externo | baseline de throughput |
 | wRPC + wWire | contrato source único e fast paths W | implementação e ecossistema ainda inexistentes | stack nativa candidata |
 
@@ -17648,14 +17726,37 @@ authorization, cost e partial failure são explícitos.
 
 RestPC é um profile HTTP/JSON:
 
-- GET para leitura;
-- POST para call/create;
+- GET obtém uma representação identificada pela URI;
+- QUERY executa uma consulta segura e idempotente cujo input está no content;
+- POST executa command, call ou create que pode alterar estado;
 - PUT para replace;
 - DELETE para remoção;
 - OPTIONS para introspection autorizada.
 
-Ele não finge que toda operação é um resource. Typed errors e HTTP status são
-camadas distintas. GraphQL, SQL e OpenAPI não são compatibilidade automática.
+QUERY segue o [RFC 10008](https://www.rfc-editor.org/rfc/rfc10008.html). Ele é
+adequado quando a consulta é grande, estruturada ou sensível demais para a URI.
+O handler precisa provar os efeitos `safe` e `idempotent`. Uma query wQL não
+recebe essas propriedades somente porque usa QUERY. Uma operação que altera
+estado usa POST ou outro método compatível com seus efeitos.
+
+```http
+QUERY /orders HTTP/1.1
+Content-Type: application/json
+Accept: application/json
+
+{"stage":["accepted","preparing"],"limit":32}
+```
+
+O adapter rejeita content sem `Content-Type` ou incompatível com ele. Ele pode
+publicar os formatos aceitos com `Accept-Query`. A cache key inclui target,
+content e metadata relevante. `Location` pode identificar uma URI que repete a
+consulta com GET. `Content-Location` pode identificar o resultado. Um adapter
+de browser considera que QUERY exige CORS preflight.
+
+RestPC não usa GET com content e não converte uma consulta para POST somente
+porque a URI ficou grande. Ele não finge que toda operação é um resource. Typed
+errors e HTTP status são camadas distintas. GraphQL, SQL e OpenAPI não são
+compatibilidade automática.
 
 ### 23.4 V6 e Computer Units
 
@@ -17767,6 +17868,7 @@ Uma pesquisa só avança quando possui:
 | `fn`, `some fn` e `any fn` | **Provável** | tipos e drop são conhecidos; escape e erasure exigem corpus de custo |
 | services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
 | `ServiceIR` e `interface.lock` | **Possível agora** | interface semântica, IDs estáveis e diff são técnicas conhecidas |
+| `ServiceLink` separado de `ServiceTransport` | **Possível agora** | local, component, native RPC e foreign RPC exigem lowers completos distintos |
 | wRPC unary e capability tables | **Provável** | lifecycle está fechado; session, disconnect e security exigem fault tests |
 | streams wRPC com dois créditos | **Provável** | `Stream` e quotas existem; terminal dual e fairness exigem protótipo |
 | `CallPipeline` dependente | **Provável** | Cap'n Proto prova a técnica; syntax W, effects e routing exigem corpus |
@@ -17807,6 +17909,7 @@ Uma pesquisa só avança quando possui:
 | native dynamic library como sandbox | **Rejeitado** | loader e symbol boundary não contêm memory corruption ou panic |
 | parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
 | mensagem HTTP, ownership e admission | **Possível agora** | types, stream e limits estão fechados; adapters ainda precisam de corpus |
+| RestPC com HTTP QUERY | **Possível agora** | RFC 10008 fixa segurança, idempotência, content negotiation e cache key; effect checking e adapters ainda precisam de corpus |
 | adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
 | SQL estático e rows tipadas | **Possível agora** | descriptors e bind são diretos; schema completo depende de bundle |
 | pool, pipeline e transaction database | **Provável** | protocolos existem; admission, cleanup e unknown commit exigem fault tests |
@@ -18345,6 +18448,7 @@ backpressure e cleanup reproduzíveis.
 - service declarations, adapters, refs reificadas e startup resolution;
 - imports, exports, override policy e initializer arguments por interface;
 - `ServiceIR`, `interface.lock` e compatibility checker por direção;
+- `ServiceLink` local, component, wRPC e foreign adapter;
 - session wRPC, `callId`, `effectId` e metadata bounded;
 - JSON oracle e wWire unary nos profiles `exact` e `compatible`;
 - streams com créditos de items e bytes;
@@ -18360,6 +18464,7 @@ backpressure e cleanup reproduzíveis.
 - tracing e local fast path;
 - process e `wasm32-wasip3` boundary experimentais;
 - `Request`, `Response`, `http.Context` e admission HTTP;
+- RestPC com QUERY, `Accept-Query`, cache key por content e CORS preflight;
 - adapter HTTP nativo e adapter `http-worker@1` com o mesmo oracle;
 - `ByteSink.writeMany` com fallback, short progress e cancel drain;
 
@@ -19143,18 +19248,20 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-662 | APIs de host | `std.process` é T1 sem singleton; device, mobile e audio usam módulos SDK e contexts explícitos | pseudo-global ambiental; um Context universal; target implica authority |
 | W-663 | signals de processo | `ctx.signals.register` instala handler runtime; adapter enfileira evento seguro; registration controla lifetime | `hostBindings`; executar W no raw handler; recuperar fault síncrona |
 | W-664 | service resolution | slots são resolvidos antes do entry e ficam estáveis por process generation | live rebind; `ctx.services.get`; trocar provider durante call |
-| W-665 | service bridge | `ServiceProtocol<P>` é gerado; `ServiceTransport` é o adapter SPI independente do codec e de wRPC | conformance manual; wQL universal; adapter único fixado |
-| W-666 | stack de service | source → `ServiceIR` → wRPC → codec → transport → deployment | Cap'n Proto como runtime estrutural; um protocolo mistura todas as camadas |
+| W-665 | service bridge | `ServiceProtocol<P>` é gerado; `ServiceLink` materializa a boundary; `ServiceTransport` carrega somente frames wRPC | conformance manual; um SPI para local, RPC e bytes; wQL universal |
+| W-666 | stack de service | source → `ServiceIR` → `ServiceLink`; o native distributed link usa wRPC → codec → transport | Cap'n Proto como runtime estrutural; wRPC fictício no local/component; um protocolo mistura tudo |
 | W-667 | service IR | compiler deriva um record data-only de protocols W; não existe segundo IDL manual | `.proto`/`.capnp` como source authority; reflection runtime como schema |
 | W-668 | identities de schema | `interface.lock` versionado guarda IDs, lineage e reservations sem annotation source | ordinals no source; declaration order; hash do nome |
 | W-669 | evolução de service | compatibility é direcional; enum subset limita cases possíveis; unknown fields não ficam ocultos no valor W | SemVer sozinho; aceitar toda mudança aditiva; sidecar invisível em toda struct |
 | W-670 | session wRPC | handshake negocia interface, codec, limits e features; `callId` é attempt e `effectId` é efeito lógico | schema arbitrário recebido; metadata map ilimitado; retry preserva call ID |
 | W-671 | stream remoto | usa `Stream`; créditos independentes de items e bytes; drop envia reset e drain | quatro famílias RPC públicas; buffer ilimitado; `view` remoto |
-| W-672 | capability remota | table bidirecional, rights attenuated, release no último alias e cleanup no disconnect | URL livre; pointer; persistent ref default; ID reutilizado na session |
-| W-673 | call dependente | wRPC inclui promise pipelining por `CallPipeline` explícito; syntax permanece Pesquisa | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
+| W-672 | capability remota | table bidirecional, rights attenuated, release no último alias; resource cleanup pertence ao provider descriptor | URL livre; pointer; `capRelease` finge executar `close`; persistent ref default |
+| W-673 | call dependente | wRPC inclui `CallPipeline` explícito; ancestry, intermediate ownership e orphan capability cleanup permanecem observáveis | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
 | W-674 | codec nativo | wWire pesquisa profiles `exact` e `compatible`; JSON é oracle; Cap'n Proto é adapter e baseline | layout de memória como wire; codec único para todos os usos; freeze sem fuzzer |
 | W-675 | input gate | closed turn bloqueia outro handler durante qualquer `await`; reentrância exige policy futura | interleaving default; storage library altera admission implicitamente |
-| W-676 | output gate | commit dependencies retêm outcomes e efeitos externos; falha descarta staging e faults a generation | resposta antes do commit; rollback fictício; gate para I/O não participante |
+| W-676 | output gate | turn fica `committing`; failure conhecido produz `commitFailed`, dúvida produz `unknownOutcome`; staging não entregue é descartado | próximo turn antes do commit; resposta prematura; rollback fictício |
+| W-677 | seleção de service link | `servicePolicy.links` permite local, component, wRPC ou adapter; deployment lock fixa a escolha por edge | `transports` mistura níveis; escolha ambiental no startup; source seleciona IPC/rede |
+| W-678 | consulta RestPC | QUERY representa somente operação provada safe e idempotent; content tipado exige `Content-Type`; cache key inclui content e metadata | GET com content; POST como fallback de toda query; método HTTP determinar efeitos do handler |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

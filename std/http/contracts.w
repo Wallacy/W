@@ -61,6 +61,7 @@ export struct MethodToken {
 export enum Method {
   get
   head
+  query
   post
   put
   delete
