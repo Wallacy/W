@@ -10113,7 +10113,8 @@ um import comum em service.
 contrato. `ServiceLink` materializa a route. O link nativo distribuído usa wRPC,
 um codec e `ServiceTransport`. Cap'n Proto, Cap'n Web e gRPC entram como foreign
 links; nenhum deles é uma dependência estrutural. A seção 23.1 fecha essa
-divisão e mantém o layout exato de wWire em pesquisa. wQL não define o envelope.
+divisão e mantém o custo e a implementação do wWire em pesquisa. wQL não define
+o envelope.
 
 `ServiceProtocol<P>` identifica a conformance gerada para a boundary.
 `RestaurantApi` identifica a API da aplicação. `ServiceLink` e
@@ -18766,6 +18767,48 @@ Um refinement integer pode reduzir a largura de wire quando todo o domínio cabe
 na largura menor. `u16<(1...128)>` usa um byte. A decisão entra no
 `WireSchemaDigest`. Ela não depende do valor runtime.
 
+**Registro mínimo v0.** O `wire kind` é um byte independente do valor da
+aplicação. O registro não usa a ordem dos cases de um enum source. Os IDs de
+`1` a `25` são estáveis no encoding v0 e crescem somente por append:
+
+| ID | Kind | Conteúdo necessário para validar ou pular |
+|---:|---|---|
+| 0 | `invalid` | reservado; nunca é aceito |
+| 1 | `bool` | um byte `0` ou `1` |
+| 2–6 | `u8`, `u16`, `u32`, `u64`, `u128` | largura fixa little-endian |
+| 7–11 | `i8`, `i16`, `i32`, `i64`, `i128` | largura fixa little-endian |
+| 12–13 | `f32`, `f64` | bits IEEE na largura fixa |
+| 14–15 | `bytes`, `string` | bloco de bytes; `string` exige UTF-8 |
+| 16–24 | `record`, `tuple`, `enum`, `option`, `result`, `sequence`, `map`, `set`, `tensor` | estrutura do schema e seus blocks |
+| 25 | `capability` | ordinal na capability table da mensagem |
+
+Os IDs `26–127` ficam reservados para extensões portáteis futuras. `128–239`
+exigem registro e negociação explícitos; `240–255` são locais ou experimentais
+e não podem aparecer em um package portátil. Um decoder v0 rejeita um kind não
+registrado antes de reservar o destino. `usize` e `isize` baixam para um kind
+inteiro fixo somente quando o refinement prova a largura portátil.
+
+**Seed vector canônico.** Para `struct MenuKey { id: u16, urgent: Bool? }`,
+com stable IDs `1` e `2`, `id = 42` e `urgent = true` ou ausente, o profile
+`exact` produz:
+
+| Valor | Bytes hexadecimais |
+|---|---|
+| `urgent` ausente | `00 2A 00` |
+| `urgent = true` | `01 2A 00 01` |
+
+O profile `compatible` produz a directory inteira antes dos blocks. A entry é
+`ID delta | wire kind | byte length`; portanto os mesmos valores produzem:
+
+| Valor | Bytes hexadecimais |
+|---|---|
+| `urgent` ausente | `01 01 03 02 2A 00` |
+| `urgent = true` | `02 01 03 02 01 01 01 2A 00 01` |
+
+Esses quatro vetores são fixtures de conformance, não uma promessa de layout de
+memória. A otimização do encoder, o decoder incremental e o custo comparativo
+continuam sujeitos ao gate de protótipo.
+
 **Layout `compatible`.** Um record compatível usa esta ordem:
 
 ```text
@@ -18875,9 +18918,10 @@ Compressão ocorre depois do codec e antes do transport. O frame declara tamanho
 comprimido e tamanho lógico. O receiver reserva pelo tamanho lógico e pelo
 budget. Checksums, channel integrity e retransmission não pertencem ao wWire.
 
-**Estado e alternativas.** O layout prefixado por directory e lengths é
-**Direção**. Os números de wire kind e os bytes finais permanecem **Pesquisa**
-até o gate de protótipo.
+**Estado e alternativas.** O layout prefixado por directory e lengths e o
+registro core v0 são **Direção**. Os seed vectors são **Forma vigente** para
+conformance. Extensões de kind, decoder incremental, custo e implementação
+independente permanecem **Pesquisa** até o gate de protótipo.
 
 Um offset directory permanece **Alternativa** para benchmark. Ele permite acesso
 direto, mas exige validar ranges, overlap e canonical placement. O fast path
@@ -19087,7 +19131,7 @@ Uma pesquisa só avança quando possui:
 | service streams com dois créditos | **Provável** | source, errors, ownership, créditos e relay estão fechados; fairness e fault injection exigem protótipo |
 | `pipeline` dependente | **Provável** | forma source e DAG estão fechados; runtime, arbitragem e routing exigem protótipo |
 | output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
-| wWire `exact` e `compatible` | **Pesquisa** | layout prefixado é Direção; wire kinds, bytes finais, custo, decoder e fuzzer ainda precisam de protótipo |
+| wWire `exact` e `compatible` | **Pesquisa** | layout, registro core v0 e seed vectors estão definidos; custo, decoder, extensões e fuzzer ainda precisam de protótipo |
 | introdução direta entre três services | **Pesquisa** | peer authorization, routing e lifetime aumentam a session v0 |
 | `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
 | bindings tipados e runtime graph data-only | **Possível agora** | requirements, providers, imports e exports fecham por interface no link |
@@ -20508,12 +20552,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-703 | metadata e mirrors | root, targets, snapshot, timestamp, expiry, threshold e digest protegem registry; mirror é transporte | URL como trust; rollback/freeze aceitos; fallback para mirror não listado; bytes mutáveis |
 | W-704 | transparency adapter | Sigstore/Rekor pode atestar identidade e registro; trust policy W continua local e separada | log como única autorização; OIDC como root universal; chave do builder acumula maintainer e platform |
 | W-705 | ergonomia de transaction | contract default permite omitir `<...>`, mas `tx = provider`, body e `commit` continuam explícitos | `try await transaction;`; provider ambient; `tx` implícito; commit por `return` |
-| W-706 | navegação do design | `DESIGN.md` continua canônico e integral; índice gerado publica intervalos e métricas; check impede drift | capítulos com autoridades separadas; resumo manual duplicado; leitura integral por default |
+| W-706 | navegação do design | `DESIGN.md` continua canônico e integral; índice gerado publica bundles e métricas; leitor somente leitura recorta headings/IDs; check impede drift | capítulos com autoridades separadas; resumo manual duplicado; leitura integral por default |
 | W-707 | gate de design freeze | cinco ciclos fecham ergonomia, kernel, execução, toolchain e contrato público; pesquisa com fallback não bloqueia | número de decisões prova completude; toda pesquisa bloqueia; implementação ampla antes dos spikes |
 | W-708 | formatter canônico | CST lossless, trivia, 120 colunas, source order, comments anexados, semicolon removido e saída idempotente | style configurável amplo; import sorting; formatter dependente de HIR; reescrita AST silenciosa |
 | W-709 | formatter e diagnostics | source com error fatal não é gravado; `--check` não modifica; spans continuam em bytes e a recovery fica no editor | saída parcial silenciosa; line/column como autoridade; formatter corrige sem reportar parser error |
 | W-710 | representação por fronteira | low bit somente em storage interno provado; W exact publica niche; C, wire e persistência usam carriers explícitos; high bit fica experimental | tagged pointer universal; tag no source; pointer bits em wire; compactação que ignora hardening |
 | W-711 | evolução da ABI W | v0 recompila consumers W; C, component, service schema e source rebuild atendem evolução independente | ABI resiliente implícita; layout congelado por default; runtime permanente sem protótipo |
+| W-712 | registro de wire kinds v0 | IDs `1–25` são um registro core append-only; `0` é inválido; extensões exigem registro/negociação e kind local não é portátil | inferir ID pela ordem do enum; usar kind como semântica da aplicação; aceitar extensão desconhecida sem registry |
+| W-713 | seed vectors wWire | `MenuKey` fixa quatro vetores hex para `exact` e `compatible`; os vetores orientam conformance sem prometer layout de memória | esperar o decoder para definir bytes; snapshots de implementação; usar JSON como wire nativo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

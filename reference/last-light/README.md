@@ -764,6 +764,8 @@ application outcome, boundary outcome e trace ancestry.
 
 `wire_oracle.w` acrescenta estes casos:
 
+- o registro core v0 mantém IDs `1–25` sem depender da ordem do enum source;
+- quatro seed vectors fixam `MenuKey` em `exact` e `compatible`;
 - `SatelliteTelemetry` fixa tensor, unit, String, enum e integer no mesmo valor;
 - x86-64, Arm64 e um decoder independente precisam produzir os mesmos bytes;
 - `RestaurantSnapshot.activeOrders` usa `u32`, não `usize` target-dependent;

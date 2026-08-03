@@ -20,6 +20,93 @@ const fn expectedProfile(for relation: WireSchemaRelation): WireProfilePlan {
   }
 }
 
+enum WireKind {
+  invalid
+  bool
+  u8
+  u16
+  u32
+  u64
+  u128
+  i8
+  i16
+  i32
+  i64
+  i128
+  f32
+  f64
+  bytes
+  string
+  record
+  tuple
+  enumValue
+  option
+  result
+  sequence
+  map
+  set
+  tensor
+  capability
+}
+
+const fn wireKindId(for kind: WireKind): u8 {
+  return switch kind {
+    case .invalid: 0
+    case .bool: 1
+    case .u8: 2
+    case .u16: 3
+    case .u32: 4
+    case .u64: 5
+    case .u128: 6
+    case .i8: 7
+    case .i16: 8
+    case .i32: 9
+    case .i64: 10
+    case .i128: 11
+    case .f32: 12
+    case .f64: 13
+    case .bytes: 14
+    case .string: 15
+    case .record: 16
+    case .tuple: 17
+    case .enumValue: 18
+    case .option: 19
+    case .result: 20
+    case .sequence: 21
+    case .map: 22
+    case .set: 23
+    case .tensor: 24
+    case .capability: 25
+  }
+}
+
+enum WireVector {
+  exactMenuKeyAbsent
+  exactMenuKeyPresent
+  compatibleMenuKeyAbsent
+  compatibleMenuKeyPresent
+}
+
+const fn expectedVector(for vector: WireVector): Array<u8> {
+  return switch vector {
+    case .exactMenuKeyAbsent: [0x00_u8, 0x2a_u8, 0x00_u8]
+    case .exactMenuKeyPresent: [0x01_u8, 0x2a_u8, 0x00_u8, 0x01_u8]
+    case .compatibleMenuKeyAbsent: [0x01_u8, 0x01_u8, 0x03_u8, 0x02_u8, 0x2a_u8, 0x00_u8]
+    case .compatibleMenuKeyPresent: [
+      0x02_u8,
+      0x01_u8,
+      0x03_u8,
+      0x02_u8,
+      0x01_u8,
+      0x01_u8,
+      0x01_u8,
+      0x2a_u8,
+      0x00_u8,
+      0x01_u8
+    ]
+  }
+}
+
 enum WireTypeCase {
   fixedInteger
   refinedTargetIndex
@@ -120,6 +207,35 @@ test "wire schema relation selects the codec profile" for expectedProfile {
   expect expectedProfile(for: .sameWireSchema) == .exact
   expect expectedProfile(for: .compatible) == .compatible
   expect expectedProfile(for: .incompatible) == .reject
+}
+
+test "core wire kind IDs are independent of source enum order" for wireKindId {
+  expect wireKindId(for: .invalid) == 0
+  expect wireKindId(for: .bool) == 1
+  expect wireKindId(for: .u16) == 3
+  expect wireKindId(for: .i128) == 11
+  expect wireKindId(for: .string) == 15
+  expect wireKindId(for: .record) == 16
+  expect wireKindId(for: .tensor) == 24
+  expect wireKindId(for: .capability) == 25
+}
+
+test "wWire seed vectors remain canonical" for expectedVector {
+  expect expectedVector(for: .exactMenuKeyAbsent) == [0x00_u8, 0x2a_u8, 0x00_u8]
+  expect expectedVector(for: .exactMenuKeyPresent) == [0x01_u8, 0x2a_u8, 0x00_u8, 0x01_u8]
+  expect expectedVector(for: .compatibleMenuKeyAbsent) == [0x01_u8, 0x01_u8, 0x03_u8, 0x02_u8, 0x2a_u8, 0x00_u8]
+  expect expectedVector(for: .compatibleMenuKeyPresent) == [
+    0x02_u8,
+    0x01_u8,
+    0x03_u8,
+    0x02_u8,
+    0x01_u8,
+    0x01_u8,
+    0x01_u8,
+    0x2a_u8,
+    0x00_u8,
+    0x01_u8
+  ]
 }
 
 test "local time and borrowed storage do not cross wRPC" for expectedEligibility {

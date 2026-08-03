@@ -17,6 +17,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `design-index.mjs` | gera intervalos e métricas de `DESIGN.md` | projeção navegável; não define decisões |
+| `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
@@ -83,6 +84,8 @@ integrações de editor.
    `node tooling/check-design-examples.mjs` na pasta `W`.
 5. Para atualizar o índice, execute
    `node tooling/design-index.mjs --write` na pasta `W`.
+6. Para ler somente um recorte do design, execute
+   `node tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
 
 ## Caminho até o browser
 

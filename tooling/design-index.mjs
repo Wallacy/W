@@ -53,6 +53,46 @@ for (let index = 0; index < numberedSections.length; index += 1) {
   section.tokens = approximateTokens(lines.slice(section.start - 1, section.end).join("\n"));
 }
 
+const readingBundles = [
+  {
+    name: "orientação e superfície",
+    sections: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    purpose: "promessa, símbolos, source, módulos, funções e tipos",
+  },
+  {
+    name: "segurança e execução",
+    sections: [9, 10, 11, 12, 13],
+    purpose: "ownership, errors, tasks, domains, services e entries",
+  },
+  {
+    name: "SDK e performance",
+    sections: [14, 15, 16, 17, 18, 19],
+    purpose: "tiers, números, texto, tensors, custo, C e unsafe",
+  },
+  {
+    name: "compiler e distribuição",
+    sections: [20, 21, 22, 23],
+    purpose: "frontend, HIR, packages, releases, tooling e protocolos",
+  },
+  {
+    name: "validação e decisões",
+    sections: [24, 25, 26, 27, 28, 29],
+    purpose: "viabilidade, Última Luz, gates, roadmap e ledger",
+  },
+];
+
+function sectionFor(number) {
+  return numberedSections.find((section) => section.number === number);
+}
+
+function bundleStats(bundle) {
+  const sections = bundle.sections.map(sectionFor);
+  const start = Math.min(...sections.map((section) => section.start));
+  const end = Math.max(...sections.map((section) => section.end));
+  const tokens = sections.reduce((total, section) => total + section.tokens, 0);
+  return { ...bundle, start, end, tokens };
+}
+
 const headings = [];
 
 for (let index = 0; index < lines.length; index += 1) {
@@ -240,6 +280,25 @@ for (const section of numberedSections) {
 }
 
 output.push("");
+output.push("## Bundles de leitura");
+output.push("");
+output.push(
+  "Use um bundle para uma revisão de domínio. Depois leia somente os headings e IDs ligados à pergunta; não copie o bundle para outro documento.",
+);
+output.push("");
+output.push("| Bundle | Seções | Linhas | Tokens aproximados | Foco |");
+output.push("|---|---:|---:|---:|---|");
+
+for (const bundle of readingBundles.map(bundleStats)) {
+  output.push(
+    `| ${tableCell(bundle.name)} | ${bundle.sections.join(", ")} | ${bundle.start}–${bundle.end} | ${bundle.tokens} | ${tableCell(bundle.purpose)} |`,
+  );
+}
+
+output.push("");
+output.push("O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.");
+
+output.push("");
 output.push("## Classificação de viabilidade");
 output.push("");
 output.push("| Classe | Famílias |");
@@ -261,8 +320,9 @@ output.push("");
 output.push("## Comandos de leitura");
 output.push("");
 output.push("```powershell");
-output.push("rg -n '^## 12\\.|^### 12\\.' W/DESIGN.md");
-output.push("rg -n 'W-688' W/DESIGN.md");
+output.push("node W/tooling/design-slice.mjs --section 12");
+output.push("node W/tooling/design-slice.mjs --heading 12.13");
+output.push("node W/tooling/design-slice.mjs --id W-711 --context 2");
 output.push("rg -n -C 4 'transaction' W/DESIGN.md");
 output.push("node W/tooling/design-index.mjs --check");
 output.push("```");
