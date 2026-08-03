@@ -11,7 +11,7 @@ depende do file icon theme ativo: o VS Code só usa o ícone default quando o te
 permite language mode icons e não possui associação mais específica para `.w`.
 
 > **Status: Direção.** A gramática é uma ajuda visual alinhada a
-> `W/DESIGN.md` e aos exemplos do restaurante; não
+> `DESIGN.md` e aos exemplos do restaurante; não
 > define nem valida a linguagem.
 
 ## O que cobre
@@ -38,7 +38,7 @@ artefato.
 
 ## Usar localmente
 
-1. Abra esta pasta (`W/tooling/vscode-w`) no VS Code.
+1. Abra esta pasta (`tooling/vscode-w`) no VS Code.
 2. Pressione `F5` ou escolha **Run Extension**. Uma janela **Extension
    Development Host** será aberta.
 3. Nessa janela, abra qualquer arquivo `.w`, por exemplo

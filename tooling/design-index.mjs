@@ -320,11 +320,11 @@ output.push("");
 output.push("## Comandos de leitura");
 output.push("");
 output.push("```powershell");
-output.push("node W/tooling/design-slice.mjs --section 12");
-output.push("node W/tooling/design-slice.mjs --heading 12.13");
-output.push("node W/tooling/design-slice.mjs --id W-711 --context 2");
-output.push("rg -n -C 4 'transaction' W/DESIGN.md");
-output.push("node W/tooling/design-index.mjs --check");
+output.push("node tooling/design-slice.mjs --section 12");
+output.push("node tooling/design-slice.mjs --heading 12.13");
+output.push("node tooling/design-slice.mjs --id W-711 --context 2");
+output.push("rg -n -C 4 'transaction' DESIGN.md");
+output.push("node tooling/design-index.mjs --check");
 output.push("```");
 output.push("");
 
@@ -338,12 +338,12 @@ if (mode === "--write") {
   const current = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, "utf8") : "";
 
   if (current !== generated) {
-    process.stderr.write("DESIGN-INDEX.md is stale. Run: node W/tooling/design-index.mjs --write\n");
+    process.stderr.write("DESIGN-INDEX.md is stale. Run: node tooling/design-index.mjs --write\n");
     process.exitCode = 1;
   } else {
     process.stdout.write("Design index is current.\n");
   }
 } else {
-  process.stderr.write("Usage: node W/tooling/design-index.mjs --write|--check\n");
+  process.stderr.write("Usage: node tooling/design-index.mjs --write|--check\n");
   process.exitCode = 2;
 }

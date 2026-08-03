@@ -2,7 +2,7 @@
 
 > **Status:** rascunho source. Não existe build da standard library.
 
-[`W/DESIGN.md`](../DESIGN.md) define os tiers e a semântica. Estes arquivos
+[`DESIGN.md`](../DESIGN.md) define os tiers e a semântica. Estes arquivos
 testam se os contratos podem ser escritos em W.
 
 ## Camadas

@@ -5,7 +5,7 @@ existia aqui promovia hipóteses históricas — como “tudo é enum”, módul
 singletons/arenas obrigatórios e vários estados sentinela — que não representam
 mais o desenho atual.
 
-A antiga cheatsheet evoluiu para a [POC do portal em Bun](../../W/portal/README.md).
+A antiga cheatsheet evoluiu para a [POC do portal em Bun](../portal/README.md).
 Para abri-la:
 
 ```powershell
@@ -15,6 +15,6 @@ bun run start
 
 Depois acesse `http://localhost:3000`.
 
-Use [`W/DESIGN.md`](../../W/DESIGN.md) como autoridade para o estado atual. Ele
+Use [`DESIGN.md`](../DESIGN.md) como autoridade para o estado atual. Ele
 reúne linguagem, runtime, SDK, compilador, packages, tooling, plano e
 alternativas. A interface visual é uma projeção desse contrato.

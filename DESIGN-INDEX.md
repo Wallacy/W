@@ -116,10 +116,10 @@ O bundle agrupa seções para planejamento; os intervalos não são uma nova aut
 ## Comandos de leitura
 
 ```powershell
-node W/tooling/design-slice.mjs --section 12
-node W/tooling/design-slice.mjs --heading 12.13
-node W/tooling/design-slice.mjs --id W-711 --context 2
-rg -n -C 4 'transaction' W/DESIGN.md
-node W/tooling/design-index.mjs --check
+node tooling/design-slice.mjs --section 12
+node tooling/design-slice.mjs --heading 12.13
+node tooling/design-slice.mjs --id W-711 --context 2
+rg -n -C 4 'transaction' DESIGN.md
+node tooling/design-index.mjs --check
 ```
 

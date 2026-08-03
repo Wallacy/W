@@ -1,5 +1,5 @@
 // Candidate executable grammar for W's surface syntax.
-// W/DESIGN.md owns language decisions.
+// DESIGN.md owns language decisions.
 
 const DECLARATION_KEYWORDS = [
   "alias",

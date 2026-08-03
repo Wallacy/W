@@ -92,7 +92,7 @@ dezesseis módulos cobrem quantities, PID, scheduling, billing, ownership,
 services, TUI, HTTP e a boundary C. Sua [matriz de requisitos](examples/restaurant/REQUIREMENTS.md)
 explicita as alternativas e o que cada estágio precisa provar.
 
-O [tooling inicial](../../../../W/tooling/README.md) separa highlighting lexical imediato de
+O [tooling inicial](../../../tooling/README.md) separa highlighting lexical imediato de
 parsing estrutural. TextMate atende a extensão local do VS Code; Tree-sitter e
 suas queries formam um protótipo incremental para corpus/IDE/portal. Nenhum dos
 dois é gramática normativa enquanto parser e papel do Tree-sitter permanecerem
@@ -257,7 +257,7 @@ implementação do runtime nem substituem as provas propostas ali.
 - [design/compiler.md](design/compiler.md): frontend, IR, passes, backends e testes.
 - [design/documentation-and-tests.md](design/documentation-and-tests.md): `///`,
   doctests, testes co-localizados e runner.
-- [tooling/README.md](../../../../W/tooling/README.md): VS Code/TextMate, Tree-sitter e caminho
+- [tooling/README.md](../../../tooling/README.md): VS Code/TextMate, Tree-sitter e caminho
   de integração do highlighting no portal.
 - [design/memory-strategy.md](design/memory-strategy.md): lowering híbrido,
   allocators, regiões, shared ownership e tagged representations.

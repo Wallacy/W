@@ -13,7 +13,7 @@ parser, realce e o produto de referência.
 
 ## 0. Como ler este documento
 
-Este arquivo substitui os documentos de design espalhados em `W/`. A ordem é:
+Este arquivo substitui os documentos de design espalhados no repository. A ordem é:
 
 1. visão e regras de decisão;
 2. sintaxe e semântica da linguagem;
@@ -47,7 +47,7 @@ Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
 
 O histórico das consolidações anteriores e as notas originais ficam em
-[`Y/W/`](https://github.com/Wallacy/wallacy.com/tree/master/Y/W). O Git preserva
+[`history/`](history). O Git preserva
 autoria, datas e diffs. Este arquivo é a única fonte de verdade para o estado
 atual.
 
@@ -56,17 +56,17 @@ atual.
 Use o índice e o leitor para evitar releitura integral:
 
 ```powershell
-node W/tooling/design-slice.mjs --heading 12.13
-node W/tooling/design-slice.mjs --id W-724 --context 2
+node tooling/design-slice.mjs --heading 12.13
+node tooling/design-slice.mjs --id W-724 --context 2
 ```
 
 Valide somente o contrato documental com:
 
 ```powershell
-npm --prefix W/tooling/tree-sitter-w run check:docs
+npm --prefix tooling/tree-sitter-w run check:docs
 ```
 
-Use `npm --prefix W/tooling/tree-sitter-w run check` quando alterar grammar,
+Use `npm --prefix tooling/tree-sitter-w run check` quando alterar grammar,
 corpus ou fontes W. O segundo comando inclui o primeiro e também executa os
 gates de parsing e dos codecs de referência.
 
@@ -7650,7 +7650,7 @@ adapter paralelo declara `limit` e `ordering: .input | .completion`, como
 
 Low e high watermarks são policies de wake-up e batching. Elas não mudam a
 capacity nem o ownership. A ideia histórica `stream<watermark: ...>` permanece
-registrada em `Y/WIP.MD`; ela não entra na assinatura antes de um benchmark
+registrada em `history/WIP-audit.md`; ela não entra na assinatura antes de um benchmark
 mostrar valor portátil.
 
 `yield` e `yield*` permanecem **Pesquisa**. Antes dessa sugar, o verifier deve
@@ -13151,7 +13151,7 @@ let document = Rope.from(largeText)
 
 O compiler pode escolher storage especializado para um refinement quando a
 escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
-A hipótese de tree string permanece em `Y/W` porque favorece compartilhamento,
+A hipótese de tree string permanece em `history/` porque favorece compartilhamento,
 mas aumenta metadata e indireções no caso comum.
 
 SSO invisível e `InlineString` público resolvem problemas diferentes. SSO reduz
@@ -20136,7 +20136,7 @@ rastreáveis.
 
 Estas mudanças são experimentais. A fotografia da consolidação continua
 acessível no
-[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27)
+[arquivo histórico](history/archive/db1-2026-07-27)
 e no histórico do Git.
 
 ## 29. Registro de decisões e alternativas

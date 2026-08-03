@@ -5,7 +5,7 @@
 
 Esta pasta contém a gramática estrutural executável que deve alimentar
 highlighting, navegação, folds e futuras projeções para editores. A baseline e
-as alternativas estão em [`W/DESIGN.md`](../../DESIGN.md).
+as alternativas estão em [`DESIGN.md`](../../DESIGN.md).
 
 Tree-sitter é a única gramática **sintática** mantida neste experimento. Uma
 extensão VS Code pode derivar uma projeção TextMate para fallback lexical, mas

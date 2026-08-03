@@ -47,7 +47,6 @@ O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
 Para validar somente documentação e índice:
 
 ```powershell
-cd W # omita esta linha quando W for a raiz do repository
 npm --prefix tooling/tree-sitter-w run check:docs
 ```
 
@@ -106,7 +105,6 @@ passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
 ## Histórico
 
 As notas originais e os documentos substituídos ficam em
-[`Y/W/`](https://github.com/Wallacy/wallacy.com/tree/master/Y/W). A consolidação
-substituída de 27 de julho de 2026 está no
-[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27).
+[`history/`](history). A consolidação substituída de 27 de julho de 2026 está no
+[arquivo histórico](history/archive/db1-2026-07-27).
 Esses arquivos preservam proveniência. Eles não definem o W atual.

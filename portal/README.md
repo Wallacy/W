@@ -4,7 +4,7 @@
 
 O portal registra uma direção inicial para o Livro, a referência, o status e o
 playground lexical. Ele não precisa acompanhar cada mudança antes do design
-freeze. [`W/DESIGN.md`](../DESIGN.md) continua sendo a única fonte de verdade.
+freeze. [`DESIGN.md`](../DESIGN.md) continua sendo a única fonte de verdade.
 
 Após o freeze, as páginas serão geradas de `DESIGN.md`, do registro W e dos
 arquivos `.w`. Astro é uma alternativa de renderização, não uma escolha atual.
