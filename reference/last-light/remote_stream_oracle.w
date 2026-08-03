@@ -117,6 +117,175 @@ export const fn expectedRelayPlan(
   }
 }
 
+export enum StreamPhase {
+  opening
+  open
+  draining
+  ended
+  failed
+  canceled
+  protocolFailed
+}
+
+export enum StreamEvent {
+  opened
+  openRejected
+  item
+  complete
+  applicationError
+  boundaryError
+  reset
+  drainCompleted
+}
+
+export enum StreamAction {
+  opened
+  openFailed
+  itemDelivered
+  terminalEnd
+  terminalFailure
+  resetRequested
+  discardedDuringDrain
+  canceledAndDrained
+  noOp
+  protocolFailure
+}
+
+export struct StreamState {
+  phase: StreamPhase
+  deliveredItems: u64
+}
+
+export struct StreamStep {
+  state: StreamState
+  action: StreamAction
+}
+
+export const fn advanceStream(
+  state: StreamState,
+  event: StreamEvent,
+): StreamStep {
+  return switch (state.phase, event) {
+    case (.opening, .opened): StreamStep(
+      state: StreamState(phase: .open, deliveredItems: state.deliveredItems),
+      action: .opened,
+    )
+    case (.opening, .openRejected): StreamStep(
+      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      action: .openFailed,
+    )
+    case (.opening, .reset): StreamStep(
+      state: StreamState(phase: .draining, deliveredItems: state.deliveredItems),
+      action: .resetRequested,
+    )
+    case (.open, .item): StreamStep(
+      state: StreamState(
+        phase: .open,
+        deliveredItems: state.deliveredItems + 1,
+      ),
+      action: .itemDelivered,
+    )
+    case (.open, .complete): StreamStep(
+      state: StreamState(phase: .ended, deliveredItems: state.deliveredItems),
+      action: .terminalEnd,
+    )
+    case (.open, .applicationError): StreamStep(
+      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      action: .terminalFailure,
+    )
+    case (.open, .boundaryError): StreamStep(
+      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      action: .terminalFailure,
+    )
+    case (.open, .reset): StreamStep(
+      state: StreamState(phase: .draining, deliveredItems: state.deliveredItems),
+      action: .resetRequested,
+    )
+    case (.draining, .item): StreamStep(
+      state: state,
+      action: .discardedDuringDrain,
+    )
+    case (.draining, .reset): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.draining, .complete): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.draining, .applicationError): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.draining, .boundaryError): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.draining, .drainCompleted): StreamStep(
+      state: StreamState(phase: .canceled, deliveredItems: state.deliveredItems),
+      action: .canceledAndDrained,
+    )
+    case (.ended, .reset): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.failed, .reset): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.canceled, .reset): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.canceled, .drainCompleted): StreamStep(
+      state: state,
+      action: .noOp,
+    )
+    case (.ended, .item): StreamStep(
+      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      action: .protocolFailure,
+    )
+    case (.failed, .item): StreamStep(
+      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      action: .protocolFailure,
+    )
+    case (.canceled, .item): StreamStep(
+      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      action: .protocolFailure,
+    )
+    case (.protocolFailed, _): StreamStep(
+      state: state,
+      action: .protocolFailure,
+    )
+    case (_, _): StreamStep(
+      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      action: .protocolFailure,
+    )
+  }
+}
+
+export enum StreamFaultPoint {
+  open
+  decode
+  close
+}
+
+export enum StreamFaultOutcome {
+  openRejected
+  boundaryFailure
+  cleanupBoundary
+}
+
+export const fn expectedStreamFault(
+  point: StreamFaultPoint,
+): StreamFaultOutcome {
+  return switch point {
+    case .open: .openRejected
+    case .decode: .boundaryFailure
+    case .close: .cleanupBoundary
+  }
+}
+
 test "stream credits require both dimensions" for expectedCreditDecision {
   let grant = StreamCreditTotals(items: 2, bytes: 128)
 
@@ -190,4 +359,42 @@ test "normal end remains distinct from either failure" for expectedConsumerObser
   expect expectedConsumerObservation(.applicationError) == .failure
   expect expectedConsumerObservation(.boundaryError) == .failure
   expect expectedConsumerObservation(.consumerReset) == .canceledAndDrained
+}
+
+test "stream terminal and reset transitions are stable" for advanceStream {
+  let opening = StreamState(phase: .opening, deliveredItems: 0)
+  let opened = advanceStream(state: opening, event: .opened).state
+  expect opened.phase == .open
+
+  let delivered = advanceStream(state: opened, event: .item)
+  expect delivered.action == .itemDelivered
+  expect delivered.state.deliveredItems == 1
+
+  let ended = advanceStream(state: delivered.state, event: .complete)
+  expect ended.action == .terminalEnd
+  expect ended.state.phase == .ended
+
+  let lateItem = advanceStream(state: ended.state, event: .item)
+  expect lateItem.action == .protocolFailure
+  expect lateItem.state.phase == .protocolFailed
+
+  let reset = advanceStream(state: opened, event: .reset)
+  expect reset.action == .resetRequested
+  let drained = advanceStream(state: reset.state, event: .drainCompleted)
+  expect drained.action == .canceledAndDrained
+  expect drained.state.phase == .canceled
+
+  let discarded = advanceStream(state: reset.state, event: .item)
+  expect discarded.action == .discardedDuringDrain
+  expect discarded.state.phase == .draining
+
+  let lateTerminal = advanceStream(state: reset.state, event: .complete)
+  expect lateTerminal.action == .noOp
+  expect lateTerminal.state.phase == .draining
+}
+
+test "stream fault points retain opening decode and cleanup outcomes" for expectedStreamFault {
+  expect expectedStreamFault(.open) == .openRejected
+  expect expectedStreamFault(.decode) == .boundaryFailure
+  expect expectedStreamFault(.close) == .cleanupBoundary
 }

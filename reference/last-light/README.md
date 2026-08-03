@@ -185,7 +185,7 @@ alvo de execução independente.
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
-| `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
+| `remote_stream_oracle.w` | eligibility, créditos, lifecycle, fault points e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
 | `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |

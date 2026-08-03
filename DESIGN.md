@@ -10577,6 +10577,13 @@ para um service remoto sem mudar esses facts. Uma fault injetada preserva a
 distinção entre task cancelada, application error, commit failure, commit
 uncertainty e panic boundary.
 
+`remote_stream_oracle.w` fecha o outro terminal que não pode depender de timing:
+`opening → open`, item entregue, terminal normal ou failure, reset, drain e
+protocol failure. Um item que chega durante drain é descartado sem voltar ao
+consumer. Um item depois de um terminal produz protocol failure. A fault de
+`open`, `decode` ou `close` mantém, respectivamente, `openRejected`,
+`boundaryFailure` e `cleanupBoundary` como outcomes distintos.
+
 O trace lógico possui uma sequência estável de eventos como `taskPublished`,
 `taskSettled`, `cleanupCompleted`, `commitConfirmed`, `unknownOutcome` e
 `ownerClosed`. Worker assignment, thread migration, queue slot e transport hop
@@ -20640,6 +20647,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-716 | replay do scheduler | `scheduleId`, decisões lógicas, trace, outcome e owners fechados são comparados; packing físico diferente vira sidecar | comparar worker IDs; aceitar timing como semântica; esconder fault injection em logs; tratar panic como error recuperável |
 | W-717 | schema do replay | eventos de task, service, commit e owner pertencem ao logical trace; worker, thread, queue e transport ficam no sidecar físico | trace bruto como contrato; worker ID como identidade W; ignorar owner closure; comparar somente payload final |
 | W-718 | fault injection determinístico | `FaultSpec` usa `caseId`, boundary, point, action e occurrence bounded; combinações inválidas falham antes do runner; identidade entra no logical trace | relógio ou random como seletor; worker ID como selector; ocorrência ilimitada; colapsar cancel, error, commit uncertainty e panic |
+| W-719 | lifecycle de stream | oracle distingue abertura, item, terminal, reset, drain e protocol failure; fault points de `open`, `decode` e `close` preservam outcomes próprios | `done()` posterior; reset como fim normal; item tardio entregue; error de boundary oculto; destructor assíncrono |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
