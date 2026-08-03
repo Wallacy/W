@@ -1,0 +1,63 @@
+0:0  - 10:0   source_file
+0:0  - 2:1      struct_declaration
+0:0  - 0:6        "struct"
+0:7  - 0:13       name: type_identifier `Ticket`
+0:14 - 2:1        type_body
+0:14 - 0:15         "{"
+1:2  - 1:13         field_declaration
+1:2  - 1:8            name: identifier `number`
+1:8  - 1:9            ":"
+1:10 - 1:13           type: type
+1:10 - 1:13             base: type_name
+1:10 - 1:13               name: type_identifier `i32`
+2:0  - 2:1          "}"
+4:0  - 9:1      function_declaration
+4:0  - 4:2        "fn"
+4:3  - 4:15       name: identifier `chooseTicket`
+4:15 - 4:30       parameters: parameter_list
+4:15 - 4:16         "("
+4:16 - 4:29         parameter
+4:16 - 4:23           name: identifier `enabled`
+4:23 - 4:24           ":"
+4:25 - 4:29           type: type
+4:25 - 4:29             base: type_name
+4:25 - 4:29               name: type_identifier `Bool`
+4:29 - 4:30         ")"
+4:30 - 4:31       ":"
+4:32 - 4:39       return_type: type
+4:32 - 4:38         base: type_name
+4:32 - 4:38           name: type_identifier `Ticket`
+4:38 - 4:39         "?"
+4:40 - 9:1        body: block
+4:40 - 4:41         "{"
+5:2  - 7:3          if_statement
+5:2  - 5:4            "if"
+5:5  - 5:12           identifier `enabled`
+5:13 - 7:3            block
+5:13 - 5:14             "{"
+6:4  - 6:36             return_statement
+6:4  - 6:10               "return"
+6:11 - 6:36               call_expression
+6:11 - 6:16                 function: enum_literal
+6:11 - 6:12                   "."
+6:12 - 6:16                   case: identifier `some`
+6:16 - 6:36                 arguments: argument_list
+6:16 - 6:17                   "("
+6:17 - 6:35                   argument
+6:17 - 6:35                     value: call_expression
+6:17 - 6:23                       function: identifier `Ticket`
+6:23 - 6:35                       arguments: argument_list
+6:23 - 6:24                         "("
+6:24 - 6:34                         argument
+6:24 - 6:30                           label: identifier `number`
+6:30 - 6:31                           ":"
+6:32 - 6:34                           value: number_literal `42`
+6:34 - 6:35                         ")"
+6:35 - 6:36                   ")"
+7:2  - 7:3              "}"
+8:2  - 8:14         return_statement
+8:2  - 8:8            "return"
+8:9  - 8:14           enum_literal
+8:9  - 8:10             "."
+8:10 - 8:14             case: identifier `none`
+9:0  - 9:1          "}"

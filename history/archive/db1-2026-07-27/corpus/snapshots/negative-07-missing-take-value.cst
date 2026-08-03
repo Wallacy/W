@@ -1,0 +1,19 @@
+0:0  - 3:0    •source_file
+0:0  - 2:1      •function_declaration
+0:0  - 0:2         "fn"
+0:3  - 0:7         name: identifier `main`
+0:7  - 0:9         parameters: parameter_list
+0:7  - 0:8           "("
+0:8  - 0:9           ")"
+0:10 - 2:1        body: •block
+0:10 - 0:11         "{"
+1:2  - 1:15         •expression_statement
+1:2  - 1:15           •call_expression
+1:2  - 1:9               function: identifier `consume`
+1:9  - 1:15             arguments: •argument_list
+1:9  - 1:10                "("
+1:10 - 1:14               •ERROR
+1:10 - 1:14                  "take"
+1:14 - 1:15                ")"
+2:0  - 2:1           "}"
+<source>	(ERROR [1, 10] - [1, 14])
