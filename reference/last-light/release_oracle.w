@@ -57,6 +57,52 @@ enum QuorumDecision {
   duplicateExecutionRoot
 }
 
+struct ProvenanceEvidence {
+  releaseRecipeDigest: EvidenceDigest
+  attestedRecipeDigest: EvidenceDigest
+  recipeToolchainDigest: EvidenceDigest
+  attestedToolchainDigest: EvidenceDigest
+  artifactDigest: EvidenceDigest
+  platformArtifactDigest: EvidenceDigest
+  maintainerIdentity: EvidenceDigest
+  builderIdentity: EvidenceDigest
+  toolchainProviderIdentity: EvidenceDigest
+  platformSignerIdentity: EvidenceDigest
+}
+
+enum ProvenanceVerdict {
+  verified
+  recipeMismatch
+  toolchainMismatch
+  artifactMismatch
+  roleCollision
+}
+
+const fn verifyProvenance(evidence: ProvenanceEvidence): ProvenanceVerdict {
+  if evidence.maintainerIdentity == evidence.builderIdentity
+    || evidence.maintainerIdentity == evidence.toolchainProviderIdentity
+    || evidence.maintainerIdentity == evidence.platformSignerIdentity
+    || evidence.builderIdentity == evidence.toolchainProviderIdentity
+    || evidence.builderIdentity == evidence.platformSignerIdentity
+    || evidence.toolchainProviderIdentity == evidence.platformSignerIdentity {
+    return .roleCollision
+  }
+
+  if evidence.releaseRecipeDigest != evidence.attestedRecipeDigest {
+    return .recipeMismatch
+  }
+
+  if evidence.recipeToolchainDigest != evidence.attestedToolchainDigest {
+    return .toolchainMismatch
+  }
+
+  if evidence.artifactDigest != evidence.platformArtifactDigest {
+    return .artifactMismatch
+  }
+
+  return .verified
+}
+
 struct BuildEvidence {
   inputsComplete: Bool
   outputsComplete: Bool
@@ -129,6 +175,7 @@ const fn verifyRelease(
   payloadDigestMatches: Bool,
   independentRebuilders: u16,
   quorum: QuorumDecision,
+  provenance: ProvenanceVerdict,
   sourcePublic: Bool,
   transparencyRecorded: Bool,
   revoked: Bool,
@@ -159,6 +206,10 @@ const fn verifyRelease(
   }
 
   if quorum != .verified {
+    return .rejectReproduction
+  }
+
+  if provenance != .verified {
     return .rejectReproduction
   }
 
@@ -220,6 +271,7 @@ test "release verification separates signature from reproduction" for verifyRele
     payloadDigestMatches: true,
     independentRebuilders: 0,
     quorum: .insufficientEvidence,
+    provenance: .verified,
     sourcePublic: true,
     transparencyRecorded: true,
     revoked: false,
@@ -232,6 +284,7 @@ test "release verification separates signature from reproduction" for verifyRele
     payloadDigestMatches: true,
     independentRebuilders: 2,
     quorum: .verified,
+    provenance: .verified,
     sourcePublic: true,
     transparencyRecorded: true,
     revoked: false,
@@ -244,6 +297,7 @@ test "release verification separates signature from reproduction" for verifyRele
     payloadDigestMatches: true,
     independentRebuilders: 2,
     quorum: .verified,
+    provenance: .verified,
     sourcePublic: false,
     transparencyRecorded: true,
     revoked: false,
@@ -264,6 +318,7 @@ test "closed source keeps a separate reproduction claim" for verifyRelease {
     payloadDigestMatches: true,
     independentRebuilders: 2,
     quorum: .verified,
+    provenance: .verified,
     sourcePublic: false,
     transparencyRecorded: true,
     revoked: false,
@@ -284,6 +339,7 @@ test "revocation and digest mismatch fail before installation" for verifyRelease
     payloadDigestMatches: false,
     independentRebuilders: 1,
     quorum: .insufficientEvidence,
+    provenance: .verified,
     sourcePublic: false,
     transparencyRecorded: false,
     revoked: false,
@@ -296,6 +352,7 @@ test "revocation and digest mismatch fail before installation" for verifyRelease
     payloadDigestMatches: true,
     independentRebuilders: 1,
     quorum: .insufficientEvidence,
+    provenance: .verified,
     sourcePublic: false,
     transparencyRecorded: false,
     revoked: true,
@@ -327,6 +384,21 @@ const fn builderEvidence(builderIdentity: EvidenceDigest): BuilderEvidence {
   )
 }
 
+const fn validProvenance(): ProvenanceEvidence {
+  return ProvenanceEvidence(
+    releaseRecipeDigest: 401,
+    attestedRecipeDigest: 401,
+    recipeToolchainDigest: 402,
+    attestedToolchainDigest: 402,
+    artifactDigest: 403,
+    platformArtifactDigest: 403,
+    maintainerIdentity: 404,
+    builderIdentity: 405,
+    toolchainProviderIdentity: 406,
+    platformSignerIdentity: 407,
+  )
+}
+
 test "quorum requires distinct builders, operators, credentials, and roots" for compareBuilderIndependence {
   let first = builderEvidence(builderIdentity: 1)
   let second = builderEvidence(builderIdentity: 2)
@@ -348,6 +420,27 @@ test "quorum requires distinct builders, operators, credentials, and roots" for 
   expect compareBuilderIndependence(first: first, second: sameRoot) == .sameExecutionRoot
 }
 
+test "provenance links recipe, toolchain, artifact, and platform envelope" for verifyProvenance {
+  let valid = validProvenance()
+  expect verifyProvenance(valid) == .verified
+
+  var changedRecipe = valid
+  changedRecipe.attestedRecipeDigest = 501
+  expect verifyProvenance(changedRecipe) == .recipeMismatch
+
+  var changedToolchain = valid
+  changedToolchain.attestedToolchainDigest = 502
+  expect verifyProvenance(changedToolchain) == .toolchainMismatch
+
+  var changedArtifact = valid
+  changedArtifact.platformArtifactDigest = 503
+  expect verifyProvenance(changedArtifact) == .artifactMismatch
+
+  var reusedRole = valid
+  reusedRole.platformSignerIdentity = valid.builderIdentity
+  expect verifyProvenance(reusedRole) == .roleCollision
+}
+
 test "a counted but non-independent quorum cannot claim reproduction" for verifyRelease {
   let policy = ReleasePolicy(
     requiredRebuilders: 2,
@@ -361,6 +454,28 @@ test "a counted but non-independent quorum cannot claim reproduction" for verify
     payloadDigestMatches: true,
     independentRebuilders: 2,
     quorum: .duplicateOperator,
+    provenance: .verified,
+    sourcePublic: true,
+    transparencyRecorded: true,
+    revoked: false,
+    yanked: false,
+  ) == .rejectReproduction
+}
+
+test "a provenance mismatch blocks a verified release" for verifyRelease {
+  let policy = ReleasePolicy(
+    requiredRebuilders: 2,
+    requiresPublicSource: true,
+    requiresTransparency: true,
+  )
+
+  expect verifyRelease(
+    policy: policy,
+    maintainerThresholdMet: true,
+    payloadDigestMatches: true,
+    independentRebuilders: 2,
+    quorum: .verified,
+    provenance: .toolchainMismatch,
     sourcePublic: true,
     transparencyRecorded: true,
     revoked: false,
