@@ -20,11 +20,12 @@
     "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w ../../std/build/*.w ../../std/io/*.w ../../std/http/*.w ../../std/database/*.w ../../std/cache/*.w",
     "parse:fixture": "tree-sitter parse --grammar-path . --quiet --stat ../vscode-w/fixtures/*.w",
     "index:design": "node ../design-index.mjs --write",
+    "check:wire": "node ../wire-reference.test.mjs",
     "check:index": "node ../design-index.mjs --check",
     "check:reader": "node --check ../design-slice.mjs",
     "check:design": "node ../check-design-examples.mjs",
     "check:docs": "npm run check:reader && npm run check:design && npm run check:index",
-    "check": "npm run generate && npm test && npm run parse:reference && npm run parse:platforms && npm run parse:packages && npm run parse:deployments && npm run parse:std && npm run parse:fixture && npm run check:design && npm run check:index"
+    "check": "npm run generate && npm run check:wire && npm test && npm run parse:reference && npm run parse:platforms && npm run parse:packages && npm run parse:deployments && npm run parse:std && npm run parse:fixture && npm run check:design && npm run check:index"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"

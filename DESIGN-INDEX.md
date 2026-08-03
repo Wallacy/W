@@ -15,11 +15,11 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 20676 |
-| tokens aproximados de `DESIGN.md` | 219900 |
+| linhas de `DESIGN.md` | 20688 |
+| tokens aproximados de `DESIGN.md` | 220100 |
 | seções numeradas | 30 |
 | seções terminais com evidência local | 282/282 |
-| decisões | 720 (W-001–W-720) |
+| decisões | 721 (W-001–W-721) |
 | famílias de viabilidade | 177 |
 | comparações de revisão ainda previstas | 32 |
 | casos do corpus Tree-sitter | 53 |
@@ -56,13 +56,13 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 20 | 14527–15670 | 11600 | Compilador e bootstrap |
 | 21 | 15671–17574 | 17600 | Packages, builds e releases |
 | 22 | 17575–17782 | 1900 | Tooling e interface para máquinas |
-| 23 | 17783–19165 | 16300 | Protocolos e pesquisas de ecossistema |
-| 24 | 19166–19347 | 5500 | Classificação de viabilidade |
-| 25 | 19348–19558 | 1900 | Produto de referência Última Luz |
-| 26 | 19559–19622 | 800 | Protocolo de revisão |
-| 27 | 19623–19914 | 3500 | Plano de implementação |
-| 28 | 19915–19945 | 500 | Relação com a consolidação histórica |
-| 29 | 19946–20676 | 28600 | Registro de decisões e alternativas |
+| 23 | 17783–19176 | 16400 | Protocolos e pesquisas de ecossistema |
+| 24 | 19177–19358 | 5500 | Classificação de viabilidade |
+| 25 | 19359–19569 | 1900 | Produto de referência Última Luz |
+| 26 | 19570–19633 | 800 | Protocolo de revisão |
+| 27 | 19634–19925 | 3500 | Plano de implementação |
+| 28 | 19926–19956 | 500 | Relação com a consolidação histórica |
+| 29 | 19957–20688 | 28600 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -73,8 +73,8 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–4741 | 39900 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 4742–10615 | 57200 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 10616–14526 | 36000 | tiers, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 14527–19165 | 47400 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 19166–20676 | 40800 | viabilidade, Última Luz, gates, roadmap e ledger |
+| compiler e distribuição | 20, 21, 22, 23 | 14527–19176 | 47500 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 19177–20688 | 40800 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

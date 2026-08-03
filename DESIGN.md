@@ -18942,6 +18942,7 @@ Um decoder estrito rejeita:
 
 - integer de controle não mínimo;
 - field ID fora de ordem ou duplicado;
+- field required ausente ou wire kind incompatível;
 - Bool diferente de `0` ou `1`;
 - optional ausente com bytes residuais;
 - enum case fora do subset negociado;
@@ -19043,6 +19044,16 @@ O gate compara:
 5. implementação `bootstrap.w0` e implementação W normal;
 6. oracle JSON e adapters Cap'n Proto, FlatBuffers, Protobuf e SBE;
 7. fuzzing diferencial com limits baixos e failure injection.
+
+`tooling/wire-reference.test.mjs` é a primeira implementação independente do
+codec. Ele implementa somente `MenuKey`, nos profiles `exact` e `compatible`,
+para testar os quatro seed vectors e rejeitar formas não canônicas. Ele também
+aceita um unknown scalar block no profile `compatible`. O arquivo não é source
+de W, não define o wire schema e não substitui a implementação W0.
+
+O próximo gate precisa comparar esta implementação com o encoder/decoder W0 e
+com um fuzzer de payloads hostis. Um vetor que passa somente no codec Node não
+fecha o formato público.
 
 Cap'n Proto mostra a importância de canonical form, traversal limit e depth
 limit. FlatBuffers mostra o custo e o ganho de offsets. Protobuf mostra que um
@@ -20670,6 +20681,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-718 | fault injection determinístico | `FaultSpec` usa `caseId`, boundary, point, action e occurrence bounded; combinações inválidas falham antes do runner; identidade entra no logical trace | relógio ou random como seletor; worker ID como selector; ocorrência ilimitada; colapsar cancel, error, commit uncertainty e panic |
 | W-719 | lifecycle de stream | oracle distingue abertura, item, terminal, reset, drain e protocol failure; fault points de `open`, `decode` e `close` preservam outcomes próprios | `done()` posterior; reset como fim normal; item tardio entregue; error de boundary oculto; destructor assíncrono |
 | W-720 | preflight do decoder wWire | budgets separados, soma checked de directory e blocks, e rejeição antes da reserva; oracle cobre excesso e overflow | limite único de bytes; reservar por count; soma unchecked; normalizar forma não canônica |
+| W-721 | primeiro codec diferencial wWire | implementação Node limitada a `MenuKey` produz os quatro vetores e rejeita formas estritas; W0 e fuzzer continuam gates necessários | tomar o codec host como autoridade; congelar o formato com uma implementação; aceitar bytes não canônicos; omitir unknown scalar skip |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
