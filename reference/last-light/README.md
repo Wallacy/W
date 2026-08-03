@@ -967,7 +967,8 @@ Aceite:
 - `lifecycle_oracle.w` rejeita join antes de cleanup, commit fora de ordem e
   confirmação depois de `unknownOutcome`;
 - `scheduler_oracle.w` permite mudar o packing físico somente quando o logical
-  trace, outcome e ownership permanecem iguais;
+  trace, outcome e ownership permanecem iguais; worker e transport events ficam
+  no sidecar físico;
 - o ensaio cresce pelos gates SH0–SH7 antes de declarar self-host completo.
 
 Cobertura atual:
