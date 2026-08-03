@@ -177,6 +177,7 @@ alvo de execução independente.
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
@@ -223,7 +224,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, streams, transaction e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, session, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
@@ -594,6 +595,10 @@ Aceite:
 - instances keyed permitem progresso paralelo entre pedidos, mas não na mesma key;
 - `ServiceLink` separa local, component, wRPC e foreign RPC;
 - `ServiceTransport` aparece somente dentro do link wRPC;
+- network wRPC usa TLS 1.3 mutual ou QUIC com TLS 1.3 mutual;
+- IPC autentica os dois peers e não trata o path como identidade;
+- `hello` e `ready` vinculam seleção, peer e channel no transcript;
+- 0-RTT e application frame antes dos dois `ready` falham fechados;
 - `pipeline` reduz round trips sem ocultar calls, effects ou intermediate owners;
 - o turn continua fechado durante output commit;
 - `commitFailed` e `unknownOutcome` permanecem outcomes distintos.
@@ -636,6 +641,15 @@ O oracle cobre chain, diamond, fan-out, forward reference, branch runtime,
 favor de `async let`. Se qualquer node possui outcome incerto, o resultado é
 `pipelineUnknown` com todos os effect IDs incertos. Um error da aplicação não
 pode esconder uma mutation que talvez tenha ocorrido.
+
+`session_security_oracle.w` usa a edge entre observatory e satellite control.
+O deployment lock espera a identity de `satellites/controller`. Uma credencial
+válida para outra unit falha antes do `hello`.
+
+Os dois peers vinculam seus nonces, ofertas, seleção e channel binding no
+transcript. O oracle remove uma feature, troca o binding e repete o session ID.
+Cada caso falha antes de criar tables. Ele também rejeita 0-RTT, sequence
+duplicada, gap e capability da session anterior.
 
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 

@@ -1156,6 +1156,7 @@ Os arquivos atuais exigem contratos ainda não implementados:
 23. loader por digest para artifacts W exatos;
 24. task runtime, clocks virtuais, scheduler replay e blocking adapters;
 25. verifier e lowering de `call_pipeline`, route islands e fault injection;
-26. compiler e backends.
+26. wRPC channel profiles, workload identity, transcript e threat corpus;
+27. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

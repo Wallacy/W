@@ -72,11 +72,33 @@ package {
     },
   ]
 
+  wrpcProfiles: [
+    {
+      name: "service-default"
+      channels: [.tls13Mutual, .quicTls13Mutual, .ipcPeer]
+      earlyData: .deny
+      handshake: {
+        pendingPerAuthority: 64
+        credentialBytes: 128KiB
+        helloBytes: 128KiB
+        interfaces: 256
+        compatibilityMaps: 128
+        timeout: 10<s>
+      }
+      lifecycle: {
+        maximumAge: 24<h>
+        drainTimeout: 30<s>
+        revocation: .terminate
+      }
+    },
+  ]
+
   runtimeGraphs: [
     {
       name: "restaurant-core"
       servicePolicy: {
         resolution: .startup
+        wrpcProfile: "service-default"
         links: [
           .local,
           .component,
@@ -278,6 +300,7 @@ package {
       name: "restaurant-client"
       servicePolicy: {
         resolution: .startup
+        wrpcProfile: "service-default"
         links: [
           .component,
           .wrpc(transports: [.ipc, .network]),
@@ -308,6 +331,7 @@ package {
       name: "wifi-edge"
       servicePolicy: {
         resolution: .startup
+        wrpcProfile: "service-default"
         links: [
           .component,
           .wrpc(transports: [.ipc, .network]),
@@ -338,6 +362,7 @@ package {
       name: "observatory-client"
       servicePolicy: {
         resolution: .startup
+        wrpcProfile: "service-default"
         links: [
           .component,
           .wrpc(transports: [.ipc, .network]),

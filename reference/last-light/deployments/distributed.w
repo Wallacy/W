@@ -4,6 +4,33 @@ deployment {
   schema: "w.deployment/1"
   name: "last-light/distributed"
 
+  security: {
+    wrpc: {
+      profile: "service-default"
+      channels: {
+        network: [.quicTls13Mutual, .tls13Mutual]
+        ipc: [.ipcPeer]
+      }
+      identity: .unit(trustDomain: "last-light.production")
+      credentials: .capability("last-light/workload-identity")
+      trustRoots: .capability("last-light/workload-trust")
+      earlyData: .deny
+      handshake: {
+        pendingPerAuthority: 32
+        credentialBytes: 64KiB
+        helloBytes: 64KiB
+        interfaces: 128
+        compatibilityMaps: 64
+        timeout: 5<s>
+      }
+      lifecycle: {
+        maximumAge: 1<h>
+        drainTimeout: 5<s>
+        revocation: .terminate
+      }
+    }
+  }
+
   artifacts: [
     {
       name: "core"
