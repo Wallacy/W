@@ -34,6 +34,9 @@ Cada session dura no máximo uma hora. O runtime usa monotonic clock, envia
 `goAway` e drena por cinco segundos. Uma revogação bloqueia calls novas e
 encerra o channel. Credential rotation entra na próxima session.
 
+O mesmo profile limita import slots, export slots, ordinals por frame e entries
+por pipeline. O deployment reduz esses valores sem ampliar o package envelope.
+
 Os paths de deployment nomeiam artifact e import do grafo. O source usa IDs
 tipados criados por `export service` ou `import service`. Ele não conhece esses
 paths.
