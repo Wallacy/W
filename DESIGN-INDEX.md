@@ -15,16 +15,16 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 20584 |
-| tokens aproximados de `DESIGN.md` | 218400 |
+| linhas de `DESIGN.md` | 20601 |
+| tokens aproximados de `DESIGN.md` | 218600 |
 | seções numeradas | 30 |
-| seções terminais com evidência local | 281/281 |
+| seções terminais com evidência local | 282/282 |
 | decisões | 714 (W-001–W-714) |
 | famílias de viabilidade | 177 |
 | comparações de revisão ainda previstas | 32 |
 | casos do corpus Tree-sitter | 53 |
-| sources W no root do Última Luz | 64 |
-| sources W em todo o Última Luz | 72 |
+| sources W no root do Última Luz | 65 |
+| sources W em todo o Última Luz | 73 |
 | sources W no rascunho da std | 9 |
 
 A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.
@@ -53,16 +53,16 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 17 | 13663–13801 | 1200 | Matrizes, tensors e ML |
 | 18 | 13802–14305 | 4800 | Performance e custo |
 | 19 | 14306–14478 | 1800 | FFI, unsafe e ilhas de linguagem |
-| 20 | 14479–15605 | 11400 | Compilador e bootstrap |
-| 21 | 15606–17509 | 17600 | Packages, builds e releases |
-| 22 | 17510–17717 | 1900 | Tooling e interface para máquinas |
-| 23 | 17718–19079 | 16000 | Protocolos e pesquisas de ecossistema |
-| 24 | 19080–19261 | 5500 | Classificação de viabilidade |
-| 25 | 19262–19472 | 1900 | Produto de referência Última Luz |
-| 26 | 19473–19536 | 800 | Protocolo de revisão |
-| 27 | 19537–19828 | 3500 | Plano de implementação |
-| 28 | 19829–19859 | 500 | Relação com a consolidação histórica |
-| 29 | 19860–20584 | 28100 | Registro de decisões e alternativas |
+| 20 | 14479–15622 | 11600 | Compilador e bootstrap |
+| 21 | 15623–17526 | 17600 | Packages, builds e releases |
+| 22 | 17527–17734 | 1900 | Tooling e interface para máquinas |
+| 23 | 17735–19096 | 16000 | Protocolos e pesquisas de ecossistema |
+| 24 | 19097–19278 | 5500 | Classificação de viabilidade |
+| 25 | 19279–19489 | 1900 | Produto de referência Última Luz |
+| 26 | 19490–19553 | 800 | Protocolo de revisão |
+| 27 | 19554–19845 | 3500 | Plano de implementação |
+| 28 | 19846–19876 | 500 | Relação com a consolidação histórica |
+| 29 | 19877–20601 | 28100 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -73,8 +73,8 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–4741 | 39900 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 4742–10567 | 56600 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 10568–14478 | 36000 | tiers, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 14479–19079 | 46900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 19080–20584 | 40300 | viabilidade, Última Luz, gates, roadmap e ledger |
+| compiler e distribuição | 20, 21, 22, 23 | 14479–19096 | 47100 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 19097–20601 | 40300 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
