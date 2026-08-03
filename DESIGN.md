@@ -6985,6 +6985,11 @@ recompilar o artifact. `w explain execution <product>` mostra source
 requirements, bindings, shared pools, limites do artifact e reduções do
 deployment.
 
+O oracle [`domain_oracle.w`](reference/last-light/domain_oracle.w) verifica a
+ordem explicit/inherited/default, a rejeição de `spawn` em domínio serial e a
+redução de capacity pelo deployment. Declarar ou importar um domain não cria
+queue, thread ou executor.
+
 ### 12.7 Mobilidade e captures
 
 W prova duas propriedades em uma fronteira concorrente:
@@ -20737,6 +20742,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
 | W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores; cada implementação testa erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
 | W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
+| W-725 | resolução de execution domain | preference explícita vence herdada, que vence default; `spawn` exige default paralelo; `.main` e domains seriais rejeitam parallel intent; deployment só reduz capacity; domain declaration não cria executor | thread group fixo no source; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

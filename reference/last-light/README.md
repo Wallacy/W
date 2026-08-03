@@ -185,6 +185,7 @@ alvo de execução independente.
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
+| `domain_oracle.w` | seleção de domain, admission e redução bounded de capacity |
 | `remote_stream_oracle.w` | eligibility, créditos, lifecycle, fault points e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, decode preflight, strict decode e unknown fields |
@@ -1376,6 +1377,12 @@ O scheduler adversarial usa uma única CPU lógica, inverte a ordem de todos os
 children, esgota cada budget e suspende um nested group quando a capacity está
 cheia. O programa deve terminar com o mesmo resultado, limpar cada owner uma
 vez e não criar um worker adicional.
+
+`domain_oracle.w` verifica a ordem explicit/inherited/default. Ele rejeita
+`spawn` sem `parallelDefault`, mantém `.compute` válido com capacity um e
+impede que o deployment aumente a capacity do artifact. Declarar ou importar
+um domain continua sendo somente uma requirement. Não cria queue, thread ou
+executor.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 
