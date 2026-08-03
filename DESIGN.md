@@ -10571,6 +10571,12 @@ service passa por `body settled → committing` antes de `committed`,
 `commitFailed` ou `unknownOutcome`. Uma transição inválida é rejeitada. Uma
 cancel request tardia não substitui um body já settled.
 
+`scheduler_oracle.w` compara `scheduleId`, decisões, logical trace, outcome e
+owners fechados. O packing físico pode mudar de um worker para quatro workers ou
+para um service remoto sem mudar esses facts. Uma fault injetada preserva a
+distinção entre task cancelada, application error, commit failure, commit
+uncertainty e panic boundary.
+
 ## 14. Prelude e SDK
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
@@ -20602,6 +20608,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-713 | seed vectors wWire | `MenuKey` fixa quatro vetores hex para `exact` e `compatible`; os vetores orientam conformance sem prometer layout de memória | esperar o decoder para definir bytes; snapshots de implementação; usar JSON como wire nativo |
 | W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre somente a pesquisa de interface/cache; wWire cobre payloads de service | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; WMeta1 virar ABI implícita |
 | W-715 | lifecycle cross-boundary | oracle comum exige cleanup antes de outcome/join e commit terminal único; `unknownOutcome` não volta a confirmed | task outcome antecipado; service turn reentrante por default; commit uncertainty tratada como abort |
+| W-716 | replay do scheduler | `scheduleId`, decisões lógicas, trace, outcome e owners fechados são comparados; packing físico diferente vira sidecar | comparar worker IDs; aceitar timing como semântica; esconder fault injection em logs; tratar panic como error recuperável |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
