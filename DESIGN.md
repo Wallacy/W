@@ -8013,6 +8013,34 @@ body com application error e solicita abort. Um `defer` síncrono termina antes
 do commit ou abort. `defer async`, `spawn` e `async let` permanecem rejeitados
 na baseline.
 
+#### 12.13.1 Forma curta e ausência de transaction ambient
+
+Quando o provider fornece um contract default, o bloco pode omitir `<...>`:
+
+```w
+let receipt = try await transaction tx = tableLedger {
+  let reservation = try await tx.reserve(tableId: table, guestId: guest)
+  let receipt = try await tx.confirm(reservation: take reservation)
+  commit receipt
+}
+```
+
+Essa forma reduz ruído sem esconder o provider. `tx`, o corpo e `commit`
+continuam visíveis. A forma completa continua sendo necessária quando o caller
+seleciona `isolation`, `access`, `durability` ou outro campo do contract.
+
+`try await transaction;` não é uma transaction W válida. A expressão não
+identifica provider, não cria um scope, não define o output e não possui um
+commit. W não usa uma transaction ambient escolhida por contexto, thread ou
+connection pool. Um adapter pode expor defaults, mas o source ainda nomeia o
+provider. Assim o compiler pode rejeitar uma call fora de `tx` e explicar qual
+efeito não pertence ao commit.
+
+Uma forma `transaction using provider { ... }`, com `tx` implícito, permanece
+**Alternativa**. Ela pode ser reavaliada se um formatter e testes mostrarem
+ganho humano sem perder a busca estática de provider, scope e capability. Ela
+não entra na baseline enquanto houver mais de um provider possível no contexto.
+
 O compiler conhece este protocol T1:
 
 ```w
@@ -20363,6 +20391,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-702 | reprodução independente | attestation referencia todos os inputs e outputs; default público exige dois builders independentes; source fechado não alega reprodução pública | CI duplicada como quorum; hash somente do executável; advisory reescreve evidence |
 | W-703 | metadata e mirrors | root, targets, snapshot, timestamp, expiry, threshold e digest protegem registry; mirror é transporte | URL como trust; rollback/freeze aceitos; fallback para mirror não listado; bytes mutáveis |
 | W-704 | transparency adapter | Sigstore/Rekor pode atestar identidade e registro; trust policy W continua local e separada | log como única autorização; OIDC como root universal; chave do builder acumula maintainer e platform |
+| W-705 | ergonomia de transaction | contract default permite omitir `<...>`, mas `tx = provider`, body e `commit` continuam explícitos | `try await transaction;`; provider ambient; `tx` implícito; commit por `return` |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

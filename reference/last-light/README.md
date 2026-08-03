@@ -684,6 +684,13 @@ O provider pode usar um link local ou wRPC. Somente calls derivadas de `tx`
 pertencem ao commit. Perda da confirmação continua `unknownCommit`. Uma segunda
 service independente exige workflow e compensação.
 
+`benchmark_app.w` usa a mesma expressão com `std.database.Database`: a leitura
+de vários mundos continua uma operação independente, e a mutation entra em um
+único scope do `store`. Se o adapter publicar defaults para o contract, o
+mesmo caso pode omitir `<isolation, access>`, mas nunca pode omitir o provider,
+o body ou o `commit`. `try await transaction;` fica rejeitado porque não
+identifica esses três elementos.
+
 `OvenReady` é um token owned do provider. Ele substitui o antigo `Instant`
 local. `bake()` consome esse token. Assim, o caller não interpreta nem compara o
 clock monotônico do forno remoto.
