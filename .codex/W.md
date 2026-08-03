@@ -4,6 +4,12 @@ W is an experimental language repository. Do not present proposals as
 implemented behavior. Do not start a broad compiler implementation without a
 request.
 
+Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for public contribution changes,
+pull request preparation, or contribution policy. Read
+[`MAINTAINERS.md`](../MAINTAINERS.md) for review or merge work.
+[`GOVERNANCE.md`](../GOVERNANCE.md) defines human authority. Agent instructions
+do not grant governance rights.
+
 W has no backward-compatibility obligation before its first stable 1.0
 release. Prefer correcting the design over preserving an obsolete pre-1.0
 surface, artifact, or behavior. After 1.0, add a compatibility path only with
@@ -13,15 +19,17 @@ Do not retain compatibility code without an exit condition.
 ## Canonical entry points
 
 1. `README.md` is the short project entry point.
-2. `DESIGN-INDEX.md` is the generated navigation and metrics projection.
+2. `CONTRIBUTING.md` is the shared contribution workflow.
+3. `GOVERNANCE.md` and `MAINTAINERS.md` define authority and maintenance.
+4. `DESIGN-INDEX.md` is the generated navigation and metrics projection.
    It never defines semantics.
-3. `DESIGN.md` is the only source of truth for current language and system
+5. `DESIGN.md` is the only source of truth for current language and system
    design, decisions, alternatives, status, and implementation order.
-4. `reference/last-light/` is the official reference product and executable
+6. `reference/last-light/` is the official reference product and executable
    specification target. It does not override `DESIGN.md`.
-5. `portal/` and `tooling/` project the current design for people and
+7. `portal/` and `tooling/` project the current design for people and
    editors. They do not define semantics.
-6. `history/` owns provenance. `history/archive/db1-2026-07-27/` contains the
+8. `history/` owns provenance. `history/archive/db1-2026-07-27/` contains the
    replaced 2026-07-27 consolidation and corpus. Do not treat archived files as
    current.
 

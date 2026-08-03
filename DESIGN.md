@@ -51,6 +51,10 @@ O histórico das consolidações anteriores e as notas originais ficam em
 autoria, datas e diffs. Este arquivo é a única fonte de verdade para o estado
 atual.
 
+[`GOVERNANCE.md`](GOVERNANCE.md) define autoridade e decisão do projeto.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) define o fluxo de contribuição. Esses
+arquivos não alteram a semântica descrita aqui.
+
 ### Validação rápida
 
 Use o índice e o leitor para evitar releitura integral:
@@ -17713,6 +17717,9 @@ independente e publica uma attestation separada.
 
 **Exemplo:** o registry pode marcar uma versão como yanked. Ele não troca os
 bytes associados ao mesmo digest.
+
+Esta seção define evolução técnica de editions, schemas e packages. A
+governança de pessoas, permissões e decisões fica em `GOVERNANCE.md`.
 
 Cada package declara uma edition. Editions podem alterar grammar, prelude e
 lints com migração automatizada. Elas não mudam resultado ou effects

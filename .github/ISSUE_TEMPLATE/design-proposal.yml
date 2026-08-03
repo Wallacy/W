@@ -1,0 +1,74 @@
+name: Proposta de design
+description: Proponha uma mudança de syntax, semântica, ABI, runtime, SDK ou package.
+title: "design: "
+labels:
+  - design
+body:
+  - type: markdown
+    attributes:
+      value: |
+        W está em fase de design. Pesquise o ID W e as alternativas antes de enviar.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema observável
+      description: Mostre o programa, erro ou custo que precisa mudar.
+    validations:
+      required: true
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Camada
+      options:
+        - Linguagem
+        - Compiler e bootstrap
+        - Memória e runtime
+        - Concorrência e services
+        - Standard library
+        - Packages e supply chain
+        - Tooling
+        - Outra
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: Source, tipos e runtime
+      description: Informe o que aparece em cada camada.
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Falha e fronteiras
+      description: Trate erro, cancelamento, cleanup, FFI e dois targets.
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: Alternativa mais simples
+      description: Explique por que library ou tooling não basta.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência e critério de remoção
+      description: Liste teste, oracle, spike e condição que rejeita a proposta.
+    validations:
+      required: true
+  - type: input
+    id: decision
+    attributes:
+      label: ID W relacionado
+      placeholder: W-000 ou "novo"
+    validations:
+      required: true
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Confirmação
+      options:
+        - label: Li `CONTRIBUTING.md` e o Código de Conduta.
+          required: true

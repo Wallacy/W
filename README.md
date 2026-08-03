@@ -2,20 +2,26 @@
 
 > **Working Draft · 3 de agosto de 2026**
 >
-> **Prazer para humanos. Clareza para máquinas.**
+> **Joy for humans. Clarity for machines.**
+>
+> Prazer para humanos. Clareza para máquinas.
 
 W é uma proposta de linguagem nativa para aplicações, sistemas, concorrência,
 paralelismo e computação científica. O compiler e o runtime ainda não existem.
 A superfície atual é um design experimental para revisão.
 
+Contribuições humanas, assistidas por IA e automatizadas são bem-vindas. W
+avalia o resultado, a evidência e a responsabilidade. A ferramenta usada não
+define a qualidade da contribuição.
+
 ## Uma fonte de verdade
 
 Leia estes artefatos nesta ordem:
 
-1. [DESIGN.md](DESIGN.md) — contrato integral de linguagem, runtime, SDK,
-   compilador, packages, distribuição, tooling, plano e alternativas;
-2. [DESIGN-INDEX.md](DESIGN-INDEX.md) — índice gerado com intervalos, métricas e
+1. [DESIGN-INDEX.md](DESIGN-INDEX.md) — índice gerado com intervalos, métricas e
    pesquisas abertas; não define semântica;
+2. [DESIGN.md](DESIGN.md) — contrato integral de linguagem, runtime, SDK,
+   compilador, packages, distribuição, tooling, plano e alternativas;
 3. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
 4. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
@@ -47,7 +53,8 @@ O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
 Para validar somente documentação e índice:
 
 ```powershell
-npm --prefix tooling/tree-sitter-w run check:docs
+npm run tooling:install
+npm run check:docs
 ```
 
 Use `npm run check` quando grammar, corpus, std ou sources `.w` mudarem.
@@ -62,6 +69,7 @@ Use `npm run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Tree-sitter e highlighting | protótipo funcional |
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
+| Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
 | services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |
 | wWire | **Pesquisa**; layout, registro core v0 e seed vectors vigentes; decoder e custo exigem protótipo |
 | wQL, V6, GPU e HDL | **Pesquisa** ou T2 fora do bootstrap |
@@ -101,6 +109,20 @@ O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
 resolve `ServiceFamilyRef<OrderCoordinatorApi, OrderId>`. O runtime graph
 passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
 [`supervision.w`](reference/last-light/supervision.w).
+
+## Participar
+
+Comece pelo [guia de contribuição](CONTRIBUTING.md). Ele define o fluxo comum
+para pessoas, equipes, automação e agentes de IA.
+
+- [Governança](GOVERNANCE.md) define autoridade, decisão, recurso e transição.
+- [Guia para maintainers](MAINTAINERS.md) define revisão, merge e manutenção.
+- [Código de Conduta](CODE_OF_CONDUCT.md) protege colaboração respeitosa.
+- [Política de segurança](SECURITY.md) define relato privado e escopo atual.
+
+Somente pessoas podem ser maintainers, aprovar merges e assinar releases.
+Ferramentas podem ajudar em qualquer etapa verificável. A pessoa que envia ou
+aprova uma mudança continua responsável pelo resultado.
 
 ## Histórico
 

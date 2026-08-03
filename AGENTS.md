@@ -3,10 +3,14 @@
 W é uma linguagem experimental em fase de projeto. Este repositório é a fonte
 de trabalho do W depois da extração do monorepo `wallacy.com`.
 
-Antes de uma tarefa sobre W, leia `.codex/W.md`. Para trabalho longo, leia
-`.codex/W-WORKFLOW.md`. Para texto novo ou revisado, leia `.codex/WRITING.md`.
-Use ASD-STE100 Issue 9 no texto técnico em inglês e as regras equivalentes para
-português definidas em `WRITING.md`.
+Antes de uma tarefa sobre W, leia `.codex/W.md`. Leia `CONTRIBUTING.md` para
+mudança pública, preparação de pull request ou política de contribuição. Para
+revisão ou merge, leia `MAINTAINERS.md`. `GOVERNANCE.md` define autoridade e
+decisão.
+
+Para trabalho longo, leia `.codex/W-WORKFLOW.md`. Para texto novo ou revisado,
+leia `.codex/WRITING.md`. Use ASD-STE100 Issue 9 no texto técnico em inglês e
+as regras equivalentes para português.
 
 ## Artefatos canônicos
 

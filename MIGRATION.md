@@ -17,10 +17,14 @@ em `DESIGN.md`.
 
 ## Instruções de trabalho
 
-As instruções de IA estão presentes enquanto o repositório permanecer privado.
-Antes de publicar W, revise `AGENTS.md` e `.codex/` e remova o material que não
-deve ser público. A remoção não deve apagar a proveniência de linguagem em
-`history/`.
+`CONTRIBUTING.md` e `MAINTAINERS.md` definem o fluxo público para pessoas e
+ferramentas. `AGENTS.md` e `.codex/` acrescentam somente instruções operacionais
+para agentes. Eles não concedem autoridade nem substituem a governança.
+
+Antes de publicar W, revise esses arquivos para remover paths, credenciais ou
+contexto privado. Não remova instruções somente porque citam IA. A política do
+projeto aceita contribuições humanas, assistidas por IA e automatizadas sob o
+mesmo padrão verificável.
 
 ## Estado da migração
 

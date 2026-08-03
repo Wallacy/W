@@ -1,0 +1,8 @@
+# The current governance has one Project Lead. Update this file after each
+# delegated maintainer is recorded in GOVERNANCE.md.
+* @Wallacy
+
+/DESIGN.md @Wallacy
+/GOVERNANCE.md @Wallacy
+/SECURITY.md @Wallacy
+/.github/workflows/ @Wallacy

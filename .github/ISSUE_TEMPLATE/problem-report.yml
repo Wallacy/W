@@ -1,0 +1,53 @@
+name: Relato de problema
+description: Relate um erro reproduzível na documentação, tooling ou especificação executável.
+title: "problem: "
+labels:
+  - triage
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Documentação
+        - Tree-sitter e highlighting
+        - Produto Última Luz
+        - Standard library
+        - Tooling e CI
+        - Packages e manifests
+        - Outra
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Resultado atual
+      description: Inclua o menor exemplo reproduzível.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+      description: Aponte para o contrato canônico quando existir.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Informe commit, sistema, Node.js e comando relevante.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência adicional
+      description: Adicione log curto, screenshot, teste ou fonte primária.
+  - type: checkboxes
+    id: status
+    attributes:
+      label: Estado do W
+      options:
+        - label: Confirmo que não tratei source de design como implementação existente.
+          required: true
