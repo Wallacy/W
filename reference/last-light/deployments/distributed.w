@@ -37,6 +37,12 @@ deployment {
     }
   }
 
+  verification: {
+    require: [.maintainerAuthorized, .reproducible]
+    reject: [.revoked, .yanked]
+    transparency: .required
+  }
+
   artifacts: [
     {
       name: "core"

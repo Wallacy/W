@@ -37,6 +37,11 @@ encerra o channel. Credential rotation entra na próxima session.
 O mesmo profile limita import slots, export slots, ordinals por frame e entries
 por pipeline. O deployment reduz esses valores sem ampliar o package envelope.
 
+O plano também exige maintainer authorization, dois rebuilders independentes,
+metadata fresca e transparency evidence. O resolver compara todos os output
+digests da recipe. Ele não trata uma assinatura de plataforma como prova de
+reprodução.
+
 Os paths de deployment nomeiam artifact e import do grafo. O source usa IDs
 tipados criados por `export service` ou `import service`. Ele não conhece esses
 paths.

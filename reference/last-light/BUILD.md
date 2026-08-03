@@ -904,9 +904,15 @@ O resultado publica facts separados:
 | `publicly-rebuildable` | um terceiro possui acesso legal a todos os inputs? |
 | `platform-signed` | uma authority da plataforma assinou o envelope? |
 | `independently-reproduced` | outro builder publicou evidence equivalente? |
+| `metadata-fresh` | timestamp, snapshot e targets passam expiry e rollback policy? |
+| `transparency-recorded` | assinatura e provenance possuem evidence no log exigido? |
 
 Um SDK fechado pode permitir `bit-reproducible` sem permitir
 `publicly-rebuildable`.
+
+O plano distribuído exige `maintainer-authorized`, `independently-reproduced`,
+`metadata-fresh` e `transparency-recorded`. Ele rejeita artifacts `revoked` ou
+`yanked`. A assinatura do OS não substitui esses facts.
 
 #### 6.2.5 Gates de desempenho do build
 
@@ -1158,6 +1164,7 @@ Os arquivos atuais exigem contratos ainda não implementados:
 25. verifier e lowering de `call_pipeline`, route islands e fault injection;
 26. wRPC channel profiles, workload identity, transcript e threat corpus;
 27. capability grants, attenuation, revocation e table quotas;
-28. compiler e backends.
+28. release envelope, independent reproduction, registry metadata e mirrors;
+29. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

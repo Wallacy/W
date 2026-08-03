@@ -17080,6 +17080,83 @@ Metadata deve suportar delegação, threshold, expiração, rotação, revogaç�
 proteção contra rollback/freeze. TUF e Sigstore são integrações preferidas, não
 keywords nem raízes universais.
 
+#### 21.3.1 Envelope de release
+
+**Exemplo:** a assinatura do maintainer aponta para o digest do payload. A
+assinatura da plataforma pode envolver o arquivo final sem alterar esse digest.
+
+Uma release W possui records separados:
+
+```text
+WArtifactRecord
+  payloadDigest, size, product, target, profile, packing
+
+WReleaseEnvelope
+  packageIdentity, version, artifactRecords
+  sourceSnapshotDigest, packageLockDigest, recipeDigests
+  toolchainPlanDigests, interfaceDigests, abiDigests, sbomDigests
+  maintainerPolicy, reproductionPolicy, securityPolicy
+
+WBuildAttestation
+  builderIdentity, recipeDigest, inputDigests, outputDigests
+  executionPlatform, normalizedEnvironment, comparisonMethod
+
+WPlatformEnvelope
+  targetArtifactDigest, platformSignature, notarizationEvidence
+```
+
+O `WReleaseEnvelope` usa a representação canônica de metadata. Ele é assinado
+fora do payload. O payload não contém um JWT que assina a si mesmo. Uma nota
+W embarcada pode apontar para o envelope por digest, mas a nota não entra no
+próprio digest que ela referencia.
+
+O platform adapter pode produzir Authenticode, Mach-O code signing, Android
+signing, firmware signature ou outro envelope do target. Essa assinatura cobre
+os bytes finais exigidos pelo OS. Ela não substitui a assinatura W nem a prova
+de reprodução. Um sistema que precisa verificar W antes do loader lê o
+envelope W e depois a assinatura da plataforma.
+
+Uma chave não deve acumular os papéis de maintainer, builder, registry e
+platform. O policy pode exigir authorities distintas. A assinatura identifica
+o record e a policy. Ela não prova que o source é seguro ou que o builder foi
+honesto.
+
+#### 21.3.2 Reprodução e estados
+
+**Exemplo:** dois rebuilders independentes produzem o mesmo `payloadDigest`.
+Um advisory aberto não remove o fato de reprodução.
+
+O resultado de reprodução é uma attestation assinada. Ela precisa referenciar
+source snapshot, package lock, recipe, toolchain plan, execution platform,
+environment normalizado e todos os output digests. O verifier compara bytes ou
+hashes dos outputs definidos pela recipe. Comparar somente o executável quando
+a release inclui resources ou static libraries não é suficiente.
+
+A policy do registry define um threshold. O default público de W exige dois
+builders com authorities independentes. Independência significa operadores,
+credentials e execution roots distintos. Dois jobs em uma única CI não formam
+quorum.
+
+Os estados permanecem ortogonais:
+
+| Estado | Prova mínima |
+|---|---|
+| `published` | envelope e maintainer policy válidos |
+| `reproducible` | threshold de attestations com output digest igual |
+| `audited` | `reproducible` e relatório de análise identificado |
+| `rejected` | digest, signature, policy ou recipe inválidos |
+| `yanked` | maintainer retirou a recomendação, sem apagar bytes |
+| `revoked` | authority publicou uma revogação com motivo e scope |
+
+Source público e source fechado possuem claims diferentes. Source fechado pode
+ser `reproducible` para builders autorizados. Ele não pode declarar
+reprodução pública. A UI mostra `publicSource` e `independentReproduction`
+separados.
+
+Uma mudança de advisory, auditoria ou freshness não reescreve uma attestation.
+O registry publica outro snapshot. O verifier avalia a policy atual sobre
+records imutáveis.
+
 ### 21.4 Registry, mirrors e estado de segurança
 
 **Exemplo:** uma versão pode ser `reproduced` e ainda possuir um advisory de
@@ -17101,6 +17178,38 @@ O portal mostra eixos separados:
 
 “Verificado” sempre informa qual eixo e qual policy. Uma estrela agregada não é
 evidência técnica.
+
+O transporte de registry segue um modelo TUF-like:
+
+- `root` delega keys e thresholds dos outros papéis;
+- `targets` liga package, version e target aos envelopes por digest;
+- `snapshot` impede misturar metadata de épocas diferentes;
+- `timestamp` limita freeze e replay de metadata antiga;
+- `mirrors`, quando usado, publica somente endereços e conteúdos permitidos.
+
+O client verifica versão crescente, expiry, threshold, digest, tamanho e
+delegation antes de usar metadata. Um mirror não é uma authority. Bytes errados,
+metadata antiga, rollback, freeze ou package name ambíguo produzem failure. O
+client não troca para um mirror não listado para “tentar novamente”.
+
+Sigstore pode fornecer uma attestation de identidade efêmera e uma entrada de
+transparency log. A entrada comprova que um digest e sua assinatura foram
+registrados. Ela não substitui a policy de package, o threshold de reprodução
+ou o trust root local. Uma instalação privada pode usar seu próprio log com a
+mesma interface de evidence.
+
+O registry não precisa hospedar o source ou o payload. Ele precisa publicar
+metadata assinada e content digests. GitHub Releases, Cloudflare Workers,
+mirrors comunitários e caches são transportes possíveis. A verificação ocorre
+antes de extrair, compilar ou executar.
+
+Fontes primárias:
+
+- [TUF specification](https://theupdateframework.github.io/specification/draft/);
+- [Sigstore overview](https://docs.sigstore.dev/);
+- [Rekor transparency log](https://docs.sigstore.dev/logging/overview/);
+- [SLSA provenance](https://slsa.dev/spec/v1.2/provenance);
+- [Reproducible Builds planning](https://reproducible-builds.org/docs/plans/).
 
 ### 21.5 Scripts e supply chain
 
@@ -20250,6 +20359,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-698 | root grant wRPC | deployment cria um grant por edge; call usa `targetCapability`; peer identity não concede root global | root por peer; `callerCapability`; index adivinhável; payload antes de authorization |
 | W-699 | delegation de capability | path tipado delega; alias ou `take` ficam na assinatura; unknown carrier rejeita capability; three-party usa relay | URL ou bytes como referência; lookup ambiente; authority opaca; introdução direta implícita |
 | W-700 | revocation de capability | exporter bloqueia admission; call admitida drena; resource cap é generation-exact; release não é revoke | rollback por revoke; reuse de ID; lease antigo rebind automático; cleanup de domínio por release |
+| W-701 | envelope de release | records separados para payload, recipe, provenance, maintainer e platform; assinatura externa ao payload | JWT autorreferente; assinatura única para todos os papéis; assinatura muda payload digest |
+| W-702 | reprodução independente | attestation referencia todos os inputs e outputs; default público exige dois builders independentes; source fechado não alega reprodução pública | CI duplicada como quorum; hash somente do executável; advisory reescreve evidence |
+| W-703 | metadata e mirrors | root, targets, snapshot, timestamp, expiry, threshold e digest protegem registry; mirror é transporte | URL como trust; rollback/freeze aceitos; fallback para mirror não listado; bytes mutáveis |
+| W-704 | transparency adapter | Sigstore/Rekor pode atestar identidade e registro; trust policy W continua local e separada | log como única autorização; OIDC como root universal; chave do builder acumula maintainer e platform |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
