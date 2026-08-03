@@ -1,6 +1,11 @@
 // Typed descriptors and execution contracts for database adapters.
 // Execution accepts descriptors only through const call parameters.
 
+import {
+  TransactionFailure as RuntimeTransactionFailure,
+  Transactional,
+} from std.runtime.transaction
+
 export enum Dialect {
   portable
   sqlite
@@ -54,6 +59,16 @@ export enum Isolation {
   serializable
 }
 
+export enum TransactionAccess {
+  readOnly
+  readWrite
+}
+
+export struct TransactionContract {
+  isolation: Isolation
+  access: TransactionAccess
+}
+
 export enum DatabaseError: Error {
   unavailable
   overloaded
@@ -68,13 +83,26 @@ export enum DatabaseError: Error {
   protocol
 }
 
-export enum TransactionFailure<Failure: Error>: Error {
-  operation(Failure)
-  database(DatabaseError)
-  unknownCommit(EffectId)
-}
+export alias TransactionFailure<Failure: Error> =
+  RuntimeTransactionFailure<Failure, DatabaseError>
 
 export protocol Transaction {
+  async fn one<Parameters, Row>(
+    query: const Query<Parameters, Row>,
+    parameters: Parameters,
+  ): Row throws DatabaseError
+
+  async fn optional<Parameters, Row>(
+    query: const Query<Parameters, Row>,
+    parameters: Parameters,
+  ): Row? throws DatabaseError
+
+  async fn all<Parameters, Row>(
+    query: const Query<Parameters, Row>,
+    parameters: Parameters,
+    limits: RowLimits,
+  ): Array<Row> throws DatabaseError
+
   async fn execute<Parameters>(
     command: const Command<Parameters>,
     parameters: Parameters,
@@ -86,7 +114,8 @@ export protocol Transaction {
   ): u64 throws DatabaseError
 }
 
-export protocol Database {
+export protocol Database:
+  Transactional<Transaction, TransactionContract, DatabaseError> {
   async fn one<Parameters, Row>(
     query: const Query<Parameters, Row>,
     parameters: Parameters,
@@ -109,12 +138,4 @@ export protocol Database {
     maximumInFlight: usize<(1...)>,
   ): Array<Row> throws DatabaseError
 
-  async fn transaction<Input, Output, Failure: Error>(
-    input: take Input,
-    isolation: Isolation,
-    using operation: some async fn(
-      ref any Transaction,
-      take Input,
-    ): Output throws Failure,
-  ): Output throws TransactionFailure<Failure>
 }

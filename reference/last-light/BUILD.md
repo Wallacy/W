@@ -185,6 +185,11 @@ linker divide o grafo em ilhas de route. O runtime preserva effect IDs, cleanup
 e incerteza quando uma barreira impede o fast path. O build não transforma o
 pipeline em uma transaction nem em uma closure remota.
 
+`transaction<...> tx = provider { ...; commit value }` usa um único provider
+nominal. O product fixa seus limits e capabilities. Um binding local pode usar
+uma conexão direta. Um binding wRPC usa um scope remoto com lease. Nenhum
+placement compõe duas capabilities numa transação distribuída implícita.
+
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
 imports do runtime graph. Essa diferença impede lookup livre por string.

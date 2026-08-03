@@ -177,6 +177,7 @@ alvo de execução independente.
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
 | `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |
 | `simulation_app.w` | entry determinística sem deployment de services |
@@ -221,7 +222,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `package.w`, `deployments/` | placement, commit e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, transaction, commit e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
@@ -634,6 +635,23 @@ O oracle cobre chain, diamond, fan-out, forward reference, branch runtime,
 favor de `async let`. Se qualquer node possui outcome incerto, o resultado é
 `pipelineUnknown` com todos os effect IDs incertos. Um error da aplicação não
 pode esconder uma mutation que talvez tenha ocorrido.
+
+`transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
+
+```w
+let receipt = try await transaction<
+  isolation: .serializable,
+  access: .readWrite,
+> tx = tableLedger {
+  let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
+  let receipt = try await tx.confirm(reservation: take reservation)
+  commit receipt
+}
+```
+
+O provider pode usar um link local ou wRPC. Somente calls derivadas de `tx`
+pertencem ao commit. Perda da confirmação continua `unknownCommit`. Uma segunda
+service independente exige workflow e compensação.
 
 `OvenReady` é um token owned do provider. Ele substitui o antigo `Instant`
 local. `bake()` consome esse token. Assim, o caller não interpreta nem compara o
@@ -1719,6 +1737,8 @@ Aceite:
   transacional;
 - o adapter PostgreSQL envia uma boundary `Sync` por statement;
 - `/updates` modifica cada valor antes da resposta e confirma a transação;
+- `/updates` usa `transaction<...> tx = store` e encerra com `commit`;
+- o transaction scope não escapa e só aceita efeitos derivados de `tx`;
 - uma perda depois de `COMMIT` gera `unknownCommit`; não há retry implícito;
 - fortunes escapam HTML no template adapter;
 - `/cached-queries` usa `CachedWorld` e um cache com read-through e eviction;

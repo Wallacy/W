@@ -23,6 +23,7 @@ const CONTROL_KEYWORDS = [
   "break",
   "case",
   "catch",
+  "commit",
   "continue",
   "defer",
   "deinit",
@@ -36,6 +37,7 @@ const CONTROL_KEYWORDS = [
   "return",
   "switch",
   "throw",
+  "transaction",
   "while",
 ];
 
@@ -964,6 +966,7 @@ module.exports = grammar({
     _statement: ($) =>
       choice(
         $.binding_declaration,
+        $.commit_statement,
         $.return_statement,
         $.throw_statement,
         $.defer_statement,
@@ -1013,6 +1016,8 @@ module.exports = grammar({
 
     return_statement: ($) =>
       prec.right(seq("return", optional($._expression), optional(";"))),
+    commit_statement: ($) =>
+      prec.right(seq("commit", optional($._expression), optional(";"))),
     throw_statement: ($) => seq("throw", $._expression, optional(";")),
     break_statement: (_) => seq("break", optional(";")),
     continue_statement: (_) => seq("continue", optional(";")),
@@ -1153,6 +1158,7 @@ module.exports = grammar({
         $.closure_expression,
         $.capture_expression,
         $.pipeline_expression,
+        $.transaction_expression,
         $.unsafe_expression,
         $.switch_expression,
         $.unit_literal,
@@ -1344,6 +1350,17 @@ module.exports = grammar({
         field("name", $.identifier),
       ),
     pipeline_expression: ($) => prec.right(seq("pipeline", $.block)),
+    transaction_expression: ($) =>
+      prec.right(
+        seq(
+          "transaction",
+          optional(field("contract", $.task_contract)),
+          field("binding", $.identifier),
+          "=",
+          field("source", $._expression),
+          field("body", $.block),
+        ),
+      ),
     unsafe_expression: ($) => prec.right(seq("unsafe", $.block)),
     closure_parameters: ($) => seq("(", commaSep($.closure_parameter), optional(","), ")"),
     closure_parameter: ($) => seq(field("name", $.identifier), optional(seq(":", field("type", $.type)))),

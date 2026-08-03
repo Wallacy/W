@@ -41,6 +41,7 @@
   "break"
   "case"
   "catch"
+  "commit"
   "continue"
   "defer"
   "deinit"
@@ -54,6 +55,7 @@
   "return"
   "switch"
   "throw"
+  "transaction"
   "while"
 ] @keyword.control
 
