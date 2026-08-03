@@ -19051,6 +19051,11 @@ para testar os quatro seed vectors e rejeitar formas não canônicas. Ele també
 aceita um unknown scalar block no profile `compatible`. O arquivo não é source
 de W, não define o wire schema e não substitui a implementação W0.
 
+A suíte aplica mutações determinísticas somente aos bytes de valores conhecidos.
+Quando uma mutação é aceita, o encoder precisa devolver os mesmos bytes. Quando
+é rejeitada, o erro precisa pertencer ao conjunto de codec failures. Essa
+propriedade não cobre ainda recursive blocks, tensors ou capabilities.
+
 O próximo gate precisa comparar esta implementação com o encoder/decoder W0 e
 com um fuzzer de payloads hostis. Um vetor que passa somente no codec Node não
 fecha o formato público.
@@ -20682,6 +20687,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-719 | lifecycle de stream | oracle distingue abertura, item, terminal, reset, drain e protocol failure; fault points de `open`, `decode` e `close` preservam outcomes próprios | `done()` posterior; reset como fim normal; item tardio entregue; error de boundary oculto; destructor assíncrono |
 | W-720 | preflight do decoder wWire | budgets separados, soma checked de directory e blocks, e rejeição antes da reserva; oracle cobre excesso e overflow | limite único de bytes; reservar por count; soma unchecked; normalizar forma não canônica |
 | W-721 | primeiro codec diferencial wWire | implementação Node limitada a `MenuKey` produz os quatro vetores e rejeita formas estritas; W0 e fuzzer continuam gates necessários | tomar o codec host como autoridade; congelar o formato com uma implementação; aceitar bytes não canônicos; omitir unknown scalar skip |
+| W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
