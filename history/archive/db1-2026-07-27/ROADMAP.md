@@ -137,7 +137,7 @@ pertencem ao gate da Fase 1.
 
 - Definir um runner determinístico e formatos versionados para tokens, CST,
   AST/HIR e diagnostics.
-- Reutilizar as fixtures de [tooling](../../../../W/tooling/README.md) no corpus; highlighting
+- Reutilizar as fixtures de [tooling](../../../tooling/README.md) no corpus; highlighting
   pode tolerar código incompleto, mas não cria um segundo oracle sintático.
 - Registrar saída observável esperada onde houver execução; não usar snapshots
   de IR como substituto de comportamento.
@@ -455,7 +455,7 @@ pode bloquear um executável quando revela divergência normativa:
 
 | Marco da trilha | Entrega | Sincroniza com |
 |---|---|---|
-| linguagem visível | atualizar o [portal/livro](../../../../W/portal/README.md) apenas depois da DB1 e somente com constructs presentes no corpus e status visível | fases -1–1 |
+| linguagem visível | atualizar o [portal/livro](../../../portal/README.md) apenas depois da DB1 e somente com constructs presentes no corpus e status visível | fases -1–1 |
 | edição local | TextMate utilizável no VS Code e Tree-sitter testado como parser incremental não normativo | fases 0–1 |
 | frontend explorável | visualizações de tokens/CST/AST, formatter e catálogo pesquisável de diagnostics | fases 1–2 |
 | semântica explicável | `explain` de tipos, effects, moves e motivos de rejeição; diff HIR/MLIR por passe | fases 2–4 |

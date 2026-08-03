@@ -51,4 +51,4 @@ await makeDiner()
 
 Os arquivos passaram por `W/_w_/` e no commit `928d3c9` aparecem vazios antes de
 serem removidos. O exemplo atual, deliberadamente reescrito contra a baseline,
-está em [`W/examples/restaurant/`](../../W/examples/restaurant) quando presente.
+está em [`reference/last-light/`](../reference/last-light) quando presente.

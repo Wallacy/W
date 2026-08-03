@@ -3,7 +3,7 @@
 > **Status:** source de design. O CLI ainda não gera `deployment.lock`.
 
 Estes planos testam a separação entre grafo lógico, packing e placement.
-[`W/DESIGN.md`](../../../DESIGN.md) define a semântica.
+[`DESIGN.md`](../../../DESIGN.md) define a semântica.
 
 - [`local.w`](local.w) usa uma unit e adapters locais de desenvolvimento.
 - [`distributed.w`](distributed.w) usa venue, edge, satellite, horizon e device

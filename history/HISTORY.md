@@ -89,7 +89,7 @@ Em 18 de julho de 2026 começa a reconstrução de `W/` com uma regra diferente:
 
 Em 27 de julho de 2026, a DB2 reúne linguagem, runtime, SDK, compilador,
 packages, distribuição, tooling, plano e alternativas em
-[`W/DESIGN.md`](../../W/DESIGN.md). Os documentos distribuídos da DB1 passam
+[`DESIGN.md`](../DESIGN.md). Os documentos distribuídos da DB1 passam
 para [`Y/W/archive/db1-2026-07-27/`](archive/db1-2026-07-27/). Essa mudança reduz
 fontes concorrentes sem apagar a proveniência.
 
@@ -104,7 +104,7 @@ A DB1 preservou a intenção, não essa DSL: sua fotografia usa comentários `//
 Markdown, fences `w test`, declaração contextual `test "..." for symbol` e os
 mesmos testes em `*.test.w`. A fotografia está em
 [`documentation-and-tests.md`](archive/db1-2026-07-27/design/documentation-and-tests.md);
-o contrato atual está em [`W/DESIGN.md`](../../W/DESIGN.md).
+o contrato atual está em [`DESIGN.md`](../DESIGN.md).
 As formas `@`/`@@`, execução de debug embutida e snapshots remotos continuam
 históricas até demonstrarem uma necessidade que a sintaxe atual não cubra.
 
@@ -146,7 +146,7 @@ que permitiram conferir a restauração.
 | [`TK/`](../../TK) | wQL, RestQL, V6, strings e outros projetos relacionados | projetos satélite; só entram no núcleo por decisão explícita |
 | histórico de `W/cheatsheet.md` | grande catálogo de sintaxe possível | recuperar exemplos, nunca importar todos como uma linguagem coerente |
 | histórico de `W/techspec.md` | pesquisa de tagged representation | base para research e testes target-specific |
-| [`W/DESIGN.md`](../../W/DESIGN.md) | design e registro D2 atuais | única autoridade para o estado corrente |
+| [`DESIGN.md`](../DESIGN.md) | design e registro D2 atuais | única autoridade para o estado corrente |
 | [`arquivo DB1`](archive/db1-2026-07-27/) | documentos canônicos anteriores | auditoria e alternativas históricas |
 
 Comandos úteis para consultar material substituído:
@@ -163,7 +163,7 @@ git log --follow -- W/cheatsheet.md
 
 Quando documentos discordarem, a autoridade não é determinada apenas pela idade, pelo tamanho ou por ser o arquivo mais recente. A ordem é:
 
-1. [`W/DESIGN.md`](../../W/DESIGN.md), para estado, contrato e alternativas;
+1. [`DESIGN.md`](../DESIGN.md), para estado, contrato e alternativas;
 2. os exemplos, portal e tooling atuais, como projeções verificáveis do design;
 3. o arquivo DB1, os cadernos históricos, o histórico Git e os spikes, como
    provenance e alternativas.

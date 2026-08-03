@@ -6,9 +6,9 @@ Este diretório preserva a documentação e o corpus que antecederam a baseline
 integrada atual. Os arquivos mantêm contexto, alternativas, links e proveniência.
 Eles não definem o W atual.
 
-Use [`W/DESIGN.md`](../../../../W/DESIGN.md) para linguagem, runtime, SDK,
+Use [`DESIGN.md`](../../../DESIGN.md) para linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e decisões. Use o
-[`Restaurante Última Luz`](../../../../W/examples/restaurant/README.md) para o
+[`Restaurante Última Luz`](../../../reference/last-light/README.md) para o
 ensaio visual atual.
 
 ## Conteúdo

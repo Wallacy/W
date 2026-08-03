@@ -4,7 +4,7 @@
 > ou package manager.
 
 Este documento aplica o contrato canônico de
-[`W/DESIGN.md`](../../DESIGN.md) ao produto de referência. Ele não cria regras
+[`DESIGN.md`](../../DESIGN.md) ao produto de referência. Ele não cria regras
 novas.
 
 ## 1. O que o build seleciona

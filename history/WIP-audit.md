@@ -9,7 +9,7 @@
 Este documento responde a uma pergunta diferente do inventário byte a byte: não
 apenas “o arquivo foi preservado?”, mas **cada família de ideia ainda possui um
 destino rastreável?** Ele é um índice de proveniência, não uma especificação. Os
-estados vigentes continuam em [`W/DESIGN.md`](../../W/DESIGN.md).
+estados vigentes continuam em [`DESIGN.md`](../DESIGN.md).
 
 ## Método
 

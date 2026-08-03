@@ -218,7 +218,7 @@ alvo de execução independente.
 | `formatting.w` | fixture canônico para source order, comments e chamadas multilinha |
 
 Esses arquivos usam a forma vigente. A consolidação substituída está no
-[arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27/examples/restaurant).
+[arquivo histórico](../../history/archive/db1-2026-07-27/examples/restaurant).
 
 ### 2.1 Cobertura e alcance
 
