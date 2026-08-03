@@ -10,10 +10,11 @@ const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.join(toolingDirectory, "wire-reference.c");
 const compiler = process.env.W_CC || "gcc";
 const probe = spawnSync(compiler, ["--version"], { stdio: "ignore" });
+const compilerAvailable = !probe.error && probe.status === 0;
 
 test(
   "C MenuKey codec matches the wWire seed vectors",
-  { skip: probe.error ? `${compiler} is not available` : false },
+  { skip: compilerAvailable ? false : `${compiler} is not available` },
   () => {
     const temporaryDirectory = fs.mkdtempSync(
       path.join(os.tmpdir(), "w-wire-reference-"),
