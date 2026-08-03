@@ -181,6 +181,7 @@ alvo de execução independente.
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, threshold de reprodução, mirrors e revogação |
+| `metadata_oracle.w` | separação entre CBOR, WMeta1 e wWire; inputs da recipe |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
@@ -676,6 +677,11 @@ root de binding, mas invalida a capability derivada do oven lease.
 revogação. O deployment distribuído exige maintainer authorization,
 reprodução e metadata fresca. Um mirror com bytes corretos, mas metadata antiga,
 continua rejeitado.
+
+`metadata_oracle.w` mantém três fronteiras: CBOR determinístico para records de
+build e distribuição, `WMeta1` como candidato para interface/cache e wWire para
+payloads de service. A recipe aceita somente inputs declarados; output digest é
+evidence posterior e path do executor ou wall clock são proibidos.
 
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 

@@ -14652,6 +14652,20 @@ desempenho. JSON serve somente para inspection. Antes desse gate, o encoding é
 toolchain-internal e recipe-exact. Uma release pública não promete ler esses
 bytes.
 
+**Separação de domínios.** A v0 usa CBOR determinístico para records data-only de
+`package.w`, `package.lock`, workspace, recipe, toolchain plan e release
+metadata. `WMeta1` é um candidato separado para chunks de `WInterface` e cache
+semântico do compiler. Ele não é o codec desses records e não é um payload de
+runtime. O payload de service continua usando wWire. Os três domínios possuem
+schemas, versionamento e gates próprios; nenhum reader pode inferir um domínio
+somente pelo primeiro byte.
+
+Assim, um build pode ser reproduzível hoje com CBOR sem prometer que uma futura
+distribuição aceitará bytes de `WMeta1`. A promoção de `WMeta1` exige schema
+publicado, reader bounded, corpus de corrupção e compatibilidade explícita. Até
+lá, `WInterface` binário e cache são artifacts da toolchain selecionada, não uma
+ABI pública eterna.
+
 Uma distribuição declara quais schemas de `WInterface` consegue ler. Um
 upconverter preserva significado e diagnostic origin. Um schema desconhecido
 não é reinterpretado. O compiler usa source compatível ou informa que precisa de
@@ -16582,7 +16596,10 @@ payloads. O resultado inclui um index que aponta para cada digest.
 - recipe fixa source tree digests, source inventory, active source sets e lock
   digest;
 - recipe fixa quotas e evaluator version de compile-time;
-- CBOR determinístico é a representação canônica inicial;
+- CBOR determinístico é a representação canônica inicial dos records de package,
+  lock, recipe, toolchain plan e release;
+- `WMeta1` permanece separado como candidato de interface/cache, sem misturar
+  seus bytes com manifests ou payloads wWire;
 - SHA-256 tagged é o digest inicial e possui algorithm agility.
 
 `w build --locked` falha se manifest, source inventory, resolution context ou
@@ -20479,7 +20496,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-630 | metadata binária não confiável | readers de interface, ABI note e manifests são data-only, bounded e fuzzed | confiar em assinatura; deserialização sem limites; plugin durante decode |
 | W-631 | header C por target | sidecar determinístico inclui calling convention, export macros e layout assertions; index liga header à slice | header universal por nome; path e timestamp; confiar só no linker |
 | W-632 | resolução de symbol dinâmico | loader W usa handle + manifest e visibilidade local; calls não dependem de interposition | lookup process-global; primeiro symbol carregado; override por environment |
-| W-633 | encoding de metadata | **Pesquisa:** comparar `WMeta1` e subset CBOR determinístico antes do formato público | JSON como autoridade; cache interno como contrato eterno; escolher sem fuzzer W0 |
+| W-633 | encoding de metadata | records de package/lock/recipe usam CBOR determinístico; `WMeta1` permanece candidato separado para `WInterface` e cache até reader, schema e fuzzer | JSON como autoridade; misturar manifest com WMeta1; cache interno como contrato eterno; escolher sem fuzzer W0 |
 | W-634 | `Address` | `Copy` opaco por address space, equality local, hash local, hex e `Bits`; não é pointer, identity ou ordem | alias de `usize`; integer com dereference; object ID |
 | W-635 | reconstrução de pointer | `withAddress` usa a provenance e o address space do receiver; v0 não possui exposed provenance ou `Address.toPointer` | round-trip integer; provenance global implícita; pointer forge safe |
 | W-636 | cópia de pointer | cópia tipada preserva non-address bits e estado externo; Bytes não faz round-trip | mesmo size implica bitwise; serializar pointer; integer load/store equivalente |
@@ -20560,6 +20577,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-711 | evolução da ABI W | v0 recompila consumers W; C, component, service schema e source rebuild atendem evolução independente | ABI resiliente implícita; layout congelado por default; runtime permanente sem protótipo |
 | W-712 | registro de wire kinds v0 | IDs `1–25` são um registro core append-only; `0` é inválido; extensões exigem registro/negociação e kind local não é portátil | inferir ID pela ordem do enum; usar kind como semântica da aplicação; aceitar extensão desconhecida sem registry |
 | W-713 | seed vectors wWire | `MenuKey` fixa quatro vetores hex para `exact` e `compatible`; os vetores orientam conformance sem prometer layout de memória | esperar o decoder para definir bytes; snapshots de implementação; usar JSON como wire nativo |
+| W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre somente a pesquisa de interface/cache; wWire cobre payloads de service | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; WMeta1 virar ABI implícita |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
