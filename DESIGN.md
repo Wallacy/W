@@ -515,6 +515,60 @@ formatter emite a forma curta quando o schema não é ambíguo.
 **Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
 medir leitura e migração. O parser vigente não a aceita.
 
+#### 3.5.1 Forma canônica do formatter
+
+O formatter opera sobre a CST lossless e seu trivia. Ele não exige type-check,
+HIR ou runtime. Assim, a edição local usa a mesma forma antes e depois da
+semântica completa existir.
+
+```w
+// entrada aceita durante a migração
+import {Command, Result} from command;
+fn sum(first:i32,second:i32):i32{return first+second;}
+
+// saída canônica
+import { Command, Result } from command
+
+fn sum(first: i32, second: i32): i32 { return first + second }
+```
+
+A forma canônica segue estas regras:
+
+| Elemento | Regra |
+|---|---|
+| bytes | UTF-8, sem BOM, LF e exatamente um newline final |
+| largura | 120 colunas como limite preferido; um token indivisível pode exceder |
+| indentação | dois espaços; tabs não aparecem na saída |
+| ordem | source order é preservada; imports, exports, cases e fields não são ordenados |
+| listas | uma linha quando a construção cabe; caso contrário, um item por linha e trailing comma |
+| blocos | uma declaração por linha; body curto permanece em uma linha quando cabe e não possui comment |
+| comments | comments e doc comments permanecem ligados ao mesmo token ou declaration |
+| semicolon | o parser aceita `;` de migração; o formatter remove o separador |
+| parentheses | parentheses necessários permanecem; redundantes sem comment podem ser removidos |
+
+O formatter preserva a ordem de avaliação e não expande imports, aplica
+refinements, reordena overloads ou altera a semântica de um expression. Um
+comment de fim de linha não atravessa a declaration à qual está anexado.
+
+`w fmt` escreve somente quando a CST não possui `ERROR` ou `MISSING` fatal.
+Em source incompleto, o editor pode mostrar uma tentativa baseada em recovery,
+mas não deve gravá-la como forma canônica. `w fmt --check` não modifica files e
+retorna failure quando a saída canônica difere do source. Nesse caso, ele emite
+`W-FMT-0001` com source digest, canonical digest e um fix `.machine`. Um parser
+error continua usando a família `W-PARSE`; o formatter não o reclassifica.
+
+O contrato mínimo é:
+
+```text
+parse(format(source)) == parse(format(format(source)))
+format(format(source)) == format(source)
+```
+
+O resultado não depende de path, locale, clock, package resolution ou type
+inference. A largura, a indentação e a política de comentários não são
+configuráveis na v0. Uma edition futura pode alterar a política com migração
+explícita.
+
 ### 3.6 Avaliação compile-time
 
 W separa avaliação exigida de otimização:
@@ -17437,6 +17491,10 @@ Formatter:
 - comentários preservados e anexados de forma determinística;
 - `w fmt` idempotente.
 
+A semântica completa da forma canônica está em [3.5.1](#351-forma-canônica-do-formatter).
+O frontend e o LSP compartilham a mesma CST lossless. O LSP pode formatar uma
+região recuperável para preview, mas `w fmt` não grava source com error fatal.
+
 #### Portal gerado
 
 **Exemplo:** a página de `spawn` inclui o snippet de `execution.w` e falha no
@@ -19385,6 +19443,7 @@ O corpus compara, no mínimo:
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
 - achatamento sem `from` contra binding de módulo e seleção por braces.
+- formatter fixo de 120 colunas contra style configurável e import sorting;
 - fail-fast com arbitragem lexical/input contra espera estritamente lexical;
 - cancellation como control effect contra `throws Cancellation`;
 - execution profile por product/unit contra domain default por módulo.
@@ -20426,6 +20485,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-705 | ergonomia de transaction | contract default permite omitir `<...>`, mas `tx = provider`, body e `commit` continuam explícitos | `try await transaction;`; provider ambient; `tx` implícito; commit por `return` |
 | W-706 | navegação do design | `DESIGN.md` continua canônico e integral; índice gerado publica intervalos e métricas; check impede drift | capítulos com autoridades separadas; resumo manual duplicado; leitura integral por default |
 | W-707 | gate de design freeze | cinco ciclos fecham ergonomia, kernel, execução, toolchain e contrato público; pesquisa com fallback não bloqueia | número de decisões prova completude; toda pesquisa bloqueia; implementação ampla antes dos spikes |
+| W-708 | formatter canônico | CST lossless, trivia, 120 colunas, source order, comments anexados, semicolon removido e saída idempotente | style configurável amplo; import sorting; formatter dependente de HIR; reescrita AST silenciosa |
+| W-709 | formatter e diagnostics | source com error fatal não é gravado; `--check` não modifica; spans continuam em bytes e a recovery fica no editor | saída parcial silenciosa; line/column como autoridade; formatter corrige sem reportar parser error |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

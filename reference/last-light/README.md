@@ -208,6 +208,7 @@ alvo de execução independente.
 | `mobile_app.w` | lifecycle Android/iOS sem UI toolkit W |
 | `controller_app.w` | reset, tick, interrupt e MMIO adapter |
 | `benchmark_app.w` | workloads HTTP e database para benchmark |
+| `formatting.w` | fixture canônico para source order, comments e chamadas multilinha |
 
 Esses arquivos usam a forma vigente. A consolidação substituída está no
 [arquivo histórico](https://github.com/Wallacy/wallacy.com/tree/master/Y/W/archive/db1-2026-07-27/examples/restaurant).
@@ -216,6 +217,10 @@ Esses arquivos usam a forma vigente. A consolidação substituída está no
 
 O corpus separa duas perguntas. Um arquivo de ensaio mostra se uma forma local é
 clara. Uma rota operacional mostra se as formas funcionam juntas.
+
+`formatting.w` mantém a forma canônica que o formatter deve preservar. Ele
+combina comments, source order, body curto e call multilinha em um único
+fixture pequeno.
 
 | Camada | Testemunho principal | Benefício observado |
 |---|---|---|
