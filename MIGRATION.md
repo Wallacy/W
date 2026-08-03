@@ -6,7 +6,9 @@ evolua com seu próprio ciclo de revisão e lançamento.
 ## Proveniência
 
 - A árvore corrente foi criada com `git subtree split --prefix=W`.
-- O histórico de `Y/W` foi importado em `history/`.
+- O histórico curado de `Y/W` foi importado em `history/`.
+- A árvore completa de `Y` foi importada sem alterações em
+  `history/legacy-y/`, incluindo `WIP.MD` e `_w_`.
 - Os commits anteriores à extração permanecem no histórico filtrado.
 - O monorepo mantém `W/` como submódulo apontado para este repositório.
 
