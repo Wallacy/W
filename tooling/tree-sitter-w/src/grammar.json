@@ -6806,6 +6806,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "pipeline_expression"
+        },
+        {
+          "type": "SYMBOL",
           "name": "unsafe_expression"
         },
         {
@@ -8634,6 +8638,23 @@
           }
         }
       ]
+    },
+    "pipeline_expression": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "pipeline"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "block"
+          }
+        ]
+      }
     },
     "unsafe_expression": {
       "type": "PREC_RIGHT",

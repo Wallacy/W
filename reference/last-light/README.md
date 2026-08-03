@@ -592,7 +592,7 @@ Aceite:
 - instances keyed permitem progresso paralelo entre pedidos, mas não na mesma key;
 - `ServiceLink` separa local, component, wRPC e foreign RPC;
 - `ServiceTransport` aparece somente dentro do link wRPC;
-- `CallPipeline` reduz round trips sem ocultar calls, effects ou intermediate owners;
+- `pipeline` reduz round trips sem ocultar calls, effects ou intermediate owners;
 - o turn continua fechado durante output commit;
 - `commitFailed` e `unknownOutcome` permanecem outcomes distintos.
 
@@ -613,6 +613,27 @@ O caller envia `preheat()` antes de receber a capability de `acquire()`. O
 pipeline também devolve a capability, pois `bake()` e `close()` ainda precisam
 dela. Uma falha antes da entrega deve liberar a capability intermediária. Uma
 call para uma instance presente na ancestry deve falhar com `callCycle`.
+
+A forma source está no `prepareDish`:
+
+```w
+let (lease, ready) = try await pipeline {
+  let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
+  let ready = lease.preheat()
+  return (lease, ready)
+}
+```
+
+O bloco aceita somente um DAG estático de calls e projections. Ele não executa
+uma closure remota. O `return` seleciona os valores que voltam ao caller. Uma
+ilha na mesma session pode usar um round trip; outra route cria uma barreira
+sem mudar a semântica.
+
+O oracle cobre chain, diamond, fan-out, forward reference, branch runtime,
+`await` interno, borrow e pipeline sem dependência. O último recebe warning em
+favor de `async let`. Se qualquer node possui outcome incerto, o resultado é
+`pipelineUnknown` com todos os effect IDs incertos. Um error da aplicação não
+pode esconder uma mutation que talvez tenha ocorrido.
 
 `OvenReady` é um token owned do provider. Ele substitui o antigo `Instant`
 local. `bake()` consome esse token. Assim, o caller não interpreta nem compara o

@@ -180,6 +180,11 @@ O startup negocia `exact` por raiz quando os wire schema digests são iguais. Um
 compatibility map seleciona `compatible` nos outros casos aceitos. O package não
 escolhe o profile por conveniência ou por target.
 
+A expressão `pipeline` entra no `ServiceIR` como um DAG de calls dependentes. O
+linker divide o grafo em ilhas de route. O runtime preserva effect IDs, cleanup
+e incerteza quando uma barreira impede o fast path. O build não transforma o
+pipeline em uma transaction nem em uma closure remota.
+
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como
 imports do runtime graph. Essa diferença impede lookup livre por string.
@@ -1136,6 +1141,7 @@ Os arquivos atuais exigem contratos ainda não implementados:
 22. gerador de header C, export list e harness para C callers;
 23. loader por digest para artifacts W exatos;
 24. task runtime, clocks virtuais, scheduler replay e blocking adapters;
-25. compiler e backends.
+25. verifier e lowering de `call_pipeline`, route islands e fault injection;
+26. compiler e backends.
 
 Essas lacunas são resultados do ensaio. Elas não são falhas escondidas.

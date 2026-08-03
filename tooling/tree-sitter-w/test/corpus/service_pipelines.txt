@@ -1,0 +1,105 @@
+==================
+Dependent service pipeline
+==================
+
+async fn warm(
+  ovens: ref ServiceRef<OvenApi>,
+  target: Temperature,
+  duration: Duration,
+): (ServiceRef<OvenLeaseApi>, OvenReady) throws KitchenError {
+  let (lease, ready) = try await pipeline {
+    let lease = ovens.acquire(target, duration: duration)
+    let ready = lease.preheat()
+    return (lease, ready)
+  }
+
+  return (lease, ready)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (tuple_type
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (tuple_pattern
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list
+                      (argument
+                        (identifier))
+                      (argument
+                        (identifier)
+                        (identifier)))))
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list)))
+                (return_statement
+                  (tuple_expression
+                    (tuple_element
+                      (identifier))
+                    (tuple_element
+                      (identifier)))))))))
+      (return_statement
+        (tuple_expression
+          (tuple_element
+            (identifier))
+          (tuple_element
+            (identifier)))))))

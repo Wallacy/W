@@ -49,6 +49,7 @@
   "for"
   "guard"
   "if"
+  "pipeline"
   "region"
   "return"
   "switch"
