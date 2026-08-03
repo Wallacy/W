@@ -6,6 +6,63 @@ struct ReleasePolicy {
   requiresTransparency: Bool
 }
 
+// The compact value models equality of a tagged cryptographic digest.
+// The production record uses the selected digest algorithm and full bytes.
+type EvidenceDigest = u64
+
+struct BuildEvidence {
+  inputsComplete: Bool
+  outputsComplete: Bool
+  sourceTreeDigest: EvidenceDigest
+  packageLockDigest: EvidenceDigest
+  recipeDigest: EvidenceDigest
+  toolchainDigest: EvidenceDigest
+  targetDigest: EvidenceDigest
+  runtimeClosureDigest: EvidenceDigest
+  environmentProjectionDigest: EvidenceDigest
+  payloadDigest: EvidenceDigest
+  artifactDigest: EvidenceDigest
+  builderIdentity: EvidenceDigest
+}
+
+enum ReproductionVerdict {
+  reproducible
+  incompleteEvidence
+  inputMismatch
+  artifactMismatch
+}
+
+const fn compareBuildEvidence(
+  first: BuildEvidence,
+  second: BuildEvidence,
+): ReproductionVerdict {
+  if !first.inputsComplete || !second.inputsComplete {
+    return .incompleteEvidence
+  }
+
+  if !first.outputsComplete || !second.outputsComplete {
+    return .incompleteEvidence
+  }
+
+  if first.sourceTreeDigest != second.sourceTreeDigest
+    || first.packageLockDigest != second.packageLockDigest
+    || first.recipeDigest != second.recipeDigest
+    || first.toolchainDigest != second.toolchainDigest
+    || first.targetDigest != second.targetDigest
+    || first.runtimeClosureDigest != second.runtimeClosureDigest
+    || first.environmentProjectionDigest != second.environmentProjectionDigest {
+    return .inputMismatch
+  }
+
+  if first.payloadDigest != second.payloadDigest
+    || first.artifactDigest != second.artifactDigest {
+    return .artifactMismatch
+  }
+
+  // Independent builder identities are evidence of quorum, not build inputs.
+  return .reproducible
+}
+
 enum ReleaseDecision {
   published
   reproducible
@@ -201,4 +258,53 @@ test "signing roles remain separate" for rolesMayShareKey {
   expect !rolesMayShareKey(.maintainer, .builder)
   expect !rolesMayShareKey(.builder, .platform)
   expect !rolesMayShareKey(.registry, .platform)
+}
+
+const fn completeEvidence(builderIdentity: EvidenceDigest): BuildEvidence {
+  return BuildEvidence(
+    inputsComplete: true,
+    outputsComplete: true,
+    sourceTreeDigest: 11,
+    packageLockDigest: 12,
+    recipeDigest: 13,
+    toolchainDigest: 14,
+    targetDigest: 15,
+    runtimeClosureDigest: 16,
+    environmentProjectionDigest: 17,
+    payloadDigest: 18,
+    artifactDigest: 19,
+    builderIdentity: builderIdentity,
+  )
+}
+
+test "reproduction compares declared inputs and complete outputs" for compareBuildEvidence {
+  let first = completeEvidence(builderIdentity: 20)
+  let independent = completeEvidence(builderIdentity: 21)
+
+  expect compareBuildEvidence(first: first, second: independent) == .reproducible
+}
+
+test "same bytes with a different recipe are not reproducible" for compareBuildEvidence {
+  let first = completeEvidence(builderIdentity: 30)
+  var changedRecipe = completeEvidence(builderIdentity: 31)
+  changedRecipe.recipeDigest = 133
+
+  expect compareBuildEvidence(first: first, second: changedRecipe) == .inputMismatch
+}
+
+test "matching inputs with different bytes report an artifact mismatch" for compareBuildEvidence {
+  let first = completeEvidence(builderIdentity: 40)
+  var changedArtifact = completeEvidence(builderIdentity: 41)
+  changedArtifact.payloadDigest = 118
+  changedArtifact.artifactDigest = 119
+
+  expect compareBuildEvidence(first: first, second: changedArtifact) == .artifactMismatch
+}
+
+test "missing evidence cannot claim reproduction" for compareBuildEvidence {
+  var incomplete = completeEvidence(builderIdentity: 50)
+  let complete = completeEvidence(builderIdentity: 51)
+  incomplete.inputsComplete = false
+
+  expect compareBuildEvidence(first: incomplete, second: complete) == .incompleteEvidence
 }
