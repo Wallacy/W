@@ -194,8 +194,7 @@ function decodeCompatibleMenuKey(input) {
   }
 
   let previousId = 0;
-  let id;
-  let urgent;
+  const entries = [];
 
   for (let index = 0; index < countResult.value; index += 1) {
     const deltaResult = readLeb128(data, cursor);
@@ -219,22 +218,29 @@ function decodeCompatibleMenuKey(input) {
     cursor += 1;
     const lengthResult = readLeb128(data, cursor);
     cursor = lengthResult.offset;
+    entries.push({ id: currentId, kind, length: lengthResult.value });
+    previousId = currentId;
+  }
 
-    if (lengthResult.value > data.length - cursor) {
+  let id;
+  let urgent;
+
+  for (const entry of entries) {
+    if (entry.length > data.length - cursor) {
       throw new WireDecodeError("truncatedBlock");
     }
 
-    const block = data.slice(cursor, cursor + lengthResult.value);
-    cursor += lengthResult.value;
+    const block = data.slice(cursor, cursor + entry.length);
+    cursor += entry.length;
 
-    if (currentId === 1) {
-      if (kind !== WIRE_KIND.u16 || block.length !== 2) {
+    if (entry.id === 1) {
+      if (entry.kind !== WIRE_KIND.u16 || block.length !== 2) {
         throw new WireDecodeError("invalidWireKind");
       }
 
       id = block[0] | (block[1] << 8);
-    } else if (currentId === 2) {
-      if (kind !== WIRE_KIND.bool || block.length !== 1) {
+    } else if (entry.id === 2) {
+      if (entry.kind !== WIRE_KIND.bool || block.length !== 1) {
         throw new WireDecodeError("invalidWireKind");
       }
 
@@ -244,10 +250,8 @@ function decodeCompatibleMenuKey(input) {
 
       urgent = block[0] === 1;
     } else {
-      validateUnknownScalar(kind, block);
+      validateUnknownScalar(entry.kind, block);
     }
-
-    previousId = currentId;
   }
 
   if (id === undefined) {
@@ -297,6 +301,21 @@ function expectDecodeError(fn, code) {
   assert.throws(fn, (error) => error instanceof WireDecodeError && error.code === code);
 }
 
+function mutateKnownBytes(input, offsets, rounds) {
+  const source = asBytes(input);
+  const mutations = [];
+  const masks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80];
+
+  for (let round = 0; round < rounds; round += 1) {
+    const mutation = source.slice();
+    const offset = offsets[round % offsets.length];
+    mutation[offset] ^= masks[round % masks.length];
+    mutations.push(mutation);
+  }
+
+  return mutations;
+}
+
 test("MenuKey exact vectors round-trip", () => {
   assert.deepEqual(
     Array.from(encodeExactMenuKey({ id: 42, urgent: undefined })),
@@ -327,7 +346,7 @@ test("MenuKey compatible vectors round-trip and skip a scalar unknown", () => {
   );
   assert.deepEqual(
     decodeCompatibleMenuKey([
-      0x02, 0x01, 0x03, 0x02, 0x2a, 0x00, 0x02, 0x0e, 0x02, 0xaa, 0xbb,
+      0x02, 0x01, 0x03, 0x02, 0x02, 0x0e, 0x02, 0x2a, 0x00, 0xaa, 0xbb,
     ]),
     { id: 42, urgent: undefined },
   );
@@ -338,11 +357,11 @@ test("strict decoding rejects non-canonical and unsafe forms", () => {
   expectDecodeError(() => decodeExactMenuKey([0x00, 0x2a, 0x00, 0x00]), "trailingData");
   expectDecodeError(() => decodeCompatibleMenuKey([0x81, 0x00]), "nonMinimalControlInteger");
   expectDecodeError(
-    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x2a, 0x00, 0x00, 0x01, 0x01, 0x01]),
+    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x00, 0x01, 0x01, 0x2a, 0x00, 0x01]),
     "duplicateFieldId",
   );
   expectDecodeError(
-    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x2a, 0x00, 0x01, 0x01, 0x01, 0x02]),
+    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x01, 0x01, 0x01, 0x2a, 0x00, 0x02]),
     "invalidBool",
   );
   expectDecodeError(() => decodeCompatibleMenuKey([0x00]), "missingRequiredField");
@@ -355,9 +374,56 @@ test("strict decoding rejects non-canonical and unsafe forms", () => {
     "trailingData",
   );
   expectDecodeError(
-    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x2a, 0x00, 0x02, 0x18, 0x00]),
+    () => decodeCompatibleMenuKey([0x02, 0x01, 0x03, 0x02, 0x02, 0x18, 0x00, 0x2a, 0x00]),
     "unsupportedWireKind",
   );
+});
+
+test("deterministic mutations preserve canonical acceptance", () => {
+  const cases = [
+    {
+      decode: decodeExactMenuKey,
+      encode: encodeExactMenuKey,
+      value: { id: 42, urgent: undefined },
+      bytes: [0x00, 0x2a, 0x00],
+      offsets: [1, 2],
+    },
+    {
+      decode: decodeExactMenuKey,
+      encode: encodeExactMenuKey,
+      value: { id: 42, urgent: true },
+      bytes: [0x01, 0x2a, 0x00, 0x01],
+      offsets: [1, 2, 3],
+    },
+    {
+      decode: decodeCompatibleMenuKey,
+      encode: encodeCompatibleMenuKey,
+      value: { id: 42, urgent: undefined },
+      bytes: [0x01, 0x01, 0x03, 0x02, 0x2a, 0x00],
+      offsets: [4, 5],
+    },
+    {
+      decode: decodeCompatibleMenuKey,
+      encode: encodeCompatibleMenuKey,
+      value: { id: 42, urgent: true },
+      bytes: [0x02, 0x01, 0x03, 0x02, 0x01, 0x01, 0x01, 0x2a, 0x00, 0x01],
+      offsets: [7, 8, 9],
+    },
+  ];
+
+  for (const candidate of cases) {
+    const canonical = asBytes(candidate.bytes);
+    assert.deepEqual(candidate.decode(canonical), candidate.value);
+
+    for (const mutation of mutateKnownBytes(canonical, candidate.offsets, 32)) {
+      try {
+        const decoded = candidate.decode(mutation);
+        assert.deepEqual(candidate.encode(decoded), mutation);
+      } catch (error) {
+        assert.ok(error instanceof WireDecodeError);
+      }
+    }
+  }
 });
 
 export {
