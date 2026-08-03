@@ -5865,6 +5865,58 @@ path para `value`.
 Uma lens de import pode estimar código, static data e peak memory. Ela não
 publica um único número como previsão de runtime universal.
 
+O comando `w explain resources` e o editor usam o mesmo record data-only. O
+record contém, no mínimo:
+
+```text
+ResourceLensRecord
+  subject, scope, target, profile, artifactDigest
+  reachability: potential | reachable
+  code, staticData, instance, operation, peak
+  accounting: payload | allocator | runtime | foreign
+  confidence: fact | estimate | measurement | unknown
+  recipeDigest, WAbiKey
+```
+
+Cada custo é um intervalo ou `unknown`. `code` e `staticData` podem ser fatos
+exatos para um artifact fechado. `instance`, `operation` e `peak` permanecem
+dependentes do número de instances, dos inputs e dos caminhos executados. O
+editor mostra a soma incremental somente quando a análise conhece o product,
+target, profile e reachability. Antes disso, ele mostra `potential` e não
+simula um custo já alcançado.
+
+O lens não é annotation de source. Ele é uma projeção do `WInterface`, da
+recipe e do artifact index. Ele não muda overload, ownership, permission,
+layout ou optimization. Um budget explícito pode rejeitar o build ou a
+admission. Uma estimate não pode rejeitar nenhum dos dois.
+
+Exemplo de saída bounded:
+
+```text
+$ w explain resources restaurant.allocation::stageMenu \
+    --target x86_64-unknown-linux-gnu --profile debug
+subject: restaurant.allocation::stageMenu
+reachability: reachable
+code:       1.2..1.8 KiB       estimate
+staticData: 0 B                 fact
+instance:   0..96 B             estimate
+operation:  0..2 MiB staging   contract
+peak:       unknown             input-dependent
+accounting: payload + allocator
+recipe:     sha256:21...
+abi:        WAbiKey:...
+```
+
+Uma medição só pode atualizar um cache local quando `recipeDigest`, `WAbiKey`,
+target e profile coincidem. A medição permanece rotulada como `measurement`.
+Ela não promove uma estimate para `fact` e não é enviada sem consentimento.
+`unknown` é um resultado válido e deve ser preferido a uma precisão inventada.
+
+O `ResourceLensRecord` também pode ser emitido para um valor ou uma função.
+`w explain memory value` acrescenta owner, escape, allocation e drop path ao
+record. Esses campos explicam a semântica e o lowering. Eles não transformam
+um caminho observado em uma previsão universal de peak.
+
 `w explain layout T` mostra:
 
 - estados lógicos e payloads;
@@ -17732,6 +17784,22 @@ pode ser provado. Budgets são contratos separados.
 Feedback medido pode melhorar estimates locais. Ele é opt-in, vinculado à recipe
 e não envia source/dados sem consentimento.
 
+O cálculo ao lado de um import é incremental para o product selecionado. Se o
+import alcança somente `http.fetch`, o lens não cobra os símbolos não alcançados
+de `std.http`. Um wildcard pode mostrar `potential` até a análise de reachability
+terminar. O mesmo package pode mostrar valores diferentes em `debug`, `release`
+e `benchmark`, porque codegen, allocator e runtime closure são diferentes.
+
+O lens não substitui `w audit effects`, `w explain memory` ou o budget do
+deployment. Cada comando responde a uma pergunta diferente:
+
+| Comando | Pergunta | Resultado |
+|---|---|---|
+| `w explain resources` | qual custo incremental é conhecido? | facts, intervalos e origem |
+| `w explain memory` | onde cada owner e allocation vive? | caminho semântico e lowering |
+| `w audit effects` | quais capabilities e effects alcançam o product? | grafo de authority |
+| `w deploy check` | o envelope respeita o limite? | aceito ou diagnostic |
+
 ### 22.4 Interface para modelos
 
 **Exemplo:** um modelo recebe diagnostic JSON com move original, uso inválido,
@@ -20765,6 +20833,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
 | W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
 | W-728 | provenance e assinatura de platform | recipe, toolchain digest, artifact e platform target precisam apontar para os mesmos records; roles permanecem distintas; divergência resulta em `rejectReproduction` | assinatura platform como prova de source; toolchain implícito; comparar somente payload; um envelope para maintainer, builder e platform |
+| W-729 | resource lens | `ResourceLensRecord` separa reachability, code, static data, instance, operation, peak, accounting, confidence e provenance; intervalos e `unknown` são válidos; medição não vira fact | um número de memória por import; annotation no source; soma sem target/profile; measurement como garantia; wildcard cobra tudo sempre |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

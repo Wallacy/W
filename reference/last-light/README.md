@@ -884,6 +884,26 @@ Aceite:
 - medição runtime não vira garantia global;
 - cancellation e deadline não vazam chunks.
 
+O caso principal usa `allocation.w`:
+
+```text
+$ w explain resources restaurant.allocation::stageMenu \
+    --target x86_64-unknown-linux-gnu --profile debug
+reachability: reachable
+code:       1.2..1.8 KiB       estimate
+staticData: 0 B                 fact
+instance:   0..96 B             estimate
+operation:  0..2 MiB staging   contract
+peak:       unknown             input-dependent
+accounting: payload + allocator
+```
+
+O limite `2<MiB>` da região é um contract de admission. Ele não prova o peak
+total de `stageMenu`, porque o input e a cópia final podem usar outro storage.
+`countEmergencyTokens` mantém um buffer fixo de `64<KiB>`, mas o lens continua
+separando storage local, arena e payload produzido. Uma medição posterior só é
+aceita no cache quando recipe, `WAbiKey`, target e profile são iguais.
+
 ### 3.12 Turno do Horizonte Violeta
 
 Famílias: todas.
