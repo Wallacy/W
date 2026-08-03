@@ -19,6 +19,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-index.mjs` | gera intervalos e métricas de `DESIGN.md` | projeção navegável; não define decisões |
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
+| `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A

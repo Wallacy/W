@@ -19056,6 +19056,12 @@ Quando uma mutação é aceita, o encoder precisa devolver os mesmos bytes. Quan
 é rejeitada, o erro precisa pertencer ao conjunto de codec failures. Essa
 propriedade não cobre ainda recursive blocks, tensors ou capabilities.
 
+`tooling/wire-reference.c` é a segunda implementação independente do mesmo
+recorte. O runner compila o source com GCC em um diretório temporário e compara
+os quatro vetores, o unknown scalar skip e alguns erros estritos. A ausência de
+GCC produz um skip explícito. Ela não transforma o fixture em implementação do
+compiler nem prova portabilidade para todos os targets C.
+
 O próximo gate precisa comparar esta implementação com o encoder/decoder W0 e
 com um fuzzer de payloads hostis. Um vetor que passa somente no codec Node não
 fecha o formato público.
@@ -20688,6 +20694,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-720 | preflight do decoder wWire | budgets separados, soma checked de directory e blocks, e rejeição antes da reserva; oracle cobre excesso e overflow | limite único de bytes; reservar por count; soma unchecked; normalizar forma não canônica |
 | W-721 | primeiro codec diferencial wWire | implementação Node limitada a `MenuKey` produz os quatro vetores e rejeita formas estritas; W0 e fuzzer continuam gates necessários | tomar o codec host como autoridade; congelar o formato com uma implementação; aceitar bytes não canônicos; omitir unknown scalar skip |
 | W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
+| W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores e nos erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
