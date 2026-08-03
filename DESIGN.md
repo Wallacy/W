@@ -8595,7 +8595,7 @@ Uma call transporta:
 
 ```text
 callId, effectId, parentCallId, serviceId, generationHint, operationId,
-interfaceDigest, timeBudget, cancellationId, callerCapability, metadata, payload
+interfaceDigest, timeBudget, cancellationId, targetCapability, metadata, payload
 ```
 
 `callId` identifica uma tentativa. `effectId` identifica o efeito lógico através
@@ -17521,7 +17521,7 @@ O compiler deriva um `ServiceIR` data-only. Ele contém:
 - input, output e application error de cada operation;
 - `value`, `take` e capability para cada edge;
 - mobility, refinements, units, shapes e enum subsets;
-- idempotência, effect policy, limits e required rights;
+- idempotência, effect policy, limits e capability operation set;
 - schemas alcançáveis e regras de compatibilidade;
 - `WireSchemaDigest` por input, output e application error;
 - documentation e source map em chunks separados.
@@ -18049,6 +18049,120 @@ Uma `ServiceRef<P>` em payload vira uma entrada de capability table. A entrada
 contém interface, rights, service generation e lifetime. O frame transporta um
 índice da session, não um pointer ou endpoint global.
 
+`rights` é o conjunto de operações da interface autorizada. W não adiciona uma
+segunda lista nominal de permissões a cada protocol. Um protocol menor expressa
+menor authority:
+
+```w
+export protocol OvenObserverApi {
+  async fn status(): OvenTelemetry throws OvenError
+}
+
+export protocol OvenLeaseApi: OvenObserverApi {
+  async fn preheat(): OvenReady throws OvenError
+  async fn bake(
+    mixture: take Mixture,
+    readiness: take OvenReady,
+  ): Dish throws OvenError
+  async fn close()
+}
+
+let observer: ServiceRef<OvenObserverApi> = lease
+```
+
+A última linha é attenuation, não generic covariance. O compiler cria um grant
+que autoriza somente `OvenObserverApi`. Um peer não recupera `bake` com cast ou
+operation ID. Interfaces com rights iguais podem compartilhar uma entrada;
+authority diferente exige outra entrada.
+
+Um right que depende de resource, tenant ou key usa uma capability para esse
+objeto. Um limite dinâmico usa o state dessa capability ou um membrane. W não
+transforma nomes de recursos em authority ambiente.
+
+##### 23.1.6.1 Root grants e calls
+
+**Exemplo:** autenticar `observatory/main` não concede acesso a todos os
+satélites. A binding concede somente a family e os keys autorizados.
+
+O deployment lock cria um root grant por service edge. Uma session autenticada
+não recebe um root global. Uma session pode multiplexar várias edges, mas cada
+grant identifica caller, provider, interface, operation set e generation policy.
+
+`ready` instala somente os root grants presentes nos dois artifacts e no lock.
+Um import fechado vira uma `ServiceRef` na HIR. No wRPC, a call endereça o
+`targetCapability` correspondente. Peer identity permanece evidência de audit;
+ela não substitui a capability.
+
+Antes de decodificar o payload, o receiver valida:
+
+1. session e capability index;
+2. estado ativo e generation;
+3. interface e operation autorizadas;
+4. deadline, ancestry e admission quota;
+5. tamanho, schema e capability ordinals do payload.
+
+Falha de index, operation ou generation produz o mesmo
+`ServiceFailure.unauthorized`. O peer não recebe um oracle sobre entries que não
+possui. Logs locais preservam a causa detalhada.
+
+Um index adivinhado não concede authority. O frame integrity impede alteração,
+e a table aceita somente IDs exportados ao peer nessa session. IDs são
+monotônicos, não são reutilizados e fecham a session em overflow.
+
+##### 23.1.6.2 Delegation e confused deputy
+
+**Exemplo:** o auditor recebe `ServiceRef<OvenObserverApi>`. Ele não recebe o
+lease completo nem um `OvenId` que possa trocar por authority.
+
+Enviar uma `ServiceRef` em um campo tipado delega authority. O `ServiceIR`
+registra cada capability path, inclusive em structs e collections. O editor e
+`w explain authority` mostram sender, receiver, interface e attenuation.
+
+Um parâmetro comum cria um alias remoto. Um parâmetro `take ServiceRef<P>` move
+o alias local no commit do envelope. Nos dois casos, a assinatura torna a
+delegation visível. Converter a referência em `Bytes`, String, URL ou integer é
+proibido.
+
+Um service atua somente com capabilities de initializer, binding ou payload.
+Caller identity, resource name e ambient lookup não concedem authority. Uma API
+que age em nome do caller recebe a capability específica no payload. Essa regra
+evita que um deputy use sua root mais ampla para um nome não confiável.
+
+Um unknown block que alcança capability não entra no carrier opaco da baseline.
+Preservá-lo delegaria authority sem tipo visível. Um relay de capability opaca,
+com schema e policy explícitos, permanece **Pesquisa**.
+
+Quando Alice repassa a Bob uma capability de Carol, a baseline mantém relay por
+Alice. Esse relay é um membrane: Alice pode atenuar e revogar o grant de Bob.
+Uma conexão direta Bob-Carol continua **Pesquisa** e exige consentimento dos
+três peers.
+
+##### 23.1.6.3 Revocation, generation e quotas
+
+**Exemplo:** o lease é revogado enquanto `bake` aguarda admission. O provider
+rejeita a call; um `bake` já admitido termina com seu outcome normal.
+
+Cada export passa por `active → revoking → revoked → released`. O exporter é a
+enforcement boundary. `capRevoke` notifica o importer, mas a segurança não
+depende da entrega dessa notificação.
+
+Revocation fecha admission nova de forma atômica no provider. Calls já admitidas
+continuam e drenam. Revocation não faz rollback nem converte outcome conhecido
+em cancellation. Uma revogação de peer identity pode encerrar a session inteira
+conforme a seção 23.1.4.3.
+
+`capRelease` informa que o importer removeu aliases. Ele permite cleanup, mas
+não é uma revogação e não confirma uma operação de domínio. Um peer hostil que
+omite release só consome seu envelope bounded até session close ou lease expiry.
+
+Root grants de binding podem seguir a generation ativa quando o lock permite.
+Capabilities derivadas de resource são generation-exact por default. Restart
+não liga um oven lease antigo a outro provider.
+
+O profile wRPC limita import slots, export slots, capability ordinals por frame
+e entries por pipeline. O decoder valida ordinals antes de reservar entries. Um
+ordinal repetido preserva alias e não consome outro slot.
+
 As tables são bidirecionais. Cada lado mantém exports e imports. Um export ID
 não é reutilizado durante a session. Rights podem ser reduzidos durante o
 repasse, mas nunca ampliados.
@@ -18073,11 +18187,8 @@ Uma referência durável exige um contrato separado de save/restore e policy do
 provider. Serializar `ServiceRef` comum continua proibido. Persistent
 capabilities permanecem **Pesquisa** depois da primeira versão.
 
-Quando Alice apresenta a Bob uma capability fornecida por Carol, a baseline
-mantém relay por Alice. Uma introdução direta Bob-Carol exige autorização,
-peer identity e novo channel seguro. Three-party introduction e distributed
-reference equality permanecem **Pesquisa**; nenhuma delas bloqueia callbacks ou
-repasse de capabilities.
+Distributed reference equality também permanece **Pesquisa**. Essa feature não
+bloqueia callbacks, attenuation ou repasse de capabilities pela baseline.
 
 Cap'n Proto trata referências remotas como capabilities, libera o objeto quando
 as referências caem e separa persistent capabilities, three-party interactions
@@ -18495,6 +18606,10 @@ quando ownership, alignment e lifetime permitem. Zero-copy não é promessa.
 O profile `compatible` valida a estrutura de cada unknown block pela wire kind.
 Um valor W comum descarta esse block. Um gateway explícito pode manter o block
 canônico em um carrier opaco ligado ao schema lineage.
+
+Esse carrier rejeita um unknown block que alcance capability. A baseline não
+repassa authority sem interface e path conhecidos. Um relay opaco de capability
+permanece **Pesquisa**.
 
 Uma capability usa um ordinal local à mensagem. O wRPC link associa o ordinal
 a sua capability table. Repetir a mesma referência preserva alias pelo mesmo
@@ -20130,7 +20245,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-693 | lifecycle de service stream | producer output vira root runtime-owned sem borrow da instance; input vira pump; reset cancela e drena; cross-route usa relay bounded | manter closed turn aberto; destructor async; producer detached; materializar stream no relay |
 | W-694 | channel security wRPC | network usa TLS 1.3 mutual ou QUIC TLS 1.3 mutual; IPC prova peer e channel; deployment lock fixa identity e profile | criptografia própria; TLS oportunista; path de socket como identidade; TLS terminator invisível |
 | W-695 | transcript de session | hellos canônicos, nonces CSPRNG, channel binding, seleção policy-bounded e `ready` bilateral formam um session ID tagged | confiar só em connection ID; negociar cipher no wRPC; fallback silencioso; MAC duplicado sobre TLS |
-| W-696 | replay e admission wRPC | 0-RTT e frames antes de `ready` são proibidos; sequence é exata por direção; autenticação e quotas antecedem tables | mutation em early data; resume baseline; allocation antes do limite; capability entre sessions |
+| W-696 | replay e admission wRPC | 0-RTT e frames antes de `ready` são proibidos; sequence é exata por lane; autenticação e quotas antecedem tables | mutation em early data; resume baseline; allocation antes do limite; capability entre sessions |
+| W-697 | attenuation de service capability | protocol menor reduz o operation set; typed binding cria grant menor sem cast recuperável | lista paralela de rights; ACL por nome; generic covariance amplia authority |
+| W-698 | root grant wRPC | deployment cria um grant por edge; call usa `targetCapability`; peer identity não concede root global | root por peer; `callerCapability`; index adivinhável; payload antes de authorization |
+| W-699 | delegation de capability | path tipado delega; alias ou `take` ficam na assinatura; unknown carrier rejeita capability; three-party usa relay | URL ou bytes como referência; lookup ambiente; authority opaca; introdução direta implícita |
+| W-700 | revocation de capability | exporter bloqueia admission; call admitida drena; resource cap é generation-exact; release não é revoke | rollback por revoke; reuse de ID; lease antigo rebind automático; cleanup de domínio por release |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

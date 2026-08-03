@@ -96,7 +96,11 @@ export protocol PantryApi {
   async fn reserve(course: Course, guests: GuestCount): StockReservation throws PantryError
 }
 
-export protocol OvenLeaseApi {
+export protocol OvenObserverApi {
+  async fn status(): OvenTelemetry throws OvenError
+}
+
+export protocol OvenLeaseApi: OvenObserverApi {
   async fn preheat(): OvenReady throws OvenError
   async fn bake(
     mixture: take Mixture,

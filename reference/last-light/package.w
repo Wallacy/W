@@ -90,6 +90,12 @@ package {
         drainTimeout: 30<s>
         revocation: .terminate
       }
+      capabilities: {
+        importSlots: 4_096
+        exportSlots: 4_096
+        ordinalsPerFrame: 128
+        entriesPerPipeline: 256
+      }
     },
   ]
 

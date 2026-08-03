@@ -28,6 +28,12 @@ deployment {
         drainTimeout: 5<s>
         revocation: .terminate
       }
+      capabilities: {
+        importSlots: 2_048
+        exportSlots: 2_048
+        ordinalsPerFrame: 64
+        entriesPerPipeline: 128
+      }
     }
   }
 

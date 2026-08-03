@@ -178,6 +178,7 @@ alvo de execução independente.
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
+| `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
@@ -224,7 +225,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | texto, collections e streams | `text.w`, `string_storage.w`, `collections.w`, `streams.w` | Unicode e backpressure ficam explícitos |
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
-| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, session, streams, transaction e compatibility mantêm o mesmo contrato |
+| service links e evolução | `service_oracle.w`, `session_security_oracle.w`, `capability_security_oracle.w`, `remote_stream_oracle.w`, `transaction_oracle.w`, `package.w`, `deployments/` | placement, authority, streams, transaction e compatibility mantêm o mesmo contrato |
 | wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
@@ -650,6 +651,15 @@ Os dois peers vinculam seus nonces, ofertas, seleção e channel binding no
 transcript. O oracle remove uma feature, troca o binding e repete o session ID.
 Cada caso falha antes de criar tables. Ele também rejeita 0-RTT, sequence
 duplicada, gap e capability da session anterior.
+
+`capability_security_oracle.w` separa peer identity de authority. Uma binding ou
+um campo `ServiceRef` explícito cria grant. Identity, index, URL e bytes não
+criam. `OvenLeaseApi` conforma com `OvenObserverApi`; uma typed binding menor
+delega observação sem delegar `bake` ou `close`.
+
+O oracle também injeta revoke antes e depois de admission. A primeira call
+falha como unauthorized. A segunda drena sem rollback. Restart pode resolver um
+root de binding, mas invalida a capability derivada do oven lease.
 
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 
