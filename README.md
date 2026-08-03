@@ -34,6 +34,16 @@ referência mostram esse contrato, mas não criam regras próprias.
 Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
 integral. O check do tooling falha quando o índice fica desatualizado.
 
+Para extrair somente uma seção, um heading ou uma decisão com contexto, use o
+leitor sem escrita:
+
+```powershell
+node tooling/design-slice.mjs --heading 12.13
+node tooling/design-slice.mjs --id W-711 --context 2
+```
+
+O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
+
 Para validar somente documentação e índice:
 
 ```powershell
@@ -54,7 +64,7 @@ Use `npm run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
 | services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |
-| wWire | **Pesquisa**; layout prefixado é **Direção**, bytes finais exigem protótipo |
+| wWire | **Pesquisa**; layout, registro core v0 e seed vectors vigentes; decoder e custo exigem protótipo |
 | wQL, V6, GPU e HDL | **Pesquisa** ou T2 fora do bootstrap |
 
 ## Amostra

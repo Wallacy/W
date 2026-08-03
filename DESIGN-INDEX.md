@@ -15,11 +15,11 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 20520 |
-| tokens aproximados de `DESIGN.md` | 217400 |
+| linhas de `DESIGN.md` | 20566 |
+| tokens aproximados de `DESIGN.md` | 218100 |
 | seções numeradas | 30 |
 | seções terminais com evidência local | 281/281 |
-| decisões | 711 (W-001–W-711) |
+| decisões | 713 (W-001–W-713) |
 | famílias de viabilidade | 177 |
 | comparações de revisão ainda previstas | 32 |
 | casos do corpus Tree-sitter | 53 |
@@ -46,23 +46,37 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 10 | 5871–5914 | 400 | Property behaviors |
 | 11 | 5915–6269 | 2900 | Erros, panic, OOM e cleanup |
 | 12 | 6270–8272 | 19400 | Concorrência, paralelismo e execução |
-| 13 | 8273–10566 | 21700 | Módulos de execução, services e entries |
-| 14 | 10567–11607 | 10100 | Prelude e SDK |
-| 15 | 11608–12068 | 4600 | Números, ranges e unidades |
-| 16 | 12069–13661 | 13500 | Texto, bytes e collections |
-| 17 | 13662–13800 | 1200 | Matrizes, tensors e ML |
-| 18 | 13801–14304 | 4800 | Performance e custo |
-| 19 | 14305–14477 | 1800 | FFI, unsafe e ilhas de linguagem |
-| 20 | 14478–15590 | 11200 | Compilador e bootstrap |
-| 21 | 15591–17491 | 17600 | Packages, builds e releases |
-| 22 | 17492–17699 | 1900 | Tooling e interface para máquinas |
-| 23 | 17700–19018 | 15500 | Protocolos e pesquisas de ecossistema |
-| 24 | 19019–19200 | 5500 | Classificação de viabilidade |
-| 25 | 19201–19411 | 1900 | Produto de referência Última Luz |
-| 26 | 19412–19475 | 800 | Protocolo de revisão |
-| 27 | 19476–19767 | 3500 | Plano de implementação |
-| 28 | 19768–19798 | 500 | Relação com a consolidação histórica |
-| 29 | 19799–20520 | 27900 | Registro de decisões e alternativas |
+| 13 | 8273–10567 | 21700 | Módulos de execução, services e entries |
+| 14 | 10568–11608 | 10100 | Prelude e SDK |
+| 15 | 11609–12069 | 4600 | Números, ranges e unidades |
+| 16 | 12070–13662 | 13500 | Texto, bytes e collections |
+| 17 | 13663–13801 | 1200 | Matrizes, tensors e ML |
+| 18 | 13802–14305 | 4800 | Performance e custo |
+| 19 | 14306–14478 | 1800 | FFI, unsafe e ilhas de linguagem |
+| 20 | 14479–15591 | 11200 | Compilador e bootstrap |
+| 21 | 15592–17492 | 17600 | Packages, builds e releases |
+| 22 | 17493–17700 | 1900 | Tooling e interface para máquinas |
+| 23 | 17701–19062 | 16000 | Protocolos e pesquisas de ecossistema |
+| 24 | 19063–19244 | 5500 | Classificação de viabilidade |
+| 25 | 19245–19455 | 1900 | Produto de referência Última Luz |
+| 26 | 19456–19519 | 800 | Protocolo de revisão |
+| 27 | 19520–19811 | 3500 | Plano de implementação |
+| 28 | 19812–19842 | 500 | Relação com a consolidação histórica |
+| 29 | 19843–20566 | 28000 | Registro de decisões e alternativas |
+
+## Bundles de leitura
+
+Use um bundle para uma revisão de domínio. Depois leia somente os headings e IDs ligados à pergunta; não copie o bundle para outro documento.
+
+| Bundle | Seções | Linhas | Tokens aproximados | Foco |
+|---|---:|---:|---:|---|
+| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–4741 | 39900 | promessa, símbolos, source, módulos, funções e tipos |
+| segurança e execução | 9, 10, 11, 12, 13 | 4742–10567 | 56600 | ownership, errors, tasks, domains, services e entries |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 10568–14478 | 36000 | tiers, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 14479–19062 | 46700 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 19063–20566 | 40200 | viabilidade, Última Luz, gates, roadmap e ledger |
+
+O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
 ## Classificação de viabilidade
 
@@ -102,8 +116,9 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 ## Comandos de leitura
 
 ```powershell
-rg -n '^## 12\.|^### 12\.' W/DESIGN.md
-rg -n 'W-688' W/DESIGN.md
+node W/tooling/design-slice.mjs --section 12
+node W/tooling/design-slice.mjs --heading 12.13
+node W/tooling/design-slice.mjs --id W-711 --context 2
 rg -n -C 4 'transaction' W/DESIGN.md
 node W/tooling/design-index.mjs --check
 ```
