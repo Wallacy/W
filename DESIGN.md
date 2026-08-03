@@ -10565,6 +10565,12 @@ O scheduler de teste injeta clock, entropy, storage e decisões de execução. E
 reproduz ordering, overload, drain, panic e restart. Packing físico diferente
 precisa passar o mesmo oracle observável.
 
+`lifecycle_oracle.w` fornece duas máquinas mínimas para o gate: task publica o
+outcome somente depois de `body settled → cleanup → outcome committed`, e
+service passa por `body settled → committing` antes de `committed`,
+`commitFailed` ou `unknownOutcome`. Uma transição inválida é rejeitada. Uma
+cancel request tardia não substitui um body já settled.
+
 ## 14. Prelude e SDK
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
@@ -20595,6 +20601,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-712 | registro de wire kinds v0 | IDs `1–25` são um registro core append-only; `0` é inválido; extensões exigem registro/negociação e kind local não é portátil | inferir ID pela ordem do enum; usar kind como semântica da aplicação; aceitar extensão desconhecida sem registry |
 | W-713 | seed vectors wWire | `MenuKey` fixa quatro vetores hex para `exact` e `compatible`; os vetores orientam conformance sem prometer layout de memória | esperar o decoder para definir bytes; snapshots de implementação; usar JSON como wire nativo |
 | W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre somente a pesquisa de interface/cache; wWire cobre payloads de service | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; WMeta1 virar ABI implícita |
+| W-715 | lifecycle cross-boundary | oracle comum exige cleanup antes de outcome/join e commit terminal único; `unknownOutcome` não volta a confirmed | task outcome antecipado; service turn reentrante por default; commit uncertainty tratada como abort |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
