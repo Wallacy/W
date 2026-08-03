@@ -17373,6 +17373,12 @@ platform. O policy pode exigir authorities distintas. A assinatura identifica
 o record e a policy. Ela não prova que o source é seguro ou que o builder foi
 honesto.
 
+O verifier liga `recipeDigest` à attestation do builder, o digest de toolchain
+à mesma recipe e `artifactDigest` ao `targetArtifactDigest` da plataforma. Uma
+assinatura de platform valida os bytes finais do target. Ela não valida source,
+recipe, toolchain ou segurança. Uma divergência de qualquer ligação impede o
+claim de reprodução.
+
 #### 21.3.2 Reprodução e estados
 
 **Exemplo:** dois rebuilders independentes produzem o mesmo `payloadDigest`.
@@ -20758,6 +20764,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-725 | resolução de execution domain | preference explícita vence herdada, que vence default; `spawn` exige default paralelo; `.main` e domains seriais rejeitam parallel intent; deployment só reduz capacity; domain declaration não cria executor | thread group fixo no source; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
 | W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
 | W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
+| W-728 | provenance e assinatura de platform | recipe, toolchain digest, artifact e platform target precisam apontar para os mesmos records; roles permanecem distintas; divergência resulta em `rejectReproduction` | assinatura platform como prova de source; toolchain implícito; comparar somente payload; um envelope para maintainer, builder e platform |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

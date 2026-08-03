@@ -688,7 +688,8 @@ distribuído exige maintainer authorization, reprodução e metadata fresca. Um
 mirror com bytes corretos, mas metadata antiga, continua rejeitado.
 O quorum também exige `builderIdentity`, `operatorIdentity`,
 `credentialIdentity` e `executionRootIdentity` distintos. Dois jobs na mesma CI
-não formam independência.
+não formam independência. O oracle também liga recipe, toolchain, artifact e
+platform envelope. Uma assinatura de platform não prova a segurança do source.
 
 `metadata_oracle.w` mantém três fronteiras: CBOR determinístico para records de
 build e distribuição, `WMeta1` como candidato para interface/cache e wWire para
