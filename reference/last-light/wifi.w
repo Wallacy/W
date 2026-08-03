@@ -23,7 +23,7 @@ export struct WifiSession {
   id: SessionId
   device: DeviceId
   role: WifiRole
-  expiresAt: Instant
+  remaining: Duration<(0...)>
 }
 
 export enum WifiError: Error {

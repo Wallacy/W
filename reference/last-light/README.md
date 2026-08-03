@@ -177,6 +177,7 @@ alvo de execução independente.
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
+| `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
 | `restpc_oracle.w` | mapeamento entre operações RestPC e métodos HTTP |
 | `simulation_app.w` | entry determinística sem deployment de services |
 | `app.w` | processo nativo multimodo, terminal, signal handler e Context |
@@ -221,6 +222,7 @@ clara. Uma rota operacional mostra se as formas funcionam juntas.
 | async, paralelo e sincronização | `execution.w`, `mobility.w`, `synchronization.w` | estrutura e limites substituem threads soltas |
 | services e compensação | `restaurant.w`, `billing.w`, `dining.w` | calls e efeitos remotos permanecem observáveis |
 | service links e evolução | `service_oracle.w`, `package.w`, `deployments/` | placement, commit e compatibility mantêm o mesmo contrato |
+| wire portátil | `wire_oracle.w`, `orbit.w`, `kitchen.w` | codec rejeita tempo local, borrows e representações alternativas |
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
@@ -612,6 +614,10 @@ pipeline também devolve a capability, pois `bake()` e `close()` ainda precisam
 dela. Uma falha antes da entrega deve liberar a capability intermediária. Uma
 call para uma instance presente na ancestry deve falhar com `callCycle`.
 
+`OvenReady` é um token owned do provider. Ele substitui o antigo `Instant`
+local. `bake()` consome esse token. Assim, o caller não interpreta nem compara o
+clock monotônico do forno remoto.
+
 O caso de output gate usa uma futura variante durável de `billing.capture`:
 
 ```text
@@ -637,7 +643,7 @@ O corpus de evolução combina dois artifacts:
 - N+1 adiciona um field optional a `SatelliteTelemetry`;
 - N+1 adiciona um case possível a `SatelliteHealth`;
 - N+1 renomeia `telemetry` com ID preservado no `interface.lock`;
-- N e N+1 usam wWire `exact` somente com o mesmo interface digest;
+- N e N+1 usam wWire `exact` somente com o mesmo `WireSchemaDigest` da raiz;
 - peers compatíveis usam wWire `compatible`;
 - um enum output com case novo falha na negociação, salvo quando o operation
   subset exclui esse case.
@@ -645,6 +651,35 @@ O corpus de evolução combina dois artifacts:
 Cada cenário injeta disconnect, cancellation, overload e schema mismatch em
 cada commit point. O oracle compara owner cleanup, capability count, effect ID,
 application outcome, boundary outcome e trace ancestry.
+
+`wire_oracle.w` acrescenta estes casos:
+
+- `SatelliteTelemetry` fixa tensor, unit, String, enum e integer no mesmo valor;
+- x86-64, Arm64 e um decoder independente precisam produzir os mesmos bytes;
+- `RestaurantSnapshot.activeOrders` usa `u32`, não `usize` target-dependent;
+- `OvenReady` usa token owned, não `Instant` local;
+- `WorkSnapshot` usa duração restante e mantém o alarm dentro do adapter;
+- refinement `u16<(1...128)>` reduz para um byte no wire schema;
+- um `ServiceRef` usa capability ordinal e não pointer ou endpoint global;
+- Map e Set preservam insertion order;
+- ordinary decode descarta unknown field;
+- relay explícito preserva um unknown block canônico.
+
+O corpus malformado cobre:
+
+- control integer não mínimo;
+- field ID duplicado ou fora de ordem;
+- Bool inválido e UTF-8 inválido;
+- enum case fora do subset;
+- unused presence bit;
+- block truncado e trailing data;
+- count overflow e item de tamanho zero com count extremo;
+- nesting, traversal e allocation acima do budget;
+- capability ordinal sem table entry.
+
+O gate compara `exact`, `compatible`, JSON e os adapters de referência. Nenhum
+resultado de performance será publicado antes de existir encoder, decoder,
+oracle diferencial e fuzzer.
 
 ### 3.7 Conta da Aurora Tardia
 
@@ -1430,7 +1465,8 @@ Aceite:
 - input é confirmado antes de liberar a função nominal do step;
 - output e progress são confirmados antes de voltar ao workflow;
 - lógica fora de steps não acessa clock, I/O, services ou mutable global;
-- o sleep persiste deadline sem manter um task frame;
+- o sleep persiste o alarm do adapter sem manter task frame ou `Instant`;
+- `WorkSnapshot` publica somente a duração restante do alarm;
 - evento anterior ao wait permanece no inbox bounded;
 - `EventId` duplicado não entrega o payload outra vez;
 - `trySend` cheio devolve o payload sem bloquear o turn;
@@ -1616,6 +1652,7 @@ Aceite:
 - session ID não concede authority sem `WifiSessionApi`;
 - logs não contêm voucher, secret ou session token;
 - logout é idempotente ou informa outcome desconhecido;
+- a session devolve duração restante e não serializa um `Instant` local;
 - worker e processo local usam a mesma interface;
 - storage durable é adapter do product, não propriedade de `String`;
 - o mobile app recebe somente state e notification capabilities declaradas.

@@ -40,6 +40,7 @@ referência mostram esse contrato, mas não criam regras próprias.
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
 | services, `ServiceLink` e wRPC | **Direção**; implementação na fase 6 |
+| wWire | **Pesquisa**; layout prefixado é **Direção**, bytes finais exigem protótipo |
 | wQL, V6, GPU e HDL | **Pesquisa** ou T2 fora do bootstrap |
 
 ## Amostra

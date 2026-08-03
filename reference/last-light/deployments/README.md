@@ -34,8 +34,8 @@ altera domains, pools, capabilities ou fallbacks:
 - o plano de benchmark mantém o envelope alto, mas continua bounded.
 
 Cada valor precisa ser menor ou igual ao máximo de `package.w`. O futuro
-`deployment.lock` grava a redução, link, codec, transport, peers e profile
-digest de cada edge.
+`deployment.lock` grava a redução, link, wire schema, codec profile, transport,
+peers e execution profile digest de cada edge.
 
 A seção `adapters` satisfaz roles fechadas pelo artifact. Os planos local e
 distribuído selecionam `w.std/sqlite-workflow@1` para o journal de

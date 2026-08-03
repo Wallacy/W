@@ -60,7 +60,7 @@ struct OrderSummary {
 
 struct RestaurantSnapshot {
   orders: Array<OrderSummary>
-  activeOrders: usize
+  activeOrders: u32
   completedOrders: u64
 }
 
@@ -131,7 +131,7 @@ async fn prepareDish(
 
   let ready = try await preheat
   let mixture = try await mixture
-  return try await lease.bake(mixture, until: ready.deadline)
+  return try await lease.bake(take mixture, readiness: take ready)
 }
 
 service lastLight: RestaurantApi {
@@ -198,7 +198,7 @@ service lastLight: RestaurantApi {
 
   async fn snapshot(): RestaurantSnapshot {
     var summaries: Array<OrderSummary> = []
-    var activeOrders = 0_usize
+    var activeOrders = 0_u32
 
     for entry in orders {
       let total: Money? = switch entry.value.receipt {

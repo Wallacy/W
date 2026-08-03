@@ -30,9 +30,13 @@ export struct StepRetry<Failure: Error> {
 }
 
 export enum WorkSuspension {
-  retry(point: WorkflowPointId, attempt: u32, wakeAt: Instant)
-  sleep(point: WorkflowPointId, wakeAt: Instant)
-  event(point: WorkflowPointId, binding: WorkEventTypeId, deadline: Instant?)
+  retry(point: WorkflowPointId, attempt: u32, remaining: Duration<(0...)>)
+  sleep(point: WorkflowPointId, remaining: Duration<(0...)>)
+  event(
+    point: WorkflowPointId,
+    binding: WorkEventTypeId,
+    remaining: Duration<(0...)>?,
+  )
 }
 
 export struct WorkEventBinding<Payload> {

@@ -41,7 +41,8 @@ std/
 lexicais. `Duration` é um intrinsic T1 signed e exato, com resolução de
 nanosecond. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
-delivery de workflows por steps. `io/contracts.w` materializa byte I/O de T1.
+delivery de workflows por steps. Uma suspensão pública contém duração restante,
+não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de T1.
 Os outros arquivos materializam values e protocols de T2.
 
 `std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
