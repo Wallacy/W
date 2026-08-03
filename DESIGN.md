@@ -17354,6 +17354,28 @@ environment normalizado e todos os output digests. O verifier compara bytes ou
 hashes dos outputs definidos pela recipe. Comparar somente o executável quando
 a release inclui resources ou static libraries não é suficiente.
 
+##### 21.3.2.1 Comparação de evidência
+
+**Exemplo:** dois builders podem ter `builderIdentity` diferente e ainda
+produzir uma reprodução válida. Um `recipeDigest` diferente invalida a
+comparação mesmo quando os bytes do payload coincidem por acidente.
+
+O verifier aplica esta ordem:
+
+1. rejeita a attestation se `inputsComplete` ou `outputsComplete` for falso;
+2. compara `sourceTreeDigest`, `packageLockDigest`, `recipeDigest`,
+   `toolchainDigest`, `targetDigest`, `runtimeClosureDigest` e o digest da
+   projeção de environment permitida;
+3. compara `payloadDigest` e `artifactDigest`, que inclui resources, static
+   libraries e sidecars definidos pela recipe.
+
+Os dois primeiros resultados diferentes são distintos: `inputMismatch` mostra
+que as builds não executaram a mesma recipe; `artifactMismatch` mostra que a
+mesma recipe produziu bytes diferentes. `builderIdentity` fica registrado para
+medir independência e quorum, mas não é um input da build. O oracle do Última
+Luz usa inteiros pequenos somente como rótulos de digest; o record de produção
+usa bytes completos do algoritmo tagged selecionado.
+
 A policy do registry define um threshold. O default público de W exige dois
 builders com authorities independentes. Independência significa operadores,
 credentials e execution roots distintos. Dois jobs em uma única CI não formam
@@ -20695,6 +20717,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-721 | primeiro codec diferencial wWire | implementação Node limitada a `MenuKey` produz os quatro vetores e rejeita formas estritas; W0 e fuzzer continuam gates necessários | tomar o codec host como autoridade; congelar o formato com uma implementação; aceitar bytes não canônicos; omitir unknown scalar skip |
 | W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
 | W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores; cada implementação testa erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
+| W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

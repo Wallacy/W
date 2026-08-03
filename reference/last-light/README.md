@@ -180,7 +180,7 @@ alvo de execução independente.
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
-| `release_oracle.w` | digest, threshold de reprodução, mirrors e revogação |
+| `release_oracle.w` | digest, evidência de recipe, threshold de reprodução, mirrors e revogação |
 | `metadata_oracle.w` | separação entre CBOR, WMeta1 e wWire; inputs da recipe |
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
@@ -677,9 +677,10 @@ falha como unauthorized. A segunda drena sem rollback. Restart pode resolver um
 root de binding, mas invalida a capability derivada do oven lease.
 
 `release_oracle.w` separa assinatura, digest, reprodução, transparency e
-revogação. O deployment distribuído exige maintainer authorization,
-reprodução e metadata fresca. Um mirror com bytes corretos, mas metadata antiga,
-continua rejeitado.
+revogação. A reprodução compara a evidência completa de inputs e outputs; ela
+não aceita bytes iguais produzidos por recipes diferentes. O deployment
+distribuído exige maintainer authorization, reprodução e metadata fresca. Um
+mirror com bytes corretos, mas metadata antiga, continua rejeitado.
 
 `metadata_oracle.w` mantém três fronteiras: CBOR determinístico para records de
 build e distribuição, `WMeta1` como candidato para interface/cache e wWire para
