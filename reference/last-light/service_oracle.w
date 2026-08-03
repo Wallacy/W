@@ -51,6 +51,67 @@ enum PipelineCapabilitySettlement {
   released
 }
 
+enum PipelineBodyCase {
+  linear
+  diamond
+  fanOut
+  forwardReference
+  runtimeBranch
+  innerAwait
+  borrowedInput
+  noDependentEdge
+}
+
+enum PipelineBodyCheck {
+  accepted
+  rejected
+  warning
+}
+
+const fn expectedPipelineBodyCheck(
+  for body: PipelineBodyCase,
+): PipelineBodyCheck {
+  return switch body {
+    case .linear: .accepted
+    case .diamond: .accepted
+    case .fanOut: .accepted
+    case .forwardReference: .rejected
+    case .runtimeBranch: .rejected
+    case .innerAwait: .rejected
+    case .borrowedInput: .rejected
+    case .noDependentEdge: .warning
+  }
+}
+
+enum PipelineNodeOutcome {
+  success
+  applicationError
+  boundaryError
+  unknownOutcome
+}
+
+enum PipelineAggregate {
+  success
+  applicationError
+  boundaryError
+  pipelineUnknown
+}
+
+const fn expectedPipelineAggregate(
+  first: PipelineNodeOutcome,
+  second: PipelineNodeOutcome,
+): PipelineAggregate {
+  return switch (first, second) {
+    case (.unknownOutcome, _): .pipelineUnknown
+    case (_, .unknownOutcome): .pipelineUnknown
+    case (.applicationError, _): .applicationError
+    case (.boundaryError, _): .boundaryError
+    case (.success, .applicationError): .applicationError
+    case (.success, .boundaryError): .boundaryError
+    case (.success, .success): .success
+  }
+}
+
 const fn expectedCapabilitySettlement(
   created: Bool,
   selected: Bool,
@@ -123,6 +184,34 @@ test "an orphan oven lease is released" for expectedCapabilitySettlement {
     selected: false,
     pipelineSucceeded: true,
   ) == .released
+}
+
+test "a pipeline body is a static dependent call graph" for expectedPipelineBodyCheck {
+  expect expectedPipelineBodyCheck(for: .linear) == .accepted
+  expect expectedPipelineBodyCheck(for: .diamond) == .accepted
+  expect expectedPipelineBodyCheck(for: .fanOut) == .accepted
+  expect expectedPipelineBodyCheck(for: .forwardReference) == .rejected
+  expect expectedPipelineBodyCheck(for: .runtimeBranch) == .rejected
+  expect expectedPipelineBodyCheck(for: .innerAwait) == .rejected
+  expect expectedPipelineBodyCheck(for: .borrowedInput) == .rejected
+  expect expectedPipelineBodyCheck(for: .noDependentEdge) == .warning
+}
+
+test "an uncertain node dominates pipeline error selection" for expectedPipelineAggregate {
+  expect expectedPipelineAggregate(
+    first: .applicationError,
+    second: .unknownOutcome,
+  ) == .pipelineUnknown
+
+  expect expectedPipelineAggregate(
+    first: .unknownOutcome,
+    second: .boundaryError,
+  ) == .pipelineUnknown
+
+  expect expectedPipelineAggregate(
+    first: .applicationError,
+    second: .boundaryError,
+  ) == .applicationError
 }
 
 test "service evolution is directional" for expectedCompatibility {

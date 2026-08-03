@@ -117,7 +117,14 @@ async fn prepareDish(
     throw .kitchen(.energyBudgetExceeded(found: projectedEnergy, limit: schedule.energyBudget))
   }
 
-  let lease = try await ovens.acquire(schedule.recipe.target, duration: schedule.duration)
+  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
+
+  let (lease, ready) = try await pipeline {
+    let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
+    let ready = lease.preheat()
+    return (lease, ready)
+  }
+
   defer async {
     do {
       try await lease.close()
@@ -126,10 +133,6 @@ async fn prepareDish(
     }
   }
 
-  async let preheat = lease.preheat()
-  spawn<.compute> let mixture = mix(stock.ingredients, recipe: schedule.recipe)
-
-  let ready = try await preheat
   let mixture = try await mixture
   return try await lease.bake(take mixture, readiness: take ready)
 }

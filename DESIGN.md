@@ -1601,9 +1601,31 @@ serialização, ampliar authority ou tornar um domínio serial em paralelo.
 
 ### 6.4 Evolução da interface exportada
 
-W promete compatibilidade de source entre versões compatíveis de um package.
-Uma atualização recompila os dependentes. O design vigente não promete
-substituir uma library compilada por outra versão sem rebuild.
+Antes do primeiro release estável 1.0, W não promete backward compatibility da
+linguagem, SDK, runtime, artifacts ou schemas internos. Uma versão `0.x` pode
+remover ou substituir uma forma quando a correção melhora o design. O projeto
+atualiza o formatter, o corpus e o produto de referência em vez de manter um
+shim da forma descartada. Uma migration temporária pode ajudar o trabalho
+ativo, mas ela não é contrato público.
+
+A partir de 1.0, W promete compatibilidade de source entre versões compatíveis
+de um package e somente para superfícies declaradas estáveis. Uma atualização
+recompila os dependentes. O design vigente não promete substituir uma library
+compilada por outra versão sem rebuild.
+
+Toda deprecation pós-1.0 registra:
+
+- a forma substituta ou a razão para remoção sem substituto;
+- o primeiro release que emite warning;
+- o próximo major release ou edition que pode remover a forma;
+- a migration automática, quando ela for segura;
+- o último reader necessário para artifacts persistentes.
+
+O campo de remoção é obrigatório. Ele não aceita `none` ou prazo indefinido. O
+compiler pode manter a forma somente na edition anterior durante a janela
+publicada. Depois da remoção, `w migrate` reescreve source suportado; o parser e
+o runtime não carregam um caminho morto para sempre. Uma correção urgente de
+segurança pode reduzir a janela e precisa explicar o impacto no advisory.
 
 Um artifact W pode ser reutilizado quando sua `WAbiKey` confere. Esse reuse é
 cache binário exato. Ele não é library evolution. A seção 20.4 define a
@@ -8468,6 +8490,7 @@ Um method `throws E` chamado por `ServiceRef` possui dois error effects:
 | `callCycle` | ancestry formaria ciclo closed-turn | não |
 | `commitFailed(effectId)` | dependency falhou antes de liberar o outcome | não |
 | `unknownOutcome(effectId)` | entrega ou efeito ocorreu, mas não foi confirmado | só com idempotência |
+| `pipelineUnknown(effectIds)` | uma ou mais calls do pipeline possuem outcome incerto | somente por effect ID e policy explícita |
 
 `commitFailed` prova que o output gated não foi entregue. Ele não desfaz um
 efeito externo anterior. Se o commit provider não prova commit ou abort, a call
@@ -8515,12 +8538,11 @@ preserva await, mobility, quotas, ordering, cancellation, errors e tracing.
 Uma capability remota é um handle tipado. Ela não é uma URL livre. Importar a
 interface não cria o handle.
 
-**Direção:** dependent calls usam um `CallPipeline` explícito para reduzir round
-trips. O pipeline preserva capability lifetime, quotas, cancellation, failure e
-`unknownOutcome`. Ele não muda `ServiceRef` para uma Promise lazy. A syntax do
-builder permanece **Pesquisa**. O
-[promise pipelining de Cap'n Web](https://blog.cloudflare.com/capnweb-javascript-rpc-library/)
-é evidência útil para o protótipo.
+**Direção:** dependent calls usam a expressão `pipeline { ... }`
+para reduzir round trips. O `try await` externo mantém suspensão e falha
+visíveis. O pipeline preserva capability lifetime, quotas, cancellation,
+failure e outcome incerto. Ele não muda `ServiceRef` para uma Promise lazy. A
+seção 23.1.7 fecha a forma source e o lowering.
 
 ### 13.7 Trabalho runtime-owned e `SupervisorRef`
 
@@ -17172,8 +17194,8 @@ W mantém um schema interno menor e produz LSP ou SARIF por adapter.
 
 ## 23. Protocolos e pesquisas de ecossistema
 
-Nenhum item desta seção reserva keyword. Cada hipótese usa os contratos do core
-e pode evoluir como package separado.
+`pipeline` é a única keyword reservada por esta seção. As outras hipóteses usam
+os contratos do core e podem evoluir como packages separados.
 
 ### 23.1 Stack nativa de services e wRPC
 
@@ -17472,71 +17494,113 @@ posteriores explícitos.
 Proto chama essa técnica de “Time Travel”; o nome técnico é promise pipelining.
 Ela não é apenas execução assíncrona.
 
-```text
-n0 = call ovens.acquire(target, duration)
-n1 = call n0.result.preheat()
-return (n0.result, n1.result)
+```w
+spawn<.compute> let mixture = mix(stock.ingredients, recipe: recipe)
+
+let (lease, ready) = try await pipeline {
+  let lease = ovens.acquire(recipe.target, duration: recipe.duration)
+  let ready = lease.preheat()
+  return (lease, ready)
+}
 ```
 
-O caller envia o grafo antes de receber o resultado de `n0`. O receiver executa
-`n1` quando a capability fica disponível. Quando as edges usam a mesma route, o
-grafo pode custar um round trip em vez de dois. O resultado devolve a lease e o
-estado ready porque o caller ainda precisa executar `bake()` e `close()`.
-Se uma edge cruza uma session sem introdução, o runtime espera a projection e
-continua pela route normal. A otimização some; a semântica permanece.
+`pipeline` é uma keyword. O ganho de clareza para uma boundary distribuída
+justifica esse item no vocabulário reservado. A forma canônica exige
+`await pipeline { ... }`; `try` aparece quando qualquer node possui application
+ou boundary error. O pipeline não é um valor first-class, não pode ser retornado
+ou armazenado e não possui builder público. A HIR usa `call_pipeline` e cria um
+node por operation.
 
-W usa um `CallPipeline` explícito e tipado. Uma `Task` ou `ServiceRef` comum não
-vira uma promise lazy. O pipeline aceita somente:
+O body possui uma gramática semântica menor:
 
-- calls de service conhecidas pelo `ServiceIR`;
-- projections de fields e capabilities verificáveis;
-- branches resolvidas antes do envio;
-- número de nodes, payload bytes e depth bounded;
-- effect ID, rights, deadline e quota por node.
+- `let` nomeia uma call de service ou uma projection de node anterior;
+- uma call que retorna `()` pode aparecer como statement;
+- um único `return` final seleciona os resultados entregues ao caller;
+- cada nome pode usar somente inputs locais ou nodes lexicamente anteriores;
+- argumentos aceitam values transferíveis, `take`, capabilities, constructors
+  e projections verificáveis;
+- `var`, assignment, `try`, `await`, `async`, `spawn`, `defer`, loops, branches,
+  `unsafe`, `region` e calls locais não constroem nodes.
 
-Um node com application ou boundary failure bloqueia seus dependents. Nodes
-independentes seguem a policy estruturada declarada. Cancellation drena os
-nodes já admitidos. Cada mutation mantém seu próprio `effectId` e pode produzir
-`unknownOutcome`.
+Essas regras produzem um DAG sem executar uma closure de usuário. Uma branch
+usa um value escolhido antes do bloco:
 
-Todos os nodes herdam a call ancestry do pipeline. Uma dependent call que volta
-a uma instance closed-turn da ancestry falha com `callCycle` antes da admission.
-Batching não remove essa verificação.
+```w
+let ovens = switch useReserve {
+  case true: reserveOvens
+  case false: primaryOvens
+}
 
-O receiver não precisa devolver um resultado intermediário usado somente pelo
-grafo. Tracing ainda cria um span por node. Essa regra permite interfaces
-pequenas e capabilities finas sem pagar um round trip por composição.
-
-O resultado do pipeline seleciona quais valores intermediários chegam ao
-caller. Uma capability selecionada mantém sua referência. Um valor não
-selecionado é destruído no receiver depois do último dependent node. Essa regra
-torna owner e cleanup independentes da otimização de round trip.
-
-A syntax source e o builder de `CallPipeline` permanecem **Pesquisa**. O corpus
-compara duas alternativas visuais:
-
-```text
-// Bloco explícito.
-let result = try await CallPipeline.build {
+let (lease, ready) = try await pipeline {
   let lease = ovens.acquire(target, duration: duration)
   let ready = lease.preheat()
   return (lease, ready)
 }
-
-// Builder fluente.
-let result = try await CallPipeline
-  .call(ovens.acquire, target, duration: duration)
-  .then(.preheat)
-  .returning(.root, .result)
-  .run()
 ```
 
-Essas formas são pseudocode e não reservam syntax. O formatter não esconderá a
-criação do pipeline. A forma escolhida precisa manter dependency, parallelism,
-effects e authority legíveis sem repetir o schema.
+Um cálculo que depende de um resultado remoto fica depois do `await` ou vira
+uma operation de service. W não envia arithmetic, branch ou bytecode do caller
+para o peer. Uma operação `map` restrita permanece **Pesquisa**.
+
+O `return` pertence ao pipeline, não à função externa. Ele seleciona quais
+values atravessam de volta. No exemplo, `lease` mantém a capability viva e
+`ready` transfere o token owned. Um valor não selecionado fica no receiver até
+o último dependent e então executa drop. Uma capability órfã envia release. Se
+o pipeline falha antes de entregar `lease`, o runtime também libera a
+capability intermediária.
+
+Um input owned pode alimentar um único node com `take`. Reuso exige `copy` e o
+tipo precisa ser `Duplicable`. Borrow, view e owner usado depois do move falham
+no checker antes do envio:
+
+```w
+let receipt = try await pipeline {
+  let stored = archive.store(take payload)
+  let indexed = search.index(take payload) // error: payload was moved
+  return (stored, indexed)
+}
+```
+
+O compiler atribui IDs estáveis pela ordem lexical. Def-use cria edges. Chains,
+diamonds e fan-out são válidos. Forward reference e cycle no grafo local são
+impossíveis. Todos os nodes herdam a call ancestry. Uma call que retorna a uma
+instance closed-turn da ancestry falha com `callCycle` antes da admission.
+
+O caller envia o grafo antes de receber a primeira capability. O receiver
+executa um dependent quando suas projections ficam disponíveis. Uma ilha com a
+mesma route e session pode custar um round trip. Uma edge que precisa de outra
+route cria uma barreira: o runtime materializa a projection e continua pela
+route normal. A otimização muda; values, errors, ownership e trace não mudam.
+`w explain pipeline` mostra as ilhas previstas e o trace mostra as reais.
+
+O pipeline não é transaction. Um node anterior pode confirmar seu efeito antes
+de um dependent falhar. Cada operation mantém `callId`, `effectId`, deadline,
+rights e quota próprios. Admission limita nodes, depth, payload bytes, retained
+bytes e capability slots. Um pipeline sem edge dependente recebe warning e
+deve usar `async let` ou tuple join para concorrência comum.
+
+Failure bloqueia dependents. Nodes independentes recebem cancelamento fail-fast
+e o pipeline aguarda o drain dos já admitidos. Sem incerteza, o primeiro error
+settled pela ordem lexical é primário; os outros ficam no trace. Se qualquer
+node termina com `unknownOutcome`, a incerteza domina e o caller recebe
+`ServiceFailure.pipelineUnknown(effectIds)`. A lista usa ordem lexical e contém
+todos os effects incertos. Essa regra impede que um application error secundário
+oculte uma mutation que talvez tenha ocorrido.
+
+Tracing cria um span por node, inclusive quando o receiver não devolve o valor
+intermediário. Cancellation cobre o grafo inteiro, mas não desfaz um efeito já
+confirmado. O resultado só fica disponível depois do drain e do cleanup dos
+nodes pertencentes ao pipeline.
+
+**Alternativas:** `CallPipeline.build { ... }` parece uma closure comum e pode
+sugerir record-replay runtime. O builder fluente repete operações e projections
+que o type checker já conhece. Tornar toda call uma promise lazy esconde a
+boundary em código comum. As três formas ficam rejeitadas no design vigente.
 
 Cap'n Proto envia calls que referenciam resultados ainda pendentes. Cap'n Web
-aplica a mesma ideia a projections e capabilities sobre JSON.
+aplica a mesma ideia a projections e capabilities sobre JSON. O `map` de Cap'n
+Web usa record-replay de uma callback restrita. W começa com um IR estático e
+não envia código arbitrário.
 [Cap'n Proto Time-Traveling RPC](https://capnproto.org/news/2013-12-12-capnproto-0.4-time-travel.html),
 [Cap'n Web](https://github.com/cloudflare/capnweb)
 
@@ -17610,7 +17674,7 @@ W pode superar o ajuste de uma library externa em cinco pontos:
 1. o compiler conhece ownership, effects, refinements e enum subsets;
 2. o linker conhece o grafo e remove encode/decode no fast path local;
 3. closed turn e output gate participam do outcome da call;
-4. `CallPipeline` usa o type checker e a structured concurrency de W;
+4. `pipeline` usa o type checker e a structured concurrency de W;
 5. interface, implementation, package recipe e trace compartilham identities.
 
 Cada ponto também aumenta o custo da implementação. Bugs no session engine ou
@@ -17651,7 +17715,7 @@ A implementação avança em sete spikes:
 3. JSON como oracle legível;
 4. wWire unary em profiles exact e compatible;
 5. streams, credits e capability tables;
-6. `CallPipeline` e promise pipelining;
+6. expressão `pipeline` e promise pipelining;
 7. IPC e network, com adapters Cap'n Proto e gRPC para comparação.
 
 Uma feature só entra no protocolo público depois de duas implementações
@@ -18054,7 +18118,7 @@ Uma pesquisa só avança quando possui:
 | `ServiceLink` separado de `ServiceTransport` | **Possível agora** | local, component, native RPC e foreign RPC exigem lowers completos distintos |
 | wRPC unary e capability tables | **Provável** | lifecycle está fechado; session, disconnect e security exigem fault tests |
 | streams wRPC com dois créditos | **Provável** | `Stream` e quotas existem; terminal dual e fairness exigem protótipo |
-| `CallPipeline` dependente | **Provável** | Cap'n Proto prova a técnica; syntax W, effects e routing exigem corpus |
+| `pipeline` dependente | **Provável** | forma source e DAG estão fechados; runtime, arbitragem e routing exigem protótipo |
 | output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
 | wWire `exact` e `compatible` | **Pesquisa** | layout prefixado é Direção; wire kinds, bytes finais, custo, decoder e fuzzer ainda precisam de protótipo |
 | introdução direta entre três services | **Pesquisa** | peer authorization, routing e lifetime aumentam a session v0 |
@@ -18639,7 +18703,7 @@ backpressure e cleanup reproduzíveis.
 - corpus hostil para widths, collections, tensors, unknown fields e capabilities;
 - streams com créditos de items e bytes;
 - capability tables, release, revoke e disconnect;
-- `CallPipeline` com chain, diamond e fan-out dependentes;
+- expressão `pipeline` com chain, diamond, fan-out e incerteza dominante;
 - closed turn como input gate e output gate por commit dependency;
 - `SupervisorRef` em memória, admission bounded e `WorkOutcome`;
 - cancelamento, retention, tombstones e drain de roots;
@@ -18906,7 +18970,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-134 | scheduler de teste | clock/I/O/schedule injetáveis e replay | teste somente por timing real |
 | W-135 | payload de service | value/`take`/capability; sem `ref`/`inout` do caller | borrow no fast path local |
 | W-136 | paralelismo de service | instances keyed; mesma key serial | singleton longo; reentrância implícita |
-| W-137 | RPC encadeado | `CallPipeline` explícito é requisito; builder syntax permanece Pesquisa | toda `ServiceRef` vira Promise lazy |
+| W-137 | RPC encadeado | expressão `pipeline` explícita é requisito; o bloco fecha um DAG estático | toda `ServiceRef` vira Promise lazy; builder runtime |
 | W-138 | payload angular | `()`, `{}` e `[]` são expression, record e list | três operadores universais |
 | W-139 | extensão de tipo | refinement, extension, struct, enum e C union separados | `T<{...}>` universal |
 | W-140 | foreign artifact | unit agrupada, archive/object e façade C | archive por função; C source obrigatório |
@@ -19442,7 +19506,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-670 | session wRPC | handshake negocia interface, codec, limits e features; `callId` é attempt e `effectId` é efeito lógico | schema arbitrário recebido; metadata map ilimitado; retry preserva call ID |
 | W-671 | stream remoto | usa `Stream`; créditos independentes de items e bytes; drop envia reset e drain | quatro famílias RPC públicas; buffer ilimitado; `view` remoto |
 | W-672 | capability remota | table bidirecional, rights attenuated, release no último alias; resource cleanup pertence ao provider descriptor | URL livre; pointer; `capRelease` finge executar `close`; persistent ref default |
-| W-673 | call dependente | wRPC inclui `CallPipeline` explícito; ancestry, intermediate ownership e orphan capability cleanup permanecem observáveis | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
+| W-673 | call dependente | wRPC inclui `pipeline` explícito; ancestry, intermediate ownership e orphan capability cleanup permanecem observáveis | toda task vira promise lazy; exigir mega-operation; pipeline implícito |
 | W-674 | codec nativo | wWire é portátil, tipado e canônico; JSON é oracle; Cap'n Proto é foreign link e baseline | layout de memória como wire; codec único para todos os usos; freeze sem fuzzer |
 | W-675 | input gate | closed turn bloqueia outro handler durante qualquer `await`; reentrância exige policy futura | interleaving default; storage library altera admission implicitamente |
 | W-676 | output gate | turn fica `committing`; failure conhecido produz `commitFailed`, dúvida produz `unknownOutcome`; staging não entregue é descartado | próximo turn antes do commit; resposta prematura; rollback fictício |
@@ -19454,6 +19518,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-682 | decode canônico | decoder rejeita formas alternativas, valida estrutura antes de reservar e cobra bytes, items, depth, traversal e allocation | normalizar input; allocation por count antes de length; limite único de bytes |
 | W-683 | unknown e capability | ordinary value descarta unknown; relay explícito preserva block canônico; capability usa ordinal e table fora do codec | unknown sidecar oculto; endpoint no payload; bytes com capability como content address |
 | W-684 | suspensão observável | journal guarda alarm privado; `WorkSnapshot` publica duração restante com clamp em zero | expor wake `Instant`; usar snapshot como history; `sleep(until: Instant)` durável |
+| W-685 | lifecycle de compatibilidade | pre-1.0 não preserva formas descartadas; pós-1.0 toda deprecation exige replacement, migration e milestone de remoção | shim pre-1.0; suporte indefinido; remoção sem aviso após 1.0 |
+| W-686 | source de pipeline | `try await pipeline { let ...; return ... }`; body é DAG estático e não valor first-class | builder fluente; closure record-replay; promise lazy universal |
+| W-687 | falha de pipeline | dependents bloqueiam, independentes cancelam e drenam; qualquer unknown outcome domina e leva todos os effect IDs | primeiro error esconde incerteza; rollback presumido; exatamente uma mutation |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
