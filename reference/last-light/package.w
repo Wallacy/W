@@ -25,6 +25,21 @@ package {
     ]
   }
 
+  releasePolicy: {
+    maintainer: { threshold: 2, keys: 3 }
+    reproduction: {
+      required: 2
+      distinctAuthorities: 2
+      compare: .allRecipeOutputs
+    }
+    source: .public
+    transparency: .sigstoreCompatible
+    metadata: {
+      expiry: 7<d>
+      consistentSnapshots: true
+    }
+  }
+
   moduleSets: [
     {
       name: "restaurant-modules"

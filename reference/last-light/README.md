@@ -179,6 +179,7 @@ alvo de execução independente.
 | `service_oracle.w` | seleção de link, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
+| `release_oracle.w` | digest, threshold de reprodução, mirrors e revogação |
 | `remote_stream_oracle.w` | eligibility, créditos, terminal e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
 | `wire_oracle.w` | profiles wWire, eligibility, strict decode e unknown fields |
@@ -660,6 +661,11 @@ delega observação sem delegar `bake` ou `close`.
 O oracle também injeta revoke antes e depois de admission. A primeira call
 falha como unauthorized. A segunda drena sem rollback. Restart pode resolver um
 root de binding, mas invalida a capability derivada do oven lease.
+
+`release_oracle.w` separa assinatura, digest, reprodução, transparency e
+revogação. O deployment distribuído exige maintainer authorization,
+reprodução e metadata fresca. Um mirror com bytes corretos, mas metadata antiga,
+continua rejeitado.
 
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 
