@@ -12,6 +12,7 @@ enum OracleLink {
   component
   wrpcIpc
   wrpcNetwork
+  foreign
 }
 
 const fn expectedLink(for placement: OraclePlacement): OracleLink {
@@ -20,6 +21,23 @@ const fn expectedLink(for placement: OraclePlacement): OracleLink {
     case .wasmComponent: .component
     case .sameHost: .wrpcIpc
     case .remoteHost: .wrpcNetwork
+  }
+}
+
+enum LinkStack {
+  mailboxThunk
+  componentAbi
+  wrpcSessionCodecTransport
+  foreignAdapter
+}
+
+const fn expectedStack(for link: OracleLink): LinkStack {
+  return switch link {
+    case .local: .mailboxThunk
+    case .component: .componentAbi
+    case .wrpcIpc: .wrpcSessionCodecTransport
+    case .wrpcNetwork: .wrpcSessionCodecTransport
+    case .foreign: .foreignAdapter
   }
 }
 
@@ -158,6 +176,14 @@ test "placement selects one service link layer" for expectedLink {
   expect expectedLink(for: .wasmComponent) == .component
   expect expectedLink(for: .sameHost) == .wrpcIpc
   expect expectedLink(for: .remoteHost) == .wrpcNetwork
+}
+
+test "each link keeps its own implementation layer" for expectedStack {
+  expect expectedStack(for: .local) == .mailboxThunk
+  expect expectedStack(for: .component) == .componentAbi
+  expect expectedStack(for: .wrpcIpc) == .wrpcSessionCodecTransport
+  expect expectedStack(for: .wrpcNetwork) == .wrpcSessionCodecTransport
+  expect expectedStack(for: .foreign) == .foreignAdapter
 }
 
 test "a commit failure differs from missing evidence" for expectedGateOutcome {
