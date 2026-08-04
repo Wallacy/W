@@ -30,6 +30,7 @@ migração.
 
 ## Execução eficiente
 
+Use Bun para tooling JavaScript, scripts e lockfiles. Não crie um lockfile npm.
 Comece por `DESIGN-INDEX.md` e use `tooling/design-slice.mjs` para ler apenas o
 trecho necessário. Não leia fontes geradas em
 `tooling/tree-sitter-w/src/` durante o trabalho normal. Mantenha uma única

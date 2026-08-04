@@ -44,7 +44,7 @@ its projections.
 - Read `DESIGN-INDEX.md` before any section of `DESIGN.md`.
 - Use its line interval, then search headings and W IDs. Do not read the full
   design unless the task explicitly requires an integral review.
-- Use `node tooling/design-slice.mjs --heading N.N` or `--id W-NNN` when a
+- Use `bun tooling/design-slice.mjs --heading N.N` or `--id W-NNN` when a
   bounded slice is enough. The command is read-only and never becomes a second
   authority.
 - Read archived material only for a provenance question or a suspected omitted
@@ -69,6 +69,6 @@ A design change is done only when:
 - its state and alternatives are explicit in `DESIGN.md`;
 - the reference product and grammar agree with the selected form;
 - local links resolve;
-- `node tooling/design-index.mjs --check` passes;
+- `bun tooling/design-index.mjs --check` passes;
 - generated or runtime artifacts are not left untracked;
 - scoped tests and `git diff --check` pass.

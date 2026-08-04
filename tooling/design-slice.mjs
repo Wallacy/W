@@ -14,9 +14,9 @@ function usage(message) {
   process.stderr.write(
     [
       "Usage:",
-      "  node tooling/design-slice.mjs --section 12",
-      "  node tooling/design-slice.mjs --heading 12.13",
-      "  node tooling/design-slice.mjs --id W-711 [--context 2]",
+      "  bun tooling/design-slice.mjs --section 12",
+      "  bun tooling/design-slice.mjs --heading 12.13",
+      "  bun tooling/design-slice.mjs --id W-711 [--context 2]",
       "",
       "The command reads DESIGN.md and writes only the requested interval.",
       "It never edits the canonical document.",

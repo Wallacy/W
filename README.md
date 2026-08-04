@@ -44,8 +44,8 @@ Para extrair somente uma seção, um heading ou uma decisão com contexto, use o
 leitor sem escrita:
 
 ```powershell
-node tooling/design-slice.mjs --heading 12.13
-node tooling/design-slice.mjs --id W-711 --context 2
+bun tooling/design-slice.mjs --heading 12.13
+bun tooling/design-slice.mjs --id W-711 --context 2
 ```
 
 O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
@@ -53,11 +53,11 @@ O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
 Para validar somente documentação e índice:
 
 ```powershell
-npm run tooling:install
-npm run check:docs
+bun run tooling:install
+bun run check:docs
 ```
 
-Use `npm run check` quando grammar, corpus, std ou sources `.w` mudarem.
+Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 
 ## Estado atual
 

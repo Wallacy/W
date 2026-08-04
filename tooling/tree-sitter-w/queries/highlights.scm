@@ -138,6 +138,9 @@
 (enum_pattern case: (identifier) @constant)
 (shorthand_struct_pattern_field name: (identifier) @variable)
 (labeled_struct_pattern_field field: (identifier) @property)
+(labeled_loop_statement label: (identifier) @label)
+(break_statement label: (identifier) @label)
+(continue_statement label: (identifier) @label)
 
 (field_declaration name: (identifier) @property)
 (manifest_field name: (identifier) @property)
@@ -152,7 +155,7 @@
 (module_header name: (identifier) @module)
 
 [
-  "=" "+=" "-=" "*=" "/=" "%="
+  "=" "+=" "-=" "*=" "/=" "%=" "**=" "<<=" ">>=" "&=" "^=" "|="
   "+" "-" "*" "**" "/" "%" "@"
   "<<" ">>" "..." "..<" ">.." ">..<"
   "<" "<=" ">" ">=" "==" "!=" "is"

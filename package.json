@@ -4,15 +4,16 @@
   "private": true,
   "description": "Design and executable specification workspace for the W language",
   "license": "MIT",
+  "packageManager": "bun@1.3.14",
   "engines": {
-    "node": "24.x"
+    "bun": ">=1.3.14"
   },
   "scripts": {
-    "tooling:install": "npm ci --prefix tooling/tree-sitter-w",
-    "check": "npm --prefix tooling/tree-sitter-w run check",
-    "check:docs": "npm --prefix tooling/tree-sitter-w run check:docs",
-    "check:links": "node tooling/check-markdown-links.mjs",
-    "design:index": "node tooling/design-index.mjs --write",
-    "design:index:check": "node tooling/design-index.mjs --check"
+    "tooling:install": "bun ci --cwd tooling/tree-sitter-w",
+    "check": "bun run --cwd tooling/tree-sitter-w check",
+    "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
+    "check:links": "bun tooling/check-markdown-links.mjs",
+    "design:index": "bun tooling/design-index.mjs --write",
+    "design:index:check": "bun tooling/design-index.mjs --check"
   }
 }

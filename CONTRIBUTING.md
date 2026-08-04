@@ -124,29 +124,29 @@ reformatação fora do escopo.
 
 ## Ambiente e checks
 
-Use Node.js 24 LTS. Instale o tooling local uma vez:
+Use Bun 1.3.14 ou uma versão compatível. Instale o tooling local uma vez:
 
 ```powershell
-npm run tooling:install
+bun run tooling:install
 ```
 
 Para documentação e decisões:
 
 ```powershell
-npm run check:docs
+bun run check:docs
 ```
 
 Para grammar, corpus, std, tooling ou qualquer source `.w`:
 
 ```powershell
-npm run check
+bun run check
 ```
 
 Para atualizar o índice depois de alterar `DESIGN.md`:
 
 ```powershell
-npm run design:index
-npm run check:docs
+bun run design:index
+bun run check:docs
 ```
 
 O CI executa o check integrado. Um check aprovado não substitui revisão

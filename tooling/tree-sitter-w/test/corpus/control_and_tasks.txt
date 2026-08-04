@@ -367,3 +367,89 @@ fn shouldAccumulate(raw: f64, error: f64): Bool {
             (pattern)
             (return_statement
               (boolean_literal))))))))
+
+==================
+Labeled loops and compound assignment
+==================
+
+fn fold(rows: ref Array<Array<u8>>): u32 {
+  var bits: u32 = 0
+  scanRows: for ref row in rows {
+    for value in row {
+      bits <<= 5
+      bits |= value
+      if value == 0 { continue scanRows }
+      if value > 31 { break scanRows }
+    }
+  }
+  return bits
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))
+                (type_arguments
+                  (type_argument
+                    (type
+                      (type_name
+                        (type_identifier)))))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))
+      (labeled_loop_statement
+        (identifier)
+        (for_statement
+          (pattern
+            (identifier))
+          (identifier)
+          (block
+            (for_statement
+              (pattern
+                (identifier))
+              (identifier)
+              (block
+                (expression_statement
+                  (assignment_expression
+                    (identifier)
+                    (number_literal)))
+                (expression_statement
+                  (assignment_expression
+                    (identifier)
+                    (identifier)))
+                (if_statement
+                  (binary_expression
+                    (identifier)
+                    (number_literal))
+                  (block
+                    (continue_statement
+                      (identifier))))
+                (if_statement
+                  (binary_expression
+                    (identifier)
+                    (number_literal))
+                  (block
+                    (break_statement
+                      (identifier)))))))))
+      (return_statement
+        (identifier)))))

@@ -171,7 +171,12 @@ if (decisions.length === 0) {
 }
 
 const viabilityStart = numberedSections.find((section) => section.number === 24)?.start;
-const viabilityEnd = numberedSections.find((section) => section.number === 25)?.start;
+const viabilitySectionEnd = numberedSections.find((section) => section.number === 25)?.start;
+const viabilitySubsectionStart = lines.findIndex(
+  (line, index) => index + 1 > viabilityStart && line.startsWith("### 24."),
+);
+const viabilityEnd =
+  viabilitySubsectionStart >= 0 ? viabilitySubsectionStart + 1 : viabilitySectionEnd;
 const viabilityRows = [];
 
 if (!viabilityStart || !viabilityEnd) {
@@ -260,7 +265,7 @@ output.push(
   `| decisões | ${decisions.length} (W-${String(decisions[0]).padStart(3, "0")}–W-${String(decisions.at(-1)).padStart(3, "0")}) |`,
 );
 output.push(`| famílias de viabilidade | ${viabilityRows.length} |`);
-output.push(`| comparações de revisão ainda previstas | ${comparisonCount} |`);
+output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| sources W no root do Última Luz | ${rootReferenceSources} |`);
 output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);
@@ -312,19 +317,25 @@ output.push("");
 output.push("## Pesquisas explícitas");
 output.push("");
 
-for (const row of viabilityRows.filter((row) => row.classification.startsWith("Pesquisa"))) {
+const explicitResearch = viabilityRows.filter((row) => row.classification.startsWith("Pesquisa"));
+
+for (const row of explicitResearch) {
   output.push(`- ${row.family} — ${row.classification}`);
+}
+
+if (explicitResearch.length === 0) {
+  output.push("- Nenhuma família sem classificação de viabilidade.");
 }
 
 output.push("");
 output.push("## Comandos de leitura");
 output.push("");
 output.push("```powershell");
-output.push("node tooling/design-slice.mjs --section 12");
-output.push("node tooling/design-slice.mjs --heading 12.13");
-output.push("node tooling/design-slice.mjs --id W-711 --context 2");
+output.push("bun tooling/design-slice.mjs --section 12");
+output.push("bun tooling/design-slice.mjs --heading 12.13");
+output.push("bun tooling/design-slice.mjs --id W-711 --context 2");
 output.push("rg -n -C 4 'transaction' DESIGN.md");
-output.push("node tooling/design-index.mjs --check");
+output.push("bun tooling/design-index.mjs --check");
 output.push("```");
 output.push("");
 
@@ -338,12 +349,12 @@ if (mode === "--write") {
   const current = fs.existsSync(indexPath) ? fs.readFileSync(indexPath, "utf8") : "";
 
   if (current !== generated) {
-    process.stderr.write("DESIGN-INDEX.md is stale. Run: node tooling/design-index.mjs --write\n");
+    process.stderr.write("DESIGN-INDEX.md is stale. Run: bun tooling/design-index.mjs --write\n");
     process.exitCode = 1;
   } else {
     process.stdout.write("Design index is current.\n");
   }
 } else {
-  process.stderr.write("Usage: node tooling/design-index.mjs --write|--check\n");
+  process.stderr.write("Usage: bun tooling/design-index.mjs --write|--check\n");
   process.exitCode = 2;
 }

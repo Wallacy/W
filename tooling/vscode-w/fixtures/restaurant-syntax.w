@@ -211,6 +211,7 @@ fn recoverOrder(source: ref String): Order throws AppError {
 fn collectionForms() {
   let digest: [u8; 32] = [0; 32]
   var counts: Map<Course, u32> = [.horizonCake: 1]
+  var diagnosticBits: u32 = 0
 
   if let inout count = counts[.horizonCake] {
     count += 1
@@ -220,6 +221,12 @@ fn collectionForms() {
   for inout order in mutableOrders { order.update() }
   for copy code in statusCodes { send(code) }
   for order in take pendingOrders { serve(take order) }
+
+  scanOrders: for ref order in orders {
+    diagnosticBits <<= 1
+    diagnosticBits |= order.statusBits
+    if order.isFinal { break scanOrders }
+  }
 }
 
 struct Route {

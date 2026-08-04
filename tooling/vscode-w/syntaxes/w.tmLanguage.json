@@ -124,6 +124,10 @@
     "keywords": {
       "patterns": [
         {
+          "name": "entity.name.label.w",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*:\\s*(?:for|while)\\b)"
+        },
+        {
           "name": "keyword.control.w",
           "match": "\\b(?:break|case|catch|commit|continue|defer|deinit|do|else|for|guard|if|in|pipeline|region|return|switch|throw|transaction|while)\\b"
         },
@@ -226,7 +230,7 @@
       "patterns": [
         {
           "name": "keyword.operator.w",
-          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%@=!<>~&^|?-]"
+          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|\\*\\*=|<<=|>>=|&=|\\^=|\\|=|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%@=!<>~&^|?-]"
         }
       ]
     }
