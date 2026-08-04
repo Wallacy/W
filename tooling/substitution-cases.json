@@ -258,6 +258,823 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-unit-delimiter",
+      "reviewItem": "units `<>` contra `[]`",
+      "decisions": ["W-051"],
+      "task": "Represent standard gravity without consuming collection-index syntax.",
+      "selected": { "language": "w", "source": ["let gravity = 9.81<m/s^2>"] },
+      "alternatives": [
+        {
+          "name": "square-unit",
+          "language": "alternative-w",
+          "source": ["let gravity = 9.81[m/s^2]"],
+          "expectedDifference": "Square brackets collide with indexing and collection literals."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-quantity-alias",
+      "reviewItem": "alias de quantity contra newtype para todo nome físico",
+      "decisions": ["W-657"],
+      "task": "Give SI mass a local domain name without creating a distinct physical dimension.",
+      "selected": {
+        "language": "w",
+        "source": ["export alias Mass = Quantity<si.Mass, f64>"]
+      },
+      "alternatives": [
+        {
+          "name": "mandatory-newtype",
+          "language": "alternative-w",
+          "source": ["export type Mass = Quantity<si.Mass, f64>"],
+          "expectedDifference": "A new nominal conversion boundary is created although the dimension already identifies the quantity."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-spawn-domain",
+      "reviewItem": "`spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`",
+      "decisions": ["W-039", "W-350", "W-725"],
+      "task": "Start bounded parallel planning in the product-selected compute domain.",
+      "selected": {
+        "language": "w",
+        "source": ["spawn<.compute> let plan = optimize(take snapshot)"]
+      },
+      "alternatives": [
+        {
+          "name": "repeated-primary-label",
+          "language": "alternative-w",
+          "source": ["spawn<domain: .compute> let plan = optimize(take snapshot)"],
+          "expectedDifference": "The primary slot repeats a name that the spawn schema already fixes."
+        },
+        {
+          "name": "sentence-modifier",
+          "language": "w-rejected",
+          "source": ["spawn on .compute let plan = optimize(take snapshot)"],
+          "expectedDifference": "A separate phrase syntax hides that the value is a static spawn contract."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-refinement-subject",
+      "reviewItem": "`T<(.member predicate)>` contra `value.member`, `where` e constructor",
+      "decisions": ["W-014", "W-144"],
+      "task": "Restrict a menu title by its grapheme count without a runtime constructor API.",
+      "selected": {
+        "language": "w",
+        "source": ["type MenuTitle = String<(.graphemes.count <= 40)>"]
+      },
+      "alternatives": [
+        {
+          "name": "explicit-value",
+          "language": "alternative-w",
+          "source": ["type MenuTitle = String<(value.graphemes.count <= 40)>"],
+          "expectedDifference": "A synthetic value name introduces scope and collision rules inside every refinement."
+        },
+        {
+          "name": "where-clause",
+          "language": "alternative-w",
+          "source": ["type MenuTitle = String where value.graphemes.count <= 40"],
+          "expectedDifference": "The restriction becomes a trailing phrase instead of a local type contract."
+        },
+        {
+          "name": "constructor-constraint",
+          "language": "alternative-w",
+          "source": ["type MenuTitle = String(where: value.graphemes.count <= 40)"],
+          "expectedDifference": "Type formation looks like runtime value construction."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-sequential-refinement",
+      "reviewItem": "`Array<u8><(.count <= 64)>` contra uma static list no mesmo envelope",
+      "decisions": ["W-145", "W-200"],
+      "task": "Apply a runtime collection type and then restrict the resulting collection count.",
+      "selected": {
+        "language": "w",
+        "source": ["type Header = Array<u8><(.count <= 64)>"]
+      },
+      "alternatives": [
+        {
+          "name": "mixed-static-list",
+          "language": "w-rejected",
+          "source": ["type Header = Array<[u8, (.count <= 64)]>"],
+          "expectedDifference": "One list mixes a type argument with a predicate and erases the boundary between application and refinement."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-explicit-self-return",
+      "reviewItem": "`: self` explícito contra retorno implícito do receiver e retorno `()`",
+      "decisions": ["W-147"],
+      "task": "Mutate an oscillator and explicitly return a fluent reborrow.",
+      "selected": {
+        "language": "w",
+        "source": ["mut fn reset(): self {", "  phase = 0.0", "  return self", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-receiver",
+          "language": "alternative-w",
+          "source": ["mut fn reset() { phase = 0.0 }"],
+          "expectedDifference": "The signature does not reveal whether the method returns Unit or a receiver borrow."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-consuming-call",
+      "reviewItem": "`(take value).method()` contra consumo implícito e free function",
+      "decisions": ["W-174", "W-774"],
+      "task": "Finish a command stream by transferring its owner to the receiver.",
+      "selected": {
+        "language": "w",
+        "source": ["let command = try (take stream).finish()"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-consume",
+          "language": "alternative-w",
+          "source": ["let command = try stream.finish()"],
+          "expectedDifference": "The call spelling does not show that stream becomes unavailable."
+        },
+        {
+          "name": "free-consuming-function",
+          "language": "alternative-w",
+          "source": ["let command = try finish(take stream)"],
+          "expectedDifference": "The operation loses receiver lookup and the relationship to the consumed type."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-consuming-error",
+      "reviewItem": "error em `take fn` contra restauração implícita do owner",
+      "decisions": ["W-175"],
+      "task": "Define ownership when a consuming decoder returns an error.",
+      "selected": {
+        "language": "w",
+        "source": ["let result = try (take decoder).finish()"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-owner-restore",
+          "language": "alternative-semantics",
+          "source": ["// decoder becomes usable again only when finish throws"],
+          "expectedDifference": "The same call has different move results on success and error without returning the owner explicitly."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-associated-member",
+      "reviewItem": "associated member direto contra protocol requirement e mutable type storage",
+      "decisions": ["W-148", "W-150"],
+      "task": "Expose a stable maximum and a parser on a type without global mutable state.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "extension MenuCode {",
+          "  const maxLength: usize = 32",
+          "  static fn parse(text: view String): MenuCode throws ParseError {",
+          "    return try MenuCode(text)",
+          "  }",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "companion-protocol",
+          "language": "alternative-w",
+          "source": ["protocol MenuCodeType { const maxLength: usize }"],
+          "expectedDifference": "A direct property of one type requires a witness abstraction with no polymorphic consumer."
+        },
+        {
+          "name": "mutable-type-storage",
+          "language": "w-rejected",
+          "source": ["static var MenuCode.maxLength: usize = 32"],
+          "expectedDifference": "Type lookup becomes an ambient mutable singleton and requires hidden synchronization."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-transparent-struct",
+      "reviewItem": "struct transparente contra `export` em cada field e export total do tipo",
+      "decisions": ["W-160", "W-161"],
+      "task": "Publish a plain menu record while preserving concise field declarations.",
+      "selected": {
+        "language": "w",
+        "source": ["export struct MenuItem {", "  code: MenuCode", "  price: Money", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "field-by-field-export",
+          "language": "alternative-w",
+          "source": ["export struct MenuItem {", "  export code: MenuCode", "  export price: Money", "}"],
+          "expectedDifference": "Mechanical visibility repeats on every stored field of a transparent record."
+        },
+        {
+          "name": "all-members-public",
+          "language": "alternative-semantics",
+          "source": ["// export struct also exports helper methods and future storage"],
+          "expectedDifference": "Exporting the type silently exports members that are not part of its transparent storage contract."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-nominal-struct-pattern",
+      "reviewItem": "pattern nominal `Type(field, ...)` contra record pattern com `{}`",
+      "decisions": ["W-166"],
+      "task": "Destructure an order while preserving its nominal identity and evolution marker.",
+      "selected": {
+        "language": "w",
+        "source": ["let Order(id: orderId, guest: Guest(name, ...), ...) = take order"]
+      },
+      "alternatives": [
+        {
+          "name": "structural-record-pattern",
+          "language": "alternative-w",
+          "source": ["let { id: orderId, guest: { name } } = take order"],
+          "expectedDifference": "The pattern no longer identifies which nominal aggregate shapes and visibility rules it requires."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-tuple-scrutinee",
+      "reviewItem": "tuple scrutinee contra syntax especial para múltiplos valores",
+      "decisions": ["W-206", "W-530"],
+      "task": "Match a service stage and guest count as one ordinary aggregate value.",
+      "selected": {
+        "language": "w",
+        "source": ["switch (stage, guests) {", "  case (.accepted, 1...4): .intimate", "  case (_, _): .regular", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "multi-subject-switch",
+          "language": "alternative-w",
+          "source": ["switch stage, guests {", "  case .accepted, 1...4: .intimate", "}"],
+          "expectedDifference": "Switch gains a second subject grammar that cannot be passed or composed as a tuple."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-closed-patterns",
+      "reviewItem": "patterns fechados contra handler customizado pelo usuário",
+      "decisions": ["W-207", "W-766"],
+      "task": "Classify a route without allowing user dispatch to hide effects or captures.",
+      "selected": {
+        "language": "w",
+        "source": ["switch request.routeKind() {", "  case .menu: showMenu()", "  case .unknown: reject()", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "custom-pattern-protocol",
+          "language": "w-rejected",
+          "source": ["case let RoutePattern(request): showMenu()"],
+          "expectedDifference": "A user handler can hide evaluation cost, effects, captures and exhaustiveness behind dispatch."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-external-pattern-rest",
+      "reviewItem": "`...` externo obrigatório contra exaustividade aberta implícita",
+      "decisions": ["W-167"],
+      "task": "Destructure a public order without breaking when its package adds stored fields.",
+      "selected": {
+        "language": "w",
+        "source": ["let ref Order(guest, items, ...) = order"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-open-pattern",
+          "language": "alternative-w",
+          "source": ["let ref Order(guest, items) = order"],
+          "expectedDifference": "Source does not reveal whether omitted fields are accepted or the pattern claims exact shape."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-encapsulated-object",
+      "reviewItem": "object encapsulado contra storage público e constructor herdado",
+      "decisions": ["W-153", "W-162"],
+      "task": "Expose stock reservation behavior without exporting its mutable counters or synthesized constructor.",
+      "selected": {
+        "language": "w",
+        "source": ["export object StockReservation {", "  var reserved: usize", "  export mut fn release() { reserved = 0 }", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "public-object-storage",
+          "language": "alternative-semantics",
+          "source": ["// export object exports reserved and its synthesized initializer"],
+          "expectedDifference": "External code can bypass invariants and construction policy through mutable storage."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-overload-shape",
+      "reviewItem": "overload por forma contra ranking por tipos e nomes distintos",
+      "decisions": ["W-180", "W-181", "W-182"],
+      "task": "Select a serving operation before type ranking by using a distinct argument-label shape.",
+      "selected": {
+        "language": "w",
+        "source": ["fn serve(order: Order): Receipt", "fn serve(order: Order, at table: TableId): Receipt", "let receipt = serve(order, at: table)"]
+      },
+      "alternatives": [
+        {
+          "name": "type-ranked-overload",
+          "language": "c-like",
+          "source": ["serve(order, table)"],
+          "expectedDifference": "Selection requires type-dependent ranking and can change when conversions or candidates are added."
+        },
+        {
+          "name": "encoded-function-name",
+          "language": "alternative-w",
+          "source": ["serveOrderAtTable(order, table)"],
+          "expectedDifference": "Call shape moves into an unstructured identifier that tooling cannot compare as labels."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-multiple-initializers",
+      "reviewItem": "vários initializers contra initializer único e factories nomeadas",
+      "decisions": ["W-154", "W-185", "W-188"],
+      "task": "Construct money from exact minor or major units with disjoint call shapes.",
+      "selected": {
+        "language": "w",
+        "source": ["init(minorUnits: i128, currency: Currency)", "init(majorUnits: i64, currency: Currency) throws DomainError"]
+      },
+      "alternatives": [
+        {
+          "name": "single-initializer",
+          "language": "alternative-w",
+          "source": ["init(value: Decimal, currency: Currency, scale: Scale)"],
+          "expectedDifference": "One initializer combines distinct invariants through another mode value."
+        },
+        {
+          "name": "factory-only",
+          "language": "alternative-w",
+          "source": ["static fn fromMajorUnits(value: i64, currency: Currency): Money"],
+          "expectedDifference": "Construction loses uniform Type(...) lookup even though the shape is disjoint."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-property-safe-computed",
+      "reviewItem": "computed property property-safe contra method com `try` ou `await`",
+      "decisions": ["W-156", "W-157"],
+      "task": "Read whether a local PID controller is idle without hidden suspension or failure.",
+      "selected": {
+        "language": "w",
+        "source": ["isIdle: Bool { get => accumulatedError == 0.0 }"]
+      },
+      "alternatives": [
+        {
+          "name": "effectful-property",
+          "language": "w-rejected",
+          "source": ["isIdle: Bool { async get throws SensorError => readRemoteState() }"],
+          "expectedDifference": "Member access can suspend or fail without method-call syntax at the use site."
+        },
+        {
+          "name": "mandatory-method",
+          "language": "alternative-w",
+          "source": ["fn isIdle(): Bool { return accumulatedError == 0.0 }"],
+          "expectedDifference": "A cheap stable projection cannot communicate property semantics."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-static-payload-kinds",
+      "reviewItem": "static record/list contra interpretações universais de extension e constraints",
+      "decisions": ["W-138", "W-139", "W-200"],
+      "task": "Provide an ordered static stage path and a named static execution policy.",
+      "selected": {
+        "language": "w",
+        "source": ["StagePath<[.accepted, .preparing, .serving]>", "Domain<{ name: .compute, parallel: true }>" ]
+      },
+      "alternatives": [
+        {
+          "name": "delimiter-defined-semantics",
+          "language": "alternative-w",
+          "source": ["// every <[...]> is a constraint and every <{...}> is an extension"],
+          "expectedDifference": "Delimiters override the head schema and assign one universal meaning to unrelated static payloads."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-callable-representations",
+      "reviewItem": "ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado",
+      "decisions": ["W-192", "W-193", "W-194"],
+      "task": "Choose explicit representations for a thin function, specialized closure and stored erased route.",
+      "selected": {
+        "language": "w",
+        "source": ["let thin: fn(ref Arrival): Welcome = standardWelcome", "let local: some mut fn(): usize = ticketSequence(initial: 40)", "let stored: any fn(Arrival): Welcome = take handler"]
+      },
+      "alternatives": [
+        {
+          "name": "universal-erased-callable",
+          "language": "alternative-w",
+          "source": ["let thin: Callable<ref Arrival, Welcome> = standardWelcome"],
+          "expectedDifference": "Thin and specialized calls pay or imply owner, invoke and drop erasure even when it is unnecessary."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-positional-callable-value",
+      "reviewItem": "call posicional por valor contra labels e defaults preservados no function type",
+      "decisions": ["W-192", "W-196"],
+      "task": "Store and invoke a function independently of declaration-only labels and defaults.",
+      "selected": {
+        "language": "w",
+        "source": ["let greeter: fn(ref Arrival): Welcome = standardWelcome", "let result = greeter(arrival)"]
+      },
+      "alternatives": [
+        {
+          "name": "labeled-function-type",
+          "language": "alternative-w",
+          "source": ["let greeter: fn(arrival: ref Arrival): Welcome", "let result = greeter(arrival: arrival)"],
+          "expectedDifference": "Declaration labels become part of value compatibility and indirect invocation."
+        },
+        {
+          "name": "defaulted-function-value",
+          "language": "alternative-w",
+          "source": ["let greeter: fn(ref Arrival = defaultArrival): Welcome"],
+          "expectedDifference": "A function value must carry or reconstruct declaration-specific default expressions."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-callable-modes",
+      "reviewItem": "`fn`, `mut fn` e `take fn` contra protocols callable separados",
+      "decisions": ["W-102", "W-195"],
+      "task": "State whether invoking a closure borrows, mutates or consumes its environment.",
+      "selected": {
+        "language": "w",
+        "source": ["fn inspect(): usize", "mut fn next(): usize", "take fn finish(): Manifest"]
+      },
+      "alternatives": [
+        {
+          "name": "callable-protocol-family",
+          "language": "rust-like",
+          "source": ["Fn() -> usize", "FnMut() -> usize", "FnOnce() -> Manifest"],
+          "expectedDifference": "Receiver ownership is encoded as three nominal protocol names instead of the common function grammar."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-invariant-callable-signature",
+      "reviewItem": "signature invariável contra variance e effect widening implícitos",
+      "decisions": ["W-209"],
+      "task": "Keep an indirect payment callback's parameter, result and error contract exact.",
+      "selected": {
+        "language": "w",
+        "source": ["let pay: fn(Payment): Receipt throws PaymentError = charge"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-variance",
+          "language": "alternative-semantics",
+          "source": ["let pay: fn(CardPayment): AnyReceipt throws Error = charge"],
+          "expectedDifference": "Parameter, result and effect widening can change compatibility without changing call shape."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-inline-language-slot",
+      "reviewItem": "`fn<C>` contra `fn<lang: .c>`",
+      "decisions": ["W-072", "W-621"],
+      "task": "Embed one hermetic C function while keeping its body opaque to the W parser.",
+      "selected": {
+        "language": "w-with-c-island",
+        "source": ["unsafe fn<C> legacyProbeStatus(status: c.int): c.int {", "  return status == 0 ? 1 : 0;", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "named-primary-language-slot",
+          "language": "alternative-w",
+          "source": ["unsafe fn<lang: .c> legacyProbeStatus(status: c.int): c.int { ... }"],
+          "expectedDifference": "The primary language slot repeats a label fixed by the fn schema."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-named-static-slot",
+      "reviewItem": "slot angular nomeado contra case enum posicional em erro e evolução de schema",
+      "decisions": ["W-115", "W-328"],
+      "task": "Configure tensor shape so diagnostics and future schema changes retain field identity.",
+      "selected": {
+        "language": "w",
+        "source": ["type Scores = Tensor<f32, shape: [8, 4]>"]
+      },
+      "alternatives": [
+        {
+          "name": "positional-schema-case",
+          "language": "alternative-w",
+          "source": ["type Scores = Tensor<f32, [8, 4]>"],
+          "expectedDifference": "Diagnostics identify only an argument position and schema evolution cannot distinguish a reordered field."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-closure-arrow",
+      "reviewItem": "closure `=>` contra `fn(...)`",
+      "decisions": ["W-005", "W-006"],
+      "task": "Create an inline welcome transformation without looking like a nested declaration.",
+      "selected": {
+        "language": "w",
+        "source": ["let greet = capture(copy gate) (arrival) => Welcome(orderId: arrival.orderId, gate: gate)"]
+      },
+      "alternatives": [
+        {
+          "name": "anonymous-fn-block",
+          "language": "alternative-w",
+          "source": ["let greet = fn(arrival) { return Welcome(orderId: arrival.orderId, gate: gate) }"],
+          "expectedDifference": "A closure shares the declaration keyword and hides the capture boundary among function syntax."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-nested-matrix-literal",
+      "reviewItem": "nested matrix contra `;`",
+      "decisions": ["W-064"],
+      "task": "Write a two-by-two matrix by composing the ordinary nested collection literal.",
+      "selected": {
+        "language": "w",
+        "source": ["let transform = [[1.0, 0.0], [0.0, 1.0]]"]
+      },
+      "alternatives": [
+        {
+          "name": "semicolon-row-separator",
+          "language": "matlab-like",
+          "source": ["let transform = [1.0, 0.0; 0.0, 1.0]"],
+          "expectedDifference": "Semicolon gains a matrix-only row meaning that conflicts with statement partition."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-import-flattening",
+      "reviewItem": "achatamento sem `from` contra binding de módulo e seleção por braces",
+      "decisions": ["W-008", "W-009"],
+      "task": "Choose explicitly between local symbol flattening, a module binding and selective import.",
+      "selected": {
+        "language": "w",
+        "source": ["import std.http", "let response = fetch(url)"]
+      },
+      "alternatives": [
+        {
+          "name": "module-binding",
+          "language": "w-alternative",
+          "source": ["import http from std", "let response = http.fetch(url)"],
+          "expectedDifference": "The imported name is the module binding, so members remain qualified."
+        },
+        {
+          "name": "selective-binding",
+          "language": "w-alternative",
+          "source": ["import { fetch } from std.http", "let response = fetch(url)"],
+          "expectedDifference": "Only the named symbol enters local scope instead of every export."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-fail-fast-arbitration",
+      "reviewItem": "fail-fast com arbitragem lexical/input contra espera estritamente lexical",
+      "decisions": ["W-121", "W-646"],
+      "task": "Cancel sibling work on the first settled application error and select deterministically after drain.",
+      "selected": {
+        "language": "w",
+        "source": ["async let cooked = cook(order)", "async let billed = bill(order)", "let result = try await (cooked, billed)"]
+      },
+      "alternatives": [
+        {
+          "name": "strict-lexical-wait",
+          "language": "alternative-w",
+          "source": ["let dish = try await cooked", "let receipt = try await billed"],
+          "expectedDifference": "A suspended earlier child can delay observation and cancellation after a later child has already failed."
+        },
+        {
+          "name": "scheduler-first-error",
+          "language": "alternative-semantics",
+          "source": ["// whichever worker reports first becomes the primary error"],
+          "expectedDifference": "The primary error depends on scheduling instead of lexical or input order."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-cancellation-control-effect",
+      "reviewItem": "cancellation como control effect contra `throws Cancellation`",
+      "decisions": ["W-120", "W-122", "W-647"],
+      "task": "Keep domain failure separate from structured cancellation in an asynchronous kitchen task.",
+      "selected": {
+        "language": "w",
+        "source": ["async fn cook(order: Order): Dish throws KitchenError", "let outcome: TaskOutcome<Dish, KitchenError> = await task"]
+      },
+      "alternatives": [
+        {
+          "name": "cancellation-in-error-set",
+          "language": "alternative-w",
+          "source": ["async fn cook(order: Order): Dish throws KitchenError | Cancellation"],
+          "expectedDifference": "Caller requests, deadlines and structural scope exits compete with application errors in one widening set."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-product-execution-profile",
+      "reviewItem": "execution profile por product/unit contra domain default por módulo",
+      "decisions": ["W-350", "W-651", "W-725"],
+      "task": "Select bounded task pools for an executable and preserve the selected envelope in each packed unit.",
+      "selected": {
+        "language": "w-manifest",
+        "source": ["products: [", "  {", "    name: \"last-light-native\"", "    executionProfile: \"native-bounded\"", "  },", "]"]
+      },
+      "alternatives": [
+        {
+          "name": "module-domain-default",
+          "language": "w-rejected",
+          "source": ["module kitchen<parallelDefault: .compute>"],
+          "expectedDifference": "Importing source appears to choose runtime pools even though a module has no host instance or resource envelope."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-import-phase",
+      "reviewItem": "imports antes das declarations contra imports intercalados",
+      "decisions": ["W-753", "W-754"],
+      "task": "Make a module's complete dependency surface visible before ordinary declarations.",
+      "selected": {
+        "language": "w",
+        "source": ["module kitchen", "import oven", "import { Temperature } from units", "fn bake(order: Order): Dish { return oven.bake(order) }"]
+      },
+      "alternatives": [
+        {
+          "name": "interleaved-import",
+          "language": "w-rejected",
+          "source": ["fn bake(order: Order): Dish { ... }", "import oven"],
+          "expectedDifference": "Dependency discovery depends on scanning through declarations and recovery can change scope order."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-function-body",
+      "reviewItem": "body obrigatório em função comum contra prototype solto no top-level",
+      "decisions": ["W-755"],
+      "task": "Distinguish an implemented W function from a protocol requirement or foreign signature.",
+      "selected": {
+        "language": "w",
+        "source": ["fn targetTemperature(): Celsius {", "  return 180<C>", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "top-level-prototype",
+          "language": "w-rejected",
+          "source": ["fn targetTemperature(): Celsius"],
+          "expectedDifference": "A common module declaration has no implementation and can be confused with a requirement or foreign symbol."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-local-contract-versus-record",
+      "reviewItem": "`<...>` como contrato local nomeado contra uso como record completo de build",
+      "decisions": ["W-114", "W-115", "W-756"],
+      "task": "Separate a local tensor contract from the complete data-only package document.",
+      "selected": {
+        "language": "w-and-manifest",
+        "source": ["type Scores = Tensor<f32, shape: [8, 4]>", "package {", "  name: \"last-light\"", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "angular-build-record",
+          "language": "w-rejected",
+          "source": ["package<name: \"last-light\", products: [...]>"],
+          "expectedDifference": "A complete extensible build document looks like a closed contract on one named head."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-sequential-contract-envelopes",
+      "reviewItem": "envelopes sequenciais contra fusão de generic arguments e refinement",
+      "decisions": ["W-145", "W-759"],
+      "task": "Apply Array to an element type before restricting the resulting array value.",
+      "selected": {
+        "language": "w",
+        "source": ["type Packet = Array<u8><(.count <= 64)>"]
+      },
+      "alternatives": [
+        {
+          "name": "fused-argument-list",
+          "language": "w-rejected",
+          "source": ["type Packet = Array<u8, (.count <= 64)>"],
+          "expectedDifference": "The predicate appears to be another Array argument and loses the subject produced by the first application."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-single-tuple-comma",
+      "reviewItem": "tuple de um elemento com comma contra parentheses de agrupamento",
+      "decisions": ["W-530", "W-760"],
+      "task": "Create and pattern-match a one-element tuple without confusing it with grouping.",
+      "selected": {
+        "language": "w",
+        "source": ["let wrapped = (dish,)", "let (only,) = wrapped"]
+      },
+      "alternatives": [
+        {
+          "name": "parenthesized-value",
+          "language": "w",
+          "source": ["let grouped = (dish)"],
+          "expectedDifference": "Parentheses only group dish and do not create an aggregate type."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-static-argument-parity",
+      "reviewItem": "payloads Bool, String, quantity e size iguais em type application e generic call",
+      "decisions": ["W-762"],
+      "task": "Use the same four static-value categories to specialize a type and a generic call.",
+      "selected": {
+        "language": "w",
+        "source": ["type Profile = ServiceProfile<enabled: true, name: \"kitchen\", timeout: 250<ms>, buffer: 4096>", "let service = start<enabled: true, name: \"kitchen\", timeout: 250<ms>, buffer: 4096>()"]
+      },
+      "alternatives": [
+        {
+          "name": "restricted-call-payload",
+          "language": "alternative-w",
+          "source": ["let service = start<true, 4096>()"],
+          "expectedDifference": "Generic calls lose named String and quantity arguments that equivalent type application accepts."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-explicit-function-return",
+      "reviewItem": "tail expression explícita contra retorno implícito de todo function body",
+      "decisions": ["W-772"],
+      "task": "Use tail values in a conditional expression while keeping function return intent explicit.",
+      "selected": {
+        "language": "w",
+        "source": ["fn nextStage(ready: Bool): Stage {", "  return if ready { .serving } else { .preparing }", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-function-tail",
+          "language": "w-rejected",
+          "source": ["fn nextStage(ready: Bool): Stage {", "  if ready { .serving } else { .preparing }", "}"],
+          "expectedDifference": "An ordinary function body silently changes from statement scope to value block semantics."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-discard-semicolon",
+      "reviewItem": "semicolon que preserva discard contra formatter que o remove por aparência",
+      "decisions": ["W-708", "W-772", "W-782", "W-805"],
+      "task": "Discard a trace result before yielding the selected stage from a value block.",
+      "selected": {
+        "language": "w",
+        "source": ["let status = if ready {", "  trace(.ready);", "  .accepted", "} else {", "  .reserving", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "appearance-only-semicolon-removal",
+          "language": "w-changed-semantics",
+          "source": ["let status = if ready {", "  trace(.ready)", "  .accepted", "} else {", "  .reserving", "}"],
+          "expectedDifference": "Removing the separator changes statement partition or turns the prior expression into the block tail."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

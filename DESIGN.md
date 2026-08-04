@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície e o corpus R0 iniciou a cobertura estruturada; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
+| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície e R0 estrutura 52/52 comparações; os estudos humanos e de modelos da seção 26 ainda não foram executados |
 | validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -22262,7 +22262,7 @@ mesma profundidade em todas as famílias:
 | memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | 52 requisitos e corpus R0 validado; o índice publica a cobertura atual | completar os casos, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | corpus R0 cobre os 52 requisitos e o gate estrito valida a cobertura | executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22589,10 +22589,11 @@ decisão.
 [`tooling/substitution-cases.json`](tooling/substitution-cases.json) mantém a
 entrada estruturada. Cada caso liga um requisito desta seção a decisões do
 ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
-O checker valida a ligação e o índice publica a razão exata. O check comum
-aceita progresso parcial. O modo
-`--require-complete` falha enquanto qualquer requisito não possuir caso e será
-obrigatório para o design freeze.
+O checker valida a ligação e o índice publica a razão exata. O comando isolado
+sem flag permite inspecionar uma edição parcial. O gate do repository usa
+`--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
+os 52 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os estudos foram executados.
 
 O source vigente de um caso deve ser W aceito pelo contrato corrente. Uma forma
 substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
@@ -23854,6 +23855,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
 | W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/52`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 52 bullets como 52 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
+| W-864 | fechamento de cobertura R0 | 52/52 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
