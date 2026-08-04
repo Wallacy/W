@@ -1,0 +1,558 @@
+{
+  "$schema": "w-package-release-cases-1",
+  "status": "design-oracle-input",
+  "fixtures": {
+    "resolved-lock": {
+      "operations": [
+        {
+          "op": "acceptRegistrySnapshot",
+          "snapshot": "stable",
+          "version": 1,
+          "thresholdValid": true,
+          "delegationValid": true,
+          "fresh": true,
+          "candidates": [
+            { "identity": "last.light", "version": "1.0.0", "source": "registry", "content": "last-light-source-v1" }
+          ]
+        },
+        { "op": "createRealm", "realm": "product", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "product", "identity": "last.light", "constraint": "^1.0.0", "features": ["http"], "from": "restaurant" },
+        { "op": "solveRealm", "realm": "product" },
+        {
+          "op": "writeLock",
+          "lock": "release-lock",
+          "resolver": "w-resolver/1",
+          "workspaceDigest": "sha256:workspace",
+          "manifestDigests": { "last.light": "sha256:manifest" },
+          "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
+          "contexts": [
+            { "realm": "product", "root": "restaurant", "target": "x86_64-linux", "use": "product", "activeSourceSet": "sha256:active" }
+          ]
+        },
+        {
+          "op": "validateLocked",
+          "lock": "release-lock",
+          "workspaceDigest": "sha256:workspace",
+          "manifestDigests": { "last.light": "sha256:manifest" },
+          "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] },
+          "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" }
+        }
+      ]
+    },
+    "recipe": {
+      "includes": ["resolved-lock"],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "last-light-source-v1" },
+        { "op": "storeObject", "object": "source", "content": "last-light-source-v1" },
+        { "op": "declareObject", "object": "toolchain", "kind": "toolchain", "content": "w-toolchain-v1" },
+        { "op": "storeObject", "object": "toolchain", "content": "w-toolchain-v1" },
+        {
+          "op": "createRecipe",
+          "recipe": "restaurant-recipe",
+          "lock": "release-lock",
+          "product": "restaurant",
+          "target": "x86_64-linux",
+          "profile": "release",
+          "toolchainPlanDigest": "sha256:toolchain-plan",
+          "runtimeClosureDigest": "sha256:runtime",
+          "sourceTrees": [{ "package": "last.light", "object": "source" }],
+          "inputs": ["toolchain"],
+          "allowedEnvironment": ["TARGET"],
+          "environment": { "TARGET": "x86_64-linux" }
+        }
+      ]
+    },
+    "build-pair": {
+      "includes": ["recipe"],
+      "operations": [
+        { "op": "runBuild", "build": "build-a", "recipe": "restaurant-recipe", "payload": "restaurant-binary", "builderIdentity": "builder-a", "operatorIdentity": "operator-a", "credentialIdentity": "credential-a", "executionRootIdentity": "root-a", "executorIdentity": "executor-a" },
+        { "op": "runBuild", "build": "build-b", "recipe": "restaurant-recipe", "payload": "restaurant-binary", "builderIdentity": "builder-b", "operatorIdentity": "operator-b", "credentialIdentity": "credential-b", "executionRootIdentity": "root-b", "executorIdentity": "executor-b" }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "P0-resolver-selects-highest-compatible",
+      "references": [{ "path": "../reference/last-light/package.w", "symbol": "schema: \"w.package/1\"" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
+          { "identity": "astro.menu", "version": "1.2.0", "source": "registry", "content": "menu-v12" },
+          { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "menu-v2" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^1.0.0", "features": [], "from": "restaurant" },
+        { "op": "solveRealm", "realm": "app" },
+        { "op": "verifySelection", "realm": "app", "identity": "astro.menu", "version": "1.2.0", "source": "registry", "features": [] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-resolver-unions-transitive-features",
+      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "workspace" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "restaurant", "version": "1.0.0", "source": "registry", "content": "restaurant", "dependencies": [{ "identity": "astro.menu", "constraint": "^1.0.0", "features": ["catalog"] }] },
+          { "identity": "astro.menu", "version": "1.1.0", "source": "registry", "content": "menu" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "app", "identity": "restaurant", "constraint": "1.0.0", "features": [], "from": "root" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^1.0.0", "features": ["allergens"], "from": "root" },
+        { "op": "solveRealm", "realm": "app" },
+        { "op": "verifySelection", "realm": "app", "identity": "astro.menu", "version": "1.1.0", "features": ["allergens", "catalog"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-resolver-rejects-single-realm-version-conflict",
+      "references": [{ "path": "../reference/last-light/package.w", "symbol": "dependencies" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
+          { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "menu-v2" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^1.0.0", "features": [], "from": "kitchen" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^2.0.0", "features": [], "from": "observatory" },
+        { "op": "solveRealm", "realm": "app" }
+      ],
+      "expected": { "status": "rejected", "code": "resolutionConflict", "at": "last" }
+    },
+    {
+      "id": "P0-resolver-prefers-compatible-workspace-member",
+      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "1.1.0", "source": "registry", "content": "registry-menu" },
+          { "identity": "astro.menu", "version": "1.0.0", "source": "member", "content": "member-menu" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "workspace" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^1.0.0", "features": [], "from": "root" },
+        { "op": "solveRealm", "realm": "app" },
+        { "op": "verifySelection", "realm": "app", "identity": "astro.menu", "version": "1.0.0", "source": "member" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-resolver-does-not-hide-incompatible-member",
+      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "registry-menu" },
+          { "identity": "astro.menu", "version": "1.0.0", "source": "member", "content": "member-menu" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "workspace" },
+        { "op": "addRequirement", "realm": "app", "identity": "astro.menu", "constraint": "^2.0.0", "features": [], "from": "root" },
+        { "op": "solveRealm", "realm": "app" }
+      ],
+      "expected": { "status": "rejected", "code": "workspaceMemberVersionConflict", "at": "last" }
+    },
+    {
+      "id": "P0-resolver-backtracks-before-member-conflict",
+      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "members" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "workspace", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "restaurant", "version": "2.0.0", "source": "registry", "content": "restaurant-v2", "dependencies": [{ "identity": "astro.menu", "constraint": "^2.0.0" }] },
+          { "identity": "restaurant", "version": "1.0.0", "source": "registry", "content": "restaurant-v1", "dependencies": [{ "identity": "astro.menu", "constraint": "^1.0.0" }] },
+          { "identity": "astro.menu", "version": "1.0.0", "source": "member", "content": "member-menu" },
+          { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "registry-menu" }
+        ] },
+        { "op": "createRealm", "realm": "app", "snapshot": "workspace" },
+        { "op": "addRequirement", "realm": "app", "identity": "restaurant", "constraint": "*", "features": [], "from": "root" },
+        { "op": "solveRealm", "realm": "app" },
+        { "op": "verifySelection", "realm": "app", "identity": "restaurant", "version": "1.0.0" },
+        { "op": "verifySelection", "realm": "app", "identity": "astro.menu", "version": "1.0.0", "source": "member" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-resolver-allows-version-split-across-realms",
+      "references": [{ "path": "../reference/last-light/package.w", "symbol": "products" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "stable", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "menu-v1" },
+          { "identity": "astro.menu", "version": "2.0.0", "source": "registry", "content": "menu-v2" }
+        ] },
+        { "op": "createRealm", "realm": "host", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "host", "identity": "astro.menu", "constraint": "^1.0.0", "features": [], "from": "host" },
+        { "op": "solveRealm", "realm": "host" },
+        { "op": "createRealm", "realm": "device", "snapshot": "stable" },
+        { "op": "addRequirement", "realm": "device", "identity": "astro.menu", "constraint": "^2.0.0", "features": [], "from": "device" },
+        { "op": "solveRealm", "realm": "device" },
+        { "op": "verifySelection", "realm": "host", "identity": "astro.menu", "version": "1.0.0" },
+        { "op": "verifySelection", "realm": "device", "identity": "astro.menu", "version": "2.0.0" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-metadata-rejects-equivocation",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "mirror" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "bad", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [
+          { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "first" },
+          { "identity": "astro.menu", "version": "1.0.0", "source": "registry", "content": "second" }
+        ] }
+      ],
+      "expected": { "status": "rejected", "code": "registryEquivocation", "at": "last" }
+    },
+    {
+      "id": "P0-metadata-rejects-invalid-threshold",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "QuorumDecision" }],
+      "operations": [{ "op": "acceptRegistrySnapshot", "snapshot": "bad", "version": 1, "thresholdValid": false, "delegationValid": true, "fresh": true, "candidates": [] }],
+      "expected": { "status": "rejected", "code": "metadataThresholdInvalid", "at": "last" }
+    },
+    {
+      "id": "P0-metadata-rejects-expired-snapshot",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "stale" }],
+      "operations": [{ "op": "acceptRegistrySnapshot", "snapshot": "bad", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": false, "candidates": [] }],
+      "expected": { "status": "rejected", "code": "metadataExpired", "at": "last" }
+    },
+    {
+      "id": "P0-metadata-rejects-rollback",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "rollback" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "new", "version": 2, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [] },
+        { "op": "acceptRegistrySnapshot", "snapshot": "old", "version": 1, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [] }
+      ],
+      "expected": { "status": "rejected", "code": "metadataRollback", "at": "last" }
+    },
+    {
+      "id": "P0-lock-validates-structural-inputs",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "lock" }],
+      "operations": [{ "op": "verifyLock", "lock": "release-lock", "validated": true }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-lock-rejects-workspace-change",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/workspace.w", "symbol": "workspace" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:changed", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "expected": { "status": "rejected", "code": "lockedWorkspaceMismatch", "at": "last" }
+    },
+    {
+      "id": "P0-lock-rejects-manifest-change",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/package.w", "symbol": "schema: \"w.package/1\"" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:changed" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "expected": { "status": "rejected", "code": "lockedManifestMismatch", "at": "last" }
+    },
+    {
+      "id": "P0-lock-rejects-source-inventory-change",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "source" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w", "hidden.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:active" } }],
+      "expected": { "status": "rejected", "code": "lockedSourceInventoryMismatch", "at": "last" }
+    },
+    {
+      "id": "P0-lock-rejects-active-source-set-change",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/package.w", "symbol": "target" }],
+      "operations": [{ "op": "validateLocked", "lock": "release-lock", "workspaceDigest": "sha256:workspace", "manifestDigests": { "last.light": "sha256:manifest" }, "sourceInventories": { "last.light": ["package.w", "release_oracle.w"] }, "activeSourceSets": { "product|restaurant|x86_64-linux|product": "sha256:changed" } }],
+      "expected": { "status": "rejected", "code": "lockedActiveSourceSetMismatch", "at": "last" }
+    },
+    {
+      "id": "P0-cas-reconstructs-offline",
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "w fetch --locked" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "storeObject", "object": "source", "content": "source" },
+        { "op": "requireOffline", "objects": ["source"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-cas-rejects-missing-offline-object",
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "w fetch --locked" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "requireOffline", "objects": ["source"] }
+      ],
+      "expected": { "status": "rejected", "code": "offlineObjectMissing", "at": "last" }
+    },
+    {
+      "id": "P0-mirror-transports-listed-digest",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "expectedMirrorDecision" }],
+      "operations": [
+        { "op": "declareObject", "object": "package", "content": "artifact" },
+        { "op": "registerMirror", "mirror": "edge", "listed": true },
+        { "op": "fetchMirror", "mirror": "edge", "object": "package", "content": "artifact", "metadataFresh": true, "metadataVersion": 1 },
+        { "op": "requireOffline", "objects": ["package"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-mirror-rejects-unlisted-origin",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "listed" }],
+      "operations": [
+        { "op": "declareObject", "object": "package", "content": "artifact" },
+        { "op": "registerMirror", "mirror": "unknown", "listed": false },
+        { "op": "fetchMirror", "mirror": "unknown", "object": "package", "content": "artifact", "metadataFresh": true, "metadataVersion": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "mirrorUnlisted", "at": "last" }
+    },
+    {
+      "id": "P0-mirror-rejects-content-mismatch",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "digest" }],
+      "operations": [
+        { "op": "declareObject", "object": "package", "content": "artifact" },
+        { "op": "registerMirror", "mirror": "edge", "listed": true },
+        { "op": "fetchMirror", "mirror": "edge", "object": "package", "content": "tampered", "metadataFresh": true, "metadataVersion": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "mirrorDigestMismatch", "at": "last" }
+    },
+    {
+      "id": "P0-mirror-rejects-stale-metadata",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "stale" }],
+      "operations": [
+        { "op": "declareObject", "object": "package", "content": "artifact" },
+        { "op": "registerMirror", "mirror": "edge", "listed": true },
+        { "op": "fetchMirror", "mirror": "edge", "object": "package", "content": "artifact", "metadataFresh": false, "metadataVersion": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "mirrorMetadataExpired", "at": "last" }
+    },
+    {
+      "id": "P0-recipe-rejects-own-output",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "BuildEvidence" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "createRecipe", "recipe": "bad", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source" }], "inputs": [], "outputs": ["sha256:self"] }
+      ],
+      "expected": { "status": "rejected", "code": "recipeContainsOwnOutput", "at": "last" }
+    },
+    {
+      "id": "P0-recipe-rejects-forbidden-influence",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "environment permitido" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "createRecipe", "recipe": "bad", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source" }], "inputs": [], "forbiddenInfluences": ["wall-clock"] }
+      ],
+      "expected": { "status": "rejected", "code": "forbiddenBuildInfluence", "at": "last" }
+    },
+    {
+      "id": "P0-recipe-rejects-undeclared-environment",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "environment" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "createRecipe", "recipe": "bad", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source" }], "inputs": [], "allowedEnvironment": ["TARGET"], "environment": { "LANG": "pt_BR" } }
+      ],
+      "expected": { "status": "rejected", "code": "undeclaredBuildEnvironment", "at": "last" }
+    },
+    {
+      "id": "P0-build-requires-source-in-cas",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "CAS" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "createRecipe", "recipe": "recipe", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source" }], "inputs": [] },
+        { "op": "runBuild", "build": "build", "recipe": "recipe", "payload": "binary", "builderIdentity": "builder", "operatorIdentity": "operator", "credentialIdentity": "credential", "executionRootIdentity": "root", "executorIdentity": "executor" }
+      ],
+      "expected": { "status": "rejected", "code": "buildSourceMissingFromCas", "at": "last" }
+    },
+    {
+      "id": "P0-build-requires-declared-input-in-cas",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/BUILD.md", "symbol": "CAS" }],
+      "operations": [
+        { "op": "declareObject", "object": "source", "kind": "source-tree", "content": "source" },
+        { "op": "storeObject", "object": "source", "content": "source" },
+        { "op": "declareObject", "object": "toolchain", "kind": "toolchain", "content": "toolchain" },
+        { "op": "createRecipe", "recipe": "recipe", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source" }], "inputs": ["toolchain"] },
+        { "op": "runBuild", "build": "build", "recipe": "recipe", "payload": "binary", "builderIdentity": "builder", "operatorIdentity": "operator", "credentialIdentity": "credential", "executionRootIdentity": "root", "executorIdentity": "executor" }
+      ],
+      "expected": { "status": "rejected", "code": "buildInputMissingFromCas", "at": "last" }
+    },
+    {
+      "id": "P0-build-is-independent-of-executor",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "compareBuilderIndependence" }],
+      "operations": [{ "op": "verifyBuildRelation", "left": "build-a", "right": "build-b", "relation": "reproducible" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-build-rejects-nondeterministic-output",
+      "fixtures": ["recipe"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "artifactDigest" }],
+      "operations": [
+        { "op": "runBuild", "build": "build-a", "recipe": "restaurant-recipe", "payload": "first", "builderIdentity": "builder-a", "operatorIdentity": "operator-a", "credentialIdentity": "credential-a", "executionRootIdentity": "root-a", "executorIdentity": "executor-a" },
+        { "op": "runBuild", "build": "build-b", "recipe": "restaurant-recipe", "payload": "second", "builderIdentity": "builder-b", "operatorIdentity": "operator-b", "credentialIdentity": "credential-b", "executionRootIdentity": "root-b", "executorIdentity": "executor-b" }
+      ],
+      "expected": { "status": "rejected", "code": "nondeterministicRecipeOutput", "at": "last" }
+    },
+    {
+      "id": "P0-build-reports-incomplete-evidence-first",
+      "fixtures": ["recipe"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "incompleteEvidence" }],
+      "operations": [
+        { "op": "runBuild", "build": "build-a", "recipe": "restaurant-recipe", "payload": "binary", "inputsComplete": false, "builderIdentity": "builder-a", "operatorIdentity": "operator-a", "credentialIdentity": "credential-a", "executionRootIdentity": "root-a", "executorIdentity": "executor-a" },
+        { "op": "runBuild", "build": "build-b", "recipe": "restaurant-recipe", "payload": "binary", "builderIdentity": "builder-b", "operatorIdentity": "operator-b", "credentialIdentity": "credential-b", "executionRootIdentity": "root-b", "executorIdentity": "executor-b" },
+        { "op": "verifyBuildRelation", "left": "build-a", "right": "build-b", "relation": "incompleteEvidence" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-recipe-content-change-changes-identity",
+      "fixtures": ["resolved-lock"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "recipeDigest" }],
+      "operations": [
+        { "op": "declareObject", "object": "source-a", "kind": "source-tree", "content": "source-a" },
+        { "op": "declareObject", "object": "source-b", "kind": "source-tree", "content": "source-b" },
+        { "op": "createRecipe", "recipe": "a", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source-a" }], "inputs": [] },
+        { "op": "createRecipe", "recipe": "b", "lock": "release-lock", "product": "restaurant", "target": "x86_64-linux", "profile": "release", "toolchainPlanDigest": "sha256:toolchain", "runtimeClosureDigest": "sha256:runtime", "sourceTrees": [{ "package": "last.light", "object": "source-b" }], "inputs": [] },
+        { "op": "verifyRecipeRelation", "left": "a", "right": "b", "equal": false }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-reaches-reproducible-state",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "reproducible" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": true, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": true, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "reproducible" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-rejects-nonindependent-quorum",
+      "fixtures": ["recipe"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "independent" }],
+      "operations": [
+        { "op": "runBuild", "build": "build-a", "recipe": "restaurant-recipe", "payload": "restaurant-binary", "builderIdentity": "builder-a", "operatorIdentity": "same-operator", "credentialIdentity": "credential-a", "executionRootIdentity": "root-a", "executorIdentity": "executor-a" },
+        { "op": "runBuild", "build": "build-b", "recipe": "restaurant-recipe", "payload": "restaurant-binary", "builderIdentity": "builder-b", "operatorIdentity": "same-operator", "credentialIdentity": "credential-b", "executionRootIdentity": "root-b", "executorIdentity": "executor-b" },
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectReproduction" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-keeps-insufficient-evidence-published",
+      "fixtures": ["recipe"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "published" }],
+      "operations": [
+        { "op": "runBuild", "build": "build-a", "recipe": "restaurant-recipe", "payload": "restaurant-binary", "builderIdentity": "builder-a", "operatorIdentity": "operator-a", "credentialIdentity": "credential-a", "executionRootIdentity": "root-a", "executorIdentity": "executor-a" },
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "published" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-distinguishes-private-reproduction",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "privatelyReproducible" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light.private", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": false, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": false, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "privatelyReproducible" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-rejects-private-source-for-public-claim",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "requiresPublicSource" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": false, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectSourceAccess" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-rejects-role-collision",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "roleCollision" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "builder-a", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectRoleCollision" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-treats-advisory-as-orthogonal",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "ReleaseDecision" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "addAdvisory", "release": "v1", "advisory": "WSEC-0001" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "reproducible", "advisories": ["WSEC-0001"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-revocation-dominates-reproduction",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "revoked" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "revokeRelease", "release": "v1" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectRevoked", "revoked": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-metadata-rejects-invalid-delegation",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "SigningRole" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "bad", "version": 1, "thresholdValid": true, "delegationValid": false, "fresh": true, "candidates": [] }
+      ],
+      "expected": { "status": "rejected", "code": "metadataDelegationInvalid", "at": "last" }
+    },
+    {
+      "id": "P0-mirror-rejects-rollback-metadata",
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "staleMetadata" }],
+      "operations": [
+        { "op": "acceptRegistrySnapshot", "snapshot": "current", "version": 2, "thresholdValid": true, "delegationValid": true, "fresh": true, "candidates": [] },
+        { "op": "declareObject", "object": "package", "content": "artifact" },
+        { "op": "registerMirror", "mirror": "edge", "listed": true },
+        { "op": "fetchMirror", "mirror": "edge", "object": "package", "content": "artifact", "metadataFresh": true, "metadataVersion": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "mirrorMetadataRollback", "at": "last" }
+    },
+    {
+      "id": "P0-release-rejects-missing-transparency",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "ReleasePolicy" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": true, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectTransparency" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-rejects-maintainer-signature",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "maintainerThresholdMet" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": false, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectSignature" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "P0-release-yank-dominates-reproduction",
+      "fixtures": ["build-pair"],
+      "references": [{ "path": "../reference/last-light/release_oracle.w", "symbol": "published" }],
+      "operations": [
+        { "op": "createRelease", "release": "v1", "package": "last.light", "version": "1.0.0", "builds": ["build-a", "build-b"], "requiredRebuilders": 2, "requiresPublicSource": true, "requiresTransparency": false, "maintainerThresholdMet": true, "sourcePublic": true, "transparencyRecorded": false, "maintainerIdentity": "maintainer", "registryIdentity": "registry", "toolchainProviderIdentity": "toolchain", "platformSignerIdentity": "platform", "platformArtifactBuild": "build-a", "sbomDigest": "sha256:sbom" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "yankRelease", "release": "v1" },
+        { "op": "verifyRelease", "release": "v1" },
+        { "op": "verifyReleaseState", "release": "v1", "decision": "rejectYanked", "yanked": true }
+      ],
+      "expected": { "status": "accepted" }
+    }
+  ]
+}

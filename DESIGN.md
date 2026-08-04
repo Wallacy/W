@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
-| validação executável | 52–62% | Tree-sitter, F0, S0, wire, R0/R1, M0, E0 e B0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
+| validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M0, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -98,7 +98,7 @@ Os ciclos restantes para o design freeze são:
 1. ratificar syntax, formatter e diagnostics com o corpus da seção 26;
 2. provar o kernel de memória, ownership, ABI e FFI em HIR pequena;
 3. provar tasks, services, transaction e wWire com fault injection;
-4. provar `bootstrap.w0`, metadata, resolver e reprodução com spikes mínimos;
+4. substituir P0 por metadata, resolver, rebuild e reprodução independentes e fechar `bootstrap.w0`;
 5. limitar T0/T1/T2, revisar targets e fechar o contrato público.
 
 Pesquisas que possuem fallback não bloqueiam o freeze. Elas permanecem T2 ou
@@ -3343,6 +3343,8 @@ uma posição de instrução. A transferência não salta para os bytes do label
 `continue rows` entrega o controle ao driver do loop `rows`. Em um `for`, o
 driver solicita o próximo item ao iterator atual. Ele não recria o iterator.
 Essa operação lembra um yield local de controle, mas não produz um value.
+Ela também não suspende a task, não devolve um item ao caller e não reinicia o
+statement no token `rows:`.
 
 Quando o target é o loop mais interno, a forma sem label é canônica:
 
@@ -3410,6 +3412,20 @@ rotulado quando o trecho precisa repetir.
 W não possui `goto` ou `do ... while`. `repeat ... while` expressa o loop
 pós-condicional. Loop rotulado expressa repetição para trás. Block rotulado
 expressa saída para frente. Uma função extraída cobre transferências maiores.
+
+Um label solto dentro do body fica rejeitado. O source abaixo não cria um ponto
+de reinício:
+
+```w
+for row in rows {
+  retryRow: // inválido: nenhum owner estruturado vem depois de `:`
+  consume(row)
+}
+```
+
+Quando uma operação precisa repetir o body com state atualizado, use `while` ou
+`repeat`. Quando precisa reiniciar somente uma etapa, extraia essa etapa para
+uma função ou para outro loop estruturado.
 
 ### 5.5 Ordem de avaliação
 
@@ -19959,6 +19975,49 @@ Uma mudança de advisory, auditoria ou freshness não reescreve uma attestation.
 O registry publica outro snapshot. O verifier avalia a policy atual sobre
 records imutáveis.
 
+#### 21.3.3 Corpus executável P0: package e release
+
+**Exemplo:** um member local incompatível faz a resolução falhar. O resolver não
+troca esse member por uma versão do registry sem informar o usuário.
+
+O [corpus P0](tooling/package-release-cases.json) contém 44 programas ligados ao
+Última Luz. A [máquina P0](tooling/package-release-machine.mjs) executa 379
+operações sobre:
+
+- snapshot assinado, rollback, expiry, delegation e equivocation;
+- resolução determinística, features, members e realms separados;
+- lock estrutural, source inventories e active source sets;
+- CAS, mirrors listados e reconstrução offline;
+- recipe hermética, source trees, toolchain e environment declarado;
+- artifact identity e comparação de evidência completa;
+- quorum independente, papéis de assinatura, source access e transparency;
+- estados ortogonais de advisory, yank e revocation.
+
+P0 calcula digests SHA-256 tagged sobre records canônicos. O digest serve como
+identity no oracle. O algoritmo e o schema de produção continuam versionados no
+envelope correspondente.
+
+O lock fixa a estrutura da resolução. Uma alteração nos bytes de um source já
+inventariado não invalida `--locked`. A alteração muda o source-tree digest e a
+recipe. Adicionar, remover ou trocar o papel de um source invalida o lock.
+
+A mesma recipe deve produzir o mesmo artifact completo. Builder, operator,
+credential, execution root e executor não entram na identity da recipe. Eles
+entram na evidência de independência. Evidência incompleta é rejeitada antes da
+comparação de inputs ou outputs.
+
+O [snapshot P0](tooling/package-release-results.snapshot.jsonl) fixa state e
+trace byte-exact. O gate executa:
+
+```powershell
+bun tooling/check-package-release-cases.mjs
+```
+
+P0 não é resolver, registry, CAS ou sistema de assinatura de produção. Ele não
+implementa prerelease SemVer, download, TUF, Sigstore, sandbox, archive reader,
+path normalization ou rebuild real. Ele recebe os fatos criptográficos e as
+policies já verificadas. Esses limites permanecem nos gates da seção 27.
+
 ### 21.4 Registry, mirrors e estado de segurança
 
 **Exemplo:** uma versão pode ser `reproduced` e ainda possuir um advisory de
@@ -22296,22 +22355,34 @@ W e omitir seu cleanup.
 
 W não inclui uma feature somente porque outra linguagem a inclui:
 
-| Origem | Forma ausente | Substituição W |
-|---|---|---|
-| C | preprocessor textual | imports, const contracts e target variants |
-| C | `goto`, VLA e nonlocal jump | loops/blocks rotulados, `repeat`, owners e errors estruturados |
-| C | implicit promotions e unchecked overflow | conversão total e numeric policies nomeadas |
-| C | raw varargs, bitfields e unions safe | wrapper, `c.vaList` e layout foreign explícito |
-| Rust | lifetime syntax pública | inference conservadora e borrows diagnosticados |
-| Rust | macro-by-example e procedural macro | ConstIR, synthesis core e build transform |
-| Rust | deref coercion e user unsafe markers | conversões únicas e facts estruturais |
-| Swift | class inheritance e ARC universal | composition, object owner e `shared` explícito |
-| Swift | force unwrap, `try!` e implicit optional | pattern, `try`, `try?` e error explícito |
-| Swift | custom operator e property-wrapper annotation | operators fixos e property behavior nominal |
+| Origem | Forma ausente | Exemplo ausente | Substituição W |
+|---|---|---|---|
+| C | preprocessor textual | `#define CAPACITY 64` | `const capacity = 64` e target variants |
+| C | `goto`, VLA e nonlocal jump | `goto next_row` | loops/blocks rotulados, `repeat`, owners e errors estruturados |
+| C | implicit promotions e unchecked overflow | `short + int` com promoção implícita | conversão total e numeric policies nomeadas |
+| C | raw varargs, bitfields e unions safe | `fn log(char*, ...)` | wrapper, `c.vaList` e layout foreign explícito |
+| Rust | lifetime syntax pública | `fn head<'a>(value: &'a T) -> &'a T` | inference conservadora e borrows diagnosticados |
+| Rust | macro-by-example e procedural macro | `derive(...)` que reescreve AST | ConstIR, synthesis core e build transform |
+| Rust | deref coercion e user unsafe markers | call aceita wrapper por deref oculto | conversões únicas e facts estruturais |
+| Swift | class inheritance e ARC universal | `class Cook: Employee` | composition, object owner e `shared` explícito |
+| Swift | force unwrap, `try!` e implicit optional | `order!` ou `try! cook()` | pattern, `try`, `try?` e error explícito |
+| Swift | custom operator e property-wrapper annotation | `infix operator <~>` | operators fixos e property behavior nominal |
 
 Essas ausências reduzem hidden behavior, parser states e relações implícitas.
 Foreign adapters continuam disponíveis quando uma plataforma exige a forma
 original.
+
+Cada ausência deliberada precisa de quatro itens na documentação final:
+
+1. um exemplo mínimo da forma ausente;
+2. um exemplo executável da substituição W;
+3. a diferença observável em custo, controle, cleanup ou error;
+4. um link para a decisão e para o caso comparativo.
+
+O corpus R0 contém 52 substituições estruturadas. Esse corpus é a origem do Tour
+comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
+ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
+existe source comparável.
 
 ### 24.4 Gates que ainda precisam de prova
 
@@ -22349,13 +22420,24 @@ mesma profundidade em todas as famílias:
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
-| packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
+| packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 52/52, R0S mede 117 formas e R1 possui um bundle com duas variantes e quatro tarefas | ampliar R1, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 52/52 requisitos selecionados e 85 decisões; R0S mede 117 formas; R1 possui um bundle | auditar toda rejeição de source, ampliar R0/R1, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
 mas não pode declarar comportamento que seu oracle ainda contradiz.
+
+A ordem recomendada de fechamento é:
+
+1. ampliar R1 e ratificar a superfície que ainda pode mudar source;
+2. fechar formatter, checker e diagnostics sobre outputs reais;
+3. fechar HIR, ABI, memória e C com readers independentes;
+4. fechar scheduler, services e wire com fault injection;
+5. fechar package, release, bootstrap, std e targets com projetos reais.
+
+Essa ordem reduz retrabalho. Ela não impede spikes posteriores quando um risco
+de backend pode invalidar uma decisão de source.
 
 ## 25. Produto de referência Última Luz
 
@@ -24020,6 +24102,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-876 | máquina de boundary effects B0 | service call, transaction e pipeline mantêm lifecycles separados; todos carregam effect identity e distinguem confirmação, falha conhecida e incerteza | um Boolean committed; cancel como rollback; transaction usada como pipeline; pipeline com rollback fictício |
 | W-877 | corpus B0 | 39 sequências e 320 operações ligadas ao Última Luz cobrem 17 transições críticas, closed/output gates, commit, abort, retry policy, DAG, drain e capabilities | somente happy path; unknown sem effect ID; retry com call ID novo e effect ID novo; node sem cleanup |
 | W-878 | limite de B0 | oracle host recebe admission e evidence resolvidos; não prova adapter, transport, queue, storage, codec, clock, deduplication, crash recovery ou distribuição | declarar exactly-once; chamar snapshot de fault injection real; inferir durabilidade de transição em memória |
+| W-879 | identity de supply chain P0 | lock fixa estrutura; recipe fixa content e inputs; artifact fixa outputs; release liga records sem ciclo autorreferente | um hash universal; output dentro da própria recipe; builder identity como input semântico |
+| W-880 | resolução P0 | maior versão compatível por realm, features aditivas e member local compatível tem precedência; member incompatível falha sem fallback silencioso | first match; várias versões na mesma realm; trocar member por registry; defaults de feature ocultos |
+| W-881 | evidência de release P0 | comparação rejeita incompletude antes de inputs e artifacts; quorum exige builder, operator, credential e execution root independentes | contar jobs; comparar só payload; usar executor como input; combinar auditoria e reprodução numa nota |
+| W-882 | corpus P0 | 44 casos e 379 operações ligados ao Última Luz cobrem resolver, lock, CAS, mirror, recipe, rebuild, roles e estados de release | exemplos sem state; digest manual; somente happy path; mirror tratado como authority |
+| W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
+| W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
+| W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
