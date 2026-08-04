@@ -1,6 +1,21 @@
 {
-  "$schema": "w-diagnostic-catalog-0",
+  "$schema": "w-diagnostic-catalog-1",
   "status": "projection-seed",
+  "profiles": {
+    "parse-syntax": {
+      "phase": "source.parse",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set"
+      },
+      "labelRoles": {
+        "owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    }
+  },
   "codes": [
     {
       "code": "W-DIAGNOSTIC-0001",
@@ -30,6 +45,185 @@
       "fixes": {
         "format-source": "machine"
       }
+    },
+    {
+      "code": "W-FMT-0002",
+      "state": "active",
+      "phase": "source.format",
+      "defaultSeverity": "error",
+      "meaning": "formatting and reparsing do not preserve the normalized concrete syntax tree",
+      "requiredFacts": {
+        "formattedTreeDigest": "string",
+        "sourceTreeDigest": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LEX-0001",
+      "state": "active",
+      "phase": "source.lex",
+      "defaultSeverity": "error",
+      "meaning": "a literal or comment reaches its boundary without a terminator",
+      "requiredFacts": {
+        "construct": "string",
+        "delimiter": "string",
+        "reachedEof": "boolean"
+      },
+      "labelRoles": {
+        "opening-delimiter": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PARSE-0001",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a token is not accepted by the current grammar owner"
+    },
+    {
+      "code": "W-PARSE-0002",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a grammar owner ends without a required delimiter or keyword"
+    },
+    {
+      "code": "W-PARSE-0003",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a label is attached to a construct that labels cannot target"
+    },
+    {
+      "code": "W-PARSE-0004",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a contextual continuation keyword has no compatible lexical owner"
+    },
+    {
+      "code": "W-PARSE-0006",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "one document mixes a manifest root with module source"
+    },
+    {
+      "code": "W-PARSE-0007",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a module header or import appears after an ordinary declaration"
+    },
+    {
+      "code": "W-PARSE-0008",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a declaration modifier is attached to an unsupported target"
+    },
+    {
+      "code": "W-PARSE-0009",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a declaration lacks its required name, signature, or body"
+    },
+    {
+      "code": "W-PARSE-0010",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "an import is incomplete or lacks a required from clause"
+    },
+    {
+      "code": "W-PARSE-0011",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "one source document contains more than one module header"
+    },
+    {
+      "code": "W-PARSE-0012",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a manifest contains an executable token or a source declaration"
+    },
+    {
+      "code": "W-PARSE-0013",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "trivia separates a contract head from its opening angle bracket"
+    },
+    {
+      "code": "W-PARSE-0014",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a contract, tuple, or array ends without its closing delimiter"
+    },
+    {
+      "code": "W-PARSE-0015",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a computed contract expression lacks its required parentheses"
+    },
+    {
+      "code": "W-PARSE-0016",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "one tuple mixes labeled and positional elements"
+    },
+    {
+      "code": "W-PARSE-0017",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "parentheses group a type without the comma required for a tuple"
+    },
+    {
+      "code": "W-PARSE-0018",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a qualifier or postfix appears outside its allowed order"
+    },
+    {
+      "code": "W-PARSE-0019",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a one-element tuple pattern lacks its required comma"
+    },
+    {
+      "code": "W-PARSE-0020",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "an operator lacks a required operand"
+    },
+    {
+      "code": "W-PARSE-0021",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a value-producing conditional expression lacks an else branch"
+    },
+    {
+      "code": "W-PARSE-0022",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "one tuple or collection mixes incompatible element forms"
+    },
+    {
+      "code": "W-PARSE-0023",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a one-sided range appears outside an argument, index, or pattern"
+    },
+    {
+      "code": "W-PARSE-0026",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a contextual token appears without a compatible owner"
+    },
+    {
+      "code": "W-PARSE-0027",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a closing token crosses its owner or uses an invalid lexical reading"
+    },
+    {
+      "code": "W-PARSE-0028",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "recovery would reinterpret a form after its grammar commit point"
     },
     {
       "code": "W-SEM-0001",
@@ -118,7 +312,7 @@
       "defaultSeverity": "error",
       "meaning": "a required effect is not handled or propagated",
       "requiredFacts": {
-        "effects": "string[]"
+        "effects": "string-set"
       },
       "labelRoles": {},
       "fixes": {

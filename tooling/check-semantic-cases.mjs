@@ -293,6 +293,13 @@ function factMatches(value, type) {
   if (type === "string[]") {
     return Array.isArray(value) && value.every((item) => typeof item === "string")
   }
+  if (type === "string-set") {
+    if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+      return false
+    }
+    const ordered = [...value].sort((left, right) => Buffer.from(left).compare(Buffer.from(right)))
+    return new Set(value).size === value.length && value.every((item, index) => item === ordered[index])
+  }
   fail(`catalog uses unsupported fact type ${JSON.stringify(type)}`)
 }
 
@@ -306,11 +313,14 @@ if (!Array.isArray(corpus.cases) || corpus.cases.length === 0) {
   fail("cases must be a non-empty array")
 }
 
-if (catalog.$schema !== "w-diagnostic-catalog-0" || catalog.status !== "projection-seed") {
+if (catalog.$schema !== "w-diagnostic-catalog-1" || catalog.status !== "projection-seed") {
   fail("diagnostic catalog has an unexpected schema or status")
 }
 if (!Array.isArray(catalog.codes) || catalog.codes.length === 0) {
   fail("diagnostic catalog is empty")
+}
+if (!catalog.profiles || Array.isArray(catalog.profiles)) {
+  fail("diagnostic catalog has no profiles object")
 }
 
 const referencedDiagnosticCodes = [
@@ -318,7 +328,19 @@ const referencedDiagnosticCodes = [
 ].sort((left, right) => Buffer.from(left).compare(Buffer.from(right)))
 const catalogByCode = new Map()
 
-for (const entry of catalog.codes) {
+for (const sourceEntry of catalog.codes) {
+  let entry = sourceEntry
+  if (sourceEntry.profile !== undefined) {
+    const profile = catalog.profiles[sourceEntry.profile]
+    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
+      fail(`${sourceEntry.code} uses unknown profile ${JSON.stringify(sourceEntry.profile)}`)
+    }
+    const allowedKeys = new Set(["code", "state", "profile", "meaning"])
+    if (Object.keys(sourceEntry).some((key) => !allowedKeys.has(key))) {
+      fail(`${sourceEntry.code} overrides its diagnostic profile`)
+    }
+    entry = { ...profile, ...sourceEntry }
+  }
   if (!/^W-[A-Z]+-[0-9]{4}$/.test(entry.code) || !design.includes(entry.code)) {
     fail(`catalog contains unknown code ${JSON.stringify(entry.code)}`)
   }

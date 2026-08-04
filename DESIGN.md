@@ -776,7 +776,7 @@ recebe node `MISSING` de largura zero. Diagnostics usam, no mínimo:
 | `W-PARSE-0002` | delimiter ou keyword ausente |
 | `W-PARSE-0003` | target de label não permitido |
 | `W-PARSE-0004` | `else`, `catch` ou `while` sem owner |
-| `W-PARSE-0005` | literal ou comment não terminado |
+| `W-LEX-0001` | literal ou comment não terminado |
 
 O parser não aceita uma árvore recuperada para build. Recovery existe para
 diagnostics, formatter preview e edição incremental.
@@ -1296,11 +1296,11 @@ O checker usa uma família separada para schema de contrato:
 
 | Code | Condição |
 |---|---|
-| `W-TYPE-CONTRACT-0001` | slot desconhecido ou não publicado pelo head |
-| `W-TYPE-CONTRACT-0002` | argumento possui kind incompatível |
-| `W-TYPE-CONTRACT-0003` | predicate de refinement não produz `Bool` |
-| `W-TYPE-CONTRACT-0004` | label está duplicado ou fora da ordem declarada |
-| `W-TYPE-CONTRACT-0005` | envelope posterior não se aplica ao resultado anterior |
+| `W-CONTRACT-0001` | slot desconhecido ou não publicado pelo head |
+| `W-CONTRACT-0002` | argumento possui kind incompatível |
+| `W-CONTRACT-0003` | predicate de refinement não produz `Bool` |
+| `W-CONTRACT-0004` | label está duplicado ou fora da ordem declarada |
+| `W-CONTRACT-0005` | envelope posterior não se aplica ao resultado anterior |
 
 #### 3.5.5 Grammar normativa G3: patterns
 
@@ -2113,12 +2113,17 @@ pode aparecer como input negativo. Ela nunca aparece como source W válido.
 
 | Code | Condição |
 |---|---|
-| `W-PARSE-0024` | newline parece separar tokens que ainda formam uma expression |
-| `W-PARSE-0025` | semicolon é necessário para preservar statement partition ou discard |
 | `W-PARSE-0026` | token contextual aparece sem owner compatível |
 | `W-PARSE-0027` | close tenta atravessar owner ou usa a leitura lexical errada |
 | `W-PARSE-0028` | recovery exigiria reinterpretar uma forma após seu commit point |
 | `W-FMT-0002` | format e reparse não preservam a CST normalizada |
+
+O parser não emite um diagnostic para dizer que newline ou ausência de
+semicolon talvez expressem outra intenção. Os mesmos tokens já possuem uma
+leitura válida, e o parser não observa a intenção descartada. O formatter torna
+a statement partition visível. F0 remove cada semicolon necessário e comprova
+que a árvore muda. Assim, o tooling explica comportamento observável sem
+adivinhar um programa alternativo.
 
 #### 3.5.8 Semântica normativa S0: checker e fluxo
 
@@ -5138,7 +5143,7 @@ Cada `return` precisa pertencer ao conjunto. Este retorno falha:
 ```w
 fn invalidStage(): WorkStage {
   return .cancelled
-  // error[W-TYPE-ENUM-0001]: cancelled is outside WorkStage
+  // error[W-TYPE-0121]: cancelled is outside WorkStage
 }
 ```
 
@@ -5553,7 +5558,7 @@ O tipo abaixo falha na transição `.accepted → .completed`:
 
 ```w
 let skipped: StagePath<[.accepted, .completed]>
-// error[W-CONST-STATE-0001]: invalid transition at stages[0] -> stages[1]
+// error[W-CONST-0004]: invalid transition at stages[0] -> stages[1]
 ```
 
 `StagePath` prova a sequência declarada. Ele não prova que uma service instance
@@ -6053,7 +6058,7 @@ tipo que atende a P”. Constraints validam uma solução. Elas não inventam um
 fn make<T: Default>(): T
 
 let value = make()
-// error[W-TYPE-GENERIC-0002]: T has no argument or expected type
+// error[W-GENERIC-0002]: T has no argument or expected type
 ```
 
 Literals permanecem exatos até a solução usar typed operands. Se somente
@@ -6272,7 +6277,7 @@ precisa de argumentos explícitos e de um grafo finito. O compiler detecta uma
 expansão sem limite:
 
 ```text
-error[W-TYPE-GENERIC-0005]: instantiation does not converge
+error[W-GENERIC-0005]: instantiation does not converge
   expand<u8>
   expand<Array<u8>>
   expand<Array<Array<u8>>>
@@ -20184,6 +20189,28 @@ projeção executável inicial. Seu status `projection-seed` impede uma alegaç�
 catálogo completo. O checker informa a cobertura contra todos os codes citados
 neste documento.
 
+O catálogo pode usar um profile para fatorar phase, severity, facts, labels e
+fixes idênticos. Um code que usa profile declara somente `code`, `state`,
+`profile` e `meaning`. Ele não sobrescreve fields do profile. A expansão lógica
+continua sendo uma entrada completa e não cria herança entre meanings.
+
+```json
+{
+  "code": "W-PARSE-0014",
+  "state": "active",
+  "profile": "parse-syntax",
+  "meaning": "a contract, tuple, or array ends without its closing delimiter"
+}
+```
+
+O profile `parse-syntax` exige três facts: `construct` identifica o owner da
+grammar, `actual` identifica o token ou boundary observado e `expected` contém
+o conjunto byte-sorted de tokens ou categorias aceitos. O label opcional
+`owner` aponta para o início do owner quando esse span acrescenta informação.
+Ele não repete o primary span. O fact type `string-set` exige strings únicas em
+ordem bytewise. `string[]` continua representando uma sequência em que a ordem
+possui significado.
+
 Um code retired nunca recebe outro significado. Um code reservado não aparece
 em output. Antes do 1.0, uma mudança de schema atualiza corpus e snapshots na
 mesma revisão. Ela não mantém uma leitura antiga por inércia.
@@ -22047,7 +22074,7 @@ mesma profundidade em todas as famílias:
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 22 casos pareiam 11 resultados positivos com 11 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; corpus possui snapshots iniciais | catálogo completo de codes, compile-fail runner e adapters diferenciais |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 39 de 80 codes, incluindo lexer, parser, formatter e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23583,6 +23610,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-812 | SemanticResult executável | caso positivo materializa resultType, category, flow, ownerDelta, effectSummary, proofFacts e evaluationGraph | somente type e flow; campo opcional por backend; MLIR como autoridade semântica |
 | W-813 | evaluation graph S0 | node IDs são locais ao record; edges referenciam nodes declarados e registram ordem, caminhos, transfer, suspension e cleanup | AST ID persistente; scheduler order; lista linear que perde edges condicionais |
 | W-814 | normalização S0 | effects são sets byte-sorted, deltas seguem source order, targets de flow são explícitos e facts valem no caminho contínuo | hash order; target inferido no backend; fact de um branch promovido ao join |
+| W-815 | namespace de diagnostic | code usa exatamente uma família uppercase e quatro dígitos; subdomínio pertence ao número, meaning e facts | famílias hierárquicas como W-TYPE-CONTRACT; code livre; reutilizar code por subfase |
+| W-816 | fronteira lex/parse | literal ou comment não terminado usa W-LEX-0001 em source.lex; parser não reclassifica o mesmo erro | W-PARSE para token incompleto; emitir lex e parse roots para os mesmos bytes |
+| W-817 | intenção não observável | newline e ausência de semicolon não geram diagnostic sobre uma partition hipotética; formatter e mutation corpus mostram a árvore real | warning que adivinha statement; ASI; parser escolhe pela aparência |
+| W-818 | profile de catálogo | profile fatora phase, severity, facts, labels e fixes idênticos; entrada não pode sobrescrevê-lo e meaning permanece por code | copiar schema em cada entrada; inheritance de meaning; override local silencioso |
+| W-819 | facts de parse | parse-syntax exige construct, actual e expected byte-sorted; owner label é opcional e não duplica primary | mensagem como fato; expected em ordem de hash; source text inteiro em facts |
+| W-820 | cobertura D0 | índice gerado mede catalogados e referenciados por família e rejeita code fora do namespace | contagem global sem lacuna local; busca manual; ignorar code malformado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
