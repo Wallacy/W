@@ -84,6 +84,12 @@ test "integer operators keep one policy in every profile" {
   expect u8.saturatingAdd(u8.max, 1) == u8.max
 }
 
+test "power follows mathematical unary precedence" {
+  expect -2.0 ** 2 == -4.0
+  expect 2.0 ** -3 == 0.125
+  expect 2 ** 3 ** 2 == 512
+}
+
 test "byte order is explicit at a boundary" {
   let wire = 0x0102_0304_u32.toBytes(order: .big)
   let restored = u32.fromBytes(wire, order: .big)

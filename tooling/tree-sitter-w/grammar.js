@@ -151,6 +151,7 @@ module.exports = grammar({
     [$._type_identifier, $.pattern],
     [$._type_identifier, $.enum_pattern],
     [$.type_name, $.enum_pattern],
+    [$.if_statement, $.if_expression],
     [$.labeled_tuple_type_element, $.closure_parameter],
     [$.tuple_type, $.unit_literal],
   ],
@@ -1249,6 +1250,7 @@ module.exports = grammar({
         $.pipeline_expression,
         $.transaction_expression,
         $.unsafe_expression,
+        $.if_expression,
         $.switch_expression,
         $.unit_literal,
         $.parenthesized_expression,
@@ -1438,6 +1440,16 @@ module.exports = grammar({
         ),
       ),
     unsafe_expression: ($) => prec.right(seq("unsafe", $.block)),
+    if_expression: ($) =>
+      prec.right(
+        seq(
+          "if",
+          choice($.optional_binding, $._expression),
+          field("consequence", $.block),
+          "else",
+          field("alternative", choice($.if_expression, $.block)),
+        ),
+      ),
     closure_parameters: ($) => seq("(", commaSep($.closure_parameter), optional(","), ")"),
     closure_parameter: ($) => seq(field("name", $.identifier), optional(seq(":", field("type", $.type)))),
 
