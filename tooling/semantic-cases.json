@@ -1,5 +1,5 @@
 {
-  "$schema": "w-semantic-cases-0",
+  "$schema": "w-semantic-cases-1",
   "status": "design-oracle-input",
   "cases": [
     {
@@ -12,8 +12,32 @@
         "}"
       ],
       "expect": {
-        "resultType": "declaration",
-        "flow": "next",
+        "focus": { "text": "if flag { take first } else { take second }" },
+        "semanticResult": {
+          "resultType": "Ticket",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "move", "place": "first", "path": "true" },
+            { "operation": "move", "place": "second", "path": "false" }
+          ],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "condition", "operation": "read", "subject": "flag" },
+              { "id": "true-result", "operation": "move", "subject": "first" },
+              { "id": "false-result", "operation": "move", "subject": "second" },
+              { "id": "join", "operation": "join", "subject": "Ticket" }
+            ],
+            "edges": [
+              { "from": "condition", "to": "true-result", "kind": "true" },
+              { "from": "condition", "to": "false-result", "kind": "false" },
+              { "from": "true-result", "to": "join", "kind": "next" },
+              { "from": "false-result", "to": "join", "kind": "next" }
+            ]
+          }
+        },
         "diagnostics": []
       }
     },
@@ -28,8 +52,333 @@
         "}"
       ],
       "expect": {
-        "resultType": "declaration",
-        "flow": "next",
+        "focus": { "text": "async let dish = cook(take order)" },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "move", "place": "order", "path": "parent-staging" },
+            { "operation": "initialize", "place": "dish", "type": "Task<Receipt, KitchenError>" }
+          ],
+          "effectSummary": {
+            "signature": [],
+            "control": [],
+            "operational": ["task.create"]
+          },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callable", "operation": "resolve", "subject": "cook" },
+              { "id": "argument", "operation": "move", "subject": "order" },
+              { "id": "child", "operation": "start-child", "subject": "cook" },
+              { "id": "binding", "operation": "initialize", "subject": "dish" }
+            ],
+            "edges": [
+              { "from": "callable", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "child", "kind": "transfer" },
+              { "from": "child", "to": "binding", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-condition-requires-bool",
+      "kind": "positive",
+      "rule": "W-784",
+      "source": [
+        "fn validCondition(ready: Bool) {",
+        "  if ready { record() }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "ready", "occurrence": 1 },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [{ "id": "condition", "operation": "read", "subject": "ready" }],
+            "edges": []
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-definite-initialization",
+      "kind": "positive",
+      "rule": "W-784",
+      "source": [
+        "fn readAfterInitialization() {",
+        "  let ticket = Ticket()",
+        "  inspect(ticket)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "inspect(ticket)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "initialized", "subject": "ticket", "value": "Ticket" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "argument", "operation": "read", "subject": "ticket" },
+              { "id": "call", "operation": "call", "subject": "inspect" }
+            ],
+            "edges": [{ "from": "argument", "to": "call", "kind": "next" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-owner-at-branch-join",
+      "kind": "positive",
+      "rule": "W-787",
+      "source": [
+        "fn inspectAfterJoin(flag: Bool, order: ref Order) {",
+        "  if flag { observe(order) }",
+        "  inspect(order)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "inspect(order)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "available", "subject": "order", "value": "shared-borrow" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "argument", "operation": "read", "subject": "order" },
+              { "id": "call", "operation": "call", "subject": "inspect" }
+            ],
+            "edges": [{ "from": "argument", "to": "call", "kind": "next" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-borrow-ended-before-mutation",
+      "kind": "positive",
+      "rule": "W-787",
+      "source": [
+        "fn mutateAfterBorrow(values: inout Array<Int>) {",
+        "  inspect(ref values[0])",
+        "  values.append(42)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "values.append(42)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "mutate", "place": "values" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "borrow-ended", "subject": "values[0]", "value": "shared" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "receiver", "operation": "exclusive-place", "subject": "values" },
+              { "id": "argument", "operation": "literal", "subject": "42" },
+              { "id": "call", "operation": "call", "subject": "append" }
+            ],
+            "edges": [
+              { "from": "receiver", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-handled-call-effects",
+      "kind": "positive",
+      "rule": "W-786",
+      "source": [
+        "async fn loadHandled(client: ref MenuClient): Menu throws MenuError {",
+        "  return try await client.loadMenu()",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "try await client.loadMenu()" },
+        "semanticResult": {
+          "resultType": "Menu",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": {
+            "signature": [],
+            "control": [],
+            "operational": ["io", "suspension-point"]
+          },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "receiver", "operation": "read", "subject": "client" },
+              { "id": "call", "operation": "call", "subject": "loadMenu" },
+              { "id": "await", "operation": "await", "subject": "call" },
+              { "id": "try", "operation": "route-error", "subject": "MenuError" }
+            ],
+            "edges": [
+              { "from": "receiver", "to": "call", "kind": "next" },
+              { "from": "call", "to": "await", "kind": "suspension" },
+              { "from": "await", "to": "try", "kind": "success" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-control-owner",
+      "kind": "positive",
+      "rule": "W-781",
+      "source": [
+        "fn stopScan() {",
+        "  scan: while ready() {",
+        "    break scan",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "break scan" },
+        "semanticResult": {
+          "resultType": "Never",
+          "category": "value",
+          "flow": { "kind": "break", "target": "scan" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": ["break:scan"], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "break", "operation": "exit", "subject": "scan" },
+              { "id": "scan.exit", "operation": "owner-exit", "subject": "scan" }
+            ],
+            "edges": [{ "from": "break", "to": "scan.exit", "kind": "cleanup" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-total-return",
+      "kind": "positive",
+      "rule": "W-784",
+      "source": [
+        "fn complete(flag: Bool): Ticket {",
+        "  if flag { return Ticket() } else { return fallbackTicket() }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "if flag { return Ticket() } else { return fallbackTicket() }" },
+        "semanticResult": {
+          "resultType": "Never",
+          "category": "value",
+          "flow": { "kind": "unreachable" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": ["return:function"], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "condition", "operation": "read", "subject": "flag" },
+              { "id": "true-return", "operation": "return", "subject": "Ticket" },
+              { "id": "false-return", "operation": "return", "subject": "fallbackTicket" }
+            ],
+            "edges": [
+              { "from": "condition", "to": "true-return", "kind": "true" },
+              { "from": "condition", "to": "false-return", "kind": "false" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-explicit-discard",
+      "kind": "positive",
+      "rule": "W-790",
+      "source": [
+        "fn recordInsertion(prices: inout Set<Course>) {",
+        "  let _ = prices.add(.horizonCake)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "let _ = prices.add(.horizonCake)" },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "receiver", "operation": "exclusive-place", "subject": "prices" },
+              { "id": "call", "operation": "call", "subject": "add" },
+              { "id": "discard", "operation": "discard-explicit", "subject": "Bool" }
+            ],
+            "edges": [
+              { "from": "receiver", "to": "call", "kind": "next" },
+              { "from": "call", "to": "discard", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-transaction-capability",
+      "kind": "positive",
+      "rule": "W-786",
+      "source": [
+        "async fn chargeThroughProvider(store: ref Store): Receipt throws AppError {",
+        "  return try await transaction tx = store {",
+        "    let receipt = try await tx.charge()",
+        "    commit receipt",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "try await tx.charge()" },
+        "semanticResult": {
+          "resultType": "Receipt",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": {
+            "signature": [],
+            "control": [],
+            "operational": ["suspension-point", "transaction:store"]
+          },
+          "proofFacts": [{ "kind": "capability", "subject": "tx", "value": "store" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "receiver", "operation": "read", "subject": "tx" },
+              { "id": "call", "operation": "call", "subject": "charge" },
+              { "id": "await", "operation": "await", "subject": "call" },
+              { "id": "try", "operation": "route-error", "subject": "AppError" }
+            ],
+            "edges": [
+              { "from": "receiver", "to": "call", "kind": "next" },
+              { "from": "call", "to": "await", "kind": "suspension" },
+              { "from": "await", "to": "try", "kind": "success" }
+            ]
+          }
+        },
         "diagnostics": []
       }
     },
@@ -37,6 +386,8 @@
       "id": "S0-NEG-condition-requires-bool",
       "kind": "negative",
       "rule": "W-784",
+      "baseline": "S0-POS-condition-requires-bool",
+      "failureField": "resultType",
       "source": [
         "fn invalidCondition() {",
         "  if 1 { record() }",
@@ -61,6 +412,8 @@
       "id": "S0-NEG-child-composed-root",
       "kind": "negative",
       "rule": "W-789",
+      "baseline": "S0-POS-child-call-root",
+      "failureField": "evaluationGraph",
       "source": [
         "fn invalidChild(source: ref Source) {",
         "  async let total = loadLeft(source) + loadRight(source)",
@@ -85,6 +438,8 @@
       "id": "S0-NEG-branch-type-join",
       "kind": "negative",
       "rule": "W-787",
+      "baseline": "S0-POS-branch-owner-join",
+      "failureField": "resultType",
       "source": [
         "fn mixed(flag: Bool): Int {",
         "  return if flag { 1 } else { \"one\" }",
@@ -112,6 +467,8 @@
       "id": "S0-NEG-definite-initialization",
       "kind": "negative",
       "rule": "W-784",
+      "baseline": "S0-POS-definite-initialization",
+      "failureField": "ownerDelta",
       "source": [
         "fn readBeforeInitialization() {",
         "  var ticket: Ticket",
@@ -147,6 +504,8 @@
       "id": "S0-NEG-move-at-branch-join",
       "kind": "negative",
       "rule": "W-787",
+      "baseline": "S0-POS-owner-at-branch-join",
+      "failureField": "ownerDelta",
       "source": [
         "fn maybeDispatch(order: take Order, remotely: Bool) {",
         "  if remotely { send(take order) }",
@@ -177,6 +536,8 @@
       "id": "S0-NEG-conflicting-borrow",
       "kind": "negative",
       "rule": "W-787",
+      "baseline": "S0-POS-borrow-ended-before-mutation",
+      "failureField": "ownerDelta",
       "source": [
         "fn mutateWhileBorrowed(values: inout Array<Int>) {",
         "  let ref first = values[0]",
@@ -206,6 +567,8 @@
       "id": "S0-NEG-unhandled-call-effects",
       "kind": "negative",
       "rule": "W-786",
+      "baseline": "S0-POS-handled-call-effects",
+      "failureField": "effectSummary",
       "source": [
         "async fn load(client: ref MenuClient): Menu throws MenuError {",
         "  return client.loadMenu()",
@@ -240,6 +603,8 @@
       "id": "S0-NEG-control-owner",
       "kind": "negative",
       "rule": "W-781",
+      "baseline": "S0-POS-control-owner",
+      "failureField": "flow",
       "source": [
         "fn wrongTarget() {",
         "  break missingLoop",
@@ -264,6 +629,8 @@
       "id": "S0-NEG-missing-return",
       "kind": "negative",
       "rule": "W-784",
+      "baseline": "S0-POS-total-return",
+      "failureField": "flow",
       "source": [
         "fn incomplete(flag: Bool): Ticket {",
         "  if flag { return Ticket() }",
@@ -298,6 +665,8 @@
       "id": "S0-NEG-unused-value",
       "kind": "negative",
       "rule": "W-790",
+      "baseline": "S0-POS-explicit-discard",
+      "failureField": "category",
       "source": [
         "fn ignoreInsertion(prices: inout Set<Course>) {",
         "  prices.add(.horizonCake)",
@@ -330,6 +699,8 @@
       "id": "S0-NEG-transaction-capability",
       "kind": "negative",
       "rule": "W-786",
+      "baseline": "S0-POS-transaction-capability",
+      "failureField": "effectSummary",
       "source": [
         "async fn chargeInsideTransaction(store: ref Store, payments: ref PaymentService): Receipt throws AppError {",
         "  return try await transaction tx = store {",

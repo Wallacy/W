@@ -238,9 +238,12 @@ const corpusCases = corpusFiles.reduce((count, file) => {
   const content = fs.readFileSync(file, "utf8");
   return count + (content.match(/^---$/gm)?.length || 0);
 }, 0);
-const semanticCases = JSON.parse(
+const semanticCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "semantic-cases.json"), "utf8"),
-).cases.length;
+);
+const semanticCases = semanticCorpus.cases.length;
+const semanticPositiveCases = semanticCorpus.cases.filter((testCase) => testCase.kind === "positive").length;
+const semanticNegativeCases = semanticCorpus.cases.filter((testCase) => testCase.kind === "negative").length;
 const formatterCases = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "formatter-cases.json"), "utf8"),
 ).cases.length;
@@ -250,6 +253,10 @@ const diagnosticSnapshots = fs
   .filter(Boolean).length;
 const formatterDiagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "formatter-diagnostics.snapshot.jsonl"), "utf8")
+  .split(/\r?\n/)
+  .filter(Boolean).length;
+const semanticResultSnapshots = fs
+  .readFileSync(path.join(wDirectory, "tooling", "semantic-results.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
   .filter(Boolean).length;
 const diagnosticCatalogCount = JSON.parse(
@@ -292,7 +299,10 @@ output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
 output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
-output.push(`| casos do corpus semântico S0 | ${semanticCases} |`);
+output.push(
+  `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,
+);
+output.push(`| outcomes SemanticResult S0 | ${semanticResultSnapshots} |`);
 output.push(`| snapshots de diagnostic D0 | ${diagnosticSnapshots} |`);
 output.push(`| snapshots F0 no formato D0 | ${formatterDiagnosticSnapshots} |`);
 output.push(`| codes D0 catalogados | ${diagnosticCatalogCount}/${referencedDiagnosticCount} |`);
