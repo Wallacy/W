@@ -84,7 +84,7 @@ export enum BenchmarkError: Error {
   cache(cache.CacheError)
   cacheLoad(cache.LoadFailure<database.DatabaseError>)
   database(database.DatabaseError)
-  response(ResponseError)
+  response(http.ResponseError)
   template(TemplateError)
   transaction(database.TransactionFailure<database.DatabaseError>)
 }
@@ -93,7 +93,7 @@ fn boundedCount(
   request: ref http.Request,
   parameter: ref String,
 ): usize<(1...500)> {
-  let count = request.query.get(parameter)
+  let count = request.url.searchParams.get(parameter)
     .flatMap((value) => usize.parse(value))
     ?? 1
 
@@ -172,7 +172,8 @@ async fn renderFortunes(
   fortunes.sort(by: (left, right) => left.message.compare(right.message))
 
   let page = try ctx.templates.render("fortunes", values: fortunes)
-  return http.Response.html(page)
+  let headers = try http.Headers(("content-type", "text/html; charset=utf-8"))
+  return try http.Response(take page, headers: take headers)
 }
 
 async fn updateWorlds(
@@ -244,9 +245,9 @@ async fn fetchBenchmark(
   request: take http.Request,
   ctx: http.Context,
 ): http.Response throws BenchmarkError {
-  return switch (request.method, request.path) {
+  return switch (request.method, request.url.pathname) {
     case (.get, "/plaintext"):
-      http.Response.text("Hello, World!")
+      try http.Response("Hello, World!")
     case (.get, "/json"):
       try http.Response.json(BenchmarkMessage(message: "Hello, World!"))
     case (.get, "/db"):
@@ -263,7 +264,7 @@ async fn fetchBenchmark(
       let count = boundedCount(request, parameter: "count")
       try http.Response.json(try await cachedQueries(count, ctx: ctx))
     case (_, _):
-      http.Response(status: .notFound)
+      try http.Response(status: http.StatusCode.notFound)
   }
 }
 

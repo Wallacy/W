@@ -13,17 +13,17 @@ async fn fetchWifi(
   request: take http.Request,
   ctx: http.Context,
 ): http.Response throws WifiError {
-  return switch (request.method, request.path) {
+  return switch (request.method, request.url.pathname) {
     case (.post, "/login"):
-      let input = try await request.decodeJson<LoginRequest>(maximumBytes: 4<KiB>)
+      let input = try await (take request).json<LoginRequest>(maximumBytes: 4<KiB>)
       let session = try await wifiSessions.login(take input)
       try http.Response.json(session)
     case (.post, "/logout"):
-      let id = try await request.decodeJson<SessionId>(maximumBytes: 1<KiB>)
+      let id = try await (take request).json<SessionId>(maximumBytes: 1<KiB>)
       try await wifiSessions.revoke(id)
-      http.Response(status: .noContent)
+      try http.Response(status: http.StatusCode.noContent)
     case (_, _):
-      http.Response(status: .notFound)
+      try http.Response(status: http.StatusCode.notFound)
   }
 }
 

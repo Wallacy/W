@@ -68,6 +68,44 @@
       "bounds": ["server-limits", "message-limits"],
       "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
     },
+    "http-context": {
+      "capabilities": ["http-context-bindings"],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["product-capability-set"],
+      "complexity": { "time": "constant", "space": "bounded-by-contract" }
+    },
+    "http-request": {
+      "capabilities": ["http-body-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation"],
+      "failures": {
+        "mode": "typed",
+        "types": ["HttpBodyError", "RequestDecodeError"]
+      },
+      "bounds": ["message-limits", "maximum-argument"],
+      "complexity": { "time": "linear-input", "space": "bounded-by-argument" }
+    },
+    "http-headers": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["HttpSyntaxError"] },
+      "bounds": ["message-limits", "header-count", "header-value-size"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "http-response": {
+      "capabilities": [],
+      "effects": ["codec", "allocation"],
+      "failures": { "mode": "typed", "types": ["ResponseError"] },
+      "bounds": ["message-limits", "response-body-size"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "http-server": {
+      "capabilities": ["network-listener"],
+      "effects": ["suspension", "network", "task-admission"],
+      "failures": { "mode": "typed", "types": ["ServerError"] },
+      "bounds": ["server-limits", "message-limits", "host-capability-budget"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
     "database-transaction": {
       "capabilities": ["database-binding"],
       "effects": ["suspension", "storage"],
@@ -221,10 +259,12 @@
         { "symbol": "HeaderField", "kind": "struct", "profile": "validated-http-token" },
         { "symbol": "HttpSyntaxError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "HttpBodyError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestDecodeError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ResponseError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "HttpError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
-        { "symbol": "ResponseBody", "kind": "enum", "profile": "value-contract" },
         { "symbol": "IncomingBody", "kind": "protocol", "profile": "http-body" },
         { "symbol": "HttpHandler", "kind": "protocol", "profile": "http-handler" }
       ]
@@ -304,6 +344,7 @@
       "surface": "Context",
       "kind": "symbol",
       "consumer": "reference/last-light/gateway.w",
+      "profile": "http-context",
       "status": "missing"
     },
     {
@@ -312,6 +353,7 @@
       "surface": "Request",
       "kind": "symbol",
       "consumer": "reference/last-light/benchmark_app.w",
+      "profile": "http-request",
       "status": "missing"
     },
     {
@@ -320,6 +362,16 @@
       "surface": "Response",
       "kind": "symbol",
       "consumer": "reference/last-light/benchmark_app.w",
+      "profile": "http-response",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-headers",
+      "module": "std.http",
+      "surface": "Headers",
+      "kind": "symbol",
+      "consumer": "reference/last-light/benchmark_app.w",
+      "profile": "http-headers",
       "status": "missing"
     },
     {
@@ -328,7 +380,8 @@
       "surface": "ServerError",
       "kind": "symbol",
       "consumer": "reference/last-light/app.w",
-      "status": "missing"
+      "profile": "value-contract",
+      "status": "draft"
     },
     {
       "id": "sdk0-http-serve",
@@ -336,7 +389,17 @@
       "surface": "serve",
       "kind": "symbol",
       "consumer": "reference/last-light/app.w",
+      "profile": "http-server",
       "status": "missing"
+    },
+    {
+      "id": "sdk0-http-response-error",
+      "module": "std.http",
+      "surface": "ResponseError",
+      "kind": "symbol",
+      "consumer": "reference/last-light/gateway.w",
+      "profile": "value-contract",
+      "status": "draft"
     }
   ]
 }

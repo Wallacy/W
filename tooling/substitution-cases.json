@@ -1075,6 +1075,57 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-web-request-url",
+      "reviewItem": "URL e URLSearchParams padrão contra aliases HTTP locais",
+      "decisions": ["W-894"],
+      "task": "Route an incoming request by pathname and read the first repeated query value.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let path = request.url.pathname",
+          "let count = request.url.searchParams.get(\"count\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "request-path-query-aliases",
+          "language": "w-rejected",
+          "source": [
+            "let path = request.path",
+            "let count = request.query.get(\"count\")"
+          ],
+          "expectedDifference": "The server API creates path and query concepts that do not transfer to the standard client URL contract."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-web-response-body",
+      "reviewItem": "constructor Web de Response contra família de helpers por body",
+      "decisions": ["W-534", "W-894"],
+      "task": "Create plain-text and HTML responses while keeping body construction uniform.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let plain = try http.Response(\"Hello\")",
+          "let headers = try http.Headers((\"content-type\", \"text/html; charset=utf-8\"))",
+          "let html = try http.Response(take page, headers: take headers)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "response-body-helper-family",
+          "language": "w-rejected",
+          "source": [
+            "let plain = http.Response.text(\"Hello\")",
+            "let html = http.Response.html(page)"
+          ],
+          "expectedDifference": "Each body category gains a W-only constructor instead of using the standard Response body contract."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

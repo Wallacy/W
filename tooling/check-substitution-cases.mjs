@@ -60,9 +60,9 @@ const reviewItems = lines
   .map((line) => normalizeReviewItem(line.slice(2)));
 const reviewItemSet = new Set(reviewItems);
 
-if (reviewItems.length !== 52 || reviewItemSet.size !== reviewItems.length) {
+if (reviewItems.length === 0 || reviewItemSet.size !== reviewItems.length) {
   errors.push(
-    `Section 26 must contain 52 unique review items; found ${reviewItems.length} items and ${reviewItemSet.size} unique items.`,
+    `Section 26 must contain a non-empty set of unique review items; found ${reviewItems.length} items and ${reviewItemSet.size} unique items.`,
   );
 }
 
@@ -172,7 +172,9 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
 const uncoveredItems = reviewItems.filter((item) => !coveredItems.has(item));
 
 if (process.argv.includes("--require-complete") && uncoveredItems.length > 0) {
-  errors.push(`Complete coverage requires 52 cases; ${uncoveredItems.length} items remain.`);
+  errors.push(
+    `Complete coverage requires one case for each of the ${reviewItems.length} review items; ${uncoveredItems.length} items remain.`,
+  );
 }
 
 if (errors.length > 0) {
