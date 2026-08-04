@@ -115,8 +115,9 @@ async fn convert(): Receipt throws MenuError {
             pattern: (pattern
               (enum_pattern
                 case: (identifier)
-                (pattern
-                  (identifier))))
+                (enum_payload_pattern
+                  (pattern
+                    (identifier)))))
             (return_statement
               (unary_expression
                 operand: (unary_expression
@@ -129,8 +130,9 @@ async fn convert(): Receipt throws MenuError {
             pattern: (pattern
               (enum_pattern
                 case: (identifier)
-                (pattern
-                  (identifier))))
+                (enum_payload_pattern
+                  (pattern
+                    (identifier)))))
             (return_statement
               (unary_expression
                 operand: (unary_expression
@@ -341,14 +343,17 @@ fn shouldAccumulate(raw: f64, error: f64): Bool {
           (switch_case
             (pattern
               (range_pattern
-                (number_literal)
-                (number_literal)))
+                (pattern_bound
+                  (number_literal))
+                (pattern_bound
+                  (number_literal))))
             (return_statement
               (boolean_literal)))
           (switch_case
             (pattern
               (range_pattern
-                (number_literal)))
+                (pattern_bound
+                  (number_literal))))
             (binary_expression
               (identifier)
               (number_literal))
@@ -357,7 +362,8 @@ fn shouldAccumulate(raw: f64, error: f64): Bool {
           (switch_case
             (pattern
               (range_pattern
-                (number_literal)))
+                (pattern_bound
+                  (number_literal))))
             (binary_expression
               (identifier)
               (number_literal))

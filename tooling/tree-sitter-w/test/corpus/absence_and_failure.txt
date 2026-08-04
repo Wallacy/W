@@ -147,8 +147,9 @@ fn load(source: ref String): Order throws AppError {
           (pattern
             (enum_pattern
               (identifier)
-              (pattern
-                (identifier))))
+              (enum_payload_pattern
+                (pattern
+                  (identifier)))))
           (member_expression
             (identifier)
             (identifier))

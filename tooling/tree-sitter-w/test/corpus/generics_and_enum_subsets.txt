@@ -360,7 +360,8 @@ fn reserve(): WorkStage throws RecoverableFault {
     (block
       (guard_statement
         (optional_binding
-          (identifier)
+          (pattern
+            (identifier))
           (call_expression
             (member_expression
               (identifier)
