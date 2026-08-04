@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 52/52, R0S mede 117 formas e R1 possui quatro bundles contrabalanceados do Última Luz; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M0, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -22422,7 +22422,7 @@ mesma profundidade em todas as famílias:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 52/52 requisitos selecionados e 85 decisões; R0S mede 117 formas; R1 possui um bundle | auditar toda rejeição de source, ampliar R0/R1, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 52/52 requisitos e 85 decisões; R0S mede 117 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | auditar toda rejeição de source, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22856,7 +22856,17 @@ R1 fixa source base, input, outcome, ordem de apresentação e digest de cada
 variante. As variantes diferem somente na construção estudada. Uma variante não
 pode remover contexto ou testes para parecer menor.
 
-### 26.3 Primeiro bundle R1: controle de fluxo
+### 26.3 Bundles R1 do Última Luz
+
+Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
+outcome. A variante pode mudar uma observação que pertence ao objeto do estudo,
+como latência de failure ou provenance visível de um nome.
+
+Os quatro bundles atuais possuem oito variantes e dezesseis tarefas. Todos
+fazem parse sem recovery. Oito testes de oracle host confirmam os outcomes e as
+diferenças observáveis declaradas.
+
+#### 26.3.1 Controle de fluxo estruturado
 
 **Exemplo:** um zero abandona a linha atual sem finalizá-la. Um carrier maior
 que 31 encerra o scan inteiro. O resultado contém bits e linhas finalizadas.
@@ -22880,6 +22890,52 @@ host independente executa os dois inputs e exige o mesmo outcome. Essa prova
 não executa W. O bundle continua `design-oracle-input` até `w compile` e `w run`
 substituírem o oracle host. Estudos humanos e de modelos também continuam
 ausentes e aparecem em `evidence.missing`.
+
+#### 26.3.2 Delimitador de units
+
+**Exemplo:** `9.80665<si.m/si.s^2>` declara aceleração. A forma com `[]` usa os
+mesmos tokens, mas também parece uma indexação por expression.
+
+[`tooling/studies/r1-units/bundle.json`](tooling/studies/r1-units/bundle.json)
+deriva das units do Última Luz. As variantes calculam energia de impacto e tempo
+de queda com os mesmos inputs:
+
+- `angle.w` usa a forma vigente `<unit-expression>`;
+- `square.w` preserva a alternativa histórica `[unit-expression]`.
+
+As duas variantes fazem parse. A variante square não é uma quantity válida no
+design vigente. A CST usa a família de indexação. O estudo mede se essa colisão
+melhora familiaridade ou aumenta classificação incorreta, recall e reparo.
+
+#### 26.3.3 Provenance de imports
+
+**Exemplo:** `import std.text` deixa `trim` disponível. `import text from std`
+exige `text.trim` e mantém o módulo visível no call site.
+
+[`tooling/studies/r1-imports/bundle.json`](tooling/studies/r1-imports/bundle.json)
+deriva do decoder de comandos. As variantes normalizam e classificam o mesmo
+input:
+
+- `flattened.w` achata os exports de `std.text`;
+- `qualified.w` cria um module binding.
+
+As duas formas permanecem válidas. O estudo não tenta eliminar uma delas. Ele
+mede a recomendação idiomática para contexto curto, colisão e múltiplos módulos.
+
+#### 26.3.4 Fail-fast e espera lexical
+
+**Exemplo:** starboard falha no tick 2 enquanto port termina no tick 8. O tuple
+await observa a falha no tick 2. A espera lexical observa a mesma falha no tick
+8.
+
+[`tooling/studies/r1-fail-fast/bundle.json`](tooling/studies/r1-fail-fast/bundle.json)
+deriva de `mixPair`. As variantes retornam o mesmo application error:
+
+- `grouped.w` usa tuple await e fail-fast estruturado;
+- `lexical.w` aguarda cada task em ordem lexical.
+
+O oracle mantém o error final igual e mede `observedAt` separadamente. Assim o
+estudo testa surpresa de runtime sem trocar o requisito da aplicação.
 
 ## 27. Plano de implementação
 
@@ -24109,6 +24165,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
+| W-886 | corpus R1 ampliado | quatro bundles, oito variantes e dezesseis tarefas cobrem controle, units, imports e fail-fast com source base, inputs, digests e oracle | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
+| W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
+| W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

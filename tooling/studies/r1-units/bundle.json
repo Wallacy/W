@@ -1,0 +1,45 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-units-last-light",
+  "title": "Black-hole impact units at the Last Light restaurant",
+  "r0Cases": ["R0-unit-delimiter", "R0-quantity-alias"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/units.w",
+    "symbol": "unit smoot",
+    "digest": "sha256:eb395f96dd5b76bc72618486089969702fa02c1d54a2875903d612d84fc19758"
+  },
+  "variants": [
+    {
+      "id": "angle",
+      "role": "selected",
+      "language": "w",
+      "path": "angle.w",
+      "digest": "sha256:e54e8ebeeadc8b1a86ec589dc76c05e316fe2cc8d9f34f1f02998c160892e641",
+      "changedConstructs": ["quantity literal with angle delimiter", "unit expression context"]
+    },
+    {
+      "id": "square",
+      "role": "alternative",
+      "language": "w-reserved",
+      "path": "square.w",
+      "digest": "sha256:f672da45d347533df4fcd1a924ebe774ebe5d60015936557eae45e6643f1fd2d",
+      "changedConstructs": ["quantity literal with square delimiter", "index-like unit expression"]
+    }
+  ],
+  "entry": "estimateHorizonImpact",
+  "inputs": [
+    { "id": "service-tray", "mass": 2.0, "height": 5.0, "expected": { "energy": 98.0665, "fallTime": 1.0098099885512761 } },
+    { "id": "dense-cargo", "mass": 1250.0, "height": 0.25, "expected": { "energy": 3064.578125, "fallTime": 0.22580037787589377 } }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain where the unit expression ends and whether the operation is type application or indexing." },
+    { "kind": "recall", "instruction": "After the controlled delay, reconstruct the gravity declaration and its squared-time denominator.", "minimumDelaySeconds": 60 },
+    { "kind": "repair", "instruction": "Repair the prepared defect that changes acceleration into velocity.", "mutations": { "angle": "Remove `^2` from the angle-delimited unit.", "square": "Remove `^2` from the square-delimited unit." } },
+    { "kind": "change", "instruction": "Add a terminal-velocity estimate and keep every unit boundary unambiguous." }
+  ],
+  "presentationOrders": [["angle", "square"], ["square", "angle"]],
+  "blinding": { "participantLabels": { "angle": "A", "square": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:19b3b2b7936fcda86fc6b4a4388b46b0b2766255bfe625f53e1af4fef5e4c00b" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

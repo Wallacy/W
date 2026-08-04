@@ -1,0 +1,45 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-fail-fast-last-light",
+  "title": "Galley-pair fail-fast coordination at the Last Light restaurant",
+  "r0Cases": ["R0-fail-fast-arbitration", "R0-cancellation-control-effect"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/execution.w",
+    "symbol": "mixPair",
+    "digest": "sha256:4cbe2d7eb48c787ec8e1c310d5f121c2e47d49b372f210add7b5429d73d5b4b2"
+  },
+  "variants": [
+    {
+      "id": "grouped",
+      "role": "selected",
+      "language": "w",
+      "path": "grouped.w",
+      "digest": "sha256:ab3f135cd16bb6cd3ab53227e907d1bfacc398c9d53fca7e6c55b1460865cba8",
+      "changedConstructs": ["tuple await", "fail-fast sibling cancellation", "post-drain arbitration"]
+    },
+    {
+      "id": "lexical",
+      "role": "alternative",
+      "language": "w",
+      "path": "lexical.w",
+      "digest": "sha256:2b25dd72955b883d5e6ecb6a7760e850d334f5acc3572b75d70b6e3dca53abc1",
+      "changedConstructs": ["strict lexical await", "delayed sibling observation"]
+    }
+  ],
+  "entry": "mixGalleyPair",
+  "inputs": [
+    { "id": "starboard-fails-first", "portDelay": 8, "portFails": false, "starboardDelay": 2, "starboardFails": true, "expected": { "outcome": "starboard" } },
+    { "id": "port-fails-first", "portDelay": 3, "portFails": true, "starboardDelay": 9, "starboardFails": false, "expected": { "outcome": "port" } }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain when each failure becomes observable, when its sibling is canceled, and which error is primary." },
+    { "kind": "recall", "instruction": "After the controlled delay, reconstruct the two child declarations and their await structure.", "minimumDelaySeconds": 60 },
+    { "kind": "repair", "instruction": "Repair the prepared defect that lets the slower sibling continue after the other child fails.", "mutations": { "grouped": "Replace the tuple await with two independent awaits.", "lexical": "Remove the first await before reading its task outcome." } },
+    { "kind": "change", "instruction": "Add a third galley child while preserving deterministic primary-error selection after drain." }
+  ],
+  "presentationOrders": [["grouped", "lexical"], ["lexical", "grouped"]],
+  "blinding": { "participantLabels": { "grouped": "A", "lexical": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:21004b8adf4c197eed3cb3de2f00187f13f3839a2dc0d9d28247531d87e51a6a" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

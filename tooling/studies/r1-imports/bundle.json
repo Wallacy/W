@@ -1,0 +1,45 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-imports-last-light",
+  "title": "Console-mode imports at the Last Light restaurant",
+  "r0Cases": ["R0-import-flattening"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/command.w",
+    "symbol": "import std.text",
+    "digest": "sha256:83fce5cce010146f604d199eb403956b0d1350bec66e0595126e42b0bd7422b2"
+  },
+  "variants": [
+    {
+      "id": "flattened",
+      "role": "selected",
+      "language": "w",
+      "path": "flattened.w",
+      "digest": "sha256:ee77de555641548468748516941b6b64d77ea35402f46c6d24f63c1a87a9ac45",
+      "changedConstructs": ["package-qualified flattening import", "unqualified function calls"]
+    },
+    {
+      "id": "qualified",
+      "role": "alternative",
+      "language": "w",
+      "path": "qualified.w",
+      "digest": "sha256:94ee3c6209566da29790ecf25e1836f5e2052adb76b38c463408fc1c7c526703",
+      "changedConstructs": ["module binding import", "qualified function calls"]
+    }
+  ],
+  "entry": "decodeConsoleMode",
+  "inputs": [
+    { "id": "known-mode", "text": " TUI ", "expected": "tui" },
+    { "id": "unknown-mode", "text": "orbit", "expected": "unknown" }
+  ],
+  "tasks": [
+    { "kind": "explain", "instruction": "Explain which names enter local scope and where each text operation originates." },
+    { "kind": "recall", "instruction": "After the controlled delay, reconstruct the import and the normalization expression.", "minimumDelaySeconds": 60 },
+    { "kind": "repair", "instruction": "Repair the prepared collision with a local function named trim.", "mutations": { "flattened": "Add a local `trim` declaration without refining the import.", "qualified": "Remove the `text.` qualifier from the first call." } },
+    { "kind": "change", "instruction": "Import a second module that also exports lowercase and preserve visible provenance." }
+  ],
+  "presentationOrders": [["flattened", "qualified"], ["qualified", "flattened"]],
+  "blinding": { "participantLabels": { "flattened": "A", "qualified": "B" }, "hide": ["id", "role", "path", "changedConstructs"] },
+  "oracle": { "path": "oracle.test.mjs", "digest": "sha256:2d6a42a6a875e6516bbf55997dfb54375aa9b20f68819f3ee3652d551a6d45fb" },
+  "evidence": { "current": ["tree-sitter-parse", "host-oracle"], "missing": ["w-compile", "w-run", "human-study", "model-study"] }
+}

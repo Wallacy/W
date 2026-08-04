@@ -286,5 +286,7 @@ if (errors.length > 0) {
 }
 
 process.stdout.write(
-  `R1 study bundles: ${bundleFiles.length} bundle, ${variantCount} variants, ${taskCount} tasks.\n`,
+  `R1 study bundles: ${bundleFiles.length} ` +
+    `${bundleFiles.length === 1 ? "bundle" : "bundles"}, ` +
+    `${variantCount} variants, ${taskCount} tasks.\n`,
 );
