@@ -386,7 +386,8 @@ for (const sourceEntry of catalog.codes) {
 const diagnosticTablePatterns = [
   /\| `W-CONTRACT-0001`[\s\S]*?\| `W-CONTRACT-0005`[^\n]*\|/,
   /\| `W-PATTERN-0001`[\s\S]*?\| `W-MATCH-0003`[^\n]*\|/,
-  /\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
+  /\| `W-PARSE-0020`[\s\S]*?\| `W-OWNERSHIP-0010`[^\n]*\|/,
+  /##### Diagnostics e evidence[\s\S]*?\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
 ]
 const diagnosticTables = diagnosticTablePatterns.map((pattern) => design.match(pattern)?.[0])
 if (diagnosticTables.some((table) => table === undefined)) {
