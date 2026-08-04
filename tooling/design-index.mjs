@@ -280,6 +280,14 @@ const rootReferenceSources = fs
   .filter((entry) => entry.isFile() && entry.name.endsWith(".w")).length;
 const allReferenceSources = recursiveFiles(referenceDirectory, (file) => file.endsWith(".w")).length;
 const stdSources = recursiveFiles(path.join(wDirectory, "std"), (file) => file.endsWith(".w")).length;
+const stdApiSurface = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "std-api-surface.snapshot.json"), "utf8"),
+);
+const stdApiModules = stdApiSurface.summary.modules;
+const stdCatalogedApis = stdApiSurface.summary.catalogedApis;
+const stdQualifiedReferenceSurfaces = stdApiSurface.summary.qualifiedReferenceSurfaces;
+const stdReferenceRequirements = stdApiSurface.summary.referenceRequirements;
+const stdMissingReferenceRequirements = stdApiSurface.summary.missingReferenceRequirements;
 const corpusFiles = recursiveFiles(
   path.join(wDirectory, "tooling", "tree-sitter-w", "test", "corpus"),
   (file) => file.endsWith(".txt"),
@@ -485,6 +493,11 @@ output.push(`| codes D0 catalogados | ${diagnosticCatalogCount}/${referencedDiag
 output.push(`| sources W no root do Última Luz | ${rootReferenceSources} |`);
 output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);
 output.push(`| sources W no rascunho da std | ${stdSources} |`);
+output.push(`| módulos/APIs catalogados da std SDK0 | ${stdApiModules}/${stdCatalogedApis} |`);
+output.push(`| superfícies qualificadas da std usadas pelo Última Luz | ${stdQualifiedReferenceSurfaces} |`);
+output.push(
+  `| requisitos do Última Luz ausentes na std SDK0 | ${stdMissingReferenceRequirements}/${stdReferenceRequirements} |`,
+);
 output.push("");
 output.push("A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.");
 output.push("");

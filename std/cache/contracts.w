@@ -10,11 +10,11 @@ export struct LocalBinding<
   Key: Equatable & Hashable & Duplicable,
   Value: Duplicable,
 > {
-  package name: String
-  package maximumEntries: usize
-  package maximumActiveLoads: usize
-  package maximumQueuedLoads: usize
-  package expiration: Expiration
+  name: String
+  maximumEntries: usize
+  maximumActiveLoads: usize
+  maximumQueuedLoads: usize
+  expiration: Expiration
 
   export const init(
     name: String,

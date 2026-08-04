@@ -13,8 +13,8 @@ export enum Dialect {
 }
 
 export struct Binding {
-  package name: String
-  package dialect: Dialect
+  name: String
+  dialect: Dialect
 
   export const init(name: String, dialect: Dialect) {
     self.name = name
@@ -23,8 +23,8 @@ export struct Binding {
 }
 
 export struct Query<Parameters, Row> {
-  package text: String
-  package dialect: Dialect
+  text: String
+  dialect: Dialect
 
   export const init(
     text: String,
@@ -36,8 +36,8 @@ export struct Query<Parameters, Row> {
 }
 
 export struct Command<Parameters> {
-  package text: String
-  package dialect: Dialect
+  text: String
+  dialect: Dialect
 
   export const init(
     text: String,

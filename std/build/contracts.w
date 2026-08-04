@@ -1,7 +1,7 @@
 // Typed bindings and errors for hermetic build transforms.
 
 export struct Input<Value> {
-  package name: String
+  name: String
 
   export const init(name: String) {
     self.name = name
@@ -9,7 +9,7 @@ export struct Input<Value> {
 }
 
 export struct Output<Value> {
-  package name: String
+  name: String
 
   export const init(name: String) {
     self.name = name
