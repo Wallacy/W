@@ -126,6 +126,14 @@ enum WireEligibility {
   rejected
 }
 
+struct PortableOvenReady {
+  remaining: Duration
+}
+
+struct LocalOvenReady {
+  deadline: Instant
+}
+
 const fn expectedEligibility(for value: WireTypeCase): WireEligibility {
   return switch value {
     case .fixedInteger: .data

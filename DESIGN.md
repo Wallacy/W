@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 44–54% | Tree-sitter, F0 e 42 pares S0 cobrem contratos, patterns, match, expressions, const, enum subsets, conversions e generics; ainda não existe formatter, type-checker, evaluator, HIR ou runtime W |
+| validação executável | 45–55% | Tree-sitter, F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -20323,8 +20323,8 @@ fase posterior pode emitir somente uma causa independente ou um child ligado a
 esse root. Ela não reclassifica o mesmo problema para obter uma mensagem melhor.
 
 Codes usam uma família e quatro digits. Exemplos são `W-PARSE-0001`,
-`W-TYPE-0120`, `W-MOVE-0002`, `W-EFFECT-0011`, `W-FFI-0012` e
-`W-BUILD-0003`.
+`W-TYPE-0120`, `W-MOVE-0002`, `W-EFFECT-0011`, `W-CONST-0001` e
+`W-WIRE-0001`.
 
 O catálogo de cada code define:
 
@@ -20483,9 +20483,12 @@ path no manifest ou CLI:
 ```w
 diagnostics {
   deny = ["W-FFI-*"]
-  allow = [{ code: "W-DOC-0017", path: "generated/**" }]
+  allow = [{ code: "W-DOC-*", path: "generated/**" }]
 }
 ```
+
+Um wildcard de família não reserva um code. Somente uma entrada ativa ou
+retired do catálogo atribui meaning a quatro digits específicos.
 
 Uma policy pode promover warning para error. Ela não reduz error. Source
 annotations de suppressão ficam rejeitadas. Elas esconderiam policy no programa
@@ -21582,6 +21585,21 @@ error[W-WIRE-0001]: `Instant` is local to one monotonic clock
 help: return a duration, a provider token, or a value from a shared time domain
 ```
 
+| Code | Phase | Condição |
+|---|---|---|
+| `W-WIRE-0001` | `interface` | boundary portátil alcança member ligado a um runtime domain local |
+
+O diagnostic registra `typePath`, type, reason, profiles que exigem wire e
+alternatives portáteis. O primary aponta para o type incompatível. Os labels
+`wire-member` e `wire-boundary` mostram o field e o requirement que tornou o
+schema alcançável. Placement `.local` não produz esse erro. `.component` ou
+`.wrpc` exige a prova `WireValue` antes de gerar codec ou reservar buffers.
+
+[`tooling/wire-diagnostic-cases.json`](tooling/wire-diagnostic-cases.json)
+pareia `Duration` portátil com `Instant` local. O teste de referência resolve
+os spans, compara facts com o catálogo e mantém o status
+`design-oracle-input`. Esse gate não afirma que o checker de interface existe.
+
 **Layout `exact`.** Um record exato usa esta ordem:
 
 ```text
@@ -22231,7 +22249,7 @@ mesma profundidade em todas as famílias:
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 72 de 76 codes; somente BUILD, DOC, FFI e WIRE ainda não possuem entrada | completar as famílias de infraestrutura, compile-fail runner e adapters diferenciais |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23808,6 +23826,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-853 | inference genérica | W-GENERIC-0002 registra parâmetro, equation sources, candidates e motivo; constraint valida, mas não inventa solução | escolher conformer único no scope; inferir pelo body; voltar ao overload set |
 | W-854 | convergência genérica | mesma instantiation recursiva é válida; crescimento estrutural estrito usa W-GENERIC-0005 antes de wall-clock quota | rejeitar toda recursion; timeout host; shared body esconde type expansion infinita |
 | W-855 | corpus TYPE/GENERIC S0 | enum subset, conversão, inference e termination possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples positivos somente; fixture com duas falhas; códigos sem facts de máquina |
+| W-856 | wildcard de família | `W-DOC-*` e `W-FFI-*` selecionam famílias em policy; wildcard não reserva code nem cria meaning | inventar BUILD/DOC/FFI num exemplo; contar wildcard como entrada; manter ID sem condição normativa |
+| W-857 | elegibilidade wire | W-WIRE-0001 pertence à fase interface e registra type path, domain reason, required profiles e alternatives quando boundary portátil alcança value local | falhar no decoder; permitir placement mudar tipo silenciosamente; mensagem sem path ou profile |
+| W-858 | corpus wire D0 | Duration portátil e Instant local formam par único; o teste resolve spans e compara facts contra o catálogo | usar somente prose do erro; codec test como prova de type eligibility; snapshot manual como interface checker |
+| W-859 | fechamento do catálogo citado | todos os 73 codes com meaning citado possuem schema; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem; reservar toda família; remover status antes do checker |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
