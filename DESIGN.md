@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 32–42% | Tree-sitter, F0, outros oracles e manifests validam forma; ainda não existe formatter, type-checker, HIR ou runtime W |
+| validação executável | 34–44% | Tree-sitter, F0, resultados S0, outros oracles e manifests validam contratos; ainda não existe formatter, type-checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -2417,6 +2417,47 @@ ainda são expectativas, não output de um checker. O verificador estrutural
 confirma IDs, coverage, decisions e parse. Ele não declara conformance sem um
 frontend S0. O [snapshot D0](tooling/semantic-diagnostics.snapshot.jsonl)
 materializa spans, facts, labels e fixes esperados.
+
+O schema `w-semantic-cases-1` acrescenta um outcome canônico por caso. Um caso
+positivo seleciona um node com `focus` e fornece os sete campos completos de
+`SemanticResult`. Um caso negativo aponta para um baseline positivo único da
+mesma decisão e identifica o único `failureField`. Esse pareamento impede que
+um checker passe porque deixou de calcular outros campos.
+
+```json
+{
+  "status": "rejected",
+  "baseline": "S0-POS-control-owner",
+  "failureField": "flow",
+  "diagnosticCodes": ["W-FLOW-0001"]
+}
+```
+
+[`tooling/semantic-results.snapshot.jsonl`](tooling/semantic-results.snapshot.jsonl)
+materializa os outcomes esperados. Cada record contém source digest, span UTF-8
+do foco e status `accepted` ou `rejected`. Um record aceito contém:
+
+1. `resultType`, com `null` somente para ausência de result em declaration;
+2. `category`, a partir do conjunto fechado definido nesta seção;
+3. `flow`, com `kind` e target explícito quando a saída possui owner;
+4. `ownerDelta`, em source order e com path quando a operação é condicional;
+5. `effectSummary`, com sets byte-sorted para signature, control e operational;
+6. `proofFacts`, válidos no caminho que continua;
+7. `evaluationGraph`, com nodes locais e edges direcionais explícitos.
+
+IDs de node existem somente dentro do record. Eles não são AST IDs persistentes
+nem dependem de endereço, scheduler ou ordem de hash. Toda edge referencia dois
+nodes declarados. O grafo registra source order, branch, transfer, suspension e
+cleanup sem inventar uma ordem para caminhos mutuamente exclusivos.
+
+O snapshot continua sendo um oracle de design. O primeiro checker deve emitir o
+mesmo record e usar comparison JSONL byte-exact. Depois disso, o status do
+corpus pode mudar para output verificado. Até lá, um snapshot aprovado não
+prova que W faz type-check.
+
+```powershell
+bun tooling/check-semantic-cases.mjs
+```
 
 ### 3.6 Avaliação compile-time
 
@@ -22005,7 +22046,7 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation por construct | checker oracle, snapshots de `SemanticResult` e corpus negativo |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 22 casos pareiam 11 resultados positivos com 11 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; corpus possui snapshots iniciais | catálogo completo de codes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
@@ -23537,6 +23578,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-807 | quebra de chain | binary chain quebra antes do operator; postfix chain quebra antes do access; avaliação e owners não mudam | quebra depois do operator; reordenar operands; depender de types |
 | W-808 | trivia F0 | comments permanecem com o owner, top-level declarations usam uma linha vazia e source order não muda | import sorting; mover comment para caber; agrupar por declaration kind |
 | W-809 | diagnostic F0 | diferença canônica emite W-FMT-0001 com digests e replacement machine do source completo | diff sem precondition; diagnostic em prose; formatter corrige parser error |
+| W-810 | outcome S0 | cada caso produz record JSONL com digest, focus UTF-8, status e resultado ou falha normalizados; design-oracle não alega checker | prose como output; record sem source identity; snapshot tratado como execução real |
+| W-811 | baseline negativo S0 | cada caso negativo aponta para baseline positivo único da mesma decisão e nomeia um failureField de SemanticResult | negativo sem contraparte válida; múltiplos failures no mesmo caso; erro aceito por perda de outro campo |
+| W-812 | SemanticResult executável | caso positivo materializa resultType, category, flow, ownerDelta, effectSummary, proofFacts e evaluationGraph | somente type e flow; campo opcional por backend; MLIR como autoridade semântica |
+| W-813 | evaluation graph S0 | node IDs são locais ao record; edges referenciam nodes declarados e registram ordem, caminhos, transfer, suspension e cleanup | AST ID persistente; scheduler order; lista linear que perde edges condicionais |
+| W-814 | normalização S0 | effects são sets byte-sorted, deltas seguem source order, targets de flow são explícitos e facts valem no caminho contínuo | hash order; target inferido no backend; fact de um branch promovido ao join |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

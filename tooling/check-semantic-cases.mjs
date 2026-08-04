@@ -8,6 +8,7 @@ const design = await Bun.file(resolve(root, "DESIGN.md")).text()
 const corpus = await Bun.file(resolve(import.meta.dir, "semantic-cases.json")).json()
 const catalog = await Bun.file(resolve(import.meta.dir, "diagnostic-catalog.json")).json()
 const snapshotPath = resolve(import.meta.dir, "semantic-diagnostics.snapshot.jsonl")
+const resultSnapshotPath = resolve(import.meta.dir, "semantic-results.snapshot.jsonl")
 const writeSnapshot = process.argv.includes("--write")
 
 const phases = [
@@ -32,6 +33,37 @@ const phases = [
 ]
 const severities = new Set(["error", "warning", "information"])
 const applicabilities = new Set(["machine", "review", "placeholder"])
+const semanticFields = [
+  "resultType",
+  "category",
+  "flow",
+  "ownerDelta",
+  "effectSummary",
+  "proofFacts",
+  "evaluationGraph",
+]
+const categories = new Set(["value", "shared-place", "exclusive-place", "type", "declaration"])
+const ownerOperations = new Set([
+  "initialize",
+  "borrow",
+  "mutate",
+  "move",
+  "pin",
+  "capture",
+  "end-borrow",
+  "drop",
+])
+const flowKinds = new Set([
+  "next",
+  "return",
+  "throw",
+  "break",
+  "continue",
+  "commit",
+  "cancel",
+  "panic",
+  "unreachable",
+])
 
 function fail(message) {
   throw new Error(`semantic cases: ${message}`)
@@ -91,6 +123,135 @@ function sourceDigest(source) {
   return `sha256:${createHash("sha256").update(source, "utf8").digest("hex")}`
 }
 
+function exactKeys(value, keys, owner) {
+  if (!value || Array.isArray(value) || typeof value !== "object") {
+    fail(`${owner} must be an object`)
+  }
+  const actual = Object.keys(value).sort()
+  const expected = [...keys].sort()
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    fail(`${owner} fields must be ${expected.join(", ")}`)
+  }
+}
+
+function orderedUniqueStrings(values, owner) {
+  if (!Array.isArray(values) || values.some((value) => typeof value !== "string" || !value)) {
+    fail(`${owner} must be an array of strings`)
+  }
+  const ordered = [...values].sort((left, right) => Buffer.from(left).compare(Buffer.from(right)))
+  if (new Set(values).size !== values.length || values.some((value, index) => value !== ordered[index])) {
+    fail(`${owner} must be unique and byte-sorted`)
+  }
+}
+
+function validateSemanticResult(result, owner) {
+  exactKeys(result, semanticFields, owner)
+  if (result.resultType !== null && (typeof result.resultType !== "string" || !result.resultType)) {
+    fail(`${owner}.resultType must be a type name or null`)
+  }
+  if (!categories.has(result.category)) {
+    fail(`${owner}.category is invalid`)
+  }
+  if ((result.resultType === null) !== (result.category === "declaration")) {
+    fail(`${owner}.resultType null is reserved for declarations`)
+  }
+  exactKeys(result.flow, result.flow.target === undefined ? ["kind"] : ["kind", "target"], `${owner}.flow`)
+  if (!flowKinds.has(result.flow.kind)) {
+    fail(`${owner}.flow.kind is invalid`)
+  }
+  const needsTarget = ["return", "throw", "break", "continue", "commit", "cancel", "panic"].includes(result.flow.kind)
+  if (
+    needsTarget
+      ? typeof result.flow.target !== "string" || result.flow.target.length === 0
+      : result.flow.target !== undefined
+  ) {
+    fail(`${owner}.flow has an invalid target`)
+  }
+  if ((result.flow.kind === "next") !== (result.resultType !== "Never")) {
+    fail(`${owner}.resultType and flow continuation disagree`)
+  }
+
+  if (!Array.isArray(result.ownerDelta)) {
+    fail(`${owner}.ownerDelta must be an array`)
+  }
+  for (const [index, delta] of result.ownerDelta.entries()) {
+    if (
+      !delta ||
+      Array.isArray(delta) ||
+      typeof delta.operation !== "string" ||
+      !ownerOperations.has(delta.operation) ||
+      typeof delta.place !== "string" ||
+      !delta.place
+    ) {
+      fail(`${owner}.ownerDelta[${index}] is invalid`)
+    }
+    for (const key of Object.keys(delta)) {
+      if (!["operation", "place", "path", "type"].includes(key) || typeof delta[key] !== "string") {
+        fail(`${owner}.ownerDelta[${index}] has invalid field ${key}`)
+      }
+    }
+  }
+
+  exactKeys(
+    result.effectSummary,
+    ["signature", "control", "operational"],
+    `${owner}.effectSummary`,
+  )
+  for (const effectClass of ["signature", "control", "operational"]) {
+    orderedUniqueStrings(result.effectSummary[effectClass], `${owner}.effectSummary.${effectClass}`)
+  }
+
+  if (!Array.isArray(result.proofFacts)) {
+    fail(`${owner}.proofFacts must be an array`)
+  }
+  for (const [index, fact] of result.proofFacts.entries()) {
+    exactKeys(
+      fact,
+      fact.value === undefined ? ["kind", "subject"] : ["kind", "subject", "value"],
+      `${owner}.proofFacts[${index}]`,
+    )
+    if (
+      typeof fact.kind !== "string" ||
+      !fact.kind ||
+      typeof fact.subject !== "string" ||
+      !fact.subject ||
+      (fact.value !== undefined && typeof fact.value !== "string")
+    ) {
+      fail(`${owner}.proofFacts[${index}] is invalid`)
+    }
+  }
+
+  exactKeys(result.evaluationGraph, ["nodes", "edges"], `${owner}.evaluationGraph`)
+  if (!Array.isArray(result.evaluationGraph.nodes) || !Array.isArray(result.evaluationGraph.edges)) {
+    fail(`${owner}.evaluationGraph needs node and edge arrays`)
+  }
+  const nodeIds = new Set()
+  for (const [index, node] of result.evaluationGraph.nodes.entries()) {
+    exactKeys(node, ["id", "operation", "subject"], `${owner}.evaluationGraph.nodes[${index}]`)
+    if (
+      typeof node.id !== "string" ||
+      !node.id ||
+      nodeIds.has(node.id) ||
+      typeof node.operation !== "string" ||
+      !node.operation ||
+      typeof node.subject !== "string" ||
+      !node.subject
+    ) {
+      fail(`${owner}.evaluationGraph.nodes[${index}] is invalid`)
+    }
+    nodeIds.add(node.id)
+  }
+  if (nodeIds.size === 0) {
+    fail(`${owner}.evaluationGraph must contain a node`)
+  }
+  for (const [index, edge] of result.evaluationGraph.edges.entries()) {
+    exactKeys(edge, ["from", "to", "kind"], `${owner}.evaluationGraph.edges[${index}]`)
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to) || typeof edge.kind !== "string" || !edge.kind) {
+      fail(`${owner}.evaluationGraph.edges[${index}] is invalid`)
+    }
+  }
+}
+
 function buildFix(fix, sourceId, source, owner) {
   if (typeof fix.id !== "string" || typeof fix.titleKey !== "string") {
     fail(`${owner} fix has no stable identity`)
@@ -135,7 +296,7 @@ function factMatches(value, type) {
   fail(`catalog uses unsupported fact type ${JSON.stringify(type)}`)
 }
 
-if (corpus.$schema !== "w-semantic-cases-0") {
+if (corpus.$schema !== "w-semantic-cases-1") {
   fail("unexpected schema")
 }
 if (corpus.status !== "design-oracle-input") {
@@ -215,6 +376,9 @@ const ids = new Set()
 const coveredDiagnostics = new Set()
 const codePhases = new Map()
 const diagnosticCandidates = []
+const resultCandidates = []
+const casesById = new Map(corpus.cases.map((testCase) => [testCase.id, testCase]))
+const usedBaselines = new Set()
 
 for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   if (!/^S0-(POS|NEG)-[a-z0-9-]+$/.test(testCase.id)) {
@@ -249,11 +413,45 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
     if (diagnostics.length !== 0) {
       fail(`${testCase.id} is positive but expects diagnostics`)
     }
-    if (!testCase.expect.resultType || !testCase.expect.flow) {
-      fail(`${testCase.id} lacks a normalized positive result`)
+    if (testCase.baseline !== undefined || testCase.failureField !== undefined) {
+      fail(`${testCase.id} is positive but declares a failure baseline`)
     }
+    validateSemanticResult(testCase.expect.semanticResult, `${testCase.id}.expect.semanticResult`)
+    const focus = sourceSpan(sourceId, source, testCase.expect.focus, `${testCase.id} focus`)
+    resultCandidates.push({
+      schemaVersion: 1,
+      case: testCase.id,
+      sourceDigest: sourceDigest(source),
+      focus,
+      status: "accepted",
+      semanticResult: testCase.expect.semanticResult,
+    })
   } else if (diagnostics.length !== 1) {
     fail(`${testCase.id} must invert exactly one S0 rule`)
+  } else {
+    if (!semanticFields.includes(testCase.failureField)) {
+      fail(`${testCase.id} has invalid failureField`)
+    }
+    const baseline = casesById.get(testCase.baseline)
+    if (
+      !baseline ||
+      baseline.kind !== "positive" ||
+      baseline.rule !== testCase.rule ||
+      usedBaselines.has(testCase.baseline)
+    ) {
+      fail(`${testCase.id} needs a unique positive baseline for ${testCase.rule}`)
+    }
+    usedBaselines.add(testCase.baseline)
+    resultCandidates.push({
+      schemaVersion: 1,
+      case: testCase.id,
+      sourceDigest: sourceDigest(source),
+      focus: sourceSpan(sourceId, source, diagnostics[0].primary, `${testCase.id} failure focus`),
+      status: "rejected",
+      baseline: testCase.baseline,
+      failureField: testCase.failureField,
+      diagnosticCodes: diagnostics.map((diagnostic) => diagnostic.code),
+    })
   }
 
   for (const [diagnosticOrdinal, diagnostic] of diagnostics.entries()) {
@@ -364,6 +562,13 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   }
 }
 
+const unusedBaselines = corpus.cases
+  .filter((testCase) => testCase.kind === "positive" && !usedBaselines.has(testCase.id))
+  .map((testCase) => testCase.id)
+if (unusedBaselines.length > 0) {
+  fail(`positive cases without a paired inversion: ${unusedBaselines.join(", ")}`)
+}
+
 const missing = requiredDiagnostics.filter((code) => !coveredDiagnostics.has(code))
 if (missing.length > 0) {
   fail(`missing negative cases for ${missing.join(", ")}`)
@@ -385,15 +590,27 @@ for (const [index, candidate] of diagnosticCandidates.entries()) {
 const expectedSnapshot = `${diagnosticCandidates
   .map((candidate) => JSON.stringify(candidate.record))
   .join("\n")}\n`
+const expectedResultSnapshot = `${resultCandidates.map((result) => JSON.stringify(result)).join("\n")}\n`
 
 if (writeSnapshot) {
   await Bun.write(snapshotPath, expectedSnapshot)
+  await Bun.write(resultSnapshotPath, expectedResultSnapshot)
 } else if (!(await Bun.file(snapshotPath).exists())) {
   fail("diagnostic snapshot is missing; run with --write")
 } else {
   const currentSnapshot = await Bun.file(snapshotPath).text()
   if (currentSnapshot !== expectedSnapshot) {
     fail("diagnostic snapshot is stale; review the change and run with --write")
+  }
+}
+
+if (!writeSnapshot) {
+  if (!(await Bun.file(resultSnapshotPath).exists())) {
+    fail("semantic result snapshot is missing; run with --write")
+  }
+  const currentResultSnapshot = await Bun.file(resultSnapshotPath).text()
+  if (currentResultSnapshot !== expectedResultSnapshot) {
+    fail("semantic result snapshot is stale; review the change and run with --write")
   }
 }
 
@@ -428,5 +645,5 @@ try {
 }
 
 console.log(
-  `Semantic cases: ${corpus.cases.length} syntax-valid cases, ${diagnosticCandidates.length} D0 snapshots, ${requiredDiagnostics.length}/${requiredDiagnostics.length} S0 diagnostics covered, ${catalogByCode.size}/${referencedDiagnosticCodes.length} referenced codes cataloged.`,
+  `Semantic cases: ${corpus.cases.length} syntax-valid cases, ${resultCandidates.length} SemanticResult outcomes, ${diagnosticCandidates.length} D0 snapshots, ${requiredDiagnostics.length}/${requiredDiagnostics.length} S0 diagnostics covered, ${catalogByCode.size}/${referencedDiagnosticCodes.length} referenced codes cataloged.`,
 )
