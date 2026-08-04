@@ -1,12 +1,13 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "e9864e26e3b1a1b6bf33e2a266bd6e838fb92884d19ceb455387249fb02e62c8",
+  "catalogDigest": "6555cfa075c4154d8eacebef1ed0ec26c8a47a6fdc7c9a2b73e15543022906ad",
   "summary": {
     "modules": 9,
     "catalogedApis": 61,
     "qualifiedReferenceSurfaces": 22,
     "referenceRequirements": 7,
+    "contractedReferenceRequirements": 2,
     "missingReferenceRequirements": 6
   },
   "modules": [
@@ -15,30 +16,30 @@
       "tier": "T1",
       "availability": "build-host",
       "source": "std/build/contracts.w",
-      "catalogedDeclarationsDigest": "b31ada6916497f19f15b324e8aaad9d92c129ea100759cfbd9b6a8abb696e7d1",
+      "catalogedDeclarationsDigest": "9117a1b9d9187f16c9d268474538bf084ba59d40c3da2b434b9bbf0e98a82e83",
       "apis": [
         {
           "symbol": "Error",
           "kind": "enum",
           "signature": "export enum Error: Error",
-          "declarationDigest": "4e27afb8123dc2a323be64f73ba7d8378f48490862279a66d11d3b1020d361a8",
-          "line": 19,
+          "declarationDigest": "eefa4091ec58c52fedd5331c01d38d855cf685c8769373f42e96dc55bc634353",
+          "line": 38,
           "profile": "value-contract"
         },
         {
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input<Value>",
-          "declarationDigest": "f703a67e94a87174d541643f57e3a74d384724cf77b64aa6b23b9ff78b1fa8f3",
-          "line": 3,
+          "declarationDigest": "f7bfcff81139db0fa1b71962515d95c33cb511d1d29b09b316207a46591ae9da",
+          "line": 20,
           "profile": "const-binding"
         },
         {
           "symbol": "Output",
           "kind": "struct",
           "signature": "export struct Output<Value>",
-          "declarationDigest": "a51ccf432331665ac59769477d9d01d2bff5b43da88aab1f56c160f3f1afce3a",
-          "line": 11,
+          "declarationDigest": "f7b98408aef01cc78977d672feb0773d9ffa7cbdc4e0a3f23f4c1a4b829cfe70",
+          "line": 29,
           "profile": "const-binding"
         }
       ]
@@ -770,6 +771,7 @@
       "module": "std.build",
       "surface": "Context",
       "status": "missing",
+      "profile": "build-context",
       "consumer": "reference/last-light/packages/menu-compiler/transform.w"
     },
     {
@@ -777,6 +779,7 @@
       "module": "std.io",
       "surface": "ByteSink.writeAll",
       "status": "draft",
+      "profile": "byte-sink",
       "consumer": "reference/last-light/io.w"
     },
     {

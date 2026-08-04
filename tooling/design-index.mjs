@@ -287,6 +287,7 @@ const stdApiModules = stdApiSurface.summary.modules;
 const stdCatalogedApis = stdApiSurface.summary.catalogedApis;
 const stdQualifiedReferenceSurfaces = stdApiSurface.summary.qualifiedReferenceSurfaces;
 const stdReferenceRequirements = stdApiSurface.summary.referenceRequirements;
+const stdContractedReferenceRequirements = stdApiSurface.summary.contractedReferenceRequirements;
 const stdMissingReferenceRequirements = stdApiSurface.summary.missingReferenceRequirements;
 const corpusFiles = recursiveFiles(
   path.join(wDirectory, "tooling", "tree-sitter-w", "test", "corpus"),
@@ -495,6 +496,9 @@ output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);
 output.push(`| sources W no rascunho da std | ${stdSources} |`);
 output.push(`| módulos/APIs catalogados da std SDK0 | ${stdApiModules}/${stdCatalogedApis} |`);
 output.push(`| superfícies qualificadas da std usadas pelo Última Luz | ${stdQualifiedReferenceSurfaces} |`);
+output.push(
+  `| requisitos do Última Luz com contrato std SDK0 | ${stdContractedReferenceRequirements}/${stdReferenceRequirements} |`,
+);
 output.push(
   `| requisitos do Última Luz ausentes na std SDK0 | ${stdMissingReferenceRequirements}/${stdReferenceRequirements} |`,
 );
