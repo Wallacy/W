@@ -82,7 +82,7 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 93–96% | G0–G5 fecham statements, declarations, types, contracts, patterns, expressions e suas boundaries; formatter e tabelas semânticas ainda precisam de oracles completos |
+| superfície e semântica estática | 95–97% | G0–G5 fecham syntax e S0 integra typing, effects, ownership, flow e avaliação; formatter, checker e corpus negativo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
 | validação executável | 30–40% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
@@ -2074,6 +2074,303 @@ pode aparecer como input negativo. Ela nunca aparece como source W válido.
 | `W-PARSE-0027` | close tenta atravessar owner ou usa a leitura lexical errada |
 | `W-PARSE-0028` | recovery exigiria reinterpretar uma forma após seu commit point |
 | `W-FMT-0002` | format e reparse não preservam a CST normalizada |
+
+#### 3.5.8 Semântica normativa S0: checker e fluxo
+
+**Exemplo:** o checker registra type, move, error, evaluation order e cleanup
+para a mesma statement:
+
+```w
+let receipt = try inventory.reserve(take order)
+```
+
+O initializer resolve `inventory.reserve(_)` antes de mover `order`. A call
+produz `Receipt` ou `InventoryError`. `try` roteia o error. O binding recebe o
+value somente no caminho de success. O caminho de error executa o cleanup do
+scope sem criar `receipt`.
+
+Esta subseção define a interface normativa entre AST e HIR. Ela não implementa
+o checker. As seções de types, memória, errors, execução e services acrescentam
+regras específicas. Elas devem produzir o mesmo resultado normalizado.
+
+##### Entrada do checker
+
+Cada node recebe um `CheckContext` lógico:
+
+| Campo | Conteúdo |
+|---|---|
+| `scope` | symbols visíveis, generics, conformances e overload owners |
+| `expected` | type esperado opcional e uso esperado |
+| `owners` | estado de cada place, borrow, pin, initialization e drop obligation |
+| `effects` | function, closure, task, unsafe, transaction e capability owners ativos |
+| `controls` | function, loop, block, switch, pipeline e transaction owners ativos |
+| `facts` | refinements, enum case-sets, shapes, aliases e target facts provados |
+| `constMode` | runtime, const obrigatório ou const permitido |
+
+O uso esperado é um destes valores fechados:
+
+| Uso | Requisito |
+|---|---|
+| `declaration` | cria symbols e não produz runtime value |
+| `type` | produz uma identidade ou composição de type |
+| `pattern` | testa, projeta ou cria bindings |
+| `value` | produz um value do type esperado ou inferido |
+| `place` | produz storage legível ou mutável conforme a operação |
+| `condition` | produz `Bool`; W não aplica truthiness |
+| `discard` | aceita somente `()` ou `Never`, salvo descarte explícito em `let _` |
+| `const` | produz `ConstValue` aceito pelo schema do owner |
+
+Expected type pode materializar literals, resolver `.member` contextual e
+completar inference local. Ele não seleciona um overload, inventa uma
+conformance ou promove authority.
+
+##### Resultado normalizado
+
+Cada node produz um `SemanticResult` lógico:
+
+| Campo | Conteúdo |
+|---|---|
+| `resultType` | type lógico, `()`, `Never` ou ausência para declaration |
+| `category` | value, place compartilhado, place exclusivo, type ou declaration |
+| `flow` | continuação normal ou saída estruturada |
+| `ownerDelta` | initialize, borrow, mutate, move, pin, capture, end-borrow e drop |
+| `effectSummary` | effects de signature, controle e operação |
+| `proofFacts` | facts válidos após o node no caminho que continua |
+| `evaluationGraph` | children ordenados, edges condicionais e cleanup edges |
+
+`flow` usa este conjunto fechado:
+
+```text
+next
+return(function)
+throw(error-owner)
+break(loop-or-block)
+continue(loop)
+commit(transaction)
+cancel(task)
+panic(fault-boundary)
+unreachable
+```
+
+`Never` acompanha um flow sem continuação normal. Um node não usa `Never` para
+esconder um owner desconhecido. A HIR mantém o target qualificado de cada saída.
+
+##### Effects
+
+O checker separa três classes. Uma classe não substitui outra:
+
+| Classe | Fatos mínimos | Como o caller trata |
+|---|---|---|
+| signature | `throws E`, `async`, `unsafe`, callable mode e ABI | `try`, `await`, `unsafe` e call shape compatível |
+| control | return, throw, cancellation, panic, break, continue e commit | owner lexical ou fault boundary |
+| operational | allocation, blocking, I/O, capability, service e device transfer | profile, budget, capability e `w explain cost` |
+
+Cancellation não entra em `E`. Panic não entra em `Result`. Allocation e
+blocking não viram annotations obrigatórias em toda função. Mesmo assim, a HIR
+preserva esses facts para profiles, diagnostics e otimização.
+
+Um effect de signature precisa ser tratado ou propagado. `try` roteia uma error
+edge ao error owner atual. `try?` converte essa edge em Option. `await` trata uma
+suspension edge na task atual. `unsafe` concede somente as operations marcadas
+no block correspondente.
+
+```w
+let menu = try await kitchen.loadMenu()
+
+let menu = kitchen.loadMenu()
+// error: error e suspension não foram tratados
+```
+
+##### Sequenciamento e joins
+
+Cada child recebe o `SemanticResult` do child anterior. Receiver, operands,
+argumentos e literal entries seguem source order. Uma operação condicional cria
+edges separados e não avalia o edge não selecionado.
+
+Um join considera somente predecessors que possuem `flow next`. Ele aplica
+estas regras:
+
+1. O result type precisa ter identidade comum ou uma conversão segura única.
+2. Um place continua utilizável somente quando está disponível em todos os
+   predecessors que continuam.
+3. Um borrow continua somente quando origin, mode e lifetime são iguais nesses
+   predecessors.
+4. Drop obligations podem usar flags internas, mas não tornam um place talvez
+   movido acessível no source.
+5. Effects formam união. O owner ativo precisa consumir cada effect.
+6. Proof facts formam a interseção dos fatos garantidos.
+7. Um predecessor `Never` não enfraquece o join dos caminhos restantes.
+
+```w
+if dispatchRemotely {
+  send(take order)
+}
+
+inspect(order)
+// error: order não está disponível em todos os caminhos
+```
+
+O diagnostic aponta o move e o join. Ele não pede uma annotation de lifetime.
+Uma correção move em todos os caminhos, mantém o owner em todos ou retorna antes
+do join.
+
+Loops usam um fixed point sobre owner states e proof facts. A entrada, cada
+`continue` e o back edge precisam produzir um estado compatível. Cada `break`
+participa do estado posterior. O checker não usa widening que aceite um move ou
+borrow inseguro.
+
+##### Declarations e types
+
+| Construção | Resultado semântico | Runtime |
+|---|---|---|
+| module header e import | atualizam o symbol graph e a visibility efetiva | nenhum |
+| export | grava interface normalizada depois do check do symbol | nenhum |
+| `alias` | cria outro nome para a mesma identidade | nenhum |
+| `type`, `struct`, `object`, `enum` | criam identidade nominal, members e layout requirements | somente construction ou static initialization posterior |
+| `protocol` e `extension` | registram requirements, witnesses e coherence | nenhum dispatch sem call |
+| type application e `<...>` | produzem type e `ConstValue` normalizados | nenhum check do contrato em runtime quando já provado |
+| `const` | avalia ConstIR hermética e cria constant symbol | materialização somente no uso runtime |
+| function declaration | cria call shape e signature antes de verificar o body | body executa somente por call |
+| service, entry e test | criam descriptors e callable roots verificados | host inicia somente o root selecionado |
+| manifest | cria dados de build validados por schema | não entra no executável como code |
+
+Um function body é verificado parametricamente. Generic instantiation não pode
+alterar evaluation order, ownership ou effect routing. Specialization remove
+checks somente quando `proofFacts` preserva a mesma semântica.
+
+##### Patterns
+
+| Construção | Type e facts | Ownership |
+|---|---|---|
+| binding identifier | recebe o type do initializer ou annotation | cria owner, copy ou borrow conforme o mode |
+| `_` | aceita o type esperado | descarta conforme cleanup normal; não cria binding |
+| tuple ou nominal pattern | valida shape, labels e visibility | projeta o aggregate uma vez |
+| enum case | reduz o case-set no edge selecionado | payload fica provisório até o guard passar |
+| literal ou range | restringe o value no edge selecionado | não move o scrutinee |
+| `let` em match | cria capture no case body | confirma move somente depois do guard |
+| `ref` ou `inout` | preserva origin e lifetime | inicia borrow compartilhado ou exclusivo |
+| `...` | cobre fields não selecionados | cleanup segue o mode uniforme do aggregate |
+
+O scrutinee é avaliado uma vez. Um guard observa captures provisórias e não
+pode mover, mutar, escapar ou suspender com elas. Falha do guard libera essas
+projeções antes de tentar o case seguinte.
+
+##### Statements
+
+| Construção | Regra de type e effect | Regra de flow e ownership |
+|---|---|---|
+| `let` ou `var` | initializer precisa atender annotation ou inference única | binding nasce somente após success completo |
+| `async let` ou `spawn let` | initializer precisa ser child-compatible; result é `Task<T, E>` | staging avalia e transfere inputs antes de criar o child |
+| expression statement | exige `()` ou `Never` | um value comum exige binding ou `let _` |
+| `return value` | value atende o return type; errors internos já foram tratados | transfere result e sai da function ou closure owner |
+| `throw error` | error possui rota total ao `throws E` ativo | produz `Never` e executa cleanup até o error owner |
+| `break` | não recebe value | sai do loop ou block selecionado após cleanup |
+| `continue` | não recebe value | executa o continuation point do loop selecionado |
+| `commit value` | value atende o result da transaction | fecha somente a transaction ativa |
+| `defer` | body precisa atender seu contrato sync ou async | registra cleanup LIFO no scope atual |
+| `guard` | condition ou optional binding produz facts no caminho posterior | else precisa sair do scope do guard |
+| `if` statement | condition é Bool e branches usam contexto Unit | joins de owners, effects e facts seguem as regras comuns |
+| `switch` | cases são exaustivos e possuem result type único | cada case recebe facts próprios e participa do join |
+| `while` e `repeat` | condition é Bool | fixed point inclui back edge, continue e break |
+| `for` | source resolve iteration protocol uma vez | mode do item define copy, borrow ou consumo por iteration |
+| labeled block | body usa contexto Unit | somente `break label` cria saída normal adicional |
+| `do`/`catch` | catches consomem error cases em source order | unmatched error propaga ao owner compatível |
+| `region` | allocator, limit e result seguem o contrato da região | storage dependente não escapa sem `rehome` válido |
+
+Fallthrough de função é válido somente quando o return type é `()` ou `self`.
+Um function body com outro result precisa terminar em `return`, `throw`, `panic`
+ou outro flow `Never` em todos os caminhos.
+
+Um scope cancela e faz join de children restantes em toda saída. Cada handle
+também exige consumo explícito. Cleanup termina antes que o outcome fique
+observável.
+
+Um initializer child-compatible possui uma call como root. O parent avalia
+callable, argumentos e captures. O child executa o body do callable. Uma
+expressão composta precisa ficar numa função ou closure explícita.
+
+```w
+async let total = loadTotal(source)
+
+async let invalid = loadLeft(source) + loadRight(source)
+// error: a soma não possui um único callable root
+```
+
+`loadTotal` pode executar as duas calls dentro do child. Essa forma define onde
+o trabalho começa e evita mover uma árvore de expression por regra implícita.
+
+##### Expressions
+
+| Construção | Result | Avaliação, ownership e effects |
+|---|---|---|
+| identifier e contextual member | symbol qualificado e type único | leitura exige initialization e owner disponível |
+| member e index | value ou place projetado | receiver e indices avaliam uma vez; bounds podem panic |
+| literal scalar | magnitude ou text exato até materialização | sem runtime work além da materialização |
+| tuple, Array, Map e repeat Array | aggregate type único | elements, keys e values avaliam em source order |
+| call | return type da declaration ou callable | seleciona call shape antes de types; depois verifica arguments e effects |
+| generic call | call com static arguments normalizados | ConstValue e witnesses fecham antes dos runtime arguments |
+| arithmetic e comparison | type definido pela operação e numeric policy | operands avaliam em source order; panic policy permanece explícita |
+| `&&`, `||` e `??` | Bool, Bool ou join do fallback | right operand é condicional |
+| `?.` e postfix `?` | Option achatada ou propagada | member ou propagation edge executa somente em `.some` |
+| assignment | `()` | resolve place uma vez, avalia value e substitui depois de success |
+| `if` e `switch` expression | join único dos branch results | somente branch selecionado executa |
+| closure | concrete callable anônimo | capture prepara owners em source order; body cria effect scope próprio |
+| `copy` | value owned independente | exige `Copy` ou `Duplicable` e pode alocar |
+| `take` | value owned transferido | invalida o source place depois de staging válido |
+| `ref` e `inout` | borrow compartilhado ou exclusivo | exigem place e registram end-borrow |
+| `pin` | owner com storage estável | não muda logical value; adiciona address fact e drop obligation |
+| `try` e `try?` | success type ou Option achatada | roteiam ou convertem somente recoverable error edges |
+| `await` | success type do async operation | cria suspension e cancellation point, não cria child |
+| `unsafe` | tail type do value block | concede unsafe operations somente ao block |
+| `pipeline` | declared pipeline result | DAG e dependent calls usam `return` como terminal local |
+| `transaction` | committed result | provider, binding, `commit` e abort ficam no owner local |
+| `panic` | `Never` | termina a fault boundary e executa cleanup permitido pelo profile |
+
+Assignment, `return`, `throw`, `commit`, `break` e `continue` não duplicam um
+operand. Cada place e expression aparece uma vez no `evaluationGraph`.
+
+##### Diagnostics e evidence
+
+O diagnostic principal pertence à primeira fase que não consegue produzir um
+`SemanticResult` válido. Diagnostics posteriores podem aparecer como causas,
+mas não como reparos especulativos.
+
+| Code | Condição |
+|---|---|
+| `W-SEM-0001` | expected use ou result category não combina com o node |
+| `W-TYPE-0120` | branches ou operands não possuem type comum seguro e único |
+| `W-INIT-0001` | place é lido antes de definite initialization |
+| `W-MOVE-0002` | place está moved, dropped ou indisponível num predecessor |
+| `W-BORROW-0001` | borrow conflita, escapa ou cruza suspension sem storage estável |
+| `W-EFFECT-0011` | effect obrigatório não foi consumido ou propagado |
+| `W-FLOW-0001` | saída não possui owner compatível ou cruza boundary proibida |
+| `W-FLOW-0002` | caminho alcança o fim sem produzir o result obrigatório |
+| `W-USE-0001` | value non-Unit é descartado sem `let _` |
+| `W-CAPABILITY-0001` | operational effect não possui capability ou profile permitido |
+
+Última Luz já fornece estes alvos positivos:
+
+| Contrato | Evidence source |
+|---|---|
+| patterns, narrowing e branch join | `enum_contracts.w`, `command.w` |
+| labels, loops e compound assignment | `collections.w`, `numerics.w` |
+| Result, typed error e cleanup | `failure.w` |
+| callables, captures e callable modes | `callables.w` |
+| owner, borrow, pin e ABI boundary | `memory.w`, `hir_memory_oracle.w` |
+| tasks, joins e cancellation | `execution.w`, `scheduler_oracle.w` |
+| async staging e move | `allocation.w`, `dining.w` |
+| transaction e commit | `transaction_oracle.w`, `benchmark_app.w` |
+| service effects e capability routing | `service_oracle.w`, `capability_security_oracle.w` |
+
+O corpus negativo do checker deve inverter uma regra por fixture. Ele deve
+preservar os outros fields do `SemanticResult`. Essa exigência impede que um
+erro de move seja aceito somente porque o checker perdeu o type ou o effect.
+
+[`tooling/semantic-cases.json`](tooling/semantic-cases.json) inicia esse corpus
+com casos syntax-valid. O status `design-oracle-input` informa que os resultados
+ainda são expectativas, não output de um checker. O verificador estrutural
+confirma IDs, coverage, decisions e parse. Ele não declara conformance sem um
+frontend S0.
 
 ### 3.6 Avaliação compile-time
 
@@ -21440,7 +21737,7 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa | G0–G5 normativos para statements, declarations, raízes, types, contracts, patterns, expressions, boundaries e recovery | formatter executável e snapshots parse-format-parse |
-| regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation por construct | checker oracle, snapshots de `SemanticResult` e corpus negativo |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
@@ -22946,6 +23243,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-781 | label estruturado | label nomeia loop ou block; continue avança loop; break sai do target; cleanup lexical sempre executa | goto; reinício no token do label; salto para dentro; block produz value por break |
 | W-782 | formatter integrado | format preserva owners, statement partition e tail/discard; parse-format-parse e idempotência são invariantes | formatter type-directed; gravar recovery tree; alterar CST normalizada |
 | W-783 | evidência de substituição | corpus mantém exemplo positivo escolhido e input negativo da forma substituída antes do freeze | documentar somente vencedor; contar prose como conformance; aceitar rejeitado no corpus positivo |
+| W-784 | resultado semântico S0 | todo AST node produz result type, category, flow, owner delta, effects, facts e evaluation graph normalizados | checker retorna somente type; backend infere flow; facts ficam em diagnostics |
+| W-785 | contexto do checker | scope, expected use, owners, effects, controls, facts e const mode entram explicitamente em cada check | estado global implícito; type-directed overload; capability por ambient context |
+| W-786 | classes de effect | signature, control e operational effects permanecem distintos na HIR e no tooling | tudo em `throws`; annotations de custo em toda função; esconder capability no runtime |
+| W-787 | join semântico | caminhos normais exigem type único, owner disponível em todos, borrow equivalente e facts garantidos | talvez-movido acessível; lifetime annotation pública; branch order muda o join |
+| W-788 | análise de loop | entrada, continue e back edge formam fixed point seguro; breaks formam o estado posterior | análise de uma iteração; widening aceita move; loop tratado como call opaca |
+| W-789 | initializer de child | `async let` e `spawn let` exigem call root; parent prepara callable, argumentos e captures; child executa o body | mover expressão composta inteira implicitamente; lazy no await; avaliar argumentos no child |
+| W-790 | disciplina de use | expression statement aceita Unit ou Never; outro value exige binding ou `let _` | `must_use` opt-in; descarte silencioso; warning sem erro |
+| W-791 | matriz como interface | S0 é a interface normativa AST→HIR; seções de domínio acrescentam facts sem mudar o schema | regras dispersas sem normalização; MLIR define semântica; schema diferente por backend |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

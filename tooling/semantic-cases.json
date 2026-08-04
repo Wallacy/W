@@ -1,0 +1,209 @@
+{
+  "$schema": "w-semantic-cases-0",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "S0-POS-branch-owner-join",
+      "kind": "positive",
+      "rule": "W-787",
+      "source": [
+        "fn choose(flag: Bool, first: take Ticket, second: take Ticket): Ticket {",
+        "  return if flag { take first } else { take second }",
+        "}"
+      ],
+      "expect": {
+        "resultType": "declaration",
+        "flow": "next",
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-child-call-root",
+      "kind": "positive",
+      "rule": "W-789",
+      "source": [
+        "async fn stage(order: take Order): Receipt throws KitchenError {",
+        "  async let dish = cook(take order)",
+        "  return try await dish",
+        "}"
+      ],
+      "expect": {
+        "resultType": "declaration",
+        "flow": "next",
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-condition-requires-bool",
+      "kind": "negative",
+      "rule": "W-784",
+      "source": [
+        "fn invalidCondition() {",
+        "  if 1 { record() }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-SEM-0001", "primary": "1" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-child-composed-root",
+      "kind": "negative",
+      "rule": "W-789",
+      "source": [
+        "fn invalidChild(source: ref Source) {",
+        "  async let total = loadLeft(source) + loadRight(source)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-SEM-0001", "primary": "+" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-branch-type-join",
+      "kind": "negative",
+      "rule": "W-787",
+      "source": [
+        "fn mixed(flag: Bool): Int {",
+        "  return if flag { 1 } else { \"one\" }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-TYPE-0120", "primary": "if" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-definite-initialization",
+      "kind": "negative",
+      "rule": "W-784",
+      "source": [
+        "fn readBeforeInitialization() {",
+        "  var ticket: Ticket",
+        "  inspect(ticket)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-INIT-0001", "primary": "ticket" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-move-at-branch-join",
+      "kind": "negative",
+      "rule": "W-787",
+      "source": [
+        "fn maybeDispatch(order: take Order, remotely: Bool) {",
+        "  if remotely { send(take order) }",
+        "  inspect(order)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-MOVE-0002", "primary": "order" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-conflicting-borrow",
+      "kind": "negative",
+      "rule": "W-787",
+      "source": [
+        "fn mutateWhileBorrowed(values: inout Array<Int>) {",
+        "  let ref first = values[0]",
+        "  values.append(2)",
+        "  inspect(first)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-BORROW-0001", "primary": "values.append" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-unhandled-call-effects",
+      "kind": "negative",
+      "rule": "W-786",
+      "source": [
+        "async fn load(client: ref MenuClient): Menu {",
+        "  return client.loadMenu()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-EFFECT-0011", "primary": "client.loadMenu" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-control-owner",
+      "kind": "negative",
+      "rule": "W-781",
+      "source": [
+        "fn wrongTarget() {",
+        "  break missingLoop",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-FLOW-0001", "primary": "missingLoop" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-missing-return",
+      "kind": "negative",
+      "rule": "W-784",
+      "source": [
+        "fn incomplete(flag: Bool): Ticket {",
+        "  if flag { return Ticket() }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-FLOW-0002", "primary": "}" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-unused-value",
+      "kind": "negative",
+      "rule": "W-790",
+      "source": [
+        "fn ignoreInsertion(prices: inout Set<Course>) {",
+        "  prices.add(.horizonCake)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-USE-0001", "primary": "prices.add" }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-transaction-capability",
+      "kind": "negative",
+      "rule": "W-786",
+      "source": [
+        "async fn chargeInsideTransaction(store: ref Store, payments: ref PaymentService): Receipt throws AppError {",
+        "  return try await transaction tx = store {",
+        "    let receipt = try await payments.charge()",
+        "    commit receipt",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          { "code": "W-CAPABILITY-0001", "primary": "payments.charge" }
+        ]
+      }
+    }
+  ]
+}
