@@ -460,6 +460,163 @@ fn fold(rows: ref Array<Array<u8>>): u32 {
         (identifier)))))
 
 ==================
+Semicolon preserves an otherwise ambiguous boundary
+==================
+
+fn forcedBoundary() {
+  first(); (second)()
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (expression_statement
+        (call_expression
+          (parenthesized_expression
+            (identifier))
+          (argument_list))))))
+
+==================
+Missing repeat condition stays local
+==================
+
+fn incompleteRepeat() {
+  repeat {
+    work()
+  }
+}
+
+fn afterIncompleteRepeat(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (ERROR
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))
+
+==================
+Invalid label target keeps the following declaration
+==================
+
+fn invalidLabel(ready: Bool) {
+  target: if ready {
+    return
+  }
+}
+
+fn afterInvalidLabel(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (expression_statement
+        (identifier))
+      (ERROR)
+      (if_statement
+        (identifier)
+        (block
+          (return_statement)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))
+
+==================
+Newline remains trivia inside a complete statement
+==================
+
+fn newlineTrivia(value: u32): u32 {
+  let next = increment
+  (value)
+
+  scan: while next > 0 {
+    break
+    scan
+  }
+
+  return
+  next
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier)))))
+      (labeled_statement
+        (identifier)
+        (while_statement
+          (binary_expression
+            (identifier)
+            (number_literal))
+          (block
+            (break_statement
+              (identifier)))))
+      (return_statement
+        (identifier)))))
+
+==================
 Post-test loop
 ==================
 

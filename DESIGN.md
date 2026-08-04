@@ -565,7 +565,7 @@ A forma canônica segue estas regras:
 | listas | uma linha quando a construção cabe; caso contrário, um item por linha e trailing comma |
 | blocos | uma declaração por linha; body curto permanece em uma linha quando cabe e não possui comment |
 | comments | comments e doc comments permanecem ligados ao mesmo token ou declaration |
-| semicolon | o parser aceita `;` de migração; o formatter remove o separador |
+| semicolon | o formatter remove `;` quando a statement partition não muda; caso raro de desambiguação permanece |
 | parentheses | parentheses necessários permanecem; redundantes sem comment podem ser removidos |
 
 O formatter preserva a ordem de avaliação e não expande imports, aplica
@@ -590,6 +590,151 @@ O resultado não depende de path, locale, clock, package resolution ou type
 inference. A largura, a indentação e a política de comentários não são
 configuráveis na v0. Uma edition futura pode alterar a política com migração
 explícita.
+
+#### 3.5.2 Grammar normativa G0: statements e controle
+
+**Exemplo:** newline não muda `return value`. O formatter torna a associação
+visível:
+
+```w
+// aceito
+return
+value
+
+// canônico
+return value
+```
+
+Esta subseção é normativa para blocks, statements e controle. As grammars de
+declarations, types, patterns e expressions ainda precisam de slices próprias.
+Tree-sitter deve projetar esta grammar, mas não a substitui.
+
+A notação usa estas regras:
+
+| Forma | Significado |
+|---|---|
+| `"token"` | terminal exato |
+| `name` | nonterminal |
+| `(a b)` | sequência agrupada |
+| `a \| b` | escolha |
+| `a?` | zero ou uma ocorrência |
+| `a*` | zero ou mais ocorrências |
+| `a+` | uma ou mais ocorrências |
+
+`identifier`, `behavior_identifier`, `expression`, `pattern`, `type` e
+`argument_list` são interfaces normativas para os slices posteriores.
+Whitespace e comments separam tokens, mas newline não encerra statement. O
+parser consome a maior expression válida. Um semicolon força a boundary.
+
+Essa regra segue a independência de linha do
+[Swift](https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html).
+W não usa a inserção lexical de semicolon do
+[Go](https://go.dev/ref/spec#Semicolons) nem exige terminator para toda
+expression statement como o
+[Rust](https://doc.rust-lang.org/reference/statements.html).
+
+```ebnf
+block = "{" statement* "}" ;
+
+statement = simple_statement ";"? | structured_statement ;
+
+simple_statement = binding_statement
+                 | commit_statement
+                 | return_statement
+                 | throw_statement
+                 | break_statement
+                 | continue_statement
+                 | expression ;
+
+structured_statement = defer_statement
+                     | guard_statement
+                     | region_statement
+                     | if_statement
+                     | labeled_statement
+                     | while_statement
+                     | for_statement
+                     | repeat_statement
+                     | do_statement ;
+
+binding_statement = task_prefix? binding_kind storage_modifier?
+                    pattern_ownership? pattern type_annotation? initializer? ;
+task_prefix = ("async" | "spawn") task_contract? ;
+task_contract = "<" static_argument ("," static_argument)* ","? ">" ;
+binding_kind = "let" | "var" ;
+storage_modifier = "atomic" | behavior_identifier ;
+pattern_ownership = "ref" | "inout" ;
+type_annotation = ":" type ;
+initializer = "=" expression ;
+
+condition = optional_binding | expression ;
+optional_binding = ("let" | "var") ("ref" | "inout" | "copy")?
+                   identifier "=" expression ;
+
+if_statement = "if" condition block ("else" (if_statement | block))? ;
+while_statement = "while" condition block ;
+for_statement = "for" async_iteration? iteration_ownership?
+                pattern "in" expression block ;
+async_iteration = "await" | "try" "await" ;
+iteration_ownership = "ref" | "inout" | "copy" ;
+repeat_statement = "repeat" block "while" expression ";"? ;
+
+labeled_statement = identifier ":"
+                    (while_statement | for_statement | repeat_statement | block) ;
+
+break_statement = "break" identifier? ;
+continue_statement = "continue" identifier? ;
+return_statement = "return" expression? ;
+commit_statement = "commit" expression? ;
+throw_statement = "throw" expression ;
+defer_statement = "defer" "async"? block ;
+guard_statement = "guard" condition "else" (block | statement) ;
+region_statement = "region" identifier argument_list? block ;
+
+do_statement = "do" block catch_clause+ ;
+catch_clause = "catch" (pattern ("if" expression)?)? block ;
+```
+
+O parser aplica estas decisões antes do type checker:
+
+| Sequência | Parse normativo |
+|---|---|
+| `return` newline `value` | `return value` |
+| `break` newline `rows` | `break rows` |
+| `foo` newline `(value)` | call `foo(value)` |
+| `identifier : if` | não é label válido |
+| `else` | associa ao `if` aberto mais próximo |
+| `catch` | associa ao `do` aberto mais próximo |
+| `while` após body de `repeat` | pertence ao `repeat` |
+| `identifier : {` | block rotulado |
+
+O formatter remove um semicolon somente quando o reparse preserva os mesmos
+statement nodes. Se a remoção uniria duas expressions, o semicolon permanece.
+Esse caso é canônico, mas o formatter sempre coloca as statements em linhas
+separadas.
+
+Recovery não escolhe uma semântica alternativa. O parser pode inserir somente
+delimiter ou keyword exigida pelo contexto. Ele não inventa identifier,
+expression, pattern ou label. Estes tokens sincronizam a recuperação:
+
+- `}` encerra o block recuperável atual;
+- `case` sincroniza um switch body;
+- `else`, `catch` e o `while` de `repeat` retomam seu owner aberto;
+- uma declaration starter sincroniza o source file;
+- EOF encerra um token incompleto com `MISSING` ou `ERROR`.
+
+O frontend preserva os bytes ignorados em um node `ERROR`. Um token inserido
+recebe node `MISSING` de largura zero. Diagnostics usam, no mínimo:
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0001` | token inesperado |
+| `W-PARSE-0002` | delimiter ou keyword ausente |
+| `W-PARSE-0003` | target de label não permitido |
+| `W-PARSE-0004` | `else`, `catch` ou `while` sem owner |
+| `W-PARSE-0005` | literal ou comment não terminado |
+
+O parser não aceita uma árvore recuperada para build. Recovery existe para
+diagnostics, formatter preview e edição incremental.
 
 ### 3.6 Avaliação compile-time
 
@@ -1272,8 +1417,9 @@ Debug symbols e documentação compilada são artefatos separados e removíveis.
 **Exemplo:** `let answer = 42;` é aceito na migração, mas `w fmt` remove o
 semicolon.
 
-O formatter não emite `;`. O parser aceita `;` como separador de migração.
-Semicolon não separa linhas de matriz no design vigente.
+O parser aceita `;` como separador explícito. O formatter remove o separador
+quando o reparse preserva a mesma statement partition. Ele mantém um semicolon
+raro quando a remoção uniria expressions. Semicolon não separa linhas de matriz.
 
 ### 5.4 Controle e patterns
 
@@ -19920,7 +20066,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | Tree-sitter candidato e corpus positivo | EBNF, ambiguity table, recovery e formatter snapshots |
+| grammar normativa | G0 normativo para statements/controle e Tree-sitter candidato | slices de declarations/types/patterns/expressions e formatter snapshots |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -20212,6 +20358,8 @@ O corpus compara, no mínimo:
 - loop ou block rotulado contra `goto` e flags de saída;
 - `repeat ... while` contra `while true` com `break` final;
 - `break label` contra exception usada somente para control flow.
+- newline como whitespace contra automatic semicolon insertion;
+- semicolon raro de desambiguação contra remoção que altera a CST.
 
 ### 26.1 Cobertura de substituições
 
@@ -21286,7 +21434,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-705 | ergonomia de transaction | contract default permite omitir `<...>`, mas `tx = provider`, body e `commit` continuam explícitos | `try await transaction;`; provider ambient; `tx` implícito; commit por `return` |
 | W-706 | navegação do design | `DESIGN.md` continua canônico e integral; índice gerado publica bundles e métricas; leitor somente leitura recorta headings/IDs; check impede drift | capítulos com autoridades separadas; resumo manual duplicado; leitura integral por default |
 | W-707 | gate de design freeze | cinco ciclos fecham ergonomia, kernel, execução, toolchain e contrato público; pesquisa com fallback não bloqueia | número de decisões prova completude; toda pesquisa bloqueia; implementação ampla antes dos spikes |
-| W-708 | formatter canônico | CST lossless, trivia, 120 colunas, source order, comments anexados, semicolon removido e saída idempotente | style configurável amplo; import sorting; formatter dependente de HIR; reescrita AST silenciosa |
+| W-708 | formatter canônico | CST lossless, trivia, 120 colunas, source order, comments anexados, semicolon removido quando a partition não muda e saída idempotente | remover semicolon que muda CST; style configurável amplo; import sorting; formatter dependente de HIR |
 | W-709 | formatter e diagnostics | source com error fatal não é gravado; `--check` não modifica; spans continuam em bytes e a recovery fica no editor | saída parcial silenciosa; line/column como autoridade; formatter corrige sem reportar parser error |
 | W-710 | representação por fronteira | low bit somente em storage interno provado; W exact publica niche; C, wire e persistência usam carriers explícitos; high bit fica experimental | tagged pointer universal; tag no source; pointer bits em wire; compactação que ignora hardening |
 | W-711 | evolução da ABI W | v0 recompila consumers W; C, component, service schema e source rebuild atendem evolução independente | ABI resiliente implícita; layout congelado por default; runtime permanente sem protótipo |
@@ -21328,6 +21476,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-747 | block rotulado | `label: { ... }` aceita somente `break label`; saída lexical executa cleanup e não produz value | `continue` para block; label em qualquer statement; salto para dentro; break com value na baseline |
 | W-748 | documentação de substituições | toda decisão que rejeita uma construção por outra recebe caso comparativo e cobertura gerada antes do freeze | mostrar somente a forma escolhida; contar apenas exemplos por seção; executar syntax rejeitada no corpus positivo |
 | W-749 | fechamento do design freeze | famílias estão classificadas; grammar, semantics, diagnostics, std, targets, formats, execução, packages, W0 e substituições ainda exigem artefatos fechados | tratar classificação como spec completa; esperar backend para escrever contratos; congelar sem conformance |
+| W-750 | newline e statement boundary | newline é whitespace; parser consome a maior expression; semicolon força boundary e permanece quando sua remoção mudaria statement partition | ASI; newline sempre termina; formatter remove todo semicolon mesmo com mudança de CST |
+| W-751 | grammar normativa G0 | EBNF de block, binding, controle, labels e transfer statements pertence ao design; Tree-sitter é projeção | parser gerado como autoridade; prose sem grammar; aguardar frontend completo |
+| W-752 | recovery sintático G0 | recovery insere somente delimiter/keyword exigida, preserva bytes em ERROR e usa MISSING zero-width; build rejeita árvore recuperada | inventar expression/identifier; compilar recovery tree; descartar bytes; formatter salvar reparo silencioso |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
