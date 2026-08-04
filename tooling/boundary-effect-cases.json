@@ -1,0 +1,599 @@
+{
+  "$schema": "w-boundary-effect-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "B0-call-commit-delivers-after-drain",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "confirmCallCommit", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "state": "delivered", "terminal": "committed", "output": "delivered", "envelopeCleanupCount": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-call-commit-failed-is-known",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "commitFailed" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "failCallCommit", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "commitFailed", "output": "discarded", "envelopeCleanupCount": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-call-unknown-keeps-effect-id",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "unknownOutcome" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "loseCallConfirmation", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "effectId": "effect-place", "terminal": "unknownOutcome", "output": "discarded" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-call-cannot-deliver-before-drain",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "drain" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "confirmCallCommit", "call": "place" },
+        { "op": "deliverCall", "call": "place" }
+      ],
+      "expected": { "status": "rejected", "code": "callDeliveryBeforeDrain", "operation": 8 }
+    },
+    {
+      "id": "B0-call-unknown-is-terminal-evidence",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "commit uncertainty is not an abort" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "loseCallConfirmation", "call": "place" },
+        { "op": "confirmCallCommit", "call": "place" }
+      ],
+      "expected": { "status": "rejected", "code": "callCommitNotPending", "operation": 8 }
+    },
+    {
+      "id": "B0-cancel-before-envelope-starts-no-body",
+      "references": [{ "path": "../reference/last-light/scheduler_oracle.w", "symbol": "cancelBeforePublish" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "cancelCall", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "canceled", "bodyStarted": false, "envelopeCleanupCount": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-cancel-before-admission-removes-envelope",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "CommitEvidence" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "cancelCall", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "canceled", "bodyStarted": false, "inputOwner": "dropped" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-cancel-after-admission-drains-turn",
+      "references": [{ "path": "../reference/last-light/scheduler_oracle.w", "symbol": "cancelAfterPublish" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "cancelCall", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "canceled" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "confirmCallCommit", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "committed", "bodyOutcome": "canceled", "cancellationRequested": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-late-cancel-keeps-committed-output",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "one terminal commit observation" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "admitCall", "call": "place" },
+        { "op": "beginTurn", "call": "place" },
+        { "op": "settleCall", "call": "place", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "place" },
+        { "op": "confirmCallCommit", "call": "place" },
+        { "op": "cancelCall", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "committed", "output": "delivered", "lateCancellation": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-closed-turn-blocks-second-handler",
+      "references": [{ "path": "../reference/last-light/restaurant.w", "symbol": "service lastLight" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "first", "instance": "lastLight", "effectId": "effect-first", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "prepareCall", "call": "second", "instance": "lastLight", "effectId": "effect-second", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "second" },
+        { "op": "admitCall", "call": "second" },
+        { "op": "beginTurn", "call": "second" }
+      ],
+      "expected": { "status": "rejected", "code": "closedTurnBusy", "operation": 8 }
+    },
+    {
+      "id": "B0-output-gate-holds-instance",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "expectedGateOutcome" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "first", "instance": "lastLight", "effectId": "effect-first", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "settleCall", "call": "first", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "first" },
+        { "op": "prepareCall", "call": "second", "instance": "lastLight", "effectId": "effect-second", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "second" },
+        { "op": "admitCall", "call": "second" },
+        { "op": "beginTurn", "call": "second" }
+      ],
+      "expected": { "status": "rejected", "code": "closedTurnBusy", "operation": 10 }
+    },
+    {
+      "id": "B0-output-gate-releases-after-drain",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "case (.committed, .drain)" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "first", "instance": "lastLight", "effectId": "effect-first", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "settleCall", "call": "first", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "first" },
+        { "op": "confirmCallCommit", "call": "first" },
+        { "op": "drainCall", "call": "first" },
+        { "op": "prepareCall", "call": "second", "instance": "lastLight", "effectId": "effect-second", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "second" },
+        { "op": "admitCall", "call": "second" },
+        { "op": "beginTurn", "call": "second" },
+        { "op": "verifyCall", "call": "first", "state": "drained", "terminal": "committed" },
+        { "op": "verifyCall", "call": "second", "state": "turnRunning", "bodyStarted": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-different-instances-progress-independently",
+      "references": [{ "path": "../reference/last-light/restaurant.w", "symbol": "service lastLight" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "table-42" },
+        { "op": "registerInstance", "instance": "table-43" },
+        { "op": "prepareCall", "call": "first", "instance": "table-42", "effectId": "effect-first", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "prepareCall", "call": "second", "instance": "table-43", "effectId": "effect-second", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "second" },
+        { "op": "admitCall", "call": "second" },
+        { "op": "beginTurn", "call": "second" },
+        { "op": "verifyCall", "call": "first", "state": "turnRunning" },
+        { "op": "verifyCall", "call": "second", "state": "turnRunning" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-boundary-loss-before-admission-is-unknown",
+      "references": [{ "path": "../reference/last-light/scheduler_oracle.w", "symbol": "commitConfirmationLost" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "place", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "place" },
+        { "op": "loseBoundaryEvidence", "call": "place" },
+        { "op": "drainCall", "call": "place" },
+        { "op": "deliverCall", "call": "place" },
+        { "op": "verifyCall", "call": "place", "terminal": "unknownOutcome", "bodyStarted": false, "effectId": "effect-place" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-at-most-once-unknown-forbids-retry",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "unknownOutcome" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "first", "instance": "lastLight", "effectId": "effect-place", "policy": "atMostOnce" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "settleCall", "call": "first", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "first" },
+        { "op": "loseCallConfirmation", "call": "first" },
+        { "op": "drainCall", "call": "first" },
+        { "op": "deliverCall", "call": "first" },
+        { "op": "prepareCallRetry", "from": "first", "call": "second" }
+      ],
+      "expected": { "status": "rejected", "code": "retryUnknownForbidden", "operation": 10 }
+    },
+    {
+      "id": "B0-idempotent-retry-preserves-effect",
+      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "outcome()" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "lastLight" },
+        { "op": "prepareCall", "call": "first", "instance": "lastLight", "effectId": "effect-place", "policy": "idempotent" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "settleCall", "call": "first", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "first" },
+        { "op": "loseCallConfirmation", "call": "first" },
+        { "op": "drainCall", "call": "first" },
+        { "op": "deliverCall", "call": "first" },
+        { "op": "prepareCallRetry", "from": "first", "call": "second" },
+        { "op": "verifyCall", "call": "second", "state": "prepared", "effectId": "effect-place", "bodyStarted": false }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transactional-call-reconciles",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "unknownCommit" }],
+      "operations": [
+        { "op": "registerInstance", "instance": "ledger" },
+        { "op": "prepareCall", "call": "first", "instance": "ledger", "effectId": "effect-ledger", "policy": "transactional" },
+        { "op": "commitEnvelope", "call": "first" },
+        { "op": "admitCall", "call": "first" },
+        { "op": "beginTurn", "call": "first" },
+        { "op": "settleCall", "call": "first", "outcome": "success" },
+        { "op": "beginCallCommit", "call": "first" },
+        { "op": "loseCallConfirmation", "call": "first" },
+        { "op": "drainCall", "call": "first" },
+        { "op": "deliverCall", "call": "first" },
+        { "op": "prepareCallRetry", "from": "first", "call": "second" }
+      ],
+      "expected": { "status": "rejected", "code": "retryRequiresReconciliation", "operation": 10 }
+    },
+    {
+      "id": "B0-transaction-begin-failure-runs-no-body",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "ExpectedTransactionOutcome" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "failTransactionBegin", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "terminal": "aborted", "bodyRuns": 0, "output": "discarded" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-cancel-before-begin-runs-no-body",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "canceledBeforeCommit" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "cancelTransaction", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "terminal": "aborted", "bodyRuns": 0, "cancellationRequested": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-error-after-commit-cannot-abort",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "commitConfirmationLost" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "failTransactionBody", "transaction": "booking" }
+      ],
+      "expected": { "status": "rejected", "code": "transactionAbortAfterCommitRequest", "operation": 4 }
+    },
+    {
+      "id": "B0-transaction-commit-delivers-output",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "reserveTableAtomically" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "confirmTransactionCommit", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "state": "finished", "terminal": "committed", "output": "delivered", "bodyRuns": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-body-error-aborts",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "bodyError" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "failTransactionBody", "transaction": "booking" },
+        { "op": "confirmTransactionAbort", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "terminal": "aborted", "output": "discarded" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-cancel-before-commit-aborts",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "canceledBeforeCommit" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "cancelTransaction", "transaction": "booking" },
+        { "op": "confirmTransactionAbort", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "terminal": "aborted", "cancellationRequested": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-cancel-after-request-is-not-rollback",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "commitConfirmed" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "cancelTransaction", "transaction": "booking" },
+        { "op": "confirmTransactionCommit", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "terminal": "committed", "output": "delivered", "cancellationRequested": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-lost-confirmation-is-unknown",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "commitConfirmationLost" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "loseTransactionConfirmation", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" },
+        { "op": "verifyTransaction", "transaction": "booking", "effectId": "effect-booking", "terminal": "unknownCommit", "output": "discarded" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-transaction-cannot-finish-before-terminal",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "expectedTransactionOutcome" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "finishTransaction", "transaction": "booking" }
+      ],
+      "expected": { "status": "rejected", "code": "transactionFinishBeforeTerminal", "operation": 4 }
+    },
+    {
+      "id": "B0-transaction-unknown-is-never-rerun",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "never becomes rollback" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "requestTransactionCommit", "transaction": "booking" },
+        { "op": "loseTransactionConfirmation", "transaction": "booking" },
+        { "op": "rerunTransactionBody", "transaction": "booking" }
+      ],
+      "expected": { "status": "rejected", "code": "automaticTransactionRetryForbidden", "operation": 5 }
+    },
+    {
+      "id": "B0-transaction-body-runs-once",
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "transaction<" }],
+      "operations": [
+        { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
+        { "op": "beginTransaction", "transaction": "booking" },
+        { "op": "enterTransactionBody", "transaction": "booking" },
+        { "op": "rerunTransactionBody", "transaction": "booking" }
+      ],
+      "expected": { "status": "rejected", "code": "transactionBodyRunsOnce", "operation": 3 }
+    },
+    {
+      "id": "B0-pipeline-linear-transfers-selected-capability",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "expectedCapabilitySettlement" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }, { "node": "ready", "effectId": "effect-ready", "dependencies": ["lease"] }], "selected": ["lease", "ready"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "lease", "outcome": "success", "capabilityCreated": true },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "ready", "outcome": "success" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "resolvePipeline", "pipeline": "oven" },
+        { "op": "verifyPipeline", "pipeline": "oven", "state": "resolved", "aggregate": "success" },
+        { "op": "verifyPipeline", "pipeline": "oven", "node": "lease", "capability": "transferred" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-dependency-must-be-ready",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "linear" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }, { "node": "ready", "effectId": "effect-ready", "dependencies": ["lease"] }], "selected": ["ready"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" }
+      ],
+      "expected": { "status": "rejected", "code": "pipelineDependencyNotReady", "operation": 1 }
+    },
+    {
+      "id": "B0-pipeline-diamond-resolves-after-all-edges",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "case .diamond" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }, { "node": "heat", "effectId": "effect-heat", "dependencies": ["lease"] }, { "node": "calibrate", "effectId": "effect-calibrate", "dependencies": ["lease"] }, { "node": "ready", "effectId": "effect-ready", "dependencies": ["heat", "calibrate"] }], "selected": ["ready"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "lease", "outcome": "success" },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "heat" },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "calibrate" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "calibrate", "outcome": "success" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "heat", "outcome": "success" },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "ready", "outcome": "success" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "heat" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "calibrate" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "resolvePipeline", "pipeline": "oven" },
+        { "op": "verifyPipeline", "pipeline": "oven", "state": "resolved", "aggregate": "success" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-forward-reference-rejected",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "forwardReference" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "ready", "effectId": "effect-ready", "dependencies": ["lease"] }, { "node": "lease", "effectId": "effect-lease", "dependencies": [] }], "selected": ["ready"] }
+      ],
+      "expected": { "status": "rejected", "code": "pipelineForwardReference", "operation": 0 }
+    },
+    {
+      "id": "B0-pipeline-failure-blocks-dependent",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "applicationError" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }, { "node": "ready", "effectId": "effect-ready", "dependencies": ["lease"] }], "selected": ["ready"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "lease", "outcome": "applicationError" },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" }
+      ],
+      "expected": { "status": "rejected", "code": "dependentNodeBlocked", "operation": 3 }
+    },
+    {
+      "id": "B0-pipeline-unknown-dominates-error",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "uncertain node dominates" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "service", "nodes": [{ "node": "price", "effectId": "effect-price", "dependencies": [] }, { "node": "charge", "effectId": "effect-charge", "dependencies": [] }], "selected": [] },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "price" },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "charge" },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "price", "outcome": "applicationError" },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "charge", "outcome": "unknownOutcome" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "price" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "charge" },
+        { "op": "resolvePipeline", "pipeline": "service" },
+        { "op": "verifyPipeline", "pipeline": "service", "aggregate": "pipelineUnknown", "uncertainEffects": ["effect-charge"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-unknown-effects-use-lexical-order",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "pipelineUnknown" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "service", "nodes": [{ "node": "first", "effectId": "effect-first", "dependencies": [] }, { "node": "second", "effectId": "effect-second", "dependencies": [] }], "selected": [] },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "first" },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "second" },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "second", "outcome": "unknownOutcome" },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "first", "outcome": "unknownOutcome" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "second" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "first" },
+        { "op": "resolvePipeline", "pipeline": "service" },
+        { "op": "verifyPipeline", "pipeline": "service", "aggregate": "pipelineUnknown", "uncertainEffects": ["effect-first", "effect-second"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-resolution-waits-for-drain",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "pipelineSucceeded" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "ready", "effectId": "effect-ready", "dependencies": [] }], "selected": ["ready"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "ready", "outcome": "success" },
+        { "op": "resolvePipeline", "pipeline": "oven" }
+      ],
+      "expected": { "status": "rejected", "code": "pipelineNotDrained", "operation": 3 }
+    },
+    {
+      "id": "B0-pipeline-fail-fast-preserves-real-error",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "boundaryError" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "service", "nodes": [{ "node": "left", "effectId": "effect-left", "dependencies": [] }, { "node": "right", "effectId": "effect-right", "dependencies": [] }], "selected": [] },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "left" },
+        { "op": "startPipelineNode", "pipeline": "service", "node": "right" },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "right", "outcome": "boundaryError" },
+        { "op": "requestPipelineFailFast", "pipeline": "service", "trigger": "right" },
+        { "op": "verifyPipeline", "pipeline": "service", "node": "left", "cancellationRequested": true },
+        { "op": "settlePipelineNode", "pipeline": "service", "node": "left", "outcome": "canceled" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "left" },
+        { "op": "drainPipelineNode", "pipeline": "service", "node": "right" },
+        { "op": "resolvePipeline", "pipeline": "service" },
+        { "op": "verifyPipeline", "pipeline": "service", "aggregate": "boundaryError" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-failure-releases-orphan-capability",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "an orphan oven lease is released" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }, { "node": "ready", "effectId": "effect-ready", "dependencies": ["lease"] }], "selected": ["lease"] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "lease", "outcome": "success", "capabilityCreated": true },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "ready", "outcome": "boundaryError" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "ready" },
+        { "op": "resolvePipeline", "pipeline": "oven" },
+        { "op": "verifyPipeline", "pipeline": "oven", "node": "lease", "capability": "released" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "B0-pipeline-unselected-capability-is-released",
+      "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "selected: false" }],
+      "operations": [
+        { "op": "createPipeline", "pipeline": "oven", "nodes": [{ "node": "lease", "effectId": "effect-lease", "dependencies": [] }], "selected": [] },
+        { "op": "startPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "settlePipelineNode", "pipeline": "oven", "node": "lease", "outcome": "success", "capabilityCreated": true },
+        { "op": "drainPipelineNode", "pipeline": "oven", "node": "lease" },
+        { "op": "resolvePipeline", "pipeline": "oven" },
+        { "op": "verifyPipeline", "pipeline": "oven", "aggregate": "success", "node": "lease", "capability": "released" }
+      ],
+      "expected": { "status": "accepted" }
+    }
+  ]
+}

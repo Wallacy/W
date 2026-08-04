@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
-| validação executável | 50–60% | Tree-sitter, F0, S0, wire, R0/R1, M0 e E0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler ou runtime W |
+| validação executável | 52–62% | Tree-sitter, F0, S0, wire, R0/R1, M0, E0 e B0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -11123,6 +11123,37 @@ para reduzir round trips. O `try await` externo mantém suspensão e falha
 visíveis. O pipeline preserva capability lifetime, quotas, cancellation,
 failure e outcome incerto. Ele não muda `ServiceRef` para uma Promise lazy. A
 seção 23.1.7 fecha a forma source e o lowering.
+
+##### Corpus de boundary effects B0
+
+**Exemplo:** o Última Luz confirma uma reserva somente depois do output gate.
+Se a confirmação se perde, o caller recebe o mesmo `EffectId` como
+`unknownOutcome`; cancelamento não transforma a dúvida em rollback.
+
+[`tooling/boundary-effect-cases.json`](tooling/boundary-effect-cases.json)
+mantém 39 sequências ligadas a symbols do Última Luz. A
+[`máquina B0`](tooling/boundary-effect-machine.mjs) executa 320 operações sobre:
+
+- staging, envelope commit, admission, closed turn, output gate e delivery;
+- cleanup único do envelope e output retido até confirmação e drain;
+- `commitFailed`, `unknownOutcome(effectId)` e cancelamento como outcomes
+  distintos;
+- retry `idempotent` com o mesmo effect ID e bloqueio de `atMostOnce`;
+- transaction com begin, body único, commit, abort e `unknownCommit`;
+- cancellation antes e depois de `commit requested`;
+- pipeline linear e diamond, dependências, fail-fast, drain e arbitragem;
+- incerteza dominante e settlement de capabilities intermediárias.
+
+O runner aceita 25 sequências e rejeita 14. O gate exige 17 transições críticas.
+O snapshot guarda estados finais e traces compactos. Casos negativos incluem
+delivery antes do drain, segundo closed turn, retry inseguro, abort depois do
+commit request, forward reference e resolução prematura de pipeline.
+
+B0 não é adapter, transport, storage ou runtime W. Ele recebe admission,
+evidence e effect IDs já resolvidos. Ele não prova fila bounded, clocks,
+durabilidade, codec wWire, reconexão, deduplication real, isolamento de database,
+crash recovery, workflow journal ou execução distribuída. Esses itens exigem
+implementações independentes e fault injection antes do freeze de services.
 
 ### 13.7 Trabalho runtime-owned e `SupervisorRef`
 
@@ -22317,6 +22348,7 @@ mesma profundidade em todas as famílias:
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
+| services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
 | documentação comparativa | R0 cobre 52/52, R0S mede 117 formas e R1 possui um bundle com duas variantes e quatro tarefas | ampliar R1, executar os estudos e publicar os resultados da seção 26 |
@@ -23985,6 +24017,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
 | W-874 | corpus E0 | 28 sequências e 280 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
 | W-875 | limite de E0 | oracle host recebe task, storage identity e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
+| W-876 | máquina de boundary effects B0 | service call, transaction e pipeline mantêm lifecycles separados; todos carregam effect identity e distinguem confirmação, falha conhecida e incerteza | um Boolean committed; cancel como rollback; transaction usada como pipeline; pipeline com rollback fictício |
+| W-877 | corpus B0 | 39 sequências e 320 operações ligadas ao Última Luz cobrem 17 transições críticas, closed/output gates, commit, abort, retry policy, DAG, drain e capabilities | somente happy path; unknown sem effect ID; retry com call ID novo e effect ID novo; node sem cleanup |
+| W-878 | limite de B0 | oracle host recebe admission e evidence resolvidos; não prova adapter, transport, queue, storage, codec, clock, deduplication, crash recovery ou distribuição | declarar exactly-once; chamar snapshot de fault injection real; inferir durabilidade de transição em memória |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

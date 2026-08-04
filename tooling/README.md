@@ -30,6 +30,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `hir-memory-reference.test.mjs` | modelo executável de owner, borrow, suspensão, boundary e ABI | oracle de SH3/SH4; não é o verifier do compiler |
 | `memory-transition-cases.json` + máquina M0 | 21 sequências do Última Luz com 61 operações, estados e traces byte-exact | oracle host tabelado; não é HIR emitida pelo frontend |
 | `execution-concurrency-cases.json` + máquina E0 | 28 sequências e 280 operações cobrem lifecycle, cancelamento, oito origens happens-before e races | oracle host de eventos; não é scheduler, checker nem runtime W |
+| `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
