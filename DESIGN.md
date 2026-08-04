@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 37–47% | Tree-sitter, F0, resultados S0, contratos, patterns e match possuem oracles; ainda não existe formatter, type-checker, HIR ou runtime W |
+| validação executável | 39–49% | Tree-sitter, F0 e 31 pares S0 cobrem contratos, patterns, match e expressions; ainda não existe formatter, type-checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -1905,13 +1905,32 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-PARSE-0023` | one-sided range aparece fora de argumento, índice ou pattern |
 | `W-EXPR-0001` | assignment target não é um place mutável |
 | `W-EXPR-0002` | assignment aparece onde um value non-Unit é exigido |
-| `W-EXPR-0003` | equality, relation ou range tenta encadear |
-| `W-EXPR-0004` | condition não produz Bool |
-| `W-EXPR-0005` | branch results não possuem join único e seguro |
+| `W-PARSE-0030` | equality, relation ou range tenta encadear |
+| `W-SEM-0001` | condition não produz Bool |
+| `W-TYPE-0120` | branch results não possuem join único e seguro |
 | `W-EXPR-0006` | postfix ou generic envelope não se aplica ao head |
-| `W-EXPR-0007` | `each` ou one-sided range ocupa posição inválida |
+| `W-EXPR-0007` | `each` não ocupa o último argumento rest compatível |
 | `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
+
+O code pertence à primeira fase que perde um resultado válido. Uma cadeia
+`a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
+`if count` reutiliza `W-SEM-0001`. Branches sem join reutilizam `W-TYPE-0120`.
+Esses casos não recebem outro code `EXPR` para a mesma causa.
+
+Os argumentos de diagnostics usam índice zero-based em source order. Assim,
+em `estimate(1, courses: each planned, 2)`, o `each` possui
+`argumentIndex: 1`. Labels não alteram o índice nem a ordem de avaliação.
+
+As formas substituídas permanecem como evidence negativa:
+
+```w
+return (count = 1)                 // W-EXPR-0002: assignment produz ()
+return count?.name                 // W-EXPR-0006 quando count é Int
+estimate(1, courses: each xs, 2)   // W-EXPR-0007: each deve ser final
+return await try kitchen.load()    // W-EFFECT-0010: use try await
+inspect(ref makeDish())            // W-OWNERSHIP-0010: ref exige place
+```
 
 Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
 close obrigatório. Comma, `)`, `]`, `}`, `case`, `else` e statement boundary
@@ -2453,6 +2472,23 @@ utilizável pelo source. Captures ficam em `ownerDelta`, narrowing fica em
 Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar outro
 enum ou import não muda candidates porque essa lista não existe.
+
+Seis pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
+resultado Unit de assignment, a aplicabilidade de postfix, a expansão rest, a
+ordem de effects e os requisitos de place dos prefixes de ownership.
+
+| Code | Baseline positivo | Campo que falha |
+|---|---|---|
+| `W-EXPR-0001` | assignment em `inout` | `category` |
+| `W-EXPR-0002` | assignment em contexto Unit | `resultType` |
+| `W-EXPR-0006` | optional postfix sobre Option | `resultType` |
+| `W-EXPR-0007` | `each` final para rest compatível | `evaluationGraph` |
+| `W-EFFECT-0010` | prefixos em ordem `try await` | `effectSummary` |
+| `W-OWNERSHIP-0010` | `ref` aplicado a place | `ownerDelta` |
+
+O corpus não duplica falhas que já pertencem a outra fase. Chaining de
+comparison pertence a `W-PARSE-0030`. Condition sem Bool pertence a
+`W-SEM-0001`. Join de branches pertence a `W-TYPE-0120`.
 
 O corpus negativo do checker deve inverter uma regra por fixture. Ele deve
 preservar os outros fields do `SemanticResult`. Essa exigência impede que um
@@ -8107,7 +8143,7 @@ nível de Option. O operador não captura panic ou cancelamento. Uma expressão
 nonthrowing com `try?` produz diagnostic:
 
 ```w
-let course = try? Course.horizonCake // W-EFFECT-0009: expression cannot fail
+let course = try? Course.horizonCake // W-EFFECT-0010: expression cannot fail
 ```
 
 `try?` declara perda intencional do error. Quando a causa importa, o programa usa
@@ -22115,8 +22151,8 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 50 casos pareiam 25 resultados positivos com 25 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 54 de 80 codes, incluindo parser, contratos, patterns, match e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 62 casos pareiam 31 resultados positivos com 31 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 61 de 77 codes, incluindo parser, contratos, patterns, match e expressions G4 | completar as famílias restantes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23672,6 +23708,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-832 | case inalcançável | case totalmente coberto por predecessor sem guard é error W-MATCH-0002; overlap parcial permanece e entra em explain | warning ignorável; reordenar cases; last-match vence |
 | W-833 | enum curto contextual | `.case` exige expected enum local; checker não busca types por nome de case nem lista candidates globais | inferir pelo único enum importado; ranking por proximidade; novo import muda type inference |
 | W-834 | corpus G3/S0 | seis families PATTERN e três MATCH possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | exemplo sem schema local; negativo com múltiplas falhas; exhaustividade testada só no runtime |
+| W-835 | ownership de diagnostic G4 | parser possui chaining e range fora de posição; S0 possui condition Bool e branch join; G4 não duplica codes para a mesma causa | code EXPR para toda linha da tabela; emitir parser e semantic roots sobre os mesmos bytes; mensagem sem fase proprietária |
+| W-836 | assignment em S0 | target exige exclusive place, place é resolvido uma vez e o result é `()`; uso como value falha em `resultType` | assignment devolve value; cadeia Copy-only; mutation de shared place; erro genérico sem category |
+| W-837 | aplicabilidade postfix | head resolvido decide se o suffix é válido; optional member exige Option e falha antes do result type | aceitar `?.` em qualquer head como no-op; resolver member antes do head; diagnostic somente no lowering |
+| W-838 | expansão `each` | collection é avaliada uma vez; `each` ocupa o argumento final de rest compatível; diagnostic usa índice zero-based em source order | spread universal; expansão intermediária; índice por parameter order; reavaliar collection por item |
+| W-839 | ordem de effect prefix | ordem source canônica é `try await`; ausência, redundância e ordem compartilham W-EFFECT-0010 com facts distintos | `await try`; code separado para cada spelling; inferir effect no caller; fix sem schema |
+| W-840 | operand de ownership prefix | `ref` e `inout` exigem place; `take`, `copy` e `pin` verificam owner, mobility e origem antes de criar delta | borrow de rvalue com lifetime temporário implícito; annotation de lifetime; operação inferida pelo callee |
+| W-841 | corpus G4/S0 | seis families de expression, effect e ownership possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples sem outcome; um fixture com várias falhas; duplicar errors de parser, type e expression |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

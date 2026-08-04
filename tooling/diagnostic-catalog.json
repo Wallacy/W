@@ -319,6 +319,12 @@
       "meaning": "a pattern ellipsis is duplicated or appears before another field"
     },
     {
+      "code": "W-PARSE-0030",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "an equality, relation, or range expression attempts to chain"
+    },
+    {
       "code": "W-SEM-0001",
       "state": "active",
       "phase": "semantic.type",
@@ -526,6 +532,104 @@
       },
       "labelRoles": {
         "pattern-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EFFECT-0010",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "an effect prefix is missing, redundant, or outside canonical order",
+      "requiredFacts": {
+        "actualPrefixOrder": "string[]",
+        "canonicalPrefixOrder": "string[]",
+        "effects": "string-set",
+        "violation": "string"
+      },
+      "labelRoles": {
+        "effect-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EXPR-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an assignment target is not a mutable place",
+      "requiredFacts": {
+        "operation": "string",
+        "requiredCategory": "string",
+        "targetCategory": "string"
+      },
+      "labelRoles": {
+        "assignment-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EXPR-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an assignment with Unit result appears in a context that requires a value",
+      "requiredFacts": {
+        "actualType": "string",
+        "context": "string",
+        "expectedType": "string"
+      },
+      "labelRoles": {
+        "assignment-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EXPR-0006",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a postfix operation or generic envelope does not apply to its resolved head",
+      "requiredFacts": {
+        "headType": "string",
+        "reason": "string",
+        "suffixKind": "string"
+      },
+      "labelRoles": {
+        "postfix-head": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EXPR-0007",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "each does not occupy the final argument for a compatible rest parameter",
+      "requiredFacts": {
+        "argumentIndex": "integer",
+        "callable": "string",
+        "reason": "string",
+        "restParameter": "string"
+      },
+      "labelRoles": {
+        "call-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-OWNERSHIP-0010",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an ownership prefix receives an incompatible place, owner, borrow, or mobility",
+      "requiredFacts": {
+        "operandCategory": "string",
+        "prefix": "string",
+        "requirement": "string"
+      },
+      "labelRoles": {
+        "ownership-owner": { "minimum": 1, "maximum": 1 }
       },
       "fixes": {}
     },
