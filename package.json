@@ -13,6 +13,7 @@
     "check": "bun run --cwd tooling/tree-sitter-w check",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:links": "bun tooling/check-markdown-links.mjs",
+    "check:substitutions": "bun tooling/check-substitution-cases.mjs",
     "design:index": "bun tooling/design-index.mjs --write",
     "design:index:check": "bun tooling/design-index.mjs --check"
   }

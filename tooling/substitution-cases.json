@@ -1,0 +1,263 @@
+{
+  "$schema": "w-substitution-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "R0-structured-labels",
+      "reviewItem": "loop ou block rotulado contra `goto` e flags de saída",
+      "decisions": ["W-732", "W-781"],
+      "task": "A zero advances the outer row. A value above 31 ends the scan.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "scan: for row in rows {",
+          "  for value in row {",
+          "    if value == 0 { continue scan }",
+          "    if value > 31 { break scan }",
+          "    consume(value)",
+          "  }",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "c-goto",
+          "language": "c",
+          "source": ["if (value == 0) goto next_row;", "if (value > 31) goto done;"],
+          "expectedDifference": "The target is an arbitrary source address instead of a lexical owner."
+        },
+        {
+          "name": "mutable-flag",
+          "language": "w-pseudocode",
+          "source": ["var stopped = false", "if value > 31 { stopped = true; break }"],
+          "expectedDifference": "Mutable state duplicates control flow and can diverge from it."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-block-label",
+      "reviewItem": "`break label` contra exception usada somente para control flow",
+      "decisions": ["W-732", "W-747", "W-781"],
+      "task": "Stop validation early without manufacturing an error value.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "validate: {",
+          "  if order.items.isEmpty { break validate }",
+          "  if !order.customer.canPay { break validate }",
+          "  submit(order)",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "control-flow-exception",
+          "language": "pseudocode",
+          "source": [
+            "try {",
+            "  if order.items.isEmpty { throw StopValidation() }",
+            "  submit(order)",
+            "} catch StopValidation {}"
+          ],
+          "expectedDifference": "Normal local control flow allocates or propagates an error-shaped carrier."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-post-test-loop",
+      "reviewItem": "`repeat ... while` contra `while true` com `break` final",
+      "decisions": ["W-746"],
+      "task": "Run an order attempt once and repeat while the network remains available.",
+      "selected": {
+        "language": "w",
+        "source": ["repeat {", "  tryPlaceOrder()", "} while network.isAvailable"]
+      },
+      "alternatives": [
+        {
+          "name": "infinite-loop-break",
+          "language": "w-pseudocode",
+          "source": ["while true {", "  tryPlaceOrder()", "  if !network.isAvailable { break }", "}"],
+          "expectedDifference": "The post-condition is encoded as a negated exit inside an infinite loop."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-newline-whitespace",
+      "reviewItem": "newline como whitespace contra automatic semicolon insertion",
+      "decisions": ["W-750", "W-777"],
+      "task": "Return a value even when editing places it on the following line.",
+      "selected": {
+        "language": "w",
+        "source": ["fn value(): Int {", "  return", "  42", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "automatic-semicolon-insertion",
+          "language": "asi-pseudocode",
+          "source": ["return", "42"],
+          "expectedDifference": "A newline can change the return into an empty return and a discarded value."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-semicolon-boundary",
+      "reviewItem": "semicolon raro de desambiguação contra remoção que altera a CST",
+      "decisions": ["W-777", "W-805"],
+      "task": "Discard a trace result before a contextual enum member becomes the block result.",
+      "selected": {
+        "language": "w",
+        "source": ["trace(.ready);", ".accepted"]
+      },
+      "alternatives": [
+        {
+          "name": "remove-semicolon",
+          "language": "w-invalid-intent",
+          "source": ["trace(.ready)", ".accepted"],
+          "expectedDifference": "The postfix continuation changes statement partition or requires recovery."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-fixed-formatter",
+      "reviewItem": "formatter fixo de 120 colunas contra style configurável e import sorting",
+      "decisions": ["W-708", "W-803", "W-808"],
+      "task": "Format the same module identically on two machines.",
+      "selected": {
+        "language": "w",
+        "source": ["import kitchen", "fn serve(order: Order) { serve(order) }"]
+      },
+      "alternatives": [
+        {
+          "name": "workspace-style",
+          "language": "formatter-policy",
+          "source": ["columnWidth = project.setting", "sortImports = project.setting"],
+          "expectedDifference": "The canonical bytes depend on local policy and can reorder source declarations."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-manifest-record",
+      "reviewItem": "manifest exclusivo com `{...}` contra `package<...>` inline no source",
+      "decisions": ["W-756"],
+      "task": "Declare package data without mixing executable module source.",
+      "selected": {
+        "language": "w-manifest",
+        "source": ["package {", "  name: \"last-light\"", "  version: \"0.1.0\"", "}"]
+      },
+      "alternatives": [
+        {
+          "name": "inline-package-contract",
+          "language": "w-rejected",
+          "source": ["package<name: \"last-light\", version: \"0.1.0\">"] ,
+          "expectedDifference": "The angle envelope looks like a local contract and can be mixed with executable source."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-attached-contract",
+      "reviewItem": "contract ligado ao head contra `Array <T>` dependente de whitespace",
+      "decisions": ["W-758", "W-778"],
+      "task": "Apply an element type to Array without type-directed reparsing.",
+      "selected": { "language": "w", "source": ["type Menu = Array<Dish>"] },
+      "alternatives": [
+        {
+          "name": "detached-envelope",
+          "language": "w-rejected",
+          "source": ["type Menu = Array <Dish>"],
+          "expectedDifference": "Trivia detaches the envelope and leaves relation syntax instead of a type application."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-computed-contract",
+      "reviewItem": "`<(expression)>` contra expression crua dentro do envelope",
+      "decisions": ["W-759"],
+      "task": "Distinguish a computed refinement from named contract slots.",
+      "selected": { "language": "w", "source": ["type Small = Int<(1...128)>"] },
+      "alternatives": [
+        {
+          "name": "raw-expression",
+          "language": "w-rejected",
+          "source": ["type Small = Int<1...128>"],
+          "expectedDifference": "The payload no longer states whether tokens are slots or one computed predicate."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-nested-contract-close",
+      "reviewItem": "closes `>>` contextuais contra exigir whitespace em nested types",
+      "decisions": ["W-761", "W-779"],
+      "task": "Close nested types while preserving shift syntax in expression owners.",
+      "selected": { "language": "w", "source": ["type Menus = Array<Array<Dish>>"] },
+      "alternatives": [
+        {
+          "name": "mandatory-close-space",
+          "language": "w-alternative",
+          "source": ["type Menus = Array<Array<Dish> >"],
+          "expectedDifference": "Nested type spelling depends on a mandatory visual separator between closes."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-if-expression",
+      "reviewItem": "`if ... else` como expression contra ternary e branch statement only",
+      "decisions": ["W-771"],
+      "task": "Choose one stage value with exhaustive visible branches.",
+      "selected": {
+        "language": "w",
+        "source": ["let stage = if ready { .serving } else { .preparing }"]
+      },
+      "alternatives": [
+        {
+          "name": "ternary",
+          "language": "c-like",
+          "source": ["let stage = ready ? serving : preparing"],
+          "expectedDifference": "A second conditional syntax duplicates precedence and formatting rules."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-assignment-unit",
+      "reviewItem": "assignment Unit contra assignment que devolve e duplica o value",
+      "decisions": ["W-770", "W-836"],
+      "task": "Replace a mutable place without making the stored value available twice.",
+      "selected": { "language": "w", "source": ["count = nextCount"] },
+      "alternatives": [
+        {
+          "name": "value-producing-assignment",
+          "language": "c-like",
+          "source": ["total = count = nextCount"],
+          "expectedDifference": "The assignment result permits chaining and obscures whether ownership is duplicated."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-power-precedence",
+      "reviewItem": "power matemática com exponent prefix contra unary que vence power",
+      "decisions": ["W-769"],
+      "task": "Evaluate negative two squared according to mathematical precedence.",
+      "selected": { "language": "w", "source": ["let value = -2 ** 2"] },
+      "alternatives": [
+        {
+          "name": "unary-first",
+          "language": "alternative-grammar",
+          "source": ["let value = (-2) ** 2"],
+          "expectedDifference": "Unary-first grammar changes the unparenthesized result from -4 to 4."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    }
+  ]
+}

@@ -21,6 +21,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 52 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
