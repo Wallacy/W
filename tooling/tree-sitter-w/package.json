@@ -19,6 +19,7 @@
     "parse:deployments": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/deployments/*.w",
     "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w ../../std/build/*.w ../../std/io/*.w ../../std/http/*.w ../../std/database/*.w ../../std/cache/*.w",
     "parse:fixture": "tree-sitter parse --grammar-path . --quiet --stat ../vscode-w/fixtures/*.w",
+    "parse:studies": "tree-sitter parse --grammar-path . --quiet --stat ../studies/*/*.w",
     "index:design": "bun ../design-index.mjs --write",
     "check:wire": "bun test ../wire-reference.test.mjs",
     "check:wire:c": "bun test ../wire-reference-c.test.mjs",
@@ -27,13 +28,15 @@
     "check:formatter-cases": "bun ../check-formatter-cases.mjs",
     "check:substitutions": "bun ../check-substitution-cases.mjs --require-complete",
     "check:substitution-surface": "bun ../substitution-surface.mjs",
+    "check:study-bundles": "bun ../check-study-bundles.mjs",
+    "check:study-oracles": "bun test ../studies",
     "update:substitution-surface": "bun ../substitution-surface.mjs --write",
     "check:index": "bun ../design-index.mjs --check",
     "check:reader": "bun -e \"const source = await Bun.file('../design-slice.mjs').text(); new Bun.Transpiler({ loader: 'js' }).transformSync(source);\"",
     "check:links": "bun ../check-markdown-links.mjs",
     "check:design": "bun ../check-design-examples.mjs",
-    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:substitutions && bun run check:substitution-surface && bun run check:index",
-    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:substitution-surface && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run check:links && bun run check:design && bun run check:index"
+    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:index",
+    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"

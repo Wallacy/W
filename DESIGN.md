@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície, R0 estrutura 52/52 comparações e R0S mede 117 formas; os estudos humanos e de modelos ainda não foram executados |
+| ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
 | validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -22262,7 +22262,7 @@ mesma profundidade em todas as famílias:
 | memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 52/52 e R0S fixa a baseline estática de 117 formas | executar os estudos humanos e de modelos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 52/52, R0S mede 117 formas e R1 possui um bundle com duas variantes e quatro tarefas | ampliar R1, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22684,6 +22684,31 @@ incorporar os casos em slices completos e executáveis do Última Luz. Cada bund
 R1 fixa source base, input, outcome, ordem de apresentação e digest de cada
 variante. As variantes diferem somente na construção estudada. Uma variante não
 pode remover contexto ou testes para parecer menor.
+
+### 26.3 Primeiro bundle R1: controle de fluxo
+
+**Exemplo:** um zero abandona a linha atual sem finalizá-la. Um carrier maior
+que 31 encerra o scan inteiro. O resultado contém bits e linhas finalizadas.
+
+[`tooling/studies/r1-control-flow/bundle.json`](tooling/studies/r1-control-flow/bundle.json)
+deriva de `foldDiagnosticBits` do Última Luz. O bundle fixa dois inputs e seus
+outcomes. Ele contém duas variantes W completas:
+
+- `structured.w` usa loop e block rotulados;
+- `flags.w` usa flags mutáveis e transfers não rotulados.
+
+As duas variantes mantêm tipos, nome da função, inputs, outcome e testes. O
+bundle registra digest de cada source, do source base e do oracle. As ordens
+`structured/flags` e `flags/structured` fazem o counterbalancing mínimo. As
+quatro tarefas cobrem explicação, recall após delay, reparo preparado e mudança
+de requisito. Participantes recebem labels neutros `A` e `B`; IDs, roles, paths
+e lista de construções ficam ocultos durante a sessão.
+
+O gate atual prova que ambas as variantes fazem parse sem recovery. Um oracle
+host independente executa os dois inputs e exige o mesmo outcome. Essa prova
+não executa W. O bundle continua `design-oracle-input` até `w compile` e `w run`
+substituírem o oracle host. Estudos humanos e de modelos também continuam
+ausentes e aparecem em `evidence.missing`.
 
 ## 27. Plano de implementação
 
@@ -23895,6 +23920,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
+| W-868 | schema de bundle R1 | bundle fixa source base, casos R0, variantes distintas, inputs, outcomes, quatro tarefas, ordens, blinding, oracle, digests e estado de evidência | prompt solto; variante sem source; input implícito; ordem fixa; metadata revela a forma; resultado sem toolchain |
+| W-869 | seed R1 de controle | scanner de carrier do Última Luz compara labels estruturados e flags mutáveis; duas variantes W fazem parse e dois inputs coincidem no oracle host; execução W permanece ausente | medir snippets R0 como programa; comparar W com C de escopo menor; chamar simulação host de runtime W |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

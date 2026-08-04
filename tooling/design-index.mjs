@@ -260,6 +260,18 @@ const selectedSurfaceLexemeMedian =
     selectedSurfaceLexemes[selectedSurfaceLexemes.length / 2]) /
   2;
 const selectedSurfaceLexemeMaximum = selectedSurfaceLexemes.at(-1);
+const studyBundleFiles = recursiveFiles(
+  path.join(wDirectory, "tooling", "studies"),
+  (file) => path.basename(file) === "bundle.json",
+);
+const studyBundles = studyBundleFiles.map((file) =>
+  JSON.parse(fs.readFileSync(file, "utf8")),
+);
+const studyVariants = studyBundles.reduce(
+  (count, bundle) => count + bundle.variants.length,
+  0,
+);
+const studyTasks = studyBundles.reduce((count, bundle) => count + bundle.tasks.length, 0);
 
 const referenceDirectory = path.join(wDirectory, "reference", "last-light");
 const rootReferenceSources = fs
@@ -354,6 +366,8 @@ output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |
 output.push(
   `| surface lexemes das formas vigentes R0 | ${selectedSurfaceLexemeTotal} total; mediana ${selectedSurfaceLexemeMedian}; máximo ${selectedSurfaceLexemeMaximum} |`,
 );
+output.push(`| bundles executáveis R1 | ${studyBundles.length} |`);
+output.push(`| variantes/tarefas R1 | ${studyVariants}/${studyTasks} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
