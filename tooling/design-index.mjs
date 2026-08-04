@@ -215,6 +215,15 @@ if (reviewStart < 0 || implementationStart < 0) {
   structuralErrors.push("Sections 26 and 27 are required for review metrics.");
 }
 
+const malformedDiagnosticCodes = [
+  ...new Set(designText.match(/\bW-(?:[A-Z]+-)+[0-9]{4}\b/g) ?? []),
+].filter((code) => !/^W-[A-Z]+-[0-9]{4}$/.test(code));
+if (malformedDiagnosticCodes.length > 0) {
+  structuralErrors.push(
+    `Diagnostic codes must use one family and four digits: ${malformedDiagnosticCodes.join(", ")}.`,
+  );
+}
+
 if (structuralErrors.length > 0) {
   process.stderr.write(`${structuralErrors.join("\n")}\n`);
   process.exit(1);
@@ -259,12 +268,25 @@ const semanticResultSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-results.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
   .filter(Boolean).length;
-const diagnosticCatalogCount = JSON.parse(
+const diagnosticCatalog = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "diagnostic-catalog.json"), "utf8"),
-).codes.length;
-const referencedDiagnosticCount = new Set(
-  [...designText.matchAll(/\b(W-[A-Z]+-[0-9]{4})\b/g)].map((match) => match[1]),
-).size;
+);
+const diagnosticCatalogCount = diagnosticCatalog.codes.length;
+const diagnosticCatalogCodes = new Set(diagnosticCatalog.codes.map((entry) => entry.code));
+const referencedDiagnosticCodes = [
+  ...new Set([...designText.matchAll(/\b(W-[A-Z]+-[0-9]{4})\b/g)].map((match) => match[1])),
+].sort((left, right) => Buffer.from(left).compare(Buffer.from(right)));
+const referencedDiagnosticCount = referencedDiagnosticCodes.length;
+const diagnosticFamilies = new Map();
+for (const code of referencedDiagnosticCodes) {
+  const family = code.split("-")[1];
+  const current = diagnosticFamilies.get(family) ?? { referenced: 0, cataloged: 0 };
+  current.referenced += 1;
+  if (diagnosticCatalogCodes.has(code)) {
+    current.cataloged += 1;
+  }
+  diagnosticFamilies.set(family, current);
+}
 const normativeGrammarSlices = headings.filter((heading) =>
   /\bGrammar normativa G\d+/.test(heading.title),
 ).length;
@@ -311,6 +333,16 @@ output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);
 output.push(`| sources W no rascunho da std | ${stdSources} |`);
 output.push("");
 output.push("A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.");
+output.push("");
+output.push("## Cobertura do catálogo D0");
+output.push("");
+output.push("| Família | Catalogados | Referenciados |");
+output.push("|---|---:|---:|");
+for (const [family, counts] of [...diagnosticFamilies].sort(([left], [right]) =>
+  Buffer.from(left).compare(Buffer.from(right)),
+)) {
+  output.push(`| ${family} | ${counts.cataloged} | ${counts.referenced} |`);
+}
 output.push("");
 output.push("## Navegação por seção");
 output.push("");
