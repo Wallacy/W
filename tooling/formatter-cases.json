@@ -214,6 +214,114 @@
         "fn alpha(): Int { return 2 }"
       ],
       "requiredSemicolons": []
+    },
+    {
+      "id": "F0-labeled-repeat-loop",
+      "decisions": ["W-732", "W-746", "W-781"],
+      "input": {
+        "lines": [
+          "fn retry(network:Network){retryOrder:repeat{let outcome=tryPlaceOrder();if outcome.completed{break retryOrder}}while network.isAvailable}"
+        ]
+      },
+      "output": [
+        "fn retry(network: Network) {",
+        "  retryOrder: repeat {",
+        "    let outcome = tryPlaceOrder()",
+        "    if outcome.completed { break retryOrder }",
+        "  } while network.isAvailable",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-effect-prefix-order",
+      "decisions": ["W-708", "W-774", "W-839"],
+      "input": {
+        "lines": [
+          "async fn load(kitchen:Kitchen):Menu throws KitchenError{return try await kitchen.loadMenu()}"
+        ]
+      },
+      "output": [
+        "async fn load(kitchen: Kitchen): Menu throws KitchenError { return try await kitchen.loadMenu() }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-const-call-parameter",
+      "decisions": ["W-548", "W-708"],
+      "input": {
+        "lines": [
+          "fn prepare(statement:const database.Query<WorldKey,WorldRow>,parameters:WorldKey):PreparedQuery{return database.prepare(statement,parameters:parameters)}"
+        ]
+      },
+      "output": [
+        "fn prepare(",
+        "  statement: const database.Query<WorldKey, WorldRow>,",
+        "  parameters: WorldKey,",
+        "): PreparedQuery {",
+        "  return database.prepare(statement, parameters: parameters)",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-enum-subset-switch",
+      "decisions": ["W-300", "W-301", "W-708"],
+      "input": {
+        "lines": [
+          "alias WorkStage=ServiceStage<[.reserving,.preparing,.serving]>;fn instruction(stage:WorkStage):String{return switch stage{case .reserving:\"Reserve\" case .preparing:\"Prepare\" case .serving:\"Serve\"}}"
+        ]
+      },
+      "output": [
+        "alias WorkStage = ServiceStage<[.reserving, .preparing, .serving]>",
+        "",
+        "fn instruction(stage: WorkStage): String {",
+        "  return switch stage {",
+        "    case .reserving: \"Reserve\"",
+        "    case .preparing: \"Prepare\"",
+        "    case .serving: \"Serve\"",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-explicit-capture-closure",
+      "decisions": ["W-006", "W-197", "W-708"],
+      "input": {
+        "lines": [
+          "fn ticketSequence(initial:usize):some mut fn():usize{var next=initial return capture(take next)()=>{next+=1 return next}}"
+        ]
+      },
+      "output": [
+        "fn ticketSequence(initial: usize): some mut fn(): usize {",
+        "  var next = initial",
+        "  return capture(take next) () => {",
+        "    next += 1",
+        "    return next",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-structured-transaction",
+      "decisions": ["W-688", "W-705", "W-708", "W-775"],
+      "input": {
+        "lines": [
+          "async fn settle(table:TableId,guest:GuestId):Receipt throws LedgerError{return try await transaction tx=tableLedger{let reservation=try await tx.reserve(tableId:table,guestId:guest) let receipt=try await tx.confirm(reservation:take reservation) commit receipt}}"
+        ]
+      },
+      "output": [
+        "async fn settle(table: TableId, guest: GuestId): Receipt throws LedgerError {",
+        "  return try await transaction tx = tableLedger {",
+        "    let reservation = try await tx.reserve(tableId: table, guestId: guest)",
+        "    let receipt = try await tx.confirm(reservation: take reservation)",
+        "    commit receipt",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
     }
   ]
 }
