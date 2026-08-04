@@ -925,6 +925,268 @@
       }
     },
     {
+      "id": "S0-POS-const-safe-call",
+      "kind": "positive",
+      "rule": "W-263",
+      "source": [
+        "const fn buildMenuCode(): u8 {",
+        "  return 0xff_u8",
+        "}",
+        "const menuCode = buildMenuCode()"
+      ],
+      "expect": {
+        "focus": { "text": "buildMenuCode()", "occurrence": 1 },
+        "semanticResult": {
+          "resultType": "u8",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-safe-call", "subject": "buildMenuCode" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve-const", "subject": "buildMenuCode" },
+              { "id": "evaluate", "operation": "evaluate-const", "subject": "buildMenuCode" },
+              { "id": "result", "operation": "materialize-const", "subject": "u8:255" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "evaluate", "kind": "next" },
+              { "from": "evaluate", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-acyclic-dependency",
+      "kind": "positive",
+      "rule": "W-270",
+      "source": [
+        "const accepted = 1",
+        "const preparing = accepted + 1"
+      ],
+      "expect": {
+        "focus": { "text": "accepted + 1" },
+        "semanticResult": {
+          "resultType": "Int",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-dependency", "subject": "preparing", "value": "accepted" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "accepted", "operation": "read-const", "subject": "accepted" },
+              { "id": "one", "operation": "literal", "subject": "1" },
+              { "id": "add", "operation": "add", "subject": "Int" }
+            ],
+            "edges": [
+              { "from": "accepted", "to": "one", "kind": "next" },
+              { "from": "one", "to": "add", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-within-quota",
+      "kind": "positive",
+      "rule": "W-270",
+      "source": [
+        "const fn recipeSteps(limit: u32): u32 {",
+        "  var step = 0_u32",
+        "  repeat {",
+        "    step += 1",
+        "  } while step < limit",
+        "  return step",
+        "}",
+        "const plannedSteps = recipeSteps(4)"
+      ],
+      "expect": {
+        "focus": { "text": "recipeSteps(4)" },
+        "semanticResult": {
+          "resultType": "u32",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-quota", "subject": "steps", "value": "within-limit" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve-const", "subject": "recipeSteps" },
+              { "id": "argument", "operation": "literal", "subject": "4" },
+              { "id": "evaluate", "operation": "evaluate-const", "subject": "recipeSteps" },
+              { "id": "result", "operation": "materialize-const", "subject": "u32:4" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "evaluate", "kind": "next" },
+              { "from": "evaluate", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-stage-path",
+      "kind": "positive",
+      "rule": "W-331",
+      "source": [
+        "enum ServiceStage {",
+        "  accepted",
+        "  reserving",
+        "  completed",
+        "}",
+        "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {",
+        "  return stages == [.accepted, .reserving, .completed]",
+        "}",
+        "struct StagePath<",
+        "  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
+        "> {}",
+        "type StandardPath = StagePath<[.accepted, .reserving, .completed]>"
+      ],
+      "expect": {
+        "focus": { "text": "StagePath<[.accepted, .reserving, .completed]>" },
+        "semanticResult": {
+          "resultType": "StagePath<[.accepted, .reserving, .completed]>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-predicate", "subject": "isValidStagePath", "value": "true" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "StagePath" },
+              { "id": "argument", "operation": "build-static-list", "subject": "accepted|reserving|completed" },
+              { "id": "predicate", "operation": "evaluate-const", "subject": "isValidStagePath" },
+              { "id": "result", "operation": "apply-contract", "subject": "StagePath" }
+            ],
+            "edges": [
+              { "from": "head", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "predicate", "kind": "next" },
+              { "from": "predicate", "to": "result", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-handled-error",
+      "kind": "positive",
+      "rule": "W-265",
+      "source": [
+        "enum PortError: Error {",
+        "  invalid",
+        "}",
+        "const fn parsePort(text: ref String): u16 throws PortError {",
+        "  if text == \"42\" { return 42_u16 }",
+        "  throw .invalid",
+        "}",
+        "const observatoryPort = try parsePort(\"42\")"
+      ],
+      "expect": {
+        "focus": { "text": "try parsePort(\"42\")" },
+        "semanticResult": {
+          "resultType": "u16",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-success", "subject": "parsePort", "value": "u16:42" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve-const", "subject": "parsePort" },
+              { "id": "argument", "operation": "literal", "subject": "42" },
+              { "id": "evaluate", "operation": "evaluate-const", "subject": "parsePort" },
+              { "id": "try", "operation": "consume-error-edge", "subject": "PortError" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "evaluate", "kind": "next" },
+              { "from": "evaluate", "to": "try", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-index-bounds",
+      "kind": "positive",
+      "rule": "W-265",
+      "source": [
+        "const ingredient = [1, 2][1]"
+      ],
+      "expect": {
+        "focus": { "text": "[1, 2][1]" },
+        "semanticResult": {
+          "resultType": "Int",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "index-bounds", "subject": "1", "value": "length:2" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "array", "operation": "build-array", "subject": "Int[2]" },
+              { "id": "index", "operation": "literal", "subject": "1" },
+              { "id": "read", "operation": "read-index", "subject": "ingredient" }
+            ],
+            "edges": [
+              { "from": "array", "to": "index", "kind": "next" },
+              { "from": "index", "to": "read", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-const-call-parameter",
+      "kind": "positive",
+      "rule": "W-548",
+      "source": [
+        "struct Query {}",
+        "struct PreparedQuery {}",
+        "fn prepare(statement: const Query): PreparedQuery {",
+        "  return PreparedQuery()",
+        "}",
+        "const worldById = Query()",
+        "fn run(): PreparedQuery {",
+        "  return prepare(worldById)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "prepare(worldById)" },
+        "semanticResult": {
+          "resultType": "PreparedQuery",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-argument", "subject": "statement", "value": "worldById" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve", "subject": "prepare" },
+              { "id": "argument", "operation": "read-const", "subject": "worldById" },
+              { "id": "descriptor", "operation": "normalize-const", "subject": "Query" },
+              { "id": "call", "operation": "call", "subject": "prepare" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "descriptor", "kind": "next" },
+              { "from": "descriptor", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-contract-known-slot",
       "kind": "positive",
       "rule": "W-757",
@@ -1294,6 +1556,258 @@
               "operandCategory": "rvalue",
               "prefix": "ref",
               "requirement": "place"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-safe-call",
+      "kind": "negative",
+      "rule": "W-263",
+      "baseline": "S0-POS-const-safe-call",
+      "failureField": "effectSummary",
+      "source": [
+        "const fn currentTick(): u64 {",
+        "  return clock.now()",
+        "}",
+        "const menuCode = currentTick()"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0001",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "clock.now()" },
+            "labels": [
+              { "role": "const-owner", "selector": { "text": "const menuCode = currentTick()" } }
+            ],
+            "facts": {
+              "callChain": ["menuCode", "currentTick", "clock.now"],
+              "operation": "call",
+              "reason": "capability:clock",
+              "symbol": "clock.now"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-acyclic-dependency",
+      "kind": "negative",
+      "rule": "W-270",
+      "baseline": "S0-POS-const-acyclic-dependency",
+      "failureField": "evaluationGraph",
+      "source": [
+        "const left = right + 1",
+        "const right = left + 1"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0002",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "left", "occurrence": 1 },
+            "labels": [
+              { "role": "cycle-member", "selector": { "text": "const left = right + 1" } },
+              { "role": "cycle-member", "selector": { "text": "const right = left + 1" } }
+            ],
+            "facts": {
+              "cycle": ["left", "right", "left"],
+              "cycleLength": 2
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-within-quota",
+      "kind": "negative",
+      "rule": "W-270",
+      "baseline": "S0-POS-const-within-quota",
+      "failureField": "evaluationGraph",
+      "source": [
+        "const fn recipeSteps(): u32 {",
+        "  var step = 0_u32",
+        "  repeat {",
+        "    step += 1",
+        "  } while true",
+        "  return step",
+        "}",
+        "const plannedSteps = recipeSteps()"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0003",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "recipeSteps()", "occurrence": 1 },
+            "labels": [
+              { "role": "const-owner", "selector": { "text": "const plannedSteps = recipeSteps()" } }
+            ],
+            "facts": {
+              "callChain": ["plannedSteps", "recipeSteps"],
+              "consumed": 1000001,
+              "limit": 1000000,
+              "quota": "steps"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-stage-path",
+      "kind": "negative",
+      "rule": "W-331",
+      "baseline": "S0-POS-const-stage-path",
+      "failureField": "proofFacts",
+      "source": [
+        "enum ServiceStage {",
+        "  accepted",
+        "  reserving",
+        "  completed",
+        "}",
+        "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {",
+        "  return stages == [.accepted, .reserving, .completed]",
+        "}",
+        "struct StagePath<",
+        "  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
+        "> {}",
+        "type SkippedPath = StagePath<[.accepted, .completed]>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0004",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "StagePath<[.accepted, .completed]>" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "StagePath", "occurrence": 1 } }
+            ],
+            "facts": {
+              "argument": "[accepted,completed]",
+              "failure": "transition:accepted->completed",
+              "head": "StagePath",
+              "predicate": "isValidStagePath"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-handled-error",
+      "kind": "negative",
+      "rule": "W-265",
+      "baseline": "S0-POS-const-handled-error",
+      "failureField": "flow",
+      "source": [
+        "enum PortError: Error {",
+        "  invalid",
+        "}",
+        "const fn parsePort(text: ref String): u16 throws PortError {",
+        "  if text == \"42\" { return 42_u16 }",
+        "  throw .invalid",
+        "}",
+        "const observatoryPort = try parsePort(\"invalid\")"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0005",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "try parsePort(\"invalid\")" },
+            "labels": [
+              { "role": "const-owner", "selector": { "text": "const observatoryPort = try parsePort(\"invalid\")" } }
+            ],
+            "facts": {
+              "errorCase": "invalid",
+              "errorType": "PortError",
+              "requiredBy": "observatoryPort"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-index-bounds",
+      "kind": "negative",
+      "rule": "W-265",
+      "baseline": "S0-POS-const-index-bounds",
+      "failureField": "flow",
+      "source": [
+        "const ingredient = [1, 2][4]"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0006",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "[1, 2][4]" },
+            "labels": [
+              { "role": "const-owner", "selector": { "text": "const ingredient = [1, 2][4]" } }
+            ],
+            "facts": {
+              "callChain": ["ingredient"],
+              "operation": "index",
+              "panicKind": "bounds",
+              "requiredBy": "ingredient"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-const-call-parameter",
+      "kind": "negative",
+      "rule": "W-548",
+      "baseline": "S0-POS-const-call-parameter",
+      "failureField": "proofFacts",
+      "source": [
+        "struct Query {}",
+        "struct PreparedQuery {}",
+        "fn prepare(statement: const Query): PreparedQuery {",
+        "  return PreparedQuery()",
+        "}",
+        "fn run(runtimeQuery: Query): PreparedQuery {",
+        "  return prepare(runtimeQuery)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONST-0007",
+            "phase": "semantic.const",
+            "severity": "error",
+            "primary": { "text": "runtimeQuery", "occurrence": 1 },
+            "labels": [
+              { "role": "call-owner", "selector": { "text": "prepare(runtimeQuery)" } },
+              { "role": "const-requirement", "selector": { "text": "statement: const Query" } }
+            ],
+            "facts": {
+              "callable": "prepare",
+              "parameter": "statement",
+              "requiredPredicate": "ConstRepresentable",
+              "sourceCategory": "runtime-value"
             },
             "notes": [],
             "fixes": []

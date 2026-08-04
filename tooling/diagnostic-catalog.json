@@ -18,6 +18,123 @@
   },
   "codes": [
     {
+      "code": "W-CONST-0001",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "an operation, call, or target semantic is not const-safe",
+      "requiredFacts": {
+        "callChain": "string[]",
+        "operation": "string",
+        "reason": "string",
+        "symbol": "string"
+      },
+      "labelRoles": {
+        "const-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0002",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "the const dependency graph contains a cycle",
+      "requiredFacts": {
+        "cycle": "string[]",
+        "cycleLength": "integer"
+      },
+      "labelRoles": {
+        "cycle-member": { "minimum": 2, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0003",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "const evaluation exceeds a deterministic quota",
+      "requiredFacts": {
+        "callChain": "string[]",
+        "consumed": "integer",
+        "limit": "integer",
+        "quota": "string"
+      },
+      "labelRoles": {
+        "const-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0004",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "a valid const predicate rejects a static argument",
+      "requiredFacts": {
+        "argument": "string",
+        "failure": "string",
+        "head": "string",
+        "predicate": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0005",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "a typed error escapes a required const context",
+      "requiredFacts": {
+        "errorCase": "string",
+        "errorType": "string",
+        "requiredBy": "string"
+      },
+      "labelRoles": {
+        "const-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0006",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "const evaluation reaches panic",
+      "requiredFacts": {
+        "callChain": "string[]",
+        "operation": "string",
+        "panicKind": "string",
+        "requiredBy": "string"
+      },
+      "labelRoles": {
+        "const-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONST-0007",
+      "state": "active",
+      "phase": "semantic.const",
+      "defaultSeverity": "error",
+      "meaning": "a call parameter requires a compile-time value that is not available",
+      "requiredFacts": {
+        "callable": "string",
+        "parameter": "string",
+        "requiredPredicate": "string",
+        "sourceCategory": "string"
+      },
+      "labelRoles": {
+        "call-owner": { "minimum": 1, "maximum": 1 },
+        "const-requirement": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-CONTRACT-0001",
       "state": "active",
       "phase": "semantic.type",
