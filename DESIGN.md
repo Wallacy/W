@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 42–52% | Tree-sitter, F0 e 38 pares S0 cobrem contratos, patterns, match, expressions e const evaluation; ainda não existe formatter, type-checker, evaluator, HIR ou runtime W |
+| validação executável | 44–54% | Tree-sitter, F0 e 42 pares S0 cobrem contratos, patterns, match, expressions, const, enum subsets, conversions e generics; ainda não existe formatter, type-checker, evaluator, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -5333,6 +5333,14 @@ O primeiro envelope aplica `T`. O segundo restringe os cases. Essa regra também
 se aplica a `Result<T, E><[.success]>`, embora uma API nonthrowing deva retornar
 `T` diretamente.
 
+`W-TYPE-0121` pertence ao primeiro value provado fora do case-set esperado. O
+diagnostic registra enum base, subset normalizado, case observado e contexto.
+Ele não espera o backend inserir um guard runtime.
+
+| Code | Condição |
+|---|---|
+| `W-TYPE-0121` | value não pertence ao enum subset esperado |
+
 Um enum com payload substitui estados paralelos que poderiam divergir:
 
 ```w
@@ -6447,6 +6455,21 @@ por equações de tipos. O
 separa generic, opaque e boxed protocol types. W usa esses precedentes com
 lookup fechado e witnesses determinísticos.
 
+#### 8.7.10 Diagnostics e evidence
+
+| Code | Condição |
+|---|---|
+| `W-GENERIC-0002` | inference não possui solução única para um parâmetro aberto |
+| `W-GENERIC-0005` | sequência de instantiations cresce sem convergir |
+
+`W-GENERIC-0002` registra as fontes de equações consultadas. Constraint não
+inventa candidate. `W-GENERIC-0005` registra o prefixo normalizado e a
+transformação recorrente. A falha de crescimento não é uma quota de wall clock.
+
+Dois pares S0 usam `make<T>()` com expected type e uma travessia recursiva de
+árvore. A inversão remove a única equação de `T` ou troca recursion estável por
+`T -> Array<T>`.
+
 ### 8.8 Conversões
 
 **Exemplo:** `u8` pode converter para `u16`. A conversão de `u16` para `u8`
@@ -6474,6 +6497,22 @@ let narrow = try u8(exactly: chosen)
 ```
 
 A seção 15.1.2 fecha as conversões entre integers e floats.
+
+Quando expected e actual type diferem, o checker registra a rota total única
+antes de baixar a call. Ausência, perda ou mais de uma rota produz
+`W-TYPE-0122`. O diagnostic não sugere um cast genérico; ele informa por que a
+conversão implícita foi recusada.
+
+```w
+fn seat(count: u16) {}
+
+seat(4_u8)       // conversão total u8 -> u16
+seat(70_000_u32) // error[W-TYPE-0122]: narrowing não é implícito
+```
+
+| Code | Condição |
+|---|---|
+| `W-TYPE-0122` | não existe uma conversão implícita total, exata e única |
 
 ### 8.9 Reflection, síntese e parâmetros rest
 
@@ -20284,7 +20323,7 @@ fase posterior pode emitir somente uma causa independente ou um child ligado a
 esse root. Ela não reclassifica o mesmo problema para obter uma mensagem melhor.
 
 Codes usam uma família e quatro digits. Exemplos são `W-PARSE-0001`,
-`W-TYPE-0042`, `W-MOVE-0002`, `W-EFFECT-0011`, `W-FFI-0012` e
+`W-TYPE-0120`, `W-MOVE-0002`, `W-EFFECT-0011`, `W-FFI-0012` e
 `W-BUILD-0003`.
 
 O catálogo de cada code define:
@@ -20408,9 +20447,12 @@ Um root possui `root: null`. Um diagnostic derivado aponta para a `instance` do
 root. Labels e notes não criam diagnostics secundários.
 
 ```text
-D000001 W-TYPE-0042 root
-  D000002 W-TYPE-0119 caused-by D000001
+D000001 <root-code> root
+  D000002 <child-code> caused-by D000001
 ```
+
+Os nomes entre angle brackets são placeholders do schema. Eles não reservam
+codes no catálogo.
 
 Poison mantém type, owner e effect desconhecidos separados. O checker não emite
 outro diagnostic somente porque consumiu poison. Ele emite um child quando uma
@@ -22188,8 +22230,8 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 76 casos pareiam 38 resultados positivos com 38 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 68 de 77 codes, incluindo parser, contratos, patterns, match, expressions G4 e const evaluation | completar as famílias restantes, compile-fail runner e adapters diferenciais |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 72 de 76 codes; somente BUILD, DOC, FFI e WIRE ainda não possuem entrada | completar as famílias de infraestrutura, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23760,6 +23802,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-847 | failure durante const | typed error escapante e panic permanecem W-CONST-0005 e 0006; nenhum cria fault boundary ou cache entry | converter ambos em quota; panic do compiler; materializar Result oculto |
 | W-848 | parâmetro de call const | W-CONST-0007 pertence somente ao argumento indisponível no call site e aponta call e requirement | code de operação target; monomorphization implícita; aceitar descriptor runtime |
 | W-849 | corpus CE0/S0 | sete families CONST possuem baseline único do Última Luz, inversão syntax-valid, outcome e snapshot D0 | examples sem evaluator state; negativo com múltiplas causas; tratar snapshot manual como execução ConstIR |
+| W-850 | placeholder de code | exemplos de causalidade usam `<root-code>` e `<child-code>`; placeholders não reservam IDs nem entram na cobertura | inventar W-TYPE sem meaning; catalogar exemplo fictício; reutilizar ID depois |
+| W-851 | enum subset fora do domínio | W-TYPE-0121 registra base enum, subset normalizado, case e expected type; backend não insere guard | type error sem case-set; aceitar e panic runtime; tratar como match não exaustivo |
+| W-852 | conversão implícita recusada | W-TYPE-0122 exige rota total, exata e única; ausência, perda ou ambiguidade preservam candidates e reason | cast genérico; ranking por custo; usar W-TYPE-0120 para expected/actual sem join |
+| W-853 | inference genérica | W-GENERIC-0002 registra parâmetro, equation sources, candidates e motivo; constraint valida, mas não inventa solução | escolher conformer único no scope; inferir pelo body; voltar ao overload set |
+| W-854 | convergência genérica | mesma instantiation recursiva é válida; crescimento estrutural estrito usa W-GENERIC-0005 antes de wall-clock quota | rejeitar toda recursion; timeout host; shared body esconde type expansion infinita |
+| W-855 | corpus TYPE/GENERIC S0 | enum subset, conversão, inference e termination possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples positivos somente; fixture com duas falhas; códigos sem facts de máquina |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

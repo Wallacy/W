@@ -1187,6 +1187,159 @@
       }
     },
     {
+      "id": "S0-POS-type-enum-subset",
+      "kind": "positive",
+      "rule": "W-302",
+      "source": [
+        "enum ServiceStage {",
+        "  accepted",
+        "  reserving",
+        "  preparing",
+        "  serving",
+        "  cancelled",
+        "}",
+        "alias WorkStage = ServiceStage<[.reserving, .preparing, .serving]>",
+        "fn nextWorkStage(): WorkStage {",
+        "  return .preparing",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".preparing", "occurrence": 1 },
+        "semanticResult": {
+          "resultType": "WorkStage",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "enum-case-set", "subject": "WorkStage", "value": "preparing|reserving|serving" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "expected", "operation": "resolve-type", "subject": "WorkStage" },
+              { "id": "member", "operation": "resolve-contextual", "subject": "ServiceStage.preparing" },
+              { "id": "subset", "operation": "prove-case-membership", "subject": "WorkStage" }
+            ],
+            "edges": [
+              { "from": "expected", "to": "member", "kind": "next" },
+              { "from": "member", "to": "subset", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-type-total-conversion",
+      "kind": "positive",
+      "rule": "W-388",
+      "source": [
+        "fn seat(count: u16) {}",
+        "fn arrange(small: u8) {",
+        "  seat(small)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "seat(small)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "implicit-conversion", "subject": "small", "value": "u8->u16" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve", "subject": "seat" },
+              { "id": "argument", "operation": "read", "subject": "small" },
+              { "id": "convert", "operation": "widen", "subject": "u8->u16" },
+              { "id": "call", "operation": "call", "subject": "seat" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "convert", "kind": "next" },
+              { "from": "convert", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-generic-expected-inference",
+      "kind": "positive",
+      "rule": "W-285",
+      "source": [
+        "protocol Default {}",
+        "struct Dish: Default {}",
+        "fn make<T: Default>(): T {",
+        "  return T()",
+        "}",
+        "fn buildDish(): Dish {",
+        "  return make()",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "make()" },
+        "semanticResult": {
+          "resultType": "Dish",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "generic-solution", "subject": "T", "value": "Dish" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "callee", "operation": "resolve-generic", "subject": "make" },
+              { "id": "expected", "operation": "read-expected-type", "subject": "Dish" },
+              { "id": "solve", "operation": "solve-generic", "subject": "T=Dish" },
+              { "id": "call", "operation": "call", "subject": "make<Dish>" }
+            ],
+            "edges": [
+              { "from": "callee", "to": "expected", "kind": "next" },
+              { "from": "expected", "to": "solve", "kind": "next" },
+              { "from": "solve", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-generic-stable-recursion",
+      "kind": "positive",
+      "rule": "W-297",
+      "source": [
+        "struct Node<T> {",
+        "  value: T",
+        "}",
+        "fn revisit<T>(node: ref Node<T>): usize {",
+        "  return revisit<T>(node)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "revisit<T>(node)" },
+        "semanticResult": {
+          "resultType": "usize",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "generic-recursion", "subject": "revisit<T>", "value": "same-instantiation" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "instance", "operation": "resolve-instance", "subject": "revisit<T>" },
+              { "id": "argument", "operation": "borrow", "subject": "node" },
+              { "id": "call", "operation": "call", "subject": "revisit<T>" }
+            ],
+            "edges": [
+              { "from": "instance", "to": "argument", "kind": "next" },
+              { "from": "argument", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-contract-known-slot",
       "kind": "positive",
       "rule": "W-757",
@@ -1808,6 +1961,156 @@
               "parameter": "statement",
               "requiredPredicate": "ConstRepresentable",
               "sourceCategory": "runtime-value"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-type-enum-subset",
+      "kind": "negative",
+      "rule": "W-302",
+      "baseline": "S0-POS-type-enum-subset",
+      "failureField": "proofFacts",
+      "source": [
+        "enum ServiceStage {",
+        "  accepted",
+        "  reserving",
+        "  preparing",
+        "  serving",
+        "  cancelled",
+        "}",
+        "alias WorkStage = ServiceStage<[.reserving, .preparing, .serving]>",
+        "fn nextWorkStage(): WorkStage {",
+        "  return .cancelled",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-TYPE-0121",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": ".cancelled" },
+            "labels": [
+              { "role": "expected-type", "selector": { "text": "WorkStage", "occurrence": 1 } }
+            ],
+            "facts": {
+              "actualCase": "cancelled",
+              "allowedCases": ["preparing", "reserving", "serving"],
+              "baseEnum": "ServiceStage",
+              "expectedType": "WorkStage"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-type-total-conversion",
+      "kind": "negative",
+      "rule": "W-388",
+      "baseline": "S0-POS-type-total-conversion",
+      "failureField": "proofFacts",
+      "source": [
+        "fn seat(count: u16) {}",
+        "fn arrange(wide: u32) {",
+        "  seat(wide)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-TYPE-0122",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "wide", "occurrence": 1 },
+            "labels": [
+              { "role": "call-owner", "selector": { "text": "seat(wide)" } },
+              { "role": "expected-type", "selector": { "text": "count: u16" } }
+            ],
+            "facts": {
+              "actualType": "u32",
+              "candidateRoutes": [],
+              "expectedType": "u16",
+              "reason": "not-total"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-generic-expected-inference",
+      "kind": "negative",
+      "rule": "W-285",
+      "baseline": "S0-POS-generic-expected-inference",
+      "failureField": "resultType",
+      "source": [
+        "protocol Default {}",
+        "fn make<T: Default>(): T {",
+        "  return T()",
+        "}",
+        "fn build() {",
+        "  let value = make()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0002",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "make()" },
+            "labels": [
+              { "role": "call-owner", "selector": { "text": "let value = make()" } },
+              { "role": "generic-parameter", "selector": { "text": "T: Default" } }
+            ],
+            "facts": {
+              "candidates": [],
+              "equationSources": [],
+              "parameter": "T",
+              "reason": "no-equation"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-generic-stable-recursion",
+      "kind": "negative",
+      "rule": "W-297",
+      "baseline": "S0-POS-generic-stable-recursion",
+      "failureField": "evaluationGraph",
+      "source": [
+        "fn expand<T>(value: T): usize {",
+        "  return expand<Array<T>>([value])",
+        "}",
+        "fn start(): usize {",
+        "  return expand<u8>(1_u8)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0005",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "expand<Array<T>>([value])" },
+            "labels": [
+              { "role": "generic-declaration", "selector": { "text": "fn expand<T>" } }
+            ],
+            "facts": {
+              "declaration": "expand",
+              "instantiationPrefix": ["expand<u8>", "expand<Array<u8>>", "expand<Array<Array<u8>>>"],
+              "reason": "strict-structural-growth",
+              "transform": "T->Array<T>"
             },
             "notes": [],
             "fixes": []
