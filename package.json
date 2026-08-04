@@ -12,6 +12,7 @@
     "tooling:install": "bun ci --cwd tooling/tree-sitter-w",
     "check": "bun run --cwd tooling/tree-sitter-w check",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
+    "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:links": "bun tooling/check-markdown-links.mjs",
     "check:memory": "bun tooling/check-memory-transition-cases.mjs",
     "check:substitutions": "bun tooling/check-substitution-cases.mjs --require-complete",

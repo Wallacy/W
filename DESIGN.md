@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
-| validação executável | 48–58% | Tree-sitter, F0, S0, wire, R0/R1 e 21 casos M0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
+| validação executável | 50–60% | Tree-sitter, F0, S0, wire, R0/R1, M0 e E0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -9947,6 +9947,36 @@ W usa o modelo C++20 adotado pelo
 [guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) como base de
 lowering. A linguagem remove orders inválidas da superfície safe. W também
 separa `volatile`, atomics e synchronization.
+
+##### Corpus de execução E0
+
+**Exemplo:** `mixAcrossTwoKitchens` permite que as duas cozinhas executem em
+paralelo. Os resultados ficam visíveis ao parent somente depois do join. Pedir
+cancelamento de uma cozinha não publica seu estado parcial.
+
+[`tooling/execution-concurrency-cases.json`](tooling/execution-concurrency-cases.json)
+mantém 28 sequências ligadas a symbols do Última Luz. A
+[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 280 operações
+sobre:
+
+- lifecycle `reserved` até `joined`, com outcome posterior ao cleanup;
+- cancelamento idempotente, causas monotônicas e propagação descendente;
+- autoridade de cancelamento, scope exit e handles one-shot;
+- arbitragem fail-fast por ordem lexical;
+- eventos sequenced-before e as oito origens happens-before desta seção;
+- races entre acessos ordinários sem path de publicação;
+- atomic release/acquire, relaxed e sequential com relação observada explícita.
+
+O runner aceita 17 sequências e rejeita 11. O snapshot guarda o estado final,
+os edges e um trace compacto de cada operação. Todo caso aponta para source do
+Última Luz. O gate exige cobertura 8/8 das origens happens-before. M0 continua
+como oracle separado para owner, borrow, pin e boundary.
+
+E0 não é scheduler, checker ou runtime W. Ele recebe task, storage identity e
+relação atomic observada já resolvidos. Ele não prova liveness, fairness,
+preemption, oversubscription, task-frame allocation, partial projections,
+reentrância de service, memory scope de device, ABA ou execução distribuída.
+Esses itens permanecem gates antes do freeze de execução.
 
 #### 12.10.2 Storage `atomic`
 
@@ -22286,7 +22316,7 @@ mesma profundidade em todas as famílias:
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
-| memória e execução | M0 fixa 21 casos e 61 operações de owner/borrow/pin/boundary; happens-before e cancellation ainda estão em prosa | ampliar transições, criar tabelas de concorrência e substituir oracles host por HIR real |
+| memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
 | documentação comparativa | R0 cobre 52/52, R0S mede 117 formas e R1 possui um bundle com duas variantes e quatro tarefas | ampliar R1, executar os estudos e publicar os resultados da seção 26 |
@@ -23952,6 +23982,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-870 | máquina de memória M0 | bindings nomeados apontam para payloads; move invalida source e preserva payload; borrows bloqueiam move/drop; pin estabiliza payload e mover handle não move payload | owner como Boolean; borrow sem token; pin copia valor; endereço pertence ao binding |
 | W-871 | corpus M0 | 21 casos e 61 operações ligados ao Última Luz cobrem owner, borrow modes, suspensão, pin/publicação, boundary, ABI e join; snapshot guarda traces byte-exact | exemplos isolados sem estado; caso sem source; apenas success; resultado sem trace |
 | W-872 | limite de M0 | máquina tabelada e teste Node pequeno são oracles host distintos; nenhum é HIR real ou prova runtime, allocation failure, shared/weak, region, panic, happens-before ou cancellation | declarar verifier implementado; reduzir memória a M0; apagar segundo oracle por duplicação aparente |
+| W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
+| W-874 | corpus E0 | 28 sequências e 280 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
+| W-875 | limite de E0 | oracle host recebe task, storage identity e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

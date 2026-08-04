@@ -1,0 +1,482 @@
+{
+  "$schema": "w-execution-concurrency-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "E0-lifecycle-success",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextTaskState" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "menu", "parent": "root" },
+        { "op": "publishTask", "task": "menu", "id": "menu-start", "after": "root-start" },
+        { "op": "settleTask", "task": "menu", "id": "menu-settle", "outcome": "success" },
+        { "op": "runCleanup", "task": "menu", "id": "menu-cleanup" },
+        { "op": "commitOutcome", "task": "menu", "id": "menu-commit" },
+        { "op": "joinTask", "task": "menu", "owner": "root", "id": "menu-join" },
+        { "op": "verifyTask", "task": "menu", "state": "joined", "outcome": "success" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-join-before-cleanup",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "outcome is published only after cleanup" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "dish", "parent": "root" },
+        { "op": "publishTask", "task": "dish", "id": "dish-start", "after": "root-start" },
+        { "op": "settleTask", "task": "dish", "id": "dish-settle", "outcome": "success" },
+        { "op": "joinTask", "task": "dish", "owner": "root", "id": "dish-join" }
+      ],
+      "expected": { "status": "rejected", "code": "joinBeforeOutcome", "operation": 5 }
+    },
+    {
+      "id": "E0-double-join",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixPair" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "mix", "parent": "root" },
+        { "op": "publishTask", "task": "mix", "id": "mix-start", "after": "root-start" },
+        { "op": "settleTask", "task": "mix", "id": "mix-settle", "outcome": "success" },
+        { "op": "runCleanup", "task": "mix", "id": "mix-cleanup" },
+        { "op": "commitOutcome", "task": "mix", "id": "mix-commit" },
+        { "op": "joinTask", "task": "mix", "owner": "root", "id": "mix-join" },
+        { "op": "joinTask", "task": "mix", "owner": "root", "id": "mix-join-again" }
+      ],
+      "expected": { "status": "rejected", "code": "taskHandleAlreadyConsumed", "operation": 8 }
+    },
+    {
+      "id": "E0-canceled-without-signal",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "closeBeforeTheLastCourse" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "batch", "parent": "root" },
+        { "op": "publishTask", "task": "batch", "id": "batch-start", "after": "root-start" },
+        { "op": "settleTask", "task": "batch", "id": "batch-settle", "outcome": "canceled" }
+      ],
+      "expected": { "status": "rejected", "code": "canceledWithoutSignal", "operation": 4 }
+    },
+    {
+      "id": "E0-cancel-monotonic-idempotent",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch.cancel(reason: .shutdown)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "batch", "parent": "root" },
+        { "op": "publishTask", "task": "batch", "id": "batch-start", "after": "root-start" },
+        { "op": "requestCancel", "task": "batch", "reason": "shutdown", "deadline": true, "budget": "liveTasks" },
+        { "op": "requestCancel", "task": "batch", "reason": "shutdown", "deadline": true, "budget": "liveTasks" },
+        { "op": "verifyTask", "task": "batch", "reason": "shutdown", "budget": "liveTasks", "deadlineExceeded": true },
+        { "op": "settleTask", "task": "batch", "id": "batch-settle", "outcome": "canceled" },
+        { "op": "runCleanup", "task": "batch", "id": "batch-cleanup" },
+        { "op": "commitOutcome", "task": "batch", "id": "batch-commit" },
+        { "op": "joinTask", "task": "batch", "owner": "root", "id": "batch-join" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-late-cancel-keeps-outcome",
+      "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "late cancellation cannot replace" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "report", "parent": "root" },
+        { "op": "publishTask", "task": "report", "id": "report-start", "after": "root-start" },
+        { "op": "settleTask", "task": "report", "id": "report-settle", "outcome": "success" },
+        { "op": "requestCancel", "task": "report", "reason": "shutdown" },
+        { "op": "runCleanup", "task": "report", "id": "report-cleanup" },
+        { "op": "commitOutcome", "task": "report", "id": "report-commit" },
+        { "op": "joinTask", "task": "report", "owner": "root", "id": "report-join" },
+        { "op": "verifyTask", "task": "report", "state": "joined", "outcome": "success", "reason": "shutdown" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-shared-observer-cannot-cancel",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "TaskOutcome" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "report", "parent": "root" },
+        { "op": "publishTask", "task": "report", "id": "report-start", "after": "root-start" },
+        { "op": "requestCancel", "task": "report", "authority": "shared", "reason": "shutdown" }
+      ],
+      "expected": { "status": "rejected", "code": "cancelRequiresOwnerAuthority", "operation": 4 }
+    },
+    {
+      "id": "E0-parent-cancel-propagates",
+      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "Task.checkCancellation" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "workflow", "parent": "root" },
+        { "op": "publishTask", "task": "workflow", "id": "workflow-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "step", "parent": "workflow" },
+        { "op": "publishTask", "task": "step", "id": "step-start", "after": "workflow-start" },
+        { "op": "requestCancel", "task": "root", "reason": "shutdown" },
+        { "op": "verifyTask", "task": "workflow", "nearestAncestor": "root" },
+        { "op": "verifyTask", "task": "step", "nearestAncestor": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-child-cancel-does-not-reach-sibling",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixAcrossTwoKitchens" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "port", "parent": "root" },
+        { "op": "publishTask", "task": "port", "id": "port-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "starboard", "parent": "root" },
+        { "op": "publishTask", "task": "starboard", "id": "starboard-start", "after": "root-start" },
+        { "op": "requestCancel", "task": "port", "reason": "superseded" },
+        { "op": "verifyTask", "task": "starboard", "nearestAncestor": null, "siblingFailed": false }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-scope-exit-drains-child",
+      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "defer async" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "refund", "parent": "root" },
+        { "op": "publishTask", "task": "refund", "id": "refund-start", "after": "root-start" },
+        { "op": "scopeExit", "task": "root" },
+        { "op": "verifyTask", "task": "refund", "scopeExited": true },
+        { "op": "settleTask", "task": "refund", "id": "refund-settle", "outcome": "canceled" },
+        { "op": "runCleanup", "task": "refund", "id": "refund-cleanup" },
+        { "op": "commitOutcome", "task": "refund", "id": "refund-commit" },
+        { "op": "joinTask", "task": "refund", "owner": "root", "id": "refund-join" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-unjoined-child-rejected",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "async let batch" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "batch", "parent": "root" },
+        { "op": "publishTask", "task": "batch", "id": "batch-start", "after": "root-start" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "unjoinedChild", "operation": 4 }
+    },
+    {
+      "id": "E0-budget-rejects-before-publication",
+      "references": [{ "path": "../reference/last-light/scheduler_oracle.w", "symbol": "cancelBeforePublish" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "batch", "parent": "root" },
+        { "op": "budgetReject", "task": "batch", "id": "batch-inline-outcome", "budget": "liveTasks" },
+        { "op": "verifyTask", "task": "batch", "state": "outcomeCommitted", "outcome": "canceled", "budget": "liveTasks", "everPublished": false },
+        { "op": "joinTask", "task": "batch", "owner": "root", "id": "batch-join" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-fail-fast-lexical-arbitration",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (port, starboard)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "left", "parent": "root" },
+        { "op": "publishTask", "task": "left", "id": "left-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "right", "parent": "root" },
+        { "op": "publishTask", "task": "right", "id": "right-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "tail", "parent": "root" },
+        { "op": "publishTask", "task": "tail", "id": "tail-start", "after": "root-start" },
+        { "op": "settleTask", "task": "right", "id": "right-settle", "outcome": "error" },
+        { "op": "requestFailFast", "tasks": ["left", "right", "tail"], "trigger": "right" },
+        { "op": "settleTask", "task": "left", "id": "left-settle", "outcome": "error" },
+        { "op": "verifyTask", "task": "tail", "siblingFailed": true },
+        { "op": "runCleanup", "task": "right", "id": "right-cleanup" },
+        { "op": "commitOutcome", "task": "right", "id": "right-commit" },
+        { "op": "runCleanup", "task": "left", "id": "left-cleanup" },
+        { "op": "commitOutcome", "task": "left", "id": "left-commit" },
+        { "op": "settleTask", "task": "tail", "id": "tail-settle", "outcome": "canceled" },
+        { "op": "runCleanup", "task": "tail", "id": "tail-cleanup" },
+        { "op": "commitOutcome", "task": "tail", "id": "tail-commit" },
+        { "op": "arbitrateTuple", "tasks": ["left", "right", "tail"] },
+        { "op": "verifyArbitration", "primary": "left" },
+        { "op": "joinTask", "task": "left", "owner": "root", "id": "left-join" },
+        { "op": "joinTask", "task": "right", "owner": "root", "id": "right-join" },
+        { "op": "joinTask", "task": "tail", "owner": "root", "id": "tail-join" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-fail-fast-requires-settled-trigger",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (port, starboard)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "left", "parent": "root" },
+        { "op": "publishTask", "task": "left", "id": "left-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "right", "parent": "root" },
+        { "op": "publishTask", "task": "right", "id": "right-start", "after": "root-start" },
+        { "op": "requestFailFast", "tasks": ["left", "right"], "trigger": "right" }
+      ],
+      "expected": { "status": "rejected", "code": "failFastWithoutSettledTrigger", "operation": 6 }
+    },
+    {
+      "id": "E0-arbitration-waits-for-drain",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (leftResult, rightResult)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "left", "parent": "root" },
+        { "op": "publishTask", "task": "left", "id": "left-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "right", "parent": "root" },
+        { "op": "publishTask", "task": "right", "id": "right-start", "after": "root-start" },
+        { "op": "settleTask", "task": "right", "id": "right-settle", "outcome": "error" },
+        { "op": "requestFailFast", "tasks": ["left", "right"], "trigger": "right" },
+        { "op": "arbitrateTuple", "tasks": ["left", "right"] }
+      ],
+      "expected": { "status": "rejected", "code": "arbitrationBeforeDrain", "operation": 8 }
+    },
+    {
+      "id": "E0-parent-capture-precedes-child",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixPair" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "access", "task": "root", "id": "menu-init", "storage": "menu", "access": "write" },
+        { "op": "reserveTask", "task": "child", "parent": "root" },
+        { "op": "publishTask", "task": "child", "id": "child-start", "after": "menu-init" },
+        { "op": "access", "task": "child", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" },
+        { "op": "settleTask", "task": "child", "id": "child-settle", "outcome": "success" },
+        { "op": "runCleanup", "task": "child", "id": "child-cleanup" },
+        { "op": "commitOutcome", "task": "child", "id": "child-commit" },
+        { "op": "joinTask", "task": "child", "owner": "root", "id": "child-join" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-sibling-writes-race",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixAcrossTwoKitchens" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "left", "parent": "root" },
+        { "op": "publishTask", "task": "left", "id": "left-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "right", "parent": "root" },
+        { "op": "publishTask", "task": "right", "id": "right-start", "after": "root-start" },
+        { "op": "access", "task": "left", "id": "left-write", "storage": "served", "access": "write" },
+        { "op": "access", "task": "right", "id": "right-write", "storage": "served", "access": "write" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 8 }
+    },
+    {
+      "id": "E0-join-publishes-child-state",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (leftResult, rightResult)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "child", "parent": "root" },
+        { "op": "publishTask", "task": "child", "id": "child-start", "after": "root-start" },
+        { "op": "access", "task": "child", "id": "result-write", "storage": "result", "access": "write" },
+        { "op": "settleTask", "task": "child", "id": "child-settle", "outcome": "success" },
+        { "op": "runCleanup", "task": "child", "id": "child-cleanup" },
+        { "op": "commitOutcome", "task": "child", "id": "child-commit" },
+        { "op": "joinTask", "task": "child", "owner": "root", "id": "child-join" },
+        { "op": "access", "task": "root", "id": "result-read", "storage": "result", "access": "read" },
+        { "op": "verifyRaceFreedom" },
+        { "op": "verifyChildrenJoined", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-cancel-does-not-publish-state",
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch.cancel(reason: .shutdown)" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "child", "parent": "root" },
+        { "op": "publishTask", "task": "child", "id": "child-start", "after": "root-start" },
+        { "op": "access", "task": "child", "id": "partial-write", "storage": "partial", "access": "write" },
+        { "op": "requestCancel", "task": "child", "reason": "shutdown" },
+        { "op": "access", "task": "root", "id": "partial-read", "storage": "partial", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 7 }
+    },
+    {
+      "id": "E0-channel-send-publishes-item",
+      "references": [{ "path": "../reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "producer", "parent": "root" },
+        { "op": "publishTask", "task": "producer", "id": "producer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "consumer", "parent": "root" },
+        { "op": "publishTask", "task": "consumer", "id": "consumer-start", "after": "root-start" },
+        { "op": "access", "task": "producer", "id": "order-write", "storage": "order", "access": "write" },
+        { "op": "channelSend", "task": "producer", "id": "order-send", "channel": "orders" },
+        { "op": "channelReceive", "task": "consumer", "id": "order-receive", "channel": "orders", "observes": "order-send" },
+        { "op": "access", "task": "consumer", "id": "order-read", "storage": "order", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-channel-close-publishes-none",
+      "references": [{ "path": "../reference/last-light/streams.w", "symbol": "acceptOrders" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "producer", "parent": "root" },
+        { "op": "publishTask", "task": "producer", "id": "producer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "consumer", "parent": "root" },
+        { "op": "publishTask", "task": "consumer", "id": "consumer-start", "after": "root-start" },
+        { "op": "access", "task": "producer", "id": "closed-write", "storage": "closedState", "access": "write" },
+        { "op": "channelClose", "task": "producer", "id": "orders-close", "channel": "orders" },
+        { "op": "channelReceiveNone", "task": "consumer", "id": "orders-none", "channel": "orders", "observes": "orders-close" },
+        { "op": "access", "task": "consumer", "id": "closed-read", "storage": "closedState", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-channel-capacity-orders-next-send",
+      "references": [{ "path": "../reference/last-light/streams.w", "symbol": "capacity: 1" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "first", "parent": "root" },
+        { "op": "publishTask", "task": "first", "id": "first-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "consumer", "parent": "root" },
+        { "op": "publishTask", "task": "consumer", "id": "consumer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "next", "parent": "root" },
+        { "op": "publishTask", "task": "next", "id": "next-start", "after": "root-start" },
+        { "op": "channelSend", "task": "first", "id": "first-send", "channel": "orders" },
+        { "op": "access", "task": "consumer", "id": "slot-write", "storage": "slot", "access": "write" },
+        { "op": "channelReceive", "task": "consumer", "id": "first-receive", "channel": "orders", "observes": "first-send" },
+        { "op": "channelSend", "task": "next", "id": "next-send", "channel": "orders", "afterCapacity": "first-receive" },
+        { "op": "access", "task": "next", "id": "slot-read", "storage": "slot", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-service-call-precedes-turn",
+      "references": [{ "path": "../reference/last-light/restaurant.w", "symbol": "service lastLight" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "caller", "parent": "root" },
+        { "op": "publishTask", "task": "caller", "id": "caller-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "turn", "parent": "root" },
+        { "op": "publishTask", "task": "turn", "id": "turn-start", "after": "root-start" },
+        { "op": "access", "task": "caller", "id": "payload-write", "storage": "payload", "access": "write" },
+        { "op": "serviceCall", "task": "caller", "id": "place-call", "service": "lastLight" },
+        { "op": "serviceTurn", "task": "turn", "id": "place-turn", "service": "lastLight", "observes": "place-call" },
+        { "op": "access", "task": "turn", "id": "payload-read", "storage": "payload", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-lock-release-acquire",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "ThreadApologyLedger" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "ledger-write", "storage": "ledger", "access": "write" },
+        { "op": "unlock", "task": "writer", "id": "ledger-unlock", "lock": "ledgerLock" },
+        { "op": "lockAcquire", "task": "reader", "id": "ledger-lock", "lock": "ledgerLock", "observes": "ledger-unlock" },
+        { "op": "access", "task": "reader", "id": "ledger-read", "storage": "ledger", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-release-acquire-publishes-data",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "state.load<.acquire>()" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "sign-release", "storage": "sign", "order": "release" },
+        { "op": "atomicLoad", "task": "reader", "id": "sign-acquire", "storage": "sign", "order": "acquire", "observes": "sign-release" },
+        { "op": "access", "task": "reader", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-relaxed-flag-does-not-publish-data",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "announcements.load<.relaxed>()" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "sign-relaxed-store", "storage": "sign", "order": "relaxed" },
+        { "op": "atomicLoad", "task": "reader", "id": "sign-relaxed-load", "storage": "sign", "order": "relaxed", "observes": "sign-relaxed-store" },
+        { "op": "access", "task": "reader", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 10 }
+    },
+    {
+      "id": "E0-acquire-without-observed-release",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "EndOfUniverseSign" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "sign-release", "storage": "sign", "order": "release" },
+        { "op": "atomicLoad", "task": "reader", "id": "sign-acquire", "storage": "sign", "order": "acquire" },
+        { "op": "access", "task": "reader", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 10 }
+    },
+    {
+      "id": "E0-sequential-atomic-publishes-data",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic state" }],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "sign-store", "storage": "sign", "order": "sequential" },
+        { "op": "atomicLoad", "task": "reader", "id": "sign-load", "storage": "sign", "order": "sequential", "observes": "sign-store" },
+        { "op": "access", "task": "reader", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    }
+  ]
+}
