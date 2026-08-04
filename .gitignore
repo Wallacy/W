@@ -1,7 +1,7 @@
 # Dependencies and local tool state
 node_modules/
 .cache/
-.npm/
+.bun/
 .turbo/
 .wrangler/
 .astro/

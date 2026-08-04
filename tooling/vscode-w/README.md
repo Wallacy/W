@@ -49,12 +49,12 @@ temporário e instale-o pelo VS Code:
 
 ```powershell
 $wVsix = Join-Path $env:TEMP "w-language-0.0.21.vsix"
-npx --yes @vscode/vsce package --allow-missing-repository --out $wVsix
+bunx @vscode/vsce package --allow-missing-repository --out $wVsix
 code --install-extension $wVsix
 ```
 
 O `.vsix` é artefato de distribuição: não o versionar aqui. O comando acima o
-mantém no diretório temporário. `npx` evita uma
+mantém no diretório temporário. `bunx` evita uma
 instalação global; a operação requer acesso ao registro npm. Como a extensão é
 local e sem código executável, a execução pelo Development Host costuma ser a
 forma mais rápida de iterar.

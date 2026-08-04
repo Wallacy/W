@@ -734,6 +734,14 @@
             "named": false
           },
           {
+            "type": "&=",
+            "named": false
+          },
+          {
+            "type": "**=",
+            "named": false
+          },
+          {
             "type": "*=",
             "named": false
           },
@@ -750,7 +758,23 @@
             "named": false
           },
           {
+            "type": "<<=",
+            "named": false
+          },
+          {
             "type": "=",
+            "named": false
+          },
+          {
+            "type": ">>=",
+            "named": false
+          },
+          {
+            "type": "^=",
+            "named": false
+          },
+          {
+            "type": "|=",
             "named": false
           }
         ]
@@ -2006,6 +2030,10 @@
           "named": true
         },
         {
+          "type": "labeled_loop_statement",
+          "named": true
+        },
+        {
           "type": "region_statement",
           "named": true
         },
@@ -2360,7 +2388,18 @@
   {
     "type": "break_statement",
     "named": true,
-    "fields": {}
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "call_expression",
@@ -3386,7 +3425,18 @@
   {
     "type": "continue_statement",
     "named": true,
-    "fields": {}
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "contract_expression_argument",
@@ -5172,6 +5222,10 @@
           "named": true
         },
         {
+          "type": "labeled_loop_statement",
+          "named": true
+        },
+        {
           "type": "map_literal",
           "named": true
         },
@@ -5883,6 +5937,36 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "labeled_loop_statement",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "loop": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "for_statement",
+            "named": true
+          },
+          {
+            "type": "while_statement",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -9796,6 +9880,10 @@
           "named": true
         },
         {
+          "type": "labeled_loop_statement",
+          "named": true
+        },
+        {
           "type": "region_statement",
           "named": true
         },
@@ -11558,6 +11646,10 @@
     "named": false
   },
   {
+    "type": "&=",
+    "named": false
+  },
+  {
     "type": "(",
     "named": false
   },
@@ -11571,6 +11663,10 @@
   },
   {
     "type": "**",
+    "named": false
+  },
+  {
+    "type": "**=",
     "named": false
   },
   {
@@ -11634,6 +11730,10 @@
     "named": false
   },
   {
+    "type": "<<=",
+    "named": false
+  },
+  {
     "type": "<=",
     "named": false
   },
@@ -11670,6 +11770,10 @@
     "named": false
   },
   {
+    "type": ">>=",
+    "named": false
+  },
+  {
     "type": "?",
     "named": false
   },
@@ -11695,6 +11799,10 @@
   },
   {
     "type": "^",
+    "named": false
+  },
+  {
+    "type": "^=",
     "named": false
   },
   {
@@ -12088,6 +12196,10 @@
   },
   {
     "type": "|",
+    "named": false
+  },
+  {
+    "type": "|=",
     "named": false
   },
   {

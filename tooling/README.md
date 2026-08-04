@@ -85,12 +85,12 @@ integrações de editor.
 3. Para ver a superfície no browser, rode o [portal](../portal/README.md). O
    playground identifica explicitamente qual engine de highlight está ativa.
 4. Para auditar a cobertura local de exemplos, execute
-   `node tooling/check-design-examples.mjs` na pasta `W`.
+   `bun tooling/check-design-examples.mjs` na pasta `W`.
 5. Para atualizar o índice, execute
-   `node tooling/design-index.mjs --write` na pasta `W`.
+   `bun tooling/design-index.mjs --write` na pasta `W`.
 6. Para ler somente um recorte do design, execute
-   `node tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
-7. Para validar documentação, links e índice, execute `npm run check:docs` no
+   `bun tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
+7. Para validar documentação, links e índice, execute `bun run check:docs` no
    root do repositório.
 
 ## Caminho até o browser

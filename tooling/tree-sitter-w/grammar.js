@@ -121,7 +121,20 @@ const BINARY_OPERATORS = [
   ["||", 2],
 ];
 
-const ASSIGNMENT_OPERATORS = ["=", "+=", "-=", "*=", "/=", "%="];
+const ASSIGNMENT_OPERATORS = [
+  "=",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "**=",
+  "<<=",
+  ">>=",
+  "&=",
+  "^=",
+  "|=",
+];
 
 module.exports = grammar({
   name: "w",
@@ -973,6 +986,7 @@ module.exports = grammar({
         $.guard_statement,
         $.region_statement,
         $.if_statement,
+        $.labeled_loop_statement,
         $.while_statement,
         $.for_statement,
         $.do_statement,
@@ -1019,8 +1033,10 @@ module.exports = grammar({
     commit_statement: ($) =>
       prec.right(seq("commit", optional($._expression), optional(";"))),
     throw_statement: ($) => seq("throw", $._expression, optional(";")),
-    break_statement: (_) => seq("break", optional(";")),
-    continue_statement: (_) => seq("continue", optional(";")),
+    break_statement: ($) =>
+      prec.right(seq("break", optional(field("label", $.identifier)), optional(";"))),
+    continue_statement: ($) =>
+      prec.right(seq("continue", optional(field("label", $.identifier)), optional(";"))),
     defer_statement: ($) => seq("defer", optional("async"), $.block),
     guard_statement: ($) => seq("guard", choice($.optional_binding, $._expression), "else", choice($.block, $._statement)),
     region_statement: ($) =>
@@ -1032,6 +1048,12 @@ module.exports = grammar({
       ),
     if_statement: ($) =>
       prec.right(seq("if", choice($.optional_binding, $._expression), $.block, optional(seq("else", choice($.if_statement, $.block))))),
+    labeled_loop_statement: ($) =>
+      seq(
+        field("label", $.identifier),
+        ":",
+        field("loop", choice($.while_statement, $.for_statement)),
+      ),
     while_statement: ($) =>
       seq("while", choice($.optional_binding, $._expression), $.block),
     for_statement: ($) =>

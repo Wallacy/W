@@ -49,6 +49,10 @@ export object MenuSection {
   }
 }
 
+export fn sameMenuSection(left: ref MenuSection, right: ref MenuSection): Bool {
+  return left.isSameInstance(as: right)
+}
+
 export fn makeMenuRoot(
   title: String,
   memory: ref Allocator,

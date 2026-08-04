@@ -42,32 +42,32 @@ até existir type checker e runtime.
 
 ## Executar
 
-Requer uma versão LTS ativa do Node.js e instala somente dependências locais
+Requer Bun 1.3.14 ou uma versão compatível e instala somente dependências locais
 desta pasta:
 
 ```sh
-npm install
-npm run generate
-npm test
-npm run parse:reference
-npm run parse:platforms
-npm run parse:packages
-npm run parse:deployments
-npm run parse:std
-npm run parse:fixture
-npm run check:wire
-npm run check:wire:c
-npm run check:hir
-npm run check:design
+bun install
+bun run generate
+bun run test
+bun run parse:reference
+bun run parse:platforms
+bun run parse:packages
+bun run parse:deployments
+bun run parse:std
+bun run parse:fixture
+bun run check:wire
+bun run check:wire:c
+bun run check:hir
+bun run check:design
 ```
 
 Ou execute todos os checks:
 
 ```sh
-npm run check
+bun run check
 ```
 
-`npm run check` executa corpus, produto, variantes de plataforma, deployments,
+`bun run check` executa corpus, produto, variantes de plataforma, deployments,
 std, fixture do VS Code, oracles de wire e HIR e cobertura de exemplos. O CLI
 está fixado em
 `tree-sitter-cli` 0.26.11.

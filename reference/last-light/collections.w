@@ -23,6 +23,23 @@ export fn stableServiceOrder(tickets: take Array<ArrivalTicket>): Array<ArrivalT
   return sorted
 }
 
+// A zero skips the remaining cells in its row. A value outside the five-bit
+// carrier stops the complete scan. Labels keep both exits explicit.
+export fn foldDiagnosticBits(rows: ref Array<Array<u8>>): u32 {
+  var bits: u32 = 0
+
+  scanRows: for ref row in rows {
+    for value in row {
+      if value == 0 { continue scanRows }
+      if value > 31 { break scanRows }
+      bits <<= 5
+      bits |= value
+    }
+  }
+
+  return bits
+}
+
 test "Map iteration is independent from its randomized hash seed" {
   var prices: Map<String, Money> = [
     "nebula broth": Money(minorUnits: 1_200, currency: .cr),
@@ -131,4 +148,14 @@ test "stable sort preserves the order of equal priorities" {
     .take(1)
     .collect()
   expect urgent == [7]
+}
+
+test "labeled flow leaves one deterministic diagnostic word" for foldDiagnosticBits {
+  let bits = foldDiagnosticBits([
+    [1, 2, 0, 31],
+    [3, 4],
+    [32, 5],
+  ])
+
+  expect bits == 0x0000_8864
 }

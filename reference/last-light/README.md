@@ -141,7 +141,7 @@ alvo de execução independente.
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, paths e contrato de C string |
 | `string_storage.w` | construção, reserva, reuse e carrier String/Bytes consuming |
-| `collections.w` | arrays, views, iteration, Map/Set, hashing e stable sort |
+| `collections.w` | arrays, views, labeled flow, operators compostos, Map/Set, hashing e stable sort |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, inference e witnesses |
@@ -156,7 +156,7 @@ alvo de execução independente.
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
-| `memory.w` | ownership, Address, provenance, niches, pinning e callback C |
+| `memory.w` | ownership, identidade, Address, provenance, niches, pinning e callback C |
 | `hir_memory_oracle.w` | estados mínimos de owner/borrow, suspensão, representação e ABI |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
