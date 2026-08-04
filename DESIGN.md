@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 45–55% | Tree-sitter, F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
+| validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -631,6 +631,12 @@ espaços e no máximo 120 colunas. Para cada semicolon necessário, ele remove o
 token e exige uma árvore diferente ou recovery. Uma implementação futura deve
 acrescentar idempotência real e comparação de AST normalizada. O corpus atual é
 um oracle de design. Ele não afirma que o formatter está implementado.
+
+Além de bytes, lists, comments e statement boundaries, F0 cobre as formas com
+maior densidade semântica do Última Luz: loop `repeat` rotulado, `try await`,
+parâmetro de call `const`, enum subset com `switch`, closure com capture
+explícito e transaction estruturada. O formatter expõe a estrutura; ele não
+reordena effects, cases, captures ou statements.
 
 ```powershell
 bun tooling/check-formatter-cases.mjs
@@ -22247,7 +22253,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
+| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -23830,6 +23836,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-857 | elegibilidade wire | W-WIRE-0001 pertence à fase interface e registra type path, domain reason, required profiles e alternatives quando boundary portátil alcança value local | falhar no decoder; permitir placement mudar tipo silenciosamente; mensagem sem path ou profile |
 | W-858 | corpus wire D0 | Duration portátil e Instant local formam par único; o teste resolve spans e compara facts contra o catálogo | usar somente prose do erro; codec test como prova de type eligibility; snapshot manual como interface checker |
 | W-859 | fechamento do catálogo citado | todos os 73 codes com meaning citado possuem schema; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem; reservar toda família; remover status antes do checker |
+| W-860 | expansão F0 semântica | repeat rotulado, effect prefix, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; reordenar constructs para legibilidade |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
