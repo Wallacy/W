@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 39–49% | Tree-sitter, F0 e 31 pares S0 cobrem contratos, patterns, match e expressions; ainda não existe formatter, type-checker, HIR ou runtime W |
+| validação executável | 42–52% | Tree-sitter, F0 e 38 pares S0 cobrem contratos, patterns, match, expressions e const evaluation; ainda não existe formatter, type-checker, evaluator, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -2903,7 +2903,7 @@ Float compile-time usa a mesma policy IEEE strict da seção 15. O evaluator
 recusa uma operação que não consiga reproduzir para o target:
 
 ```text
-error[W-CONST-0007]: target float operation is not reproducible
+error[W-CONST-0001]: target float operation is not const-safe for this target
 ```
 
 Source W não lê environment, arquivo, commit, path ou clock durante const
@@ -3118,6 +3118,43 @@ Os precedentes principais são:
 
 W adota o mesmo corpo para as duas fases. W exige um contrato `const` visível,
 quotas na recipe e nenhuma inspeção da fase.
+
+#### 3.6.8 Diagnostics e evidence
+
+O evaluator emite um root diagnostic para a primeira falha que impede o
+`ConstValue`. A cadeia de calls e dependências fica em facts ou labels. Uma
+falha não produz entrada de cache.
+
+| Code | Condição |
+|---|---|
+| `W-CONST-0001` | operation, call ou target semantic não é const-safe |
+| `W-CONST-0002` | dependency graph contém ciclo |
+| `W-CONST-0003` | steps, heap, call depth ou result excede a quota |
+| `W-CONST-0004` | predicate const válido rejeita o argumento estático |
+| `W-CONST-0005` | typed error escapa do contexto const obrigatório |
+| `W-CONST-0006` | panic ocorre durante avaliação const |
+| `W-CONST-0007` | call parameter exige valor compile-time indisponível |
+
+`W-CONST-0001` inclui uma operation que o evaluator não consegue reproduzir
+para o target. `W-CONST-0007` pertence somente ao contrato do call site. Os
+codes não compartilham meanings diferentes.
+
+Sete pares do corpus S0 usam operações do restaurante: tabela de menu, ordem de
+initialization, quota de receitas, path de atendimento, porta do observatório,
+índice de ingrediente e query de estoque. Cada par muda uma causa:
+
+| Code | Baseline positivo | Campo que falha |
+|---|---|---|
+| `W-CONST-0001` | call const-safe resolvida estaticamente | `effectSummary` |
+| `W-CONST-0002` | grafo de const acíclico | `evaluationGraph` |
+| `W-CONST-0003` | avaliação dentro da quota | `evaluationGraph` |
+| `W-CONST-0004` | stage path aceito pelo predicate | `proofFacts` |
+| `W-CONST-0005` | call const sem error escapante | `flow` |
+| `W-CONST-0006` | index const dentro dos bounds | `flow` |
+| `W-CONST-0007` | argumento conhecido no call site | `proofFacts` |
+
+Esses snapshots continuam expectativas de design até o checker e o evaluator
+emitirem os mesmos records. Eles não afirmam execução do ConstIR.
 
 ## 4. Superfície integrada
 
@@ -22151,8 +22188,8 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 62 casos pareiam 31 resultados positivos com 31 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 61 de 77 codes, incluindo parser, contratos, patterns, match e expressions G4 | completar as famílias restantes, compile-fail runner e adapters diferenciais |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 76 casos pareiam 38 resultados positivos com 38 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 68 de 77 codes, incluindo parser, contratos, patterns, match, expressions G4 e const evaluation | completar as famílias restantes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23715,6 +23752,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-839 | ordem de effect prefix | ordem source canônica é `try await`; ausência, redundância e ordem compartilham W-EFFECT-0010 com facts distintos | `await try`; code separado para cada spelling; inferir effect no caller; fix sem schema |
 | W-840 | operand de ownership prefix | `ref` e `inout` exigem place; `take`, `copy` e `pin` verificam owner, mobility e origem antes de criar delta | borrow de rvalue com lifetime temporário implícito; annotation de lifetime; operação inferida pelo callee |
 | W-841 | corpus G4/S0 | seis families de expression, effect e ownership possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples sem outcome; um fixture com várias falhas; duplicar errors de parser, type e expression |
+| W-842 | ownership de diagnostic const | W-CONST possui sete meanings fechados; a primeira falha que impede ConstValue cria o root e a cadeia permanece estruturada | texto livre do evaluator; um code para toda falha; error por cada caller da mesma cadeia |
+| W-843 | operação não const-safe | W-CONST-0001 cobre call, capability ou target semantic que ConstIR não reproduz; target é fact, não outro meaning | usar W-CONST-0007 para target; executar host semantic; fallback runtime num const obrigatório |
+| W-844 | ciclo const | grafo falha antes de executar quando contém ciclo; diagnostic registra sequência fechada e todos os members | executar até quota; escolher member por hash; cortar ciclo sem mostrar edge de retorno |
+| W-845 | quota const | steps, heap, call depth e result usam W-CONST-0003 com quota, consumed, limit e call chain | um code por resource; wall clock como resultado semântico; quota escondida no compiler |
+| W-846 | predicate const false | predicate Bool que rejeita argumento estático usa W-CONST-0004 e preserva head, argumento e causa específica | W-CONTRACT-0003; type mismatch genérico; aceitar type e inserir runtime check |
+| W-847 | failure durante const | typed error escapante e panic permanecem W-CONST-0005 e 0006; nenhum cria fault boundary ou cache entry | converter ambos em quota; panic do compiler; materializar Result oculto |
+| W-848 | parâmetro de call const | W-CONST-0007 pertence somente ao argumento indisponível no call site e aponta call e requirement | code de operação target; monomorphization implícita; aceitar descriptor runtime |
+| W-849 | corpus CE0/S0 | sete families CONST possuem baseline único do Última Luz, inversão syntax-valid, outcome e snapshot D0 | examples sem evaluator state; negativo com múltiplas causas; tratar snapshot manual como execução ConstIR |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
