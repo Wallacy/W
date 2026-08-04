@@ -1,0 +1,214 @@
+{
+  "$schema": "w-memory-transition-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "M0-initialize-move-drop",
+      "references": [{ "path": "../reference/last-light/mobility.w", "symbol": "TemperatureBatch" }],
+      "operations": [
+        { "op": "initialize", "binding": "batch" },
+        { "op": "move", "from": "batch", "to": "argument" },
+        { "op": "drop", "binding": "argument" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-use-after-move",
+      "references": [{ "path": "../reference/last-light/mobility.w", "symbol": "consumeElsewhere" }],
+      "operations": [
+        { "op": "initialize", "binding": "batch" },
+        { "op": "move", "from": "batch", "to": "argument" },
+        { "op": "use", "binding": "batch" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 2 }
+    },
+    {
+      "id": "M0-double-drop",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellHandle" }],
+      "operations": [
+        { "op": "initialize", "binding": "bell" },
+        { "op": "drop", "binding": "bell" },
+        { "op": "drop", "binding": "bell" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 2 }
+    },
+    {
+      "id": "M0-shared-borrows-coexist",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "sameMenuSection" }],
+      "operations": [
+        { "op": "initialize", "binding": "menu" },
+        { "op": "beginBorrow", "binding": "menu", "token": "left", "mode": "shared" },
+        { "op": "beginBorrow", "binding": "menu", "token": "right", "mode": "shared" },
+        { "op": "endBorrow", "token": "right" },
+        { "op": "endBorrow", "token": "left" },
+        { "op": "drop", "binding": "menu" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-exclusive-after-shared",
+      "references": [{ "path": "../reference/last-light/dining.w", "symbol": "tables" }],
+      "operations": [
+        { "op": "initialize", "binding": "table" },
+        { "op": "beginBorrow", "binding": "table", "token": "reader", "mode": "shared" },
+        { "op": "beginBorrow", "binding": "table", "token": "writer", "mode": "exclusive" }
+      ],
+      "expected": { "status": "rejected", "code": "borrowConflict", "operation": 2 }
+    },
+    {
+      "id": "M0-shared-after-exclusive",
+      "references": [{ "path": "../reference/last-light/dining.w", "symbol": "tables" }],
+      "operations": [
+        { "op": "initialize", "binding": "table" },
+        { "op": "beginBorrow", "binding": "table", "token": "writer", "mode": "exclusive" },
+        { "op": "beginBorrow", "binding": "table", "token": "reader", "mode": "shared" }
+      ],
+      "expected": { "status": "rejected", "code": "borrowConflict", "operation": 2 }
+    },
+    {
+      "id": "M0-move-with-borrow",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "MenuSnapshot" }],
+      "operations": [
+        { "op": "initialize", "binding": "snapshot" },
+        { "op": "beginBorrow", "binding": "snapshot", "token": "title", "mode": "shared" },
+        { "op": "move", "from": "snapshot", "to": "worker" }
+      ],
+      "expected": { "status": "rejected", "code": "moveWithActiveBorrow", "operation": 2 }
+    },
+    {
+      "id": "M0-drop-with-borrow",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "MenuSnapshot" }],
+      "operations": [
+        { "op": "initialize", "binding": "snapshot" },
+        { "op": "beginBorrow", "binding": "snapshot", "token": "dish", "mode": "shared" },
+        { "op": "drop", "binding": "snapshot" }
+      ],
+      "expected": { "status": "rejected", "code": "dropWithActiveBorrow", "operation": 2 }
+    },
+    {
+      "id": "M0-end-borrow-twice",
+      "references": [{ "path": "../reference/last-light/generics.w", "symbol": "firstEquals" }],
+      "operations": [
+        { "op": "initialize", "binding": "shelf" },
+        { "op": "beginBorrow", "binding": "shelf", "token": "item", "mode": "shared" },
+        { "op": "endBorrow", "token": "item" },
+        { "op": "endBorrow", "token": "item" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidBorrowEnd", "operation": 3 }
+    },
+    {
+      "id": "M0-suspend-unstable-borrow",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "announceAfterYield" }],
+      "operations": [
+        { "op": "initialize", "binding": "section" },
+        { "op": "beginBorrow", "binding": "section", "token": "title", "mode": "shared" },
+        { "op": "suspend" }
+      ],
+      "expected": { "status": "rejected", "code": "suspendWithUnstableBorrow", "operation": 2 }
+    },
+    {
+      "id": "M0-suspend-stable-borrow",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "announceAfterYield" }],
+      "operations": [
+        { "op": "initialize", "binding": "section", "address": "stable" },
+        { "op": "beginBorrow", "binding": "section", "token": "title", "mode": "shared" },
+        { "op": "suspend" },
+        { "op": "endBorrow", "token": "title" },
+        { "op": "drop", "binding": "section" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-pin-publish-move-handle",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
+      "operations": [
+        { "op": "initialize", "binding": "state", "allocatorKnown": true },
+        { "op": "pin", "from": "state", "to": "pinned" },
+        { "op": "publishAddress", "binding": "pinned" },
+        { "op": "beginBorrow", "binding": "pinned", "token": "callback", "mode": "shared" },
+        { "op": "suspend" },
+        { "op": "endBorrow", "token": "callback" },
+        { "op": "move", "from": "pinned", "to": "lease" },
+        { "op": "use", "binding": "lease" },
+        { "op": "drop", "binding": "lease" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-pin-with-active-borrow",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
+      "operations": [
+        { "op": "initialize", "binding": "state", "allocatorKnown": true },
+        { "op": "beginBorrow", "binding": "state", "token": "label", "mode": "shared" },
+        { "op": "pin", "from": "state", "to": "pinned" }
+      ],
+      "expected": { "status": "rejected", "code": "pinWithActiveBorrow", "operation": 2 }
+    },
+    {
+      "id": "M0-internal-low-bit",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellTarget" }],
+      "operations": [{ "op": "verifyBoundary", "boundary": "internal", "representation": "lowBit" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-c-rejects-niche",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "foreignBellAddress" }],
+      "operations": [{ "op": "verifyBoundary", "boundary": "foreignC", "representation": "provenNiche" }],
+      "expected": { "status": "rejected", "code": "nonCanonicalBoundaryRepresentation", "operation": 0 }
+    },
+    {
+      "id": "M0-w-exact-allows-niche",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellDiscovery" }],
+      "operations": [
+        { "op": "initialize", "binding": "discovery", "allocatorKnown": true },
+        { "op": "verifyBoundary", "boundary": "wExact", "representation": "provenNiche", "binding": "discovery" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-wire-needs-allocator-origin",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellSignal" }],
+      "operations": [
+        { "op": "initialize", "binding": "signal" },
+        { "op": "verifyBoundary", "boundary": "wire", "representation": "explicitTag", "binding": "signal" }
+      ],
+      "expected": { "status": "rejected", "code": "missingAllocatorOrigin", "operation": 1 }
+    },
+    {
+      "id": "M0-abi-exact",
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [
+        {
+          "op": "verifyAbi",
+          "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" },
+          "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-abi-mismatch",
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [
+        {
+          "op": "verifyAbi",
+          "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" },
+          "provider": { "target": "windows-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }
+        }
+      ],
+      "expected": { "status": "rejected", "code": "abiMismatch", "operation": 0 }
+    },
+    {
+      "id": "M0-join-owner-match",
+      "references": [{ "path": "../reference/last-light/gateway.w", "symbol": "dispatch" }],
+      "operations": [{ "op": "joinOwnerStates", "states": ["owned", "owned"] }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M0-join-owner-mismatch",
+      "references": [{ "path": "../reference/last-light/gateway.w", "symbol": "dispatch" }],
+      "operations": [{ "op": "joinOwnerStates", "states": ["owned", "moved"] }],
+      "expected": { "status": "rejected", "code": "ownerStateMismatchAtJoin", "operation": 0 }
+    }
+  ]
+}

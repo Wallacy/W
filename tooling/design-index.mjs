@@ -208,11 +208,12 @@ for (const row of viabilityRows) {
 }
 
 const reviewStart = lines.findIndex((line) => line === "O corpus compara, no mínimo:");
-const implementationSection = numberedSections.find((section) => section.number === 27);
-const implementationStart = implementationSection ? implementationSection.start - 1 : -1;
+const reviewCoverageStart = lines.findIndex(
+  (line) => line === "### 26.1 Cobertura de substituições",
+);
 
-if (reviewStart < 0 || implementationStart < 0) {
-  structuralErrors.push("Sections 26 and 27 are required for review metrics.");
+if (reviewStart < 0 || reviewCoverageStart <= reviewStart) {
+  structuralErrors.push("The section 26 comparison list and coverage heading are required.");
 }
 
 const malformedDiagnosticCodes = [
@@ -230,7 +231,7 @@ if (structuralErrors.length > 0) {
 }
 
 const comparisonCount = lines
-  .slice(reviewStart + 1, implementationStart)
+  .slice(reviewStart + 1, reviewCoverageStart)
   .filter((line) => line.startsWith("- ")).length;
 const substitutionCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "substitution-cases.json"), "utf8"),
@@ -296,6 +297,17 @@ const semanticNegativeCases = semanticCorpus.cases.filter((testCase) => testCase
 const formatterCases = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "formatter-cases.json"), "utf8"),
 ).cases.length;
+const memoryTransitionCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "memory-transition-cases.json"), "utf8"),
+);
+const memoryTransitionCases = memoryTransitionCorpus.cases.length;
+const memoryTransitionOperations = memoryTransitionCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedMemoryTransitions = memoryTransitionCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -370,6 +382,9 @@ output.push(`| bundles executáveis R1 | ${studyBundles.length} |`);
 output.push(`| variantes/tarefas R1 | ${studyVariants}/${studyTasks} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
+output.push(
+  `| casos/operações do kernel de memória M0 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
+);
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,
 );
