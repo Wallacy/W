@@ -308,6 +308,35 @@ const memoryTransitionOperations = memoryTransitionCorpus.cases.reduce(
 const acceptedMemoryTransitions = memoryTransitionCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const executionConcurrencyCorpus = JSON.parse(
+  fs.readFileSync(
+    path.join(wDirectory, "tooling", "execution-concurrency-cases.json"),
+    "utf8",
+  ),
+);
+const executionConcurrencyCases = executionConcurrencyCorpus.cases.length;
+const executionConcurrencyOperations = executionConcurrencyCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedExecutionConcurrencyCases = executionConcurrencyCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
+const executionConcurrencySnapshots = fs
+  .readFileSync(
+    path.join(wDirectory, "tooling", "execution-concurrency-results.snapshot.jsonl"),
+    "utf8",
+  )
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((line) => JSON.parse(line));
+const synchronizationEdgeKinds = new Set(
+  executionConcurrencySnapshots.flatMap((result) =>
+    result.state.edges
+      .filter((edge) => edge.kind !== "sequencedBefore")
+      .map((edge) => edge.kind),
+  ),
+);
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -384,6 +413,13 @@ output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
   `| casos/operações do kernel de memória M0 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
+);
+output.push(
+  "| casos/operações do kernel de execução E0 | " +
+    `${executionConcurrencyCases}/${executionConcurrencyOperations} ` +
+    `(${acceptedExecutionConcurrencyCases} aceitos + ` +
+    `${executionConcurrencyCases - acceptedExecutionConcurrencyCases} rejeitados; ` +
+    `${synchronizationEdgeKinds.size}/8 origens happens-before) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

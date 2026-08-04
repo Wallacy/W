@@ -25,6 +25,7 @@
     "check:wire:c": "bun test ../wire-reference-c.test.mjs",
     "check:hir": "bun test ../hir-memory-reference.test.mjs",
     "check:memory-transitions": "bun ../check-memory-transition-cases.mjs",
+    "check:execution-concurrency": "bun ../check-execution-concurrency-cases.mjs",
     "check:semantic-cases": "bun ../check-semantic-cases.mjs",
     "check:formatter-cases": "bun ../check-formatter-cases.mjs",
     "check:substitutions": "bun ../check-substitution-cases.mjs --require-complete",
@@ -36,8 +37,8 @@
     "check:reader": "bun -e \"const source = await Bun.file('../design-slice.mjs').text(); new Bun.Transpiler({ loader: 'js' }).transformSync(source);\"",
     "check:links": "bun ../check-markdown-links.mjs",
     "check:design": "bun ../check-design-examples.mjs",
-    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:memory-transitions && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:index",
-    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:memory-transitions && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index"
+    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:memory-transitions && bun run check:execution-concurrency && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:index",
+    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:memory-transitions && bun run check:execution-concurrency && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:substitution-surface && bun run check:study-bundles && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"
