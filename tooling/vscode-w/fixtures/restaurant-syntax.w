@@ -57,15 +57,22 @@ extension OvenSession<.idle> {
   }
 }
 
-fn reserveCourse(): WorkStage throws RecoverableServiceFault
+fn reserveCourse(): WorkStage throws RecoverableServiceFault {
+  return .preparing
+}
 
 struct ReservationKey: Hashable & reflect.Reflectable {
   orderId: OrderId
   course: Course
 }
 
-fn kitchenLoad(kitchens: u16, courses: Course...): u32
-fn announce(_ messages: ref String...): usize
+fn kitchenLoad(kitchens: u16, courses: Course...): u32 {
+  return 0
+}
+
+fn announce(_ messages: ref String...): usize {
+  return 0
+}
 
 fn restValues(): () {
   let planned = [.nebulaBroth, .horizonCake]

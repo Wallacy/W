@@ -66,7 +66,9 @@ fn render<T: Display & Equatable, S: Source<T>>(source: ref S): String? {
   return item.display()
 }
 
-fn reserve(): WorkStage throws RecoverableFault
+fn reserve(): WorkStage throws RecoverableFault {
+  return .preparing
+}
 
 ---
 
@@ -381,7 +383,11 @@ fn reserve(): WorkStage throws RecoverableFault
         (type_identifier)))
     (type
       (type_name
-        (type_identifier)))))
+        (type_identifier)))
+    (block
+      (return_statement
+        (contextual_member_expression
+          (identifier))))))
 
 ==================
 Comma does not compose conformances

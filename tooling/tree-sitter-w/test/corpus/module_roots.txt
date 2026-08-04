@@ -1,0 +1,217 @@
+==================
+Module root keeps header imports and declarations in order
+==================
+
+module observatory<
+  domains: [.serial(.horizon)],
+>
+
+import { Tensor } from std.tensor
+import service {
+  SatelliteApi as satellites<key: SatelliteId>,
+} from orbit
+
+export struct Forecast {
+  samples: Tensor<f64>
+}
+
+fn inspect() {}
+
+export {
+  Forecast,
+  inspect,
+}
+
+entry Diagnostics(inspect)
+
+---
+
+(source_file
+  (module_header
+    (identifier)
+    (module_contract
+      (manifest_argument
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_constructor
+                (contextual_member_expression
+                  (identifier))
+                (manifest_argument
+                  (manifest_value
+                    (contextual_member_expression
+                      (identifier)))))))))))
+  (import_statement
+    (named_imports
+      (import_item
+        (identifier)))
+    (module_path
+      (identifier)
+      (identifier)))
+  (service_import_statement
+    (named_service_imports
+      (service_import_item
+        (identifier)
+        (identifier)
+        (service_key_contract
+          (type
+            (type_name
+              (type_identifier))))))
+    (module_path
+      (identifier)))
+  (struct_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block))
+  (export_list_declaration
+    (export_item
+      (identifier))
+    (export_item
+      (identifier)))
+  (entry_declaration
+    (type_identifier)
+    (identifier)))
+
+==================
+Manifest cannot share a document with module source
+==================
+
+package {
+  schema: "w.package/1"
+  name: "last-light/invalid"
+}
+
+module invalid
+fn run() {}
+
+---
+
+(source_file
+  (ERROR
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal))))
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Import after declaration recovers at the next declaration
+==================
+
+fn beforeImport() {}
+import { Request } from std.http
+fn afterImport() {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block))
+  (ERROR
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Second module header recovers at the following declaration
+==================
+
+module first
+module second
+fn afterHeader() {}
+
+---
+
+(source_file
+  (module_header
+    (identifier))
+  (ERROR
+    (identifier)
+    (identifier))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
+Incomplete named import keeps the following declaration
+==================
+
+import { Request } std.http
+export struct Response {}
+
+---
+
+(source_file
+  (import_statement
+    (ERROR
+      (named_imports
+        (import_item
+          (identifier))))
+    (module_path
+      (identifier)
+      (identifier)))
+  (struct_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type_body)))
+
+==================
+Missing top-level function body keeps the following declaration
+==================
+
+fn incomplete(): Bool
+fn afterIncomplete(): Bool {
+  return true
+}
+
+---
+
+(source_file
+  (ERROR
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (boolean_literal)))))
