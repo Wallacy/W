@@ -13,6 +13,7 @@
     "check": "bun run --cwd tooling/tree-sitter-w check",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:links": "bun tooling/check-markdown-links.mjs",
+    "check:memory": "bun tooling/check-memory-transition-cases.mjs",
     "check:substitutions": "bun tooling/check-substitution-cases.mjs --require-complete",
     "check:substitution-surface": "bun tooling/substitution-surface.mjs",
     "check:studies": "bun tooling/check-study-bundles.mjs && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",

@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | R0 cobre 52/52, R0S mede 117 formas e R1 possui o primeiro bundle contrabalanceado do Última Luz; participantes e modelos ainda não foram executados |
-| validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
+| validação executável | 48–58% | Tree-sitter, F0, S0, wire, R0/R1 e 21 casos M0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -17033,6 +17033,33 @@ como implementação do runtime.
 
 Um verifier rejeita HIR incompleta antes do lowering.
 
+##### Corpus de transições M0
+
+**Exemplo:** `watchClosingBell` move `BellState` para `pin`, publica o endereço,
+mantém um borrow durante suspensão, move somente o handle e faz drop no payload
+estável uma vez.
+
+[`tooling/memory-transition-cases.json`](tooling/memory-transition-cases.json)
+mantém 21 sequências ligadas a symbols do Última Luz. A
+[`máquina M0`](tooling/hir-memory-machine.mjs) executa 61 operações sobre:
+
+- bindings `owned`, `moved` e `dropped`;
+- payload identity preservada por move;
+- tokens de borrow `shared` e `exclusive`;
+- endereço `unstable`, `stable` e `published`;
+- handle `Pinned<T>` separado do payload;
+- representação por boundary e allocator origin;
+- igualdade de `WAbiKey` e join de owner states.
+
+O runner rejeita 13 sequências e aceita oito. O snapshot registra estado e trace
+de cada operação byte a byte. Todo caso aponta para source do Última Luz. O
+teste Node anterior continua no gate como oracle menor e independente.
+
+M0 não é HIR emitida pelo frontend. Ele não prova partial projections,
+allocation failure de `pin`, `shared`/`weak`, região, drop em panic, branch graph
+completo, happens-before ou cancellation. Esses itens permanecem gates antes do
+freeze de memória e execução.
+
 ### 20.3 Dialeto W/MLIR
 
 **Exemplo:** um move validado vira uma operação W de ownership antes de qualquer
@@ -22259,7 +22286,7 @@ mesma profundidade em todas as famílias:
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
-| memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
+| memória e execução | M0 fixa 21 casos e 61 operações de owner/borrow/pin/boundary; happens-before e cancellation ainda estão em prosa | ampliar transições, criar tabelas de concorrência e substituir oracles host por HIR real |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
 | documentação comparativa | R0 cobre 52/52, R0S mede 117 formas e R1 possui um bundle com duas variantes e quatro tarefas | ampliar R1, executar os estudos e publicar os resultados da seção 26 |
@@ -23922,6 +23949,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
 | W-868 | schema de bundle R1 | bundle fixa source base, casos R0, variantes distintas, inputs, outcomes, quatro tarefas, ordens, blinding, oracle, digests e estado de evidência | prompt solto; variante sem source; input implícito; ordem fixa; metadata revela a forma; resultado sem toolchain |
 | W-869 | seed R1 de controle | scanner de carrier do Última Luz compara labels estruturados e flags mutáveis; duas variantes W fazem parse e dois inputs coincidem no oracle host; execução W permanece ausente | medir snippets R0 como programa; comparar W com C de escopo menor; chamar simulação host de runtime W |
+| W-870 | máquina de memória M0 | bindings nomeados apontam para payloads; move invalida source e preserva payload; borrows bloqueiam move/drop; pin estabiliza payload e mover handle não move payload | owner como Boolean; borrow sem token; pin copia valor; endereço pertence ao binding |
+| W-871 | corpus M0 | 21 casos e 61 operações ligados ao Última Luz cobrem owner, borrow modes, suspensão, pin/publicação, boundary, ABI e join; snapshot guarda traces byte-exact | exemplos isolados sem estado; caso sem source; apenas success; resultado sem trace |
+| W-872 | limite de M0 | máquina tabelada e teste Node pequeno são oracles host distintos; nenhum é HIR real ou prova runtime, allocation failure, shared/weak, region, panic, happens-before ou cancellation | declarar verifier implementado; reduzir memória a M0; apagar segundo oracle por duplicação aparente |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

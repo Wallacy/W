@@ -28,6 +28,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
 | `hir-memory-reference.test.mjs` | modelo executável de owner, borrow, suspensão, boundary e ABI | oracle de SH3/SH4; não é o verifier do compiler |
+| `memory-transition-cases.json` + máquina M0 | 21 sequências do Última Luz com 61 operações, estados e traces byte-exact | oracle host tabelado; não é HIR emitida pelo frontend |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
