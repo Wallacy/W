@@ -348,6 +348,37 @@ const boundaryEffectOperations = boundaryEffectCorpus.cases.reduce(
 const acceptedBoundaryEffectCases = boundaryEffectCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const packageReleaseCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "package-release-cases.json"), "utf8"),
+);
+function packageReleaseFixtureOperations(name, stack = []) {
+  if (stack.includes(name)) throw new Error(`Package-release fixture cycle at ${name}.`);
+  const fixture = packageReleaseCorpus.fixtures[name];
+  if (!fixture) throw new Error(`Unknown package-release fixture ${name}.`);
+  return (
+    fixture.operations.length +
+    (fixture.includes ?? []).reduce(
+      (count, included) =>
+        count + packageReleaseFixtureOperations(included, [...stack, name]),
+      0,
+    )
+  );
+}
+const packageReleaseCases = packageReleaseCorpus.cases.length;
+const packageReleaseOperations = packageReleaseCorpus.cases.reduce(
+  (count, testCase) =>
+    count +
+    testCase.operations.length +
+    (testCase.fixtures ?? []).reduce(
+      (fixtureCount, fixture) =>
+        fixtureCount + packageReleaseFixtureOperations(fixture),
+      0,
+    ),
+  0,
+);
+const acceptedPackageReleaseCases = packageReleaseCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -437,6 +468,12 @@ output.push(
     `${boundaryEffectCases}/${boundaryEffectOperations} ` +
     `(${acceptedBoundaryEffectCases} aceitos + ` +
     `${boundaryEffectCases - acceptedBoundaryEffectCases} rejeitados) |`,
+);
+output.push(
+  `| casos/operações do kernel de packages e releases P0 | ` +
+    `${packageReleaseCases}/${packageReleaseOperations} ` +
+    `(${acceptedPackageReleaseCases} aceitos + ` +
+    `${packageReleaseCases - acceptedPackageReleaseCases} rejeitados) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

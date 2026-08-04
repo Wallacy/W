@@ -16,6 +16,7 @@
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:links": "bun tooling/check-markdown-links.mjs",
     "check:memory": "bun tooling/check-memory-transition-cases.mjs",
+    "check:packages": "bun tooling/check-package-release-cases.mjs",
     "check:substitutions": "bun tooling/check-substitution-cases.mjs --require-complete",
     "check:substitution-surface": "bun tooling/substitution-surface.mjs",
     "check:studies": "bun tooling/check-study-bundles.mjs && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
