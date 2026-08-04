@@ -1,0 +1,65 @@
+{
+  "$schema": "w-wire-diagnostic-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "W0-POS-portable-duration",
+      "kind": "positive",
+      "source": [
+        "struct Duration {}",
+        "struct OvenReady {",
+        "  remaining: Duration",
+        "}",
+        "protocol KitchenEvents {",
+        "  async fn ovenReady(): OvenReady",
+        "}"
+      ],
+      "boundary": "component|wrpc",
+      "typePath": "OvenReady.remaining",
+      "expect": {
+        "eligibility": "data",
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "W0-NEG-local-instant",
+      "kind": "negative",
+      "baseline": "W0-POS-portable-duration",
+      "source": [
+        "struct Instant {}",
+        "struct OvenReady {",
+        "  deadline: Instant",
+        "}",
+        "protocol KitchenEvents {",
+        "  async fn ovenReady(): OvenReady",
+        "}"
+      ],
+      "boundary": "component|wrpc",
+      "typePath": "OvenReady.deadline",
+      "expect": {
+        "eligibility": "rejected",
+        "diagnostics": [
+          {
+            "code": "W-WIRE-0001",
+            "phase": "interface",
+            "severity": "error",
+            "primary": { "text": "Instant", "occurrence": 1 },
+            "labels": [
+              { "role": "wire-member", "selector": { "text": "deadline: Instant" } },
+              { "role": "wire-boundary", "selector": { "text": "async fn ovenReady(): OvenReady" } }
+            ],
+            "facts": {
+              "alternatives": ["Duration", "ProviderToken", "SharedTimeDomain"],
+              "reason": "local-monotonic-clock",
+              "requiredProfiles": ["component", "wrpc"],
+              "type": "Instant",
+              "typePath": "OvenReady.deadline"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    }
+  ]
+}

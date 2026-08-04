@@ -897,6 +897,25 @@
       }
     },
     {
+      "code": "W-WIRE-0001",
+      "state": "active",
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "meaning": "a service boundary requires a portable wire value but a member is local to one runtime domain",
+      "requiredFacts": {
+        "alternatives": "string-set",
+        "reason": "string",
+        "requiredProfiles": "string-set",
+        "type": "string",
+        "typePath": "string"
+      },
+      "labelRoles": {
+        "wire-boundary": { "minimum": 1, "maximum": 1 },
+        "wire-member": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-CAPABILITY-0001",
       "state": "active",
       "phase": "semantic.capability",

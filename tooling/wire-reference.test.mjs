@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+const wireDiagnosticCases = await Bun.file(
+  new URL("./wire-diagnostic-cases.json", import.meta.url),
+).json();
+const diagnosticCatalog = await Bun.file(
+  new URL("./diagnostic-catalog.json", import.meta.url),
+).json();
+
 const WIRE_KIND = Object.freeze({
   bool: 1,
   u16: 3,
@@ -301,6 +308,35 @@ function expectDecodeError(fn, code) {
   assert.throws(fn, (error) => error instanceof WireDecodeError && error.code === code);
 }
 
+function resolveSelector(source, selector) {
+  const matches = [];
+  let offset = 0;
+
+  while (offset <= source.length) {
+    const found = source.indexOf(selector.text, offset);
+
+    if (found < 0) {
+      break;
+    }
+
+    matches.push(found);
+    offset = found + Math.max(selector.text.length, 1);
+  }
+
+  const occurrence = selector.occurrence ?? 0;
+  assert.ok(occurrence >= 0 && occurrence < matches.length);
+
+  if (selector.occurrence === undefined) {
+    assert.equal(matches.length, 1);
+  }
+
+  const start = matches[occurrence];
+  return {
+    startByte: Buffer.byteLength(source.slice(0, start), "utf8"),
+    endByte: Buffer.byteLength(source.slice(0, start + selector.text.length), "utf8"),
+  };
+}
+
 function mutateKnownBytes(input, offsets, rounds) {
   const source = asBytes(input);
   const mutations = [];
@@ -423,6 +459,52 @@ test("deterministic mutations preserve canonical acceptance", () => {
         assert.ok(error instanceof WireDecodeError);
       }
     }
+  }
+});
+
+test("wire eligibility diagnostic preserves its boundary evidence", () => {
+  assert.equal(wireDiagnosticCases.$schema, "w-wire-diagnostic-cases-1");
+  assert.equal(wireDiagnosticCases.status, "design-oracle-input");
+  assert.equal(wireDiagnosticCases.cases.length, 2);
+
+  const [positive, negative] = wireDiagnosticCases.cases;
+  assert.equal(positive.id, "W0-POS-portable-duration");
+  assert.equal(positive.kind, "positive");
+  assert.equal(positive.expect.eligibility, "data");
+  assert.deepEqual(positive.expect.diagnostics, []);
+  assert.equal(negative.baseline, positive.id);
+  assert.equal(negative.kind, "negative");
+  assert.equal(negative.expect.eligibility, "rejected");
+  assert.equal(negative.expect.diagnostics.length, 1);
+
+  const diagnostic = negative.expect.diagnostics[0];
+  const catalogEntry = diagnosticCatalog.codes.find((entry) => entry.code === diagnostic.code);
+  assert.ok(catalogEntry);
+  assert.equal(catalogEntry.state, "active");
+  assert.equal(diagnostic.phase, catalogEntry.phase);
+  assert.equal(diagnostic.severity, catalogEntry.defaultSeverity);
+  assert.deepEqual(Object.keys(diagnostic.facts).sort(), Object.keys(catalogEntry.requiredFacts).sort());
+  assert.deepEqual(Object.keys(diagnostic.facts), [
+    "alternatives",
+    "reason",
+    "requiredProfiles",
+    "type",
+    "typePath",
+  ]);
+  assert.equal(diagnostic.facts.typePath, negative.typePath);
+
+  const source = `${negative.source.join("\n")}\n`;
+  const primary = resolveSelector(source, diagnostic.primary);
+  assert.equal(
+    Buffer.from(source, "utf8").subarray(primary.startByte, primary.endByte).toString("utf8"),
+    "Instant",
+  );
+
+  const roles = diagnostic.labels.map((label) => label.role).sort();
+  assert.deepEqual(roles, ["wire-boundary", "wire-member"]);
+
+  for (const label of diagnostic.labels) {
+    resolveSelector(source, label.selector);
   }
 });
 

@@ -15,11 +15,11 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 23814 |
-| tokens aproximados de `DESIGN.md` | 259900 |
+| linhas de `DESIGN.md` | 23836 |
+| tokens aproximados de `DESIGN.md` | 260400 |
 | seções numeradas | 30 |
 | seções terminais com evidência local | 306/306 |
-| decisões | 855 (W-001–W-855) |
+| decisões | 859 (W-001–W-859) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | casos de ratificação comparativa | 52 |
@@ -29,7 +29,7 @@
 | outcomes SemanticResult S0 | 84 |
 | snapshots de diagnostic D0 | 42 |
 | snapshots F0 no formato D0 | 11 |
-| codes D0 catalogados | 72/76 |
+| codes D0 catalogados | 73/73 |
 | sources W no root do Última Luz | 69 |
 | sources W em todo o Última Luz | 77 |
 | sources W no rascunho da std | 9 |
@@ -41,15 +41,12 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | Família | Catalogados | Referenciados |
 |---|---:|---:|
 | BORROW | 1 | 1 |
-| BUILD | 0 | 1 |
 | CAPABILITY | 1 | 1 |
 | CONST | 7 | 7 |
 | CONTRACT | 5 | 5 |
 | DIAGNOSTIC | 1 | 1 |
-| DOC | 0 | 1 |
 | EFFECT | 2 | 2 |
 | EXPR | 4 | 4 |
-| FFI | 0 | 1 |
 | FLOW | 2 | 2 |
 | FMT | 2 | 2 |
 | GENERIC | 2 | 2 |
@@ -63,7 +60,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | SEM | 1 | 1 |
 | TYPE | 3 | 3 |
 | USE | 1 | 1 |
-| WIRE | 0 | 1 |
+| WIRE | 1 | 1 |
 
 ## Navegação por seção
 
@@ -91,14 +88,14 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 19 | 16680–16940 | 2700 | FFI, unsafe e ilhas de linguagem |
 | 20 | 16941–18120 | 12100 | Compilador e bootstrap |
 | 21 | 18121–20063 | 18100 | Packages, builds e releases |
-| 22 | 20064–20533 | 4400 | Tooling e interface para máquinas |
-| 23 | 20534–21940 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 21941–22246 | 7700 | Classificação de viabilidade |
-| 25 | 22247–22457 | 1900 | Produto de referência Última Luz |
-| 26 | 22458–22612 | 1600 | Protocolo de revisão |
-| 27 | 22613–22917 | 3700 | Plano de implementação |
-| 28 | 22918–22948 | 500 | Relação com a consolidação histórica |
-| 29 | 22949–23814 | 36700 | Registro de decisões e alternativas |
+| 22 | 20064–20536 | 4400 | Tooling e interface para máquinas |
+| 23 | 20537–21958 | 16800 | Protocolos e pesquisas de ecossistema |
+| 24 | 21959–22264 | 7800 | Classificação de viabilidade |
+| 25 | 22265–22475 | 1900 | Produto de referência Última Luz |
+| 26 | 22476–22630 | 1600 | Protocolo de revisão |
+| 27 | 22631–22935 | 3700 | Plano de implementação |
+| 28 | 22936–22966 | 500 | Relação com a consolidação histórica |
+| 29 | 22967–23836 | 36900 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -109,8 +106,8 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–6935 | 61900 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 6936–12874 | 58000 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 12875–16940 | 37800 | tiers, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 16941–21940 | 51200 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 21941–23814 | 52100 | viabilidade, Última Luz, gates, roadmap e ledger |
+| compiler e distribuição | 20, 21, 22, 23 | 16941–21958 | 51400 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 21959–23836 | 52400 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
