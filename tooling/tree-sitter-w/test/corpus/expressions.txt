@@ -1,0 +1,635 @@
+==================
+Operator precedence and assignment
+==================
+
+fn calculate(
+  a: Int,
+  b: Int,
+  c: Int,
+  shift: UInt,
+  minimum: Int,
+  maximum: Int,
+  primary: Int?,
+  secondary: Int?,
+  payload: any Display,
+  stage: ServiceStage,
+) {
+  let power = -2.0 ** 2 ** -3
+  let arithmetic = a + b * c << shift
+  let ordered = minimum <= a && a < maximum
+  let typed = payload is Order
+  let preparing = stage is .preparing
+  let fallback = primary ?? secondary ?? computeFallback()
+  registers[index()] <<= 1
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (binary_expression
+            (number_literal)
+            (binary_expression
+              (number_literal)
+              (unary_expression
+                (number_literal))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (binary_expression
+              (identifier)
+              (identifier)))
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (binary_expression
+            (identifier)
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (contextual_member_expression
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (binary_expression
+            (identifier)
+            (call_expression
+              (identifier)
+              (argument_list)))))
+      (expression_statement
+        (assignment_expression
+          (index_expression
+            (identifier)
+            (call_expression
+              (identifier)
+              (argument_list)))
+          (number_literal))))))
+
+==================
+Conditional expressions and value blocks
+==================
+
+fn classify(value: Int): Band {
+  return if value < 0 {
+    trace(.negative);
+    .low
+  } else if value == 0 {
+    .middle
+  } else {
+    .high
+  }
+}
+
+fn recordIfNeeded(enabled: Bool) {
+  if enabled {
+    record(.enabled)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (if_expression
+          (binary_expression
+            (identifier)
+            (number_literal))
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list
+                  (argument
+                    (contextual_member_expression
+                      (identifier))))))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (if_expression
+            (binary_expression
+              (identifier)
+              (number_literal))
+            (block
+              (expression_statement
+                (contextual_member_expression
+                  (identifier))))
+            (block
+              (expression_statement
+                (contextual_member_expression
+                  (identifier)))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (if_statement
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (contextual_member_expression
+                    (identifier)))))))))))
+
+==================
+Calls postfixes and one-sided ranges
+==================
+
+fn inspect(
+  request: ref Request,
+  guests: ref Array<Guest>,
+  index: usize,
+  table: TableId,
+  planned: ref Array<Course>,
+) throws DecodeError {
+  let city = guests[index]?.address?.city?
+  let decoded = try request.json.decode<Order>()
+  let count = schedule(table, courses: .welcomeDrink, each planned)
+  let tail = guests[4...]
+  consume(decoded, city: city, count: count, tail: tail)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (optional_propagation_expression
+          (optional_member_expression
+            (optional_member_expression
+              (index_expression
+                (identifier)
+                (identifier))
+              (identifier))
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (call_expression
+            (generic_application_expression
+              (member_expression
+                (member_expression
+                  (identifier)
+                  (identifier))
+                (identifier))
+              (generic_call_arguments
+                (type_argument
+                  (type
+                    (type_name
+                      (type_identifier))))))
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier))
+            (argument
+              (identifier)
+              (contextual_member_expression
+                (identifier)))
+            (argument
+              (argument_expansion)
+              (identifier)))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (index_expression
+          (identifier)
+          (one_sided_range_expression
+            (number_literal))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier))
+            (argument
+              (identifier)
+              (identifier))
+            (argument
+              (identifier)
+              (identifier))
+            (argument
+              (identifier)
+              (identifier))))))))
+
+==================
+Conditional value requires else
+==================
+
+fn invalidConditional(value: Int): Int {
+  return if value > 0 {
+    1
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement)
+      (ERROR
+        (binary_expression
+          (identifier)
+          (number_literal))
+        (block
+          (expression_statement
+            (number_literal)))))))
+
+==================
+Literals closures and explicit captures
+==================
+
+fn build(model: take Model, cache: ref Cache) {
+  let unit = ()
+  let single = (42,)
+  let point = (x: 10, y: 20)
+  let courses = [.broth, .cake]
+  let prices = [.broth: 12<cr>, .cake: 42<cr>]
+  let digest = [0_u8; 32]
+  let estimate = capture(take model, ref cache) (input: ref Input) => {
+    trace(input)
+    model.score(input, cache: cache)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unit_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (tuple_expression
+          (tuple_element
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (tuple_expression
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))
+          (labeled_tuple_element
+            (identifier)
+            (number_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (array_literal
+          (contextual_member_expression
+            (identifier))
+          (contextual_member_expression
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (map_literal
+          (map_entry
+            (contextual_member_expression
+              (identifier))
+            (quantity_literal))
+          (map_entry
+            (contextual_member_expression
+              (identifier))
+            (quantity_literal))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (repeat_array_literal
+          (number_literal)
+          (number_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (capture_expression
+          (capture_item
+            (identifier))
+          (capture_item
+            (identifier))
+          (closure_expression
+            (closure_parameters
+              (closure_parameter
+                (identifier)
+                (type
+                  (type_name
+                    (type_identifier)))))
+            (block
+              (expression_statement
+                (call_expression
+                  (identifier)
+                  (argument_list
+                    (argument
+                      (identifier)))))
+              (expression_statement
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (identifier))
+                  (argument_list
+                    (argument
+                      (identifier))
+                    (argument
+                      (identifier)
+                      (identifier))))))))))))
+
+==================
+Unsafe pipeline and transaction expressions
+==================
+
+async fn execute(
+  store: ref Store,
+  ovens: ref ServiceRef<OvenApi>,
+) throws ExecuteError {
+  let handle = unsafe {
+    openHandle()
+  }
+
+  let ready = try await pipeline {
+    let lease = ovens.acquire()
+    let ready = lease.preheat()
+    return ready
+  }
+
+  let receipt = try await transaction<
+    isolation: .serializable,
+    access: .readWrite,
+  > tx = store {
+    let value = try await tx.read()
+    commit value
+  }
+
+  close(handle, ready: ready, receipt: receipt)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unsafe_expression
+          (block
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list)))
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list)))
+                (return_statement
+                  (identifier)))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (transaction_expression
+              (task_contract
+                (identifier)
+                (static_argument_value
+                  (contextual_member_expression
+                    (identifier)))
+                (identifier)
+                (static_argument_value
+                  (contextual_member_expression
+                    (identifier))))
+              (identifier)
+              (identifier)
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (unary_expression
+                    (unary_expression
+                      (call_expression
+                        (member_expression
+                          (identifier)
+                          (identifier))
+                        (argument_list)))))
+                (commit_statement
+                  (identifier)))))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier))
+            (argument
+              (identifier)
+              (identifier))
+            (argument
+              (identifier)
+              (identifier))))))))

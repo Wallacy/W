@@ -82,11 +82,11 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 88–92% | G0–G3 fecham statements, declarations, types, contracts e patterns; expressions e integração ainda precisam de slices normativos |
+| superfície e semântica estática | 90–94% | G0–G4 fecham statements, declarations, types, contracts, patterns e expressions; G5 ainda precisa integrar boundaries e recovery |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 28–38% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
-| prontidão para design freeze | 68–78% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
+| validação executável | 30–40% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
+| prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
 As faixas são estimativas de planejamento. Uma contagem de decisões não prova
@@ -708,9 +708,9 @@ O parser aplica estas decisões antes do type checker:
 | `identifier : {` | block rotulado |
 
 O formatter remove um semicolon somente quando o reparse preserva os mesmos
-statement nodes. Se a remoção uniria duas expressions, o semicolon permanece.
-Esse caso é canônico, mas o formatter sempre coloca as statements em linhas
-separadas.
+statement nodes e o mesmo papel yield/discard. Se a remoção unir expressions ou
+transformar discard em yield, o semicolon permanece. O formatter sempre coloca
+statements diferentes em linhas separadas.
 
 Recovery não escolhe uma semântica alternativa. O parser pode inserir somente
 delimiter ou keyword exigida pelo contexto. Ele não inventa identifier,
@@ -1510,6 +1510,363 @@ desses fatos por otimizações.
 | `W-MATCH-0001` | switch ou catch obrigatório não é exaustivo |
 | `W-MATCH-0002` | case está completamente inalcançável |
 | `W-MATCH-0003` | enum curto não possui expected type inequívoco |
+
+#### 3.5.6 Grammar normativa G4: expressions
+
+**Exemplo:** power possui a leitura matemática e assignment não produz um
+segundo value:
+
+```w
+let signed = -2 ** 2       // -(2 ** 2), resultado -4
+let reciprocal = 2.0 ** -3 // 2.0 ** (-3), resultado 0.125
+
+counter += 1              // tipo ()
+```
+
+Esta subseção é normativa para expressions, precedência, calls e blocks em
+posição de value. G5 fecha boundaries e recovery entre todos os slices.
+
+##### Hierarquia
+
+```ebnf
+expression = assignment_expression ;
+
+assignment_expression = coalescing_expression
+                      | place assignment_operator coalescing_expression ;
+assignment_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%="
+                    | "**=" | "<<=" | ">>=" | "&=" | "^=" | "|=" ;
+
+coalescing_expression = logical_or_expression
+                      | logical_or_expression "??" coalescing_expression ;
+logical_or_expression = logical_and_expression ("||" logical_and_expression)* ;
+logical_and_expression = bitwise_or_expression ("&&" bitwise_or_expression)* ;
+bitwise_or_expression = bitwise_xor_expression ("|" bitwise_xor_expression)* ;
+bitwise_xor_expression = bitwise_and_expression ("^" bitwise_and_expression)* ;
+bitwise_and_expression = equality_expression ("&" equality_expression)* ;
+
+equality_expression = relation_expression (("==" | "!=") relation_expression)? ;
+relation_expression = range_expression relation_tail? ;
+relation_tail = ("<" | "<=" | ">" | ">=") range_expression
+              | "in" range_expression
+              | "is" (type | contextual_member) ;
+range_expression = shift_expression
+                 (("..." | "..<" | ">.." | ">..<") shift_expression)? ;
+
+shift_expression = additive_expression (("<<" | ">>") additive_expression)* ;
+additive_expression = multiplicative_expression
+                      (("+" | "-") multiplicative_expression)* ;
+multiplicative_expression = prefix_expression
+                            (("*" | "/" | "%" | "@") prefix_expression)* ;
+
+prefix_expression = prefix_operator prefix_expression | power_expression ;
+prefix_operator = "!" | "~" | "-" | "try" | "try?" | "await"
+                | "copy" | "take" | "pin" | "inout" | "ref" ;
+power_expression = postfix_expression ("**" prefix_expression)? ;
+
+postfix_expression = primary_expression postfix_suffix* ;
+postfix_suffix = generic_call_arguments
+               | argument_list
+               | "." (identifier | tuple_index)
+               | "?." (identifier | tuple_index)
+               | index_suffix
+               | immediate("?") ;
+```
+
+`**` associa à direita. Seu lado direito aceita prefix. Seu lado esquerdo
+aplica power antes de unary `-`. Portanto, `-2 ** 2` vale `-(2 ** 2)` e
+`2 ** -3` vale `2 ** (-3)`.
+
+Equality, relation e range não encadeiam. O programa escreve a relação
+completa:
+
+```w
+let ordered = minimum <= value && value < maximum
+
+minimum <= value < maximum // error: relation does not chain
+```
+
+Essa regra evita importar a semântica de comparação encadeada de Python ou a
+associação Boolean-integer de C. Parentheses não tornam um chain válido.
+
+`is` testa um runtime type permitido ou um enum case esperado. Ele não testa
+identity. `in` aceita Range ou tuple finito intrínseco na baseline. Collections
+usam `contains` e flags usam `hasAny` ou `hasAll`.
+
+##### Primary expressions
+
+```ebnf
+primary_expression = identifier
+                   | contextual_member
+                   | literal
+                   | parenthesized_expression
+                   | tuple_expression
+                   | array_literal
+                   | map_literal
+                   | repeat_array_literal
+                   | closure_expression
+                   | capture_expression
+                   | if_expression
+                   | switch_expression
+                   | unsafe_expression
+                   | pipeline_expression
+                   | transaction_expression
+                   | panic_expression ;
+
+contextual_member = "." identifier ;
+parenthesized_expression = "(" expression ")" ;
+
+tuple_expression = "(" ")"
+                 | "(" expression "," ")"
+                 | "(" expression "," expression
+                   ("," expression)* ","? ")"
+                 | "(" labeled_expression "," ")"
+                 | "(" labeled_expression "," labeled_expression
+                   ("," labeled_expression)* ","? ")" ;
+labeled_expression = identifier ":" expression ;
+
+array_literal = "[" (expression ("," expression)* ","?)? "]" ;
+map_literal = "[" map_entry ("," map_entry)* ","? "]" ;
+map_entry = expression ":" expression ;
+repeat_array_literal = "[" expression ";" const_expression "]" ;
+```
+
+`()` é o unit value. Um tuple de um elemento exige comma. Um tuple possui labels
+em todos os elementos ou em nenhum. Labels pertencem ao tuple type.
+
+`[]` é Array e exige expected element type quando está vazio. Um map literal
+possui ao menos um entry. Empty Map usa `Map<K, V>()`. W não possui object
+literal ou block expression iniciado somente por `{`.
+
+`[value; count]` avalia `value` uma vez e exige `Copy`. O count é compile-time.
+Uma construction move-only usa `Array.generate` ou outra API nomeada.
+
+Literals numéricos permanecem exatos até a materialização. String interpolation
+avalia cada expression na ordem source e escreve no mesmo destino String. Raw
+strings e byte strings não possuem interpolation.
+
+##### Calls e postfix
+
+```ebnf
+generic_call_arguments = immediate("<") static_argument
+                         ("," static_argument)* ","? ">" ;
+argument_list = "(" (argument ("," argument)* ","?)? ")" ;
+argument = (identifier ":")? ("each"? expression | one_sided_range) ;
+index_suffix = "[" index_argument ("," index_argument)* ","? "]" ;
+index_argument = expression | one_sided_range ;
+
+one_sided_range = expression ("..." | ">..")
+                | ("..." | "..<") expression ;
+```
+
+Um generic envelope toca o callable head. O head deve ser um identifier ou
+member já resolvível. Um callable runtime não permanece generic.
+
+O receiver é avaliado antes dos argumentos. Os argumentos são avaliados na
+ordem source. Labels selecionam uma call shape, mas não reordenam avaliação ou
+parâmetros.
+
+`each` aparece somente no último argumento rest. A collection é avaliada uma
+vez. Uma expansão owned usa `each take values`. A seção 8.9.6 define carriers e
+cleanup.
+
+Um one-sided range aparece somente como argumento, índice ou pattern. O parser
+não interpreta `value...` como expansão de argumentos.
+
+Postfixes associam à esquerda:
+
+```w
+let city = guests[index()]?.address?.city?
+let decoded = try request.json.decode<Order>()
+```
+
+`?.` faz member access condicional e achata uma camada de Option. Postfix `?`
+propaga `.none` no owner Option atual. Optional mutation continua inválida.
+
+##### Conditional e switch expressions
+
+```ebnf
+if_expression = "if" condition value_block
+                "else" (if_expression | value_block) ;
+
+switch_expression = "switch" expression "{" switch_case+ "}" ;
+switch_case = "case" pattern ("if" expression)? ":" statement* ;
+```
+
+G0 usa a mesma forma `if` como statement. Sem `else`, o resultado é `()` e o
+then block fica em contexto Unit. Em posição de value non-Unit, `else` é
+obrigatório.
+
+```w
+let separators = if source.isEmpty { 0 } else { countSeparators(source) }
+
+if source.isEmpty {
+  recordEmptySource()
+}
+```
+
+Uma condition exige Bool ou optional binding. W não possui truthiness. O
+binding do then block não existe no else block.
+
+`switch` é sempre exaustivo. Cada case selecionado avalia somente seu próprio
+body. G3 define patterns, guards, ordem e narrowing.
+
+Os resultados de `if` e `switch` precisam formar um único type por identidade
+ou conversão segura. `Never` não participa do join. O checker não cria union
+implícita para reconciliar branches.
+
+##### Value blocks
+
+Um block em posição de value usa sua última expression semicolon-free como
+resultado. Um semicolon explícito descarta essa expression e produz `()`.
+
+```w
+let status = if ready {
+  trace(.ready);
+  .accepted
+} else {
+  .reserving
+}
+```
+
+O formatter preserva o semicolon quando sua remoção mudaria discard para yield.
+Function bodies comuns não são value blocks. Elas continuam exigindo `return`,
+salvo o contrato específico de `: self`.
+
+Um tail iniciado por `.member` pode continuar a expression anterior. Nesse
+caso, o semicolon separador é obrigatório e o formatter o preserva, como no
+exemplo acima.
+
+Closure blocks, `if` branches e `unsafe` blocks são value blocks. Switch case
+bodies usam a mesma regra para sua última expression. `pipeline` exige `return`.
+`transaction` exige `commit`.
+
+`return` pertence à function, closure ou pipeline mais próxima. `if`, `switch`
+e `unsafe` não criam um return target. `commit` pertence somente à transaction.
+
+##### Closures e captures
+
+```ebnf
+closure_expression = closure_parameters "=>" (expression | value_block) ;
+closure_parameters = "(" (closure_parameter
+                     ("," closure_parameter)* ","?)? ")" ;
+closure_parameter = identifier (":" type)? ;
+
+capture_expression = "capture" "(" (capture_item
+                     ("," capture_item)* ","?)? ")"
+                     closure_expression ;
+capture_item = ("copy" | "ref" | "take" | "weak") identifier ;
+```
+
+Parentheses de parâmetros são obrigatórios. Closure parameters não possuem
+external labels ou defaults. O body expression retorna seu value.
+
+Captures implícitas seguem a seção 7.5. `capture(...)` fixa os modos quando
+ownership ou custo precisa aparecer. Os capture items são preparados da
+esquerda para a direita quando a closure é construída.
+
+`inout` não pode ficar numa closure armazenada. Um borrow pode escapar somente
+quando seu owner cobre o destino. Construir a closure não executa seu body.
+
+##### Prefixos, effects e ownership
+
+Cada prefix avalia seu operand uma vez. `copy`, `take`, `pin`, `inout` e `ref`
+produzem as operações de ownership definidas nas seções 7 e 9.
+
+`inout` e `ref` exigem um place. `take` invalida o place quando transfere o
+owner. `copy` cria um value independente. `pin` produz storage estável e não
+altera a logical value.
+
+Postfix member access possui força maior que prefix. Um consuming receiver usa
+parentheses:
+
+```w
+let tail = try (take stream).finish()
+take stream.finish() // error: consuming receiver requires `(take stream)`
+```
+
+`try` e `await` cobrem seu operand subtree. Uma closure cria outro effect scope.
+Quando ambos existem, a ordem canônica é `try await`:
+
+```w
+let response = try await client.fetch(request)
+let optional = try? await cache.load(key)
+```
+
+`try?` converte error recuperável em Option. Ele não captura panic ou
+cancellation. Postfix `?` pertence somente a Option. `await try` recebe um
+diagnostic com fix para `try await`.
+
+Unary `+`, increment, decrement, postfix force unwrap e custom operators ficam
+**Rejeitados**. Constructors e APIs nomeadas cobrem conversão, mutation e
+policies que não cabem nos operators fechados.
+
+##### Expressions restritas
+
+```ebnf
+unsafe_expression = "unsafe" value_block ;
+pipeline_expression = "pipeline" pipeline_block ;
+transaction_expression = "transaction" contract_arguments?
+                         identifier "=" expression transaction_block ;
+panic_expression = "panic" argument_list ;
+```
+
+`unsafe` habilita somente operations declaradas unsafe. Ele não desliga
+ownership, bounds, cleanup, effects ou numeric policy. Seu resultado é o tail
+do block.
+
+`pipeline` constrói um DAG estático de dependent service calls. Cada caminho de
+success usa `return`. O pipeline não é first-class e não escapa como builder.
+
+`transaction` recebe um provider nominal e cria um binding scoped. Cada caminho
+de success usa `commit`. `return`, nesting, pipeline e segundo provider ficam
+inválidos nesse body.
+
+`panic` possui type `Never`. Seus argumentos seguem a avaliação comum. Panic
+não substitui typed error e não participa de `try?`.
+
+##### Avaliação e assignment
+
+Receiver, operands, argumentos, literal elements, map keys e map values são
+avaliados da esquerda para a direita. A associação sintática não muda essa
+ordem.
+
+`&&`, `||`, `??`, `if`, `switch` e optional chaining avaliam somente o caminho
+selecionado. Um optimizer não pode inventar avaliação de outro caminho.
+
+Assignment produz `()`. Ele só aparece como expression statement ou num
+contexto que espera Unit. Assignment encadeada fica inválida.
+
+```w
+left = right = makeValue() // error: assignment does not produce a value
+```
+
+Uma assignment resolve o place uma vez. Depois, ela avalia o novo value. A
+substituição e o drop do value anterior ocorrem somente após essa avaliação.
+
+Compound assignment lê o mesmo place, aplica a operation correspondente e
+escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
+
+##### Diagnostics e recovery
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0020` | operator prefix, infix ou postfix não possui operand obrigatório |
+| `W-PARSE-0021` | conditional expression non-Unit não possui `else` |
+| `W-PARSE-0022` | tuple ou collection mistura formas incompatíveis |
+| `W-PARSE-0023` | one-sided range aparece fora de argumento, índice ou pattern |
+| `W-EXPR-0001` | assignment target não é um place mutável |
+| `W-EXPR-0002` | assignment aparece onde um value non-Unit é exigido |
+| `W-EXPR-0003` | equality, relation ou range tenta encadear |
+| `W-EXPR-0004` | condition não produz Bool |
+| `W-EXPR-0005` | branch results não possuem join único e seguro |
+| `W-EXPR-0006` | postfix ou generic envelope não se aplica ao head |
+| `W-EXPR-0007` | `each` ou one-sided range ocupa posição inválida |
+| `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
+| `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
+
+Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
+close obrigatório. Comma, `)`, `]`, `}`, `case`, `else` e statement boundary
+sincronizam o owner mais próximo.
 
 ### 3.6 Avaliação compile-time
 
@@ -2383,7 +2740,7 @@ menor para a maior força é:
 
 | Grupo | Formas | Associação |
 |---|---|---|
-| assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | direita |
+| assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | não encadeável; resulta `()` |
 | coalescing | `??` | direita |
 | logical OR | `\|\|` | esquerda e short-circuit |
 | logical AND | `&&` | esquerda e short-circuit |
@@ -2394,14 +2751,20 @@ menor para a maior força é:
 | shift | `<<`, `>>` | esquerda |
 | additive | `+`, `-` | esquerda |
 | multiplicative | `*`, `/`, `%`, `@` | esquerda |
-| power | `**` | direita |
-| prefix | `!`, `~`, `-`, `try`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita |
+| prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita; power fica dentro do operand |
+| power | `**` | direita; o operand direito aceita prefix |
 | postfix | call, member, index, `?` | esquerda |
+
+Essa ordem faz `-2 ** 2` significar `-(2 ** 2)`. Ela permite `2.0 ** -3` sem
+trocar a associação de power.
 
 Uma assignment composta usa a operação correspondente. Ela preserva a policy
 de overflow e avalia o place uma vez. `&&=`, `||=`, `??=` e `@=` ficam
 **Rejeitado por enquanto**. Essas formas misturam control flow, ausência ou
 shape mutation com assignment.
+
+Assignment produz `()` e não encadeia. Essa regra evita duplicar ou mover um
+value implicitamente em `left = right = value`.
 
 O operator `is` testa tipo ou case conforme o expected contract. Ele não testa
 identidade. Objetos do mesmo tipo usam uma operação nomeada:
@@ -20869,7 +21232,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0–G3 normativos para statements, declarations, raízes, types, contracts e patterns | slices de expressions/integration e formatter snapshots |
+| grammar normativa | G0–G4 normativos para statements, declarations, raízes, types, contracts, patterns e expressions | slice de integração G5 e formatter snapshots |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -21172,7 +21535,12 @@ O corpus compara, no mínimo:
 - envelopes sequenciais contra fusão de generic arguments e refinement;
 - tuple de um elemento com comma contra parentheses de agrupamento;
 - closes `>>` contextuais contra exigir whitespace em nested types;
-- payloads Bool, String, quantity e size iguais em type application e generic call.
+- payloads Bool, String, quantity e size iguais em type application e generic call;
+- `if ... else` como expression contra ternary e branch statement only;
+- assignment Unit contra assignment que devolve e duplica o value;
+- power matemática com exponent prefix contra unary que vence power;
+- tail expression explícita contra retorno implícito de todo function body;
+- semicolon que preserva discard contra formatter que o remove por aparência.
 
 ### 26.1 Cobertura de substituições
 
@@ -22355,6 +22723,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-765 | modalidades de pattern | bindings usam nomes diretos; match exige `let` para captures; `catch error` captura o error completo | todo nome captura em switch; `let let value`; named constant concorrendo com binder |
 | W-766 | avaliação de match | scrutinee é avaliado uma vez; guard observa projeções read-only; ownership confirma somente após o guard | mover antes do guard; reavaliar scrutinee; protocol customizado com effects; guard suspende com capture provisória |
 | W-767 | payload pattern labeled | enum payload labeled pode selecionar fields e terminar em `...`; forma posicional continua exata | ignorar labels declarados; misturar labeled e posicional; label desconhecido; rest intermediário |
+| W-768 | grammar normativa G4 | EBNF de expressions, calls, literals, closures, conditional e forms restritas pertence ao design | tabela do parser como autoridade; precedência somente em prosa; expression definida por exemplos dispersos |
+| W-769 | power e prefix | `**` associa à direita; power precede unary no lado esquerdo e aceita prefix no lado direito | `(-2) ** 2` implícito; power à esquerda; exigir parentheses para exponent negativo; `^` como power |
+| W-770 | assignment | assignment exige place, avalia uma vez, produz `()` e não encadeia; compound preserva a operation correspondente | assignment devolve value; cadeia Copy-only; duplicação ou move implícito; logical assignment |
+| W-771 | conditional expression | `if condition { value } else { value }`; statement sem else produz Unit; Bool sem truthiness | ternary `?:`; if nunca produz value; else implícito; condition numérica |
+| W-772 | value block | último expression sem semicolon produz o result somente em contextos nomeados; semicolon preserva discard | todo block retorna tail; function com retorno implícito; formatter remove discard marker |
+| W-773 | call e avaliação | receiver, argumentos, literals e operands avaliam da esquerda para a direita; labels não reordenam; caminhos condicionais são lazy | ordem não especificada; avaliação por parameter order; optimizer avalia caminho não selecionado |
+| W-774 | prefix de effect e ownership | `try await` é canônico; prefix cobre seu subtree; consuming receiver usa `(take value).method()` | `await try`; effect inferido no caller; take receiver sem grouping; force unwrap |
+| W-775 | expressions restritas | `unsafe` produz tail; pipeline usa `return`; transaction usa `commit`; panic produz Never | block geral como value; pipeline builder first-class; return em transaction; unsafe desliga checks |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
