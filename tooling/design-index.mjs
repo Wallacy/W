@@ -337,6 +337,17 @@ const synchronizationEdgeKinds = new Set(
       .map((edge) => edge.kind),
   ),
 );
+const boundaryEffectCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "boundary-effect-cases.json"), "utf8"),
+);
+const boundaryEffectCases = boundaryEffectCorpus.cases.length;
+const boundaryEffectOperations = boundaryEffectCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedBoundaryEffectCases = boundaryEffectCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -420,6 +431,12 @@ output.push(
     `(${acceptedExecutionConcurrencyCases} aceitos + ` +
     `${executionConcurrencyCases - acceptedExecutionConcurrencyCases} rejeitados; ` +
     `${synchronizationEdgeKinds.size}/8 origens happens-before) |`,
+);
+output.push(
+  `| casos/operações do kernel de boundary effects B0 | ` +
+    `${boundaryEffectCases}/${boundaryEffectOperations} ` +
+    `(${acceptedBoundaryEffectCases} aceitos + ` +
+    `${boundaryEffectCases - acceptedBoundaryEffectCases} rejeitados) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

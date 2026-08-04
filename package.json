@@ -11,6 +11,7 @@
   "scripts": {
     "tooling:install": "bun ci --cwd tooling/tree-sitter-w",
     "check": "bun run --cwd tooling/tree-sitter-w check",
+    "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:links": "bun tooling/check-markdown-links.mjs",
