@@ -736,6 +736,231 @@ recebe node `MISSING` de largura zero. Diagnostics usam, no mínimo:
 O parser não aceita uma árvore recuperada para build. Recovery existe para
 diagnostics, formatter preview e edição incremental.
 
+#### 3.5.3 Grammar normativa G1: declarations e raízes de source
+
+**Exemplo:** um arquivo contém source de módulo ou um manifest. Ele não contém
+os dois:
+
+```w
+module kitchen<domains: [.serial(.thermal)]>
+
+import { Temperature } from std.si
+
+export fn preheat(target: Temperature) {
+  // ...
+}
+```
+
+```w
+package {
+  schema: "w.package/1"
+  name: "last-light/restaurant"
+}
+```
+
+Esta subseção é normativa para raízes de documento, imports e declarations.
+Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
+`member_declaration` como interfaces para slices posteriores.
+
+```ebnf
+document = module_source | manifest_document ;
+
+module_source = module_header? import_declaration* top_level_declaration* EOF ;
+module_header = "module" identifier contract_arguments? ";"? ;
+contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
+
+manifest_document = manifest_kind manifest_record EOF ;
+manifest_kind = "package" | "workspace" | "deployment" | "lock" ;
+manifest_record = "{" manifest_field* "}" ;
+manifest_field = identifier ":" manifest_value ","? ;
+manifest_value = manifest_record
+               | manifest_list
+               | manifest_constructor
+               | contextual_member
+               | string_literal
+               | number_literal
+               | size_literal
+               | quantity_literal
+               | boolean_literal ;
+manifest_list = "[" (manifest_value ","?)* "]" ;
+manifest_constructor = contextual_member
+                       "(" manifest_argument ("," manifest_argument)* ","? ")" ;
+manifest_argument = (identifier ":")? manifest_value ;
+```
+
+Um manifest ocupa o documento inteiro. Ele não usa a grammar geral de
+expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
+são erros. Braces representam o record completo. Angle brackets modificam um
+contrato local já nomeado.
+
+Imports devem aparecer após o header e antes da primeira declaration comum.
+Essa ordem deixa o grafo de nomes visível sem executar o parser de bodies:
+
+```ebnf
+import_declaration = ordinary_import
+                   | service_import
+                   | domain_import ;
+
+ordinary_import = "export"? "import" ordinary_import_clause ";"? ;
+ordinary_import_clause = module_path
+                       | "*" "from" module_path
+                       | named_imports "from" module_path
+                       | identifier "from" module_path ;
+
+named_imports = "{" import_item ("," import_item)* ","? "}" ;
+import_item = identifier ("as" identifier)? ;
+
+domain_import = "import" "domain" named_imports
+                "from" module_path ";"? ;
+
+service_import = "import" "service" service_import_clause ";"? ;
+service_import_clause = named_service_imports "from" module_path
+                      | module_path ("as" identifier)? ;
+named_service_imports = "{" service_import_item
+                        ("," service_import_item)* ","? "}" ;
+service_import_item = identifier ("as" identifier)? service_key_contract? ;
+service_key_contract = "<" "key" ":" type ","? ">" ;
+
+module_path = identifier ("." identifier)* ;
+```
+
+`export import` cria uma facade de import comum. `export service import` e
+`export domain import` não existem. `as` aparece dentro de braces no import
+comum. A projeção inteira de um módulo com `import service` mantém sua forma
+especial `import service module as binding`.
+
+O top-level aceita somente estas declarations:
+
+```ebnf
+top_level_declaration = export_list_declaration
+                      | function_declaration
+                      | struct_declaration
+                      | object_declaration
+                      | service_declaration
+                      | enum_declaration
+                      | protocol_declaration
+                      | type_declaration
+                      | alias_declaration
+                      | dimension_declaration
+                      | unit_declaration
+                      | extension_declaration
+                      | behavior_declaration
+                      | entry_declaration
+                      | foreign_declaration
+                      | const_declaration
+                      | test_declaration ;
+
+export_list_declaration = "export" "{" identifier
+                          ("," identifier)* ","? "}" ";"? ;
+
+function_declaration = function_prefix "fn" foreign_contract?
+                       identifier type_parameters? parameter_list
+                       return_clause? throws_clause? block? ";"? ;
+function_prefix = "export"? "static"? "const"? "unsafe"?
+                  receiver_modifier? "async"? ;
+receiver_modifier = "mut" | "take" ;
+foreign_contract = "<" identifier ">"
+                 | "<" "lang" ":" contextual_member ","? ">"
+                 | "<" "abi" ":" contextual_member ","? ">" ;
+return_clause = ":" type ;
+throws_clause = "throws" type ;
+
+struct_declaration = "export"? "struct" identifier type_parameters?
+                     conformance_clause? type_body ;
+object_declaration = "export"? "object" identifier type_parameters?
+                     conformance_clause? type_body ;
+service_declaration = "export"? "service" identifier service_key_contract?
+                      ":" type type_body ;
+enum_declaration = "export"? "enum" identifier type_parameters?
+                   conformance_clause? enum_body ;
+protocol_declaration = "export"? "protocol" identifier
+                       primary_associated_types? conformance_clause?
+                       protocol_body ;
+
+type_declaration = "export"? "type" identifier type_parameters?
+                   "=" type ";"? ;
+alias_declaration = "export"? "alias" identifier type_parameters?
+                    "=" type ";"? ;
+dimension_declaration = "export"? "dimension" identifier ";"? ;
+unit_declaration = "export"? "unit" identifier
+                   ((":" type) | ("=" expression)) ";"? ;
+
+extension_declaration = "extension" type_parameters? type
+                        conformance_clause? type_body ;
+behavior_declaration = "export"? "behavior" identifier type_parameters?
+                       "for" type behavior_body ;
+
+entry_declaration = "entry" (entry_body | entry_handler
+                    | identifier (entry_body | entry_handler)) ;
+entry_body = block ;
+entry_handler = "(" identifier ")" ;
+
+foreign_declaration = "export"? "foreign" identifier
+                      ("from" string_literal)? foreign_body ;
+const_declaration = "export"? "const" identifier type_annotation?
+                    "=" expression ";"? ;
+test_declaration = "test" string_literal ("for" identifier)? block ;
+
+conformance_clause = ":" type ;
+type_body = "{" member_declaration* "}" ;
+enum_body = "{" enum_member_declaration* "}" ;
+protocol_body = "{" protocol_member_declaration* "}" ;
+```
+
+Um body de função é obrigatório no top-level, em `struct`, `object`, `service`,
+`enum`, `extension` e `behavior`. Somente um protocol requirement ou uma
+foreign signature pode omitir o body. Um semicolon pode tornar essa boundary
+explícita, mas o formatter o remove quando o parse não muda.
+
+`static` e o receiver modifier exigem contexto de member. `entry` e `test` não
+aceitam `export`. Uma extension publica membros e conformances conforme suas
+próprias regras. Ela não aceita `export` na declaration. O modifier `package`
+não existe.
+
+O parser resolve estas sequências sem type information:
+
+| Sequência | Parse normativo |
+|---|---|
+| `import std.http` | import comum que achata o módulo |
+| `import http from std` | binding local do módulo `std.http` |
+| `import { fetch } from std.http` | seleção do symbol `fetch` |
+| `import service legacy as planner` | projeção service do módulo |
+| `export { A, run }` | export coletivo |
+| `export import { A } from api` | facade de import comum |
+| `export service kitchen: P {}` | service declaration exportada |
+| `entry(run)` | descriptor default com handler |
+| `entry Diagnostics {}` | descriptor nomeado com body |
+| `fn<C> close()` | função foreign inline na linguagem C |
+| `fn close<T>()` | função W com parâmetro de tipo |
+| `const fn digest()` | função W avaliável em compile time |
+| `const digest = value` | const declaration |
+| `package { ... }` | manifest completo e exclusivo |
+| `module kitchen<...>` | header e contrato local do módulo |
+
+Newline não encerra declaration. A próxima keyword de declaration, `}` ou EOF
+pode concluir uma signature sem body somente no contexto permitido. Em outro
+contexto, o frontend emite body ausente.
+
+Recovery mantém a raiz escolhida. Depois de reconhecer `package`, `workspace`,
+`deployment` ou `lock`, o parser não muda para source de módulo. Depois de
+reconhecer `module`, import ou declaration, ele não muda para manifest.
+
+O parser usa estes diagnostics adicionais:
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0006` | manifest e source de módulo aparecem no mesmo documento |
+| `W-PARSE-0007` | `module` ou import aparece após declaration comum |
+| `W-PARSE-0008` | `export` ou outro modifier usa um target inválido |
+| `W-PARSE-0009` | nome, signature ou body obrigatório está ausente |
+| `W-PARSE-0010` | import está incompleto ou não possui `from` exigido |
+| `W-PARSE-0011` | segundo header `module` no mesmo documento |
+| `W-PARSE-0012` | manifest contém token executável ou outra declaration |
+
+Recovery pode sincronizar no próximo import ou declaration starter. Ele não
+move um import, não cria um export e não transforma um manifest em source. Um
+build rejeita todos os nodes recuperados, conforme G0.
+
 ### 3.6 Avaliação compile-time
 
 W separa avaliação exigida de otimização:
@@ -1915,8 +2140,8 @@ líder exporta somente os componentes de um struct transparente.
 
 ### 6.3 Configuração de módulo e pacote
 
-`module` e `package` aceitam contratos estáticos. O contrato do módulo descreve
-requirements locais. O contrato do pacote agrega módulos, products e bindings.
+`module` aceita um contrato estático. O contrato descreve requirements locais
+da unidade de nomes.
 
 ```w
 module kitchen<
@@ -1926,29 +2151,27 @@ module kitchen<
 >
 ```
 
+O header usa `<...>` porque modifica o contrato de um módulo nomeado. Os valores
+são enum-like e possuem tipos conhecidos.
+
+`package.w` é outro tipo de documento. Ele usa um record data-only completo:
+
 ```w
-package LastLight<
-  name: "last-light/restaurant",
-  version: "0.1.0",
-  domains: [
-    .concurrent(.compute, maximum: .hostCpuQuota, capabilities: [.parallel]),
-    .concurrent(.io, maximum: 256, capabilities: [.nonBlockingIo]),
-  ],
->
+package {
+  schema: "w.package/1"
+  authority: .registry("w")
+  name: "last-light/restaurant"
+  version: "0.1.0"
+}
 ```
 
-**Direção**. Esses headers usam o mesmo sistema de contratos `<...>` do resto
-da linguagem. Os valores são enum-like e possuem tipos conhecidos. Um body
-executável de `package` fica **Rejeitado**. Configuração usa declarations W
-data-only com schema tipado. Ela não cria outro evaluator.
+Braces definem o record do manifest. Elas não executam um body. O manifest não
+pode coexistir com `module`, import ou declaration comum. A seção 21.1 define
+seu schema e seu evaluator restrito.
 
-Um arquivo pode conter configuração `package` junto de um módulo. O compiler
-usa essa configuração somente quando o arquivo participa como root do pacote.
-Um import por outro pacote ignora a configuração. Uma package declaration não
-exporta um módulo e não muda sua interface.
-
-Quando as duas declarations ocupam o mesmo arquivo, `package` precede `module`.
-Recomenda-se manter a configuração completa em `package.w` quando ela for longa.
+`package Name<...>` e um package inline ficam **Rejeitados**. Essas formas
+misturam a raiz de build com a raiz de source. Elas também exigem que o parser
+geral entenda configuração antes de resolver o package.
 
 O pacote pode selecionar products, providers e entries privados por identidade
 qualificada. Essa ação cria roots de link. Ela não concede acesso source a outro
@@ -6941,7 +7164,7 @@ pertence ao process host. Um UI profile pode ligá-lo à OS main thread.
 `.main` não aceita `spawn`, porque `spawn` declara parallel intent. Uma call ou
 task async pode selecionar `.main` quando o host permite a transição.
 
-Outros domínios vêm do contrato do módulo ou do pacote:
+Outros domínios vêm do contrato do módulo ou de um execution profile do pacote:
 
 ```w
 module kitchen<
@@ -6949,15 +7172,11 @@ module kitchen<
     .serial(.thermal),
   ],
 >
-
-package LastLight<
-  domains: [
-    .concurrent(.compute, maximum: .hostCpuQuota, capabilities: [.parallel]),
-    .concurrent(.io, maximum: 256, capabilities: [.nonBlockingIo]),
-  ],
-  parallelDefault: .compute,
->
 ```
+
+O package seleciona pools, domains e `parallelDefault` no record
+`executionProfiles`. A seção 21.1 define esse schema. O contrato do módulo pede
+uma propriedade lógica. O package decide como o product satisfaz o pedido.
 
 Um domínio de módulo fica visível no próprio módulo. Um domínio comum do pacote
 fica visível em seus módulos. Outro módulo importa o nome explicitamente:
@@ -20066,7 +20285,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0 normativo para statements/controle e Tree-sitter candidato | slices de declarations/types/patterns/expressions e formatter snapshots |
+| grammar normativa | G0–G1 normativos para statements, controle, declarations e raízes | slices de types/patterns/expressions e formatter snapshots |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -20360,6 +20579,10 @@ O corpus compara, no mínimo:
 - `break label` contra exception usada somente para control flow.
 - newline como whitespace contra automatic semicolon insertion;
 - semicolon raro de desambiguação contra remoção que altera a CST.
+- manifest exclusivo com `{...}` contra `package<...>` inline no source;
+- imports antes das declarations contra imports intercalados;
+- body obrigatório em função comum contra prototype solto no top-level;
+- `<...>` como contrato local nomeado contra uso como record completo de build.
 
 ### 26.1 Cobertura de substituições
 
@@ -21479,6 +21702,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-750 | newline e statement boundary | newline é whitespace; parser consome a maior expression; semicolon força boundary e permanece quando sua remoção mudaria statement partition | ASI; newline sempre termina; formatter remove todo semicolon mesmo com mudança de CST |
 | W-751 | grammar normativa G0 | EBNF de block, binding, controle, labels e transfer statements pertence ao design; Tree-sitter é projeção | parser gerado como autoridade; prose sem grammar; aguardar frontend completo |
 | W-752 | recovery sintático G0 | recovery insere somente delimiter/keyword exigida, preserva bytes em ERROR e usa MISSING zero-width; build rejeita árvore recuperada | inventar expression/identifier; compilar recovery tree; descartar bytes; formatter salvar reparo silencioso |
+| W-753 | grammar normativa G1 | EBNF de raízes, imports e declarations pertence ao design; source de módulo e manifest são documentos disjuntos | package inline; parser gerado como autoridade; manifest misturado com source executável |
+| W-754 | fase de imports | header precede imports e imports precedem declarations comuns; recovery não move imports | imports intercalados; import dentro de body; ordenação automática pelo formatter |
+| W-755 | body de função | função comum exige body; somente protocol requirement e foreign signature podem omitir body | prototype solto no top-level; body inferido; newline termina signature |
+| W-756 | delimiters de configuração | `<...>` modifica contrato local nomeado; `{...}` define record completo e data-only de manifest | `package Name<...>`; body executável de manifest; delimiter escolhido somente por tamanho |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

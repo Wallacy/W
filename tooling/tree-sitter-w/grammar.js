@@ -157,17 +157,17 @@ module.exports = grammar({
     source_file: ($) =>
       choice(
         seq(
-          optional($.package_manifest),
           optional($.module_header),
           repeat(
             choice(
               $.service_import_statement,
               $.domain_import_statement,
               $.import_statement,
-              $._declaration,
             ),
           ),
+          repeat($._declaration),
         ),
+        $.package_manifest,
         $.deployment_manifest,
         $.workspace_manifest,
         $.lock_manifest,
@@ -297,7 +297,7 @@ module.exports = grammar({
 
     declaration_prefix: (_) => "export",
 
-    function_declaration: ($) =>
+    _function_header: ($) =>
       seq(
         optional($.declaration_prefix),
         optional("static"),
@@ -312,8 +312,11 @@ module.exports = grammar({
         field("parameters", $.parameter_list),
         optional(seq(":", field("return_type", $.type))),
         optional(seq("throws", field("error_type", $.type))),
-        choice(field("body", $.block), optional(";")),
       ),
+    function_declaration: ($) =>
+      seq($._function_header, field("body", $.block)),
+    function_signature: ($) =>
+      seq($._function_header, optional(";")),
 
     language_tag: ($) =>
       seq(
@@ -453,6 +456,7 @@ module.exports = grammar({
         repeat(
           choice(
             $.function_declaration,
+            alias($.function_signature, $.function_declaration),
             $.property_requirement,
             $.associated_type_requirement,
             $.associated_const_requirement,
@@ -616,7 +620,6 @@ module.exports = grammar({
 
     extension_declaration: ($) =>
       seq(
-        optional($.declaration_prefix),
         "extension",
         optional($.type_parameters),
         field("extended_type", $.type),
@@ -768,7 +771,7 @@ module.exports = grammar({
             $.foreign_type_declaration,
             $.foreign_struct_declaration,
             $.const_declaration,
-            $.function_declaration,
+            alias($.function_signature, $.function_declaration),
           ),
         ),
         "}",

@@ -4124,10 +4124,6 @@
           "named": true
         },
         {
-          "type": "declaration_prefix",
-          "named": true
-        },
-        {
           "type": "type_body",
           "named": true
         },

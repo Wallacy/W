@@ -1,5 +1,5 @@
-// Bootstrap projection of the typed package contract.
-// The final declaration DSL remains research in W/DESIGN.md section 6.3.
+// Typed data-only package manifest.
+// DESIGN.md sections 3.5.3 and 21.1 define its document grammar and schema.
 
 package {
   schema: "w.package/1"
