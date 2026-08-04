@@ -25,7 +25,7 @@
     "check:hir": "bun test ../hir-memory-reference.test.mjs",
     "check:semantic-cases": "bun ../check-semantic-cases.mjs",
     "check:formatter-cases": "bun ../check-formatter-cases.mjs",
-    "check:substitutions": "bun ../check-substitution-cases.mjs",
+    "check:substitutions": "bun ../check-substitution-cases.mjs --require-complete",
     "check:index": "bun ../design-index.mjs --check",
     "check:reader": "bun -e \"const source = await Bun.file('../design-slice.mjs').text(); new Bun.Transpiler({ loader: 'js' }).transformSync(source);\"",
     "check:links": "bun ../check-markdown-links.mjs",
