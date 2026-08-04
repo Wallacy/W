@@ -82,7 +82,7 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 90–94% | G0–G4 fecham statements, declarations, types, contracts, patterns e expressions; G5 ainda precisa integrar boundaries e recovery |
+| superfície e semântica estática | 93–96% | G0–G5 fecham statements, declarations, types, contracts, patterns, expressions e suas boundaries; formatter e tabelas semânticas ainda precisam de oracles completos |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
 | validação executável | 30–40% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
@@ -1867,6 +1867,213 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
 close obrigatório. Comma, `)`, `]`, `}`, `case`, `else` e statement boundary
 sincronizam o owner mais próximo.
+
+#### 3.5.7 Grammar normativa G5: integração e recovery
+
+**Exemplo:** newline permite continuar uma expression. Um semicolon separa
+duas statements que também formariam uma expression válida:
+
+```w
+let result = transform
+  (input)                    // call transform(input)
+
+trace(.ready);
+.accepted                    // nova contextual member expression
+```
+
+Esta subseção integra G0–G4. Ela define tokens, owners, boundaries, commit
+points e recovery. O parser não usa name resolution ou type information para
+escolher uma árvore.
+
+##### Tokens e trivia
+
+O lexer usa o token válido mais longo. A lista inclui `>..<`, `...`, `..<`,
+`>..`, `**=`, `>>=`, `<<=`, `?.`, `??` e `=>`. Um owner de type ou contract
+pode dividir `>>` em dois closes `>`. Um owner de expression mantém `>>` como
+shift.
+
+```w
+type Nested = Array<Result<Dish, KitchenError>>
+let shifted = flags >> 2
+```
+
+Space, newline e comment são trivia. Newline não encerra statement. Há cinco
+formas deliberadamente imediatas:
+
+- `<` de type application, contract envelope ou generic call toca seu head;
+- `?` de `try?` toca `try`;
+- `?` postfix toca seu operand;
+- `?.` é um único token;
+- delimiters de raw literal seguem a regra lexical da seção 16.
+
+Um comment também separa tokens. Portanto, `Array /* note */ <u8>` recebe
+`W-PARSE-0013`. A forma canônica é `Array<u8> /* note */`.
+
+##### Statement partition
+
+O parser consome a maior expression válida dentro do owner atual. Estes tokens
+continuam uma expression mesmo quando aparecem após newline:
+
+- `(` inicia uma call após um callable;
+- `[` inicia index após um value;
+- `.` e `?.` iniciam member access após um value;
+- `?` postfix propaga Option;
+- um infix ou assignment operator exige o próximo operand;
+- `<` imediato inicia generic call ou contract envelope.
+
+```w
+let city = guests
+  [index]
+  ?.address
+  ?.city
+
+let decoded = decoder
+  <Order>()
+```
+
+O segundo exemplo é inválido. Trivia separa `decoder` de `<Order>`. A forma
+canônica mantém o envelope junto ao head:
+
+```w
+let decoded = decoder<Order>()
+```
+
+Um semicolon é uma boundary explícita. O formatter preserva o semicolon quando
+sua remoção faz uma destas mudanças:
+
+1. duas statements tornam-se uma expression;
+2. um discard torna-se o tail value de um value block;
+3. uma nova statement iniciada por `.`, `(` ou `[` torna-se postfix da anterior;
+4. `return`, `commit`, `break` ou `continue` passa a consumir outro token.
+
+```w
+return; if retry { scheduleRetry() }
+
+let status = if ready {
+  trace(.ready);
+  .accepted
+} else {
+  .waiting
+}
+```
+
+Sem o primeiro semicolon, `return if ...` começa uma conditional expression e
+exige `else`. Sem o segundo, `.accepted` continua a call como member access.
+
+##### Owners e pontuação contextual
+
+Cada delimiter ou keyword abre um owner sintático. O owner resolve a pontuação
+sem consultar tipos:
+
+| Forma | Owner | Leitura |
+|---|---|---|
+| `Name<T>` | type, declaration ou callable head | application ou contract |
+| `left < right` | expression | relation |
+| `(value)` | expression primary | grouping |
+| `call(value)` | postfix de expression | call |
+| `(value,)` | expression ou pattern | tuple unitário |
+| `[value]` | expression primary | Array literal |
+| `value[index]` | postfix de expression | index |
+| `[key: value]` | expression primary | Map literal |
+| `{ field: value }` | manifest | static record |
+| `name: for ...` | statement | loop label |
+| `name: value` | argument, tuple ou manifest | labeled field |
+| `case pattern:` | switch | case separator |
+
+Um `<` que toca um head compatível compromete o parse com o envelope. O parser
+não reinterpreta `decode<Order>` como duas relations quando o close falta. Um
+programa escreve spaces para relation: `decode < order`.
+
+`if` usa o owner para selecionar sua forma. Um `if` na posição de statement
+pode omitir `else` e produz `()`. Um `if` consumido por `return`, initializer,
+argumento ou operator é uma conditional expression e exige `else`.
+
+```w
+if cache.isWarm { recordHit() }
+
+return if cache.isWarm {
+  .hit
+} else {
+  .miss
+}
+```
+
+`else`, `catch` e o `while` final de `repeat` pertencem ao owner aberto mais
+próximo. `case` pertence somente ao switch aberto. Um close nunca atravessa um
+owner para reparar outro owner.
+
+##### Labels estruturados
+
+Um label seguido por `while`, `for`, `repeat` ou `{` abre um owner estruturado.
+Ele não cria um endereço de salto:
+
+```w
+scanRows: for ref row in rows {
+  for value in row {
+    if value == 0 { continue scanRows }
+    if value > 31 { break scanRows }
+  }
+}
+```
+
+O parser resolve `scanRows` no conjunto de labels ativos. Ele não busca um
+token source com esse nome. A seção 5.4 define continuation points, targets,
+cleanup e as diferenças para `goto`, flags e yield.
+
+##### Commit points e recovery
+
+O parser assume um commit point após uma forma inequívoca. Estes tokens criam
+commit points:
+
+- `<` imediato após um head válido;
+- `:` após um label seguido por `while`, `for`, `repeat` ou `{`;
+- `case` dentro de switch;
+- `else`, `catch` e o `while` final quando seu owner está aberto;
+- `=>` após closure parameters;
+- `=` após binding, transaction binding ou manifest field.
+
+Depois do commit point, recovery não escolhe outra forma válida. Por exemplo,
+`return if condition { value }` não vira um `return` vazio seguido por um
+`if_statement` válido. O recovery mantém os tokens do conditional em `ERROR` e
+informa o `else` ausente. Um frontend final pode representar o mesmo erro como
+uma conditional expression incompleta.
+
+Recovery usa a pilha de owners. Ele pode inserir somente close ou keyword
+obrigatória. Ele preserva bytes não consumidos em `ERROR` e usa `MISSING` com
+largura zero. `;`, comma, close, `case`, `else`, `catch`, declaration starter e
+EOF são synchronization points conforme o owner.
+
+O frontend aplica estas fases:
+
+1. O lexer produz tokens e trivia.
+2. O parser produz CST lossless ou recovery tree.
+3. O lowering rejeita recovery e produz a AST normalizada.
+4. O checker resolve names, types, effects, ownership e exhaustividade.
+
+Uma árvore com `ERROR` ou `MISSING` não entra no build. O formatter também não
+grava essa árvore. A edição incremental pode mostrar diagnostics e preview.
+
+##### Invariante do formatter
+
+O formatter preserva statement partition, owners e o papel tail/discard. Cada
+snapshot deve satisfazer:
+
+```text
+parse(format(source)) == parse(format(format(source)))
+format(format(source)) == format(source)
+```
+
+O corpus inclui a forma escolhida e a forma substituída. Uma forma rejeitada
+pode aparecer como input negativo. Ela nunca aparece como source W válido.
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0024` | newline parece separar tokens que ainda formam uma expression |
+| `W-PARSE-0025` | semicolon é necessário para preservar statement partition ou discard |
+| `W-PARSE-0026` | token contextual aparece sem owner compatível |
+| `W-PARSE-0027` | close tenta atravessar owner ou usa a leitura lexical errada |
+| `W-PARSE-0028` | recovery exigiria reinterpretar uma forma após seu commit point |
+| `W-FMT-0002` | format e reparse não preservam a CST normalizada |
 
 ### 3.6 Avaliação compile-time
 
@@ -21232,7 +21439,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0–G4 normativos para statements, declarations, raízes, types, contracts, patterns e expressions | slice de integração G5 e formatter snapshots |
+| grammar normativa | G0–G5 normativos para statements, declarations, raízes, types, contracts, patterns, expressions, boundaries e recovery | formatter executável e snapshots parse-format-parse |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -22731,6 +22938,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-773 | call e avaliação | receiver, argumentos, literals e operands avaliam da esquerda para a direita; labels não reordenam; caminhos condicionais são lazy | ordem não especificada; avaliação por parameter order; optimizer avalia caminho não selecionado |
 | W-774 | prefix de effect e ownership | `try await` é canônico; prefix cobre seu subtree; consuming receiver usa `(take value).method()` | `await try`; effect inferido no caller; take receiver sem grouping; force unwrap |
 | W-775 | expressions restritas | `unsafe` produz tail; pipeline usa `return`; transaction usa `commit`; panic produz Never | block geral como value; pipeline builder first-class; return em transaction; unsafe desliga checks |
+| W-776 | grammar normativa G5 | tokens, owners, boundaries, commit points e recovery integram G0–G4 sem type information | type-directed parse; newline como boundary; parser gerado como autoridade |
+| W-777 | statement partition | parser consome a maior expression no owner atual; semicolon força boundary e permanece quando partition ou tail muda | automatic semicolon insertion; newline encerra expression; remover todo semicolon |
+| W-778 | leitura de contract | `<` imediato compromete type application, contract ou generic call; relation exige trivia antes de `<` | resolver pelo type checker; reinterpretar envelope incompleto como relation; exigir turbofish |
+| W-779 | owner lexical | owner sintático resolve `>>`, delimiters, colon, `if`, `else`, `catch`, `case` e `while` final | lexer sempre produz `>>`; pontuação resolvida por name lookup; close atravessa owner |
+| W-780 | commit point | recovery preserva a forma escolhida depois de token inequívoco e não inventa outra statement válida | `return if` vira return vazio mais if válido; generic incompleto vira relation; repair silencioso |
+| W-781 | label estruturado | label nomeia loop ou block; continue avança loop; break sai do target; cleanup lexical sempre executa | goto; reinício no token do label; salto para dentro; block produz value por break |
+| W-782 | formatter integrado | format preserva owners, statement partition e tail/discard; parse-format-parse e idempotência são invariantes | formatter type-directed; gravar recovery tree; alterar CST normalizada |
+| W-783 | evidência de substituição | corpus mantém exemplo positivo escolhido e input negativo da forma substituída antes do freeze | documentar somente vencedor; contar prose como conformance; aceitar rejeitado no corpus positivo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

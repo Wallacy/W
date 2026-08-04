@@ -1,0 +1,404 @@
+==================
+Postfixes continue across newlines and semicolon partitions statements
+==================
+
+fn readCity(guests: Guests, index: usize): City? {
+  let city = guests
+    [index]
+    ?.address
+    ?.city
+
+  trace(.ready);
+  .accepted
+  return city
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (optional_member_expression
+          (optional_member_expression
+            (index_expression
+              (identifier)
+              (identifier))
+            (identifier))
+          (identifier)))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (contextual_member_expression
+                (identifier))))))
+      (expression_statement
+        (contextual_member_expression
+          (identifier)))
+      (return_statement
+        (identifier)))))
+
+==================
+Attached envelopes nested closes relation and shift
+==================
+
+type Nested = Array<Result<Dish, KitchenError>>
+
+fn operations(decoder: Decoder, order: Order, flags: UInt) {
+  let decoded = decoder<Order>()
+  let ordered = decoder < order
+  let shifted = flags >> 2
+}
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (identifier)
+          (number_literal))))))
+
+==================
+Delimiter and colon owners
+==================
+
+fn owners(value: Int, call: Callback) {
+  let grouped = (value)
+  let tuple = (value,)
+  let array = [value]
+  let indexed = array[0]
+  let mapped = ["answer": value]
+  call(value)
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (parenthesized_expression
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (tuple_expression
+          (tuple_element
+            (identifier))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (array_literal
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (index_expression
+          (identifier)
+          (number_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (map_literal
+          (map_entry
+            (string_literal)
+            (identifier))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier))))))))
+
+==================
+Loop and block labels are structured targets
+==================
+
+fn inspect(rows: Rows, order: Order) {
+  scanRows: for ref row in rows {
+    for value in row {
+      if value == 0 { continue scanRows }
+      if value > 31 { break scanRows }
+      consume(value)
+    }
+  }
+
+  validateOrder: {
+    if order.isEmpty { break validateOrder }
+    reserve(order)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (labeled_statement
+        (identifier)
+        (for_statement
+          (pattern
+            (identifier))
+          (identifier)
+          (block
+            (for_statement
+              (pattern
+                (identifier))
+              (identifier)
+              (block
+                (if_statement
+                  (binary_expression
+                    (identifier)
+                    (number_literal))
+                  (block
+                    (continue_statement
+                      (identifier))))
+                (if_statement
+                  (binary_expression
+                    (identifier)
+                    (number_literal))
+                  (block
+                    (break_statement
+                      (identifier))))
+                (expression_statement
+                  (call_expression
+                    (identifier)
+                    (argument_list
+                      (argument
+                        (identifier))))))))))
+      (labeled_statement
+        (identifier)
+        (block
+          (if_statement
+            (member_expression
+              (identifier)
+              (identifier))
+            (block
+              (break_statement
+                (identifier))))
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))))))))))
+
+==================
+Return conditional and explicit empty return
+==================
+
+fn classify(ready: Bool): Stage {
+  return if ready { .accepted } else { .waiting }
+}
+
+fn stop(retry: Bool) {
+  return;
+  if retry { scheduleRetry() }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (if_expression
+          (identifier)
+          (block
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (block
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (return_statement)
+      (if_statement
+        (identifier)
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list))))))))
+
+==================
+Detached generic envelope does not become a call
+==================
+
+fn decode(decoder: Decoder) {
+  let value = decoder
+    <Order>()
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (binary_expression
+            (identifier)
+            (identifier))
+          (unit_literal))))))
+
+==================
+Committed conditional return does not become two valid statements
+==================
+
+fn incomplete(ready: Bool): Stage {
+  return if ready { .accepted }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement)
+      (ERROR
+        (identifier)
+        (block
+          (expression_statement
+            (contextual_member_expression
+              (identifier))))))))
