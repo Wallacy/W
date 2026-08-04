@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 34–44% | Tree-sitter, F0, resultados S0, outros oracles e manifests validam contratos; ainda não existe formatter, type-checker, HIR ou runtime W |
+| validação executável | 35–45% | Tree-sitter, F0, resultados S0, contratos angulares e outros oracles validam contratos; ainda não existe formatter, type-checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -2411,6 +2411,21 @@ mas não como reparos especulativos.
 | async staging e move | `allocation.w`, `dining.w` |
 | transaction e commit | `transaction_oracle.w`, `benchmark_app.w` |
 | service effects e capability routing | `service_oracle.w`, `capability_security_oracle.w` |
+
+Cinco pares adicionais exercem os contratos angulares usados por Matrix,
+Tensor, Array e refinements no Última Luz. Os fixtures de heads definidos pelo
+usuário declaram seus generic e const slots no próprio source. Assim, o checker
+não pode inventar um schema ambiental para fazer o caso passar. Labels de
+`W-CONTRACT` apontam para o head e, quando existe no fixture, para a declaração
+do slot.
+
+| Code | Baseline positivo | Campo que falha |
+|---|---|---|
+| `W-CONTRACT-0001` | slot publicado | `resultType` |
+| `W-CONTRACT-0002` | argumento com kind correto | `resultType` |
+| `W-CONTRACT-0003` | predicate que produz Bool | `proofFacts` |
+| `W-CONTRACT-0004` | labels únicos em schema order | `evaluationGraph` |
+| `W-CONTRACT-0005` | envelope aplicável ao resultado anterior | `resultType` |
 
 O corpus negativo do checker deve inverter uma regra por fixture. Ele deve
 preservar os outros fields do `SemanticResult`. Essa exigência impede que um
@@ -22073,8 +22088,8 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 22 casos pareiam 11 resultados positivos com 11 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 39 de 80 codes, incluindo lexer, parser, formatter e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 32 casos pareiam 16 resultados positivos com 16 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 44 de 80 codes, incluindo lexer, parser, formatter, contratos e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23616,6 +23631,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-818 | profile de catálogo | profile fatora phase, severity, facts, labels e fixes idênticos; entrada não pode sobrescrevê-lo e meaning permanece por code | copiar schema em cada entrada; inheritance de meaning; override local silencioso |
 | W-819 | facts de parse | parse-syntax exige construct, actual e expected byte-sorted; owner label é opcional e não duplica primary | mensagem como fato; expected em ordem de hash; source text inteiro em facts |
 | W-820 | cobertura D0 | índice gerado mede catalogados e referenciados por família e rejeita code fora do namespace | contagem global sem lacuna local; busca manual; ignorar code malformado |
+| W-821 | diagnostics de contrato | W-CONTRACT-0001–0005 distinguem slot, kind, predicate, ordem/duplicação e aplicação de envelope | um type error genérico; parser resolve schema; mensagem sem facts estruturados |
+| W-822 | corpus de contrato | cada code W-CONTRACT possui baseline positivo único, inversão syntax-valid, outcome S0 e snapshot D0 | apenas exemplo positivo; negative que também falha parse; snapshot sem resultado correspondente |
+| W-823 | schema autocontido em fixture | head definido pelo usuário declara slots no próprio source; builtins usam schema normativo; label aponta para declaração quando disponível | ambiente implícito de teste; mock que aceita qualquer slot; diagnostic sem origem do requirement |
+| W-824 | falha localizada de contrato | slot/kind/envelope impedem resultType; predicate inválido impede proofFacts; duplicação impede evaluationGraph normalizado | marcar todos os campos inválidos; continuar lowering com slot arbitrário; perder o type base já resolvido |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

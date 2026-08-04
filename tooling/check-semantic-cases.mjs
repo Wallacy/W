@@ -383,16 +383,22 @@ for (const sourceEntry of catalog.codes) {
   catalogByCode.set(entry.code, entry)
 }
 
-const diagnosticTable = design.match(
+const diagnosticTablePatterns = [
+  /\| `W-CONTRACT-0001`[\s\S]*?\| `W-CONTRACT-0005`[^\n]*\|/,
   /\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
-)
-if (!diagnosticTable) {
-  fail("S0 diagnostic table is missing")
+]
+const diagnosticTables = diagnosticTablePatterns.map((pattern) => design.match(pattern)?.[0])
+if (diagnosticTables.some((table) => table === undefined)) {
+  fail("a semantic diagnostic table is missing")
 }
 
 const requiredDiagnostics = [
-  ...diagnosticTable[0].matchAll(/`(W-[A-Z]+-[0-9]{4})`/g),
-].map((match) => match[1])
+  ...new Set(
+    diagnosticTables.flatMap((table) =>
+      [...table.matchAll(/`(W-[A-Z]+-[0-9]{4})`/g)].map((match) => match[1]),
+    ),
+  ),
+]
 
 const ids = new Set()
 const coveredDiagnostics = new Set()
@@ -667,5 +673,5 @@ try {
 }
 
 console.log(
-  `Semantic cases: ${corpus.cases.length} syntax-valid cases, ${resultCandidates.length} SemanticResult outcomes, ${diagnosticCandidates.length} D0 snapshots, ${requiredDiagnostics.length}/${requiredDiagnostics.length} S0 diagnostics covered, ${catalogByCode.size}/${referencedDiagnosticCodes.length} referenced codes cataloged.`,
+  `Semantic cases: ${corpus.cases.length} syntax-valid cases, ${resultCandidates.length} SemanticResult outcomes, ${diagnosticCandidates.length} D0 snapshots, ${requiredDiagnostics.length}/${requiredDiagnostics.length} semantic diagnostics covered, ${catalogByCode.size}/${referencedDiagnosticCodes.length} referenced codes cataloged.`,
 )

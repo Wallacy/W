@@ -18,6 +18,93 @@
   },
   "codes": [
     {
+      "code": "W-CONTRACT-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a contract argument names a slot that its head does not publish",
+      "requiredFacts": {
+        "availableSlots": "string-set",
+        "head": "string",
+        "slot": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 },
+        "slot-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONTRACT-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a contract argument has a kind that its resolved slot does not accept",
+      "requiredFacts": {
+        "actualKind": "string",
+        "expectedKind": "string",
+        "head": "string",
+        "slot": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 },
+        "slot-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONTRACT-0003",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a contract refinement predicate does not produce Bool",
+      "requiredFacts": {
+        "expectedType": "string",
+        "head": "string",
+        "predicateType": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 },
+        "slot-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONTRACT-0004",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a contract label is duplicated or violates the declared slot order",
+      "requiredFacts": {
+        "head": "string",
+        "slot": "string",
+        "slotOrder": "string[]",
+        "violation": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 },
+        "slot-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-CONTRACT-0005",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a later contract envelope does not apply to the result of the previous envelope",
+      "requiredFacts": {
+        "applicableKinds": "string-set",
+        "envelopeKind": "string",
+        "head": "string"
+      },
+      "labelRoles": {
+        "contract-head": { "minimum": 1, "maximum": 1 },
+        "slot-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-DIAGNOSTIC-0001",
       "state": "active",
       "phase": "build",
