@@ -1,0 +1,333 @@
+{
+  "$schema": "w-std-api-contracts-1",
+  "status": "design-oracle-input",
+  "profiles": {
+    "value-contract": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["type-shape"],
+      "complexity": { "time": "not-applicable", "space": "type-shape" }
+    },
+    "const-binding": {
+      "capabilities": [],
+      "effects": ["const-evaluation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["const-evaluator-quota", "input-size"],
+      "complexity": { "time": "linear-input", "space": "linear-input" }
+    },
+    "validated-http-token": {
+      "capabilities": [],
+      "effects": ["const-evaluation"],
+      "failures": { "mode": "typed", "types": ["HttpSyntaxError"] },
+      "bounds": ["input-size"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "transaction-provider": {
+      "capabilities": ["transaction-provider"],
+      "effects": ["suspension", "transaction"],
+      "failures": {
+        "mode": "generic",
+        "types": ["OperationFailure", "ProviderFailure", "unknownCommit"]
+      },
+      "bounds": ["transaction-contract", "provider-budget"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "byte-source": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["maximum-argument", "destination-capacity"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+    },
+    "byte-sink": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io"],
+      "failures": { "mode": "generic", "types": ["Failure", "WriteAllError"] },
+      "bounds": ["source-size", "segment-count"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+    },
+    "http-body": {
+      "capabilities": ["http-body-provider"],
+      "effects": ["suspension", "byte-io"],
+      "failures": { "mode": "typed", "types": ["HttpBodyError"] },
+      "bounds": ["message-limits"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-contract" }
+    },
+    "http-handler": {
+      "capabilities": ["http-context"],
+      "effects": ["suspension", "network"],
+      "failures": { "mode": "typed", "types": ["HttpError"] },
+      "bounds": ["server-limits", "message-limits"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "database-transaction": {
+      "capabilities": ["database-binding"],
+      "effects": ["suspension", "storage"],
+      "failures": { "mode": "typed", "types": ["DatabaseError"] },
+      "bounds": ["row-limits", "batch-size", "pool-limits"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "database-provider": {
+      "capabilities": ["database-binding", "transaction-provider"],
+      "effects": ["suspension", "storage", "transaction"],
+      "failures": {
+        "mode": "typed",
+        "types": ["DatabaseError", "TransactionFailure"]
+      },
+      "bounds": ["row-limits", "batch-size", "pool-limits", "transaction-contract"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "cache-provider": {
+      "capabilities": ["cache-binding"],
+      "effects": ["suspension", "storage", "allocation"],
+      "failures": { "mode": "typed", "types": ["CacheError", "LoadFailure"] },
+      "bounds": ["cache-entry-limit", "active-load-limit", "queued-load-limit"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    }
+  },
+  "modules": [
+    {
+      "id": "std.runtime.task",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/task.w",
+      "designAnchors": ["12.3", "12.4", "12.5", "14.2"],
+      "consumer": {
+        "path": "reference/last-light/execution.w",
+        "symbols": ["TaskOutcome", "TaskTimeout"]
+      },
+      "apis": [
+        { "symbol": "CancellationReason", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TaskBudgetKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TaskOutcome", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TaskTimeout", "kind": "alias", "profile": "value-contract" }
+      ]
+    },
+    {
+      "id": "std.runtime.transaction",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/transaction.w",
+      "designAnchors": ["12.13", "14.2"],
+      "consumer": {
+        "path": "reference/last-light/transaction_oracle.w",
+        "symbols": ["Transactional", "TransactionFailure"]
+      },
+      "apis": [
+        { "symbol": "TransactionFailure", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Transactional", "kind": "protocol", "profile": "transaction-provider" }
+      ]
+    },
+    {
+      "id": "std.runtime.work",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/work.w",
+      "designAnchors": ["13.7", "14.2"],
+      "consumer": {
+        "path": "reference/last-light/supervision.w",
+        "symbols": ["WorkSnapshot", "WorkOutcome", "WorkStartError"]
+      },
+      "apis": [
+        { "symbol": "WorkRight", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkState", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkSnapshot", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "WorkOutcome", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkBoundaryFailure", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkCancelResult", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkLookupError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "SupervisorFailure", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkStartError", "kind": "enum", "profile": "value-contract" }
+      ]
+    },
+    {
+      "id": "std.runtime.workflow",
+      "tier": "T2",
+      "availability": "workflow-adapter",
+      "source": "std/runtime/workflow.w",
+      "designAnchors": ["13.7", "14.3", "14.4"],
+      "consumer": {
+        "path": "reference/last-light/workflow.w",
+        "symbols": ["WorkEventBinding", "StepRetry"]
+      },
+      "apis": [
+        { "symbol": "StepEffect", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "StepBackoff", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "StepRetry", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "WorkSuspension", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkEventBinding", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "WaitOutcome", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkEventSendResult", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WorkEventSendError", "kind": "enum", "profile": "value-contract" }
+      ]
+    },
+    {
+      "id": "std.build",
+      "tier": "T1",
+      "availability": "build-host",
+      "source": "std/build/contracts.w",
+      "designAnchors": ["14.2", "21.2.4"],
+      "consumer": {
+        "path": "reference/last-light/packages/menu-compiler/transform.w",
+        "symbols": ["Input", "Output", "Error", "Context"]
+      },
+      "apis": [
+        { "symbol": "Input", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "Output", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "Error", "kind": "enum", "profile": "value-contract" }
+      ]
+    },
+    {
+      "id": "std.io",
+      "tier": "T1",
+      "availability": "byte-io-provider",
+      "source": "std/io/contracts.w",
+      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4"],
+      "consumer": {
+        "path": "reference/last-light/io.w",
+        "symbols": ["ReadStep", "WriteStep", "WriteAllError", "ByteSource", "ByteSink"]
+      },
+      "apis": [
+        { "symbol": "ReadStep", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WriteStep", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WriteAllError", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "ByteSource", "kind": "protocol", "profile": "byte-source" },
+        { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" }
+      ]
+    },
+    {
+      "id": "std.http",
+      "tier": "T2",
+      "availability": "http-host-or-adapter",
+      "source": "std/http/contracts.w",
+      "designAnchors": ["14.3.1", "14.3.2", "14.3.3"],
+      "consumer": {
+        "path": "reference/last-light/benchmark_app.w",
+        "symbols": ["Request", "Response", "Context"]
+      },
+      "apis": [
+        { "symbol": "MethodToken", "kind": "struct", "profile": "validated-http-token" },
+        { "symbol": "Method", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "StatusCode", "kind": "type", "profile": "value-contract" },
+        { "symbol": "HeaderName", "kind": "struct", "profile": "validated-http-token" },
+        { "symbol": "HeaderField", "kind": "struct", "profile": "validated-http-token" },
+        { "symbol": "HttpSyntaxError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "HttpBodyError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "HttpError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "ResponseBody", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "IncomingBody", "kind": "protocol", "profile": "http-body" },
+        { "symbol": "HttpHandler", "kind": "protocol", "profile": "http-handler" }
+      ]
+    },
+    {
+      "id": "std.database",
+      "tier": "T2",
+      "availability": "database-adapter",
+      "source": "std/database/contracts.w",
+      "designAnchors": ["14.3.4", "14.3.5"],
+      "consumer": {
+        "path": "reference/last-light/benchmark_app.w",
+        "symbols": ["Binding", "Query", "Command", "Database", "DatabaseError"]
+      },
+      "apis": [
+        { "symbol": "Dialect", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Binding", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "Query", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "Command", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "RowLimits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "Isolation", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TransactionAccess", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TransactionContract", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "DatabaseError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TransactionFailure", "kind": "alias", "profile": "value-contract" },
+        { "symbol": "Transaction", "kind": "protocol", "profile": "database-transaction" },
+        { "symbol": "Database", "kind": "protocol", "profile": "database-provider" }
+      ]
+    },
+    {
+      "id": "std.cache",
+      "tier": "T2",
+      "availability": "process-local-cache-adapter",
+      "source": "std/cache/contracts.w",
+      "designAnchors": ["14.3.6"],
+      "consumer": {
+        "path": "reference/last-light/benchmark_app.w",
+        "symbols": ["LocalBinding", "CacheError", "LoadFailure"]
+      },
+      "apis": [
+        { "symbol": "Expiration", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LocalBinding", "kind": "struct", "profile": "const-binding" },
+        { "symbol": "CacheError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LoadFailure", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LocalCache", "kind": "protocol", "profile": "cache-provider" }
+      ]
+    }
+  ],
+  "referenceScans": [
+    { "binding": "build", "module": "std.build" },
+    { "binding": "cache", "module": "std.cache" },
+    { "binding": "database", "module": "std.database" },
+    { "binding": "http", "module": "std.http" }
+  ],
+  "referenceRequirements": [
+    {
+      "id": "sdk0-build-context",
+      "module": "std.build",
+      "surface": "Context",
+      "kind": "symbol",
+      "consumer": "reference/last-light/packages/menu-compiler/transform.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-byte-sink-write-all",
+      "module": "std.io",
+      "surface": "ByteSink.writeAll",
+      "kind": "member",
+      "consumer": "reference/last-light/io.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-context",
+      "module": "std.http",
+      "surface": "Context",
+      "kind": "symbol",
+      "consumer": "reference/last-light/gateway.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-request",
+      "module": "std.http",
+      "surface": "Request",
+      "kind": "symbol",
+      "consumer": "reference/last-light/benchmark_app.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-response",
+      "module": "std.http",
+      "surface": "Response",
+      "kind": "symbol",
+      "consumer": "reference/last-light/benchmark_app.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-server-error",
+      "module": "std.http",
+      "surface": "ServerError",
+      "kind": "symbol",
+      "consumer": "reference/last-light/app.w",
+      "status": "missing"
+    },
+    {
+      "id": "sdk0-http-serve",
+      "module": "std.http",
+      "surface": "serve",
+      "kind": "symbol",
+      "consumer": "reference/last-light/app.w",
+      "status": "missing"
+    }
+  ]
+}

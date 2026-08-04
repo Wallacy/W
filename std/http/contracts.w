@@ -46,7 +46,7 @@ const fn isHttpFieldValue(value: ref Bytes): Bool {
 }
 
 export struct MethodToken {
-  package value: String
+  value: String
 
   export const init(value: String) throws HttpSyntaxError {
     guard isHttpToken(value) else throw .invalidMethod
@@ -75,7 +75,7 @@ export enum Method {
 export type StatusCode = u16<(100..<600)>
 
 export struct HeaderName {
-  package value: String
+  value: String
 
   export const init(value: String) throws HttpSyntaxError {
     guard isHttpToken(value) else throw .invalidHeaderName
@@ -88,8 +88,8 @@ export struct HeaderName {
 }
 
 export struct HeaderField {
-  package storedName: HeaderName
-  package storedValue: Bytes
+  storedName: HeaderName
+  storedValue: Bytes
 
   export const init(
     name: HeaderName,

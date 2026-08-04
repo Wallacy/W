@@ -1,0 +1,818 @@
+{
+  "$schema": "w-std-api-surface-snapshot-1",
+  "status": "generated-design-projection",
+  "catalogDigest": "9d440ccf743a67a1d5aa0ce15a6b0fdd004d3e10cd1176b4c563e8ac4dd6b8ea",
+  "summary": {
+    "modules": 9,
+    "catalogedApis": 61,
+    "qualifiedReferenceSurfaces": 22,
+    "referenceRequirements": 7,
+    "missingReferenceRequirements": 7
+  },
+  "modules": [
+    {
+      "id": "std.build",
+      "tier": "T1",
+      "availability": "build-host",
+      "source": "std/build/contracts.w",
+      "catalogedDeclarationsDigest": "b31ada6916497f19f15b324e8aaad9d92c129ea100759cfbd9b6a8abb696e7d1",
+      "apis": [
+        {
+          "symbol": "Error",
+          "kind": "enum",
+          "signature": "export enum Error: Error",
+          "declarationDigest": "4e27afb8123dc2a323be64f73ba7d8378f48490862279a66d11d3b1020d361a8",
+          "line": 19,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Input",
+          "kind": "struct",
+          "signature": "export struct Input<Value>",
+          "declarationDigest": "f703a67e94a87174d541643f57e3a74d384724cf77b64aa6b23b9ff78b1fa8f3",
+          "line": 3,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "Output",
+          "kind": "struct",
+          "signature": "export struct Output<Value>",
+          "declarationDigest": "a51ccf432331665ac59769477d9d01d2bff5b43da88aab1f56c160f3f1afce3a",
+          "line": 11,
+          "profile": "const-binding"
+        }
+      ]
+    },
+    {
+      "id": "std.cache",
+      "tier": "T2",
+      "availability": "process-local-cache-adapter",
+      "source": "std/cache/contracts.w",
+      "catalogedDeclarationsDigest": "7685c2c4f2e5f8a8196e30a1f3e31f54a01b41b28e0313a28a399c7cd25e3b6f",
+      "apis": [
+        {
+          "symbol": "CacheError",
+          "kind": "enum",
+          "signature": "export enum CacheError: Error",
+          "declarationDigest": "fde53669eba2b5d5ec4417ff7d648aa43483ff9bc5034a1abd1125ff7140476e",
+          "line": 34,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Expiration",
+          "kind": "enum",
+          "signature": "export enum Expiration",
+          "declarationDigest": "5e82fac4238b480db589cf61b1a76b5dc0729ad6fa3e688a9673040c9061fc80",
+          "line": 3,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "LoadFailure",
+          "kind": "enum",
+          "signature": "export enum LoadFailure<Failure: Error>: Error",
+          "declarationDigest": "4f0b6ae286dcec2234861b1e8ce1961b605c455f6f51af0be9e6b4bd7b889dad",
+          "line": 40,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "LocalBinding",
+          "kind": "struct",
+          "signature": "export struct LocalBinding<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
+          "declarationDigest": "6fbdb508268246517409ab91ee546d0e950832be964f56fb5bbacb85d026af8d",
+          "line": 9,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "LocalCache",
+          "kind": "protocol",
+          "signature": "export protocol LocalCache<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
+          "declarationDigest": "bd1e91eb098d9dc256fd2551ea40ab4182920aa89965c3fcf5b30cb46db17919",
+          "line": 45,
+          "profile": "cache-provider"
+        }
+      ]
+    },
+    {
+      "id": "std.database",
+      "tier": "T2",
+      "availability": "database-adapter",
+      "source": "std/database/contracts.w",
+      "catalogedDeclarationsDigest": "8e88a607d2cb4536838ddf93399877914466ad4efa9c3435ecfe996867dcb782",
+      "apis": [
+        {
+          "symbol": "Binding",
+          "kind": "struct",
+          "signature": "export struct Binding",
+          "declarationDigest": "58c72a4efb6adb57d77b0c8420886b05df94af153d5ca0767b17757552e42b17",
+          "line": 15,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "Command",
+          "kind": "struct",
+          "signature": "export struct Command<Parameters>",
+          "declarationDigest": "fcd37aeeb366041c31e6250680d47ed9fa329a54e52cbc1677bc17cef28c3e15",
+          "line": 38,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "Database",
+          "kind": "protocol",
+          "signature": "export protocol Database: Transactional<Transaction, TransactionContract, DatabaseError>",
+          "declarationDigest": "4aba0571bcac4fd5572bc6aa55d655ed24cd3791cb731537f3f92548bc015075",
+          "line": 117,
+          "profile": "database-provider"
+        },
+        {
+          "symbol": "DatabaseError",
+          "kind": "enum",
+          "signature": "export enum DatabaseError: Error",
+          "declarationDigest": "ccb19248dd2911b7fd3923e8d9f3ba0f69a824781a78b25bd805832daeb38584",
+          "line": 72,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Dialect",
+          "kind": "enum",
+          "signature": "export enum Dialect",
+          "declarationDigest": "c8c14ce51dfc122a63dfb919dfbd5d5a2ff8ab3c1c5b13ad591e0f79d85389e6",
+          "line": 9,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Isolation",
+          "kind": "enum",
+          "signature": "export enum Isolation",
+          "declarationDigest": "81c88182c9526ef81cfab98a858a2d1e11ef7cfaeaefff0cc7691f8ac18185f9",
+          "line": 56,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Query",
+          "kind": "struct",
+          "signature": "export struct Query<Parameters, Row>",
+          "declarationDigest": "ccdbc49264a3892b7730aa2c11546c6b277f22445d773b6f9b5c950435bb958d",
+          "line": 25,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "RowLimits",
+          "kind": "struct",
+          "signature": "export struct RowLimits",
+          "declarationDigest": "4c47493b600cd52499ef6407125c4366582d3982b5076844e128697bcfc2afba",
+          "line": 51,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Transaction",
+          "kind": "protocol",
+          "signature": "export protocol Transaction",
+          "declarationDigest": "56ce2f25fc56a0639888ff0ec37f0c3ea6eaf55151b89bdee49ab17f6db80548",
+          "line": 89,
+          "profile": "database-transaction"
+        },
+        {
+          "symbol": "TransactionAccess",
+          "kind": "enum",
+          "signature": "export enum TransactionAccess",
+          "declarationDigest": "853e1f1c801294b4a57bbef33e89b30365e2203790b5e9f89636a5aabc2f0874",
+          "line": 62,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "TransactionContract",
+          "kind": "struct",
+          "signature": "export struct TransactionContract",
+          "declarationDigest": "134095577a2935c1d0cefd5b30770d955c3259438f07d8ee7205857071b1cc95",
+          "line": 67,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "TransactionFailure",
+          "kind": "alias",
+          "signature": "export alias TransactionFailure<Failure: Error> = RuntimeTransactionFailure<Failure, DatabaseError>",
+          "declarationDigest": "61b7d55625646c2a77430ce6783c6123db4fcbd1881f5145dc4c68b494e1f961",
+          "line": 86,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.http",
+      "tier": "T2",
+      "availability": "http-host-or-adapter",
+      "source": "std/http/contracts.w",
+      "catalogedDeclarationsDigest": "2df11f7b4921995a386aa05eefcda1cbb60ee55d518c57ac24842414bd8c9c31",
+      "apis": [
+        {
+          "symbol": "HeaderField",
+          "kind": "struct",
+          "signature": "export struct HeaderField",
+          "declarationDigest": "a83fc3f5b6b30ff2f49715d5f3687d3289f3dbc65f2d3d069300db493cd0f52b",
+          "line": 90,
+          "profile": "validated-http-token"
+        },
+        {
+          "symbol": "HeaderName",
+          "kind": "struct",
+          "signature": "export struct HeaderName",
+          "declarationDigest": "624274616e6ac80b1da3f4fb9d750eb218c64bc5e06bc370efcd867a178774bc",
+          "line": 77,
+          "profile": "validated-http-token"
+        },
+        {
+          "symbol": "HttpBodyError",
+          "kind": "enum",
+          "signature": "export enum HttpBodyError: Error",
+          "declarationDigest": "579432d4af58da993f910f552e8d0c3622d38f38d2ca68bfb89e842d2f4bb0c6",
+          "line": 120,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "HttpError",
+          "kind": "enum",
+          "signature": "export enum HttpError: Error",
+          "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
+          "line": 127,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "HttpHandler",
+          "kind": "protocol",
+          "signature": "export protocol HttpHandler",
+          "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
+          "line": 162,
+          "profile": "http-handler"
+        },
+        {
+          "symbol": "HttpSyntaxError",
+          "kind": "enum",
+          "signature": "export enum HttpSyntaxError: Error",
+          "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
+          "line": 112,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "IncomingBody",
+          "kind": "protocol",
+          "signature": "export protocol IncomingBody: ByteSource<HttpBodyError>",
+          "declarationDigest": "f2f987d1f5a2a229f43a7194e642398c724d032c9eec5f2a1246fa0dfc6be4ad",
+          "line": 158,
+          "profile": "http-body"
+        },
+        {
+          "symbol": "MessageLimits",
+          "kind": "struct",
+          "signature": "export struct MessageLimits",
+          "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
+          "line": 137,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "Method",
+          "kind": "enum",
+          "signature": "export enum Method",
+          "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
+          "line": 61,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "MethodToken",
+          "kind": "struct",
+          "signature": "export struct MethodToken",
+          "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
+          "line": 48,
+          "profile": "validated-http-token"
+        },
+        {
+          "symbol": "ResponseBody",
+          "kind": "enum",
+          "signature": "export enum ResponseBody",
+          "declarationDigest": "d317e10cf17c501aa364eed5f85651c8a2a15898d44041d604ac0ae25a29f0f8",
+          "line": 152,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "ServerLimits",
+          "kind": "struct",
+          "signature": "export struct ServerLimits",
+          "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
+          "line": 144,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "StatusCode",
+          "kind": "type",
+          "signature": "export type StatusCode = u16<(100..<600)>",
+          "declarationDigest": "96c376c9e2a47e5c7f8a21cf810b49dec6387200b49146c767462aca584b0f95",
+          "line": 75,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.io",
+      "tier": "T1",
+      "availability": "byte-io-provider",
+      "source": "std/io/contracts.w",
+      "catalogedDeclarationsDigest": "6b8d32ac3db2a19869fef68b2f38d3a0ccf6e6606a51f10c861b0ea894c322f3",
+      "apis": [
+        {
+          "symbol": "ByteSink",
+          "kind": "protocol",
+          "signature": "export protocol ByteSink<Failure: Error>",
+          "declarationDigest": "4db34f30688a95b8f10eb58862f450328c21c0fb7270cbb0738785e90e35916f",
+          "line": 25,
+          "profile": "byte-sink"
+        },
+        {
+          "symbol": "ByteSource",
+          "kind": "protocol",
+          "signature": "export protocol ByteSource<Failure: Error>",
+          "declarationDigest": "ca1ad9ae6b8ed908b62adae664342385b559cc1f53ba9f78c184a2f4e0e91fb9",
+          "line": 18,
+          "profile": "byte-source"
+        },
+        {
+          "symbol": "ReadStep",
+          "kind": "enum",
+          "signature": "export enum ReadStep",
+          "declarationDigest": "1469f25e49cd86766027741ed01c789834e8a34ba2508107a083cac8e51e281b",
+          "line": 3,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WriteAllError",
+          "kind": "struct",
+          "signature": "export struct WriteAllError<Cause: Error>: Error",
+          "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
+          "line": 13,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WriteStep",
+          "kind": "enum",
+          "signature": "export enum WriteStep",
+          "declarationDigest": "d566289714bc5cf2aa28cdef36f3606fc74d3c30558e65587a8a92304f2a3e3d",
+          "line": 8,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.task",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/task.w",
+      "catalogedDeclarationsDigest": "3731a745d4aeedf6529cd579464a160cceb3e22816230c3564a8744a132d3a39",
+      "apis": [
+        {
+          "symbol": "CancellationReason",
+          "kind": "enum",
+          "signature": "export enum CancellationReason",
+          "declarationDigest": "0745827bfa1844259c7a6325421cfe7ae7e5d168bb18588c26a219e50246c309",
+          "line": 3,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "TaskBudgetKind",
+          "kind": "enum",
+          "signature": "export enum TaskBudgetKind",
+          "declarationDigest": "6190218b5c92db3ef176788e449c3a5275319e212f44f4e2226e4296947b4d74",
+          "line": 9,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "TaskOutcome",
+          "kind": "enum",
+          "signature": "export enum TaskOutcome<Value, Failure: Error>",
+          "declarationDigest": "c61854ecf3d8996089be8f03e9e651c84dcc70e4e7611b44708eec4dfc581a1b",
+          "line": 16,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "TaskTimeout",
+          "kind": "alias",
+          "signature": "export alias TaskTimeout = Duration<(0...)>",
+          "declarationDigest": "8897786340b1e7b793a52be96359d2f1072209c811ff2d6bb513092dfa8c9cb7",
+          "line": 22,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.transaction",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/transaction.w",
+      "catalogedDeclarationsDigest": "aaa2c9264923aa16e41a2f836c4454e6b64b0c1351b7d09931a660676c2ea5a7",
+      "apis": [
+        {
+          "symbol": "Transactional",
+          "kind": "protocol",
+          "signature": "export protocol Transactional<Scope, Contract, Failure: Error>",
+          "declarationDigest": "ed77b4bf0b706e644b08325de467e32fee10f8a8dfb4f01c3aff650cdeca6f32",
+          "line": 9,
+          "profile": "transaction-provider"
+        },
+        {
+          "symbol": "TransactionFailure",
+          "kind": "enum",
+          "signature": "export enum TransactionFailure<OperationFailure: Error, ProviderFailure: Error>: Error",
+          "declarationDigest": "22cfe4acbb46ed6b6023d00e521e6a198ef648a8ff7c4de2e21b106eea772095",
+          "line": 3,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.work",
+      "tier": "T1",
+      "availability": "runtime-profile",
+      "source": "std/runtime/work.w",
+      "catalogedDeclarationsDigest": "2be3f1f59395c3db1a8e2becf3995087ca42e3aad5dfb035b83c1a167c6eb07c",
+      "apis": [
+        {
+          "symbol": "SupervisorFailure",
+          "kind": "enum",
+          "signature": "export enum SupervisorFailure: Error",
+          "declarationDigest": "5737bb151ff310216bdcce4b54433fdede67ecaff4e192f341f18eded5542cab",
+          "line": 58,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkBoundaryFailure",
+          "kind": "enum",
+          "signature": "export enum WorkBoundaryFailure",
+          "declarationDigest": "46ba53e57cace769d182c4b9b7f75e7b98151ff052dc89fcd53923912586eb02",
+          "line": 36,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkCancelResult",
+          "kind": "enum",
+          "signature": "export enum WorkCancelResult<Progress>",
+          "declarationDigest": "1d193cc11b7fed49209b02d98c6e6a8730279cbf8188cf107635bce680dcc11c",
+          "line": 47,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkLookupError",
+          "kind": "enum",
+          "signature": "export enum WorkLookupError: Error",
+          "declarationDigest": "9a3aba051af42a8aacb84961a2b54e5ea41589fd7cee995ab5d2a4ee9bbacb8b",
+          "line": 53,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkOutcome",
+          "kind": "enum",
+          "signature": "export enum WorkOutcome<Output, Failure: Error>",
+          "declarationDigest": "b4956e577425d85d196d634577e3da0f9e54e2db879a0f65d0adb410e82f7ecf",
+          "line": 29,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkRight",
+          "kind": "enum",
+          "signature": "export enum WorkRight",
+          "declarationDigest": "e380eaae3a7b5fabbeb5e95342212954cd77a1c54872cb93a7bb40a5029789b2",
+          "line": 3,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkSnapshot",
+          "kind": "struct",
+          "signature": "export struct WorkSnapshot<Progress>",
+          "declarationDigest": "0ead9cefee5c8b20ce33bb5217ebb1be4fdac542545d01c2a929215ebfc91c83",
+          "line": 19,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkStartError",
+          "kind": "enum",
+          "signature": "export enum WorkStartError<Key, Input>: Error",
+          "declarationDigest": "445db95012b96804dd953a5aea160370e3c4ca16d11590dfefac9b3eb59e429d",
+          "line": 65,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkState",
+          "kind": "enum",
+          "signature": "export enum WorkState",
+          "declarationDigest": "19df58f23bc25e591a2a2c49eb103a5a7950998c95834a18f92f5d962a62e495",
+          "line": 9,
+          "profile": "value-contract"
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.workflow",
+      "tier": "T2",
+      "availability": "workflow-adapter",
+      "source": "std/runtime/workflow.w",
+      "catalogedDeclarationsDigest": "fd5ac4fa9607c9e1487be7e00132373a6132eedf2d2d1c082977135d75dc4a78",
+      "apis": [
+        {
+          "symbol": "StepBackoff",
+          "kind": "enum",
+          "signature": "export enum StepBackoff",
+          "declarationDigest": "fefe34536c261f7066033e0860ed8f00e20817fca572b0475b8af57501f1e79d",
+          "line": 10,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "StepEffect",
+          "kind": "enum",
+          "signature": "export enum StepEffect",
+          "declarationDigest": "77b53f89459fd512a458b550fe1bd882a31ebbc9a497fc463d2352bd8b3f4ee6",
+          "line": 3,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "StepRetry",
+          "kind": "struct",
+          "signature": "export struct StepRetry<Failure: Error>",
+          "declarationDigest": "9e6f357bd65771d8c6dd35051a6be414f9028475dcd3cc2e75f1c7ed60bb4f43",
+          "line": 25,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WaitOutcome",
+          "kind": "enum",
+          "signature": "export enum WaitOutcome<Payload>",
+          "declarationDigest": "b00973c1704663a96717013d51cfe16dfc0497e9c3e2311bdb9cedf171128e75",
+          "line": 47,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkEventBinding",
+          "kind": "struct",
+          "signature": "export struct WorkEventBinding<Payload>",
+          "declarationDigest": "122b7b1af6da7aa01cc11c9dd3ee5d057ebe692d4a26c9ffb2ea6c57fa4109bf",
+          "line": 42,
+          "profile": "const-binding"
+        },
+        {
+          "symbol": "WorkEventSendError",
+          "kind": "enum",
+          "signature": "export enum WorkEventSendError<Payload>: Error",
+          "declarationDigest": "1409568c36b49d4a3083e520ef20bb8f8f97f6b5a5e8dfcaa1086388661c9466",
+          "line": 57,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkEventSendResult",
+          "kind": "enum",
+          "signature": "export enum WorkEventSendResult",
+          "declarationDigest": "05d19ed8bea6cadb885cd07b08f3c095c0b8fa35d6dccebebdd4576804603bc9",
+          "line": 52,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "WorkSuspension",
+          "kind": "enum",
+          "signature": "export enum WorkSuspension",
+          "declarationDigest": "d1777397d4aafdf60c9480e0e443e3ae552a6ded75e58b182ed95dc59b4974fb",
+          "line": 32,
+          "profile": "value-contract"
+        }
+      ]
+    }
+  ],
+  "qualifiedReferences": [
+    {
+      "module": "std.build",
+      "surface": "Context",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/packages/menu-compiler/transform.w"
+      ]
+    },
+    {
+      "module": "std.build",
+      "surface": "Error",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/packages/menu-compiler/transform.w"
+      ]
+    },
+    {
+      "module": "std.build",
+      "surface": "Input",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/packages/menu-compiler/transform.w"
+      ]
+    },
+    {
+      "module": "std.build",
+      "surface": "Output",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/packages/menu-compiler/transform.w"
+      ]
+    },
+    {
+      "module": "std.cache",
+      "surface": "CacheError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.cache",
+      "surface": "LoadFailure",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.cache",
+      "surface": "LocalBinding",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "Binding",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "Command",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "Database",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "DatabaseError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "Query",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "RowLimits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.database",
+      "surface": "TransactionFailure",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "Context",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/gateway.w",
+        "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "MessageLimits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "Method",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/restpc_oracle.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "Request",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/gateway.w",
+        "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "Response",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/gateway.w",
+        "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "serve",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "ServerError",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "ServerLimits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/app.w"
+      ]
+    }
+  ],
+  "referenceRequirements": [
+    {
+      "id": "sdk0-build-context",
+      "module": "std.build",
+      "surface": "Context",
+      "status": "missing",
+      "consumer": "reference/last-light/packages/menu-compiler/transform.w"
+    },
+    {
+      "id": "sdk0-byte-sink-write-all",
+      "module": "std.io",
+      "surface": "ByteSink.writeAll",
+      "status": "missing",
+      "consumer": "reference/last-light/io.w"
+    },
+    {
+      "id": "sdk0-http-context",
+      "module": "std.http",
+      "surface": "Context",
+      "status": "missing",
+      "consumer": "reference/last-light/gateway.w"
+    },
+    {
+      "id": "sdk0-http-request",
+      "module": "std.http",
+      "surface": "Request",
+      "status": "missing",
+      "consumer": "reference/last-light/benchmark_app.w"
+    },
+    {
+      "id": "sdk0-http-response",
+      "module": "std.http",
+      "surface": "Response",
+      "status": "missing",
+      "consumer": "reference/last-light/benchmark_app.w"
+    },
+    {
+      "id": "sdk0-http-serve",
+      "module": "std.http",
+      "surface": "serve",
+      "status": "missing",
+      "consumer": "reference/last-light/app.w"
+    },
+    {
+      "id": "sdk0-http-server-error",
+      "module": "std.http",
+      "surface": "ServerError",
+      "status": "missing",
+      "consumer": "reference/last-light/app.w"
+    }
+  ]
+}
