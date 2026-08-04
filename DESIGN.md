@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície e R0 estrutura 52/52 comparações; os estudos humanos e de modelos da seção 26 ainda não foram executados |
+| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície, R0 estrutura 52/52 comparações e R0S mede 117 formas; os estudos humanos e de modelos ainda não foram executados |
 | validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -22262,7 +22262,7 @@ mesma profundidade em todas as famílias:
 | memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | corpus R0 cobre os 52 requisitos e o gate estrito valida a cobertura | executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 52/52 e R0S fixa a baseline estática de 117 formas | executar os estudos humanos e de modelos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22648,6 +22648,42 @@ for row in rows {
 
 O label W limita o target a um owner lexical. `goto` aceita outros pontos. A
 flag cria estado mutável que pode divergir do control flow.
+
+### 26.2 Baseline estática R0S
+
+**Exemplo:** a forma W e as alternativas do caso de labels recebem digests e
+contagens determinísticas antes de qualquer participante ou modelo vê-las.
+
+[`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
+mede as 117 formas do corpus. O runner junta as linhas com LF e sem newline
+final. Para a tarefa e para cada forma, ele registra:
+
+- bytes UTF-8;
+- code points;
+- code points que não são whitespace;
+- linhas;
+- surface lexemes.
+
+O scanner `unicode-surface-1` reconhece strings, character literals,
+identifiers Unicode, números e cada punctuation restante. Ele é independente
+da grammar W. `surfaceLexemes` não significa token do compiler ou de um modelo.
+Um resultado futuro de modelo precisa registrar provider, model, tokenizer,
+versão, digest do input e parâmetros de execução.
+
+R0S é uma baseline descritiva. Ela detecta drift do corpus e permite planejar
+context windows. Ela não escolhe a forma menor, não compara snippets com escopo
+diferente e não prova compreensão, correção ou preferência. Estudos humanos e
+de modelos continuam usando as quatro tarefas desta seção e publicam resultados
+em outro artefato.
+
+O índice gerado publica total, mediana e máximo dos surface lexemes vigentes.
+Essas medidas mostram que R0 contém microformas. Elas são adequadas para recall
+de syntax e reparo local, mas não bastam para explicar comportamento, modificar
+um requisito ou medir surpresa runtime num programa. Uma rodada R1 precisa
+incorporar os casos em slices completos e executáveis do Última Luz. Cada bundle
+R1 fixa source base, input, outcome, ordem de apresentação e digest de cada
+variante. As variantes diferem somente na construção estudada. Uma variante não
+pode remover contexto ou testes para parecer menor.
 
 ## 27. Plano de implementação
 
@@ -23856,6 +23892,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/52`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 52 bullets como 52 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
 | W-864 | fechamento de cobertura R0 | 52/52 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
+| W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
+| W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

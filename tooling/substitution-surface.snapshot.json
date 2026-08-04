@@ -1,0 +1,2036 @@
+{
+  "$schema": "w-substitution-surface-1",
+  "status": "deterministic-surface-baseline",
+  "corpusDigest": "sha256:a8d8134d92b391211d4c5f6f82a61a7c2e6462e177379bb2d3175e609a1a230d",
+  "metricVersion": "unicode-surface-1",
+  "cases": [
+    {
+      "id": "R0-structured-labels",
+      "task": {
+        "utf8Bytes": 62,
+        "codePoints": 62,
+        "nonWhitespaceCodePoints": 50,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c7e13642fc53be0f9454ae11a3162074854180ea4700cf6df31eb2caad8fa984",
+        "metrics": {
+          "utf8Bytes": 138,
+          "codePoints": 138,
+          "nonWhitespaceCodePoints": 93,
+          "lines": 7,
+          "surfaceLexemes": 35
+        }
+      },
+      "alternatives": [
+        {
+          "name": "c-goto",
+          "language": "c",
+          "sourceDigest": "sha256:9fbfd88cdec6e456bea98f3b2afc60ec057e632316a694a5bafd5b8a4cf21202",
+          "metrics": {
+            "utf8Bytes": 57,
+            "codePoints": 57,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 2,
+            "surfaceLexemes": 19
+          }
+        },
+        {
+          "name": "mutable-flag",
+          "language": "w-pseudocode",
+          "sourceDigest": "sha256:25fe1cffb1ac11a5abf84862ed9dfc868ceebea22abff6e100179b4a190a829d",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 2,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-block-label",
+      "task": {
+        "utf8Bytes": 59,
+        "codePoints": 59,
+        "nonWhitespaceCodePoints": 52,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:cd6e770d05d7228df38d092046338c591313362aa7118a076b5587119f3bb788",
+        "metrics": {
+          "utf8Bytes": 120,
+          "codePoints": 120,
+          "nonWhitespaceCodePoints": 99,
+          "lines": 5,
+          "surfaceLexemes": 29
+        }
+      },
+      "alternatives": [
+        {
+          "name": "control-flow-exception",
+          "language": "pseudocode",
+          "sourceDigest": "sha256:cfae733d80639634246c0e255003807d776b9d5263621d962f195be490bd2aa0",
+          "metrics": {
+            "utf8Bytes": 99,
+            "codePoints": 99,
+            "nonWhitespaceCodePoints": 83,
+            "lines": 4,
+            "surfaceLexemes": 23
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-post-test-loop",
+      "task": {
+        "utf8Bytes": 73,
+        "codePoints": 73,
+        "nonWhitespaceCodePoints": 62,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:00f932f63eb7b77132723cf1a63d40f8f335b657d79b28c1246b31584ef94afe",
+        "metrics": {
+          "utf8Bytes": 54,
+          "codePoints": 54,
+          "nonWhitespaceCodePoints": 47,
+          "lines": 3,
+          "surfaceLexemes": 10
+        }
+      },
+      "alternatives": [
+        {
+          "name": "infinite-loop-break",
+          "language": "w-pseudocode",
+          "sourceDigest": "sha256:a5c1006a418b2259d1828493de532721bca3f4aed8d516d491bdc3e632bc14a2",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 4,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-newline-whitespace",
+      "task": {
+        "utf8Bytes": 65,
+        "codePoints": 65,
+        "nonWhitespaceCodePoints": 54,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a510707e7f7d131fcd48363725812c9fad7939da22bc16ae283e5470356f8f2d",
+        "metrics": {
+          "utf8Bytes": 33,
+          "codePoints": 33,
+          "nonWhitespaceCodePoints": 23,
+          "lines": 4,
+          "surfaceLexemes": 10
+        }
+      },
+      "alternatives": [
+        {
+          "name": "automatic-semicolon-insertion",
+          "language": "asi-pseudocode",
+          "sourceDigest": "sha256:b819c3e5f13fdb498a16c4e8f4eb3f8b64139b8bd811ffb69f8ba79ab54602dc",
+          "metrics": {
+            "utf8Bytes": 9,
+            "codePoints": 9,
+            "nonWhitespaceCodePoints": 8,
+            "lines": 2,
+            "surfaceLexemes": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-semicolon-boundary",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:b56716b63d92eda696ccd9dc3450acf7ad9126bf76abced0b3df9e5e2c3b680f",
+        "metrics": {
+          "utf8Bytes": 24,
+          "codePoints": 24,
+          "nonWhitespaceCodePoints": 23,
+          "lines": 2,
+          "surfaceLexemes": 8
+        }
+      },
+      "alternatives": [
+        {
+          "name": "remove-semicolon",
+          "language": "w-invalid-intent",
+          "sourceDigest": "sha256:a0688b40511dd1c8419d405e071cf1ada8f0527c50eece23f2a4c15023a39d32",
+          "metrics": {
+            "utf8Bytes": 23,
+            "codePoints": 23,
+            "nonWhitespaceCodePoints": 22,
+            "lines": 2,
+            "surfaceLexemes": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fixed-formatter",
+      "task": {
+        "utf8Bytes": 51,
+        "codePoints": 51,
+        "nonWhitespaceCodePoints": 44,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:284397ace1a7a13a8bc0ed253a397919a5306e7903d24efb39a4576cbe515d91",
+        "metrics": {
+          "utf8Bytes": 54,
+          "codePoints": 54,
+          "nonWhitespaceCodePoints": 47,
+          "lines": 2,
+          "surfaceLexemes": 15
+        }
+      },
+      "alternatives": [
+        {
+          "name": "workspace-style",
+          "language": "formatter-policy",
+          "sourceDigest": "sha256:12dd081795674e4ac48e206c32115c127074dcf254c9ccd53f1b2a8535ecf064",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 2,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-manifest-record",
+      "task": {
+        "utf8Bytes": 61,
+        "codePoints": 61,
+        "nonWhitespaceCodePoints": 54,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-manifest",
+        "sourceDigest": "sha256:add40c67e7f8f683f86a1f831f4eaa41c9095c65ee15cfd43c33f3306c8d7912",
+        "metrics": {
+          "utf8Bytes": 51,
+          "codePoints": 51,
+          "nonWhitespaceCodePoints": 41,
+          "lines": 4,
+          "surfaceLexemes": 9
+        }
+      },
+      "alternatives": [
+        {
+          "name": "inline-package-contract",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:84890aabb7d2993a6698e2002ff2fc7dd2dbb7a3fdb17d6bdd7f5fd1dbb86211",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-attached-contract",
+      "task": {
+        "utf8Bytes": 63,
+        "codePoints": 63,
+        "nonWhitespaceCodePoints": 55,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:5324bf46163c3dc2d1073bfe4dde5f361ba2dc0f30ebcb62759cba91c383f405",
+        "metrics": {
+          "utf8Bytes": 23,
+          "codePoints": 23,
+          "nonWhitespaceCodePoints": 20,
+          "lines": 1,
+          "surfaceLexemes": 7
+        }
+      },
+      "alternatives": [
+        {
+          "name": "detached-envelope",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:bd5d53c8bb83d3e9b30a8bb186bf8122bb2cfa08d71392ddd6f6193b4ba4e7ab",
+          "metrics": {
+            "utf8Bytes": 24,
+            "codePoints": 24,
+            "nonWhitespaceCodePoints": 20,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-computed-contract",
+      "task": {
+        "utf8Bytes": 60,
+        "codePoints": 60,
+        "nonWhitespaceCodePoints": 53,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a30f674ff5a6a0403ac5e37913985da5a593f5477447409f1fcc90bbb0ac6ecc",
+        "metrics": {
+          "utf8Bytes": 27,
+          "codePoints": 27,
+          "nonWhitespaceCodePoints": 24,
+          "lines": 1,
+          "surfaceLexemes": 13
+        }
+      },
+      "alternatives": [
+        {
+          "name": "raw-expression",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:b551f4b156c555b708ef5c170dbcf36985c81640e11acc6e71316e843397b2fe",
+          "metrics": {
+            "utf8Bytes": 25,
+            "codePoints": 25,
+            "nonWhitespaceCodePoints": 22,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-nested-contract-close",
+      "task": {
+        "utf8Bytes": 70,
+        "codePoints": 70,
+        "nonWhitespaceCodePoints": 61,
+        "lines": 1,
+        "surfaceLexemes": 11
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:86ba43a85880cf34501b6bdcff4f97f72a8e6c0f7a6a72d6373ce114441fe90a",
+        "metrics": {
+          "utf8Bytes": 31,
+          "codePoints": 31,
+          "nonWhitespaceCodePoints": 28,
+          "lines": 1,
+          "surfaceLexemes": 10
+        }
+      },
+      "alternatives": [
+        {
+          "name": "mandatory-close-space",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:414d4a6ac8f4e6aa2baf788881ec698adb9f73c398f6f7826f23f7123ccc3881",
+          "metrics": {
+            "utf8Bytes": 32,
+            "codePoints": 32,
+            "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-if-expression",
+      "task": {
+        "utf8Bytes": 56,
+        "codePoints": 56,
+        "nonWhitespaceCodePoints": 49,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6d72dd888b10b523a62685d09efcd853a773eaf586b9559e26ade27606999e64",
+        "metrics": {
+          "utf8Bytes": 53,
+          "codePoints": 53,
+          "nonWhitespaceCodePoints": 42,
+          "lines": 1,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "ternary",
+          "language": "c-like",
+          "sourceDigest": "sha256:be09eb25976369982dc13ed5f01f27e22f957291d7bbe514cb8a9c59ec86ae9d",
+          "metrics": {
+            "utf8Bytes": 39,
+            "codePoints": 39,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-assignment-unit",
+      "task": {
+        "utf8Bytes": 72,
+        "codePoints": 72,
+        "nonWhitespaceCodePoints": 62,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:aadc27cf73bf47970549479f0423e13842b7a2d6fcdf9599451750f03b5b1852",
+        "metrics": {
+          "utf8Bytes": 17,
+          "codePoints": 17,
+          "nonWhitespaceCodePoints": 15,
+          "lines": 1,
+          "surfaceLexemes": 3
+        }
+      },
+      "alternatives": [
+        {
+          "name": "value-producing-assignment",
+          "language": "c-like",
+          "sourceDigest": "sha256:9c2c30786c7a181b7ee944397c5194dff4ce118d40f9b5d03b99b253363dfbbd",
+          "metrics": {
+            "utf8Bytes": 25,
+            "codePoints": 25,
+            "nonWhitespaceCodePoints": 21,
+            "lines": 1,
+            "surfaceLexemes": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-power-precedence",
+      "task": {
+        "utf8Bytes": 67,
+        "codePoints": 67,
+        "nonWhitespaceCodePoints": 60,
+        "lines": 1,
+        "surfaceLexemes": 9
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:db44da7545c8908bd0d61572685b1e7a908635e9ce4d0fd4fba6909f6ff268d7",
+        "metrics": {
+          "utf8Bytes": 19,
+          "codePoints": 19,
+          "nonWhitespaceCodePoints": 14,
+          "lines": 1,
+          "surfaceLexemes": 8
+        }
+      },
+      "alternatives": [
+        {
+          "name": "unary-first",
+          "language": "alternative-grammar",
+          "sourceDigest": "sha256:24d70c7bf1bed5832ab9dc262ce1991d43ea4e0992c20a7fdfa2006cd180a106",
+          "metrics": {
+            "utf8Bytes": 21,
+            "codePoints": 21,
+            "nonWhitespaceCodePoints": 16,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-unit-delimiter",
+      "task": {
+        "utf8Bytes": 69,
+        "codePoints": 69,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 10
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:3c902c10e7151151a322e7b57230ffbb222b45ebd9b866c825c242bd32e8292a",
+        "metrics": {
+          "utf8Bytes": 25,
+          "codePoints": 25,
+          "nonWhitespaceCodePoints": 22,
+          "lines": 1,
+          "surfaceLexemes": 11
+        }
+      },
+      "alternatives": [
+        {
+          "name": "square-unit",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:9d8959ba95ce0460d9eb708d487fdada8dcc466be1fcf4704ed55b7018f9fb37",
+          "metrics": {
+            "utf8Bytes": 25,
+            "codePoints": 25,
+            "nonWhitespaceCodePoints": 22,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-quantity-alias",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9cc191e610598a11f3d3d42e44fc38a0776b9adb2bc3b272cdc0e1976d467a65",
+        "metrics": {
+          "utf8Bytes": 42,
+          "codePoints": 42,
+          "nonWhitespaceCodePoints": 37,
+          "lines": 1,
+          "surfaceLexemes": 12
+        }
+      },
+      "alternatives": [
+        {
+          "name": "mandatory-newtype",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:0d3d92c63dcf792b86194a3fc7fd53a425783980d4461f42c5189e95c6b719e3",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-spawn-domain",
+      "task": {
+        "utf8Bytes": 71,
+        "codePoints": 71,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:4864211e7e87c69a9b5aa1ad8d65f05e892e35db98d500343cfbe291109299cd",
+        "metrics": {
+          "utf8Bytes": 50,
+          "codePoints": 50,
+          "nonWhitespaceCodePoints": 45,
+          "lines": 1,
+          "surfaceLexemes": 13
+        }
+      },
+      "alternatives": [
+        {
+          "name": "repeated-primary-label",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:f45e9b24796d7a999c45b630ce83d5063a721ad6656a1978af800fee6432e39a",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "sentence-modifier",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:12f6a6d156aaca61cab9ad005fac32b43699932858c282d5afdebbd06bbaf949",
+          "metrics": {
+            "utf8Bytes": 52,
+            "codePoints": 52,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-refinement-subject",
+      "task": {
+        "utf8Bytes": 78,
+        "codePoints": 78,
+        "nonWhitespaceCodePoints": 66,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:e2ad3e394907590a0cac929c8cb96686caf233069685d4721719916e274da7aa",
+        "metrics": {
+          "utf8Bytes": 49,
+          "codePoints": 49,
+          "nonWhitespaceCodePoints": 44,
+          "lines": 1,
+          "surfaceLexemes": 15
+        }
+      },
+      "alternatives": [
+        {
+          "name": "explicit-value",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:77e4de9dd7223ae3818b6882849048e4703fcd7b757195486ee82ac3d314bae6",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "where-clause",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:eb417c3a08db53c070a22d1eb0fecb74bd6b9e4f79735bf9ad8ba67c93fd465e",
+          "metrics": {
+            "utf8Bytes": 57,
+            "codePoints": 57,
+            "nonWhitespaceCodePoints": 50,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "constructor-constraint",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:2cbc9bca903b0d5729a5eca187c33f4f886fd926e72e6d0d760e0ae8dc4a07e6",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-sequential-refinement",
+      "task": {
+        "utf8Bytes": 81,
+        "codePoints": 81,
+        "nonWhitespaceCodePoints": 70,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:49301de65091700d6f0201726a830cbc97400f06649e15397b35ff41ecafb4fc",
+        "metrics": {
+          "utf8Bytes": 39,
+          "codePoints": 39,
+          "nonWhitespaceCodePoints": 34,
+          "lines": 1,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "mixed-static-list",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:3af833a2863d642997b17c0db4401962d33d2c109970c59f1e101c8921fa86ab",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 1,
+            "surfaceLexemes": 17
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-explicit-self-return",
+      "task": {
+        "utf8Bytes": 61,
+        "codePoints": 61,
+        "nonWhitespaceCodePoints": 53,
+        "lines": 1,
+        "surfaceLexemes": 10
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c68b2396c469b0d00fef3a5b20ed76b2855189690c0d2a5a879975b910adb1ab",
+        "metrics": {
+          "utf8Bytes": 52,
+          "codePoints": 52,
+          "nonWhitespaceCodePoints": 38,
+          "lines": 4,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-receiver",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:4fa22cd0bdb6c11737f2eeeeaf00df9f43b50ae0b81af6b1601482a0cd30eabf",
+          "metrics": {
+            "utf8Bytes": 30,
+            "codePoints": 30,
+            "nonWhitespaceCodePoints": 23,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-consuming-call",
+      "task": {
+        "utf8Bytes": 66,
+        "codePoints": 66,
+        "nonWhitespaceCodePoints": 56,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:00b2ac2bd3912e0571d2d13ff029af87683b7455770befc3b1ea73ba5b4a0f87",
+        "metrics": {
+          "utf8Bytes": 40,
+          "codePoints": 40,
+          "nonWhitespaceCodePoints": 35,
+          "lines": 1,
+          "surfaceLexemes": 12
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-consume",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:20826eb926f3f5d61e08d80007a3798690105f8484fd494fc917d76daec87464",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "free-consuming-function",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:1d2d0770b96bf5e7eebb96998bd5ca97913aea2b10211c06dcc5b08b44d41b17",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-consuming-error",
+      "task": {
+        "utf8Bytes": 59,
+        "codePoints": 59,
+        "nonWhitespaceCodePoints": 51,
+        "lines": 1,
+        "surfaceLexemes": 10
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:1ecba6fdc85c4086b5f89672fbe79f71544ac19f40b1c3cfee3346d9683f4038",
+        "metrics": {
+          "utf8Bytes": 40,
+          "codePoints": 40,
+          "nonWhitespaceCodePoints": 35,
+          "lines": 1,
+          "surfaceLexemes": 12
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-owner-restore",
+          "language": "alternative-semantics",
+          "sourceDigest": "sha256:712c9ddf3cc7dd87285360dab5ac681bd76cc4505aa1e85175ef4dd090f305b0",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-associated-member",
+      "task": {
+        "utf8Bytes": 76,
+        "codePoints": 76,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:49bf328e8dafe01437ba5276b1195391516159e2125035114a9a558debcaf2e4",
+        "metrics": {
+          "utf8Bytes": 153,
+          "codePoints": 153,
+          "nonWhitespaceCodePoints": 122,
+          "lines": 6,
+          "surfaceLexemes": 31
+        }
+      },
+      "alternatives": [
+        {
+          "name": "companion-protocol",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:66e7d74cd6b84cc2faff5e80f1c020822a5efc9e0732b2b739aafd65ba466f45",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "mutable-type-storage",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:f3ec0beeda7f4cfa08a1dd636ea0bb62abf7a064a5bb9c539120b84fc7199498",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-transparent-struct",
+      "task": {
+        "utf8Bytes": 72,
+        "codePoints": 72,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 11
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:f040165c8e935bbe11aff8038e097ef269c98cdf3ed62895461be56849784abb",
+        "metrics": {
+          "utf8Bytes": 58,
+          "codePoints": 58,
+          "nonWhitespaceCodePoints": 46,
+          "lines": 4,
+          "surfaceLexemes": 11
+        }
+      },
+      "alternatives": [
+        {
+          "name": "field-by-field-export",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:d769ff028886496af93d1e695a911175ddf9858dd3174739c798043027e8ec0f",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 4,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "all-members-public",
+          "language": "alternative-semantics",
+          "sourceDigest": "sha256:219f1a7c24f189b3a27cd8da0dc00f70e9c1c9c87862739c21076bf2499fcd5b",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-nominal-struct-pattern",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 70,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:e2bd5baf53416760e09917b7e348394eda2fdb8879a18720d403381615a3c4a8",
+        "metrics": {
+          "utf8Bytes": 65,
+          "codePoints": 65,
+          "nonWhitespaceCodePoints": 56,
+          "lines": 1,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "structural-record-pattern",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:cfcf36e5f361571bf085f7a4aa12fc9f9478e88dea8f04b5cb52a22553ea594e",
+          "metrics": {
+            "utf8Bytes": 49,
+            "codePoints": 49,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-tuple-scrutinee",
+      "task": {
+        "utf8Bytes": 70,
+        "codePoints": 70,
+        "nonWhitespaceCodePoints": 59,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c7ad352fed79461e61c7d722486fbb6d761ac03e4c33241cc9fbe425936120d3",
+        "metrics": {
+          "utf8Bytes": 87,
+          "codePoints": 87,
+          "nonWhitespaceCodePoints": 71,
+          "lines": 4,
+          "surfaceLexemes": 31
+        }
+      },
+      "alternatives": [
+        {
+          "name": "multi-subject-switch",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:df1d2da668452ce76b2e350340bee09a4b48a9fecf70687205f2b93e24a5c1ac",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 3,
+            "surfaceLexemes": 18
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-closed-patterns",
+      "task": {
+        "utf8Bytes": 76,
+        "codePoints": 76,
+        "nonWhitespaceCodePoints": 65,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:b08c3ff26a938a0dde86e41fe2d9cac8f45924169b088e1e5f5bf50fc64c7649",
+        "metrics": {
+          "utf8Bytes": 81,
+          "codePoints": 81,
+          "nonWhitespaceCodePoints": 68,
+          "lines": 4,
+          "surfaceLexemes": 22
+        }
+      },
+      "alternatives": [
+        {
+          "name": "custom-pattern-protocol",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:747d2e5babff64c4f37c10bae6223d89afe9e94b764ccb90eaf0040a6576460f",
+          "metrics": {
+            "utf8Bytes": 42,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-external-pattern-rest",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 69,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:ef3d8f224196c74fea7569cacdb902ae26ee91b02d3b75714bb7226230a0f435",
+        "metrics": {
+          "utf8Bytes": 40,
+          "codePoints": 40,
+          "nonWhitespaceCodePoints": 34,
+          "lines": 1,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-open-pattern",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:8e4c7cffd6ccd83fb8fe3b042912aa2920c15aea73259bff8bd4821b0293dbd5",
+          "metrics": {
+            "utf8Bytes": 35,
+            "codePoints": 35,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-encapsulated-object",
+      "task": {
+        "utf8Bytes": 100,
+        "codePoints": 100,
+        "nonWhitespaceCodePoints": 89,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9817682bd8037dd8103d0203d87cae801e5ef6adcd6fa23bad13349c4e1469dd",
+        "metrics": {
+          "utf8Bytes": 99,
+          "codePoints": 99,
+          "nonWhitespaceCodePoints": 79,
+          "lines": 4,
+          "surfaceLexemes": 20
+        }
+      },
+      "alternatives": [
+        {
+          "name": "public-object-storage",
+          "language": "alternative-semantics",
+          "sourceDigest": "sha256:5c54cff4987110aa540f951db1309bfe8e382bbb31383fc3a8c5b10275a8ee8e",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-overload-shape",
+      "task": {
+        "utf8Bytes": 88,
+        "codePoints": 88,
+        "nonWhitespaceCodePoints": 76,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:80c4a556a79e5e5dd709cf482b746366a6b55fa75d79702621a533ecbb6f00cb",
+        "metrics": {
+          "utf8Bytes": 120,
+          "codePoints": 120,
+          "nonWhitespaceCodePoints": 104,
+          "lines": 3,
+          "surfaceLexemes": 34
+        }
+      },
+      "alternatives": [
+        {
+          "name": "type-ranked-overload",
+          "language": "c-like",
+          "sourceDigest": "sha256:3d6164d1a379845e331a2f30c72e30c0ce45aa84368e291342fda94c6a30b2e7",
+          "metrics": {
+            "utf8Bytes": 19,
+            "codePoints": 19,
+            "nonWhitespaceCodePoints": 18,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "encoded-function-name",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:6d8afa7d401090f536086f03c6ec5b5cffa7330131e00894a7fc44e31f3a421f",
+          "metrics": {
+            "utf8Bytes": 31,
+            "codePoints": 31,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-multiple-initializers",
+      "task": {
+        "utf8Bytes": 74,
+        "codePoints": 74,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:f84ad6448d9e68f27596a4bca6abee496382b383a5c771a93a824367a55e5f4a",
+        "metrics": {
+          "utf8Bytes": 103,
+          "codePoints": 103,
+          "nonWhitespaceCodePoints": 94,
+          "lines": 2,
+          "surfaceLexemes": 22
+        }
+      },
+      "alternatives": [
+        {
+          "name": "single-initializer",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:0fa334d882f23943904c42026b83a41da3512a122701924e5f8f15769de1a010",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "factory-only",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:645f436d291b87948c958ed5eb8147b648674576e753cd755982e34161d0200f",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-property-safe-computed",
+      "task": {
+        "utf8Bytes": 81,
+        "codePoints": 81,
+        "nonWhitespaceCodePoints": 69,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9bf9df3bd732ec5fb5f85709fbdff00700340a8839f47e8797904f045a6ed7b2",
+        "metrics": {
+          "utf8Bytes": 47,
+          "codePoints": 47,
+          "nonWhitespaceCodePoints": 39,
+          "lines": 1,
+          "surfaceLexemes": 12
+        }
+      },
+      "alternatives": [
+        {
+          "name": "effectful-property",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:00cc2e0ff9cc21bf7a2b76017247a56cab7ffdec1ce11f232c7a939a7155ff74",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "mandatory-method",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:6ab1c3afb988eb73c4fa62b72bc3bb7ecd4f93318ecefcbb2bc02e816537f850",
+          "metrics": {
+            "utf8Bytes": 52,
+            "codePoints": 52,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-static-payload-kinds",
+      "task": {
+        "utf8Bytes": 73,
+        "codePoints": 73,
+        "nonWhitespaceCodePoints": 62,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:f8ea023049ada14cc39b8e32ffd35bf7d9821e3f439d57b282ac9830652e6690",
+        "metrics": {
+          "utf8Bytes": 87,
+          "codePoints": 87,
+          "nonWhitespaceCodePoints": 79,
+          "lines": 2,
+          "surfaceLexemes": 26
+        }
+      },
+      "alternatives": [
+        {
+          "name": "delimiter-defined-semantics",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:e2860fa810309e3c4eb9052f7c30df80f1a5307ebd77675973a3dd865d0de25e",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 25
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-callable-representations",
+      "task": {
+        "utf8Bytes": 97,
+        "codePoints": 97,
+        "nonWhitespaceCodePoints": 85,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:1642d32ab166be15872dcc81d5460811be6e96e66770b2fbcfb28ab0952fd3c9",
+        "metrics": {
+          "utf8Bytes": 166,
+          "codePoints": 166,
+          "nonWhitespaceCodePoints": 143,
+          "lines": 3,
+          "surfaceLexemes": 42
+        }
+      },
+      "alternatives": [
+        {
+          "name": "universal-erased-callable",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:8b102c2f7061b21cb872e20d6c5300a8a609c0667abdfc1f08a464c7a1873212",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-positional-callable-value",
+      "task": {
+        "utf8Bytes": 82,
+        "codePoints": 82,
+        "nonWhitespaceCodePoints": 72,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:04fab409d73173204d8e1e748f63deca07bfc5659fb65b49bb7904ba33fd2862",
+        "metrics": {
+          "utf8Bytes": 85,
+          "codePoints": 85,
+          "nonWhitespaceCodePoints": 75,
+          "lines": 2,
+          "surfaceLexemes": 19
+        }
+      },
+      "alternatives": [
+        {
+          "name": "labeled-function-type",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:270a46a89b961a9cfefc66f2d6d8d4b7448f7cc546fc6b60bbb1721d51bc2df8",
+          "metrics": {
+            "utf8Bytes": 85,
+            "codePoints": 85,
+            "nonWhitespaceCodePoints": 75,
+            "lines": 2,
+            "surfaceLexemes": 21
+          }
+        },
+        {
+          "name": "defaulted-function-value",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:dc034c4b521db31e5c8ba59fc28e00595dc33b968cca1f5ed306a703f10623c6",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-callable-modes",
+      "task": {
+        "utf8Bytes": 78,
+        "codePoints": 78,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6e987df506373afa58e84699bc61a2f17c3e31662579d7291a821402c05183e6",
+        "metrics": {
+          "utf8Bytes": 67,
+          "codePoints": 67,
+          "nonWhitespaceCodePoints": 57,
+          "lines": 3,
+          "surfaceLexemes": 20
+        }
+      },
+      "alternatives": [
+        {
+          "name": "callable-protocol-family",
+          "language": "rust-like",
+          "sourceDigest": "sha256:b8dd3d9bef2d22e3c7d05116c86bf7d8cdc0bb761a9148422e6d3e047edb0629",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 3,
+            "surfaceLexemes": 18
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-invariant-callable-signature",
+      "task": {
+        "utf8Bytes": 79,
+        "codePoints": 79,
+        "nonWhitespaceCodePoints": 69,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6e3ce3cee5d601e06d32b0b8aaab2c6c41bc8a686b93e38d5eae42fd9e79ffe8",
+        "metrics": {
+          "utf8Bytes": 58,
+          "codePoints": 58,
+          "nonWhitespaceCodePoints": 51,
+          "lines": 1,
+          "surfaceLexemes": 13
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-variance",
+          "language": "alternative-semantics",
+          "sourceDigest": "sha256:589b9b005f95a7e790ae021525119cf182d0416ebc54b4ccdb5ccc5a3887e5bd",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-inline-language-slot",
+      "task": {
+        "utf8Bytes": 76,
+        "codePoints": 76,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-with-c-island",
+        "sourceDigest": "sha256:12c0f4467f27a173542a309a75b47b17d3a77e36045db399906b5767c0b52e1c",
+        "metrics": {
+          "utf8Bytes": 86,
+          "codePoints": 86,
+          "nonWhitespaceCodePoints": 70,
+          "lines": 3,
+          "surfaceLexemes": 29
+        }
+      },
+      "alternatives": [
+        {
+          "name": "named-primary-language-slot",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:1e1a7d7b9f23928c3505070fa1ab97ded16f5beda24e73c8793d720f8e06ea57",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 25
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-named-static-slot",
+      "task": {
+        "utf8Bytes": 86,
+        "codePoints": 86,
+        "nonWhitespaceCodePoints": 75,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:0531f7cf57cb84d94fbeb7fbdbe295d937f8baf9aa041deb0c37b017e411abef",
+        "metrics": {
+          "utf8Bytes": 40,
+          "codePoints": 40,
+          "nonWhitespaceCodePoints": 34,
+          "lines": 1,
+          "surfaceLexemes": 15
+        }
+      },
+      "alternatives": [
+        {
+          "name": "positional-schema-case",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:452e33416f8624a54857fe56e2c75fdb8051b641dcd8d7ec3416a320d1b931d3",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-closure-arrow",
+      "task": {
+        "utf8Bytes": 82,
+        "codePoints": 82,
+        "nonWhitespaceCodePoints": 72,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:40cf968f825ae800713aa575ecdb11960398b9301e8ae78b6b2e134dd47778fb",
+        "metrics": {
+          "utf8Bytes": 89,
+          "codePoints": 89,
+          "nonWhitespaceCodePoints": 79,
+          "lines": 1,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "anonymous-fn-block",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:b1c9d9c4aa3d75c86dd6c8db61d86b84a8523ae15116f013235f39922d6da19f",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 70,
+            "lines": 1,
+            "surfaceLexemes": 22
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-nested-matrix-literal",
+      "task": {
+        "utf8Bytes": 78,
+        "codePoints": 78,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9b0339aea25f9fca761378a274b14c93422eaaa54d5a0f6d379ad081df46a292",
+        "metrics": {
+          "utf8Bytes": 40,
+          "codePoints": 40,
+          "nonWhitespaceCodePoints": 34,
+          "lines": 1,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "semicolon-row-separator",
+          "language": "matlab-like",
+          "sourceDigest": "sha256:a972443731cafb15a3f2745c0dd7abe48233b3a6e48a00eff67f698871eff360",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-import-flattening",
+      "task": {
+        "utf8Bytes": 89,
+        "codePoints": 89,
+        "nonWhitespaceCodePoints": 78,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:84f00738eff4ce36fc0831ed6c4a17c2e4c2084d777fbe216b41970123ae7f44",
+        "metrics": {
+          "utf8Bytes": 41,
+          "codePoints": 41,
+          "nonWhitespaceCodePoints": 36,
+          "lines": 2,
+          "surfaceLexemes": 11
+        }
+      },
+      "alternatives": [
+        {
+          "name": "module-binding",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:b9a798e501a345d1f974b38ae28c4d0d2fca266943b4ae9a3746e5d1389a5d5f",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 2,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "selective-binding",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:46de7db26cab0daaafea0b485ed40dfdb3bc90e46aebf7f17fe39eea78750757",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 2,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fail-fast-arbitration",
+      "task": {
+        "utf8Bytes": 100,
+        "codePoints": 100,
+        "nonWhitespaceCodePoints": 87,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:50927332f1bfc03533ed09ef3e64075406606934c8767b1e8c961831b49fce4d",
+        "metrics": {
+          "utf8Bytes": 101,
+          "codePoints": 101,
+          "nonWhitespaceCodePoints": 85,
+          "lines": 3,
+          "surfaceLexemes": 26
+        }
+      },
+      "alternatives": [
+        {
+          "name": "strict-lexical-wait",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:487ab8f7580c41ca5d5ddc63f1ef2b388cb2933f1bfbbb1d3086d37f4759deb5",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "scheduler-first-error",
+          "language": "alternative-semantics",
+          "sourceDigest": "sha256:cc86ec0d927a81e4df68641a94c1275f4a416c9d0bd79270c4e2de5a3619ef84",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-cancellation-control-effect",
+      "task": {
+        "utf8Bytes": 90,
+        "codePoints": 90,
+        "nonWhitespaceCodePoints": 79,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:37b4b98dd477141dd6e86de038b8e27783c8ea9a27f482ff693196a404ba7cd3",
+        "metrics": {
+          "utf8Bytes": 111,
+          "codePoints": 111,
+          "nonWhitespaceCodePoints": 98,
+          "lines": 2,
+          "surfaceLexemes": 24
+        }
+      },
+      "alternatives": [
+        {
+          "name": "cancellation-in-error-set",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:cbd045b51017bcf3890fef2797d7171ec092d27c8516c5848aabb241989fda87",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-product-execution-profile",
+      "task": {
+        "utf8Bytes": 99,
+        "codePoints": 99,
+        "nonWhitespaceCodePoints": 84,
+        "lines": 1,
+        "surfaceLexemes": 17
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-manifest",
+        "sourceDigest": "sha256:379af130ef85d63471af5650b98b78d13067044df864224077f57b685298fe40",
+        "metrics": {
+          "utf8Bytes": 91,
+          "codePoints": 91,
+          "nonWhitespaceCodePoints": 71,
+          "lines": 6,
+          "surfaceLexemes": 13
+        }
+      },
+      "alternatives": [
+        {
+          "name": "module-domain-default",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:917f3e620511f18db9aefce05a03100cdc1400d9374d607f7143d72ae3213445",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-import-phase",
+      "task": {
+        "utf8Bytes": 81,
+        "codePoints": 81,
+        "nonWhitespaceCodePoints": 72,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:15b36a19c3bd029dd73a18d890c152d1e95638d83ac8dea539286d9cd288b34c",
+        "metrics": {
+          "utf8Bytes": 116,
+          "codePoints": 116,
+          "nonWhitespaceCodePoints": 99,
+          "lines": 4,
+          "surfaceLexemes": 28
+        }
+      },
+      "alternatives": [
+        {
+          "name": "interleaved-import",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:b1862eb09d5fea77988938f64d79e0a0d82448cec839f0b3ecc6175aeede031a",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 2,
+            "surfaceLexemes": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-function-body",
+      "task": {
+        "utf8Bytes": 87,
+        "codePoints": 87,
+        "nonWhitespaceCodePoints": 76,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:772da65a407c2cc8202c24a1777c56b08aa7b643f592d087b9084a375d850837",
+        "metrics": {
+          "utf8Bytes": 51,
+          "codePoints": 51,
+          "nonWhitespaceCodePoints": 43,
+          "lines": 3,
+          "surfaceLexemes": 13
+        }
+      },
+      "alternatives": [
+        {
+          "name": "top-level-prototype",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:a6ca446c8da27bd0aff55ad2b02de276e49a50a90c6bc51f60c3132ac813ba42",
+          "metrics": {
+            "utf8Bytes": 31,
+            "codePoints": 31,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-local-contract-versus-record",
+      "task": {
+        "utf8Bytes": 78,
+        "codePoints": 78,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w-and-manifest",
+        "sourceDigest": "sha256:52aaf72e842a9e437304707e39244b97c44d58401fdef5a6772e81a34c97d5d3",
+        "metrics": {
+          "utf8Bytes": 73,
+          "codePoints": 73,
+          "nonWhitespaceCodePoints": 60,
+          "lines": 4,
+          "surfaceLexemes": 21
+        }
+      },
+      "alternatives": [
+        {
+          "name": "angular-build-record",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:1c73f265f1e4a01e426efd9bdaab20c5dbc6581c77f82e0325337aea9fe9c408",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-sequential-contract-envelopes",
+      "task": {
+        "utf8Bytes": 76,
+        "codePoints": 76,
+        "nonWhitespaceCodePoints": 65,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a6c13c351b277281c700ed4c1fa9ffde5bf1e730d405177f610b4e5d3c11b39d",
+        "metrics": {
+          "utf8Bytes": 39,
+          "codePoints": 39,
+          "nonWhitespaceCodePoints": 34,
+          "lines": 1,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "fused-argument-list",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:31f81fe3ba910a4a55fdadfbae66d5b69d18ef3a092bf233ec83c3a4a7f79c2d",
+          "metrics": {
+            "utf8Bytes": 39,
+            "codePoints": 39,
+            "nonWhitespaceCodePoints": 33,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-single-tuple-comma",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 70,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:e6b70611315d85ccfef329dc94777b208188dfba3df8beeef9853b4b5463d9c8",
+        "metrics": {
+          "utf8Bytes": 43,
+          "codePoints": 43,
+          "nonWhitespaceCodePoints": 36,
+          "lines": 2,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "parenthesized-value",
+          "language": "w",
+          "sourceDigest": "sha256:aedea960b6019e3b449c1b6af3ab114337517eb955df563fff742b6d9d926ff7",
+          "metrics": {
+            "utf8Bytes": 20,
+            "codePoints": 20,
+            "nonWhitespaceCodePoints": 17,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-static-argument-parity",
+      "task": {
+        "utf8Bytes": 82,
+        "codePoints": 82,
+        "nonWhitespaceCodePoints": 69,
+        "lines": 1,
+        "surfaceLexemes": 17
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:90d72250b8c9dbe4e6b450c173d2cff903750ab874b79b035e636128a02ed342",
+        "metrics": {
+          "utf8Bytes": 179,
+          "codePoints": 179,
+          "nonWhitespaceCodePoints": 158,
+          "lines": 2,
+          "surfaceLexemes": 50
+        }
+      },
+      "alternatives": [
+        {
+          "name": "restricted-call-payload",
+          "language": "alternative-w",
+          "sourceDigest": "sha256:86ccf538f755bc112a6d3d27e53062b3bf1d1991b41ee50954507ae9777f740b",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-explicit-function-return",
+      "task": {
+        "utf8Bytes": 90,
+        "codePoints": 90,
+        "nonWhitespaceCodePoints": 78,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:5bac4e712503aa80fb2dacfd08358e96c9819f07c1f794f4ff05f42bad1e102a",
+        "metrics": {
+          "utf8Bytes": 87,
+          "codePoints": 87,
+          "nonWhitespaceCodePoints": 70,
+          "lines": 3,
+          "surfaceLexemes": 23
+        }
+      },
+      "alternatives": [
+        {
+          "name": "implicit-function-tail",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:6e0f1f11d2ef9c8c395af55f783fec23716daacfd1c870f57b1220ab0c469ea7",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 3,
+            "surfaceLexemes": 22
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-discard-semicolon",
+      "task": {
+        "utf8Bytes": 77,
+        "codePoints": 77,
+        "nonWhitespaceCodePoints": 65,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6f17f5b40dd89a810147fe743e2b76a237de5dea9d2c7ab0da95da663d91f3d8",
+        "metrics": {
+          "utf8Bytes": 76,
+          "codePoints": 76,
+          "nonWhitespaceCodePoints": 58,
+          "lines": 6,
+          "surfaceLexemes": 20
+        }
+      },
+      "alternatives": [
+        {
+          "name": "appearance-only-semicolon-removal",
+          "language": "w-changed-semantics",
+          "sourceDigest": "sha256:7b60db75384f56f81fc7218f508d1f72d2baf34a6c69908efe2f5402ec8af882",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 6,
+            "surfaceLexemes": 19
+          }
+        }
+      ]
+    }
+  ]
+}
