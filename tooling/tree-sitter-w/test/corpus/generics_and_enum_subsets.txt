@@ -516,8 +516,9 @@ extension Session<.idle> {
                     (generic_application_expression
                       (identifier)
                       (generic_call_arguments
-                        (contextual_member_expression
-                          (identifier))))
+                        (type_argument
+                          (contextual_member_expression
+                            (identifier)))))
                     (argument_list
                       (argument
                         (identifier)

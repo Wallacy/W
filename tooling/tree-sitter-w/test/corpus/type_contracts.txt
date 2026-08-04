@@ -1,0 +1,474 @@
+==================
+Type atoms qualifiers and ordered contract envelopes
+==================
+
+alias PolicyValue = any PricingPolicy & Display
+alias OpaquePolicy = some PricingPolicy & Display
+alias SharedBell = shared BellState?
+
+type NestedMenu = Map<String, Array<Result<Dish, KitchenError>>>
+type RefinedBytes = Array<u8><(.count <= 64)>
+type ConfiguredText = BoundedText<{min: 1, max: 40}>
+type ContinuingOutcome = Outcome<Dish><[.ready, .delayed]>
+type FeatureOn = Feature<true>
+type Utf8Codec = Codec<"utf8">
+type CacheWindow = Cache<duration: 10<si.s>, bytes: 64<KiB>>
+
+type NamedPair = (id: OrderId, stage: ServiceStage)
+type SingleDish = (Dish,)
+type Digest = [u8; 32]
+type ArenaBytes = [u8; 64<KiB>]
+
+type Handler = any mut async fn(
+  inout Buffer,
+  take Command,
+): Result throws KitchenError
+
+type SensorCallback = unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
+
+struct Matrix<
+  Element,
+  const rows: usize<(1...4_096)>,
+  const columns: usize<(1...4_096)>,
+> {
+  values: [Element; rows * columns]
+}
+
+struct CoursePath<const _ stages: StaticList<ServiceStage>> {}
+
+fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
+  let enabled = select<true>()
+  let decoder = decode<"utf8">()
+  let arena = allocate<64<KiB>>()
+  let timer = schedule<timeout: 10<si.s>>()
+}
+
+---
+
+(source_file
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_name
+        (type_identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_name
+        (type_identifier))))
+  (alias_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))
+                  (type_arguments
+                    (type_argument
+                      (type
+                        (type_name
+                          (type_identifier))))
+                    (type_argument
+                      (type
+                        (type_name
+                          (type_identifier)))))))))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (contract_expression_argument
+            (binary_expression
+              (contextual_member_expression
+                (identifier))
+              (number_literal)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (static_record_literal
+            (identifier)
+            (static_argument_value
+              (number_literal))
+            (identifier)
+            (static_argument_value
+              (number_literal)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))
+      (type_arguments
+        (type_argument
+          (static_array_literal
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))
+            (static_argument_value
+              (contextual_member_expression
+                (identifier))))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (boolean_literal)))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (string_literal)))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (quantity_literal)))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (quantity_literal))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier))))
+        (labeled_tuple_type_element
+          (identifier)
+          (type
+            (type_name
+              (type_identifier)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (type
+          (type_name
+            (type_identifier))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (fixed_array_type
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (fixed_array_type
+        (type
+          (type_name
+            (type_identifier)))
+        (quantity_literal))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (function_type
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier))))
+        (type
+          (type_name
+            (type_identifier)))
+        (type
+          (type_name
+            (type_identifier))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (function_type
+        (type_arguments
+          (type_argument
+            (identifier)
+            (static_argument_value
+              (contextual_member_expression
+                (identifier)))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier)
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier)))))))
+        (function_type_parameter
+          (type
+            (type_name
+              (type_identifier)
+              (type_identifier))))
+        (type
+          (tuple_type)))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (contract_expression_argument
+                (bounded_range_expression
+                  (number_literal)
+                  (number_literal)))))))
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (contract_expression_argument
+                (bounded_range_expression
+                  (number_literal)
+                  (number_literal))))))))
+    (type_body
+      (field_declaration
+        (identifier)
+        (type
+          (fixed_array_type
+            (type
+              (type_name
+                (type_identifier)))
+            (binary_expression
+              (identifier)
+              (identifier)))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type_body))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (boolean_literal))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (string_literal))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (quantity_literal))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (identifier)
+                (static_argument_value
+                  (quantity_literal)))))
+          (argument_list))))))
+
+==================
+Whitespace cannot detach a type contract from its head
+==================
+
+type Spaced = Array <u8>
+type AfterSpaced = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))))
+  (ERROR
+    (identifier))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))
+
+==================
+Computed static argument requires parentheses
+==================
+
+type RawExpression = Matrix<rows * columns>
+type AfterExpression = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (ERROR
+          (identifier))
+        (type_argument
+          (type
+            (type_name
+              (type_identifier)))))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))
+
+==================
+Parentheses without comma do not group a type
+==================
+
+type Grouped = (Dish)
+type AfterGrouped = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (tuple_type
+        (ERROR
+          (identifier)))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))
+
+==================
+Missing contract close keeps the following declaration
+==================
+
+type Incomplete = Array<Result<Dish, KitchenError>
+type AfterIncomplete = u8
+
+---
+
+(source_file
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier)))))))
+        (MISSING ">"))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))))

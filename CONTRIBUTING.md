@@ -113,6 +113,7 @@ Para source W, siga a forma canônica já definida:
 - 120 colunas como limite preferido;
 - uma linha quando a construção cabe;
 - um item por linha e trailing comma quando a lista quebra;
+- nenhum whitespace ou comment entre um head e seu `<...>`;
 - header, imports e declarations comuns nesta ordem;
 - source order preservada;
 - semicolon somente quando sua remoção mudaria a statement partition.

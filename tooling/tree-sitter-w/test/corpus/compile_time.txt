@@ -61,12 +61,14 @@ protocol ConstDecodable {
           (generic_application_expression
             (identifier)
             (generic_call_arguments
-              (type
-                (type_name
-                  (type_identifier)))
-              (type
-                (type_name
-                  (type_identifier)))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
           (argument_list)))
       (expression_statement
         (assignment_expression

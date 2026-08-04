@@ -1,4 +1,7 @@
 /// Generic protocols, primary associated types, and deterministic witnesses.
+import si from std
+import { PhysicalDuration } from units
+
 export protocol Source<Item> {
   fn first(): ref Item?
 }
@@ -12,6 +15,14 @@ export protocol Catalog<Item>: Source<Item> & Counted {}
 export struct Shelf<T> {
   values: Array<T>
 }
+
+export struct StaticValue<T, const _ value: T> {
+  export const expected = value
+}
+
+export alias EnabledFeature = StaticValue<Bool, true>
+export alias LastCallLabel = StaticValue<String, "The final seating">
+export alias LastCallDeadline = StaticValue<PhysicalDuration, 10<si.s>>
 
 extension<T: Display & Equatable> Shelf<T>: Catalog {
   alias Item = T
@@ -44,4 +55,10 @@ test "generic inference uses the declared witness" for firstEquals {
   expect firstEquals(shelf, expected: "Pan-Galactic Broth")
   expect renderFirst(shelf) == "Pan-Galactic Broth"
   expect shelf.count() == 2
+}
+
+test "contract atoms preserve their compile-time kind" {
+  expect EnabledFeature.expected
+  expect LastCallLabel.expected == "The final seating"
+  expect LastCallDeadline.expected == 10<si.s>
 }

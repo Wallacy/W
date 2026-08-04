@@ -201,9 +201,10 @@ fn inspect() {
                 (identifier))
               (identifier))
             (generic_call_arguments
-              (type
-                (type_name
-                  (type_identifier)))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
           (argument_list)))
       (binding_declaration
         (pattern
@@ -214,9 +215,10 @@ fn inspect() {
               (identifier)
               (identifier))
             (generic_call_arguments
-              (type
-                (type_name
-                  (type_identifier)))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
           (argument_list)))
       (binding_declaration
         (pattern

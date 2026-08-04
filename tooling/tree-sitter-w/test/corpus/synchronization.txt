@@ -82,8 +82,9 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
                   (identifier)
                   (identifier))
                 (generic_call_arguments
-                  (contextual_member_expression
-                    (identifier))))
+                  (type_argument
+                    (contextual_member_expression
+                      (identifier)))))
               (argument_list
                 (argument
                   (number_literal)))))))
@@ -106,14 +107,16 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
                   (identifier)
                   (identifier))
                 (generic_call_arguments
-                  (identifier)
-                  (static_argument_value
-                    (contextual_member_expression
-                      (identifier)))
-                  (identifier)
-                  (static_argument_value
-                    (contextual_member_expression
-                      (identifier)))))
+                  (type_argument
+                    (identifier)
+                    (static_argument_value
+                      (contextual_member_expression
+                        (identifier))))
+                  (type_argument
+                    (identifier)
+                    (static_argument_value
+                      (contextual_member_expression
+                        (identifier))))))
               (argument_list
                 (argument
                   (identifier)
@@ -135,9 +138,10 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
           (generic_application_expression
             (identifier)
             (generic_call_arguments
-              (type
-                (type_name
-                  (type_identifier)))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))
           (identifier)))))
   (function_declaration
     (identifier)
@@ -160,12 +164,14 @@ async fn close(lock: ref AsyncMutex<GateState>): GateState {
           (generic_application_expression
             (identifier)
             (generic_call_arguments
-              (type
-                (type_name
-                  (type_identifier)))
-              (identifier)
-              (static_argument_value
-                (boolean_literal))))
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))
+              (type_argument
+                (identifier)
+                (static_argument_value
+                  (boolean_literal)))))
           (argument_list
             (argument
               (number_literal)))))))
