@@ -15,11 +15,11 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 24175 |
-| tokens aproximados de `DESIGN.md` | 266600 |
+| linhas de `DESIGN.md` | 24190 |
+| tokens aproximados de `DESIGN.md` | 266800 |
 | seções numeradas | 30 |
 | seções terminais com evidência local | 312/312 |
-| decisões | 889 (W-001–W-889) |
+| decisões | 890 (W-001–W-890) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 52 |
@@ -99,12 +99,12 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 21 | 18231–20216 | 18700 | Packages, builds e releases |
 | 22 | 20217–20689 | 4400 | Tooling e interface para máquinas |
 | 23 | 20690–22111 | 16800 | Protocolos e pesquisas de ecossistema |
-| 24 | 22112–22441 | 8300 | Classificação de viabilidade |
-| 25 | 22442–22652 | 1900 | Produto de referência Última Luz |
-| 26 | 22653–22939 | 3300 | Protocolo de revisão |
-| 27 | 22940–23244 | 3700 | Plano de implementação |
-| 28 | 23245–23275 | 500 | Relação com a consolidação histórica |
-| 29 | 23276–24175 | 39100 | Registro de decisões e alternativas |
+| 24 | 22112–22454 | 8400 | Classificação de viabilidade |
+| 25 | 22455–22665 | 1900 | Produto de referência Última Luz |
+| 26 | 22666–22953 | 3300 | Protocolo de revisão |
+| 27 | 22954–23258 | 3700 | Plano de implementação |
+| 28 | 23259–23289 | 500 | Relação com a consolidação histórica |
+| 29 | 23290–24190 | 39100 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -116,7 +116,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 6958–12957 | 58800 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 12958–17023 | 37800 | tiers, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 17024–22111 | 52300 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 22112–24175 | 56800 | viabilidade, Última Luz, gates, roadmap e ledger |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 22112–24190 | 56900 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

@@ -22384,6 +22384,19 @@ comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
+A razão `52/52` cobre os requisitos declarados na seção 26. Ela não prova que
+o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
+classificar sua alternativa como uma destas categorias:
+
+- ausência de source com substituição comparável;
+- alternativa de implementação sem diferença de source;
+- fallback vigente de uma hipótese provável;
+- ideia histórica sem efeito no design corrente.
+
+A primeira categoria exige um caso R0. O checker final deve falhar quando uma
+decisão dessa categoria não possuir forma recusada, substituição W, diferença
+observável e referência para o Book.
+
 ### 24.4 Gates que ainda precisam de prova
 
 **Exemplo:** wWire está classificado como provável. Ele só vira implementado
@@ -22422,7 +22435,7 @@ mesma profundidade em todas as famílias:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 52/52 requisitos e 85 decisões; R0S mede 117 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | auditar toda rejeição de source, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 52/52 requisitos declarados e 85 decisões; R0S mede 117 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | marcar toda ausência de source no ledger, provar cobertura total por caso comparativo, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22764,7 +22777,8 @@ O checker valida a ligação e o índice publica a razão exata. O comando isola
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
 os 52 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
-os estudos foram executados.
+os estudos foram executados. Ela também não substitui a auditoria do ledger
+definida na seção 24.3.
 
 O source vigente de um caso deve ser W aceito pelo contrato corrente. Uma forma
 substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
@@ -24169,6 +24183,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 52 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
