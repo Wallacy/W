@@ -25,6 +25,27 @@ export protocol ByteSource<Failure: Error> {
 export protocol ByteSink<Failure: Error> {
   mut async fn write(source: view Bytes): WriteStep throws Failure
 
+  mut async fn writeAll(
+    source: view Bytes,
+  ): () throws WriteAllError<Failure> {
+    var committed: usize = 0
+
+    while committed < source.count {
+      let remaining: view Bytes = source[committed...]
+
+      do {
+        switch try await self.write(remaining) {
+          case .complete:
+            committed = source.count
+          case .partial(let count):
+            committed += count
+        }
+      } catch error {
+        throw WriteAllError(cause: error, committed: committed)
+      }
+    }
+  }
+
   mut async fn writeMany(
     _ sources: view Bytes...,
   ): WriteStep throws Failure {
