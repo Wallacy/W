@@ -383,6 +383,339 @@
       }
     },
     {
+      "id": "S0-POS-contract-known-slot",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "struct Matrix<Element, const rows: usize, const columns: usize> {}",
+        "type KitchenBatch = Matrix<Dish, rows: 3, columns: 4>"
+      ],
+      "expect": {
+        "focus": { "text": "Matrix<Dish, rows: 3, columns: 4>" },
+        "semanticResult": {
+          "resultType": "Matrix<Dish, rows: 3, columns: 4>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "const-slot", "subject": "columns", "value": "4" },
+            { "kind": "const-slot", "subject": "rows", "value": "3" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Matrix" },
+              { "id": "element", "operation": "bind-type-slot", "subject": "Dish" },
+              { "id": "rows", "operation": "bind-const-slot", "subject": "rows=3" },
+              { "id": "columns", "operation": "bind-const-slot", "subject": "columns=4" },
+              { "id": "result", "operation": "apply-contract", "subject": "Matrix" }
+            ],
+            "edges": [
+              { "from": "head", "to": "element", "kind": "next" },
+              { "from": "element", "to": "rows", "kind": "next" },
+              { "from": "rows", "to": "columns", "kind": "next" },
+              { "from": "columns", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-contract-kind",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "struct Buffer<const capacity: usize> {}",
+        "type MenuBuffer = Buffer<capacity: 64>"
+      ],
+      "expect": {
+        "focus": { "text": "Buffer<capacity: 64>" },
+        "semanticResult": {
+          "resultType": "Buffer<capacity: 64>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "const-slot", "subject": "capacity", "value": "64" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Buffer" },
+              { "id": "capacity", "operation": "bind-const-slot", "subject": "capacity=64" },
+              { "id": "result", "operation": "apply-contract", "subject": "Buffer" }
+            ],
+            "edges": [
+              { "from": "head", "to": "capacity", "kind": "next" },
+              { "from": "capacity", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-contract-bool-predicate",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "type BoundedOrders = Array<Order><(.count <= 64)>"
+      ],
+      "expect": {
+        "focus": { "text": "Array<Order><(.count <= 64)>" },
+        "semanticResult": {
+          "resultType": "Array<Order><(.count <= 64)>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "refinement", "subject": ".count", "value": "<=64" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Array<Order>" },
+              { "id": "predicate", "operation": "const-predicate", "subject": ".count<=64" },
+              { "id": "result", "operation": "apply-refinement", "subject": "Array<Order>" }
+            ],
+            "edges": [
+              { "from": "head", "to": "predicate", "kind": "next" },
+              { "from": "predicate", "to": "result", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-contract-ordered-slots",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "struct Tensor<Element, const rows: usize, const columns: usize> {}",
+        "type SensorTile = Tensor<Reading, rows: 2, columns: 8>"
+      ],
+      "expect": {
+        "focus": { "text": "Tensor<Reading, rows: 2, columns: 8>" },
+        "semanticResult": {
+          "resultType": "Tensor<Reading, rows: 2, columns: 8>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "const-slot", "subject": "columns", "value": "8" },
+            { "kind": "const-slot", "subject": "rows", "value": "2" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Tensor" },
+              { "id": "element", "operation": "bind-type-slot", "subject": "Reading" },
+              { "id": "rows", "operation": "bind-const-slot", "subject": "rows=2" },
+              { "id": "columns", "operation": "bind-const-slot", "subject": "columns=8" },
+              { "id": "result", "operation": "apply-contract", "subject": "Tensor" }
+            ],
+            "edges": [
+              { "from": "head", "to": "element", "kind": "next" },
+              { "from": "element", "to": "rows", "kind": "next" },
+              { "from": "rows", "to": "columns", "kind": "next" },
+              { "from": "columns", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-contract-composable-envelope",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "type SmallQueue = Array<Order><(.count <= 16)>"
+      ],
+      "expect": {
+        "focus": { "text": "Array<Order><(.count <= 16)>" },
+        "semanticResult": {
+          "resultType": "Array<Order><(.count <= 16)>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "refinement", "subject": ".count", "value": "<=16" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Array" },
+              { "id": "element", "operation": "bind-type-slot", "subject": "Order" },
+              { "id": "array", "operation": "apply-contract", "subject": "Array<Order>" },
+              { "id": "predicate", "operation": "const-predicate", "subject": ".count<=16" },
+              { "id": "result", "operation": "apply-refinement", "subject": "Array<Order>" }
+            ],
+            "edges": [
+              { "from": "head", "to": "element", "kind": "next" },
+              { "from": "element", "to": "array", "kind": "next" },
+              { "from": "array", "to": "predicate", "kind": "next" },
+              { "from": "predicate", "to": "result", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-contract-unknown-slot",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-known-slot",
+      "failureField": "resultType",
+      "source": [
+        "struct Matrix<Element, const rows: usize, const columns: usize> {}",
+        "type KitchenBatch = Matrix<Dish, decks: 3, columns: 4>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "decks" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Matrix", "occurrence": 1 } }
+            ],
+            "facts": {
+              "availableSlots": ["columns", "rows"],
+              "head": "Matrix",
+              "slot": "decks"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-kind",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-kind",
+      "failureField": "resultType",
+      "source": [
+        "struct Buffer<const capacity: usize> {}",
+        "type MenuBuffer = Buffer<capacity: Dish>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0002",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "Dish" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Buffer", "occurrence": 2 } },
+              { "role": "slot-declaration", "selector": { "text": "capacity", "occurrence": 0 } }
+            ],
+            "facts": {
+              "actualKind": "type",
+              "expectedKind": "const:usize",
+              "head": "Buffer",
+              "slot": "capacity"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-predicate-type",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-bool-predicate",
+      "failureField": "proofFacts",
+      "source": [
+        "type BoundedOrders = Array<Order><(.count + 64)>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": ".count + 64" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Array<Order>" } }
+            ],
+            "facts": {
+              "expectedType": "Bool",
+              "head": "Array<Order>",
+              "predicateType": "usize"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-duplicate-slot",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-ordered-slots",
+      "failureField": "evaluationGraph",
+      "source": [
+        "struct Tensor<Element, const rows: usize, const columns: usize> {}",
+        "type SensorTile = Tensor<Reading, rows: 2, rows: 8>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0004",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "rows", "occurrence": 2 },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Tensor", "occurrence": 1 } },
+              { "role": "slot-declaration", "selector": { "text": "rows", "occurrence": 0 } }
+            ],
+            "facts": {
+              "head": "Tensor",
+              "slot": "rows",
+              "slotOrder": ["rows", "columns"],
+              "violation": "duplicate"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-inapplicable-envelope",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-composable-envelope",
+      "failureField": "resultType",
+      "source": [
+        "type SmallQueue = Array<Order><[.ready]>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0005",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "<[.ready]>" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Array<Order>" } }
+            ],
+            "facts": {
+              "applicableKinds": ["predicate"],
+              "envelopeKind": "static-list",
+              "head": "Array<Order>"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
       "id": "S0-NEG-condition-requires-bool",
       "kind": "negative",
       "rule": "W-784",
