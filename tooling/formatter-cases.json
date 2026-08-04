@@ -1,0 +1,219 @@
+{
+  "$schema": "w-formatter-cases-0",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "F0-compact-declarations",
+      "decisions": ["W-708", "W-750"],
+      "input": {
+        "lines": [
+          "import {Command, Result} from command;",
+          "fn sum(first:i32,second:i32):i32{return first+second;}"
+        ]
+      },
+      "output": [
+        "import { Command, Result } from command",
+        "",
+        "fn sum(first: i32, second: i32): i32 { return first + second }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-canonical-bytes",
+      "decisions": ["W-708"],
+      "input": {
+        "lines": [
+          "fn answer():Int{",
+          "\treturn 42;",
+          "}"
+        ],
+        "newline": "crlf",
+        "bom": true,
+        "finalNewline": false
+      },
+      "output": [
+        "fn answer(): Int { return 42 }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-multiline-signature-and-call",
+      "decisions": ["W-708", "W-773"],
+      "input": {
+        "lines": [
+          "fn reserve(order:Order,inventory:Inventory,audit:Audit,deadline:Deadline,idempotencyKey:IdempotencyKey,observability:Observability):Reservation throws KitchenError{",
+          "return inventory.reserve(order,audit:audit,deadline:deadline,idempotencyKey:idempotencyKey,observability:observability)",
+          "}"
+        ]
+      },
+      "output": [
+        "fn reserve(",
+        "  order: Order,",
+        "  inventory: Inventory,",
+        "  audit: Audit,",
+        "  deadline: Deadline,",
+        "  idempotencyKey: IdempotencyKey,",
+        "  observability: Observability,",
+        "): Reservation throws KitchenError {",
+        "  return inventory.reserve(",
+        "    order,",
+        "    audit: audit,",
+        "    deadline: deadline,",
+        "    idempotencyKey: idempotencyKey,",
+        "    observability: observability,",
+        "  )",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-value-block-boundary",
+      "decisions": ["W-772", "W-777", "W-782"],
+      "input": {
+        "lines": [
+          "fn status(ready:Bool):Stage{return if ready{trace(.ready);.accepted}else{.waiting}}"
+        ]
+      },
+      "output": [
+        "fn status(ready: Bool): Stage {",
+        "  return if ready {",
+        "    trace(.ready);",
+        "    .accepted",
+        "  } else {",
+        "    .waiting",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": [
+        { "after": "trace(.ready)", "role": "statement-boundary" }
+      ]
+    },
+    {
+      "id": "F0-postfix-statement-boundaries",
+      "decisions": ["W-777", "W-782"],
+      "input": {
+        "lines": [
+          "fn boundaries(){consume(value);(other) trace();[1,2]}"
+        ]
+      },
+      "output": [
+        "fn boundaries() {",
+        "  consume(value);",
+        "  (other)",
+        "  trace();",
+        "  [1, 2]",
+        "}"
+      ],
+      "requiredSemicolons": [
+        { "after": "consume(value)", "role": "statement-boundary" },
+        { "after": "trace()", "role": "statement-boundary" }
+      ]
+    },
+    {
+      "id": "F0-repeat-array-semicolon",
+      "decisions": ["W-768", "W-782"],
+      "input": {
+        "lines": [
+          "fn zeros():Array<Int>{return [0;16]}"
+        ]
+      },
+      "output": [
+        "fn zeros(): Array<Int> { return [0; 16] }"
+      ],
+      "requiredSemicolons": [
+        { "after": "0", "role": "repeat-array" }
+      ]
+    },
+    {
+      "id": "F0-comment-attachment",
+      "decisions": ["W-708", "W-782"],
+      "input": {
+        "lines": [
+          "fn course():Course{// The kitchen keeps this decision beside the return.",
+          "return .horizonCake}"
+        ]
+      },
+      "output": [
+        "fn course(): Course {",
+        "  // The kitchen keeps this decision beside the return.",
+        "  return .horizonCake",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-labeled-control",
+      "decisions": ["W-746", "W-747", "W-781"],
+      "input": {
+        "lines": [
+          "fn scan(rows:Rows){scanRows:for ref row in rows{for value in row{if value==0{continue scanRows} if value>31{break scanRows} consume(value)}}}"
+        ]
+      },
+      "output": [
+        "fn scan(rows: Rows) {",
+        "  scanRows: for ref row in rows {",
+        "    for value in row {",
+        "      if value == 0 { continue scanRows }",
+        "      if value > 31 { break scanRows }",
+        "      consume(value)",
+        "    }",
+        "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-contracts-and-source-order",
+      "decisions": ["W-708", "W-758", "W-759"],
+      "input": {
+        "lines": [
+          "import {Course, Order} from domain;",
+          "type Active=Array<Order><(.count<=64)>;",
+          "type Later=Course<[.horizonCake,.nebulaBroth]>;"
+        ]
+      },
+      "output": [
+        "import { Course, Order } from domain",
+        "",
+        "type Active = Array<Order><(.count <= 64)>",
+        "",
+        "type Later = Course<[.horizonCake, .nebulaBroth]>"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-binary-and-postfix-wrapping",
+      "decisions": ["W-708", "W-773"],
+      "input": {
+        "lines": [
+          "fn authorize(request:Request,reservations:Reservations):Bool{return request.user.isAuthenticated&&request.user.hasValidReservation&&reservations.contains(request.reservationId)&&request.arrivalGate?.isOpen==true}"
+        ]
+      },
+      "output": [
+        "fn authorize(request: Request, reservations: Reservations): Bool {",
+        "  return request.user.isAuthenticated",
+        "    && request.user.hasValidReservation",
+        "    && reservations.contains(request.reservationId)",
+        "    && request.arrivalGate?.isOpen == true",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-declaration-order",
+      "decisions": ["W-708"],
+      "input": {
+        "lines": [
+          "fn zeta():Int{return 1}",
+          "fn alpha():Int{return 2}"
+        ]
+      },
+      "output": [
+        "fn zeta(): Int { return 1 }",
+        "",
+        "fn alpha(): Int { return 2 }"
+      ],
+      "requiredSemicolons": []
+    }
+  ]
+}

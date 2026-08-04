@@ -241,8 +241,15 @@ const corpusCases = corpusFiles.reduce((count, file) => {
 const semanticCases = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "semantic-cases.json"), "utf8"),
 ).cases.length;
+const formatterCases = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "formatter-cases.json"), "utf8"),
+).cases.length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
+  .split(/\r?\n/)
+  .filter(Boolean).length;
+const formatterDiagnosticSnapshots = fs
+  .readFileSync(path.join(wDirectory, "tooling", "formatter-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
   .filter(Boolean).length;
 const diagnosticCatalogCount = JSON.parse(
@@ -284,8 +291,10 @@ output.push(`| famílias de viabilidade | ${viabilityRows.length} |`);
 output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
 output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
+output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(`| casos do corpus semântico S0 | ${semanticCases} |`);
 output.push(`| snapshots de diagnostic D0 | ${diagnosticSnapshots} |`);
+output.push(`| snapshots F0 no formato D0 | ${formatterDiagnosticSnapshots} |`);
 output.push(`| codes D0 catalogados | ${diagnosticCatalogCount}/${referencedDiagnosticCount} |`);
 output.push(`| sources W no root do Última Luz | ${rootReferenceSources} |`);
 output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);

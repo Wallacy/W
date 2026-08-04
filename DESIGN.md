@@ -1,6 +1,6 @@
 # Design integral da linguagem W
 
-> **Status:** **Candidato experimental** · 3 de agosto de 2026
+> **Status:** **Candidato experimental** · 4 de agosto de 2026
 
 Este é o documento canônico de design do W. Ele reúne linguagem, runtime, SDK,
 compilador, packages, distribuição, tooling, plano e alternativas. Ele descreve
@@ -82,10 +82,10 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 96–98% | G0–G5 fecham syntax, S0 integra semantics e D0 fecha diagnostics estruturados; formatter, checker e catálogo completo ainda precisam de oracles executáveis |
+| superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 30–40% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
+| validação executável | 32–42% | Tree-sitter, F0, outros oracles e manifests validam forma; ainda não existe formatter, type-checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -568,6 +568,30 @@ A forma canônica segue estas regras:
 | semicolon | o formatter remove `;` quando a statement partition não muda; caso raro de desambiguação permanece |
 | parentheses | parentheses necessários permanecem; redundantes sem comment podem ser removidos |
 
+As quebras também são determinísticas:
+
+1. uma lista fica plana quando cabe e não contém comment;
+2. uma lista quebrada mantém o delimiter inicial na linha do head, usa um item
+   por linha, acrescenta trailing comma e fecha no nível do head;
+3. uma binary chain quebra antes do operator;
+4. uma postfix chain quebra antes de `.`, `?.` ou `[`;
+5. um block fica em uma linha somente quando contém um item simples, não contém
+   outro block nem comment e cabe na largura;
+6. declarations top-level consecutivas têm uma linha vazia entre elas;
+7. o formatter não move um trailing comment para reduzir a largura.
+
+```w
+fn reserve(
+  order: Order,
+  inventory: Inventory,
+  audit: Audit,
+): Reservation {
+  return inventory
+    .for(order.id)
+    ?.reserve(order)
+}
+```
+
 O formatter preserva a ordem de avaliação e não expande imports, aplica
 refinements, reordena overloads ou altera a semântica de um expression. Um
 comment de fim de linha não atravessa a declaration à qual está anexado.
@@ -590,6 +614,27 @@ O resultado não depende de path, locale, clock, package resolution ou type
 inference. A largura, a indentação e a política de comentários não são
 configuráveis na v0. Uma edition futura pode alterar a política com migração
 explícita.
+
+O corpus F0 torna esse contrato verificável antes da implementação do
+formatter:
+
+- `tooling/formatter-cases.json` contém input aceito e output canônico byte a
+  byte;
+- cada caso aponta para as decisões que ele exerce;
+- `requiredSemicolons` identifica cada separator cuja remoção muda a árvore;
+- `tooling/formatter-diagnostics.snapshot.jsonl` contém a resposta D0 de
+  `w fmt --check`.
+
+O verificador exige input e output sem recovery e a mesma CST nomeada. Ele
+também exige saída UTF-8 sem BOM, LF, um newline final, indentação de dois
+espaços e no máximo 120 colunas. Para cada semicolon necessário, ele remove o
+token e exige uma árvore diferente ou recovery. Uma implementação futura deve
+acrescentar idempotência real e comparação de AST normalizada. O corpus atual é
+um oracle de design. Ele não afirma que o formatter está implementado.
+
+```powershell
+bun tooling/check-formatter-cases.mjs
+```
 
 #### 3.5.2 Grammar normativa G0: statements e controle
 
@@ -21959,7 +22004,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0–G5 normativos para statements, declarations, raízes, types, contracts, patterns, expressions, boundaries e recovery | formatter executável e snapshots parse-format-parse |
+| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation por construct | checker oracle, snapshots de `SemanticResult` e corpus negativo |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; corpus possui snapshots iniciais | catálogo completo de codes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -23484,6 +23529,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-799 | truncation D0 | limite emite `W-DIAGNOSTIC-0001` com incomplete e mantém exit failure | truncar silenciosamente; success parcial; contagem dependente de threads |
 | W-800 | policy D0 | policy promove warning, nunca reduz error; source suppression fica rejeitada | annotation de suppressão; adapter altera severity; warning ambiental |
 | W-801 | conformance D0 | compile-fail compara JSONL byte-exact; corpus design-oracle não alega checker implementado | golden de prose; teste só de code; snapshot manual tratado como output real |
+| W-802 | corpus F0 | cada caso possui input aceito, output canônico byte-exact, decisões e semicolons necessários; o status é design-oracle-input | tratar snapshot manual como formatter implementado; exemplo sem decisão; output apenas visual |
+| W-803 | bytes F0 | output usa UTF-8 sem BOM, LF, dois espaços, até 120 colunas e exatamente um newline final | preservar newline do host; tabs; trailing whitespace; style configurável na v0 |
+| W-804 | preservação F0 | input e output fazem parse sem recovery e possuem a mesma CST nomeada; implementação futura acrescenta AST normalizada e idempotência | comparar somente texto; aceitar recovery; exigir type-check do formatter |
+| W-805 | semicolon F0 | cada semicolon retido possui role e mutation que muda a árvore ou produz recovery | preservar sem prova; remover por aparência; automatic semicolon insertion |
+| W-806 | quebra de lista | forma plana quando cabe; forma quebrada usa um item por linha, trailing comma e close no nível do head | packing heurístico; trailing comma configurável; vários estilos canônicos |
+| W-807 | quebra de chain | binary chain quebra antes do operator; postfix chain quebra antes do access; avaliação e owners não mudam | quebra depois do operator; reordenar operands; depender de types |
+| W-808 | trivia F0 | comments permanecem com o owner, top-level declarations usam uma linha vazia e source order não muda | import sorting; mover comment para caber; agrupar por declaration kind |
+| W-809 | diagnostic F0 | diferença canônica emite W-FMT-0001 com digests e replacement machine do source completo | diff sem precondition; diagnostic em prose; formatter corrige parser error |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

@@ -17,6 +17,21 @@
       "fixes": {}
     },
     {
+      "code": "W-FMT-0001",
+      "state": "active",
+      "phase": "source.format",
+      "defaultSeverity": "error",
+      "meaning": "source bytes differ from the canonical formatter output",
+      "requiredFacts": {
+        "canonicalDigest": "string",
+        "sourceDigest": "string"
+      },
+      "labelRoles": {},
+      "fixes": {
+        "format-source": "machine"
+      }
+    },
+    {
       "code": "W-SEM-0001",
       "state": "active",
       "phase": "semantic.type",
