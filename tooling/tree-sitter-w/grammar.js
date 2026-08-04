@@ -149,6 +149,8 @@ module.exports = grammar({
     [$._type_identifier, $._expression],
     [$._type_identifier, $._expression, $.closure_parameter],
     [$._type_identifier, $.pattern],
+    [$._type_identifier, $.enum_pattern],
+    [$.type_name, $.enum_pattern],
     [$.labeled_tuple_type_element, $.closure_parameter],
     [$.tuple_type, $.unit_literal],
   ],
@@ -1084,7 +1086,7 @@ module.exports = grammar({
       seq(
         field("kind", choice("let", "var")),
         optional(field("ownership", choice("ref", "inout", "copy"))),
-        field("name", $.identifier),
+        field("pattern", $.pattern),
         "=",
         field("value", $._expression),
       ),
@@ -1125,6 +1127,8 @@ module.exports = grammar({
         $.number_literal,
         $.string_literal,
         $.boolean_literal,
+        $.quantity_literal,
+        $.size_literal,
         seq("let", $.identifier),
         "_",
       ),
@@ -1133,16 +1137,53 @@ module.exports = grammar({
         prec(
           1,
           seq(
-            field("lower", $.number_literal),
+            field("lower", $.pattern_bound),
             field("operator", choice("...", "..<", ">..", ">..<")),
-            field("upper", $.number_literal),
+            field("upper", $.pattern_bound),
           ),
         ),
-        seq(field("operator", choice("...", "..<")), field("upper", $.number_literal)),
-        seq(field("lower", $.number_literal), field("operator", choice("...", ">.."))),
+        seq(field("operator", choice("...", "..<")), field("upper", $.pattern_bound)),
+        seq(field("lower", $.pattern_bound), field("operator", choice("...", ">.."))),
       ),
+    pattern_bound: ($) =>
+      choice($.number_literal, $.quantity_literal, $.size_literal),
     enum_pattern: ($) =>
-      prec.right(seq(".", field("case", $.identifier), optional(seq("(", commaSep1($.pattern), optional(","), ")")))),
+      prec.right(
+        seq(
+          choice(
+            seq(".", field("case", $.identifier)),
+            seq(
+              field("enum", $._type_identifier),
+              repeat(
+                seq(
+                  ".",
+                  field("enum_member", $._type_identifier),
+                ),
+              ),
+              ".",
+              field("case", $.identifier),
+            ),
+          ),
+          optional($.enum_payload_pattern),
+        ),
+      ),
+    enum_payload_pattern: ($) =>
+      choice(
+        seq("(", commaSep1($.pattern), optional(","), ")"),
+        seq(
+          "(",
+          commaSep1($.labeled_pattern_field),
+          optional(seq(",", $.rest_pattern)),
+          optional(","),
+          ")",
+        ),
+      ),
+    labeled_pattern_field: ($) =>
+      seq(
+        field("label", $.identifier),
+        ":",
+        field("pattern", $.pattern),
+      ),
     struct_pattern: ($) =>
       seq(
         field("type", $.type_name),
@@ -1175,7 +1216,19 @@ module.exports = grammar({
         field("pattern", $.pattern),
       ),
     rest_pattern: (_) => "...",
-    tuple_pattern: ($) => seq("(", commaSep1($.pattern), optional(","), ")"),
+    tuple_pattern: ($) =>
+      choice(
+        seq("(", $.pattern, ",", ")"),
+        seq(
+          "(",
+          $.pattern,
+          ",",
+          $.pattern,
+          repeat(seq(",", $.pattern)),
+          optional(","),
+          ")",
+        ),
+      ),
 
     _expression: ($) =>
       choice(

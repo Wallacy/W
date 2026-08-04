@@ -3901,14 +3901,57 @@
             "named": true
           }
         ]
+      },
+      "enum": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
+      },
+      "enum_member": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": false,
       "types": [
         {
+          "type": "enum_payload_pattern",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "enum_payload_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "labeled_pattern_field",
+          "named": true
+        },
+        {
           "type": "pattern",
+          "named": true
+        },
+        {
+          "type": "rest_pattern",
           "named": true
         }
       ]
@@ -5907,6 +5950,32 @@
     }
   },
   {
+    "type": "labeled_pattern_field",
+    "named": true,
+    "fields": {
+      "label": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "pattern": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "pattern",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "labeled_statement",
     "named": true,
     "fields": {
@@ -7326,16 +7395,6 @@
           }
         ]
       },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
       "ownership": {
         "multiple": false,
         "required": false,
@@ -7351,6 +7410,16 @@
           {
             "type": "ref",
             "named": false
+          }
+        ]
+      },
+      "pattern": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "pattern",
+            "named": true
           }
         ]
       },
@@ -8443,7 +8512,15 @@
           "named": true
         },
         {
+          "type": "quantity_literal",
+          "named": true
+        },
+        {
           "type": "range_pattern",
+          "named": true
+        },
+        {
+          "type": "size_literal",
           "named": true
         },
         {
@@ -8456,6 +8533,29 @@
         },
         {
           "type": "tuple_pattern",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pattern_bound",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "number_literal",
+          "named": true
+        },
+        {
+          "type": "quantity_literal",
+          "named": true
+        },
+        {
+          "type": "size_literal",
           "named": true
         }
       ]
@@ -8638,7 +8738,7 @@
         "required": false,
         "types": [
           {
-            "type": "number_literal",
+            "type": "pattern_bound",
             "named": true
           }
         ]
@@ -8670,7 +8770,7 @@
         "required": false,
         "types": [
           {
-            "type": "number_literal",
+            "type": "pattern_bound",
             "named": true
           }
         ]

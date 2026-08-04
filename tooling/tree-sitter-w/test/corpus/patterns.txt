@@ -1,0 +1,428 @@
+==================
+Binding patterns across statements
+==================
+
+fn bind(source: ref Source) {
+  let (head, tail) = source.split()
+  if let (first, rest) = source.nextPair() {
+    inspect(first, rest)
+  }
+  guard let Ticket(id, state, ...) = source.nextTicket() else return
+  while let (frame, remaining) = source.nextFrame() {
+    consume(frame, remaining)
+  }
+  for (index, value) in source.enumerated() {
+    record(index, value)
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block
+      (binding_declaration
+        (pattern
+          (tuple_pattern
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))))
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list)))
+      (if_statement
+        (optional_binding
+          (pattern
+            (tuple_pattern
+              (pattern
+                (identifier))
+              (pattern
+                (identifier))))
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list)))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))
+                (argument
+                  (identifier)))))))
+      (guard_statement
+        (optional_binding
+          (pattern
+            (struct_pattern
+              (type_name
+                (type_identifier))
+              (struct_pattern_field
+                (shorthand_struct_pattern_field
+                  (identifier)))
+              (struct_pattern_field
+                (shorthand_struct_pattern_field
+                  (identifier)))
+              (rest_pattern)))
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list)))
+        (return_statement))
+      (while_statement
+        (optional_binding
+          (pattern
+            (tuple_pattern
+              (pattern
+                (identifier))
+              (pattern
+                (identifier))))
+          (call_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (argument_list)))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))
+                (argument
+                  (identifier)))))))
+      (for_statement
+        (pattern
+          (tuple_pattern
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))))
+        (call_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (argument_list))
+        (block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (argument_list
+                (argument
+                  (identifier))
+                (argument
+                  (identifier))))))))))
+
+==================
+Enum patterns, payload labels, and ranges
+==================
+
+fn requested(reading: OvenReading, stage: ServiceStage): Temperature {
+  switch stage {
+    case ServiceStage.preparing: prepare()
+    case .serving: serve()
+    case _: wait()
+  }
+
+  return switch reading {
+    case .stable(let temperature): temperature
+    case .warming(target: let target, ...): target
+    case .failed(let error): throw error
+  }
+}
+
+fn band(value: Int<(0...9)>): Band {
+  return switch value {
+    case 0...2: .low
+    case 3...7: .middle
+    case 8...9: .high
+  }
+}
+
+fn isSafe(temperature: Temperature): Bool {
+  return switch temperature {
+    case 30<degC>...300<degC>: true
+    case _: false
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (expression_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (enum_pattern
+                (type_identifier)
+                (identifier)))
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list))))
+          (switch_case
+            (pattern
+              (enum_pattern
+                (identifier)))
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list))))
+          (switch_case
+            (pattern)
+            (expression_statement
+              (call_expression
+                (identifier)
+                (argument_list))))))
+      (return_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (enum_pattern
+                (identifier)
+                (enum_payload_pattern
+                  (pattern
+                    (identifier)))))
+            (expression_statement
+              (identifier)))
+          (switch_case
+            (pattern
+              (enum_pattern
+                (identifier)
+                (enum_payload_pattern
+                  (labeled_pattern_field
+                    (identifier)
+                    (pattern
+                      (identifier)))
+                  (rest_pattern))))
+            (expression_statement
+              (identifier)))
+          (switch_case
+            (pattern
+              (enum_pattern
+                (identifier)
+                (enum_payload_pattern
+                  (pattern
+                    (identifier)))))
+            (throw_statement
+              (identifier)))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (contract_expression_argument
+                (bounded_range_expression
+                  (number_literal)
+                  (number_literal))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (range_pattern
+                (pattern_bound
+                  (number_literal))
+                (pattern_bound
+                  (number_literal))))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (switch_case
+            (pattern
+              (range_pattern
+                (pattern_bound
+                  (number_literal))
+                (pattern_bound
+                  (number_literal))))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (switch_case
+            (pattern
+              (range_pattern
+                (pattern_bound
+                  (number_literal))
+                (pattern_bound
+                  (number_literal))))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (range_pattern
+                (pattern_bound
+                  (quantity_literal))
+                (pattern_bound
+                  (quantity_literal))))
+            (expression_statement
+              (boolean_literal)))
+          (switch_case
+            (pattern)
+            (expression_statement
+              (boolean_literal))))))))
+
+==================
+Nominal match patterns
+==================
+
+fn inspect(ticket: ref Ticket): State {
+  return switch ticket {
+    case Ticket(state: .open, attempts: 0...3, ...): .active
+    case Ticket(state: .closed, ...): .done
+    case _: .invalid
+  }
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (switch_expression
+          (identifier)
+          (switch_case
+            (pattern
+              (struct_pattern
+                (type_name
+                  (type_identifier))
+                (struct_pattern_field
+                  (labeled_struct_pattern_field
+                    (identifier)
+                    (pattern
+                      (enum_pattern
+                        (identifier)))))
+                (struct_pattern_field
+                  (labeled_struct_pattern_field
+                    (identifier)
+                    (pattern
+                      (range_pattern
+                        (pattern_bound
+                          (number_literal))
+                        (pattern_bound
+                          (number_literal))))))
+                (rest_pattern)))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (switch_case
+            (pattern
+              (struct_pattern
+                (type_name
+                  (type_identifier))
+                (struct_pattern_field
+                  (labeled_struct_pattern_field
+                    (identifier)
+                    (pattern
+                      (enum_pattern
+                        (identifier)))))
+                (rest_pattern)))
+            (expression_statement
+              (contextual_member_expression
+                (identifier))))
+          (switch_case
+            (pattern)
+            (expression_statement
+              (contextual_member_expression
+                (identifier)))))))))
+
+==================
+Single tuple pattern requires a comma
+==================
+
+fn unwrap(value: (Int,)): Int {
+  let (item,) = value
+  return item
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (tuple_type
+            (type
+              (type_name
+                (type_identifier)))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (tuple_pattern
+            (pattern
+              (identifier))))
+        (identifier))
+      (return_statement
+        (identifier)))))

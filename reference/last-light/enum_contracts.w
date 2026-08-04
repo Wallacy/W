@@ -66,7 +66,7 @@ export fn routeAcceptedOrder(canReserve: Bool): StageAfterAccepted {
 
 export fn workInstruction(stage: WorkStage): String {
   return switch stage {
-    case .reserving: "Reserve ingredients"
+    case ServiceStage.reserving: "Reserve ingredients"
     case .preparing: "Prepare the course"
     case .serving: "Serve the guest"
   }
@@ -107,7 +107,13 @@ export fn describeOutcome<T: Display>(
 export fn requestedTemperature(reading: UsableOvenReading): i32 {
   return switch reading {
     case .stable(let temperature): temperature
-    case .warming(_, let target): target
+    case .warming(target: let target, ...): target
+  }
+}
+
+export fn cancellationStage(request: take CancelRequest): CancellableStage {
+  return switch take request {
+    case CancelRequest(stage: let stage): stage
   }
 }
 

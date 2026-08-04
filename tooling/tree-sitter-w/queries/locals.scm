@@ -16,6 +16,5 @@
   pattern: (pattern (identifier) @local.definition))
 (pattern (identifier) @local.definition)
 (shorthand_struct_pattern_field name: (identifier) @local.definition)
-(optional_binding name: (identifier) @local.definition)
 
 (identifier) @local.reference

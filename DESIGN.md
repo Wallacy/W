@@ -82,11 +82,11 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 85–90% | a forma integrada e as alternativas estão registradas; o corpus comparativo ainda não ratificou todas as escolhas |
+| superfície e semântica estática | 88–92% | G0–G3 fecham statements, declarations, types, contracts e patterns; expressions e integração ainda precisam de slices normativos |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 25–35% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
-| prontidão para design freeze | 65–75% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
+| validação executável | 28–38% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
+| prontidão para design freeze | 68–78% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
 As faixas são estimativas de planejamento. Uma contagem de decisões não prova
@@ -668,7 +668,7 @@ initializer = "=" expression ;
 
 condition = optional_binding | expression ;
 optional_binding = ("let" | "var") ("ref" | "inout" | "copy")?
-                   identifier "=" expression ;
+                   pattern "=" expression ;
 
 if_statement = "if" condition block ("else" (if_statement | block))? ;
 while_statement = "while" condition block ;
@@ -1256,6 +1256,260 @@ O checker usa uma família separada para schema de contrato:
 | `W-TYPE-CONTRACT-0003` | predicate de refinement não produz `Bool` |
 | `W-TYPE-CONTRACT-0004` | label está duplicado ou fora da ordem declarada |
 | `W-TYPE-CONTRACT-0005` | envelope posterior não se aplica ao resultado anterior |
+
+#### 3.5.5 Grammar normativa G3: patterns
+
+**Exemplo:** o contexto define se um nome cria um binding ou exige `let`:
+
+```w
+let Order(id, guest: Guest(name, ...), ...) = take order
+
+return switch outcome {
+  case .ready(let dish): dish
+  case .delayed(let duration): prepareFallback(duration)
+}
+```
+
+Esta subseção é normativa para patterns, destructuring e exhaustividade. G4
+define expressions. G5 define precedência e boundaries entre todos os slices.
+
+##### Contextos
+
+W usa duas modalidades de pattern. O statement que contém o pattern seleciona
+a modalidade. O parser preserva a mesma família de nodes.
+
+| Contexto | Modalidade | Regra para nome isolado |
+|---|---|---|
+| `let` ou `var` | binding | cria um binding |
+| `if let`, `guard let` ou `while let` | binding | cria um binding |
+| `for` | binding | cria um binding por iteração |
+| `case` de `switch` | match | precisa de `let` para capturar |
+| `catch` com enum, tuple ou struct | match | precisa de `let` para capturar |
+| `catch error` | catch binding | captura o error completo |
+
+Um function parameter ou closure parameter não aceita destructuring na
+baseline. A função cria um binding local quando o destructuring melhora o body.
+Essa regra preserva labels, ownership e diagnostics na interface.
+
+```w
+fn archive(order: take Order) {
+  let Order(id, guest: Guest(name, ...), ...) = take order
+  writeReceipt(id, guest: name)
+}
+```
+
+##### Grammar
+
+```ebnf
+pattern = wildcard_pattern
+        | identifier_pattern
+        | capture_pattern
+        | literal_pattern
+        | range_pattern
+        | enum_pattern
+        | struct_pattern
+        | tuple_pattern ;
+
+wildcard_pattern = "_" ;
+identifier_pattern = identifier ;
+capture_pattern = "let" identifier ;
+
+literal_pattern = number_literal
+                | string_literal
+                | boolean_literal
+                | quantity_literal
+                | size_literal ;
+
+range_pattern = pattern_bound ("..." | "..<" | ">.." | ">..<") pattern_bound
+              | ("..." | "..<") pattern_bound
+              | pattern_bound ("..." | ">..") ;
+pattern_bound = number_literal | quantity_literal | size_literal ;
+
+enum_pattern = enum_case enum_payload_pattern? ;
+enum_case = "." identifier | type_path "." identifier ;
+enum_payload_pattern = positional_payload_pattern | labeled_payload_pattern ;
+positional_payload_pattern = "(" pattern ("," pattern)* ","? ")" ;
+labeled_payload_pattern = "(" labeled_pattern_field
+                          ("," labeled_pattern_field)*
+                          ("," "...")? ","? ")" ;
+labeled_pattern_field = identifier ":" pattern ;
+
+struct_pattern = type_path "(" struct_pattern_body? ")" ;
+struct_pattern_body = struct_pattern_field
+                      ("," struct_pattern_field)*
+                      ("," "...")? ","?
+                    | "..." ","? ;
+struct_pattern_field = identifier | identifier ":" pattern ;
+
+tuple_pattern = "(" pattern "," ")"
+              | "(" pattern "," pattern ("," pattern)* ","? ")" ;
+```
+
+Um tuple pattern de um elemento exige a comma. `(value)` não é um pattern de
+tuple. Essa forma permanece reservada para agrupamento de expression.
+
+`Type.case` qualifica um enum case. `.case` exige um enum esperado. O frontend
+registra o enum completo na HIR nas duas formas.
+
+```w
+switch stage {
+  case ServiceStage.preparing: prepare()
+  case .serving: serve()
+  case _: wait()
+}
+```
+
+O payload posicional precisa cobrir toda a aridade. `_` ignora uma posição. Um
+payload labeled pode selecionar fields por nome e usar `...` no fim.
+
+```w
+switch reading {
+  case .stable(let temperature): temperature
+  case .warming(target: let target, ...): target
+  case .failed(let error): throw error
+}
+```
+
+O payload labeled exige que o enum case declare labels. O pattern não mistura
+fields labeled e posicionais. Um label repetido ou desconhecido é erro.
+
+O struct pattern é nominal. Em modalidade binding, um field curto cria um
+binding com o mesmo nome. Em modalidade match, cada captura usa `field: let
+name`. Um field curto não captura nesse contexto.
+
+```w
+let ref Ticket(id, state, ...) = ticket
+
+switch ticket {
+  case Ticket(state: .open, attempts: 0...3, ...): inspect(ticket)
+  case Ticket(state: .closed, ...): archive(ticket)
+  case _: repair(ticket)
+}
+```
+
+`...` fica no fim e ocorre no máximo uma vez. Ele ignora os fields visíveis
+restantes. A ausência de `...` exige que o pattern cubra todos esses fields.
+
+`object` e `service` não aceitam struct pattern. Um struct encapsulado aceita
+destructuring somente onde seu storage está visível. A seção 7.4 define cleanup
+e evolução de structs exportados.
+
+Pattern alternativo com `|`, pattern customizado por protocol e destructuring
+assignment ficam **Rejeitados por enquanto**. Eles complicam bindings,
+exhaustividade ou avaliação única. Use cases separados, guard ou novo binding.
+
+```w
+// vigente
+case .reserving: reserve()
+case .preparing: prepare()
+
+// rejeitado por enquanto
+case .reserving | .preparing: continueWork()
+```
+
+##### Avaliação e ownership
+
+O scrutinee é avaliado uma vez. O pattern executa somente testes estruturais,
+comparações de literal e comparações de range. Ele não chama protocol, method
+ou conversão definida pelo usuário.
+
+Um match aplica estas etapas:
+
+1. avalia o scrutinee;
+2. testa o pattern sem mover payloads;
+3. disponibiliza captures como projeções read-only ao guard;
+4. avalia o guard, quando existe;
+5. confirma ownership e entra no braço selecionado;
+6. executa cleanup dos valores não transferidos.
+
+Um guard não pode consumir, mutar, escapar ou suspender com uma capture
+provisória. Essa regra permite testar outro case quando o guard retorna `false`.
+
+```w
+switch take outcome {
+  case .ready(let dish) if dish.isSafe: serve(take dish)
+  case .ready(let dish): discard(take dish)
+  case .failed(let error): throw error
+}
+```
+
+Um place usado diretamente como scrutinee recebe inspeção compartilhada. Um
+payload `Copy` pode materializar um valor. Outro payload produz `ref T`.
+
+`switch take value` consome o place. `switch copy value` duplica o aggregate.
+Um rvalue já produz um aggregate owned. Captures de um aggregate owned também
+são owned depois que o guard aceita o case.
+
+```w
+switch result {                    // inspeção; payload non-Copy vira ref
+  case .success(let value): inspect(value)
+  case .error(let error): report(error)
+}
+
+switch take result {               // consumo; payloads ficam owned
+  case .success(let value): store(take value)
+  case .error(let error): throw error
+}
+```
+
+O qualifier externo controla todo destructuring binding. W não mistura `ref`,
+`inout`, `copy` ou `take` dentro do mesmo aggregate pattern.
+
+```w
+let ref Order(guest, items, ...) = order
+let Order(guest, items, ...) = copy order
+let Order(guest, items, ...) = take order
+```
+
+##### Ordem e exhaustividade
+
+O compiler testa cases na ordem source. Somente patterns sem guard contribuem
+para a prova de cobertura. Um guard pode retornar `false` para qualquer input.
+
+O checker prova estes domínios na baseline:
+
+- `Bool` por `true` e `false`;
+- enum fechado pelo case-set estático do subject;
+- tuple pelo produto dos domínios prováveis;
+- integer refinado por literals e união de intervalos;
+- `Option` e `Result` pelos seus enum cases.
+
+String, float sem refinement finito e integer sem cobertura comprovada exigem
+`_`. Float também precisa cobrir NaN, que não combina com range ordenado.
+
+```w
+fn classify(value: Int<(0...9)>): Band {
+  return switch value {
+    case 0...2: .low
+    case 3...7: .middle
+    case 8...9: .high
+  }
+}
+```
+
+Um case totalmente coberto por case anterior sem guard é inalcançável. O
+compiler emite erro. Um overlap parcial mantém first-match e aparece em `w
+explain switch`.
+
+Cada braço recebe os facts do pattern e do guard. Enum subsets, integer ranges,
+nonzero e tuple components entram em `ProofFacts`. A seção 18 limita o uso
+desses fatos por otimizações.
+
+##### Diagnostics
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0019` | tuple pattern unitário não possui comma |
+| `W-PATTERN-0001` | capture aparece numa modalidade que não permite essa forma |
+| `W-PATTERN-0002` | payload possui aridade, label ou modalidade incompatível |
+| `W-PATTERN-0003` | field não existe ou não está visível |
+| `W-PATTERN-0004` | `...` está duplicado ou fora da posição final |
+| `W-PATTERN-0005` | pattern exige destructuring de categoria opaca |
+| `W-PATTERN-0006` | guard tenta consumir, mutar, escapar ou suspender com capture provisória |
+| `W-PATTERN-0007` | range pattern possui bounds incompatíveis ou não constantes |
+| `W-MATCH-0001` | switch ou catch obrigatório não é exaustivo |
+| `W-MATCH-0002` | case está completamente inalcançável |
+| `W-MATCH-0003` | enum curto não possui expected type inequívoco |
 
 ### 3.6 Avaliação compile-time
 
@@ -1970,7 +2224,8 @@ fn classify(
 
 Uma tuple representa múltiplos scrutinees. W não adiciona uma forma especial
 `switch a, b`. Tuple, enum, literal, range, struct e `_` são patterns fechados.
-Bindings usam `let` dentro do pattern.
+Um match usa `let` para capturar dentro do pattern. Um contexto de binding usa
+nomes diretos, conforme G3.
 
 O compiler testa cases em ordem lexical. Um guard `if` executa depois que o
 pattern combina. Um case sem guard que cobre um anterior gera diagnostic de case
@@ -2008,6 +2263,23 @@ rows: for row in matrix.rows {
 }
 ```
 
+O label nomeia o statement estruturado que vem depois de `:`. Ele não marca
+uma posição de instrução. A transferência não salta para os bytes do label.
+
+`continue rows` entrega o controle ao driver do loop `rows`. Em um `for`, o
+driver solicita o próximo item ao iterator atual. Ele não recria o iterator.
+Essa operação lembra um yield local de controle, mas não produz um value.
+
+Quando o target é o loop mais interno, a forma sem label é canônica:
+
+```w
+for value in values {
+  if value == 0 { continue }
+  if value > limit { break }
+  consume(value)
+}
+```
+
 Sem label, `break` encerra o loop mais interno. Sem label, `continue` avança o
 loop mais interno. Com label, a instrução seleciona um loop envolvente:
 
@@ -2016,6 +2288,18 @@ loop mais interno. Com label, a instrução seleciona um loop envolvente:
 | `for` | sai do loop | solicita o próximo item |
 | `while` | sai do loop | reavalia a condição inicial |
 | `repeat` | sai do loop | avalia a condição final |
+
+Um label é necessário quando o target não é o loop mais interno:
+
+```w
+search: while source.hasFrames {
+  for frame in source.nextBatch() {
+    if frame.isPadding { continue search }
+    if frame.isTerminal { break search }
+    decode(frame)
+  }
+}
+```
 
 `repeat` executa o body uma vez antes de testar sua condição:
 
@@ -2044,6 +2328,10 @@ Labels são destinos estruturados. Eles não são values, symbols ou destinos de
 salto arbitrário. O destino deve envolver lexicalmente a instrução. A
 transferência não cruza function, closure, task ou service boundary. A saída
 executa `defer`, drop e o protocolo de abort dos scopes abandonados.
+
+Um label não pode selecionar `if`, `switch`, declaration ou expression. Use um
+block rotulado quando um trecho precisa de saída antecipada. Use um loop
+rotulado quando o trecho precisa repetir.
 
 W não possui `goto` ou `do ... while`. `repeat ... while` expressa o loop
 pós-condicional. Loop rotulado expressa repetição para trás. Block rotulado
@@ -20581,7 +20869,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0–G2 normativos para statements, declarations, raízes, types e contracts | slices de patterns/expressions e formatter snapshots |
+| grammar normativa | G0–G3 normativos para statements, declarations, raízes, types, contracts e patterns | slices de expressions/integration e formatter snapshots |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -20908,6 +21196,54 @@ Antes do design freeze, o tooling deve publicar cobertura `casos/decisões que
 exigem substituição`. A cobertura atual de exemplos por seção não substitui essa
 métrica. Nenhuma documentação final pode omitir a alternativa que motivou uma
 decisão.
+
+**Caso W-732 — sair de loops aninhados.** As formas processam o mesmo input. Um
+carrier inválido encerra a busca. Um zero avança a linha externa.
+
+```w
+// Forma W vigente.
+scan: for row in rows {
+  for value in row {
+    if value == 0 { continue scan }
+    if value > 31 { break scan }
+    consume(value)
+  }
+}
+```
+
+```c
+/* Alternativa C com goto. */
+for (size_t row = 0; row < row_count; ++row) {
+  for (size_t column = 0; column < column_count[row]; ++column) {
+    uint8_t value = rows[row][column];
+    if (value == 0) goto next_row;
+    if (value > 31) goto done;
+    consume(value);
+  }
+next_row:
+  continue;
+}
+done:
+```
+
+```w
+// Alternativa com flag. A condição replica o estado do controle.
+var stopped = false
+for row in rows {
+  if stopped { break }
+  for value in row {
+    if value == 0 { break }
+    if value > 31 {
+      stopped = true
+      break
+    }
+    consume(value)
+  }
+}
+```
+
+O label W limita o target a um owner lexical. `goto` aceita outros pontos. A
+flag cria estado mutável que pode divergir do control flow.
 
 ## 27. Plano de implementação
 
@@ -22015,6 +22351,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-761 | nested contract close | em type/contract, closes adjacentes são tokens `>` distintos; em expression, `>>` é shift | exigir espaço entre closes; lexer sempre produz shift; regra dependente do type checker |
 | W-762 | argumentos estáticos | type application e generic call aceitam as mesmas categorias estruturais, inclusive Bool, String, quantity e size | call aceita menos atoms; named const usa grammar própria; literal posicional depende do head conhecido pelo parser |
 | W-763 | function type | qualifier, `unsafe`, callable mode, `async`, `fn`, contract, parameters, return e throws têm ordem fixa; parâmetros não têm labels/defaults | um callable apagado universal; labels no type; ABI inferida; callable externo opcional ambíguo |
+| W-764 | grammar normativa G3 | EBNF de patterns, destructuring, match e exhaustividade pertence ao design; Tree-sitter projeta a mesma família de nodes | grammar gerada como autoridade; pattern definido somente por exemplos; árvore distinta por statement |
+| W-765 | modalidades de pattern | bindings usam nomes diretos; match exige `let` para captures; `catch error` captura o error completo | todo nome captura em switch; `let let value`; named constant concorrendo com binder |
+| W-766 | avaliação de match | scrutinee é avaliado uma vez; guard observa projeções read-only; ownership confirma somente após o guard | mover antes do guard; reavaliar scrutinee; protocol customizado com effects; guard suspende com capture provisória |
+| W-767 | payload pattern labeled | enum payload labeled pode selecionar fields e terminar em `...`; forma posicional continua exata | ignorar labels declarados; misturar labeled e posicional; label desconhecido; rest intermediário |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

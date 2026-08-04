@@ -66,7 +66,8 @@ fn inspect(values: ref Array<Order>): ref Order? {
           (number_literal)))
       (if_statement
         (optional_binding
-          (identifier)
+          (pattern
+            (identifier))
           (call_expression
             (member_expression
               (identifier)
@@ -83,7 +84,8 @@ fn inspect(values: ref Array<Order>): ref Order? {
                   (identifier)))))))
       (if_statement
         (optional_binding
-          (identifier)
+          (pattern
+            (identifier))
           (index_expression
             (identifier)
             (string_literal)))

@@ -82,7 +82,8 @@ async fn consume(
                   (identifier)))))))
       (while_statement
         (optional_binding
-          (identifier)
+          (pattern
+            (identifier))
           (unary_expression
             (unary_expression
               (call_expression
