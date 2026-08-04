@@ -5340,7 +5340,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "labeled_loop_statement"
+          "name": "labeled_statement"
         },
         {
           "type": "SYMBOL",
@@ -5349,6 +5349,10 @@
         {
           "type": "SYMBOL",
           "name": "for_statement"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "repeat_statement"
         },
         {
           "type": "SYMBOL",
@@ -6020,7 +6024,7 @@
         ]
       }
     },
-    "labeled_loop_statement": {
+    "labeled_statement": {
       "type": "SEQ",
       "members": [
         {
@@ -6037,7 +6041,7 @@
         },
         {
           "type": "FIELD",
-          "name": "loop",
+          "name": "statement",
           "content": {
             "type": "CHOICE",
             "members": [
@@ -6048,6 +6052,14 @@
               {
                 "type": "SYMBOL",
                 "name": "for_statement"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "repeat_statement"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "block"
               }
             ]
           }
@@ -6151,6 +6163,47 @@
         {
           "type": "SYMBOL",
           "name": "block"
+        }
+      ]
+    },
+    "repeat_statement": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "repeat"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "block"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "while"
+        },
+        {
+          "type": "FIELD",
+          "name": "condition",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_expression"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ";"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },

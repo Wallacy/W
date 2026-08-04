@@ -28,12 +28,15 @@ export fn stableServiceOrder(tickets: take Array<ArrivalTicket>): Array<ArrivalT
 export fn foldDiagnosticBits(rows: ref Array<Array<u8>>): u32 {
   var bits: u32 = 0
 
-  scanRows: for ref row in rows {
-    for value in row {
-      if value == 0 { continue scanRows }
-      if value > 31 { break scanRows }
-      bits <<= 5
-      bits |= value
+  assembleWord: {
+    scanRows: for ref row in rows {
+      for value in row {
+        // A zero skips this row. An invalid carrier stops the complete scan.
+        if value == 0 { continue scanRows }
+        if value > 31 { break assembleWord }
+        bits <<= 5
+        bits |= value
+      }
     }
   }
 

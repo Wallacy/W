@@ -141,7 +141,7 @@ alvo de execução independente.
 | `command.w` | parser streaming, spans, buffer limitado e comandos tipados |
 | `text.w` | UTF-8, unidades de texto, normalização, paths e contrato de C string |
 | `string_storage.w` | construção, reserva, reuse e carrier String/Bytes consuming |
-| `collections.w` | arrays, views, labeled flow, operators compostos, Map/Set, hashing e stable sort |
+| `collections.w` | arrays, views, labeled loops e blocks, operators compostos, Map/Set, hashing e stable sort |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
 | `generics.w` | primary associated types, constraints, inference e witnesses |
@@ -150,7 +150,7 @@ alvo de execução independente.
 | `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
-| `numerics.w` | literais, conversões, overflow, float, ranges e quantization |
+| `numerics.w` | literais, conversões, overflow, float, ranges, post-test loop e quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
 | `performance.w` | fatos de prova, largura interna, SIMD e custos de texto |
