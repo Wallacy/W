@@ -27,7 +27,7 @@ export struct WifiSession {
 }
 
 export enum WifiError: Error {
-  decode(DecodeError)
+  decode(RequestDecodeError<DecodeError>)
   response(ResponseError)
   service(ServiceFailure)
   invalidVoucher

@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 52/52, R0S mede 117 formas e R1 possui quatro bundles contrabalanceados do Última Luz; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui quatro bundles contrabalanceados do Última Luz; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M0, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -13621,16 +13621,91 @@ T2 contém módulos bundled e reachability-linked:
 first-party experimentais. Tier não significa import implícito, linking ou
 disponibilidade universal em todo target.
 
+#### 14.3.0 Perfil Web portátil
+
+**Exemplo:** W conserva os nomes, mas os obtém por módulos em vez de
+`globalThis`:
+
+```w
+import { fetch, Request, Response } from std.http
+import { URL } from std.url
+
+let target = try URL("https://example.test/menu")
+let response = try await fetch(target)
+```
+
+**Direção:** W mantém um profile `web-common@2025` baseado no Minimum Common
+Web API do WinterTC. O profile fixa uma edição. Uma atualização do living
+standard exige novo snapshot, testes de compatibilidade e uma decisão explícita.
+
+W não declara conformidade formal com WinterTC. O standard atual define um
+runtime ECMAScript e também exige ECMA-262 e uma superfície em `globalThis`.
+W não é ECMAScript e usa módulos, errors tipados, ownership e structured
+concurrency. O objetivo é compatibilidade de conceitos e comportamento
+observável onde o contrato não depende do modelo de objetos JavaScript.
+
+O manifesto de compatibilidade classifica cada item como `exact`, `adapted`,
+`hostExtension`, `browserOnly` ou `notApplicable`. `adapted` exige uma nota com
+a diferença e o impacto. Um item ausente não recebe o rótulo compatível.
+
+Nomes globais do standard viram exports de módulos W. `std.http`, `std.url`,
+`std.stream`, `std.encoding`, `std.compression`, `std.crypto`, `std.time` e
+`std.wasm` formam a projeção inicial. Import flattening pode produzir o mesmo
+nome curto. O runtime não cria `globalThis` ou um namespace ambiental.
+
+| Família WinterTC 2025 | Contrato W | Estado de design |
+|---|---|---|
+| Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | baseline em 14.3.1–14.3.3; carriers ainda incompletos no SDK0 |
+| URL | `URL`, `URLSearchParams`, `URLPattern` | nomes aceitos; parser, mutation e matching ainda precisam de corpus |
+| Streams | readable, writable, transform, BYOB e queuing strategies | semântica aceita; ownership, transfer e bounds precisam de interfaces completas |
+| cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | adapter sobre cancellation W; events gerais continuam pesquisa |
+| encoding e compression | text encoders/decoders e compression streams | alvo T2; algorithms e error policy precisam de catálogo |
+| binary e files | `Blob` e `File` | alvo T2; backing store, lifetime e limits precisam de contrato |
+| messaging | `MessageChannel`, `MessagePort` e structured clone | channels W são base; o clone compatível não é universal |
+| crypto | `Crypto`, `CryptoKey` e `SubtleCrypto` | façade Web sobre capability crypto; keys continuam non-extractable por policy |
+| clock e scheduling | performance, timers e `queueMicrotask` | clock/timer mapeiam para std W; microtask não vira scheduler universal |
+| WebAssembly | compile, instantiate, memory, table e errors | adapter target-dependent; W não exige engine Wasm em todo host |
+| console e base encodings | console, `atob` e `btoa` | nomes podem existir no profile; std W prefere logging tipado e codecs explícitos |
+
+Browser DOM, rendering, storage de browser e UI não entram por transitividade.
+Um browser target pode fornecer profiles adicionais. APIs server-side como
+`Context`, bindings, database, cache, service RPC e `serve` são extensions
+separadas. Assim, uma library pode declarar que usa somente
+`web-common@2025` e permanecer portátil entre W hosts.
+
+Referências:
+
+- [WinterTC](https://wintertc.org/);
+- [Minimum Common Web API](https://min-common-api.proposal.wintertc.org/);
+- [workerd](https://github.com/cloudflare/workerd).
+
 #### 14.3.1 Mensagem HTTP e ownership
 
-**Exemplo:** o handler consome o body uma vez e exige limite antes de decodificar:
+**Forma vigente:** a superfície web de W usa os contratos da Web Platform como
+base. `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `fetch`,
+`ReadableStream`, `WritableStream`, `TransformStream` e cancellation mantêm os
+nomes e o comportamento observável dos standards correspondentes. `workerd` é a
+referência principal para uso server-side. W não herda JavaScript, Web IDL,
+dynamic objects ou exceptions não tipadas.
+
+W pode restringir um contrato para remover um estado inválido. Toda diferença
+precisa ter uma razão ligada a ownership, error tipado, limite, capability ou
+portabilidade. Uma conveniência W não pode mudar silenciosamente o significado
+do nome padrão.
+
+**Exemplo:** o handler usa a URL tipada e consome o body uma vez. O limite faz
+parte da call de decode:
 
 ```w
 async fn fetch(
   request: take http.Request,
   ctx: http.Context,
 ): http.Response throws ApiError {
-  let command = try await request.decodeJson<Command>(
+  guard request.url.pathname == "/commands" else {
+    return try http.Response(status: http.StatusCode.notFound)
+  }
+
+  let command = try await (take request).json<Command>(
     maximumBytes: 64<KiB>,
   )
   return try http.Response.json(command)
@@ -13641,56 +13716,168 @@ async fn fetch(
 HTTP/2 ou HTTP/3 no handler comum. Um adapter pode informar versão e transport
 em metadata observável. O resultado do programa não depende desses dados.
 
-`Request` é um owner move-only. Ele contém method, target, headers, body e
+`Request` é um owner move-only. Ele contém method, URL, headers, signal, body e
 metadata atenuada pelo host. Ele não atende a `Copy` ou `Duplicable`. Uma
-service call que transfere um request também transfere o body.
+service call que transfere um request também transfere o body. Esta regra torna
+explícita a transferência que `workerd` já aplica a streams, requests e
+responses em RPC.
+
+A interface lógica expõe:
+
+```text
+method: http.Method
+url: ref http.URL
+headers: ref http.Headers
+signal: ref AbortSignal
+body: ref ReadableStream<Bytes, http.HttpBodyError>?
+bodyUsed: Bool
+take async json<Value: JsonDecodable>(maximumBytes: usize<(1...)>)
+  -> Value throws http.RequestDecodeError<JsonDecodeError>
+take async bytes(maximumBytes: usize<(1...)>)
+  -> Bytes throws http.HttpBodyError
+take async text(maximumBytes: usize<(1...)>)
+  -> String throws http.RequestDecodeError<TextDecodeError>
+```
+
+`URL` segue o URL Standard. `href` contém a serialização canônica. `pathname`
+e `searchParams` têm os significados do standard. O host valida e cria a URL
+antes do handler. Por isso, `request.url` não exige um parse repetido. O
+constructor geral de `URL` ainda pode falhar para input não confiável.
+
+Essa property é `adapted`: Fetch expõe `Request.url` como uma String
+serializada; W expõe `ref URL`. `request.url.href` devolve a String compatível.
+O impacto é uma qualificação adicional quando o programa precisa do texto. O
+benefício é preservar a prova de parse e evitar parse repetido em cada handler.
+
+`URLSearchParams` preserva ordem e valores repetidos. `get(name)` devolve o
+primeiro valor como `Option<view String>`. `getAll(name)` devolve todos os
+valores. Parsing e serialização seguem
+[application/x-www-form-urlencoded](https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
+W não cria os aliases `query` ou `QueryParameters`.
 
 O body atende a `ByteSource<HttpBodyError>` e só pode ser consumido uma vez.
-`decodeJson`, `bytes` e `text` são métodos async do request. Cada método exige
-um limite. O programa usa o body como stream quando não deseja materializá-lo.
+Na superfície web, ele também se apresenta como
+`ReadableStream<Bytes, HttpBodyError>`. `json`, `bytes` e `text` conservam os
+nomes do Body mixin. Cada método exige um limite e consome o receiver com
+`take`. `formData` e `blob` seguem a mesma regra quando o profile os oferece.
+O programa usa o stream quando não deseja materializar o body.
 
-W não oferece `request.clone()` implícito. Um caller que precisa de duas leituras
-materializa bytes com limite ou cria um tee bounded. Um tee mantém backpressure
-entre os consumers e declara o buffer máximo.
+Web Streams define estados locked e disturbed. Ownership elimina readers
+concorrentes não autorizados em source W. Um adapter foreign ainda verifica os
+estados em runtime. `pipeTo`, `pipeThrough`, `cancel` e backpressure preservam o
+contrato de Streams. `ByteSource` e `ByteSink` são protocols de implementação e
+interoperabilidade; eles não substituem a superfície Web pública.
 
-Headers preservam entradas repetidas. Comparação de nome é ASCII
-case-insensitive. O valor continua `Bytes`, pois um peer pode enviar octets que
-não formam texto Unicode. A conversão para `String` exige uma policy explícita.
-`HeaderName` e method tokens rejeitam um token vazio ou um byte fora da grammar
-HTTP. `HeaderField` rejeita NUL, CR, LF e outros control bytes não permitidos.
-Assim, um adapter nunca recebe um field inválido por uma API safe.
+`RequestDecodeError<CodecFailure>` separa `.body(HttpBodyError)` de
+`.codec(CodecFailure)`. Transport, limit e framing não se apresentam como JSON
+inválido. A call devolve um owner novo. Tempo e memória são lineares nos bytes
+consumidos e ficam bounded pelo menor limite entre call e host.
+
+W não oferece cópia implícita de `Request`. `clone()` e `tee()` são operações
+explícitas e exigem um limite de buffer no profile W. O caller também pode
+materializar bytes com limite. O linter informa quando clone ou tee pode remover
+streaming ou reter o body completo.
+
+`Headers` segue a lista ordenada do Fetch Standard. Comparação de nome é ASCII
+case-insensitive. `get` combina valores como o standard exige e devolve
+`Option<view String>`. `getSetCookie()` preserva cada field `Set-Cookie`.
+`append`, `set`, `delete`, `has` e iteration mantêm os nomes padrão. Guards
+limitam mutation conforme a origem do request ou response.
+
+A API Web segura usa `String`. `HeaderName` e method tokens rejeitam um token
+vazio ou um byte fora da grammar HTTP. Values rejeitam NUL, CR, LF e outros
+controls proibidos. Um adapter de protocol pode expor fields raw como `Bytes`,
+mas essa API é separada e não altera `Headers`.
+
+Essa representação é `adapted`: Web IDL usa `ByteString` e workerd devolve
+`USVString`. O profile W usa UTF-8 válido. Um field que não pode entrar nessa
+representação fica disponível somente no adapter raw ou é rejeitado pelo host
+profile. O manifesto precisa declarar essa policy porque ela pode afetar peers
+legacy.
 
 `Method` possui os methods registrados e `.other(MethodToken)`. O token
 customizado é validado. `StatusCode` aceita `100..<600`; associated constants
-como `http.Status.ok` evitam números soltos.
+como `http.StatusCode.ok` evitam números soltos.
 
-O modelo segue a mensagem abstrata do
-[RFC 9110](https://datatracker.ietf.org/doc/rfc9110/) e a separação de
-request, response, fields e streams do
-[WASI HTTP](https://github.com/WebAssembly/wasi-http).
+`Method` também é `adapted`: Fetch expõe String. `method.text()` preserva o
+token observável e `.other` impede que um method de extension seja perdido.
+
+Outbound `fetch` aceita `String`, `URL` ou `Request` e devolve o mesmo
+`Response` usado pelo handler. `RequestInit` conserva method, headers, body,
+redirect, credentials, cache e signal quando o target oferece o conceito. W
+troca rejection não tipada por `FetchError` e exige `try await`:
+
+```w
+let response = try await http.fetch(
+  "https://example.test/menu",
+  signal: ctx.signal,
+)
+```
+
+Alcançar `http.fetch` cria um requirement de network capability. O nome não é
+global e a call não procura authority em runtime. O product e o host resolvem a
+capability no link. `AbortSignal` é a ponte Web para cancellation. Uma task W
+continua usando cancellation estruturada; um controller só é necessário quando
+o programa precisa de uma lifetime independente.
+
+O contrato principal segue o
+[Fetch Standard](https://fetch.spec.whatwg.org/), o
+[URL Standard](https://url.spec.whatwg.org/) e o
+[Streams Standard](https://streams.spec.whatwg.org/). O modelo de protocol
+também segue a mensagem abstrata do
+[RFC 9110](https://datatracker.ietf.org/doc/rfc9110/). Adapters para
+[WASI HTTP](https://github.com/WebAssembly/wasi-http) preservam a mesma
+superfície W.
 
 #### 14.3.2 Response, streaming e commit
 
-**Exemplo:** bytes owned geram tamanho conhecido. Um stream mantém sua própria
-boundary:
+**Exemplo:** `Response` recebe qualquer `BodyInit` aceito. String, bytes e stream
+mantêm o mesmo constructor:
 
 ```w
-let fixed = http.Response.bytes(
+let fixed = try http.Response(
   take encoded,
-  status: .ok,
-  contentType: "application/json",
+  status: http.StatusCode.ok,
+  headers: http.Headers(("content-type", "application/json")),
 )
 
-let streamed = http.Response.stream(
+let streamed = try http.Response(
   take body,
-  status: .ok,
-  headers: headers,
+  status: http.StatusCode.ok,
+  headers: take headers,
 )
 ```
 
 `Response` é um owner. Retorná-lo transfere headers e body para o host. Um body
-fixo usa `Bytes` ou `String`. Um body incremental usa um
-`ByteSource<HttpBodyError>` owned.
+fixo usa `Bytes`, `String`, `Blob`, `FormData` ou `URLSearchParams`. Um body
+incremental usa um `ReadableStream<Bytes, HttpBodyError>` owned. O protocol
+`ByteSource<HttpBodyError>` possui conversão sem cópia quando o adapter pode
+preservar backpressure.
+
+A interface lógica mínima contém:
+
+```text
+Response(take body: BodyInit? = none, status: StatusCode = StatusCode.ok,
+  statusText: String = "", take headers: Headers = Headers())
+  -> Response throws ResponseError
+Response.error() -> Response
+Response.redirect(URL, status: RedirectStatus = .found)
+  -> Response throws ResponseError
+Response.json<Value: JsonEncodable>(Value, status: StatusCode = StatusCode.ok,
+  take headers: Headers = Headers())
+  -> Response throws ResponseError
+clone(maximumBufferedBytes: usize) -> Response throws CloneError
+```
+
+`ResponseError` separa `.encoding(JsonEncodeError)` de
+`.bodyNotAllowed(StatusCode)`. Status e headers continuam validados antes de
+criar o owner. Um body String usa UTF-8 e recebe o media type padrão do Fetch
+Standard. HTML exige um `content-type` explícito. Bytes e streams não são
+copiados pelo constructor.
+
+`StatusCode` fornece associated constants lower camel case. A forma explícita
+é `http.StatusCode.notFound`. W não interpreta `.notFound` como associated
+const contextual. A forma curta continua reservada para enum case esperado.
 
 O host cria um response-pump runtime-owned para o stream. Esse pump é parte do
 request root. Ele não é uma task solta. Disconnect, deadline ou erro de
@@ -13705,15 +13892,23 @@ O adapter valida status, headers, trailers e framing antes do primeiro commit.
 Depois do commit, um error de stream fecha a resposta e entra no trace. Ele não
 se converte num segundo status HTTP.
 
-Responses `1xx`, `204` e `304` não aceitam body. Uma resposta a `HEAD` envia os
-headers da representação e não consome o body. O linter informa quando o handler
-constrói um body que será descartado por essa regra.
+O handler devolve uma resposta final com status `200..<600`. Informational
+responses `1xx` usam uma operação separada do host. Status `204`, `205` e `304`
+não aceitam body. Uma resposta a `HEAD` envia os headers da representação e não
+consome o body. O linter informa quando o handler constrói um body que será
+descartado por essa regra.
 
-`Response.text`, `.bytes`, `.json` e `.html` são constructors do próprio tipo.
-Eles definem media type e encoding. `Response.json` exige `JsonEncodable`; ele
-não usa reflection universal.
+`Response.json` é o constructor estático do Fetch Standard com um contrato W
+tipado. Ele exige `JsonEncodable` e não usa reflection universal. A baseline
+não cria `Response.text`, `.bytes`, `.stream` ou `.html`; o overload de
+`Response` cobre esses bodies sem uma família paralela de nomes.
 
 #### 14.3.3 Host HTTP, limits e admission
+
+`Context`, `serve`, host profiles, capability bindings e admission não são Web
+Standards. Eles são extensions W para server-side. As extensions usam os mesmos
+`Request`, `Response`, streams, URL e `fetch` usados pelo client; não criam um
+segundo modelo de mensagem.
 
 **Exemplo:** um processo nativo fornece network e limites. Um worker recebe o
 mesmo envelope do host:
@@ -13740,6 +13935,35 @@ try await http.serve(
 )
 ```
 
+O native adapter usa esta interface:
+
+```text
+serve<Failure: Error>(
+  at address: net.ListenAddress,
+  using network: ref net.Network,
+  limits: ServerLimits,
+  handler: some async fn(take Request, Context): Response throws Failure,
+) async -> () throws ServerError
+```
+
+`serve` mantém o listener até shutdown ou cancellation. Cancellation termina a
+task depois de fechar admission e drenar requests aceitos. Ela não vira
+`ServerError`. O error contém somente falhas do host:
+
+```text
+unavailable
+unsupported
+invalidConfiguration
+listen(NetworkError)
+accept(NetworkError)
+protocol(HttpError)
+```
+
+Handler error antes de `Response` produz a resposta fixa do host profile. O
+profile baseline usa status 500 sem payload do error. O trace preserva type e
+cause conforme redaction. Um mapping de domínio precisa capturar o error no
+handler e construir a resposta desejada.
+
 `http-worker@1` possui este slot default:
 
 ```text
@@ -13749,7 +13973,8 @@ http.fetch:
 ```
 
 O profile grava como `E` vira uma resposta de boundary. Um error de domínio
-precisa de mapping explícito. Panic, quota e fault continuam outcomes distintos.
+precisa de mapping explícito no handler. Panic, quota e fault continuam outcomes
+distintos e seguem a fault policy.
 
 Cada host profile possui um schema fechado de `hostConfiguration`. O compiler
 rejeita fields desconhecidos e grava a configuração na recipe. A configuração
@@ -13795,6 +14020,17 @@ runtime-owned declarados podem sobreviver ao frame do handler.
 `http.Context` não é um mapa ambiental. Ele contém registries tipados para as
 capabilities declaradas pelo product. Database, cache, secret e service usam
 bindings const que o linker verifica.
+
+O tipo segue a seção 14.5.1. Ele é move-only, process-local e não possui
+initializer público. O SDK baseline declara members tipados como `random`,
+`signal`, `databases`, `caches`, `templates`, `secrets` e `services`. Alcançar um member
+cria um requirement exato. O linker rejeita esse requirement quando o product
+ou host não fornece a família.
+
+Um member singular devolve shared borrow de uma capability. Um registry recebe
+binding const e devolve um owner ou handle atenuado. Lookup usa identity do
+binding, não String. Tempo é constante ou bounded pela tabela fechada do
+runtime graph. Nenhum lookup consulta rede ou package registry.
 
 O host projeta duas formas de authority:
 
@@ -14082,13 +14318,14 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 61 exports catalogados e 22 superfícies qualificadas usadas pelo
+registra 63 exports catalogados e 26 superfícies qualificadas usadas pelo
 Última Luz. O checker rejeita export sem profile, uso qualificado desconhecido,
 profile incompleto, anchor inexistente, consumer ausente e snapshot stale.
 
-Dois dos sete requisitos adversariais possuem contrato SDK0 completo.
-`ByteSink.writeAll` também possui draft. `build.Context` permanece sem draft
-até o provider interno da seção 14.5.1 receber uma declaration verificável.
+Os nove requisitos adversariais possuem contrato SDK0. `ByteSink.writeAll`,
+`http.ServerError` e `http.ResponseError` também possuem draft. Os outros cinco
+mais `http.Headers` continuam sem source até seus carriers e operações
+receberem declarations.
 
 O Última Luz exige seis superfícies que ainda não possuem draft:
 
@@ -14098,7 +14335,7 @@ O Última Luz exige seis superfícies que ainda não possuem draft:
 | `std.http` | `Context` | gateway HTTP |
 | `std.http` | `Request` | benchmark e apps HTTP |
 | `std.http` | `Response` | benchmark e apps HTTP |
-| `std.http` | `ServerError` | host nativo |
+| `std.http` | `Headers` | response HTML do benchmark |
 | `std.http` | `serve` | host nativo |
 
 O status `missing` não aprova nome ou assinatura. Ele preserva uma exigência do
@@ -22520,12 +22757,12 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 52 substituições estruturadas. Esse corpus é a origem do Tour
+O corpus R0 contém 54 substituições estruturadas. Esse corpus é a origem do Tour
 comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
-A razão `52/52` cobre os requisitos declarados na seção 26. Ela não prova que
+A razão `54/54` cobre os requisitos declarados na seção 26. Ela não prova que
 o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
 classificar sua alternativa como uma destas categorias:
 
@@ -22569,14 +22806,14 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 61 exports em nove módulos; dois de sete requisitos adversariais possuem contrato e seis superfícies exigidas continuam sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
+| std | SDK0 cataloga 63 exports em nove módulos; nove requisitos adversariais possuem contrato e seis superfícies exigidas continuam sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 52/52 requisitos declarados e 85 decisões; R0S mede 117 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | marcar toda ausência de source no ledger, provar cobertura total por caso comparativo, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 54/54 requisitos declarados e 87 decisões; R0S mede 121 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | marcar toda ausência de source no ledger, provar cobertura total por caso comparativo, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22886,7 +23123,9 @@ O corpus compara, no mínimo:
 - assignment Unit contra assignment que devolve e duplica o value;
 - power matemática com exponent prefix contra unary que vence power;
 - tail expression explícita contra retorno implícito de todo function body;
-- semicolon que preserva discard contra formatter que o remove por aparência.
+- semicolon que preserva discard contra formatter que o remove por aparência;
+- URL e URLSearchParams padrão contra aliases HTTP locais;
+- constructor Web de Response contra família de helpers por body.
 
 ### 26.1 Cobertura de substituições
 
@@ -22917,7 +23156,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 52 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 54 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 definida na seção 24.3.
 
@@ -22981,7 +23220,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 117 formas do corpus. O runner junta as linhas com LF e sem newline
+mede as 121 formas do corpus. O runner junta as linhas com LF e sem newline
 final. Para a tarefa e para cada forma, ele registra:
 
 - bytes UTF-8;
@@ -23968,7 +24207,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-531 | modelo HTTP | `std.http` representa semântica de mensagem, independente de HTTP/1.1, HTTP/2 ou HTTP/3 | frames no handler; Fetch API copiada integralmente; version decide domínio |
 | W-532 | ownership de request | `Request` move-only transfere body e só permite um consumer | clone implícito; body copiável; stream ambiental |
 | W-533 | materialização HTTP | decode, bytes e text são async e exigem limite; stream preserva backpressure | ler body inteiro sem limite; decode síncrono; buffer oculto |
-| W-534 | headers HTTP | tokens e controls são validados; nomes são ASCII case-insensitive; Bytes, repetição e ordem são preservados | Map<String, String>; normalizar value Unicode; juntar Set-Cookie |
+| W-534 | headers HTTP | `Headers` segue Fetch: nomes ASCII case-insensitive, values String validados, guards, combinação padrão e `getSetCookie`; fields raw ficam no adapter de protocol | Map sem ordem; expor raw Bytes na API Web; juntar Set-Cookie; aceitar CR/LF |
 | W-535 | response streaming | retorno transfere owner ao pump runtime-owned; entrega ao client não é confirmada | task solta; retorno confirma socket; segundo status após commit |
 | W-536 | admission HTTP | product/call fixa requests, fila, bytes, connections e message limits | defaults ilimitados; task antes de admission; rate limit de negócio implícito |
 | W-537 | host HTTP | native `serve` e worker slot usam o mesmo handler e oracle | API por protocolo de transporte; OS chama fetch; handler especial de benchmark |
@@ -24296,9 +24535,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-859 | fechamento do catálogo citado | todos os 73 codes com meaning citado possuem schema; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect prefix, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
-| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/52`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 52 bullets como 52 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/54`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 54 bullets como 54 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 52/52 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 54/54 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -24324,10 +24563,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 52 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 61 exports; scan compara 22 usos qualificados, registra seis ausências e conserva requisitos resolvidos | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 63 exports; scan compara 26 usos qualificados, registra seis ausências e conserva nove requisitos resolvidos | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
+| W-894 | superfície Web | Fetch, URL e Streams definem nomes e comportamento observável no client e server; W acrescenta ownership, errors, bounds e capabilities; `Context` e `serve` são extensions explícitas | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path` e `query`; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
+| W-895 | profile WinterTC | `web-common@2025` fixa e classifica o Minimum Common Web API como exact, adapted, extension, browser-only ou não aplicável; W não declara conformidade ECMAScript | alegar conformidade formal; copiar `globalThis`; seguir living surface sem snapshot; chamar extension de API portátil |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

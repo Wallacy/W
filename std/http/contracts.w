@@ -37,8 +37,8 @@ const fn isHttpToken(value: ref String): Bool {
   return true
 }
 
-const fn isHttpFieldValue(value: ref Bytes): Bool {
-  for byte in value {
+const fn isHttpFieldValue(value: ref String): Bool {
+  for byte in value.bytes {
     if byte != 9 && (byte < 32 || byte == 127) { return false }
   }
 
@@ -74,6 +74,15 @@ export enum Method {
 
 export type StatusCode = u16<(100..<600)>
 
+extension StatusCode {
+  export const ok = StatusCode(200)
+  export const noContent = StatusCode(204)
+  export const badRequest = StatusCode(400)
+  export const notFound = StatusCode(404)
+  export const internalServerError = StatusCode(500)
+  export const serviceUnavailable = StatusCode(503)
+}
+
 export struct HeaderName {
   value: String
 
@@ -89,11 +98,11 @@ export struct HeaderName {
 
 export struct HeaderField {
   storedName: HeaderName
-  storedValue: Bytes
+  storedValue: String
 
   export const init(
     name: HeaderName,
-    value: Bytes,
+    value: String,
   ) throws HttpSyntaxError {
     guard isHttpFieldValue(value) else throw .invalidHeaderValue
     self.storedName = name
@@ -104,7 +113,7 @@ export struct HeaderField {
     return storedName
   }
 
-  export fn value(): view Bytes {
+  export fn value(): view String {
     return storedValue
   }
 }
@@ -124,6 +133,16 @@ export enum HttpBodyError: Error {
   transport(IoError)
 }
 
+export enum RequestDecodeError<CodecFailure: Error>: Error {
+  body(HttpBodyError)
+  codec(CodecFailure)
+}
+
+export enum ResponseError: Error {
+  encoding(JsonEncodeError)
+  bodyNotAllowed(status: StatusCode)
+}
+
 export enum HttpError: Error {
   syntax(HttpSyntaxError)
   body(HttpBodyError)
@@ -132,6 +151,15 @@ export enum HttpError: Error {
   unavailable
   protocol
   unsupported
+}
+
+export enum ServerError: Error {
+  unavailable
+  unsupported
+  invalidConfiguration
+  listen(NetworkError)
+  accept(NetworkError)
+  protocol(HttpError)
 }
 
 export struct MessageLimits {
@@ -147,12 +175,6 @@ export struct ServerLimits {
   queuedBytes: usize
   connections: usize<(1...)>
   message: MessageLimits
-}
-
-export enum ResponseBody {
-  none
-  bytes(Bytes)
-  stream(any ByteSource<HttpBodyError>)
 }
 
 export protocol IncomingBody: ByteSource<HttpBodyError> {
@@ -175,7 +197,7 @@ test "HTTP tokens accept only the RFC token alphabet" {
 }
 
 test "safe header values reject line injection" {
-  expect isHttpFieldValue(b"text\tvalue")
-  expect !isHttpFieldValue(b"text\r\ninjected")
-  expect !isHttpFieldValue(b"\x00")
+  expect isHttpFieldValue("text\tvalue")
+  expect !isHttpFieldValue("text\r\ninjected")
+  expect !isHttpFieldValue("\u{0000}")
 }

@@ -14,9 +14,9 @@ enum DispatchError: Error {
 }
 
 enum GatewayError: Error {
-  decode(DecodeError)
+  decode(http.RequestDecodeError<DecodeError>)
   dispatch(DispatchError)
-  response(ResponseError)
+  response(http.ResponseError)
   service(ServiceFailure)
 }
 
@@ -60,7 +60,7 @@ async fn dispatch(
 }
 
 async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
-  let command = try await request.decodeJson<Command>(maximumBytes: commandLimit)
+  let command = try await (take request).json<Command>(maximumBytes: commandLimit)
   let response = try await dispatch(
     take command,
     restaurant: lastLight,

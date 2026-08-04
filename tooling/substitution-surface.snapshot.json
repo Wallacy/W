@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:a8d8134d92b391211d4c5f6f82a61a7c2e6462e177379bb2d3175e609a1a230d",
+  "corpusDigest": "sha256:3da0c458c8b371cade175e15175f6a53b75fc226070b02c409ea880ecd3848dc",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2028,6 +2028,78 @@
             "nonWhitespaceCodePoints": 57,
             "lines": 6,
             "surfaceLexemes": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-web-request-url",
+      "task": {
+        "utf8Bytes": 78,
+        "codePoints": 78,
+        "nonWhitespaceCodePoints": 66,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a5ee9307fff7cf1645b603d2851bbbd73ab4e48db51f00d253516a71a7d5cf85",
+        "metrics": {
+          "utf8Bytes": 81,
+          "codePoints": 81,
+          "nonWhitespaceCodePoints": 74,
+          "lines": 2,
+          "surfaceLexemes": 21
+        }
+      },
+      "alternatives": [
+        {
+          "name": "request-path-query-aliases",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:18ed1900618b8086bde8f8bdf07038841b514c5ace834e52b41500c9699660d5",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 2,
+            "surfaceLexemes": 17
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-web-response-body",
+      "task": {
+        "utf8Bytes": 77,
+        "codePoints": 77,
+        "nonWhitespaceCodePoints": 68,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6425f364486055806bff3379e20bad3b2d07236df7a1d6e9ac89e9940a0de7e0",
+        "metrics": {
+          "utf8Bytes": 178,
+          "codePoints": 178,
+          "nonWhitespaceCodePoints": 158,
+          "lines": 3,
+          "surfaceLexemes": 40
+        }
+      },
+      "alternatives": [
+        {
+          "name": "response-body-helper-family",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:d88b78a46bb8079eb6ba618c719acd35feafd6d182a79061d21a6d922c44fb2c",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 2,
+            "surfaceLexemes": 22
           }
         }
       ]

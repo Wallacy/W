@@ -1,13 +1,13 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "6555cfa075c4154d8eacebef1ed0ec26c8a47a6fdc7c9a2b73e15543022906ad",
+  "catalogDigest": "6fec454fae30f5cff8781224c3696acb35b6354d465bc8dbf9f7d7707193b9a2",
   "summary": {
     "modules": 9,
-    "catalogedApis": 61,
-    "qualifiedReferenceSurfaces": 22,
-    "referenceRequirements": 7,
-    "contractedReferenceRequirements": 2,
+    "catalogedApis": 63,
+    "qualifiedReferenceSurfaces": 26,
+    "referenceRequirements": 9,
+    "contractedReferenceRequirements": 9,
     "missingReferenceRequirements": 6
   },
   "modules": [
@@ -203,14 +203,14 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "catalogedDeclarationsDigest": "2df11f7b4921995a386aa05eefcda1cbb60ee55d518c57ac24842414bd8c9c31",
+      "catalogedDeclarationsDigest": "dd8ea92dbbc1b193651ce8559b90cb7d97ad246cbdab01c80d99e06e3027d625",
       "apis": [
         {
           "symbol": "HeaderField",
           "kind": "struct",
           "signature": "export struct HeaderField",
-          "declarationDigest": "a83fc3f5b6b30ff2f49715d5f3687d3289f3dbc65f2d3d069300db493cd0f52b",
-          "line": 90,
+          "declarationDigest": "48171c93f9714571c5df7405ad7150c63f60d7d518706a8224b341d5267864d2",
+          "line": 99,
           "profile": "validated-http-token"
         },
         {
@@ -218,7 +218,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "624274616e6ac80b1da3f4fb9d750eb218c64bc5e06bc370efcd867a178774bc",
-          "line": 77,
+          "line": 86,
           "profile": "validated-http-token"
         },
         {
@@ -226,7 +226,7 @@
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error",
           "declarationDigest": "579432d4af58da993f910f552e8d0c3622d38f38d2ca68bfb89e842d2f4bb0c6",
-          "line": 120,
+          "line": 129,
           "profile": "value-contract"
         },
         {
@@ -234,7 +234,7 @@
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 127,
+          "line": 146,
           "profile": "value-contract"
         },
         {
@@ -242,7 +242,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler",
           "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
-          "line": 162,
+          "line": 184,
           "profile": "http-handler"
         },
         {
@@ -250,7 +250,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 112,
+          "line": 121,
           "profile": "value-contract"
         },
         {
@@ -258,7 +258,7 @@
           "kind": "protocol",
           "signature": "export protocol IncomingBody: ByteSource<HttpBodyError>",
           "declarationDigest": "f2f987d1f5a2a229f43a7194e642398c724d032c9eec5f2a1246fa0dfc6be4ad",
-          "line": 158,
+          "line": 180,
           "profile": "http-body"
         },
         {
@@ -266,7 +266,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 137,
+          "line": 165,
           "profile": "value-contract"
         },
         {
@@ -286,11 +286,27 @@
           "profile": "validated-http-token"
         },
         {
-          "symbol": "ResponseBody",
+          "symbol": "RequestDecodeError",
           "kind": "enum",
-          "signature": "export enum ResponseBody",
-          "declarationDigest": "d317e10cf17c501aa364eed5f85651c8a2a15898d44041d604ac0ae25a29f0f8",
-          "line": 152,
+          "signature": "export enum RequestDecodeError<CodecFailure: Error>: Error",
+          "declarationDigest": "0fc7d5ff775f7f65be41ecb4ac50ea2769cb1a3687dc846e80e21677d81ee486",
+          "line": 136,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "ResponseError",
+          "kind": "enum",
+          "signature": "export enum ResponseError: Error",
+          "declarationDigest": "02aca7c65c7bee0ea8735b3a6d2abbed0e23d6e7e20db6babf96dcfa30b35e38",
+          "line": 141,
+          "profile": "value-contract"
+        },
+        {
+          "symbol": "ServerError",
+          "kind": "enum",
+          "signature": "export enum ServerError: Error",
+          "declarationDigest": "3784a196602185f64193dd8b43db6309a65f76f690199ce84bd25542817679a7",
+          "line": 156,
           "profile": "value-contract"
         },
         {
@@ -298,7 +314,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 144,
+          "line": 172,
           "profile": "value-contract"
         },
         {
@@ -706,6 +722,14 @@
     },
     {
       "module": "std.http",
+      "surface": "Headers",
+      "status": "missing",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
       "surface": "MessageLimits",
       "status": "draft",
       "consumers": [
@@ -732,12 +756,29 @@
     },
     {
       "module": "std.http",
+      "surface": "RequestDecodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/gateway.w"
+      ]
+    },
+    {
+      "module": "std.http",
       "surface": "Response",
       "status": "missing",
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
         "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "ResponseError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/gateway.w"
       ]
     },
     {
@@ -751,7 +792,7 @@
     {
       "module": "std.http",
       "surface": "ServerError",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/app.w"
       ]
@@ -762,6 +803,15 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "StatusCode",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/wifi_app.w"
       ]
     }
   ],
@@ -787,13 +837,23 @@
       "module": "std.http",
       "surface": "Context",
       "status": "missing",
+      "profile": "http-context",
       "consumer": "reference/last-light/gateway.w"
+    },
+    {
+      "id": "sdk0-http-headers",
+      "module": "std.http",
+      "surface": "Headers",
+      "status": "missing",
+      "profile": "http-headers",
+      "consumer": "reference/last-light/benchmark_app.w"
     },
     {
       "id": "sdk0-http-request",
       "module": "std.http",
       "surface": "Request",
       "status": "missing",
+      "profile": "http-request",
       "consumer": "reference/last-light/benchmark_app.w"
     },
     {
@@ -801,20 +861,31 @@
       "module": "std.http",
       "surface": "Response",
       "status": "missing",
+      "profile": "http-response",
       "consumer": "reference/last-light/benchmark_app.w"
+    },
+    {
+      "id": "sdk0-http-response-error",
+      "module": "std.http",
+      "surface": "ResponseError",
+      "status": "draft",
+      "profile": "value-contract",
+      "consumer": "reference/last-light/gateway.w"
     },
     {
       "id": "sdk0-http-serve",
       "module": "std.http",
       "surface": "serve",
       "status": "missing",
+      "profile": "http-server",
       "consumer": "reference/last-light/app.w"
     },
     {
       "id": "sdk0-http-server-error",
       "module": "std.http",
       "surface": "ServerError",
-      "status": "missing",
+      "status": "draft",
+      "profile": "value-contract",
       "consumer": "reference/last-light/app.w"
     }
   ]

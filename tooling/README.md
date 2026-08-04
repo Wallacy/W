@@ -21,8 +21,8 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 52 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 117 formas R0 | não mede compreensão, correção nem tokens de um modelo |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 54 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 121 formas R0 | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | quatro bundles R1, oito variantes e dezesseis tarefas sobre controle, units, imports e fail-fast | parse e oracle host não equivalem a compilar ou executar W |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
@@ -32,7 +32,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `execution-concurrency-cases.json` + máquina E0 | 28 sequências e 280 operações cobrem lifecycle, cancelamento, oito origens happens-before e races | oracle host de eventos; não é scheduler, checker nem runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 61 exports, 22 superfícies qualificadas e dois de sete requisitos adversariais | catálogo e snapshot são projeções; seis APIs exigidas ainda não possuem draft |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 63 exports, 26 superfícies qualificadas e nove requisitos adversariais | catálogo e snapshot são projeções; seis APIs exigidas ainda não possuem draft |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
