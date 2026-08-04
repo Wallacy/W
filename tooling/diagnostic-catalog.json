@@ -1,0 +1,175 @@
+{
+  "$schema": "w-diagnostic-catalog-0",
+  "status": "projection-seed",
+  "codes": [
+    {
+      "code": "W-DIAGNOSTIC-0001",
+      "state": "active",
+      "phase": "build",
+      "defaultSeverity": "error",
+      "meaning": "diagnostic analysis stopped at an explicit limit",
+      "requiredFacts": {
+        "emitted": "integer",
+        "incomplete": "boolean",
+        "limit": "integer"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SEM-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a node does not satisfy its expected semantic use",
+      "requiredFacts": {
+        "actual": "string",
+        "expected": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-TYPE-0120",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "values do not have one unique safe common type",
+      "requiredFacts": {
+        "leftType": "string",
+        "rightType": "string"
+      },
+      "labelRoles": {
+        "branch-result": { "minimum": 2, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-INIT-0001",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a place is read before definite initialization",
+      "requiredFacts": {
+        "binding": "string",
+        "ownerState": "string",
+        "type": "string"
+      },
+      "labelRoles": {
+        "declaration": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "initialize-binding": "placeholder"
+      }
+    },
+    {
+      "code": "W-MOVE-0002",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a place is not available on every continuing predecessor",
+      "requiredFacts": {
+        "binding": "string",
+        "ownerState": "string",
+        "type": "string"
+      },
+      "labelRoles": {
+        "move-origin": { "minimum": 1, "maximum": 1 },
+        "predecessor": { "minimum": 0, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-BORROW-0001",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a borrow conflicts, escapes, or crosses an invalid suspension",
+      "requiredFacts": {
+        "binding": "string",
+        "borrowMode": "string",
+        "conflict": "string"
+      },
+      "labelRoles": {
+        "borrow-origin": { "minimum": 1, "maximum": 1 },
+        "borrow-use": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-EFFECT-0011",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a required effect is not handled or propagated",
+      "requiredFacts": {
+        "effects": "string[]"
+      },
+      "labelRoles": {},
+      "fixes": {
+        "propagate-error-and-suspension": "review"
+      }
+    },
+    {
+      "code": "W-FLOW-0001",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a structured exit has no compatible active owner",
+      "requiredFacts": {
+        "expectedOwner": "string",
+        "flow": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FLOW-0002",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a path reaches the end without its required result",
+      "requiredFacts": {
+        "expectedOwner": "string",
+        "flow": "string",
+        "resultType": "string"
+      },
+      "labelRoles": {
+        "return-requirement": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "add-return-value": "placeholder"
+      }
+    },
+    {
+      "code": "W-USE-0001",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a non-Unit value is discarded without explicit intent",
+      "requiredFacts": {
+        "resultType": "string"
+      },
+      "labelRoles": {},
+      "fixes": {
+        "discard-value": "review"
+      }
+    },
+    {
+      "code": "W-CAPABILITY-0001",
+      "state": "active",
+      "phase": "semantic.capability",
+      "defaultSeverity": "error",
+      "meaning": "an operational effect lacks its required capability owner",
+      "requiredFacts": {
+        "effect": "string",
+        "expectedOwner": "string",
+        "provider": "string"
+      },
+      "labelRoles": {
+        "transaction-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    }
+  ]
+}

@@ -44,7 +44,16 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-SEM-0001", "primary": "1" }
+          {
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "1" },
+            "labels": [],
+            "facts": { "actual": "integer-literal", "expected": "Bool" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     },
@@ -59,7 +68,16 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-SEM-0001", "primary": "+" }
+          {
+            "code": "W-SEM-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "+" },
+            "labels": [],
+            "facts": { "actual": "binary-expression", "expected": "call-root" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     },
@@ -74,7 +92,19 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-TYPE-0120", "primary": "if" }
+          {
+            "code": "W-TYPE-0120",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "if" },
+            "labels": [
+              { "role": "branch-result", "selector": { "text": "1" } },
+              { "role": "branch-result", "selector": { "text": "\"one\"" } }
+            ],
+            "facts": { "leftType": "Int", "rightType": "String" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     },
@@ -90,7 +120,26 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-INIT-0001", "primary": "ticket" }
+          {
+            "code": "W-INIT-0001",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "ticket", "occurrence": 1 },
+            "labels": [
+              { "role": "declaration", "selector": { "text": "ticket", "occurrence": 0 } }
+            ],
+            "facts": { "binding": "ticket", "ownerState": "uninitialized", "type": "Ticket" },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "initialize-binding",
+                "titleKey": "fix.init.add-value",
+                "applicability": "placeholder",
+                "at": { "text": "Ticket", "edge": "end" },
+                "text": " = <#Ticket#>"
+              }
+            ]
+          }
         ]
       }
     },
@@ -106,7 +155,21 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-MOVE-0002", "primary": "order" }
+          {
+            "code": "W-MOVE-0002",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "order", "occurrence": 2 },
+            "labels": [
+              { "role": "move-origin", "selector": { "text": "take order" } },
+              { "role": "predecessor", "selector": { "text": "if remotely" } }
+            ],
+            "facts": { "binding": "order", "ownerState": "maybe-moved", "type": "Order" },
+            "notes": [
+              { "key": "move.unavailable-after-join", "arguments": { "binding": "order" } }
+            ],
+            "fixes": []
+          }
         ]
       }
     },
@@ -123,7 +186,19 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-BORROW-0001", "primary": "values.append" }
+          {
+            "code": "W-BORROW-0001",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "values.append" },
+            "labels": [
+              { "role": "borrow-origin", "selector": { "text": "values[0]" } },
+              { "role": "borrow-use", "selector": { "text": "inspect(first)" } }
+            ],
+            "facts": { "binding": "values", "borrowMode": "ref", "conflict": "mutation" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     },
@@ -132,13 +207,32 @@
       "kind": "negative",
       "rule": "W-786",
       "source": [
-        "async fn load(client: ref MenuClient): Menu {",
+        "async fn load(client: ref MenuClient): Menu throws MenuError {",
         "  return client.loadMenu()",
         "}"
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-EFFECT-0011", "primary": "client.loadMenu" }
+          {
+            "code": "W-EFFECT-0011",
+            "phase": "semantic.effect",
+            "severity": "error",
+            "primary": { "text": "client.loadMenu" },
+            "labels": [],
+            "facts": { "effects": ["MenuError", "suspension"] },
+            "notes": [
+              { "key": "effect.requires-handling", "arguments": { "effect": "MenuError+suspension" } }
+            ],
+            "fixes": [
+              {
+                "id": "propagate-error-and-suspension",
+                "titleKey": "fix.effect.propagate",
+                "applicability": "review",
+                "at": { "text": "client.loadMenu", "edge": "start" },
+                "text": "try await "
+              }
+            ]
+          }
         ]
       }
     },
@@ -153,7 +247,16 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-FLOW-0001", "primary": "missingLoop" }
+          {
+            "code": "W-FLOW-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": { "text": "missingLoop" },
+            "labels": [],
+            "facts": { "expectedOwner": "loop", "flow": "break(missingLoop)" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     },
@@ -168,7 +271,26 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-FLOW-0002", "primary": "}" }
+          {
+            "code": "W-FLOW-0002",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": { "text": "}", "occurrence": 1 },
+            "labels": [
+              { "role": "return-requirement", "selector": { "text": ": Ticket" } }
+            ],
+            "facts": { "expectedOwner": "function", "flow": "next", "resultType": "Ticket" },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "add-return-value",
+                "titleKey": "fix.flow.add-return",
+                "applicability": "placeholder",
+                "at": { "text": "}", "occurrence": 1, "edge": "start" },
+                "text": "  return <#Ticket#>\n"
+              }
+            ]
+          }
         ]
       }
     },
@@ -183,7 +305,24 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-USE-0001", "primary": "prices.add" }
+          {
+            "code": "W-USE-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": { "text": "prices.add" },
+            "labels": [],
+            "facts": { "resultType": "Bool" },
+            "notes": [],
+            "fixes": [
+              {
+                "id": "discard-value",
+                "titleKey": "fix.use.discard",
+                "applicability": "review",
+                "at": { "text": "prices.add", "edge": "start" },
+                "text": "let _ = "
+              }
+            ]
+          }
         ]
       }
     },
@@ -201,7 +340,18 @@
       ],
       "expect": {
         "diagnostics": [
-          { "code": "W-CAPABILITY-0001", "primary": "payments.charge" }
+          {
+            "code": "W-CAPABILITY-0001",
+            "phase": "semantic.capability",
+            "severity": "error",
+            "primary": { "text": "payments.charge" },
+            "labels": [
+              { "role": "transaction-owner", "selector": { "text": "transaction tx = store" } }
+            ],
+            "facts": { "effect": "payments.charge", "expectedOwner": "tx", "provider": "store" },
+            "notes": [],
+            "fixes": []
+          }
         ]
       }
     }

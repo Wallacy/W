@@ -82,7 +82,7 @@ leitura.
 
 | Eixo | Estimativa | Evidência e limite atual |
 |---|---:|---|
-| superfície e semântica estática | 95–97% | G0–G5 fecham syntax e S0 integra typing, effects, ownership, flow e avaliação; formatter, checker e corpus negativo ainda precisam de oracles executáveis |
+| superfície e semântica estática | 96–98% | G0–G5 fecham syntax, S0 integra semantics e D0 fecha diagnostics estruturados; formatter, checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
 | validação executável | 30–40% | Tree-sitter, oracles e manifests validam forma; ainda não existe type-checker, formatter, HIR ou runtime W |
@@ -2370,7 +2370,8 @@ erro de move seja aceito somente porque o checker perdeu o type ou o effect.
 com casos syntax-valid. O status `design-oracle-input` informa que os resultados
 ainda são expectativas, não output de um checker. O verificador estrutural
 confirma IDs, coverage, decisions e parse. Ele não declara conformance sem um
-frontend S0.
+frontend S0. O [snapshot D0](tooling/semantic-diagnostics.snapshot.jsonl)
+materializa spans, facts, labels e fixes esperados.
 
 ### 3.6 Avaliação compile-time
 
@@ -17631,6 +17632,7 @@ fix-it que propõe `copy` somente quando o tipo atende a `Copy`.
 
 Diagnostics possuem código estável, spans, related spans, fix-its e saída
 estruturada. O compilador preserva a regra violada até produzir o diagnóstico.
+A seção 22.5 define o contrato D0, a causalidade e a serialização normativa.
 
 Debug symbols ficam em sidecar removível. Logical task stacks e source maps de
 `fn<Language>` preservam a origem. Remover debug não remove reflection solicitada
@@ -19945,72 +19947,268 @@ Contagem de tokens depende do tokenizer. O design vigente mede vários modelos a
 trocar uma keyword por pontuação. Compile success, testes e edit distance têm
 mais peso que token count isolado.
 
-### 22.5 Diagnostics estruturados
+### 22.5 Diagnostics estruturados D0
 
-Um diagnostic possui identidade estável e dados antes de possuir prosa. A saída
-JSONL canônica contém:
+**Exemplo:** um use-after-move possui uma identidade, um span de uso e um span
+de origem. A mensagem renderizada não é sua API:
 
 ```json
 {
   "schemaVersion": 1,
-  "code": "W-MOVE-0001",
-  "phase": "typecheck",
+  "instance": "D000001",
+  "code": "W-MOVE-0002",
+  "phase": "semantic.ownership",
   "severity": "error",
-  "primary": {"source": "order.w", "startByte": 418, "endByte": 423},
+  "primary": {
+    "source": "last-light/orders.w",
+    "startByte": 418,
+    "endByte": 423
+  },
   "labels": [
-    {"source": "order.w", "startByte": 351, "endByte": 361, "role": "move"}
+    {
+      "role": "move-origin",
+      "span": {
+        "source": "last-light/orders.w",
+        "startByte": 351,
+        "endByte": 361
+      }
+    }
   ],
-  "facts": {"binding": "order", "type": "Order"},
-  "help": ["borrow the value or move it only once"],
+  "facts": {
+    "binding": "order",
+    "ownerState": "moved",
+    "type": "Order"
+  },
+  "notes": [
+    {
+      "key": "move.unavailable-after-join",
+      "arguments": {"binding": "order"}
+    }
+  ],
   "fixes": [],
   "root": null
 }
 ```
 
-Byte offsets são canônicos. O renderer calcula line, Unicode scalar column e
-display column. Um diagnostic gerado por macro ou ilha registra os spans de
-origem e expansão:
+D0 é a saída interna canônica de compiler, LSP, CI e assistentes. Adapters
+podem produzir texto, LSP ou SARIF. Eles não alteram code, spans, facts, fixes
+ou relações causais.
 
-```text
-order.w:18:9: error[W-MOVE-0001]: order was already moved
-  note: move occurred at order.w:15:10
+#### 22.5.1 Record e serialização
+
+| Campo | Regra |
+|---|---|
+| `schemaVersion` | integer positivo que seleciona o schema completo |
+| `instance` | ID determinístico dentro de uma invocation |
+| `code` | identidade estável da regra violada |
+| `phase` | fase fechada que primeiro não produziu resultado válido |
+| `severity` | `error`, `warning` ou `information` |
+| `primary` | menor span que identifica o uso ou requisito inválido |
+| `labels` | spans relacionados com roles definidos pelo code |
+| `facts` | dados tipados necessários para explicar ou corrigir |
+| `notes` | message keys e argumentos estruturados opcionais |
+| `fixes` | zero ou mais transformações condicionais |
+| `root` | `null` para raiz ou `instance` da causa principal |
+
+JSONL usa UTF-8 sem BOM e LF. Cada linha possui um record sem insignificant
+whitespace. A ordem dos campos segue a tabela. Keys dentro de `facts` e
+`arguments` usam ordem por bytes UTF-8. Arrays preservam sua ordem semântica.
+
+Um snapshot não contém host path, locale, clock, PID, address ou ordem de
+threads. `source` é o ID lógico do source inventory. Um adapter resolve esse ID
+para um path local quando possui authority.
+
+`instance` é atribuído depois da ordenação completa. A forma é `D` seguida por
+seis digits na v0. O ID existe somente na invocation e não entra em cache key,
+interface ou source.
+
+#### 22.5.2 Spans e origem
+
+Um span usa o intervalo half-open `[startByte, endByte)`. Os offsets começam no
+source UTF-8 original. Eles sempre ficam em boundaries de code point. Um token
+ausente usa `startByte == endByte` no ponto de inserção.
+
+O `primary` seleciona o menor intervalo que contém a ação inválida. Ele não
+seleciona toda a declaration quando um token ou expression basta:
+
+```w
+send(take order)
+inspect(order)
+        ^^^^^ primary: uso indisponível
 ```
 
-Codes usam uma família e quatro digits, como `W-PARSE-0001`,
-`W-TYPE-0042`, `W-MOVE-0001`, `W-EFFECT-0008`, `W-FFI-0012` e
-`W-BUILD-0003`. Um code removido nunca recebe outro significado. A mensagem
-humana pode melhorar sem alterar o code.
+O move anterior usa label `move-origin`. Um branch join pode adicionar labels
+`predecessor` para os edges incompatíveis. Roles pertencem ao catálogo do code.
+Uma ferramenta não extrai roles de prose.
 
-Um fix contém edits, applicability e precondition. Applicability é `.machine`,
-`.review` ou `.placeholder`. A precondition inclui o source digest:
+Source gerado registra a expansão e a origem como labels distintos. A primary
+fica no source editável mais próximo. Se nenhum source editável existe, ela fica
+na expansão e o diagnostic não oferece fix editável.
+
+Line, Unicode scalar column e display column são projeções do renderer. Tabs,
+graphemes e largura do terminal não alteram offsets canônicos.
+
+#### 22.5.3 Phases e codes
+
+`phase` usa este conjunto fechado e ordenado:
+
+```text
+source.lex
+source.parse
+source.lower
+source.format
+semantic.resolve
+semantic.const
+semantic.type
+semantic.ownership
+semantic.effect
+semantic.flow
+semantic.capability
+interface
+abi
+link
+build
+package
+test
+lint
+```
+
+A primeira fase incapaz de produzir seu output emite o root diagnostic. Uma
+fase posterior pode emitir somente uma causa independente ou um child ligado a
+esse root. Ela não reclassifica o mesmo problema para obter uma mensagem melhor.
+
+Codes usam uma família e quatro digits. Exemplos são `W-PARSE-0001`,
+`W-TYPE-0042`, `W-MOVE-0002`, `W-EFFECT-0011`, `W-FFI-0012` e
+`W-BUILD-0003`.
+
+O catálogo de cada code define:
+
+| Campo | Conteúdo |
+|---|---|
+| state | active, reserved ou retired |
+| phase | phase única permitida |
+| defaultSeverity | severity antes da policy |
+| meaning | condição estável, sem depender da mensagem |
+| requiredFacts | keys e tipos obrigatórios em `facts` |
+| labelRoles | roles e cardinalidade permitidas |
+| fixes | IDs de fix permitidos e suas preconditions |
+
+[`tooling/diagnostic-catalog.json`](tooling/diagnostic-catalog.json) é a
+projeção executável inicial. Seu status `projection-seed` impede uma alegação de
+catálogo completo. O checker informa a cobertura contra todos os codes citados
+neste documento.
+
+Um code retired nunca recebe outro significado. Um code reservado não aparece
+em output. Antes do 1.0, uma mudança de schema atualiza corpus e snapshots na
+mesma revisão. Ela não mantém uma leitura antiga por inércia.
+
+#### 22.5.4 Facts, notes e segurança
+
+`facts` contém símbolos normalizados, types, owner states, effects, candidates,
+requirements e proof facts. Ele não contém pointer, secret, runtime payload ou
+bytes que não aparecem no source autorizado.
+
+Uma note possui `key`, `arguments` e span opcional. A key seleciona uma mensagem
+do renderer. O JSONL canônico não contém prose localizada. Um renderer sem a
+key mostra code, roles e facts sem perder a condição técnica.
 
 ```json
 {
-  "title": "borrow order",
-  "applicability": "machine",
-  "sourceDigest": "sha256:...",
-  "edits": [{"source": "order.w", "startByte": 418, "endByte": 418, "text": "ref "}]
+  "key": "effect.requires-propagation",
+  "arguments": {"effect": "KitchenError"},
+  "span": {"source": "last-light/kitchen.w", "startByte": 90, "endByte": 104}
 }
 ```
 
-Uma ferramenta só aplica `.machine` quando o digest ainda corresponde. `.review`
-exige confirmação humana. `.placeholder` contém uma região que ainda precisa de
-um valor.
+Diagnostics não copiam request bodies, environment values, package credentials
+ou capability tokens. Um literal secreto já presente no source continua sujeito
+à policy do source artifact. O diagnostic referencia seu span e não replica o
+texto em `facts`.
 
-Diagnostics usam ordem determinística por logical path, byte inicial, code e
-ocorrência. Um error secundário aponta para o diagnostic raiz. O renderer limita
-cascades por raiz:
+#### 22.5.5 Fixes
 
-```text
-W-TYPE-0042 root
-  W-TYPE-0119 caused-by W-TYPE-0042
+Um fix contém ID, title key, applicability, preconditions e edits:
+
+```json
+{
+  "id": "propagate-error-and-suspension",
+  "titleKey": "fix.effect.propagate",
+  "applicability": "review",
+  "preconditions": [
+    {
+      "source": "last-light/kitchen.w",
+      "digest": "sha256:0123456789abcdef"
+    }
+  ],
+  "edits": [
+    {
+      "source": "last-light/kitchen.w",
+      "startByte": 90,
+      "endByte": 90,
+      "text": "try await "
+    }
+  ]
+}
 ```
 
-O compiler pode usar poison types para continuar a análise. Ele nunca gera um
-executable quando existe um diagnostic `error`.
+Applicability usa três valores:
 
-Errors não podem ser suprimidos. Warnings são configuradas por code e path no
-manifest ou CLI:
+| Valor | Garantia |
+|---|---|
+| `machine` | transformação única, sem placeholder e com semântica preservada já provada |
+| `review` | candidato type-correct que escolhe uma intenção, effect ou custo |
+| `placeholder` | estrutura incompleta que exige input humano |
+
+Inserir `try await` é `review`. O programa também pode usar `try?`, `catch`,
+`async let` ou outro design. Inserir `copy` após um move também é `review`,
+mesmo quando `Duplicable` existe. A cópia pode alterar custo ou identidade.
+
+Formatter e remoção de token redundante podem usar `machine` quando reparse e
+S0 preservam o mesmo resultado. Um missing return value usa `placeholder`.
+
+Preconditions incluem o digest de cada source editado. Edits usam os offsets do
+source original, não se sobrepõem e são aplicados simultaneamente. A ordem
+canônica é source inventory, `startByte`, `endByte` e text.
+
+Uma ferramenta aplica `machine` somente quando todos os digests correspondem.
+Ela executa parse e check novamente depois da edição. `review` exige confirmação.
+`placeholder` nunca é aplicado sem preencher todas as regiões.
+
+#### 22.5.6 Causalidade, poison e ordem
+
+Um root possui `root: null`. Um diagnostic derivado aponta para a `instance` do
+root. Labels e notes não criam diagnostics secundários.
+
+```text
+D000001 W-TYPE-0042 root
+  D000002 W-TYPE-0119 caused-by D000001
+```
+
+Poison mantém type, owner e effect desconhecidos separados. O checker não emite
+outro diagnostic somente porque consumiu poison. Ele emite um child quando uma
+regra independente também falha e essa informação ajuda a correção.
+
+Roots usam esta ordem:
+
+1. source ordinal do inventory;
+2. `primary.startByte`;
+3. ordinal fechado de `phase`;
+4. code por bytes;
+5. ordinal estrutural do node na AST normalizada.
+
+Children seguem o root, a profundidade causal, o span e o code. `instance` é
+atribuído depois dessa ordem. Scheduling, hash seed e incremental cache não
+alteram o stream.
+
+Um limite de diagnostics não termina silenciosamente. O compiler emite
+`W-DIAGNOSTIC-0001` como último root. Seus facts contêm `limit`, `emitted` e
+`incomplete: true`. O process continua com exit failure.
+
+#### 22.5.7 Policy e renderers
+
+O compiler nunca gera executable quando existe severity efetiva `error`.
+Errors não podem ser suprimidos. Warnings são configuradas por code e logical
+path no manifest ou CLI:
 
 ```w
 diagnostics {
@@ -20019,24 +20217,49 @@ diagnostics {
 }
 ```
 
-Source annotations de suppressão não entram no design vigente. Elas esconderiam policy no
-programa e adicionariam syntax permanente.
+Uma policy pode promover warning para error. Ela não reduz error. Source
+annotations de suppressão ficam rejeitadas. Elas esconderiam policy no programa
+e adicionariam syntax permanente.
 
-O schema JSON não é localizado. Um renderer pode localizar a mensagem. LSP e
-SARIF são adapters do mesmo diagnostic; eles não definem a semântica interna.
-Eventos runtime `ErrorEvent` e `PanicEvent` usam schemas separados.
-
-`w explain diagnostic CODE` mostra significado, causas, exemplos e fixes:
+O renderer humano usa o catálogo e pode localizar prose. A linha inicial contém
+logical path, posição, severity, code e mensagem curta:
 
 ```text
-w explain diagnostic W-MOVE-0001
+last-light/orders.w:18:9: error[W-MOVE-0002]: order is not available
+  note: move occurred at last-light/orders.w:15:10
 ```
+
+LSP e SARIF são adapters de D0. Eventos runtime `ErrorEvent` e `PanicEvent`
+usam schemas separados. `w explain diagnostic CODE` mostra meaning, facts,
+roles, exemplos e fixes do catálogo.
+
+#### 22.5.8 Snapshots e conformance
+
+**Exemplo:** este check compara o oracle D0 e também parseia todos os sources:
+
+```text
+bun tooling/check-semantic-cases.mjs
+```
+
+Compile-fail fixture contém source, code, primary span, labels, facts e fixes
+esperados. Uma mudança de prose não altera o snapshot D0. Uma mudança de
+semântica, span ou applicability exige revisão do snapshot.
+
+O corpus S0 usa sources da Última Luz e uma inversão por regra. O snapshot é
+ordenado e byte-exact. O runner usa o source inventory completo para atribuir
+`instance`. Um test isolado remapeia somente `instance` e `root` antes de
+comparar os outros campos.
+
+Até existir checker, o `status` do corpus permanece `design-oracle-input`. O
+snapshot prova schema, offsets, coverage e determinismo do oracle. Ele não prova
+que um frontend já detecta o erro. O arquivo vigente é
+[`tooling/semantic-diagnostics.snapshot.jsonl`](tooling/semantic-diagnostics.snapshot.jsonl).
 
 O schema toma como precedentes a saída
 [JSON do rustc](https://doc.rust-lang.org/beta/rustc/json.html), o
 [Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
 e o [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.pdf).
-W mantém um schema interno menor e produz LSP ou SARIF por adapter.
+W mantém D0 menor e produz os formatos externos por adapter.
 
 ## 23. Protocolos e pesquisas de ecossistema
 
@@ -21738,7 +21961,7 @@ mesma profundidade em todas as famílias:
 |---|---|---|
 | grammar normativa | G0–G5 normativos para statements, declarations, raízes, types, contracts, patterns, expressions, boundaries e recovery | formatter executável e snapshots parse-format-parse |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation por construct | checker oracle, snapshots de `SemanticResult` e corpus negativo |
-| diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; corpus possui snapshots iniciais | catálogo completo de codes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23251,6 +23474,16 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-789 | initializer de child | `async let` e `spawn let` exigem call root; parent prepara callable, argumentos e captures; child executa o body | mover expressão composta inteira implicitamente; lazy no await; avaliar argumentos no child |
 | W-790 | disciplina de use | expression statement aceita Unit ou Never; outro value exige binding ou `let _` | `must_use` opt-in; descarte silencioso; warning sem erro |
 | W-791 | matriz como interface | S0 é a interface normativa AST→HIR; seções de domínio acrescentam facts sem mudar o schema | regras dispersas sem normalização; MLIR define semântica; schema diferente por backend |
+| W-792 | diagnostic D0 | record canônico separa code, phase, severity, primary, labels, facts, notes, fixes e root | texto livre como API; schema por renderer; LSP define semântica interna |
+| W-793 | span D0 | source ID lógico e intervalo UTF-8 half-open; line e display column são projeções | host path; line/column canônicos; offset que corta code point |
+| W-794 | phase e code | phase vem de enum fechado; code possui catálogo, meaning e lifecycle sem reutilização | phase livre; code escolhido pelo renderer; reutilizar ID retired |
+| W-795 | facts e notes | facts tipados não carregam secrets; notes usam key e argumentos sem prose localizada | mensagem como único fato; copiar runtime payload; parser de texto para tooling |
+| W-796 | fix D0 | machine exige prova e digest; review escolhe intenção; placeholder exige input; edits são simultâneos | aplicar fix stale; `copy` automático; edit sobreposto ou sequencial |
+| W-797 | causalidade D0 | root identifica primeira falha; child exige causa independente útil; poison não cria cascade repetida | cada use de poison vira error; root por ordem de emissão; notes como diagnostics |
+| W-798 | ordem D0 | source inventory, byte, phase, code e AST ordinal ordenam roots antes de atribuir instance | scheduler order; hash iteration; path absoluto; instance persistente |
+| W-799 | truncation D0 | limite emite `W-DIAGNOSTIC-0001` com incomplete e mantém exit failure | truncar silenciosamente; success parcial; contagem dependente de threads |
+| W-800 | policy D0 | policy promove warning, nunca reduz error; source suppression fica rejeitada | annotation de suppressão; adapter altera severity; warning ambiental |
+| W-801 | conformance D0 | compile-fail compara JSONL byte-exact; corpus design-oracle não alega checker implementado | golden de prose; teste só de code; snapshot manual tratado como output real |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
