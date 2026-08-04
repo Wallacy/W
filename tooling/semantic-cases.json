@@ -383,6 +383,332 @@
       }
     },
     {
+      "id": "S0-POS-pattern-capture-modality",
+      "kind": "positive",
+      "rule": "W-765",
+      "source": [
+        "enum KitchenOutcome {",
+        "  ready(Dish)",
+        "  delayed",
+        "}",
+        "fn readyDish(outcome: ref KitchenOutcome): Dish? {",
+        "  return switch outcome {",
+        "    case .ready(let dish): .some(dish)",
+        "    case .delayed: .none",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".ready(let dish)" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "capture", "place": "dish", "type": "ref Dish" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "enum-case", "subject": "outcome", "value": "ready" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "test", "operation": "test-case", "subject": "KitchenOutcome.ready" },
+              { "id": "capture", "operation": "project-capture", "subject": "dish" }
+            ],
+            "edges": [{ "from": "test", "to": "capture", "kind": "true" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-pattern-payload-shape",
+      "kind": "positive",
+      "rule": "W-767",
+      "source": [
+        "enum OvenReading {",
+        "  stable(i32)",
+        "  failed",
+        "}",
+        "fn temperature(reading: ref OvenReading): i32 {",
+        "  return switch reading {",
+        "    case .stable(let value): value",
+        "    case .failed: 0",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".stable(let value)" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "capture", "place": "value", "type": "i32" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "enum-case", "subject": "reading", "value": "stable" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "test", "operation": "test-case", "subject": "OvenReading.stable" },
+              { "id": "payload", "operation": "project-position", "subject": "0" }
+            ],
+            "edges": [{ "from": "test", "to": "payload", "kind": "true" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-pattern-visible-field",
+      "kind": "positive",
+      "rule": "W-767",
+      "source": [
+        "enum TicketState {",
+        "  open",
+        "  closed",
+        "}",
+        "struct Ticket {",
+        "  id: Int",
+        "  state: TicketState",
+        "}",
+        "fn isOpen(ticket: ref Ticket): Bool {",
+        "  return switch ticket {",
+        "    case Ticket(state: .open, ...): true",
+        "    case _: false",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "Ticket(state: .open, ...)" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "field-equals", "subject": "ticket.state", "value": "open" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "shape", "operation": "test-nominal", "subject": "Ticket" },
+              { "id": "state", "operation": "test-field", "subject": "state=open" }
+            ],
+            "edges": [{ "from": "shape", "to": "state", "kind": "true" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-pattern-visible-aggregate",
+      "kind": "positive",
+      "rule": "W-764",
+      "source": [
+        "struct VaultRecord { code: Int }",
+        "fn codeOf(vault: ref VaultRecord): Int {",
+        "  return switch vault {",
+        "    case VaultRecord(code: let code): code",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "VaultRecord(code: let code)" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "capture", "place": "code", "type": "Int" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "nominal-shape", "subject": "vault", "value": "VaultRecord" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "shape", "operation": "test-nominal", "subject": "VaultRecord" },
+              { "id": "field", "operation": "project-capture", "subject": "code" }
+            ],
+            "edges": [{ "from": "shape", "to": "field", "kind": "true" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-pattern-readonly-guard",
+      "kind": "positive",
+      "rule": "W-766",
+      "source": [
+        "enum DishOutcome {",
+        "  ready(Dish)",
+        "  failed",
+        "}",
+        "fn safeDish(outcome: take DishOutcome): Dish? {",
+        "  return switch take outcome {",
+        "    case .ready(let dish) if dish.isSafe: .some(take dish)",
+        "    case .ready(let dish): .none",
+        "    case .failed: .none",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".ready(let dish) if dish.isSafe" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "capture", "place": "dish", "type": "Dish" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "enum-case", "subject": "outcome", "value": "ready" },
+            { "kind": "guard", "subject": "dish.isSafe", "value": "true" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "test", "operation": "test-case", "subject": "DishOutcome.ready" },
+              { "id": "projection", "operation": "project-provisional", "subject": "dish" },
+              { "id": "guard", "operation": "read-guard", "subject": "dish.isSafe" },
+              { "id": "confirm", "operation": "confirm-capture", "subject": "dish" }
+            ],
+            "edges": [
+              { "from": "test", "to": "projection", "kind": "true" },
+              { "from": "projection", "to": "guard", "kind": "next" },
+              { "from": "guard", "to": "confirm", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-pattern-compatible-range",
+      "kind": "positive",
+      "rule": "W-764",
+      "source": [
+        "fn isEarlyCourse(value: Int<(0...9)>): Bool {",
+        "  return switch value {",
+        "    case 0...5: true",
+        "    case _: false",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "0...5" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "integer-range", "subject": "value", "value": "0...5" }],
+          "evaluationGraph": {
+            "nodes": [{ "id": "range", "operation": "test-range", "subject": "0...5" }],
+            "edges": []
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-match-exhaustive",
+      "kind": "positive",
+      "rule": "W-764",
+      "source": [
+        "enum WorkStage {",
+        "  preparing",
+        "  serving",
+        "}",
+        "fn instruction(stage: WorkStage): String {",
+        "  return switch stage {",
+        "    case .preparing: \"Prepare\"",
+        "    case .serving: \"Serve\"",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "switch stage" },
+        "semanticResult": {
+          "resultType": "String",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "exhaustive", "subject": "stage", "value": "preparing|serving" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "subject", "operation": "read-once", "subject": "stage" },
+              { "id": "preparing", "operation": "test-case", "subject": "preparing" },
+              { "id": "serving", "operation": "test-case", "subject": "serving" },
+              { "id": "join", "operation": "join", "subject": "String" }
+            ],
+            "edges": [
+              { "from": "subject", "to": "preparing", "kind": "next" },
+              { "from": "preparing", "to": "join", "kind": "true" },
+              { "from": "preparing", "to": "serving", "kind": "false" },
+              { "from": "serving", "to": "join", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-match-reachable-case",
+      "kind": "positive",
+      "rule": "W-764",
+      "source": [
+        "enum WorkSignal {",
+        "  preparing",
+        "  serving",
+        "}",
+        "fn route(signal: WorkSignal): String {",
+        "  return switch signal {",
+        "    case .preparing: \"Prepare\"",
+        "    case _: \"Other\"",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".preparing" },
+        "semanticResult": {
+          "resultType": "Bool",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "enum-case", "subject": "signal", "value": "preparing" }],
+          "evaluationGraph": {
+            "nodes": [{ "id": "case", "operation": "test-case", "subject": "WorkSignal.preparing" }],
+            "edges": []
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-match-contextual-enum",
+      "kind": "positive",
+      "rule": "W-764",
+      "source": [
+        "enum KitchenSignal {",
+        "  ready",
+        "  failed",
+        "}",
+        "fn selectedSignal() {",
+        "  let selected: KitchenSignal = .ready",
+        "  inspect(selected)",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": ".ready" },
+        "semanticResult": {
+          "resultType": "KitchenSignal",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "enum-case", "subject": "selected", "value": "KitchenSignal.ready" }],
+          "evaluationGraph": {
+            "nodes": [{ "id": "member", "operation": "resolve-contextual", "subject": "KitchenSignal.ready" }],
+            "edges": []
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-contract-known-slot",
       "kind": "positive",
       "rule": "W-757",
@@ -556,6 +882,355 @@
           }
         },
         "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-capture-modality",
+      "kind": "negative",
+      "rule": "W-765",
+      "baseline": "S0-POS-pattern-capture-modality",
+      "failureField": "ownerDelta",
+      "source": [
+        "enum KitchenOutcome {",
+        "  ready(Dish)",
+        "  delayed",
+        "}",
+        "fn readyDish(outcome: ref KitchenOutcome): Dish? {",
+        "  return switch outcome {",
+        "    case .ready(dish): .some(dish)",
+        "    case .delayed: .none",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "dish", "occurrence": 0 },
+            "labels": [
+              { "role": "pattern-owner", "selector": { "text": ".ready(dish)" } }
+            ],
+            "facts": {
+              "capture": "dish",
+              "context": "switch-case",
+              "requiredForm": "let-capture"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-payload-arity",
+      "kind": "negative",
+      "rule": "W-767",
+      "baseline": "S0-POS-pattern-payload-shape",
+      "failureField": "evaluationGraph",
+      "source": [
+        "enum OvenReading {",
+        "  stable(i32)",
+        "  failed",
+        "}",
+        "fn temperature(reading: ref OvenReading): i32 {",
+        "  return switch reading {",
+        "    case .stable(let first, let second): first",
+        "    case .failed: 0",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0002",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": ".stable(let first, let second)" },
+            "labels": [
+              { "role": "pattern-owner", "selector": { "text": "switch reading" } },
+              { "role": "type-declaration", "selector": { "text": "stable(i32)" } }
+            ],
+            "facts": {
+              "actualArity": 2,
+              "case": "OvenReading.stable",
+              "expectedArity": 1,
+              "payloadMode": "positional"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-unknown-field",
+      "kind": "negative",
+      "rule": "W-767",
+      "baseline": "S0-POS-pattern-visible-field",
+      "failureField": "proofFacts",
+      "source": [
+        "enum TicketState {",
+        "  open",
+        "  closed",
+        "}",
+        "struct Ticket {",
+        "  id: Int",
+        "  state: TicketState",
+        "}",
+        "fn isOpen(ticket: ref Ticket): Bool {",
+        "  return switch ticket {",
+        "    case Ticket(status: .open, ...): true",
+        "    case _: false",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "status" },
+            "labels": [
+              { "role": "pattern-owner", "selector": { "text": "Ticket(status: .open, ...)" } },
+              { "role": "type-declaration", "selector": { "text": "struct Ticket" } }
+            ],
+            "facts": {
+              "field": "status",
+              "reason": "unknown",
+              "type": "Ticket",
+              "visibleFields": ["id", "state"]
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-opaque-aggregate",
+      "kind": "negative",
+      "rule": "W-764",
+      "baseline": "S0-POS-pattern-visible-aggregate",
+      "failureField": "evaluationGraph",
+      "source": [
+        "object KitchenVault { var code: Int = 0 }",
+        "fn codeOf(vault: ref KitchenVault): Int {",
+        "  return switch vault {",
+        "    case KitchenVault(code: let code): code",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0005",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "KitchenVault(code: let code)" },
+            "labels": [
+              { "role": "pattern-owner", "selector": { "text": "switch vault" } },
+              { "role": "type-declaration", "selector": { "text": "object KitchenVault" } }
+            ],
+            "facts": {
+              "category": "object",
+              "destructuringVisibility": "opaque",
+              "type": "KitchenVault"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-consuming-guard",
+      "kind": "negative",
+      "rule": "W-766",
+      "baseline": "S0-POS-pattern-readonly-guard",
+      "failureField": "ownerDelta",
+      "source": [
+        "enum DishOutcome {",
+        "  ready(Dish)",
+        "  failed",
+        "}",
+        "fn safeDish(outcome: take DishOutcome): Dish? {",
+        "  return switch take outcome {",
+        "    case .ready(let dish) if validate(take dish): .none",
+        "    case .ready(let dish): .none",
+        "    case .failed: .none",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0006",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "take dish" },
+            "labels": [
+              { "role": "capture-origin", "selector": { "text": "let dish", "occurrence": 0 } },
+              { "role": "pattern-owner", "selector": { "text": ".ready(let dish)", "occurrence": 0 } }
+            ],
+            "facts": {
+              "capture": "dish",
+              "operation": "move",
+              "provisionalMode": "read-only"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-pattern-incompatible-range",
+      "kind": "negative",
+      "rule": "W-764",
+      "baseline": "S0-POS-pattern-compatible-range",
+      "failureField": "proofFacts",
+      "source": [
+        "fn isEarlyCourse(value: Int<(0...9)>): Bool {",
+        "  return switch value {",
+        "    case 0...5<s>: true",
+        "    case _: false",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-PATTERN-0007",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "0...5<s>" },
+            "labels": [
+              { "role": "pattern-owner", "selector": { "text": "switch value" } }
+            ],
+            "facts": {
+              "lowerType": "Int",
+              "rangeOperator": "...",
+              "upperType": "si.s"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-match-nonexhaustive",
+      "kind": "negative",
+      "rule": "W-764",
+      "baseline": "S0-POS-match-exhaustive",
+      "failureField": "flow",
+      "source": [
+        "enum WorkStage {",
+        "  preparing",
+        "  serving",
+        "}",
+        "fn instruction(stage: WorkStage): String {",
+        "  return switch stage {",
+        "    case .preparing: \"Prepare\"",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-MATCH-0001",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": { "text": "switch" },
+            "labels": [
+              { "role": "match-subject", "selector": { "text": "stage", "occurrence": 1 } }
+            ],
+            "facts": {
+              "missingCases": ["serving"],
+              "subjectType": "WorkStage"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-match-unreachable-case",
+      "kind": "negative",
+      "rule": "W-764",
+      "baseline": "S0-POS-match-reachable-case",
+      "failureField": "evaluationGraph",
+      "source": [
+        "enum WorkSignal {",
+        "  preparing",
+        "  serving",
+        "}",
+        "fn route(signal: WorkSignal): String {",
+        "  return switch signal {",
+        "    case _: \"Other\"",
+        "    case .preparing: \"Prepare\"",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-MATCH-0002",
+            "phase": "semantic.flow",
+            "severity": "error",
+            "primary": { "text": ".preparing" },
+            "labels": [
+              { "role": "covered-case", "selector": { "text": "case _" } },
+              { "role": "match-subject", "selector": { "text": "signal", "occurrence": 1 } }
+            ],
+            "facts": {
+              "coveredBy": "_",
+              "pattern": "WorkSignal.preparing",
+              "subjectType": "WorkSignal"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-match-ambiguous-enum",
+      "kind": "negative",
+      "rule": "W-764",
+      "baseline": "S0-POS-match-contextual-enum",
+      "failureField": "resultType",
+      "source": [
+        "enum KitchenSignal {",
+        "  ready",
+        "  failed",
+        "}",
+        "fn selectedSignal() {",
+        "  let selected = .ready",
+        "  inspect(selected)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-MATCH-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": ".ready" },
+            "labels": [],
+            "facts": {
+              "context": "initializer",
+              "expectedType": "missing",
+              "member": "ready"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
       }
     },
     {
