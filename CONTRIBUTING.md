@@ -114,7 +114,7 @@ Para source W, siga a forma canônica já definida:
 - uma linha quando a construção cabe;
 - um item por linha e trailing comma quando a lista quebra;
 - source order preservada;
-- sem semicolon na forma canônica.
+- semicolon somente quando sua remoção mudaria a statement partition.
 
 O formatter W ainda não existe. Preserve manualmente essa forma até `w fmt`
 substituir a verificação humana.

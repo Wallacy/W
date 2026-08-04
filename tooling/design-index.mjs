@@ -238,6 +238,9 @@ const corpusCases = corpusFiles.reduce((count, file) => {
   const content = fs.readFileSync(file, "utf8");
   return count + (content.match(/^---$/gm)?.length || 0);
 }, 0);
+const normativeGrammarSlices = headings.filter((heading) =>
+  /\bGrammar normativa G\d+/.test(heading.title),
+).length;
 
 const output = [];
 output.push("# Índice gerado do design W");
@@ -265,6 +268,7 @@ output.push(
   `| decisões | ${decisions.length} (W-${String(decisions[0]).padStart(3, "0")}–W-${String(decisions.at(-1)).padStart(3, "0")}) |`,
 );
 output.push(`| famílias de viabilidade | ${viabilityRows.length} |`);
+output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
 output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| sources W no root do Última Luz | ${rootReferenceSources} |`);
