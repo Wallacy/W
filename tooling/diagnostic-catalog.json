@@ -313,6 +313,12 @@
       "meaning": "recovery would reinterpret a form after its grammar commit point"
     },
     {
+      "code": "W-PARSE-0029",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a pattern ellipsis is duplicated or appears before another field"
+    },
+    {
       "code": "W-SEM-0001",
       "state": "active",
       "phase": "semantic.type",
@@ -372,6 +378,154 @@
       "labelRoles": {
         "move-origin": { "minimum": 1, "maximum": 1 },
         "predecessor": { "minimum": 0, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-MATCH-0001",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a required switch or catch does not cover its complete proven domain",
+      "requiredFacts": {
+        "missingCases": "string-set",
+        "subjectType": "string"
+      },
+      "labelRoles": {
+        "match-subject": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-MATCH-0002",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a case is completely covered by an earlier unguarded case",
+      "requiredFacts": {
+        "coveredBy": "string",
+        "pattern": "string",
+        "subjectType": "string"
+      },
+      "labelRoles": {
+        "covered-case": { "minimum": 1, "maximum": 1 },
+        "match-subject": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-MATCH-0003",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a short enum member has no unique expected enum type",
+      "requiredFacts": {
+        "context": "string",
+        "expectedType": "string",
+        "member": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a capture form is not allowed by the current pattern modality",
+      "requiredFacts": {
+        "capture": "string",
+        "context": "string",
+        "requiredForm": "string"
+      },
+      "labelRoles": {
+        "pattern-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a payload pattern has incompatible arity, labels, or modality",
+      "requiredFacts": {
+        "actualArity": "integer",
+        "case": "string",
+        "expectedArity": "integer",
+        "payloadMode": "string"
+      },
+      "labelRoles": {
+        "pattern-owner": { "minimum": 1, "maximum": 1 },
+        "type-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0003",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a nominal pattern selects a field that is absent or not visible",
+      "requiredFacts": {
+        "field": "string",
+        "reason": "string",
+        "type": "string",
+        "visibleFields": "string-set"
+      },
+      "labelRoles": {
+        "pattern-owner": { "minimum": 1, "maximum": 1 },
+        "type-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0005",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a nominal pattern requests destructuring from an opaque category",
+      "requiredFacts": {
+        "category": "string",
+        "destructuringVisibility": "string",
+        "type": "string"
+      },
+      "labelRoles": {
+        "pattern-owner": { "minimum": 1, "maximum": 1 },
+        "type-declaration": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a guard consumes, mutates, escapes, or suspends with a provisional capture",
+      "requiredFacts": {
+        "capture": "string",
+        "operation": "string",
+        "provisionalMode": "string"
+      },
+      "labelRoles": {
+        "capture-origin": { "minimum": 1, "maximum": 1 },
+        "pattern-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-PATTERN-0007",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a range pattern has incompatible or non-constant bounds",
+      "requiredFacts": {
+        "lowerType": "string",
+        "rangeOperator": "string",
+        "upperType": "string"
+      },
+      "labelRoles": {
+        "pattern-owner": { "minimum": 1, "maximum": 1 }
       },
       "fixes": {}
     },

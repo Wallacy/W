@@ -85,7 +85,7 @@ leitura.
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
 | ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
-| validação executável | 35–45% | Tree-sitter, F0, resultados S0, contratos angulares e outros oracles validam contratos; ainda não existe formatter, type-checker, HIR ou runtime W |
+| validação executável | 37–47% | Tree-sitter, F0, resultados S0, contratos, patterns e match possuem oracles; ainda não existe formatter, type-checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
 
@@ -1548,13 +1548,17 @@ desses fatos por otimizações.
 | `W-PATTERN-0001` | capture aparece numa modalidade que não permite essa forma |
 | `W-PATTERN-0002` | payload possui aridade, label ou modalidade incompatível |
 | `W-PATTERN-0003` | field não existe ou não está visível |
-| `W-PATTERN-0004` | `...` está duplicado ou fora da posição final |
+| `W-PARSE-0029` | `...` está duplicado ou fora da posição final |
 | `W-PATTERN-0005` | pattern exige destructuring de categoria opaca |
 | `W-PATTERN-0006` | guard tenta consumir, mutar, escapar ou suspender com capture provisória |
 | `W-PATTERN-0007` | range pattern possui bounds incompatíveis ou não constantes |
 | `W-MATCH-0001` | switch ou catch obrigatório não é exaustivo |
 | `W-MATCH-0002` | case está completamente inalcançável |
 | `W-MATCH-0003` | enum curto não possui expected type inequívoco |
+
+`W-PARSE-0029` pertence ao parser porque a grammar já conhece a posição de
+`...`. Os outros codes desta tabela exigem schema, type, visibility, ownership
+ou domínio de cobertura e pertencem ao checker.
 
 #### 3.5.6 Grammar normativa G4: expressions
 
@@ -2426,6 +2430,29 @@ do slot.
 | `W-CONTRACT-0003` | predicate que produz Bool | `proofFacts` |
 | `W-CONTRACT-0004` | labels únicos em schema order | `evaluationGraph` |
 | `W-CONTRACT-0005` | envelope aplicável ao resultado anterior | `resultType` |
+
+Nove pares cobrem patterns e match com entidades do restaurante: outcomes de
+pratos, leituras de forno, tickets, vaults, stages e ranges de cursos. Um pattern
+focal produz `Bool` lógico e category `value` no `SemanticResult` interno. Esse
+Bool representa o edge de teste; ele não transforma pattern em expression
+utilizável pelo source. Captures ficam em `ownerDelta`, narrowing fica em
+`proofFacts` e a ordem de testes fica em `evaluationGraph`.
+
+| Code | Baseline positivo | Campo que falha |
+|---|---|---|
+| `W-PATTERN-0001` | `let` na modalidade match | `ownerDelta` |
+| `W-PATTERN-0002` | payload com shape exato | `evaluationGraph` |
+| `W-PATTERN-0003` | field visível | `proofFacts` |
+| `W-PATTERN-0005` | aggregate destruturável | `evaluationGraph` |
+| `W-PATTERN-0006` | guard read-only | `ownerDelta` |
+| `W-PATTERN-0007` | bounds comparáveis | `proofFacts` |
+| `W-MATCH-0001` | domínio exaustivo | `flow` |
+| `W-MATCH-0002` | case alcançável | `evaluationGraph` |
+| `W-MATCH-0003` | enum curto com expected type | `resultType` |
+
+Um enum curto sem expected type falha sem busca global por case name. O
+diagnostic registra member, context e ausência do expected type. Adicionar outro
+enum ou import não muda candidates porque essa lista não existe.
 
 O corpus negativo do checker deve inverter uma regra por fixture. Ele deve
 preservar os outros fields do `SemanticResult`. Essa exigência impede que um
@@ -22088,8 +22115,8 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 11 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 32 casos pareiam 16 resultados positivos com 16 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 44 de 80 codes, incluindo lexer, parser, formatter, contratos e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 50 casos pareiam 25 resultados positivos com 25 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre 54 de 80 codes, incluindo parser, contratos, patterns, match e S0 inicial | completar as famílias restantes, compile-fail runner e adapters diferenciais |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
@@ -23635,6 +23662,16 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-822 | corpus de contrato | cada code W-CONTRACT possui baseline positivo único, inversão syntax-valid, outcome S0 e snapshot D0 | apenas exemplo positivo; negative que também falha parse; snapshot sem resultado correspondente |
 | W-823 | schema autocontido em fixture | head definido pelo usuário declara slots no próprio source; builtins usam schema normativo; label aponta para declaração quando disponível | ambiente implícito de teste; mock que aceita qualquer slot; diagnostic sem origem do requirement |
 | W-824 | falha localizada de contrato | slot/kind/envelope impedem resultType; predicate inválido impede proofFacts; duplicação impede evaluationGraph normalizado | marcar todos os campos inválidos; continuar lowering com slot arbitrário; perder o type base já resolvido |
+| W-825 | fronteira de ellipsis | `...` duplicado ou não final usa W-PARSE-0029 porque sua posição pertence à grammar | W-PATTERN sem AST válida; recovery tratado como type error; aceitar rest intermediário |
+| W-826 | resultado interno de pattern | pattern focal produz Bool lógico, category value, captures em ownerDelta, narrowing em proofFacts e testes no evaluationGraph; Bool não é expression source | category especial por backend; pattern sem result; expor teste como value ao usuário |
+| W-827 | captura por modalidade | binding aceita nome direto; switch/catch match exige `let`; W-PATTERN-0001 falha ownerDelta antes de criar capture | todo nome captura; lookup decide depois; capture implícita por ausência de symbol |
+| W-828 | shape e opacidade de pattern | payload, field e category são verificados antes das projeções; erro impede graph ou fact correspondente | projetar por posição ignorando labels; destructuring estrutural de object; field desconhecido vira wildcard |
+| W-829 | guard provisório | guard lê projection provisória; move, mutation, escape e suspension emitem W-PATTERN-0006 antes de confirmar ownership | mover e restaurar se false; clone implícito; guard pode suspender com borrow temporário |
+| W-830 | range pattern | bounds const e comparáveis produzem ProofFact; incompatibilidade emite W-PATTERN-0007 sem conversão definida pelo usuário | protocol de comparação no match; unit apagada; range inválido tratado como nunca-match |
+| W-831 | exhaustividade | somente case sem guard cobre domínio; W-MATCH-0001 registra missingCases do case-set provado | guard conta como cobertura; fallback implícito; warning para enum fechado incompleto |
+| W-832 | case inalcançável | case totalmente coberto por predecessor sem guard é error W-MATCH-0002; overlap parcial permanece e entra em explain | warning ignorável; reordenar cases; last-match vence |
+| W-833 | enum curto contextual | `.case` exige expected enum local; checker não busca types por nome de case nem lista candidates globais | inferir pelo único enum importado; ranking por proximidade; novo import muda type inference |
+| W-834 | corpus G3/S0 | seis families PATTERN e três MATCH possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | exemplo sem schema local; negativo com múltiplas falhas; exhaustividade testada só no runtime |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

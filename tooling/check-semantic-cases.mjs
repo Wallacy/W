@@ -385,6 +385,7 @@ for (const sourceEntry of catalog.codes) {
 
 const diagnosticTablePatterns = [
   /\| `W-CONTRACT-0001`[\s\S]*?\| `W-CONTRACT-0005`[^\n]*\|/,
+  /\| `W-PATTERN-0001`[\s\S]*?\| `W-MATCH-0003`[^\n]*\|/,
   /\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
 ]
 const diagnosticTables = diagnosticTablePatterns.map((pattern) => design.match(pattern)?.[0])
@@ -398,7 +399,7 @@ const requiredDiagnostics = [
       [...table.matchAll(/`(W-[A-Z]+-[0-9]{4})`/g)].map((match) => match[1]),
     ),
   ),
-]
+].filter((code) => !code.startsWith("W-PARSE-"))
 
 const ids = new Set()
 const coveredDiagnostics = new Set()
