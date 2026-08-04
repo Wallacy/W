@@ -238,6 +238,9 @@ const corpusCases = corpusFiles.reduce((count, file) => {
   const content = fs.readFileSync(file, "utf8");
   return count + (content.match(/^---$/gm)?.length || 0);
 }, 0);
+const semanticCases = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "semantic-cases.json"), "utf8"),
+).cases.length;
 const normativeGrammarSlices = headings.filter((heading) =>
   /\bGrammar normativa G\d+/.test(heading.title),
 ).length;
@@ -271,6 +274,7 @@ output.push(`| famílias de viabilidade | ${viabilityRows.length} |`);
 output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
 output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
+output.push(`| casos do corpus semântico S0 | ${semanticCases} |`);
 output.push(`| sources W no root do Última Luz | ${rootReferenceSources} |`);
 output.push(`| sources W em todo o Última Luz | ${allReferenceSources} |`);
 output.push(`| sources W no rascunho da std | ${stdSources} |`);
