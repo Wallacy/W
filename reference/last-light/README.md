@@ -144,7 +144,7 @@ alvo de execução independente.
 | `collections.w` | arrays, views, labeled loops e blocks, operators compostos, Map/Set, hashing e stable sort |
 | `views.w` | diferença entre owner, borrow completo e projeção de extent fixo |
 | `failure.w` | Option, Result, typed throws, panic, OOM e cleanup |
-| `generics.w` | primary associated types, constraints, inference e witnesses |
+| `generics.w` | primary associated types, constraints, static contract atoms, inference e witnesses |
 | `enum_contracts.w` | subsets fechados de enum, narrowing e payloads |
 | `state_transitions.w` | paths validados, typestate consuming e snapshots runtime |
 | `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |

@@ -181,7 +181,7 @@ module.exports = grammar({
         optional(";"),
       ),
     module_contract: ($) =>
-      seq("<", commaSep1($.manifest_argument), optional(","), ">"),
+      seq(token.immediate("<"), commaSep1($.manifest_argument), optional(","), ">"),
 
     domain_import_statement: ($) =>
       seq(
@@ -224,7 +224,7 @@ module.exports = grammar({
       ),
     service_key_contract: ($) =>
       seq(
-        "<",
+        token.immediate("<"),
         "key",
         ":",
         field("key_type", $.type),
@@ -320,7 +320,7 @@ module.exports = grammar({
 
     language_tag: ($) =>
       seq(
-        "<",
+        token.immediate("<"),
         choice(
           field("language", $.identifier),
           seq("lang", ":", field("language", $.contextual_member_expression)),
@@ -330,7 +330,7 @@ module.exports = grammar({
 
     abi_contract: ($) =>
       seq(
-        "<",
+        token.immediate("<"),
         "abi",
         ":",
         field("abi", $.contextual_member_expression),
@@ -358,7 +358,8 @@ module.exports = grammar({
       ),
     rest_marker: (_) => "...",
 
-    type_parameters: ($) => seq("<", commaSep1($.type_parameter), optional(","), ">"),
+    type_parameters: ($) =>
+      seq(token.immediate("<"), commaSep1($.type_parameter), optional(","), ">"),
     type_parameter: ($) =>
       choice(
         seq(
@@ -423,7 +424,7 @@ module.exports = grammar({
 
     primary_associated_types: ($) =>
       seq(
-        "<",
+        token.immediate("<"),
         commaSep1(
           seq(
             field("name", $._type_identifier),
@@ -849,7 +850,7 @@ module.exports = grammar({
       prec.right(seq(field("name", $._type_identifier), repeat(seq(".", field("member", $._type_identifier))))),
     _type_identifier: ($) => alias($.identifier, $.type_identifier),
     type_arguments: ($) =>
-      seq("<", commaSep1($.type_argument), optional(","), ">"),
+      seq(token.immediate("<"), commaSep1($.type_argument), optional(","), ">"),
     type_argument: ($) =>
       choice(
         $.contract_expression_argument,
@@ -857,6 +858,10 @@ module.exports = grammar({
         $.static_array_literal,
         $.type,
         $.number_literal,
+        $.boolean_literal,
+        $.string_literal,
+        $.quantity_literal,
+        $.size_literal,
         $.contextual_member_expression,
         seq(
           field("label", $.identifier),
@@ -873,6 +878,8 @@ module.exports = grammar({
         $.number_literal,
         $.boolean_literal,
         $.string_literal,
+        $.quantity_literal,
+        $.size_literal,
         $.contextual_member_expression,
         $.static_array_literal,
       ),
@@ -1018,7 +1025,7 @@ module.exports = grammar({
       ),
     task_contract: ($) =>
       seq(
-        "<",
+        token.immediate("<"),
         commaSep1(
           choice(
             field("primary", $.contextual_member_expression),
@@ -1300,20 +1307,7 @@ module.exports = grammar({
     generic_call_arguments: ($) =>
       seq(
         token.immediate("<"),
-        commaSep1(
-          choice(
-            $.contract_expression_argument,
-            $.static_record_literal,
-            $.static_array_literal,
-            $.contextual_member_expression,
-            $.type,
-            seq(
-              field("label", $.identifier),
-              ":",
-              field("value", $.static_argument_value),
-            ),
-          ),
-        ),
+        commaSep1($.type_argument),
         optional(","),
         ">",
       ),

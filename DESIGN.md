@@ -961,6 +961,302 @@ Recovery pode sincronizar no próximo import ou declaration starter. Ele não
 move um import, não cria um export e não transforma um manifest em source. Um
 build rejeita todos os nodes recuperados, conforme G0.
 
+#### 3.5.4 Grammar normativa G2: tipos e contratos angulares
+
+**Exemplo:** cada envelope aplica uma operação estática ao resultado anterior:
+
+```w
+type MenuIndex = Map<String, Array<Result<Dish, KitchenError>>>
+type SmallBytes = Array<u8><(.count <= 64)>
+type ActiveOutcome = Outcome<Dish><[.ready, .delayed]>
+type Label = BoundedText<{min: 1, max: 40}>
+```
+
+Esta subseção é normativa para type syntax, generic parameters e payloads de
+contrato. G3 define patterns. G4 define expressions e a desambiguação completa
+entre generic application e operadores de comparação.
+
+##### Estrutura de tipo
+
+```ebnf
+type = type_qualifier? type_term ("&" type_term)* "?"? ;
+
+type_qualifier = "any"
+               | "some"
+               | "shared"
+               | "weak"
+               | "ref"
+               | "inout"
+               | "view"
+               | "inout" "view" ;
+
+type_term = applied_type
+          | tuple_type
+          | fixed_array_type
+          | function_type ;
+
+applied_type = type_path contract_envelope* ;
+type_path = identifier ("." identifier)* ;
+```
+
+Um type possui no máximo um qualifier sintático. `inout view` é uma forma
+composta única. Em `parameter: ref any P`, `ref` pertence ao parâmetro e
+`any P` é o type. A seção 7 define essa separação de ownership.
+
+`&` compõe requirements nominais. O qualifier aplica-se à composição completa:
+
+```w
+alias Policy = any PricingPolicy & Display
+alias Producer = some Stream<Order> & Observable
+```
+
+O postfix `?` também aplica-se ao type completo. Ele não pode se repetir:
+
+```w
+alias MaybeState = shared BellState?
+alias NestedAbsence = Option<BellState?>
+```
+
+`T??` é erro. Use `Option<T?>` quando duas camadas de ausência têm significado.
+Dentro de um function type, o type de retorno e o error type consomem seus
+próprios postfixes. Use `Option<fn(...): T>` para tornar o callable opcional sem
+ambiguidade.
+
+##### Envelope de contrato
+
+O token `<` deve tocar o head que ele modifica. Whitespace ou comment entre o
+head e `<` é erro. Whitespace dentro do envelope continua livre:
+
+```w
+Array<u8>
+Matrix<
+  f32,
+  rows: 3,
+  columns: 4,
+>
+```
+
+`Array <u8>` não é type application. A regra também vale para generic
+parameters, function contracts, module contracts, task contracts e generic
+calls.
+
+```ebnf
+contract_envelope = immediate("<") contract_argument
+                    ("," contract_argument)* ","? ">" ;
+
+contract_argument = named_contract_argument
+                  | predicate_argument
+                  | static_record
+                  | static_list
+                  | contract_atom ;
+
+named_contract_argument = identifier ":" static_value ;
+predicate_argument = "(" const_expression ")" ;
+
+static_record = "{" (static_field ("," static_field)* ","?)? "}" ;
+static_field = identifier ":" static_value ;
+
+static_list = "[" (static_value ("," static_value)* ","?)? "]" ;
+
+contract_atom = type
+              | contextual_member
+              | number_literal
+              | boolean_literal
+              | string_literal
+              | quantity_literal
+              | size_literal ;
+
+static_value = predicate_argument
+             | static_record
+             | static_list
+             | contract_atom ;
+```
+
+Uma expression calculada precisa de parentheses. Essa regra mantém operadores
+fora do envelope estrutural:
+
+```w
+Buffer<(rows * columns)>
+Buffer<rows * columns> // error: use <(rows * columns)>
+```
+
+Um identifier posicional permanece sintaticamente type-shaped. Depois de
+resolver o head, o checker classifica o token como type ou valor const. A HIR
+grava o kind resolvido e não preserva a ambiguidade.
+
+Cada envelope é ordenado e independente:
+
+```w
+Outcome<Dish><[.ready, .delayed]>
+Array<u8><(.count <= 64)>
+```
+
+O primeiro envelope aplica os slots do head. O segundo aplica-se ao type já
+formado. O parser nunca concatena envelopes adjacentes.
+
+O checker executa estas etapas:
+
+1. resolve o head;
+2. lê o schema de slots;
+3. associa argumentos posicionais e nomeados;
+4. verifica kind, ordem, duplicação e valor const;
+5. aplica cada envelope da esquerda para a direita;
+6. grava o contrato normalizado na interface e na HIR.
+
+O delimitador interno não cria outra semântica por aparência:
+
+| Forma | Categoria estrutural | Semântica depende de |
+|---|---|---|
+| `<T>` | atom | slot de type ou valor const do head |
+| `<name: value>` | argumento nomeado | schema do head |
+| `<(expression)>` | expression compile-time | result type e slot |
+| `<{name: value}>` | static record | schema record do head |
+| `<[a, b]>` | static list ordenada | schema list ou case-set do enum |
+
+`<{...}>` não cria extension, inheritance ou storage. `<[...]>` não cria uma
+lista de constraints. A seção 3.3 define as substituições vigentes.
+
+Um head pode recusar uma categoria que o parser reconhece. Por exemplo,
+`fn<(...)>` possui syntax estrutural, mas o schema `fn` não publica esse slot.
+Esse caso produz type diagnostic, não uma árvore alternativa.
+
+##### Parameters genéricos
+
+```ebnf
+type_parameters = immediate("<") type_parameter
+                  ("," type_parameter)* ","? ">" ;
+
+type_parameter = identifier (":" type)?
+               | "const" primary_marker? identifier ":" type ;
+
+primary_marker = "_" ;
+
+primary_associated_types = immediate("<") associated_type
+                           ("," associated_type)* ","? ">" ;
+associated_type = identifier (":" type)? ;
+```
+
+Um type parameter é posicional. Um const parameter usa seu nome como label. O
+marker `_` remove esse label para um único slot primário:
+
+```w
+struct Matrix<Element, const rows: usize, const columns: usize> {}
+type Tile = Matrix<Pixel, rows: 8, columns: 4>
+
+struct StagePath<const _ stages: StaticList<ServiceStage>> {}
+type ServicePath = StagePath<[.accepted, .preparing, .serving]>
+```
+
+O parser aceita a estrutura antes de resolver o head. O checker rejeita label
+desconhecido, duplicado, fora de ordem ou aplicado a type parameter. Named type
+arguments continuam como **Alternativa**.
+
+##### Tuples e arrays fixos
+
+```ebnf
+tuple_type = "(" ")"
+           | "(" type "," ")"
+           | "(" type "," type ("," type)* ","? ")"
+           | "(" labeled_type "," ")"
+           | "(" labeled_type "," labeled_type
+             ("," labeled_type)* ","? ")" ;
+
+labeled_type = identifier ":" type ;
+fixed_array_type = "[" type ";" const_expression "]" ;
+```
+
+`()` é o unit type. Um tuple de um elemento exige comma. Todos os elementos
+possuem label ou nenhum possui:
+
+```w
+type Location = (deck: u16, table: u16)
+type SingleCourse = (Course,)
+type Digest = [u8; 32]
+type Arena = [u8; 64<KiB>]
+```
+
+`(Course)` é erro. W não usa parentheses para agrupar type. A composição e o
+postfix possuem precedência fixa e não exigem agrupamento.
+
+O count de array é uma const expression. O evaluator deve provar que o valor é
+representável e permitido pelo target. Uma size quantity representa sua
+contagem de bytes quando o element type é `u8`.
+
+##### Function types
+
+```ebnf
+function_type = "unsafe"? callable_mode? "async"? "fn"
+                function_contract? "(" function_type_parameters? ")"
+                return_clause? throws_clause? ;
+
+callable_mode = "mut" | "take" ;
+function_contract = contract_envelope ;
+function_type_parameters = function_type_parameter
+                           ("," function_type_parameter)* ","? ;
+function_type_parameter = parameter_requirement? type "..."? ;
+parameter_requirement = "ref" | "inout" | "take" | "const" ;
+```
+
+`some` e `any` ficam no qualifier externo. `unsafe`, callable mode e `async`
+ficam dentro do function type:
+
+```w
+type Handler = any mut async fn(
+  inout Buffer,
+  take Command,
+): Result throws KitchenError
+
+type SensorCallback = unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
+```
+
+Function type parameters não possuem labels, nomes ou defaults. Omitir o
+return type significa `()`. O schema de `fn<abi: .c>` rejeita capture, `async`,
+`throws` e carriers não representáveis em C.
+
+##### Tokenização e recovery
+
+No contexto de type ou contrato, closes adjacentes são tokens `>` distintos:
+
+```w
+Map<String, Array<Result<Dish, KitchenError>>>
+```
+
+No contexto de expression, `>>` continua shift. Dentro de `<(...)>`, `>` pode
+ser operador porque parentheses delimitam a const expression:
+
+```w
+Int<(value > 0)>
+```
+
+`64<KiB>` é um único quantity ou size literal porque o head é numérico. Ele não
+é application de um type chamado `64`.
+
+Recovery mantém a profundidade de `<`, `(`, `[` e `{`. Um close ausente pode
+receber `MISSING` no primeiro boundary seguro. Um operator cru dentro do
+envelope produz `ERROR` local. O parser não converte operator em comma ou move
+um argumento para outro envelope.
+
+O parser usa estes diagnostics adicionais:
+
+| Code | Condição |
+|---|---|
+| `W-PARSE-0013` | trivia separa um head de seu `<` |
+| `W-PARSE-0014` | close de contrato, tuple ou array está ausente |
+| `W-PARSE-0015` | expression calculada aparece sem `<(...)>` |
+| `W-PARSE-0016` | tuple mistura elementos labeled e posicionais |
+| `W-PARSE-0017` | parentheses tentam agrupar um type sem comma |
+| `W-PARSE-0018` | qualifier ou postfix aparece em ordem inválida |
+
+O checker usa uma família separada para schema de contrato:
+
+| Code | Condição |
+|---|---|
+| `W-TYPE-CONTRACT-0001` | slot desconhecido ou não publicado pelo head |
+| `W-TYPE-CONTRACT-0002` | argumento possui kind incompatível |
+| `W-TYPE-CONTRACT-0003` | predicate de refinement não produz `Bool` |
+| `W-TYPE-CONTRACT-0004` | label está duplicado ou fora da ordem declarada |
+| `W-TYPE-CONTRACT-0005` | envelope posterior não se aplica ao resultado anterior |
+
 ### 3.6 Avaliação compile-time
 
 W separa avaliação exigida de otimização:
@@ -20285,7 +20581,7 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa | G0–G1 normativos para statements, controle, declarations e raízes | slices de types/patterns/expressions e formatter snapshots |
+| grammar normativa | G0–G2 normativos para statements, declarations, raízes, types e contracts | slices de patterns/expressions e formatter snapshots |
 | regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
 | diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
 | std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
@@ -20583,6 +20879,12 @@ O corpus compara, no mínimo:
 - imports antes das declarations contra imports intercalados;
 - body obrigatório em função comum contra prototype solto no top-level;
 - `<...>` como contrato local nomeado contra uso como record completo de build.
+- contract ligado ao head contra `Array <T>` dependente de whitespace;
+- `<(expression)>` contra expression crua dentro do envelope;
+- envelopes sequenciais contra fusão de generic arguments e refinement;
+- tuple de um elemento com comma contra parentheses de agrupamento;
+- closes `>>` contextuais contra exigir whitespace em nested types;
+- payloads Bool, String, quantity e size iguais em type application e generic call.
 
 ### 26.1 Cobertura de substituições
 
@@ -21706,6 +22008,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-754 | fase de imports | header precede imports e imports precedem declarations comuns; recovery não move imports | imports intercalados; import dentro de body; ordenação automática pelo formatter |
 | W-755 | body de função | função comum exige body; somente protocol requirement e foreign signature podem omitir body | prototype solto no top-level; body inferido; newline termina signature |
 | W-756 | delimiters de configuração | `<...>` modifica contrato local nomeado; `{...}` define record completo e data-only de manifest | `package Name<...>`; body executável de manifest; delimiter escolhido somente por tamanho |
+| W-757 | grammar normativa G2 | EBNF de types, generic parameters, contract payloads, tuples, arrays e function types pertence ao design | grammar gerada como autoridade; type syntax somente em prosa; um parser por head |
+| W-758 | attachment de contrato | `<` toca o head em type, declaration e call; trivia antes do envelope é erro | `Array <T>`; whitespace muda apenas no generic call; formatter decide depois do parse |
+| W-759 | payload calculado | expression const usa `<(...)>`; record e list mantêm `{}` e `[]`; head schema decide o kind | expression crua no envelope; delimiter define semântica universal; `<{...}>` cria extension |
+| W-760 | precedência de type | um qualifier aplica-se à composição, `?` aplica-se ao type completo e não se repete; `Option<T?>` expressa duas ausências | qualifier stack aberto; `T??`; parentheses agrupam type; null universal |
+| W-761 | nested contract close | em type/contract, closes adjacentes são tokens `>` distintos; em expression, `>>` é shift | exigir espaço entre closes; lexer sempre produz shift; regra dependente do type checker |
+| W-762 | argumentos estáticos | type application e generic call aceitam as mesmas categorias estruturais, inclusive Bool, String, quantity e size | call aceita menos atoms; named const usa grammar própria; literal posicional depende do head conhecido pelo parser |
+| W-763 | function type | qualifier, `unsafe`, callable mode, `async`, `fn`, contract, parameters, return e throws têm ordem fixa; parâmetros não têm labels/defaults | um callable apagado universal; labels no type; ABI inferida; callable externo opcional ambíguo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

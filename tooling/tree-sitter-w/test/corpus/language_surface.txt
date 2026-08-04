@@ -110,15 +110,33 @@ fn inspectStaticPayloads() {
           (generic_application_expression
             (identifier)
             (generic_call_arguments
-              (contract_expression_argument
-                (binary_expression
+              (type_argument
+                (contract_expression_argument
                   (binary_expression
+                    (binary_expression
+                      (contextual_member_expression
+                        (identifier))
+                      (number_literal))
+                    (binary_expression
+                      (contextual_member_expression
+                        (identifier))
+                      (number_literal)))))))
+          (argument_list)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (static_record_literal
+                  (identifier)
+                  (static_argument_value
                     (contextual_member_expression
-                      (identifier))
-                    (number_literal))
-                  (binary_expression
-                    (contextual_member_expression
-                      (identifier))
+                      (identifier)))
+                  (identifier)
+                  (static_argument_value
                     (number_literal))))))
           (argument_list)))
       (binding_declaration
@@ -128,32 +146,17 @@ fn inspectStaticPayloads() {
           (generic_application_expression
             (identifier)
             (generic_call_arguments
-              (static_record_literal
-                (identifier)
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier)))
-                (identifier)
-                (static_argument_value
-                  (number_literal)))))
-          (argument_list)))
-      (binding_declaration
-        (pattern
-          (identifier))
-        (call_expression
-          (generic_application_expression
-            (identifier)
-            (generic_call_arguments
-              (static_array_literal
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier)))
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier)))
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier))))))
+              (type_argument
+                (static_array_literal
+                  (static_argument_value
+                    (contextual_member_expression
+                      (identifier)))
+                  (static_argument_value
+                    (contextual_member_expression
+                      (identifier)))
+                  (static_argument_value
+                    (contextual_member_expression
+                      (identifier)))))))
           (argument_list))))))
 
 ==================
