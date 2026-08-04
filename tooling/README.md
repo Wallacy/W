@@ -23,7 +23,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 52 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 117 formas R0 | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | bundles R1 do Última Luz com variantes, inputs, outcomes, tarefas, digests e counterbalancing | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | quatro bundles R1, oito variantes e dezesseis tarefas sobre controle, units, imports e fail-fast | parse e oracle host não equivalem a compilar ou executar W |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
