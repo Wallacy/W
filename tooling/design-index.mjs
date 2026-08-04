@@ -238,6 +238,28 @@ const substitutionCorpus = JSON.parse(
 const structuredSubstitutionCases = new Set(
   substitutionCorpus.cases.map((testCase) => testCase.reviewItem.trim().replace(/[.;]$/, "")),
 ).size;
+const substitutionSurface = JSON.parse(
+  fs.readFileSync(
+    path.join(wDirectory, "tooling", "substitution-surface.snapshot.json"),
+    "utf8",
+  ),
+);
+const measuredSubstitutionForms = substitutionSurface.cases.reduce(
+  (count, testCase) => count + 1 + testCase.alternatives.length,
+  0,
+);
+const selectedSurfaceLexemes = substitutionSurface.cases
+  .map((testCase) => testCase.selected.metrics.surfaceLexemes)
+  .sort((left, right) => left - right);
+const selectedSurfaceLexemeTotal = selectedSurfaceLexemes.reduce(
+  (total, count) => total + count,
+  0,
+);
+const selectedSurfaceLexemeMedian =
+  (selectedSurfaceLexemes[selectedSurfaceLexemes.length / 2 - 1] +
+    selectedSurfaceLexemes[selectedSurfaceLexemes.length / 2]) /
+  2;
+const selectedSurfaceLexemeMaximum = selectedSurfaceLexemes.at(-1);
 
 const referenceDirectory = path.join(wDirectory, "reference", "last-light");
 const rootReferenceSources = fs
@@ -327,6 +349,10 @@ output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
 output.push(`| requisitos de ratificação comparativa | ${comparisonCount} |`);
 output.push(
   `| casos de substituição estruturados | ${structuredSubstitutionCases}/${comparisonCount} |`,
+);
+output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |`);
+output.push(
+  `| surface lexemes das formas vigentes R0 | ${selectedSurfaceLexemeTotal} total; mediana ${selectedSurfaceLexemeMedian}; máximo ${selectedSurfaceLexemeMaximum} |`,
 );
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
