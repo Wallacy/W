@@ -232,6 +232,12 @@ if (structuralErrors.length > 0) {
 const comparisonCount = lines
   .slice(reviewStart + 1, implementationStart)
   .filter((line) => line.startsWith("- ")).length;
+const substitutionCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "substitution-cases.json"), "utf8"),
+);
+const structuredSubstitutionCases = new Set(
+  substitutionCorpus.cases.map((testCase) => testCase.reviewItem.trim().replace(/[.;]$/, "")),
+).size;
 
 const referenceDirectory = path.join(wDirectory, "reference", "last-light");
 const rootReferenceSources = fs
@@ -318,7 +324,10 @@ output.push(
 );
 output.push(`| famílias de viabilidade | ${viabilityRows.length} |`);
 output.push(`| slices normativos de grammar | ${normativeGrammarSlices} |`);
-output.push(`| casos de ratificação comparativa | ${comparisonCount} |`);
+output.push(`| requisitos de ratificação comparativa | ${comparisonCount} |`);
+output.push(
+  `| casos de substituição estruturados | ${structuredSubstitutionCases}/${comparisonCount} |`,
+);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(

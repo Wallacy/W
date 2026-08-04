@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
+| ergonomia ratificada | 60–70% | o produto Última Luz cobre a superfície e o corpus R0 iniciou a cobertura estruturada; as comparações humanas e de modelos da seção 26 ainda não foram executadas |
 | validação executável | 47–57% | Tree-sitter, 17 pares F0, 42 pares S0 e o par wire cobrem o frontend estático inicial; ainda não existe formatter, type-checker, evaluator, interface checker, HIR ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -656,9 +656,9 @@ value
 return value
 ```
 
-Esta subseção é normativa para blocks, statements e controle. As grammars de
-declarations, types, patterns e expressions ainda precisam de slices próprias.
-Tree-sitter deve projetar esta grammar, mas não a substitui.
+Esta subseção é normativa para blocks, statements e controle. G1–G4 fixam
+declarations, types, patterns e expressions. G5 integra os owners e a recovery.
+Tree-sitter projeta essas grammars, mas não as substitui.
 
 A notação usa estas regras:
 
@@ -22262,7 +22262,7 @@ mesma profundidade em todas as famílias:
 | memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
 | packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | exemplos por seção | cobertura por substituição e estudos da seção 26 |
+| documentação comparativa | 52 requisitos e corpus R0 validado; o índice publica a cobertura atual | completar os casos, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -22585,6 +22585,20 @@ Antes do design freeze, o tooling deve publicar cobertura `casos/decisões que
 exigem substituição`. A cobertura atual de exemplos por seção não substitui essa
 métrica. Nenhuma documentação final pode omitir a alternativa que motivou uma
 decisão.
+
+[`tooling/substitution-cases.json`](tooling/substitution-cases.json) mantém a
+entrada estruturada. Cada caso liga um requisito desta seção a decisões do
+ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
+O checker valida a ligação e o índice publica a razão exata. O check comum
+aceita progresso parcial. O modo
+`--require-complete` falha enquanto qualquer requisito não possuir caso e será
+obrigatório para o design freeze.
+
+O source vigente de um caso deve ser W aceito pelo contrato corrente. Uma forma
+substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
+`language` declara essa origem. O corpus não afirma que o parser W aceita a
+alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
+eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
 **Caso W-732 — sair de loops aninhados.** As formas processam o mesmo input. Um
 carrier inválido encerra a busca. Um zero avança a linha externa.
@@ -23837,6 +23851,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-858 | corpus wire D0 | Duration portátil e Instant local formam par único; o teste resolve spans e compara facts contra o catálogo | usar somente prose do erro; codec test como prova de type eligibility; snapshot manual como interface checker |
 | W-859 | fechamento do catálogo citado | todos os 73 codes com meaning citado possuem schema; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect prefix, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; reordenar constructs para legibilidade |
+| W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/52`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 52 bullets como 52 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
