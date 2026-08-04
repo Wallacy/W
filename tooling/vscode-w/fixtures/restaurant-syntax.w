@@ -222,11 +222,20 @@ fn collectionForms() {
   for copy code in statusCodes { send(code) }
   for order in take pendingOrders { serve(take order) }
 
-  scanOrders: for ref order in orders {
-    diagnosticBits <<= 1
-    diagnosticBits |= order.statusBits
-    if order.isFinal { break scanOrders }
+  inspectOrders: {
+    scanOrders: for ref order in orders {
+      for ref item in order.items {
+        diagnosticBits <<= 1
+        diagnosticBits |= item.statusBits
+        if item.isInvalid { break inspectOrders }
+        if item.endsOrder { continue scanOrders }
+      }
+    }
   }
+
+  repeat {
+    diagnosticBits >>= 1
+  } while diagnosticBits > 0
 }
 
 struct Route {

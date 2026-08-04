@@ -46,6 +46,18 @@ export fn strictHeatStep(
   return math.fma(gain, error, previous)
 }
 
+export fn decimalDigitCount(value: u64): u8 {
+  var remaining = value
+  var digits: u8 = 0
+
+  repeat {
+    digits += 1
+    remaining /= 10
+  } while remaining > 0
+
+  return digits
+}
+
 test "literal materialization keeps radix and exponent" {
   let permissions: u16 = 0o755
   let mask: u8 = 0b1111_0000
@@ -105,4 +117,10 @@ test "decimal and quantized types keep their contracts" {
 
   expect tax == 0.0825
   expect signal.expressed == 0.5_f32
+}
+
+test "a post-test loop processes zero once" for decimalDigitCount {
+  expect decimalDigitCount(0) == 1
+  expect decimalDigitCount(9) == 1
+  expect decimalDigitCount(42_424) == 5
 }

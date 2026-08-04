@@ -374,12 +374,14 @@ Labeled loops and compound assignment
 
 fn fold(rows: ref Array<Array<u8>>): u32 {
   var bits: u32 = 0
-  scanRows: for ref row in rows {
-    for value in row {
-      bits <<= 5
-      bits |= value
-      if value == 0 { continue scanRows }
-      if value > 31 { break scanRows }
+  assemble: {
+    scanRows: for ref row in rows {
+      for value in row {
+        bits <<= 5
+        bits |= value
+        if value == 0 { continue scanRows }
+        if value > 31 { break assemble }
+      }
     }
   }
   return bits
@@ -417,39 +419,98 @@ fn fold(rows: ref Array<Array<u8>>): u32 {
           (type_name
             (type_identifier)))
         (number_literal))
-      (labeled_loop_statement
+      (labeled_statement
         (identifier)
-        (for_statement
-          (pattern
-            (identifier))
-          (identifier)
-          (block
+        (block
+          (labeled_statement
+            (identifier)
             (for_statement
               (pattern
                 (identifier))
               (identifier)
               (block
-                (expression_statement
-                  (assignment_expression
-                    (identifier)
-                    (number_literal)))
-                (expression_statement
-                  (assignment_expression
-                    (identifier)
-                    (identifier)))
-                (if_statement
-                  (binary_expression
-                    (identifier)
-                    (number_literal))
+                (for_statement
+                  (pattern
+                    (identifier))
+                  (identifier)
                   (block
-                    (continue_statement
-                      (identifier))))
-                (if_statement
-                  (binary_expression
-                    (identifier)
-                    (number_literal))
-                  (block
-                    (break_statement
-                      (identifier)))))))))
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (number_literal)))
+                    (expression_statement
+                      (assignment_expression
+                        (identifier)
+                        (identifier)))
+                    (if_statement
+                      (binary_expression
+                        (identifier)
+                        (number_literal))
+                      (block
+                        (continue_statement
+                          (identifier))))
+                    (if_statement
+                      (binary_expression
+                        (identifier)
+                        (number_literal))
+                      (block
+                        (break_statement
+                          (identifier)))))))))))
+      (return_statement
+        (identifier)))))
+
+==================
+Post-test loop
+==================
+
+fn digitCount(value: u64): u8 {
+  var remaining = value
+  var digits: u8 = 0
+  repeat {
+    digits += 1
+    remaining /= 10
+  } while remaining > 0
+  return digits
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (identifier))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))
+      (repeat_statement
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal)))
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal))))
+        (binary_expression
+          (identifier)
+          (number_literal)))
       (return_statement
         (identifier)))))

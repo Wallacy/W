@@ -1277,8 +1277,8 @@ Semicolon não separa linhas de matriz no design vigente.
 
 ### 5.4 Controle e patterns
 
-`if`, `guard`, `while` e `for` controlam statements. `switch` é uma expressão
-exaustiva. Ele não possui fallthrough:
+`if`, `guard`, `while`, `repeat` e `for` controlam statements. `switch` é uma
+expressão exaustiva. Ele não possui fallthrough:
 
 ```w
 enum PartySize {
@@ -1330,18 +1330,57 @@ switch request.routeKind() {
 ```
 
 Loops podem receber um label. `break` e `continue` podem selecionar esse label.
-O label não cria scope, value ou target de `goto`:
+Um nome ativo não pode ocultar outro label ativo:
 
 ```w
 rows: for row in matrix.rows {
   for value in row {
+    if value.isPadding { continue rows }
     if value.isInvalid { break rows }
   }
 }
 ```
 
-W não possui `goto`, `do ... while` ou `repeat ... while`. `while true`, uma
-função extraída e loops rotulados cobrem essas formas sem outro fluxo implícito.
+Sem label, `break` encerra o loop mais interno. Sem label, `continue` avança o
+loop mais interno. Com label, a instrução seleciona um loop envolvente:
+
+| Destino | `break label` | `continue label` |
+|---|---|---|
+| `for` | sai do loop | solicita o próximo item |
+| `while` | sai do loop | reavalia a condição inicial |
+| `repeat` | sai do loop | avalia a condição final |
+
+`repeat` executa o body uma vez antes de testar sua condição:
+
+```w
+retryOrder: repeat {
+  let outcome = tryPlaceOrder()
+  if outcome.completed { break retryOrder }
+} while network.isAvailable
+```
+
+Um block também pode receber label. Somente `break label` pode selecionar esse
+block. Ele executa uma saída lexical para a primeira instrução posterior:
+
+```w
+validateOrder: {
+  if order.items.isEmpty { break validateOrder }
+  if !order.customer.canPay { break validateOrder }
+  submit(order)
+}
+```
+
+Um `break` sem label nunca seleciona um block. `continue` exige loop. Nenhuma
+forma de `break` produz value na baseline.
+
+Labels são destinos estruturados. Eles não são values, symbols ou destinos de
+salto arbitrário. O destino deve envolver lexicalmente a instrução. A
+transferência não cruza function, closure, task ou service boundary. A saída
+executa `defer`, drop e o protocolo de abort dos scopes abandonados.
+
+W não possui `goto` ou `do ... while`. `repeat ... while` expressa o loop
+pós-condicional. Loop rotulado expressa repetição para trás. Block rotulado
+expressa saída para frente. Uma função extraída cobre transferências maiores.
 
 ### 5.5 Ordem de avaliação
 
@@ -19791,7 +19830,7 @@ critério.
 
 | Família | C23 | Rust | Swift | W vigente |
 |---|---|---|---|---|
-| control flow | labels, `goto`, loops, switch | labeled loops e expressions | labeled loops e pattern switch | loops rotulados, switch exaustivo, sem `goto` |
+| control flow | labels, `goto`, loops, switch | labeled loops e expressions | labeled loops, `repeat` e pattern switch | loops/blocks rotulados, post-test loop, switch exaustivo, sem `goto` |
 | tipos | scalar, struct, union, enum | algebraic types, traits, generics | value/reference types, protocols, generics | struct, object, enum, protocols, refinements e generics |
 | memória | pointers e lifetime manual | ownership, borrow e unsafe | ARC, exclusivity e unsafe pointers | ownership, borrow, pin, allocator origin e `unsafe` |
 | erros | codes, `errno`, nonlocal jump | `Result`, panic e `?` | typed throws, `try`, defer | typed throws, `try`, Result, panic e defer |
@@ -19839,7 +19878,7 @@ W não inclui uma feature somente porque outra linguagem a inclui:
 | Origem | Forma ausente | Substituição W |
 |---|---|---|
 | C | preprocessor textual | imports, const contracts e target variants |
-| C | `goto`, VLA e nonlocal jump | loops rotulados, owners e errors estruturados |
+| C | `goto`, VLA e nonlocal jump | loops/blocks rotulados, `repeat`, owners e errors estruturados |
 | C | implicit promotions e unchecked overflow | conversão total e numeric policies nomeadas |
 | C | raw varargs, bitfields e unions safe | wrapper, `c.vaList` e layout foreign explícito |
 | Rust | lifetime syntax pública | inference conservadora e borrows diagnosticados |
@@ -19870,6 +19909,31 @@ prova:
 Os casos da seção 26 medem clareza e erro. Eles não escolhem entre designs ainda
 sem baseline. Um resultado ruim pode reabrir uma decisão por evidência.
 Implementação deve parar no primeiro gate que contradiz a semântica vigente.
+
+### 24.5 Artefatos que ainda bloqueiam o design freeze
+
+**Exemplo:** o catálogo declara `std.fs`. O freeze exige signatures, errors,
+capabilities e complexity bounds para esse módulo.
+
+Nenhuma família funcional está sem posição. A especificação ainda não possui a
+mesma profundidade em todas as famílias:
+
+| Artefato | Estado atual | Condição de fechamento |
+|---|---|---|
+| grammar normativa | Tree-sitter candidato e corpus positivo | EBNF, ambiguity table, recovery e formatter snapshots |
+| regras semânticas | contratos distribuídos neste documento | tabelas de typing, effects, ownership e evaluation por construct |
+| diagnostics | exemplos locais | IDs estáveis, primary span, fix e negative corpus |
+| std | catálogo T0/T1/T2 e nove módulos de rascunho | signatures, errors, capabilities, bounds e complexity por API |
+| targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
+| ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
+| memória e execução | semântica selecionada | HIR transitions, happens-before e cancellation tables |
+| packages e releases | resolver e evidence model selecionados | schemas canônicos, mutation rules e offline corpus |
+| bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
+| documentação comparativa | exemplos por seção | cobertura por substituição e estudos da seção 26 |
+
+Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
+gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
+mas não pode declarar comportamento que seu oracle ainda contradiz.
 
 ## 25. Produto de referência Última Luz
 
@@ -20140,11 +20204,37 @@ O corpus compara, no mínimo:
 - slot angular nomeado contra case enum posicional em erro e evolução de schema;
 - closure `=>` contra `fn(...)`;
 - nested matrix contra `;`;
-- achatamento sem `from` contra binding de módulo e seleção por braces.
+- achatamento sem `from` contra binding de módulo e seleção por braces;
 - formatter fixo de 120 colunas contra style configurável e import sorting;
 - fail-fast com arbitragem lexical/input contra espera estritamente lexical;
 - cancellation como control effect contra `throws Cancellation`;
-- execution profile por product/unit contra domain default por módulo.
+- execution profile por product/unit contra domain default por módulo;
+- loop ou block rotulado contra `goto` e flags de saída;
+- `repeat ... while` contra `while true` com `break` final;
+- `break label` contra exception usada somente para control flow.
+
+### 26.1 Cobertura de substituições
+
+**Exemplo:** o caso W-732 executa a mesma busca com `goto`, flags e labels. O
+Book mostra a forma W e explica por que as outras formas não entram.
+
+Toda decisão que rejeita uma construção em favor de outra precisa de um caso
+comparativo. O caso registra:
+
+1. ID da decisão;
+2. tarefa e input iguais;
+3. forma vigente;
+4. forma rejeitada ou de outra linguagem;
+5. comportamento esperado e modo de falha;
+6. razão mensurável da escolha.
+
+Uma forma rejeitada não entra no corpus positivo. Ela pode ficar em texto ou em
+fixture negativo. O Book deve mostrar a substituição perto do primeiro uso.
+
+Antes do design freeze, o tooling deve publicar cobertura `casos/decisões que
+exigem substituição`. A cobertura atual de exemplos por seção não substitui essa
+métrica. Nenhuma documentação final pode omitir a alternativa que motivou uma
+decisão.
 
 ## 27. Plano de implementação
 
@@ -20158,6 +20248,7 @@ alternativa preservada.
 
 - consolidar este documento;
 - criar corpus W positivo, negativo e comparativo;
+- medir cobertura de substituições por decisão;
 - completar o restaurante cósmico;
 - fixar ABI oracles de source, W exact, C e component;
 - fixar diagnostic IDs e formatter examples.
@@ -20179,7 +20270,8 @@ equivalentes e nenhum error node.
 - contratos estáticos com expression, record e list payloads;
 - referência `.member` contextual sem perda no CST;
 - patterns nominais de struct e marker `...`;
-- loops rotulados, `break`/`continue` rotulados e precedência fixa;
+- loops e blocks rotulados, `break`/`continue` rotulados e precedência fixa;
+- `repeat ... while` com condição pós-body;
 - assignments compostas e avaliação única do place;
 - formatter idempotente;
 - Tree-sitter e semantic highlight projetados do corpus.
@@ -21218,7 +21310,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-729 | resource lens | `ResourceLensRecord` separa reachability, code, static data, instance, operation, peak, accounting, confidence e provenance; intervalos e `unknown` são válidos; medição não vira fact | um número de memória por import; annotation no source; soma sem target/profile; measurement como garantia; wildcard cobra tudo sempre |
 | W-730 | kernel HIR de memória e ABI | owner/borrow/drop, storage estável, representação por boundary e `WAbiKey` são verificados antes do lowering; oracle pequeno cobre SH3/SH4 | backend decide ownership; borrow como ponteiro; pinning universal; niche em C/wire; link por nome ou target apenas |
 | W-731 | fechamento de pesquisa | toda família possui baseline, tier ou rejeição; gates de implementação não voltam a ser pergunta sem decisão | manter itens vagos em Pesquisa; afirmar implementação sem oracle |
-| W-732 | control flow aninhado | `label: for/while`, `break label` e `continue label`; sem `goto`, repeat loop ou nonlocal jump | `goto`; label em qualquer statement; força sair por exception |
+| W-732 | control flow aninhado | `label: for/while/repeat`, `break label` e `continue label`; sem `goto` ou nonlocal jump | `goto`; label em qualquer statement; força sair por exception |
 | W-733 | assignment composta | arithmetic, power, shift e bitwise assignments avaliam place uma vez; sem logical, coalescing ou matrix assignment | increment/decrement; `&&=`; `??=`; `@=`; custom operator |
 | W-734 | identidade e assertions | `isSameInstance(as:)` compara object nominal; `assert` executa em todo profile; `expect` é test-only | `===`; address como identity; debug-only assertion; safe assume |
 | W-735 | catálogo da std | T0 freestanding, T1 host comum e T2 domínios oficiais; distribuição única e reachability-linked | std monolítica no payload; tier como package separado; import implícito universal |
@@ -21232,6 +21324,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-743 | metadata publicável | WMeta1 usa header/directory e chunks em CBOR determinístico; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
 | W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
 | W-745 | ilhas externas posteriores | source units e adapters Rust/Swift/Zig/C++/Fortran são prováveis após C e sempre usam façade tipada | runtime externo implícito; staticlib por função; ABI W rica atravessa a ilha |
+| W-746 | loop pós-condicional | `repeat { body } while condition` executa body ao menos uma vez; `continue` avalia a condição final | rejeitar post-test loop; `do ... while`; exigir `while true` e `break` negado |
+| W-747 | block rotulado | `label: { ... }` aceita somente `break label`; saída lexical executa cleanup e não produz value | `continue` para block; label em qualquer statement; salto para dentro; break com value na baseline |
+| W-748 | documentação de substituições | toda decisão que rejeita uma construção por outra recebe caso comparativo e cobertura gerada antes do freeze | mostrar somente a forma escolhida; contar apenas exemplos por seção; executar syntax rejeitada no corpus positivo |
+| W-749 | fechamento do design freeze | famílias estão classificadas; grammar, semantics, diagnostics, std, targets, formats, execução, packages, W0 e substituições ainda exigem artefatos fechados | tratar classificação como spec completa; esperar backend para escrever contratos; congelar sem conformance |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

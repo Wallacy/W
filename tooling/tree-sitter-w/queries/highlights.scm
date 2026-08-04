@@ -52,6 +52,7 @@
   "if"
   "pipeline"
   "region"
+  "repeat"
   "return"
   "switch"
   "throw"
@@ -138,7 +139,7 @@
 (enum_pattern case: (identifier) @constant)
 (shorthand_struct_pattern_field name: (identifier) @variable)
 (labeled_struct_pattern_field field: (identifier) @property)
-(labeled_loop_statement label: (identifier) @label)
+(labeled_statement label: (identifier) @label)
 (break_statement label: (identifier) @label)
 (continue_statement label: (identifier) @label)
 
