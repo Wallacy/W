@@ -331,11 +331,27 @@ for (const requirement of catalog.referenceRequirements ?? []) {
     );
   }
 
+  if (requirement.profile && !catalog.profiles?.[requirement.profile]) {
+    errors.push(`${requirement.id}: unknown profile ${requirement.profile}.`);
+  }
+  if (present && requirement.profile) {
+    const owner = requirement.surface.split(".")[0];
+    const module = catalog.modules.find((candidate) => candidate.id === requirement.module);
+    const api = module?.apis.find((candidate) => candidate.symbol === owner);
+    if (api?.profile !== requirement.profile) {
+      errors.push(
+        `${requirement.id}: requirement profile ${requirement.profile} does not match ` +
+          `${owner} profile ${api?.profile ?? "missing"}.`,
+      );
+    }
+  }
+
   snapshotRequirements.push({
     id: requirement.id,
     module: requirement.module,
     surface: requirement.surface,
     status: actualStatus,
+    ...(requirement.profile ? { profile: requirement.profile } : {}),
     consumer: requirement.consumer,
   });
 }
@@ -382,6 +398,7 @@ for (const scan of catalog.referenceScans ?? []) {
 
 const apiCount = snapshotModules.reduce((total, module) => total + module.apis.length, 0);
 const missingCount = snapshotRequirements.filter((item) => item.status === "missing").length;
+const contractedRequirementCount = snapshotRequirements.filter((item) => item.profile).length;
 const snapshot = {
   $schema: "w-std-api-surface-snapshot-1",
   status: "generated-design-projection",
@@ -391,6 +408,7 @@ const snapshot = {
     catalogedApis: apiCount,
     qualifiedReferenceSurfaces: snapshotQualifiedReferences.length,
     referenceRequirements: snapshotRequirements.length,
+    contractedReferenceRequirements: contractedRequirementCount,
     missingReferenceRequirements: missingCount,
   },
   modules: snapshotModules.sort((left, right) => left.id.localeCompare(right.id)),
@@ -416,6 +434,7 @@ if (errors.length > 0) {
   console.log(
     `Std API contracts: ${snapshotModules.length} modules, ${apiCount} cataloged APIs, ` +
       `${snapshotQualifiedReferences.length} qualified Last Light surfaces, ` +
-      `${snapshotRequirements.length} requirements, ${missingCount} missing drafts.`,
+      `${contractedRequirementCount}/${snapshotRequirements.length} contracted requirements, ` +
+      `${missingCount} missing drafts.`,
   );
 }

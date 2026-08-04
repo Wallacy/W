@@ -16,6 +16,13 @@
       "bounds": ["const-evaluator-quota", "input-size"],
       "complexity": { "time": "linear-input", "space": "linear-input" }
     },
+    "build-context": {
+      "capabilities": ["build-action-bindings"],
+      "effects": ["suspension", "build-read", "build-write", "codec", "allocation"],
+      "failures": { "mode": "typed", "types": ["build.Error"] },
+      "bounds": ["action-budget", "maximum-argument", "codec-bound"],
+      "complexity": { "time": "linear-input", "space": "bounded-by-contract" }
+    },
     "validated-http-token": {
       "capabilities": [],
       "effects": ["const-evaluation"],
@@ -279,6 +286,7 @@
       "surface": "Context",
       "kind": "symbol",
       "consumer": "reference/last-light/packages/menu-compiler/transform.w",
+      "profile": "build-context",
       "status": "missing"
     },
     {
@@ -287,6 +295,7 @@
       "surface": "ByteSink.writeAll",
       "kind": "member",
       "consumer": "reference/last-light/io.w",
+      "profile": "byte-sink",
       "status": "draft"
     },
     {

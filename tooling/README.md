@@ -32,7 +32,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `execution-concurrency-cases.json` + máquina E0 | 28 sequências e 280 operações cobrem lifecycle, cancelamento, oito origens happens-before e races | oracle host de eventos; não é scheduler, checker nem runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 61 exports; o scan compara 22 superfícies qualificadas e requisitos do Última Luz | catálogo e snapshot são projeções; seis APIs exigidas ainda não possuem draft |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 61 exports, 22 superfícies qualificadas e dois de sete requisitos adversariais | catálogo e snapshot são projeções; seis APIs exigidas ainda não possuem draft |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A

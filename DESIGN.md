@@ -14086,6 +14086,10 @@ registra 61 exports catalogados e 22 superfícies qualificadas usadas pelo
 Última Luz. O checker rejeita export sem profile, uso qualificado desconhecido,
 profile incompleto, anchor inexistente, consumer ausente e snapshot stale.
 
+Dois dos sete requisitos adversariais possuem contrato SDK0 completo.
+`ByteSink.writeAll` também possui draft. `build.Context` permanece sem draft
+até o provider interno da seção 14.5.1 receber uma declaration verificável.
+
 O Última Luz exige seis superfícies que ainda não possuem draft:
 
 | Módulo | Superfície ausente | Consumer |
@@ -14113,6 +14117,45 @@ revisão precisa:
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
+
+#### 14.5.1 Contexts fornecidos pelo host
+
+**Exemplo:** `build.Context` concede somente os inputs e outputs de uma action.
+Ele não concede filesystem, environment ou network por consequência.
+
+Um context público de host é um `struct` nominal encapsulado. Ele não é
+protocol, existential, object com identidade observável ou mapa de values. O
+host entrega o owner pelo slot de entry. O tipo não possui initializer público.
+
+O struct contém um handle privado para um provider interno versionado. A std
+implementa seus methods em W sobre esse provider. Somente a declaração pequena
+do handle e das operações primitivas pode usar compiler intrinsic. Uma nova
+categoria de context não exige syntax nova.
+
+O contrato possui estas regras:
+
+1. o public type não expõe handle, pointer, vtable ou `RuntimeContext`;
+2. cada member publica effect, error, ownership, bound e complexity;
+3. o host profile fixa provider protocol, version e ABI;
+4. o linker prova que cada member alcançado possui capability concedida;
+5. o context termina com o root que o recebeu;
+6. o tipo não cruza service, wire, storage ou foreign boundary;
+7. reflection mostra a interface lógica e não mostra storage privado;
+8. o tipo declara separadamente se aceita shared borrows entre child tasks.
+
+Passar um context não amplia authority. Um wrapper pode projetar uma interface
+menor. Ele não pode recuperar members removidos pelo wrapper. O compiler deriva
+requirements dos members alcançados, não somente do nome do context.
+
+`RuntimeContext` continua interno. O lowering pode passar esse valor de forma
+oculta somente dentro da std e dos shims. Source comum recebe contexts nominais
+explícitos. LTO pode substituir um method por call direta quando provider e
+target estão fechados.
+
+**Rejeitado por enquanto:** `any Context` adicionaria erasure e dispatch sem
+necessidade. Um singleton global esconderia authority. Um `object` tornaria
+identity observável sem valor semântico. Um record público permitiria fabricar
+capabilities inválidas.
 
 ## 15. Números, ranges e unidades
 
@@ -19821,6 +19864,50 @@ build.transform:
 `String`, `Bytes`, source tree, artifact e metadata target tipada. Um transform
 não enumera diretórios, abre path arbitrário ou consulta environment.
 
+`build.Context` segue o carrier nominal da seção 14.5.1. Ele é move-only,
+process-local e fornecido pelo host. O tipo não possui initializer público. Um
+shared borrow pode entrar em child tasks estruturadas porque o provider do
+profile `build-transform@1` é thread-safe.
+
+A interface pública possui duas operações:
+
+```text
+read<Value>(
+  input: const Input<Value>,
+  maximumBytes: usize<(1...)>,
+) async -> Value throws build.Error
+
+write<Value>(
+  output: const Output<Value>,
+  value: take Value,
+) async -> () throws build.Error
+```
+
+`read` devolve um owner novo. O limite efetivo é o menor valor entre a call e a
+action. O host rejeita o input antes de allocation acima desse limite. Decode
+usa o codec fechado de `Value`. Tempo e memória são lineares nos bytes lidos,
+com overhead bounded do codec.
+
+`write` consome `value` em success e error. Ele codifica uma vez, aplica o
+limite da action e grava um output privado. O segundo write para o mesmo binding
+no mesmo caminho é um erro estático. Incremental output exige um binding de
+sink explícito numa revisão futura. Ele não reutiliza esta operação.
+
+Reads podem executar em paralelo. Writes para bindings distintos também podem
+executar em paralelo. A ordem não altera action identity ou output. O effect
+summary registra `build.write(outputIdentity)`. Branches exclusivas podem gravar
+o mesmo output. Um loop ou siblings paralelos não podem repetir essa identity.
+
+O runtime ainda verifica duplicação na boundary. Uma duplicata indica interface
+foreign inválida ou compiler incorreto. Ela produz `.duplicateOutput`, invalida
+a tentativa e impede publicação mesmo quando código unsafe captura o error.
+
+`read` pode lançar `.unknownInput`, `.incompatibleInput`, `.inputLimit`,
+`.codec` ou `.unavailable`. `write` pode lançar `.unknownOutput`,
+`.incompatibleOutput`, `.outputLimit`, `.duplicateOutput`, `.codec` ou
+`.unavailable`. Cancellation permanece outcome da task e descarta a tentativa.
+Ela não vira `build.Error`.
+
 Um binding possui de 1 a 64 caracteres ASCII lowercase, digits e `-`; o
 primeiro caractere é uma letra. Input e output compartilham o namespace da
 action. Duplicata ou binding declarado somente de um lado falha antes de
@@ -22482,7 +22569,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 61 exports em nove módulos, aplica profiles completos e registra seis superfícies exigidas pelo Última Luz sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
+| std | SDK0 cataloga 61 exports em nove módulos; dois de sete requisitos adversariais possuem contrato e seis superfícies exigidas continuam sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -24239,6 +24326,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 52 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 61 exports; scan compara 22 usos qualificados, registra seis ausências e conserva requisitos resolvidos | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
+| W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
+| W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
