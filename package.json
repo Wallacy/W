@@ -15,6 +15,7 @@
     "check:links": "bun tooling/check-markdown-links.mjs",
     "check:substitutions": "bun tooling/check-substitution-cases.mjs --require-complete",
     "check:substitution-surface": "bun tooling/substitution-surface.mjs",
+    "check:studies": "bun tooling/check-study-bundles.mjs && bun test tooling/studies && bun run --cwd tooling/tree-sitter-w parse:studies",
     "measure:substitutions": "bun tooling/substitution-surface.mjs --write",
     "design:index": "bun tooling/design-index.mjs --write",
     "design:index:check": "bun tooling/design-index.mjs --check"

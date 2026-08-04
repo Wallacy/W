@@ -1,0 +1,79 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-control-flow-last-light",
+  "title": "Diagnostic carrier scan at the Last Light restaurant",
+  "r0Cases": ["R0-structured-labels", "R0-block-label"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/collections.w",
+    "symbol": "foldDiagnosticBits",
+    "digest": "sha256:d2e7e9b5fa2895ba7be1a963d188429353682fde8e705c1896270d68144b19aa"
+  },
+  "variants": [
+    {
+      "id": "structured",
+      "role": "selected",
+      "language": "w",
+      "path": "structured.w",
+      "digest": "sha256:653fec29f89477d6e86ab3ea6438d56fa305417ecd7bae4a82bf17978ebc26f5",
+      "changedConstructs": ["labeled block", "labeled for", "break label", "continue label"]
+    },
+    {
+      "id": "flags",
+      "role": "alternative",
+      "language": "w",
+      "path": "flags.w",
+      "digest": "sha256:24636e36cf3f051e5bd933f7e233a58c0dda3d332d9d580700f1de87248d3345",
+      "changedConstructs": ["mutable stop flag", "mutable skip flag", "unlabeled break", "unlabeled continue"]
+    }
+  ],
+  "entry": "foldDiagnosticBits",
+  "inputs": [
+    {
+      "id": "service-window",
+      "rows": [[1, 2, 0, 31], [3, 4], [32, 5]],
+      "expected": { "bits": 34916, "finalizedRows": 1 }
+    },
+    {
+      "id": "zero-before-invalid",
+      "rows": [[7, 0, 9], [2], [32], [1]],
+      "expected": { "bits": 226, "finalizedRows": 1 }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which rows contribute bits, which rows finalize, and where scanning stops."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the two early-exit rules without reopening the source.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that incorrectly finalizes a row containing zero.",
+      "mutations": {
+        "structured": "Replace `continue scanRows` with `break`.",
+        "flags": "Remove `skipRow = true` before the inner break."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a rejectedRows count without finalizing zero rows or reading after an invalid carrier."
+    }
+  ],
+  "presentationOrders": [["structured", "flags"], ["flags", "structured"]],
+  "blinding": {
+    "participantLabels": { "structured": "A", "flags": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:40b0336001dc1ef568f55df2bb85e5d9c075155240995417198a95d9fc956c3e"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
