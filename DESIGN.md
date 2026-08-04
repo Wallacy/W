@@ -14062,8 +14062,8 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 
 ### 14.5 Catálogo verificável SDK0
 
-**Exemplo:** o Última Luz chama `destination.writeAll(chunk)`. A seção 14.2.3
-define essa operação, mas o rascunho de `ByteSink` ainda não a declara.
+**Exemplo:** o build transform recebe `build.Context`. O consumer existe, mas o
+rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
 catálogo da seção 14 aos nove módulos W atuais. Cada export usa um profile que
@@ -14086,12 +14086,11 @@ registra 61 exports catalogados e 22 superfícies qualificadas usadas pelo
 Última Luz. O checker rejeita export sem profile, uso qualificado desconhecido,
 profile incompleto, anchor inexistente, consumer ausente e snapshot stale.
 
-O Última Luz exige sete superfícies que ainda não possuem draft:
+O Última Luz exige seis superfícies que ainda não possuem draft:
 
 | Módulo | Superfície ausente | Consumer |
 |---|---|---|
 | `std.build` | `Context` | build transform do cardápio |
-| `std.io` | `ByteSink.writeAll` | relay de receitas extintas |
 | `std.http` | `Context` | gateway HTTP |
 | `std.http` | `Request` | benchmark e apps HTTP |
 | `std.http` | `Response` | benchmark e apps HTTP |
@@ -14106,7 +14105,7 @@ ou registrar uma migração de design.
 SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
-1. resolver as sete superfícies ausentes;
+1. resolver as seis superfícies ausentes;
 2. registrar cada operação behaviorful separadamente;
 3. ligar cada operação a error, cancellation, capability, bound e complexity;
 4. adicionar um segundo consumer antes de classificar uma API como estável;
@@ -22483,7 +22482,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 61 exports em nove módulos, aplica profiles completos e registra sete superfícies exigidas pelo Última Luz sem draft | resolver as sete ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
+| std | SDK0 cataloga 61 exports em nove módulos, aplica profiles completos e registra seis superfícies exigidas pelo Última Luz sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -24239,7 +24238,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 52 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 61 exports; scan compara 22 usos qualificados e registra sete superfícies ausentes | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
+| W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 61 exports; scan compara 22 usos qualificados, registra seis ausências e conserva requisitos resolvidos | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

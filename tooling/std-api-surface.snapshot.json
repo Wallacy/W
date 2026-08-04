@@ -1,13 +1,13 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "9d440ccf743a67a1d5aa0ce15a6b0fdd004d3e10cd1176b4c563e8ac4dd6b8ea",
+  "catalogDigest": "e9864e26e3b1a1b6bf33e2a266bd6e838fb92884d19ceb455387249fb02e62c8",
   "summary": {
     "modules": 9,
     "catalogedApis": 61,
     "qualifiedReferenceSurfaces": 22,
     "referenceRequirements": 7,
-    "missingReferenceRequirements": 7
+    "missingReferenceRequirements": 6
   },
   "modules": [
     {
@@ -315,13 +315,13 @@
       "tier": "T1",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
-      "catalogedDeclarationsDigest": "6b8d32ac3db2a19869fef68b2f38d3a0ccf6e6606a51f10c861b0ea894c322f3",
+      "catalogedDeclarationsDigest": "bb3b1cb012c074fe7ad26208538c64d335a6dfd429f2c25225a466002c659744",
       "apis": [
         {
           "symbol": "ByteSink",
           "kind": "protocol",
           "signature": "export protocol ByteSink<Failure: Error>",
-          "declarationDigest": "4db34f30688a95b8f10eb58862f450328c21c0fb7270cbb0738785e90e35916f",
+          "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
           "line": 25,
           "profile": "byte-sink"
         },
@@ -776,7 +776,7 @@
       "id": "sdk0-byte-sink-write-all",
       "module": "std.io",
       "surface": "ByteSink.writeAll",
-      "status": "missing",
+      "status": "draft",
       "consumer": "reference/last-light/io.w"
     },
     {

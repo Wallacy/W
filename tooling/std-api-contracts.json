@@ -287,7 +287,7 @@
       "surface": "ByteSink.writeAll",
       "kind": "member",
       "consumer": "reference/last-light/io.w",
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-context",
