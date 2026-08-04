@@ -442,6 +442,41 @@
       "meaning": "an equality, relation, or range expression attempts to chain"
     },
     {
+      "code": "W-GENERIC-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "generic inference does not have one unique solution for an open parameter",
+      "requiredFacts": {
+        "candidates": "string-set",
+        "equationSources": "string-set",
+        "parameter": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "call-owner": { "minimum": 1, "maximum": 1 },
+        "generic-parameter": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-GENERIC-0005",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a sequence of generic instantiations does not converge",
+      "requiredFacts": {
+        "declaration": "string",
+        "instantiationPrefix": "string[]",
+        "reason": "string",
+        "transform": "string"
+      },
+      "labelRoles": {
+        "generic-declaration": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-SEM-0001",
       "state": "active",
       "phase": "semantic.type",
@@ -466,6 +501,41 @@
       },
       "labelRoles": {
         "branch-result": { "minimum": 2, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-TYPE-0121",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "an enum value is outside the expected normalized case subset",
+      "requiredFacts": {
+        "actualCase": "string",
+        "allowedCases": "string-set",
+        "baseEnum": "string",
+        "expectedType": "string"
+      },
+      "labelRoles": {
+        "expected-type": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-TYPE-0122",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "no total exact unique implicit conversion exists between the actual and expected types",
+      "requiredFacts": {
+        "actualType": "string",
+        "candidateRoutes": "string-set",
+        "expectedType": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "call-owner": { "minimum": 1, "maximum": 1 },
+        "expected-type": { "minimum": 1, "maximum": 1 }
       },
       "fixes": {}
     },
