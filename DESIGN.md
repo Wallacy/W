@@ -12959,7 +12959,7 @@ exhaustion. Elas não colapsam `canceled`, `applicationError`, `commitFailed`,
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
 expressá-las. Compiler intrinsics ficam atrás de declarations pequenas e
-auditáveis. O source inicial está em [`std/`](std/).
+auditáveis pelo contrato de 19.3.1. O source inicial está em [`std/`](std/).
 
 Uma operação pertence ao tipo que possui seu estado ou contrato. A std não cria
 uma classe utilitária apenas para agrupar nomes:
@@ -13656,7 +13656,7 @@ nome curto. O runtime não cria `globalThis` ou um namespace ambiental.
 | Família WinterTC 2025 | Contrato W | Estado de design |
 |---|---|---|
 | Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | núcleo lógico fechado em 14.3.1–14.3.3; readiness SDK0 de cada export deriva dos requisitos e carriers catalogados |
-| URL | `URL`, `URLSearchParams`, `URLPattern` | nomes aceitos; parser, mutation e matching ainda precisam de corpus |
+| URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra no SDK0 |
 | Streams | readable, writable, transform, BYOB e queuing strategies | semântica aceita; ownership, transfer e bounds precisam de interfaces completas |
 | cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | adapter sobre cancellation W; events gerais continuam pesquisa |
 | encoding e compression | text encoders/decoders e compression streams | alvo T2; algorithms e error policy precisam de catálogo |
@@ -13822,21 +13822,283 @@ Incoming `Request` é immutable. Method, URL e body não mudam. Headers usam gua
 coincide com a prática documentada em
 [Cloudflare Request](https://developers.cloudflare.com/workers/runtime-apis/request/).
 
-`URL` segue o URL Standard. `href` contém a serialização canônica. `pathname`
-e `searchParams` têm os significados do standard. O host valida e cria a URL
-antes do handler. Por isso, `request.url` não exige um parse repetido. O
-constructor geral de `URL` ainda pode falhar para input não confiável.
+##### URL e URLSearchParams
 
-Essa property é `adapted`: Fetch expõe `Request.url` como uma String
-serializada; W expõe `ref URL`. `request.url.href` devolve a String compatível.
-O impacto é uma qualificação adicional quando o programa precisa do texto. O
-benefício é preservar a prova de parse e evitar parse repetido em cada handler.
+`std.url` publica values portáteis. `URL` é dados canônicos, não authority. Um
+value com scheme `https` não concede network; um value `file` não concede
+filesystem nem vira `Path` implicitamente. Parse, resolução e serialização não
+consultam DNS, disco, environment, document ou base URL global.
 
-`URLSearchParams` preserva ordem e valores repetidos. `get(name)` devolve o
-primeiro valor como `Option<view String>`. `getAll(name)` devolve todos os
-valores. Parsing e serialização seguem
-[application/x-www-form-urlencoded](https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
-W não cria os aliases `query` ou `QueryParameters`.
+A interface de construção é:
+
+```text
+URL(String) -> URL throws UrlParseError
+URL(String, base: ref URL) -> URL throws UrlParseError
+URL.parse(ref String) -> URL?
+URL.parse(ref String, base: ref URL) -> URL?
+URL.canParse(ref String) -> Bool
+URL.canParse(ref String, base: ref URL) -> Bool
+```
+
+O overload sem base aceita somente uma URL absoluta. O overload com base aplica
+o algoritmo de resolução do URL Standard. Uma referência relativa contra uma
+base com opaque path falha, exceto quando o próprio standard permite atualizar
+somente o fragment. A base já é `URL`; W não repete o parse de uma String base e
+não possui a base ambiental de um document. `parse` converte `invalidURL` em
+`none`. `canParse` devolve o mesmo reconhecimento sem reter o value construído.
+Nenhuma dessas APIs impõe um tamanho máximo arbitrário. O tamanho do input e o
+budget normal do allocator limitam custo; um host aplica seu próprio limite de
+request-target antes de criar um `Request`.
+
+As properties read-only conservam os nomes Web:
+
+```text
+href, origin, protocol, username, password, host, hostname, port,
+pathname, search, hash
+```
+
+Essas properties devolvem `view String` em O(1), sem allocation.
+`toString()` e `toJSON()` materializam uma cópia de `href`. `protocol` inclui
+`:`, `host` inclui a porta não default quando existe, `search` inclui `?` quando
+a query existe e não está vazia, e `hash` inclui `#` quando o fragment existe e
+não está vazio. Como no Web, tanto query ausente quanto query vazia produzem
+`search == ""`; `href` ainda distingue ausência de `?`. Fragment ausente e vazio
+seguem a mesma regra para `hash` e `#`.
+
+O source de `URL` contém somente um `URLRecord` intrinsic owned e opaco. O
+provider mantém um backing canônico de bytes, ranges fixos para os components e
+flags de scheme, host, query e fragment. `origin` pode ocupar uma segunda faixa
+canônica quando não é slice contígua de `href`; os demais getters não mantêm uma
+String owned por component. A representação custa O(bytes canônicos + metadata
+fixa), não doze allocations ou doze cópias do input. O layout não é ABI pública,
+mas qualquer provider precisa manter getters O(1), views ligadas ao owner e
+nenhuma allocation depois do parse.
+
+O parser de URL não executa o form-decode da query. Portanto, um incoming
+`Request` já contém `pathname`, `search` e os outros ranges canônicos, mas não
+uma lista `URLSearchParams` eager. Um handler que faz routing somente por
+`request.url.pathname` usa um borrow O(1), sem parse repetido e sem allocation
+de query depois da admissão do host.
+
+`href` é a serialização canônica do URL record. O parser e todos os setters
+seguem os estados e encode sets do
+[URL Standard](https://url.spec.whatwg.org/). Isso inclui:
+
+- schemes especiais `ftp`, `file`, `http`, `https`, `ws` e `wss`, com ports
+  default `21`, ausente, `80`, `443`, `80` e `443` respectivamente;
+- remoção da porta quando ela equivale ao default; em URL especial, domain
+  ASCII em lowercase por UTS #46/IDNA e IPv4/IPv6 canônicos;
+- opaque host de URL não especial pelo próprio percent-encode set, sem aplicar
+  as coerções de domain e IPv4 reservadas ao parser de host especial;
+- path como lista de segments para URL hierárquica e como opaque path para os
+  demais casos, com dot-segment resolution e percent-encoding por componente;
+- `file:` com seu host, path e normalização de Windows drive letter próprios,
+  incluindo `localhost` canônico como host vazio e sem transformar o value em
+  authority ou consultar o target filesystem;
+- username, password e port proibidos quando o URL record não pode tê-los;
+- origin tuple para `ftp`, `http`, `https`, `ws` e `wss`, regra própria de
+  `blob`, e serialização `"null"` para opaque origin, inclusive `file` nesta
+  edição.
+
+W String contém somente Unicode scalar válido. A conversão Web de lone UTF-16
+surrogate para U+FFFD é, portanto, `notApplicable`. IDNA usa os parâmetros UTS
+#46 exigidos pelo URL Standard e os dados Unicode 17.0.0 fixados pelo SDK. Um
+validation error recuperável do algoritmo não é automaticamente `invalidURL`:
+o parser pode normalizar, por exemplo, uma forma IPv4 não decimal. Ele falha
+somente quando o resultado do algoritmo é failure.
+
+`href` e os componentes possuem getters Web, mas W não usa property setter que
+possa falhar ou ignorar a atribuição. A mutação usa:
+
+```text
+setHref, setProtocol, setUsername, setPassword, setHost, setHostname,
+setPort, setPathname -> () throws UrlMutationError
+setSearch, setHash -> ()
+```
+
+`invalidValue(component)` informa parse inválido. `incompatibleState(component)`
+substitui o silent no-op Web, como credential em `file:`, host em opaque path ou
+transição de scheme incompatível. Failure deixa o URL record inteiro intacto.
+`setSearch` e `setHash` aceitam toda W String e são nonthrowing sob a policy
+normal de OOM. Cada mutação invalida views anteriores do URL; o borrow checker
+impede que uma dessas views permaneça viva durante o receiver `inout`.
+
+`URLSearchParams` é uma lista owned de pares String. Ele preserva insertion
+order, nomes repetidos, nomes vazios e valores vazios. Seus constructors são:
+
+```text
+URLSearchParams(take URLSearchParam...)
+URLSearchParams(String)
+URLSearchParams(copying: ref URLSearchParams)
+```
+
+O primeiro constructor é a adaptação nominal da sequence/record dinâmica Web.
+Cada `URLSearchParam` tem exatamente `name` e `value`; aridade inválida e field
+de tipo não String são erros estáticos. O rest mantém a ordem e permite
+repetição. O segundo remove no máximo um `?` inicial e aplica o parser
+`application/x-www-form-urlencoded`. O terceiro cria uma lista independente.
+W não enumera fields de um object dinâmico nem converte values por `ToString`.
+
+A API conserva `size`, `append`, os dois overloads de `delete`, `get`, `getAll`,
+os dois overloads de `has`, `set`, `sort`, `entries`, `keys`, `values` e
+`toString`. `get` devolve o primeiro match como `Option<view String>`.
+`getAll`, `entries`, `keys` e `values` devolvem snapshots owned na ordem da
+lista. `set` substitui o primeiro match e remove os demais; quando não existe
+match, adiciona ao final. `sort` é stable e compara nomes por code units UTF-16,
+inclusive o par surrogate virtual de um scalar fora do BMP. Ele não usa ordem
+UTF-8 nem ordem por Unicode scalar.
+
+Parsing e serialização seguem
+[application/x-www-form-urlencoded](https://url.spec.whatwg.org/#application-x-www-form-urlencoded).
+O codec usa UTF-8, codifica espaço como `+` e deixa sem escape somente ASCII
+alphanumeric, `*`, `-`, `.` e `_`. Um `+` literal serializa como `%2B`; durante
+parse, `+` vira espaço antes de percent-decode. Percent escapes inválidos e
+sequências UTF-8 inválidas seguem o algoritmo Web e não criam um segundo modo
+strict. A serialização de `URL.search` pode usar `%20` e preservar `~`, enquanto
+uma mutação por `editSearchParams` usa `+` e codifica `~`; essa diferença do
+standard pode mudar `href` sem mudar os pares lógicos.
+
+`searchParams()` é uma materialização owned e explícita. A forma read-only
+preserva o nome, mas usa call em vez de property para mostrar decode e
+allocation:
+
+```w
+let params = url.searchParams()
+let count = params.get("count").flatMap((value) => usize.parse(value)) ?? 1
+```
+
+O método executa um único form-decode da query atual e devolve um
+`URLSearchParams` independente. O caller pode guardar e reutilizar esse owner;
+operações sobre ele não repetem parse. Views de pares ficam ligadas ao owner
+materializado pela regra normal de borrow. Os parentheses e o profile de
+allocation tornam o custo visível. Não há cache interior, mutation escondida ou
+custo no caminho de routing que não chama `searchParams()`.
+
+Mutação usa a outra fronteira scoped:
+
+```w
+url.editSearchParams((params) => {
+  params.append("course", "horizon cake")
+  params.append("course", "+dessert")
+})
+```
+
+O receiver `inout URL` exclui qualquer outro acesso ao URL. O método materializa
+a query uma vez. A closure recebe `inout URLSearchParams`, é síncrona, pode
+falhar com um error genérico e não pode escapar esse borrow. A signature segue o
+effect polymorphism vigente:
+
+```w
+export mut fn editSearchParams<Failure: Error>(
+  _ edit: fn(inout URLSearchParams): () throws Failure,
+): () throws Failure
+```
+
+`Failure = Never` especializa a operação como nonthrowing, então o exemplo
+anterior não exige `try`. Se a closure propaga um error, o método descarta a
+lista temporária antes de serializar e mantém o URL original. Em success, depois
+de ao menos um mutator, ele serializa a lista uma vez e atualiza query, `search`
+e `href` num único commit. W não usa `rethrows`.
+
+Um edit sem mutator não altera o URL. Invocar `delete` ou `sort` ainda conta
+como mutação mesmo quando os pares finais são iguais, como no algoritmo Web. Um
+flag scoped, resetado antes e depois de cada edit bem-sucedido, registra somente
+esse fato. Ele não participa de igualdade, copy, codec ou resultado observável.
+
+O seam confirma query como `Option<String>`: `none` remove a query;
+`.some("")` preserva a query vazia e o `?`; `.some(encoded)` instala os bytes
+form-encoded. `editSearchParams` usa `none` quando a lista serializa vazia.
+`setSearch("?")` usa a operação do URL Standard e cria query presente vazia.
+Assim, um edit vazio preserva `...?`, enquanto `sort()` ou
+`delete("missing")` sobre a lista vazia remove `?`. O oracle do Última Luz cobre
+as três transições.
+
+`setHref` e `setSearch` atualizam somente o record canônico; a próxima chamada a
+`searchParams()` materializa esse estado novo. Um snapshot já devolvido não muda
+e sua mutação não altera o URL. A relação continua live nas fronteiras
+observáveis: cada materialização e cada edição começa na query atual, e cada
+edição bem-sucedida faz um único commit no URL. W não preserva object identity
+ou a garantia JavaScript `SameObject`; identidade de object não se aplica a
+esses values.
+
+`URL`, `URLSearchParams` e `URLSearchParam` atendem a `Duplicable`, não a
+`Copy`. `copy` percorre e duplica o backing ou a lista; o resultado é
+independente. Views de components, pares ou values custam O(1) e duram no
+máximo o borrow do owner.
+Os custos máximos são:
+
+| Operação | Tempo | Espaço adicional |
+|---|---|---|
+| parse ou resolução de URL | O(bytes de input + base + IDNA) | O(backing canônico + metadata fixa); não decodifica params |
+| getter textual de URL | O(1) | O(1), view |
+| setter de URL | O(bytes do record + input + IDNA aplicável) | O(backing canônico novo); strong failure guarantee |
+| `URL.searchParams()` | O(bytes da query) | O(lista materializada owned) |
+| `URLSearchParams` parse ou `toString` | O(bytes de input ou output) | O(lista ou output) |
+| `append` | O(bytes do par), amortizado | O(bytes do par) |
+| `get`, `has`, `delete` ou `set` | O(pares + bytes comparados) | O(pares mantidos) no draft source |
+| `getAll`, `entries`, `keys` ou `values` | O(pares + output) | O(output owned) |
+| `sort` | O(n log n + code units comparados) | O(n) |
+| `editSearchParams` sem mutator / ao atualizar | O(query) / O(query + mutations + output) | O(lista) / O(lista + query serializada) |
+
+No draft source, `delete` move os pares mantidos e não copia Strings. `set`
+move os pares mantidos e o novo value. Quando encontra um match, ele copia
+somente o nome do primeiro par mantido; a baseline não depende de partial move
+de fields. O caminho sem match move `name` e `value` diretamente para o fim.
+
+No caminho comum do handler, o host paga parse e backing uma vez antes de
+entregar o `Request`. Cada inspeção de `pathname` ou outro component custa O(1)
+e zero allocation. Somente código que chama `searchParams()` ou
+`editSearchParams(...)` paga form-decode. Cada call paga esse decode uma vez; o
+caller guarda o snapshot quando precisa executar várias consultas.
+
+Não há I/O, suspensão, cancellation ou capability. Allocation failure segue a
+policy comum de OOM. Para input não confiável, admission limita bytes e trabalho
+total antes do parse. Um consumer de URL precisa allowlist de scheme e, para
+network, validar origin/host contra sua policy. A forma canônica não elimina
+homographs IDNA, IPv4 alternativo no input, credentials visíveis ou leakage em
+query. Log e UI não devem exibir URL não confiável como authority sem contexto.
+
+A compatibilidade fica explícita:
+
+| Superfície Web | Classificação W | Diferença observável |
+|---|---|---|
+| parse, resolução, getters, origin e serialização | `exact` | somente o carrier String/Option é W |
+| base de constructor, `parse` e `canParse` | `adapted` | base é `ref URL`, não uma segunda String dinâmica |
+| setters de URL | `adapted` | métodos `setX` e errors tipados substituem assignment e silent no-op |
+| `searchParams` live e `SameObject` | `adapted`; identity `notApplicable` | `searchParams()` devolve snapshot owned da query atual; `editSearchParams` é a única mutação live; nenhuma allocation fica escondida numa property |
+| constructors sequence/record de params | `adapted` | rest de `URLSearchParam` nominal substitui object dinâmico |
+| `entries`, `keys` e `values` | `adapted` | snapshots owned substituem iterators live mutáveis |
+| `forEach` e `Symbol.iterator` | `notApplicable` | W usa `for` sobre snapshot; não possui o protocol de object ECMAScript |
+| base URL de document e conversão USVString dinâmica | `notApplicable` | não existem ambiente Web global, `ToString` ou lone surrogate |
+
+`URLPattern` não entra em `std.url` SDK0 e não recebe claim de compatibilidade.
+Pattern matching exige outro contrato e corpus; não é necessário para Fetch.
+W também não cria `query`, `QueryParameters`, aliases HTTP ou setters paralelos.
+
+O source [`std/url/contracts.w`](std/url/contracts.w) materializa os values e
+operações de lista. Parsing URL, backing/ranges, IDNA, percent codec e sort
+UTF-16 pertencem ao provider `std.url-record@1` definido pelo mecanismo geral
+de 19.3.1. O status atual fecha a draft interface; o provider executável continua
+missing. Isso torna a dependência verificável sem escrever um parser incompleto
+ou alegar implementação. Um provider só muda para available se passar os
+corpora oficiais:
+
+- [URL parser data](https://github.com/web-platform-tests/wpt/blob/master/url/resources/urltestdata.json);
+- [setter data](https://github.com/web-platform-tests/wpt/blob/master/url/resources/setters_tests.json);
+- [IDNA ToASCII data](https://github.com/web-platform-tests/wpt/blob/master/url/resources/toascii.json);
+- [URLSearchParams tests](https://github.com/web-platform-tests/wpt/tree/master/url).
+
+O gate compara todos os getters, success/failure, base resolution, setters,
+origin, file, special/non-special, opaque path, empty query/fragment, malformed
+percent input, repeated params, stable sort e round-trip. Também executa
+differential tests contra dois engines Web, fuzzing com allocation budget e
+Unicode 17.0.0, ASan/UBSan e casos de crescimento adversarial. Um fixture local
+não substitui WPT nem autoriza divergência.
+
+`Request.url` é `adapted`: Fetch expõe uma String serializada; W expõe
+`ref URL`. `request.url.href` devolve a view compatível. O host valida e cria a
+URL antes do handler, então o programa não repete parse. A qualificação extra
+preserva a prova de parse e a estrutura canônica.
 
 `BodyInit` é o conjunto lógico de overloads. Ele não é um object apagado:
 
@@ -13844,7 +14106,7 @@ W não cria os aliases `query` ou `QueryParameters`.
 |---|---|---|---|
 | `Bytes` | move; sem cópia obrigatória | nenhum | T0 disponível |
 | `String` | move; UTF-8 | `text/plain;charset=UTF-8` | T0 disponível |
-| `URLSearchParams` | move | form URL encoded UTF-8 | carrier ausente |
+| `URLSearchParams` | move | form URL encoded UTF-8 | draft em `std.url` |
 | `Blob` | move ou sharing explícito | `blob.type`, se existir | profile final ausente |
 | `FormData` | move | multipart com boundary | profile final ausente |
 | `ReadableStream<Bytes, HttpBodyError>` | move | nenhum | carrier ausente |
@@ -14101,7 +14363,7 @@ service transfer, fetch, serve e o slot `http.fetch`.
 Questões ainda não provadas:
 
 1. o módulo público de `AbortSignal` ainda não possui source SDK0;
-2. URL, URLSearchParams e ReadableStream ainda precisam de interfaces SDK0;
+2. ReadableStream ainda precisa de interface SDK0;
 3. Blob e FormData precisam de backing store, limits e corpus;
 4. um iterator borrowed só entra se provar vantagem sem invalidation;
 5. peers legacy precisam de corpus para medir rejeição por UTF-8.
@@ -14288,7 +14550,7 @@ precisa fechar validation, commit e failure antes dessa superfície.
 
 Questões ainda não provadas:
 
-1. o SDK0 não possui URL, URLSearchParams, ReadableStream ou codec JSON;
+1. o SDK0 não possui ReadableStream ou codec JSON;
 2. Blob e FormData ainda não possuem contracts de storage e limits;
 3. fixed-length stream precisa de contrato antes de controlar Content-Length;
 4. trailers precisam de corpus para HTTP/1.1, HTTP/2, HTTP/3 e WASI HTTP.
@@ -14641,7 +14903,7 @@ não define package separado, import implícito ou linking obrigatório.
 | T1 | math, simd, io, fs, path, process, environment, time, random, net, dns, tls, ipc | adapters comuns e capabilities do host |
 | T1 | task, stream, channel, synchronization, service, ffi.c, codec, json | execução, fronteiras e dados portáteis |
 | T1 | log, trace, metrics, build, test, benchmark | observação e tooling com outputs declarados |
-| T2 | http, cli, terminal, database, cache, plugin | domínios comuns com policy maior |
+| T2 | url, http, cli, terminal, database, cache, plugin | domínios comuns com policy maior |
 | T2 | crypto, compression, regex, locale, calendar, timezone | bundles versionados ou providers de segurança |
 | T2 | si, science, statistics, BigInt, Rational, FixedDecimal, Complex | ciência e precisão explícita |
 | T2 | matrix, tensor, autodiff, accelerator | shapes, numeric modes e device transfer |
@@ -14692,7 +14954,7 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos nove módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos dez módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -14708,10 +14970,13 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 68 declarations exportadas, das quais 66 estão draft-ready e duas estão
-bloqueadas. Ele também registra 27 superfícies qualificadas usadas pelo Última
+registra 74 declarations exportadas, das quais 72 estão draft-ready e duas estão
+bloqueadas. Ele também registra 29 superfícies qualificadas usadas pelo Última
 Luz. O checker rejeita export sem profile, uso qualificado desconhecido, profile
-incompleto, anchor inexistente, consumer ausente e snapshot stale.
+incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
+declaration mede somente a interface W. Quando uma interface depende de um
+provider intrinsic, o catálogo registra separadamente o ID, os gates e o estado
+executável. Uma declaration `draft` não torna um provider `available`.
 
 Os nove requisitos adversariais possuem profile. `ByteSink.writeAll`,
 `http.ServerError` e `http.Headers` possuem draft pronto. O catálogo registra
@@ -14736,17 +15001,19 @@ O Última Luz exige seis superfícies que ainda não possuem draft pronto:
 | `std.http` | `ResponseError` | codec JSON ausente | gateway HTTP |
 | `std.http` | `serve` | declaration ausente | host nativo |
 
-Sete requisitos de carrier tornam o bloqueio verificável:
+Sete requisitos de carrier tornam o bloqueio verificável. Dois possuem draft e
+cinco continuam missing; entre os cinco obrigatórios do núcleo Fetch, três
+continuam missing:
 
-| Carrier | Provider SDK0 | Readiness |
-|---|---|---|
-| `URL` | `std.url` | obrigatório; missing |
-| `URLSearchParams` | `std.url` | obrigatório; missing |
-| `ReadableStream` | `std.stream` | obrigatório; missing |
-| `AbortSignal` | módulo ainda não decidido | obrigatório; missing |
-| `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing |
-| `Blob` | módulo ainda não decidido | profile final; missing |
-| `FormData` | `std.http` | profile final; missing |
+| Carrier | Provider SDK0 | Interface | Provider executável |
+|---|---|---|---|
+| `URL` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
+| `URLSearchParams` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
+| `ReadableStream` | `std.stream` | obrigatório; missing | não aplicável |
+| `AbortSignal` | módulo ainda não decidido | obrigatório; missing | não aplicável |
+| `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing | não aplicável |
+| `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
+| `FormData` | `std.http` | profile final; missing | não aplicável |
 
 `required` participa da readiness do draft atual. `profile-final` preserva uma
 obrigação do profile, mas não inventa uma declaration parcial. Blob e FormData
@@ -14758,17 +15025,20 @@ repete provider, profile ou estado. `DESIGN.md` define a relação. O JSON regis
 os IDs e o estado verificável das fontes.
 
 O status `missing` não rejeita o nome já fechado nesta seção. Ele informa que o
-SDK0 ainda não consegue publicar uma interface compilável. Adicionar outra API
-não satisfaz o requisito sem migração de design.
+SDK0 ainda não consegue publicar uma interface compilável. No campo separado de
+provider, `missing` informa que a interface compila somente quando o SDK fornece
+o algoritmo versionado. Adicionar outra API não satisfaz nenhum dos requisitos
+sem migração de design.
 
 SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
 1. resolver as seis superfícies sem draft pronto;
-2. fechar os cinco carriers obrigatórios do núcleo Web;
+2. fechar os três carriers obrigatórios restantes do núcleo Web;
 3. catalogar operações de Request e Response depois desses carriers;
 4. adicionar um segundo consumer antes de classificar uma API como estável;
-5. substituir digests de source por interfaces emitidas pelo checker real.
+5. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
+6. substituir digests de source por interfaces emitidas pelo checker real.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -17712,7 +17982,78 @@ em semântica comum. A baseline fecha estas rotas:
 | linker section e retain | placement data-only no product | **Provável** |
 | symbol e calling convention | `export foreign` e symbol manifest | **Possível agora** |
 | inline assembly | `unsafe fn<Asm>` com target e clobbers | **Provável T2** |
-| compiler intrinsic | protocol interno versionado da std | **Possível agora** |
+| compiler intrinsic | `foreign intrinsic from "provider@major"` interno da std | **Possível agora** |
+
+#### 19.3.1 Intrinsics internos do SDK
+
+**Exemplo:** `std.url` declara o record opaco que o parser normativo produz. O
+source público continua W e contém a única boundary `unsafe`:
+
+```w
+foreign intrinsic from "std.url-record@1" {
+  type URLRecord
+  fn parseURL(input: ref String): URLRecord throws UrlParseError
+  fn urlView(record: ref URLRecord, component: URLViewComponent): view String
+}
+
+export struct URL {
+  record: URLRecord
+
+  export init(_ input: String) throws UrlParseError {
+    self.record = unsafe { try parseURL(input) }
+  }
+}
+```
+
+`intrinsic` é o único language identifier de `foreign` reservado ao compiler.
+Ele não seleciona uma linguagem externa. `from` é obrigatório e contém um ID
+canônico `namespace.name@major` da interface do provider. O SDK fixa também a
+minor version, o digest das signatures e a availability no seu manifest. O
+resolver rejeita provider ausente, major diferente, operação desconhecida ou
+signature digest divergente antes do lowering.
+
+Somente módulos internos da std entregues com provenance do SDK podem declarar
+`foreign intrinsic`. Package comum, dependency e aplicação recebem diagnostic,
+mesmo quando escrevem o mesmo token ou conhecem o provider ID. A declaration não
+pode ser `export`. O public module expõe somente wrappers W. Assim, uma package
+não inventa uma operação trusted nem amplia sua authority por spelling.
+
+O provider pertence ao compiler ou ao runtime versionado. Seus opaque types,
+ownership, borrows, errors, effects e cleanup são parte da interface intrinsic,
+mas não possuem ABI, calling convention, symbol ou layout públicos. Uma call é
+`unsafe`: o wrapper da std valida inputs e restabelece invariantes antes de
+publicar um value safe. O intrinsic não concede capability. Ele só usa as
+capabilities recebidas por argumento e os effects declarados pelo manifest. O
+provider não consulta network, filesystem, environment, clock ou random quando
+essas dependências não aparecem no contrato.
+
+O lowering identifica uma operação por `(provider ID, operation, signature
+digest)`. Ele não executa link lookup e não emite symbol foreign por default. O
+backend pode baixar a operação para HIR/MLIR, runtime privado ou library bundled,
+desde que preserve value, ownership, effect, failure e complexity. Panic ou
+unwind não declarado que atravesse a boundary é fault do compiler/runtime, não
+um error adicional da API.
+
+As três formas permanecem distintas:
+
+| Forma | Conteúdo | Resolução | ABI pública |
+|---|---|---|---|
+| `foreign c from "header.h"` | signatures de library externa | header, linker e adapter C | C |
+| `fn<C> name(...) { ... }` | body de aplicação em outra linguagem | tool adapter hermético | façade C tipada |
+| `foreign intrinsic from "provider@major"` | primitive sem body, interna da std | manifest do compiler/runtime | nenhuma |
+
+`foreign intrinsic` reutiliza a grammar de foreign declaration; não cria
+annotation nem body island. O seed de `bootstrap.w0` mantém uma allowlist dos
+provider IDs exigidos pelo SDK mínimo e baixa as mesmas chaves que o compiler
+self-hosted. Uma implementação self-hosted pode substituir o lowering, mas não
+o ID, a signature ou o corpus de conformidade. A comparação de stages inclui o
+manifest intrinsic e seus digests.
+
+Uma interface intrinsic fechada permite parse, type-check e catálogo do source
+da std mesmo quando o provider executável ainda está ausente. Um build que
+precisa baixar a operação ainda falha antes do lowering. Catálogo e diagnostics
+mantêm estados separados para `draft interface` e `provider available`; o
+primeiro nunca alega que o algoritmo ou runtime já existe.
 
 `MmioRegister<T, access: A>` aceita somente carriers inteiros, fixed arrays ou
 structs de layout explícito aceitos pelo target. `load` e `store` executam
@@ -23224,7 +23565,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 68 exports em nove módulos; 66 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; seis superfícies de referência continuam sem draft pronto | fechar carriers Web obrigatórios, resolver as seis ausências, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 74 exports em dez módulos; 72 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; cinco carriers e seis superfícies de referência continuam sem draft pronto | fechar os três carriers Web obrigatórios restantes, resolver as seis ausências, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -24982,11 +25323,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 68 exports, nove requisitos e sete carriers; 66 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 27 usos e registra seis requisitos de referência ausentes | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ainda sem source |
+| W-891 | catálogo std SDK0 | profiles cobrem 74 exports, nove requisitos e sete carriers; 72 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 29 usos e registra seis requisitos de referência ausentes | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ainda sem source |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
 | W-895 | profile WinterTC | `web-common@2025` fixa e classifica o Minimum Common Web API como exact, adapted, extension, browser-only ou não aplicável; W não declara conformidade ECMAScript | alegar conformidade formal; copiar `globalThis`; seguir living surface sem snapshot; chamar extension de API portátil |
+| W-896 | URL portátil | `URL` guarda record canônico opaco; getters textuais são views O(1); base é `ref URL`; mutation usa errors tipados; `searchParams()` devolve snapshot owned atual; edição `inout` fallible e scoped faz commit único e distingue query ausente e vazia; `URLSearchParams` preserva ordem, repetição, form encoding e sort UTF-16; WPT fecha o provider | doze Strings owned; params eager; cache interior; callback para leitura; property Web com allocation escondida; `SameObject`; parser parcial no contrato; aliases HTTP; silent no-op; alias mutável escapável; URLPattern no SDK0 |
+| W-897 | intrinsic interno da std | `foreign intrinsic from "provider@major"` é primitive unsafe não exportável, restrita a módulos internos do SDK; manifest versionado fixa signatures, effects e gates; wrapper W safe contém a boundary; não existe ABI pública nem capability implícita; bootstrap usa allowlist e os mesmos digests | foreign symbol comum; `fn<C>`; annotation nova; provider ambiental; declaration por package; intrinsic público; authority por nome |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
