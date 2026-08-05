@@ -1,7 +1,8 @@
 # Fluxo do Codex para W
 
 > **Status:** orientação operacional para agentes, não parte da linguagem
-> **Sessão principal recomendada:** **GPT-5.6 Sol · High**
+> **Coordenador recomendado:** **GPT-5.6 Sol · High ou superior**
+> **Worker padrão:** **GPT-5.6 Luna · Max**
 
 `CONTRIBUTING.md` define o fluxo compartilhado. `MAINTAINERS.md` define revisão,
 merge e manutenção. Este arquivo acrescenta somente roteamento de modelos,
@@ -10,54 +11,86 @@ delegação e controle de contexto.
 Uma instrução de agente não concede autoridade. `GOVERNANCE.md` reserva merge,
 release e segurança para pessoas responsáveis.
 
-## Escolha de modelo
+## Arquitetura coordinator-worker
 
-Use GPT-5.6 Sol em High para arquitetura integrada, memória, concorrência,
-services, ABI e supply chain. Use o menor perfil que conclua a tarefa.
+O modelo principal é coordenador. Ele representa o mantenedor humano: entende o
+objetivo, define o critério de saída, delega, espera e revisa. Ele não implementa
+a tarefa nem repete a exploração do worker.
 
-| Trabalho | Perfil inicial | Uso |
-|---|---|---|
-| arquitetura e integração difícil | Sol · High | sessão principal |
-| revisão semântica excepcional | Sol · XHigh | pergunta estreita e critério de saída |
-| implementação delimitada | Terra · Medium | tooling e mudanças com testes claros |
-| inventário e leitura seletiva | Terra · Low ou Medium | síntese curta para a sessão principal |
-| extração e transformação mecânica | Luna · Low ou Medium | resultado determinístico e verificável |
+O worker é `w_luna_worker`, configurado em `.codex/agents/` com Luna Max. Use
+somente um worker por sessão. Reuse sua thread para todas as correções e tarefas
+relacionadas. Não use Ultra ou agentes paralelos.
 
-Não use Max, XHigh ou Ultra como padrão. Promova o esforço somente após erro
-semântico, ambiguidade real ou falha de qualidade.
+O alvo operacional é deixar pelo menos 95% do trabalho de modelo no worker.
+Esse valor é uma meta, não uma métrica garantida pelo Codex. Não gaste contexto
+tentando medi-lo durante a tarefa.
 
-Fast mode reduz latência e aumenta consumo. Use-o somente quando a urgência
-justificar esse custo. Não use Ultra para obter delegação automática.
+O coordenador pode agir diretamente somente para:
 
-### Endurecimento integral
+- conversar sobre o próprio fluxo;
+- pedir uma clarificação que muda materialmente o resultado;
+- relatar status, bloqueio ou resultado final;
+- revisar instruções de agente;
+- operar quando o usuário autorizar um fallback após Luna ficar indisponível.
 
-Uma revisão integral pode usar Sol · Ultra quando o usuário priorizar qualidade
-sobre custo. Nesse caso:
+## Início da tarefa
 
-1. leia o ledger uma vez;
-2. produza uma matriz única;
-3. devolva um questionário único de ratificação;
-4. não crie subagentes que releiam o mesmo contexto;
-5. volte a Sol · High após a síntese.
-
-## Delegação
-
-Não delegue por padrão. Um subagente deve economizar mais contexto do que sua
-coordenação consome.
-
-Antes de delegar, defina:
+O coordenador lê o pedido e as instruções ativas uma vez. Ele pensa no resultado
+de ponta a ponta e cria um pacote curto:
 
 ```text
-Objetivo: resultado observável.
-Entradas: arquivos e decisões necessários.
-Escrita autorizada: paths exclusivos.
+Papel: worker W.
+Objetivo: resultado observável de ponta a ponta.
+Contexto já decidido: fatos necessários que não devem ser redescobertos.
+Entradas: índices, seções e arquivos iniciais.
+Escopo de escrita: paths ou conceitos autorizados.
 Restrições: o que não pode mudar.
-Concluído quando: teste ou inspeção verificável.
-Retorno: síntese, arquivos, validação e bloqueios.
+Concluído quando: checks, inspeções e estado Git esperados.
+Commit: não no primeiro draft; aguarde revisão, salvo ordem contrária.
+Retorno: resultado, arquivos, checks, riscos e diff resumido.
 ```
 
-Não delegue quando duas tarefas alteram `DESIGN.md` ou dependem da mesma decisão.
-Não peça logs brutos. Não permita escrita sobreposta.
+Crie o worker com o nome `w_luna_worker` e sem copiar o histórico completo
+quando a interface permitir, como `fork_turns: none`. O pacote deve conter o
+contexto mínimo suficiente. Configuração e instruções do repositório fornecem o
+restante. Não faça uma segunda leitura da codebase antes de delegar.
+
+Se Luna Max não estiver disponível no seletor ou runtime atual, pare e informe
+o usuário. Não use Sol, Terra ou outro effort como fallback silencioso.
+
+## Espera e interação
+
+Depois de delegar, o coordenador fica idle. Use espera orientada a evento. Não
+leia a memória do worker, não faça polling de logs e não crie um arquivo de
+status por padrão.
+
+Se o usuário complementar a tarefa, envie somente o delta ao mesmo worker. Não
+abra outro agente e não reenvie o pacote completo. Interrompa o worker somente
+quando a nova instrução invalida o trabalho em curso.
+
+Um arquivo temporário de status é aceitável somente quando uma ferramenta longa
+não produz eventos e o estado é necessário para recuperação. O worker é dono do
+arquivo e o remove antes do handoff.
+
+## Revisão adversarial
+
+Quando o worker terminar, o coordenador inspeciona estrategicamente:
+
+1. `git status --short` e `git diff --stat`;
+2. hunks que mudam contratos, autoridade ou comportamento;
+3. resumo dos checks e o primeiro erro útil, se houver;
+4. aderência ao pedido, às fontes canônicas e ao escopo;
+5. regressões, omissões, artefatos temporários e trabalho não relacionado.
+
+Não releia arquivos inteiros que o diff não afetou. Não refaça a implementação.
+Envie ao mesmo worker uma única lista consolidada de correções. Depois do novo
+handoff, repita somente as verificações atingidas. Se o trabalho continuar ruim
+após duas rodadas, informe o usuário e peça autorização para mudar o modelo ou a
+estratégia.
+
+Quando a revisão for aprovada, peça ao worker para executar o gate final, fazer
+o commit e devolver hash e estado Git. O coordenador confirma o resultado e
+responde ao usuário.
 
 ## Contexto
 
@@ -109,11 +142,8 @@ Não repita um check quando nenhuma entrada mudou.
 
 ## Fontes desta política
 
-- [OpenAI — GPT-5.6 model guidance](https://developers.openai.com/api/docs/guides/model-guidance?model=gpt-5.6)
 - [OpenAI — Customization e AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
 - [OpenAI — modelos no Codex](https://learn.chatgpt.com/docs/models#recommended-models)
 - [OpenAI — subagentes](https://learn.chatgpt.com/docs/agent-configuration/subagents)
-- [OpenAI — Speed](https://learn.chatgpt.com/docs/agent-configuration/speed)
-- [Artificial Analysis — Sol, Terra e Luna](https://artificialanalysis.ai/articles/gpt-5-6-intelligence-vs-cost-across-sol-terra-luna)
 
 Reavalie o roteamento quando modelos, limites ou avaliações mudarem.

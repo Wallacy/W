@@ -12,6 +12,18 @@ Para trabalho longo, leia `.codex/W-WORKFLOW.md`. Para texto novo ou revisado,
 leia `.codex/WRITING.md`. Use ASD-STE100 Issue 9 no texto técnico em inglês e
 as regras equivalentes para português.
 
+## Orquestração padrão
+
+Toda tarefa substantiva usa o protocolo coordinator-worker de
+`.codex/W-WORKFLOW.md`. O coordenador interpreta o pedido, delega a execução a
+um único `w_luna_worker`, espera o handoff e faz revisão adversarial. Não crie
+agentes paralelos.
+
+Se este agente recebeu `Papel: worker W`, ele é o worker. Nesse caso, execute a
+tarefa diretamente e não delegue. Reuse a mesma thread do worker durante a
+sessão. Se Luna Max não estiver disponível, o coordenador deve informar a
+limitação. Não substitua o modelo sem autorização do usuário.
+
 ## Artefatos canônicos
 
 - `DESIGN.md` é a fonte única para contratos, decisões, alternativas, estado e
