@@ -134,11 +134,41 @@ function extractExports(source, sourcePath) {
       line: index + 1,
       signature: normalizeHeader(header),
       declarationDigest: digest(declarationLines.join("\n")),
+      declarationLines,
       source: sourcePath,
     });
   }
 
   return declarations;
+}
+
+function extractExportedMembers(declaration) {
+  const members = [];
+  const lines = declaration.declarationLines;
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const match = lines[index].match(
+      /^\s*export\s+(?:(?:async|const|mut|take)\s+)*(?:(fn)\s+([A-Za-z_][A-Za-z0-9_]*)|(init)\b)/,
+    );
+    if (!match) continue;
+
+    const symbol = match[3] ? "init" : match[2];
+    const header = [lines[index].trim()];
+    let cursor = index + 1;
+    while (!header.at(-1).includes("{") && cursor < lines.length) {
+      if (lines[cursor].trim() === "") break;
+      header.push(lines[cursor].trim());
+      cursor += 1;
+    }
+
+    members.push({
+      symbol,
+      line: declaration.line + index,
+      signature: normalizeHeader(header),
+    });
+  }
+
+  return members;
 }
 
 function hasDesignAnchor(anchor) {
@@ -248,6 +278,45 @@ for (const module of catalog.modules ?? []) {
       errors.push(`${apiId}: unknown profile ${api.profile}.`);
     }
 
+    const exportedMembers = extractExportedMembers(declaration);
+    const snapshotMembers = [];
+    const catalogMembers = new Set();
+    for (const member of api.members ?? []) {
+      if (catalogMembers.has(member.symbol)) {
+        errors.push(`${apiId}.${member.symbol}: duplicate member profile.`);
+      }
+      catalogMembers.add(member.symbol);
+
+      if (!catalog.profiles?.[member.profile]) {
+        errors.push(`${apiId}.${member.symbol}: unknown profile ${member.profile}.`);
+      }
+
+      const matches = exportedMembers.filter((candidate) => candidate.symbol === member.symbol);
+      const expectedOverloads = member.overloads ?? 1;
+      if (matches.length !== expectedOverloads) {
+        errors.push(
+          `${apiId}.${member.symbol}: expected ${expectedOverloads} exported overloads, ` +
+            `found ${matches.length}.`,
+        );
+      }
+
+      snapshotMembers.push({
+        symbol: member.symbol,
+        overloads: matches.map((match) => ({
+          signature: match.signature,
+          line: match.line,
+        })),
+        profile: member.profile,
+      });
+    }
+    if (api.members) {
+      for (const member of exportedMembers) {
+        if (!catalogMembers.has(member.symbol)) {
+          errors.push(`${apiId}.${member.symbol}: exported member has no profile.`);
+        }
+      }
+    }
+
     snapshotApis.push({
       symbol: api.symbol,
       kind: declaration.kind,
@@ -255,6 +324,7 @@ for (const module of catalog.modules ?? []) {
       declarationDigest: declaration.declarationDigest,
       line: declaration.line,
       profile: api.profile,
+      ...(snapshotMembers.length > 0 ? { members: snapshotMembers } : {}),
     });
   }
 
@@ -296,8 +366,66 @@ for (const module of catalog.modules ?? []) {
   });
 }
 
+const carrierRequirementIds = new Set();
+const carrierRequirementStates = new Map();
+const carrierRequirementsById = new Map();
+const snapshotCarrierRequirements = [];
+const declaredCarrierConsumers = new Set(
+  (catalog.referenceRequirements ?? []).map(
+    (requirement) => `${requirement.module}.${requirement.surface.split(".")[0]}`,
+  ),
+);
+for (const requirement of catalog.carrierRequirements ?? []) {
+  if (carrierRequirementIds.has(requirement.id)) {
+    errors.push(`duplicate carrier requirement ${requirement.id}.`);
+  }
+  carrierRequirementIds.add(requirement.id);
+  carrierRequirementsById.set(requirement.id, requirement);
+
+  if (!catalog.profiles?.[requirement.profile]) {
+    errors.push(`${requirement.id}: unknown profile ${requirement.profile}.`);
+  }
+  if (!["required", "profile-final"].includes(requirement.readiness)) {
+    errors.push(`${requirement.id}: readiness must be required or profile-final.`);
+  }
+  if (!Array.isArray(requirement.consumers) || requirement.consumers.length === 0) {
+    errors.push(`${requirement.id}: at least one consumer is required.`);
+  } else {
+    for (const consumer of requirement.consumers) {
+      if (!declaredCarrierConsumers.has(consumer)) {
+        errors.push(`${requirement.id}: unknown consumer ${consumer}.`);
+      }
+    }
+  }
+
+  const provider = requirement.providerModule
+    ? moduleStates.get(requirement.providerModule)
+    : undefined;
+  const actualStatus = provider?.exports.has(requirement.surface) ? "draft" : "missing";
+  carrierRequirementStates.set(requirement.id, actualStatus);
+
+  if (requirement.status !== actualStatus) {
+    errors.push(
+      `${requirement.id}: expected status ${requirement.status}, actual status ${actualStatus}.`,
+    );
+  }
+
+  snapshotCarrierRequirements.push({
+    id: requirement.id,
+    providerModule: requirement.providerModule ?? null,
+    surface: requirement.surface,
+    status: actualStatus,
+    readiness: requirement.readiness,
+    profile: requirement.profile,
+    consumers: [...(requirement.consumers ?? [])].sort(),
+  });
+}
+
 const requirementIds = new Set();
 const requirementSurfaces = new Set();
+const requirementStatusBySurface = new Map();
+const referenceRequirementStates = new Map();
+const readinessCarrierIds = new Set();
 const snapshotRequirements = [];
 for (const requirement of catalog.referenceRequirements ?? []) {
   if (requirementIds.has(requirement.id)) {
@@ -324,7 +452,21 @@ for (const requirement of catalog.referenceRequirements ?? []) {
   }
 
   const present = resolveRequirement(requirement, moduleState);
-  const actualStatus = present ? "draft" : "missing";
+  const requiredCarriers = requirement.requires ?? [];
+  for (const carrier of requiredCarriers) {
+    readinessCarrierIds.add(carrier);
+    if (!carrierRequirementStates.has(carrier)) {
+      errors.push(`${requirement.id}: unknown carrier requirement ${carrier}.`);
+    } else if (carrierRequirementsById.get(carrier).readiness !== "required") {
+      errors.push(`${requirement.id}: profile-final carrier ${carrier} cannot block draft readiness.`);
+    }
+  }
+  const carriersReady = requiredCarriers.every(
+    (carrier) => carrierRequirementStates.get(carrier) === "draft",
+  );
+  const actualStatus = present && carriersReady ? "draft" : "missing";
+  referenceRequirementStates.set(requirement.id, actualStatus);
+  requirementStatusBySurface.set(`${requirement.module}:${requirement.surface}`, actualStatus);
   if (requirement.status !== actualStatus) {
     errors.push(
       `${requirement.id}: expected status ${requirement.status}, actual status ${actualStatus}.`,
@@ -352,8 +494,69 @@ for (const requirement of catalog.referenceRequirements ?? []) {
     surface: requirement.surface,
     status: actualStatus,
     ...(requirement.profile ? { profile: requirement.profile } : {}),
+    ...(requiredCarriers.length > 0 ? { requires: [...requiredCarriers].sort() } : {}),
     consumer: requirement.consumer,
   });
+}
+
+const readinessDependencyStates = new Map();
+for (const [id, status] of carrierRequirementStates) {
+  readinessDependencyStates.set(id, status);
+}
+for (const [id, status] of referenceRequirementStates) {
+  if (readinessDependencyStates.has(id)) {
+    errors.push(`${id}: readiness dependency ID is shared by a carrier and reference requirement.`);
+  }
+  readinessDependencyStates.set(id, status);
+}
+
+const catalogedApiStatusBySurface = new Map();
+for (const snapshotModule of snapshotModules) {
+  const catalogModule = catalog.modules.find((candidate) => candidate.id === snapshotModule.id);
+  for (const snapshotApi of snapshotModule.apis) {
+    const catalogApi = catalogModule?.apis.find((candidate) => candidate.symbol === snapshotApi.symbol);
+    const requiredDependencies = catalogApi?.requires ?? [];
+    if (!Array.isArray(requiredDependencies) || new Set(requiredDependencies).size !== requiredDependencies.length) {
+      errors.push(`${snapshotModule.id}.${snapshotApi.symbol}: requires must be an array of unique IDs.`);
+      continue;
+    }
+
+    for (const dependency of requiredDependencies) {
+      if (!readinessDependencyStates.has(dependency)) {
+        errors.push(
+          `${snapshotModule.id}.${snapshotApi.symbol}: unknown readiness dependency ${dependency}.`,
+        );
+        continue;
+      }
+      if (carrierRequirementsById.has(dependency)) {
+        readinessCarrierIds.add(dependency);
+        if (carrierRequirementsById.get(dependency).readiness !== "required") {
+          errors.push(
+            `${snapshotModule.id}.${snapshotApi.symbol}: profile-final carrier ${dependency} ` +
+              "cannot block API readiness.",
+          );
+        }
+      }
+    }
+
+    const actualStatus = requiredDependencies.every(
+      (dependency) => readinessDependencyStates.get(dependency) === "draft",
+    ) ? "draft" : "missing";
+    snapshotApi.status = actualStatus;
+    if (requiredDependencies.length > 0) {
+      snapshotApi.requires = [...requiredDependencies].sort();
+    }
+    catalogedApiStatusBySurface.set(
+      `${snapshotModule.id}:${snapshotApi.symbol}`,
+      actualStatus,
+    );
+  }
+}
+
+for (const requirement of catalog.carrierRequirements ?? []) {
+  if (requirement.readiness === "required" && !readinessCarrierIds.has(requirement.id)) {
+    errors.push(`${requirement.id}: required carrier does not participate in draft readiness.`);
+  }
 }
 
 const referenceSources = recursiveFiles(path.join(rootDirectory, "reference", "last-light"));
@@ -381,7 +584,9 @@ for (const scan of catalog.referenceScans ?? []) {
   for (const [surface, consumers] of [...surfaces].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    const status = moduleState.exports.has(surface) ? "draft" : "missing";
+    const status = requirementStatusBySurface.get(`${scan.module}:${surface}`)
+      ?? catalogedApiStatusBySurface.get(`${scan.module}:${surface}`)
+      ?? (moduleState.exports.has(surface) ? "draft" : "missing");
     if (status === "missing" && !requirementSurfaces.has(`${scan.module}:${surface}`)) {
       errors.push(
         `${scan.module}.${surface}: qualified Last Light use is missing and has no requirement.`,
@@ -397,8 +602,16 @@ for (const scan of catalog.referenceScans ?? []) {
 }
 
 const apiCount = snapshotModules.reduce((total, module) => total + module.apis.length, 0);
+const missingCatalogedApiCount = snapshotModules.reduce(
+  (total, module) => total + module.apis.filter((api) => api.status === "missing").length,
+  0,
+);
+const draftCatalogedApiCount = apiCount - missingCatalogedApiCount;
 const missingCount = snapshotRequirements.filter((item) => item.status === "missing").length;
 const contractedRequirementCount = snapshotRequirements.filter((item) => item.profile).length;
+const missingCarrierCount = snapshotCarrierRequirements.filter(
+  (item) => item.status === "missing",
+).length;
 const snapshot = {
   $schema: "w-std-api-surface-snapshot-1",
   status: "generated-design-projection",
@@ -406,14 +619,21 @@ const snapshot = {
   summary: {
     modules: snapshotModules.length,
     catalogedApis: apiCount,
+    draftCatalogedApis: draftCatalogedApiCount,
+    missingCatalogedApis: missingCatalogedApiCount,
     qualifiedReferenceSurfaces: snapshotQualifiedReferences.length,
     referenceRequirements: snapshotRequirements.length,
     contractedReferenceRequirements: contractedRequirementCount,
     missingReferenceRequirements: missingCount,
+    carrierRequirements: snapshotCarrierRequirements.length,
+    missingCarrierRequirements: missingCarrierCount,
   },
   modules: snapshotModules.sort((left, right) => left.id.localeCompare(right.id)),
   qualifiedReferences: snapshotQualifiedReferences.sort((left, right) =>
     `${left.module}.${left.surface}`.localeCompare(`${right.module}.${right.surface}`),
+  ),
+  carrierRequirements: snapshotCarrierRequirements.sort((left, right) =>
+    left.id.localeCompare(right.id),
   ),
   referenceRequirements: snapshotRequirements.sort((left, right) => left.id.localeCompare(right.id)),
 };
@@ -433,8 +653,10 @@ if (errors.length > 0) {
 } else {
   console.log(
     `Std API contracts: ${snapshotModules.length} modules, ${apiCount} cataloged APIs, ` +
+      `${draftCatalogedApiCount} draft-ready and ${missingCatalogedApiCount} blocked, ` +
       `${snapshotQualifiedReferences.length} qualified Last Light surfaces, ` +
       `${contractedRequirementCount}/${snapshotRequirements.length} contracted requirements, ` +
-      `${missingCount} missing drafts.`,
+      `${missingCount} missing drafts, ${missingCarrierCount}/${snapshotCarrierRequirements.length} ` +
+      `missing carriers.`,
   );
 }

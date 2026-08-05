@@ -14,7 +14,7 @@ enum DispatchError: Error {
 }
 
 enum GatewayError: Error {
-  decode(http.RequestDecodeError<DecodeError>)
+  decode(http.BodyDecodeError<DecodeError>)
   dispatch(DispatchError)
   response(http.ResponseError)
   service(ServiceFailure)
@@ -59,8 +59,27 @@ async fn dispatch(
   }
 }
 
+async fn decodeCommandBody(
+  request: take http.Request,
+): Command throws http.BodyDecodeError<DecodeError> {
+  // The consuming receiver makes a second body read a compile-time ownership error.
+  return try await (take request).json<Command>(maximumBytes: commandLimit)
+}
+
+// Compile-surface oracle only. The production route does not clone its request.
+// Runtime evidence waits for the Request draft and its bounded body tee.
+fn boundedRequestCloneCompileOracle(
+  request: take http.Request,
+): (http.Request, http.Request) throws http.BodyCloneError {
+  return try (take request).clone(maximumBufferedBytes: commandLimit)
+}
+
 async fn fetch(request: take http.Request, ctx: http.Context): http.Response throws GatewayError {
-  let command = try await (take request).json<Command>(maximumBytes: commandLimit)
+  guard request.url.pathname == "/commands" else {
+    return try http.Response(status: http.StatusCode.notFound)
+  }
+
+  let command = try await decodeCommandBody(take request)
   let response = try await dispatch(
     take command,
     restaurant: lastLight,

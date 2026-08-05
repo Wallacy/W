@@ -30,6 +30,13 @@
       "bounds": ["input-size"],
       "complexity": { "time": "linear-input", "space": "owned-input" }
     },
+    "normalized-http-header-component": {
+      "capabilities": [],
+      "effects": ["const-evaluation", "allocation"],
+      "failures": { "mode": "typed", "types": ["HttpSyntaxError"] },
+      "bounds": ["input-size"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
     "transaction-provider": {
       "capabilities": ["transaction-provider"],
       "effects": ["suspension", "transaction"],
@@ -80,23 +87,116 @@
       "effects": ["suspension", "byte-io", "codec", "allocation"],
       "failures": {
         "mode": "typed",
-        "types": ["HttpBodyError", "RequestDecodeError"]
+        "types": ["HttpBodyError", "BodyDecodeError", "BodyCloneError", "RequestError"]
       },
-      "bounds": ["message-limits", "maximum-argument"],
+      "bounds": ["message-limits", "maximum-argument", "clone-buffer"],
       "complexity": { "time": "linear-input", "space": "bounded-by-argument" }
     },
     "http-headers": {
       "capabilities": [],
       "effects": ["allocation"],
-      "failures": { "mode": "typed", "types": ["HttpSyntaxError"] },
-      "bounds": ["message-limits", "header-count", "header-value-size"],
+      "failures": { "mode": "typed", "types": ["HeadersError"] },
+      "bounds": ["allocation-budget"],
       "complexity": { "time": "linear-input", "space": "owned-input" }
     },
+    "http-headers-construction": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["allocation-budget"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "http-headers-append": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["HeadersError"] },
+      "bounds": ["allocation-budget"],
+      "complexity": {
+        "time": "linear-input-or-header-list-for-no-cors",
+        "space": "owned-input-or-linear-header-list-for-no-cors"
+      }
+    },
+    "http-headers-mutation": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["HeadersError"] },
+      "bounds": ["allocation-budget"],
+      "complexity": {
+        "time": "linear-header-list-plus-input",
+        "space": "linear-header-list"
+      }
+    },
+    "http-headers-query": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["HeadersError"] },
+      "bounds": ["allocation-budget"],
+      "complexity": { "time": "linear-header-list-plus-output", "space": "linear-result" }
+    },
+    "http-headers-membership": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["HeadersError"] },
+      "bounds": ["allocation-budget"],
+      "complexity": { "time": "linear-header-list-plus-name", "space": "owned-input" }
+    },
+    "http-headers-list-query": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["allocation-budget"],
+      "complexity": { "time": "linear-header-list-plus-output", "space": "linear-result" }
+    },
+    "http-headers-iteration": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["allocation-budget"],
+      "complexity": { "time": "n-log-n-plus-output", "space": "linear-result" }
+    },
     "http-response": {
+      "capabilities": ["http-body-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation"],
+      "failures": {
+        "mode": "typed",
+        "types": ["HttpBodyError", "BodyDecodeError", "BodyCloneError", "ResponseError"]
+      },
+      "bounds": ["message-limits", "response-body-size", "clone-buffer"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "web-url-carrier": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["UrlParseError"] },
+      "bounds": ["input-size", "url-component-limits"],
+      "complexity": { "time": "linear-input", "space": "linear-input" }
+    },
+    "web-stream-carrier": {
+      "capabilities": ["byte-stream-provider"],
+      "effects": ["suspension", "byte-io", "allocation"],
+      "failures": { "mode": "typed", "types": ["HttpBodyError"] },
+      "bounds": ["message-limits", "queue-high-water-mark", "clone-buffer"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-contract" }
+    },
+    "web-abort-carrier": {
+      "capabilities": ["task-cancellation"],
+      "effects": ["cancellation-observation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["request-root-lifetime"],
+      "complexity": { "time": "constant", "space": "bounded-by-contract" }
+    },
+    "json-codec-carrier": {
       "capabilities": [],
       "effects": ["codec", "allocation"],
-      "failures": { "mode": "typed", "types": ["ResponseError"] },
-      "bounds": ["message-limits", "response-body-size"],
+      "failures": { "mode": "typed", "types": ["JsonEncodeError", "JsonDecodeError"] },
+      "bounds": ["maximum-argument", "codec-depth", "codec-allocation"],
+      "complexity": { "time": "linear-input", "space": "bounded-by-argument" }
+    },
+    "web-body-carrier": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["BodyInitError"] },
+      "bounds": ["body-size", "part-count", "field-count"],
       "complexity": { "time": "linear-input", "space": "owned-input" }
     },
     "http-server": {
@@ -255,18 +355,55 @@
         { "symbol": "MethodToken", "kind": "struct", "profile": "validated-http-token" },
         { "symbol": "Method", "kind": "enum", "profile": "value-contract" },
         { "symbol": "StatusCode", "kind": "type", "profile": "value-contract" },
-        { "symbol": "HeaderName", "kind": "struct", "profile": "validated-http-token" },
-        { "symbol": "HeaderField", "kind": "struct", "profile": "validated-http-token" },
+        {
+          "symbol": "HeaderName",
+          "kind": "struct",
+          "profile": "normalized-http-header-component"
+        },
+        {
+          "symbol": "HeaderField",
+          "kind": "struct",
+          "profile": "normalized-http-header-component"
+        },
+        { "symbol": "HeaderMutationDenied", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "HeadersError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Headers",
+          "kind": "struct",
+          "profile": "http-headers",
+          "members": [
+            { "symbol": "init", "overloads": 2, "profile": "http-headers-construction" },
+            { "symbol": "append", "profile": "http-headers-append" },
+            { "symbol": "delete", "profile": "http-headers-mutation" },
+            { "symbol": "get", "profile": "http-headers-query" },
+            { "symbol": "getSetCookie", "profile": "http-headers-list-query" },
+            { "symbol": "has", "profile": "http-headers-membership" },
+            { "symbol": "set", "profile": "http-headers-mutation" },
+            { "symbol": "entries", "profile": "http-headers-iteration" }
+          ]
+        },
         { "symbol": "HttpSyntaxError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "HttpBodyError", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "RequestDecodeError", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "ResponseError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "BodyDecodeError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "BodyCloneError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "ResponseError",
+          "kind": "enum",
+          "profile": "value-contract",
+          "requires": ["sdk0-http-response-error"]
+        },
         { "symbol": "HttpError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "IncomingBody", "kind": "protocol", "profile": "http-body" },
-        { "symbol": "HttpHandler", "kind": "protocol", "profile": "http-handler" }
+        {
+          "symbol": "HttpHandler",
+          "kind": "protocol",
+          "profile": "http-handler",
+          "requires": ["sdk0-http-request", "sdk0-http-response", "sdk0-http-context"]
+        }
       ]
     },
     {
@@ -313,6 +450,71 @@
       ]
     }
   ],
+  "carrierRequirements": [
+    {
+      "id": "sdk0-web-url",
+      "providerModule": "std.url",
+      "surface": "URL",
+      "profile": "web-url-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.Request", "std.http.Response"]
+    },
+    {
+      "id": "sdk0-web-url-search-params",
+      "providerModule": "std.url",
+      "surface": "URLSearchParams",
+      "profile": "web-url-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.Request", "std.http.Response"]
+    },
+    {
+      "id": "sdk0-web-readable-stream",
+      "providerModule": "std.stream",
+      "surface": "ReadableStream",
+      "profile": "web-stream-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.Request", "std.http.Response"]
+    },
+    {
+      "id": "sdk0-web-abort-signal",
+      "providerModule": null,
+      "surface": "AbortSignal",
+      "profile": "web-abort-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.Request"]
+    },
+    {
+      "id": "sdk0-json-codec",
+      "providerModule": null,
+      "surface": "JsonEncodable/JsonDecodable",
+      "profile": "json-codec-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.Request", "std.http.Response", "std.http.ResponseError"]
+    },
+    {
+      "id": "sdk0-web-blob",
+      "providerModule": null,
+      "surface": "Blob",
+      "profile": "web-body-carrier",
+      "status": "missing",
+      "readiness": "profile-final",
+      "consumers": ["std.http.Request", "std.http.Response"]
+    },
+    {
+      "id": "sdk0-web-form-data",
+      "providerModule": "std.http",
+      "surface": "FormData",
+      "profile": "web-body-carrier",
+      "status": "missing",
+      "readiness": "profile-final",
+      "consumers": ["std.http.Request", "std.http.Response"]
+    }
+  ],
   "referenceScans": [
     { "binding": "build", "module": "std.build" },
     { "binding": "cache", "module": "std.cache" },
@@ -354,6 +556,13 @@
       "kind": "symbol",
       "consumer": "reference/last-light/benchmark_app.w",
       "profile": "http-request",
+      "requires": [
+        "sdk0-web-url",
+        "sdk0-web-url-search-params",
+        "sdk0-web-readable-stream",
+        "sdk0-web-abort-signal",
+        "sdk0-json-codec"
+      ],
       "status": "missing"
     },
     {
@@ -363,6 +572,12 @@
       "kind": "symbol",
       "consumer": "reference/last-light/benchmark_app.w",
       "profile": "http-response",
+      "requires": [
+        "sdk0-web-url",
+        "sdk0-web-url-search-params",
+        "sdk0-web-readable-stream",
+        "sdk0-json-codec"
+      ],
       "status": "missing"
     },
     {
@@ -372,7 +587,7 @@
       "kind": "symbol",
       "consumer": "reference/last-light/benchmark_app.w",
       "profile": "http-headers",
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-server-error",
@@ -399,7 +614,8 @@
       "kind": "symbol",
       "consumer": "reference/last-light/gateway.w",
       "profile": "value-contract",
-      "status": "draft"
+      "requires": ["sdk0-json-codec"],
+      "status": "missing"
     }
   ]
 }

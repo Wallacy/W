@@ -177,7 +177,7 @@ alvo de execução independente.
 | `workflow.w` | points duráveis, retry, timer, evento e compensação |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
-| `gateway.w` | dispatch comum, authority e adapter HTTP independente do host |
+| `gateway.w` | dispatch, routing por URL, body único e oracle de compile surface para clone bounded |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
@@ -1533,6 +1533,16 @@ cancel 42
 shutdown
 ```
 
+O oracle de mensagens Web cruza cinco sources HTTP. `gateway.w` roteia por
+`request.url.pathname` antes de consumir o body. O receiver `take` impede uma
+segunda leitura. `boundedRequestCloneCompileOracle` registra somente a
+assinatura consuming e o limite do clone. O caminho de produção não chama esse
+helper, e o corpus não alega execução do tee enquanto o draft de `Request` e os
+carriers estão ausentes. `benchmark_app.w` anexa `Headers` a uma resposta HTML e
+constrói JSON com `Response.json`. `wifi_app.w` devolve 204 sem body.
+`worker_app.w` liga o gateway ao slot. `app.w` serve o mesmo handler no processo
+nativo. Todos usam o mesmo modelo de mensagem.
+
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
 longa e mantém o filtro tipado.
@@ -1569,6 +1579,12 @@ Aceite:
 - `AppResponse` é o único modelo de saída para CLI, TUI e HTTP;
 - o renderer ANSI não muda os dados da resposta;
 - o adapter HTTP não recebe autoridade para encerrar o processo;
+- routing usa `request.url.pathname` e não cria `request.path`;
+- o body de command possui um único receiver consuming;
+- o oracle de compile surface do clone declara `maximumBufferedBytes`, sem
+  alegar execução runtime;
+- `benchmark_app.w` anexa `Headers` ao `Response` HTML;
+- JSON usa `Response.json` e 204 usa `Response` sem body;
 - a consulta de pedidos usa QUERY e não GET com content ou POST genérico;
 - construção textual usa `append` no próprio `String`, sem um `StringBuilder`
   público;

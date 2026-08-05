@@ -172,7 +172,8 @@ async fn renderFortunes(
   fortunes.sort(by: (left, right) => left.message.compare(right.message))
 
   let page = try ctx.templates.render("fortunes", values: fortunes)
-  let headers = try http.Headers(("content-type", "text/html; charset=utf-8"))
+  var headers = http.Headers()
+  try headers.set("content-type", "text/html; charset=utf-8")
   return try http.Response(take page, headers: take headers)
 }
 
