@@ -13655,7 +13655,7 @@ nome curto. O runtime não cria `globalThis` ou um namespace ambiental.
 
 | Família WinterTC 2025 | Contrato W | Estado de design |
 |---|---|---|
-| Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | baseline em 14.3.1–14.3.3; carriers ainda incompletos no SDK0 |
+| Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | núcleo lógico fechado em 14.3.1–14.3.3; readiness SDK0 de cada export deriva dos requisitos e carriers catalogados |
 | URL | `URL`, `URLSearchParams`, `URLPattern` | nomes aceitos; parser, mutation e matching ainda precisam de corpus |
 | Streams | readable, writable, transform, BYOB e queuing strategies | semântica aceita; ownership, transfer e bounds precisam de interfaces completas |
 | cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | adapter sobre cancellation W; events gerais continuam pesquisa |
@@ -13722,22 +13722,105 @@ service call que transfere um request também transfere o body. Esta regra torna
 explícita a transferência que `workerd` já aplica a streams, requests e
 responses em RPC.
 
+O constructor possui overloads estáticos. Ele não recebe uma union dinâmica:
+
+```text
+Request(input: String, take init: RequestInit = RequestInit())
+  -> Request throws RequestError
+Request(input: URL, take init: RequestInit = RequestInit())
+  -> Request throws RequestError
+Request(take input: Request, take init: RequestInit = RequestInit())
+  -> Request throws RequestError
+```
+
+O overload de String exige URL absoluta. W não possui base URL ambiental. Uma
+URL relativa usa `URL(relative, base: base)` antes do constructor. O overload
+de Request consome o input. O caller usa `clone` quando precisa dos dois.
+
+`RequestInit` é um struct nominal. Fields ausentes herdam o input ou usam o
+default Fetch. Ele contém:
+
+```text
+method: Method?
+headers: Headers?
+body: BodyInit?
+signal: AbortSignal?
+mode: RequestMode?
+credentials: RequestCredentials?
+cache: RequestCache?
+redirect: RequestRedirect?
+referrer: RequestReferrer?
+referrerPolicy: ReferrerPolicy?
+integrity: String?
+duplex: RequestDuplex?
+priority: RequestPriority?
+```
+
+Fields desconhecidos são erro estático. `window` não se aplica. W também não
+aceita `keepalive: true`. Trabalho que ultrapassa o request usa supervisor,
+queue ou workflow.
+
+O default é `GET`, sem body, mode `cors`, redirect `follow`, credentials
+`sameOrigin`, cache `default`, duplex `half` e priority `auto`. `GET` e `HEAD`
+com body produzem `RequestError.bodyNotAllowed`.
+
+`RequestError` separa syntax, headers, header limit na attachment, body proibido,
+body externo inválido e policy não suportada. O constructor falha antes de criar
+o owner.
+
 A interface lógica expõe:
 
 ```text
 method: http.Method
 url: ref http.URL
-headers: ref http.Headers
+headers: http.Headers
 signal: ref AbortSignal
-body: ref ReadableStream<Bytes, http.HttpBodyError>?
+body: ReadableStream<Bytes, http.HttpBodyError>?
 bodyUsed: Bool
+destination: RequestDestination
+mode: RequestMode
+credentials: RequestCredentials
+cache: RequestCache
+redirect: RequestRedirect
+referrer: RequestReferrer
+referrerPolicy: ReferrerPolicy
+integrity: view String
+duplex: RequestDuplex
 take async json<Value: JsonDecodable>(maximumBytes: usize<(1...)>)
-  -> Value throws http.RequestDecodeError<JsonDecodeError>
+  -> Value throws http.BodyDecodeError<JsonDecodeError>
 take async bytes(maximumBytes: usize<(1...)>)
   -> Bytes throws http.HttpBodyError
 take async text(maximumBytes: usize<(1...)>)
-  -> String throws http.RequestDecodeError<TextDecodeError>
+  -> String throws http.HttpBodyError
 ```
+
+`headers` é uma projeção do owner. Uma leitura empresta `Headers`. Um receiver
+`var` projeta acesso `inout` para os métodos de mutação. O guard ainda decide
+se a mutação é válida. Os outros campos de mensagem não possuem accessor de
+mutação.
+
+`body` também é uma projeção do owner. Uma leitura empresta o stream. A forma
+`(take request).body` move o stream optional e consome o restante do Request.
+Uma leitura do stream por `inout` o deixa disturbed. W não cria um alias
+`bodyStream`.
+
+`RequestReferrer` possui `client`, `none` e `url(URL)`. A forma tipada substitui
+os sentinels String vazio e `about:client`. Em `RequestInit`, Option none herda
+o input ou aplica o default. `.some(.none)` remove o referrer.
+
+`destination`, `referrerPolicy` e `integrity` conservam os nomes Fetch. Um
+server profile usa destination `none`, referrer `none`, policy vazia e
+integrity vazia. Um browser target pode fornecer os outros valores. `priority`
+permanece somente em `RequestInit`; Fetch não publica uma property
+correspondente. `RequestDestination.none` corresponde à String vazia do Web
+IDL. `isReloadNavigation` e `isHistoryNavigation` são `browserOnly`.
+`keepalive` é `notApplicable`: W usa supervisor, queue ou workflow para
+trabalho que precisa ultrapassar o request root.
+
+Incoming `Request` é immutable. Method, URL e body não mudam. Headers usam guard
+`immutable`. O programa cria outro Request para alterar a mensagem. Essa regra
+coincide com a prática documentada em
+[Cloudflare Request](https://developers.cloudflare.com/workers/runtime-apis/request/).
 
 `URL` segue o URL Standard. `href` contém a serialização canônica. `pathname`
 e `searchParams` têm os significados do standard. O host valida e cria a URL
@@ -13755,6 +13838,21 @@ valores. Parsing e serialização seguem
 [application/x-www-form-urlencoded](https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
 W não cria os aliases `query` ou `QueryParameters`.
 
+`BodyInit` é o conjunto lógico de overloads. Ele não é um object apagado:
+
+| Input | Ownership | Media type automático | Estado SDK0 |
+|---|---|---|---|
+| `Bytes` | move; sem cópia obrigatória | nenhum | T0 disponível |
+| `String` | move; UTF-8 | `text/plain;charset=UTF-8` | T0 disponível |
+| `URLSearchParams` | move | form URL encoded UTF-8 | carrier ausente |
+| `Blob` | move ou sharing explícito | `blob.type`, se existir | profile final ausente |
+| `FormData` | move | multipart com boundary | profile final ausente |
+| `ReadableStream<Bytes, HttpBodyError>` | move | nenhum | carrier ausente |
+
+Blob e FormData permanecem no profile final. Eles entram no source somente com
+backing store, limits e corpora. String, Bytes e stream usam o mesmo constructor
+de Request ou Response.
+
 O body atende a `ByteSource<HttpBodyError>` e só pode ser consumido uma vez.
 Na superfície web, ele também se apresenta como
 `ReadableStream<Bytes, HttpBodyError>`. `json`, `bytes` e `text` conservam os
@@ -13762,38 +13860,175 @@ nomes do Body mixin. Cada método exige um limite e consome o receiver com
 `take`. `formData` e `blob` seguem a mesma regra quando o profile os oferece.
 O programa usa o stream quando não deseja materializar o body.
 
+`arrayBuffer` é `notApplicable` porque W não possui o carrier ECMAScript
+`ArrayBuffer`. `bytes` devolve o owner W `Bytes` e preserva os mesmos bytes.
+Essa diferença é `adapted` pela exigência de limite e pelo receiver consuming.
+
+`textStream()` não pertence a `web-common@2025`. Ele entrou no Body mixin em
+[junho de 2026](https://github.com/whatwg/fetch/pull/1862). Um profile posterior
+precisa decidir sua forma W e o carrier de decode; a living surface não amplia
+o snapshot automaticamente.
+
+`bodyUsed` é `false` para body ausente. Ele vira `true` quando o stream fica
+disturbed. Um reader ativo deixa o body locked. O
+[Body mixin do Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin)
+define esses estados.
+
 Web Streams define estados locked e disturbed. Ownership elimina readers
 concorrentes não autorizados em source W. Um adapter foreign ainda verifica os
 estados em runtime. `pipeTo`, `pipeThrough`, `cancel` e backpressure preservam o
 contrato de Streams. `ByteSource` e `ByteSink` são protocols de implementação e
 interoperabilidade; eles não substituem a superfície Web pública.
 
-`RequestDecodeError<CodecFailure>` separa `.body(HttpBodyError)` de
+`BodyDecodeError<CodecFailure>` separa `.body(HttpBodyError)` de
 `.codec(CodecFailure)`. Transport, limit e framing não se apresentam como JSON
 inválido. A call devolve um owner novo. Tempo e memória são lineares nos bytes
 consumidos e ficam bounded pelo menor limite entre call e host.
 
-W não oferece cópia implícita de `Request`. `clone()` e `tee()` são operações
-explícitas e exigem um limite de buffer no profile W. O caller também pode
-materializar bytes com limite. O linter informa quando clone ou tee pode remover
-streaming ou reter o body completo.
+`text` preserva o decode UTF-8 do Fetch. Ele ignora charset HTTP e substitui uma
+sequência inválida por U+FFFD. Por isso, somente body failure aparece na
+assinatura. O programa que exige decode fatal usa `TextDecoder` sobre `bytes`
+ou sobre o stream.
 
-`Headers` segue a lista ordenada do Fetch Standard. Comparação de nome é ASCII
-case-insensitive. `get` combina valores como o standard exige e devolve
-`Option<view String>`. `getSetCookie()` preserva cada field `Set-Cookie`.
-`append`, `set`, `delete`, `has` e iteration mantêm os nomes padrão. Guards
-limitam mutation conforme a origem do request ou response.
+Cada operação consome o receiver em success e failure. Um adapter foreign pode
+fornecer um body disturbed ou locked. W devolve `HttpBodyError.alreadyUsed` ou
+`.locked`. Cancellation devolve `.aborted`.
 
-A API Web segura usa `String`. `HeaderName` e method tokens rejeitam um token
-vazio ou um byte fora da grammar HTTP. Values rejeitam NUL, CR, LF e outros
-controls proibidos. Um adapter de protocol pode expor fields raw como `Bytes`,
-mas essa API é separada e não altera `Headers`.
+Body ausente produz bytes e texto vazios. JSON vazio produz error do codec.
+`blob` e `formData` usam o mesmo receiver consuming quando seus carriers
+entrarem no SDK0.
 
-Essa representação é `adapted`: Web IDL usa `ByteString` e workerd devolve
-`USVString`. O profile W usa UTF-8 válido. Um field que não pode entrar nessa
-representação fica disponível somente no adapter raw ou é rejeitado pelo host
-profile. O manifesto precisa declarar essa policy porque ela pode afetar peers
-legacy.
+W não oferece cópia implícita de `Request`. A operação adaptada é:
+
+```text
+take clone(maximumBufferedBytes: usize<(1...)>)
+  -> (Request, Request) throws BodyCloneError
+```
+
+O method consome um owner e devolve dois. Headers e metadata são duplicados. O
+body usa um tee bounded. O limite conta bytes retidos pela diferença entre os
+consumidores.
+
+O tee aplica backpressure ao ramo mais rápido antes de exceder o limite. Um body
+used ou locked falha antes de criar os owners. O runtime divide chunks grandes
+sem alterar bytes.
+
+`Request` não possui method `tee`. Esse nome pertence a `ReadableStream`. O
+[Streams Standard](https://streams.spec.whatwg.org/) define tee e backpressure.
+O linter informa quando clone pode reter o limite inteiro.
+
+`Headers` segue a header list ordenada do Fetch Standard. Comparação de nome é
+ASCII case-insensitive. A API segura canoniza nomes para ASCII lowercase.
+
+A interface lógica completa é:
+
+```text
+Headers(_ fields: take HeaderField...) -> Headers
+Headers(copying source: ref Headers) -> Headers
+mut append(name: String, value: String) -> () throws HeadersError
+mut delete(name: ref String) -> () throws HeadersError
+get(name: ref String) -> String? throws HeadersError
+getSetCookie() -> Array<String>
+has(name: ref String) -> Bool throws HeadersError
+mut set(name: String, value: String) -> () throws HeadersError
+entries() -> Array<HeaderField>
+```
+
+`append` adiciona uma ocorrência no fim. `set` substitui a primeira ocorrência
+e remove as outras. `delete` remove todas. `get` combina values na ordem da
+lista com `", "`.
+
+`get` devolve String owned porque a combinação pode alocar. `getSetCookie`
+devolve cada cookie em ordem. Ele nunca combina cookies.
+
+`entries` cria um snapshot. Ele ordena nomes lowercase por bytes. Ele combina
+values, exceto `set-cookie`. Cookies permanecem separados na sua ordem relativa.
+Essa forma segue `sort and combine` do
+[Fetch Standard para Headers](https://fetch.spec.whatwg.org/#headers-class).
+
+O snapshot evita borrow vivo durante mutation. W usa `for` sobre `entries`.
+`forEach` com `thisArg` é `notApplicable` porque depende do modelo JavaScript.
+`keys`, `values` e `Symbol.iterator` são conveniences geradas pelo binding de
+iterable Web IDL. W não as duplica: `entries` é a única projeção pública de
+iteration neste profile.
+
+`HeaderName` rejeita token vazio ou byte fora da grammar HTTP. Um value perde
+tab e espaço nas bordas. Ele rejeita NUL, CR, LF, DEL e outros controls.
+
+Os guards não são valores públicos:
+
+| Guard | Origem | Mutation |
+|---|---|---|
+| `none` | `Headers()` ou `Headers(copying:)` | aceita fields válidos |
+| `request` | Request construído | rejeita fields controlados pelo transport |
+| `request-no-cors` | browser profile | aceita somente a safelist Fetch |
+| `response` | Response construído | permite `Set-Cookie`; rejeita framing |
+| `immutable` | request recebido, resposta de fetch ou owner transferido | rejeita mutation |
+
+Fetch ignora algumas mutations proibidas. W devolve
+`HeadersError.mutationDenied`. Essa diferença é `adapted`. Ela fornece um
+carrier tipado e impede sucesso silencioso.
+
+No guard `request-no-cors`, `append` valida o value combinado já existente com
+o novo field. `set` valida o replacement. `delete` aceita somente um nome
+safelisted ou o nome privilegiado `Range`. Depois de uma mutação efetiva, o
+guard remove todo `Range` privilegiado. W preserva esses passos do Fetch, mas
+troca o retorno silencioso pelo error tipado.
+
+Os source oracles de `std/http/contracts.w` cobrem normalização externa,
+rejeição de CRLF, request forbidden, combined value e remoção de `Range` em
+`request-no-cors`, framing de response e immutable. Eles fixam o comportamento
+do draft. O gate atual faz parse desses oracles; ele ainda não alega execução W.
+
+`HeadersError` possui somente `syntax(HttpSyntaxError)` e
+`mutationDenied(name:reason:)`. Ele não informa quota de mensagem. `append`,
+`set` e `delete` validam syntax e guard. Os dois constructors, `append`,
+`delete`, `get`, `getSetCookie`, `has`, `set` e `entries` usam somente o
+allocation budget normal do caller. Uma lista standalone não possui máximo
+semântico de fields, bytes ou tamanho de value.
+
+O guard `response` também é `adapted`. O server permite `Set-Cookie`. Ele
+bloqueia `Connection`, `Content-Length`, `Keep-Alive`, `TE`, `Trailer`,
+`Transfer-Encoding` e `Upgrade`. O adapter calcula framing.
+
+Cloudflare documenta repetição server-side de cookies em
+[Headers](https://developers.cloudflare.com/workers/runtime-apis/headers/).
+Um browser target aplica filtering quando a mensagem cruza sua boundary.
+
+`Headers(copying:)` copia os fields e cria guard `none`. O owner original não
+muda. Uma lista standalone cresce sob o allocation budget do caller.
+
+A camada que anexa `Headers` a `Request` ou `Response` recebe o
+`MessageLimits` efetivo do constructor ou adapter. Ela conta fields e bytes UTF-8
+canonizados antes de mover a lista. Excesso produz
+`RequestError.headerLimitExceeded(maximumFields:maximumBytes:)` ou
+`ResponseError.headerLimitExceeded(maximumFields:maximumBytes:)`, nunca
+`HeadersError`. `Headers` não armazena um limite e não consulta
+`HeadersLimits` ambiental.
+
+`fetch`, server e worker revalidam na attachment ao transport quando o host
+impõe um envelope menor. Input server inválido é rejeitado antes de criar
+`Request` e antes de chamar o handler. O menor `MessageLimits` explícito vence.
+
+| Operação | Tempo | Espaço adicional |
+|---|---:|---:|
+| `append` | linear no input; O(fields) em `request-no-cors` | O(fields) quando remove `Range` privilegiado |
+| `get` e `has` | O(fields + bytes comparados) | resultado de `get` |
+| `set` e `delete` | O(fields + bytes comparados) | O(fields) para a lista reconstruída |
+| `getSetCookie` | O(fields + bytes devolvidos) | resultado owned |
+| `entries` | O(fields log fields + bytes devolvidos) | snapshot owned |
+
+Uma implementação pode manter índice. Ela precisa preservar ordem e repetição.
+Hash collision não altera a classe de pior caso. O bound de mensagem pertence à
+attachment e não muda o comportamento da lista standalone.
+
+A API segura usa `String` UTF-8. Web IDL usa `ByteString`. workerd usa
+`USVString` em `get`. Bytes legacy sem UTF-8 ficam na raw boundary ou são
+rejeitados pelo host profile.
+
+A raw boundary recebe `(Bytes, Bytes)`. Ela preserva ordem física e casing. O
+adapter valida limits antes de criar `Headers`. Essa boundary não é export de
+`web-common@2025`.
 
 `Method` possui os methods registrados e `.other(MethodToken)`. O token
 customizado é validado. `StatusCode` aceita `100..<600`; associated constants
@@ -13820,6 +14055,57 @@ capability no link. `AbortSignal` é a ponte Web para cancellation. Uma task W
 continua usando cancellation estruturada; um controller só é necessário quando
 o programa precisa de uma lifetime independente.
 
+O signal de incoming Request depende do request root. Disconnect, deadline e
+cancellation do parent abortam esse signal. O handler não consegue abortá-lo.
+
+Uma service call transfere Request, Response e streams. O sender perde o owner.
+O receiver obtém body e cancellation dependente. A documentação de
+[RPC do workerd](https://developers.cloudflare.com/workers/runtime-apis/rpc/)
+confirma transferência para esses carriers.
+
+As adaptações deste bundle são explícitas:
+
+| Superfície Web | Forma W | Impacto |
+|---|---|---|
+| Web IDL union ou dictionary | overload e struct nominal | shape fechado para tools |
+| Promise rejection e exception | `throws` tipado | caller usa `try await` |
+| URL String | `ref URL` | texto exige `.href`; parse não se repete |
+| method String | `Method` | extension usa `.other` |
+| body reutilizável | receiver `take` | segundo consumo é erro de ownership |
+| `clone(): Request` | `take clone(limit) -> (Request, Request)` | caller recebe os dois owners |
+| tee sem bound | tee com backpressure bounded | ramo rápido pode esperar |
+| mutation silenciosa | `HeadersError` | failure fica observável |
+| iterator vivo | snapshot sorted-and-combined | iteration aloca |
+| `ByteString` | String UTF-8 | raw legacy fica no adapter |
+| incoming mutável | owner immutable | alteração exige constructor novo |
+
+Para humanos, os nomes principais continuam reconhecíveis. Limits aparecem nas
+operações que materializam ou duplicam bytes. Para máquinas, overloads e errors
+removem shapes dinâmicos.
+
+Para implementação, Request e Response compartilham header list, body pump,
+URL, stream e signal. O caminho sem clone move owners e não copia body.
+
+**Alternativa:** manter String para URL e method reduziria tipos no SDK. Essa
+forma repetiria parse e perderia custom method validado.
+
+**Alternativa:** clone sem limite manteria a assinatura Web. Um consumidor lento
+poderia reter o body inteiro. Esta forma não entra na baseline.
+
+**Rejeitado por enquanto:** aliases `path`, `query`, `decodeJson` e
+`Headers.getAll`. Eles criariam uma superfície paralela ou obsoleta.
+
+Contratos afetados: `std.http`, `std.url`, `std.stream`, cancellation, codecs,
+service transfer, fetch, serve e o slot `http.fetch`.
+
+Questões ainda não provadas:
+
+1. o módulo público de `AbortSignal` ainda não possui source SDK0;
+2. URL, URLSearchParams e ReadableStream ainda precisam de interfaces SDK0;
+3. Blob e FormData precisam de backing store, limits e corpus;
+4. um iterator borrowed só entra se provar vantagem sem invalidation;
+5. peers legacy precisam de corpus para medir rejeição por UTF-8.
+
 O contrato principal segue o
 [Fetch Standard](https://fetch.spec.whatwg.org/), o
 [URL Standard](https://url.spec.whatwg.org/) e o
@@ -13835,17 +14121,21 @@ superfície W.
 mantêm o mesmo constructor:
 
 ```w
+var headers = http.Headers()
+try headers.set("content-type", "application/json")
+
 let fixed = try http.Response(
   take encoded,
   status: http.StatusCode.ok,
-  headers: http.Headers(("content-type", "application/json")),
+  headers: take headers,
 )
 
 let streamed = try http.Response(
   take body,
   status: http.StatusCode.ok,
-  headers: take headers,
 )
+
+let empty = try http.Response(status: http.StatusCode.noContent)
 ```
 
 `Response` é um owner. Retorná-lo transfere headers e body para o host. Um body
@@ -13854,7 +14144,7 @@ incremental usa um `ReadableStream<Bytes, HttpBodyError>` owned. O protocol
 `ByteSource<HttpBodyError>` possui conversão sem cópia quando o adapter pode
 preservar backpressure.
 
-A interface lógica mínima contém:
+A interface lógica contém:
 
 ```text
 Response(take body: BodyInit? = none, status: StatusCode = StatusCode.ok,
@@ -13863,17 +14153,76 @@ Response(take body: BodyInit? = none, status: StatusCode = StatusCode.ok,
 Response.error() -> Response
 Response.redirect(URL, status: RedirectStatus = .found)
   -> Response throws ResponseError
-Response.json<Value: JsonEncodable>(Value, status: StatusCode = StatusCode.ok,
+Response.redirect(String, status: RedirectStatus = .found)
+  -> Response throws ResponseError
+Response.json<Value: JsonEncodable>(take Value, status: StatusCode = StatusCode.ok,
   take headers: Headers = Headers())
   -> Response throws ResponseError
-clone(maximumBufferedBytes: usize) -> Response throws CloneError
+
+type: ResponseType
+url: ref URL?
+redirected: Bool
+status: u16<(0..<600)>
+ok: Bool
+statusText: view String
+headers: Headers
+body: ReadableStream<Bytes, HttpBodyError>?
+bodyUsed: Bool
+
+take clone(maximumBufferedBytes: usize<(1...)>)
+  -> (Response, Response) throws BodyCloneError
 ```
 
-`ResponseError` separa `.encoding(JsonEncodeError)` de
-`.bodyNotAllowed(StatusCode)`. Status e headers continuam validados antes de
-criar o owner. Um body String usa UTF-8 e recebe o media type padrão do Fetch
-Standard. HTML exige um `content-type` explícito. Bytes e streams não são
-copiados pelo constructor.
+`headers` usa a mesma projeção de Request. Um Response construído e guardado
+por `response` aceita mutação permitida enquanto o owner está em `var`. Um
+Response recebido por fetch usa guard `immutable`.
+
+`body` usa a mesma projeção owned de Request. `(take response).body` transfere
+o stream optional sem criar uma segunda referência ao pump.
+
+`ResponseType` possui `basic`, `cors`, `default`, `error`, `opaque` e
+`opaqueRedirect`. Um response construído usa `default`. Fetch entrega os outros
+types conforme sua policy.
+
+`url` é `none` em response sintético e network error. Ele contém a URL final da
+resposta de rede. `redirected` informa se a URL list possui mais de um item.
+`ok` equivale a status `200...299`.
+
+Fetch devolve String vazia para URL ausente. W usa `URL?`. Essa adaptação remove
+o sentinel. O texto compatível fica em `response.url?.href`.
+
+O status observável inclui zero porque `Response.error()` cria network error.
+O constructor comum aceita somente `200..<600`. `StatusCode` continua aceitando
+`100..<600` para protocol e informational responses.
+
+`Response.error()` cria type `error`, status zero, headers immutable e body
+ausente. Um handler não pode enviar esse owner como resposta HTTP final. O host
+produz `invalidServerResponse` antes do commit.
+
+`Response.redirect` aceita somente 301, 302, 303, 307 ou 308. O overload String
+exige URL absoluta. O resultado contém Location, body ausente e headers
+immutable.
+
+O [Fetch Standard para Response](https://fetch.spec.whatwg.org/#response-class)
+define static constructors, properties e clone. W troca `any` por
+`JsonEncodable` e exceptions por errors tipados.
+
+`ResponseError` separa syntax, header guard, header limit na attachment, JSON
+encoding, body proibido e response inválido para server. Status, statusText e
+headers são validados antes de criar o owner.
+
+Um body String usa UTF-8 e recebe o media type padrão do Fetch Standard. HTML
+exige `content-type` explícito. Bytes e streams não são copiados pelo
+constructor.
+
+`Response` inclui as mesmas operações `bytes`, `text`, `json`, `blob` e
+`formData` do Body comum. Cada operação consome o owner e exige limite. JSON
+usa `BodyDecodeError`; text e bytes usam `HttpBodyError`. `arrayBuffer` é
+`notApplicable`; `bytes` devolve o carrier W sem o object model ECMAScript.
+
+Clone consome um owner e devolve dois. Metadata e headers são duplicados. O body
+usa o mesmo tee bounded de Request. Um network response immutable produz dois
+owners immutable.
 
 `StatusCode` fornece associated constants lower camel case. A forma explícita
 é `http.StatusCode.notFound`. W não interpreta `.notFound` como associated
@@ -13884,6 +14233,10 @@ request root. Ele não é uma task solta. Disconnect, deadline ou erro de
 transport cancelam o pump, drenam a completion física e destroem o body uma
 vez.
 
+[Cloudflare Streams](https://developers.cloudflare.com/workers/runtime-apis/streams/)
+documenta streaming depois do retorno do handler. W conserva essa capacidade e
+mantém o pump dentro da structured concurrency.
+
 Retornar `Response` confirma somente a aceitação pelo host. Não confirma entrega
 ao client. Código que precisa de efeito confiável depois da resposta usa
 `SupervisorRef`, queue ou workflow. Ele não depende de callback de socket.
@@ -13892,16 +14245,53 @@ O adapter valida status, headers, trailers e framing antes do primeiro commit.
 Depois do commit, um error de stream fecha a resposta e entra no trace. Ele não
 se converte num segundo status HTTP.
 
+O trace registra bytes confirmados. Antes do commit, o host ainda consegue usar
+sua resposta fixa de boundary. Depois do commit, ele fecha ou trunca a mensagem.
+
 O handler devolve uma resposta final com status `200..<600`. Informational
 responses `1xx` usam uma operação separada do host. Status `204`, `205` e `304`
 não aceitam body. Uma resposta a `HEAD` envia os headers da representação e não
 consome o body. O linter informa quando o handler constrói um body que será
 descartado por essa regra.
 
+Esses valores correspondem aos
+[null body statuses do Fetch Standard](https://fetch.spec.whatwg.org/#null-body-status).
+
 `Response.json` é o constructor estático do Fetch Standard com um contrato W
 tipado. Ele exige `JsonEncodable` e não usa reflection universal. A baseline
 não cria `Response.text`, `.bytes`, `.stream` ou `.html`; o overload de
 `Response` cobre esses bodies sem uma família paralela de nomes.
+
+O constructor codifica JSON para UTF-8. Ele adiciona
+`content-type: application/json` somente quando os headers ainda não possuem
+esse nome. Encoding, syntax ou guard failure ocorre antes de criar o owner.
+
+Para humanos, um constructor cobre texto, bytes e stream. Para máquinas,
+`ResponseType`, `StatusCode`, `ResponseError` e BodyInit possuem shapes fechados.
+
+Para implementação, transfer evita cópia. Commit separa validation do body
+pump. O caminho fixo conhece o tamanho quando BodyInit fornece bytes conhecidos.
+Um stream comum não promete `Content-Length`.
+
+O constructor custa tempo linear nos headers e na codificação exigida. Bytes e
+stream usam O(1) além do owner quando o adapter aceita move. Clone usa o bound
+do caller.
+
+**Alternativa:** `Response.text`, `.bytes`, `.stream` e `.html` removeriam um
+argumento. Eles duplicariam BodyInit e divergiriam da API Web.
+
+**Alternativa:** confirmar entrega quando o handler retorna exigiria aguardar o
+socket. Isso removeria streaming e prenderia o request root ao peer.
+
+**Rejeitado por enquanto:** trailers mutáveis depois do constructor. O adapter
+precisa fechar validation, commit e failure antes dessa superfície.
+
+Questões ainda não provadas:
+
+1. o SDK0 não possui URL, URLSearchParams, ReadableStream ou codec JSON;
+2. Blob e FormData ainda não possuem contracts de storage e limits;
+3. fixed-length stream precisa de contrato antes de controlar Content-Length;
+4. trailers precisam de corpus para HTTP/1.1, HTTP/2, HTTP/3 e WASI HTTP.
 
 #### 14.3.3 Host HTTP, limits e admission
 
@@ -14318,37 +14708,65 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 63 exports catalogados e 26 superfícies qualificadas usadas pelo
-Última Luz. O checker rejeita export sem profile, uso qualificado desconhecido,
-profile incompleto, anchor inexistente, consumer ausente e snapshot stale.
+registra 68 declarations exportadas, das quais 66 estão draft-ready e duas estão
+bloqueadas. Ele também registra 27 superfícies qualificadas usadas pelo Última
+Luz. O checker rejeita export sem profile, uso qualificado desconhecido, profile
+incompleto, anchor inexistente, consumer ausente e snapshot stale.
 
-Os nove requisitos adversariais possuem contrato SDK0. `ByteSink.writeAll`,
-`http.ServerError` e `http.ResponseError` também possuem draft. Os outros cinco
-mais `http.Headers` continuam sem source até seus carriers e operações
-receberem declarations.
+Os nove requisitos adversariais possuem profile. `ByteSink.writeAll`,
+`http.ServerError` e `http.Headers` possuem draft pronto. O catálogo registra
+separadamente cada operação pública de Headers.
 
-O Última Luz exige seis superfícies que ainda não possuem draft:
+Uma declaration não fica pronta quando sua relação `requires` aponta um
+requisito ou carrier obrigatório ausente. Os IDs são os mesmos das tabelas de
+requisitos e carriers; o catálogo não mantém um segundo grafo. Por isso,
+`http.ResponseError` aponta o requisito existente `sdk0-http-response-error`,
+que continua `missing` porque o shape menciona o error do codec JSON.
+`http.HttpHandler` também continua `missing`: sua assinatura exige os requisitos
+já catalogados de `Request`, `Response` e `Context`.
 
-| Módulo | Superfície ausente | Consumer |
+O Última Luz exige seis superfícies que ainda não possuem draft pronto:
+
+| Módulo | Superfície | Motivo | Consumer |
+|---|---|---|---|
+| `std.build` | `Context` | declaration ausente | build transform do cardápio |
+| `std.http` | `Context` | declaration ausente | gateway HTTP |
+| `std.http` | `Request` | declaration e carriers ausentes | benchmark e apps HTTP |
+| `std.http` | `Response` | declaration e carriers ausentes | benchmark e apps HTTP |
+| `std.http` | `ResponseError` | codec JSON ausente | gateway HTTP |
+| `std.http` | `serve` | declaration ausente | host nativo |
+
+Sete requisitos de carrier tornam o bloqueio verificável:
+
+| Carrier | Provider SDK0 | Readiness |
 |---|---|---|
-| `std.build` | `Context` | build transform do cardápio |
-| `std.http` | `Context` | gateway HTTP |
-| `std.http` | `Request` | benchmark e apps HTTP |
-| `std.http` | `Response` | benchmark e apps HTTP |
-| `std.http` | `Headers` | response HTML do benchmark |
-| `std.http` | `serve` | host nativo |
+| `URL` | `std.url` | obrigatório; missing |
+| `URLSearchParams` | `std.url` | obrigatório; missing |
+| `ReadableStream` | `std.stream` | obrigatório; missing |
+| `AbortSignal` | módulo ainda não decidido | obrigatório; missing |
+| `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing |
+| `Blob` | módulo ainda não decidido | profile final; missing |
+| `FormData` | `std.http` | profile final; missing |
 
-O status `missing` não aprova nome ou assinatura. Ele preserva uma exigência do
-produto até a seção normativa fechar o contrato e o draft passar a declará-lo.
-Adicionar uma API diferente não satisfaz o requisito sem atualizar o consumer
-ou registrar uma migração de design.
+`required` participa da readiness do draft atual. `profile-final` preserva uma
+obrigação do profile, mas não inventa uma declaration parcial. Blob e FormData
+entram somente depois de storage, limits e errors.
+
+O checker deriva readiness de cada export e de cada requisito explícito. Uma
+relação de export aponta somente IDs de requisito ou carrier existentes. Ela não
+repete provider, profile ou estado. `DESIGN.md` define a relação. O JSON registra
+os IDs e o estado verificável das fontes.
+
+O status `missing` não rejeita o nome já fechado nesta seção. Ele informa que o
+SDK0 ainda não consegue publicar uma interface compilável. Adicionar outra API
+não satisfaz o requisito sem migração de design.
 
 SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
-1. resolver as seis superfícies ausentes;
-2. registrar cada operação behaviorful separadamente;
-3. ligar cada operação a error, cancellation, capability, bound e complexity;
+1. resolver as seis superfícies sem draft pronto;
+2. fechar os cinco carriers obrigatórios do núcleo Web;
+3. catalogar operações de Request e Response depois desses carriers;
 4. adicionar um segundo consumer antes de classificar uma API como estável;
 5. substituir digests de source por interfaces emitidas pelo checker real.
 
@@ -22806,7 +23224,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 63 exports em nove módulos; nove requisitos adversariais possuem contrato e seis superfícies exigidas continuam sem draft | resolver as seis ausências, catalogar operações behaviorful, adicionar segundo consumer e comparar interfaces emitidas pelo checker |
+| std | SDK0 cataloga 68 exports em nove módulos; 66 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; seis superfícies de referência continuam sem draft pronto | fechar carriers Web obrigatórios, resolver as seis ausências, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -24564,10 +24982,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles resolvem tier, availability, capability, effect, failure, bounds e complexity para 63 exports; scan compara 26 usos qualificados, registra seis ausências e conserva nove requisitos resolvidos | contar arquivos como cobertura; inferir API sem scan; tratar draft como implementação; omitir requisito ainda sem assinatura |
+| W-891 | catálogo std SDK0 | profiles cobrem 68 exports, nove requisitos e sete carriers; 66 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 27 usos e registra seis requisitos de referência ausentes | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ainda sem source |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
-| W-894 | superfície Web | Fetch, URL e Streams definem nomes e comportamento observável no client e server; W acrescenta ownership, errors, bounds e capabilities; `Context` e `serve` são extensions explícitas | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path` e `query`; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
+| W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
 | W-895 | profile WinterTC | `web-common@2025` fixa e classifica o Minimum Common Web API como exact, adapted, extension, browser-only ou não aplicável; W não declara conformidade ECMAScript | alegar conformidade formal; copiar `globalThis`; seguir living surface sem snapshot; chamar extension de API portátil |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a

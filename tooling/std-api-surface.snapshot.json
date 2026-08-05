@@ -1,14 +1,18 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "6fec454fae30f5cff8781224c3696acb35b6354d465bc8dbf9f7d7707193b9a2",
+  "catalogDigest": "8c4bb8ee156f0f385bb9c6b5e52583fe2165cabfb5dd74ee1451b2a710c785f7",
   "summary": {
     "modules": 9,
-    "catalogedApis": 63,
-    "qualifiedReferenceSurfaces": 26,
+    "catalogedApis": 68,
+    "draftCatalogedApis": 66,
+    "missingCatalogedApis": 2,
+    "qualifiedReferenceSurfaces": 27,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
-    "missingReferenceRequirements": 6
+    "missingReferenceRequirements": 6,
+    "carrierRequirements": 7,
+    "missingCarrierRequirements": 7
   },
   "modules": [
     {
@@ -24,7 +28,8 @@
           "signature": "export enum Error: Error",
           "declarationDigest": "eefa4091ec58c52fedd5331c01d38d855cf685c8769373f42e96dc55bc634353",
           "line": 38,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Input",
@@ -32,7 +37,8 @@
           "signature": "export struct Input<Value>",
           "declarationDigest": "f7bfcff81139db0fa1b71962515d95c33cb511d1d29b09b316207a46591ae9da",
           "line": 20,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "Output",
@@ -40,7 +46,8 @@
           "signature": "export struct Output<Value>",
           "declarationDigest": "f7b98408aef01cc78977d672feb0773d9ffa7cbdc4e0a3f23f4c1a4b829cfe70",
           "line": 29,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         }
       ]
     },
@@ -57,7 +64,8 @@
           "signature": "export enum CacheError: Error",
           "declarationDigest": "fde53669eba2b5d5ec4417ff7d648aa43483ff9bc5034a1abd1125ff7140476e",
           "line": 34,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Expiration",
@@ -65,7 +73,8 @@
           "signature": "export enum Expiration",
           "declarationDigest": "5e82fac4238b480db589cf61b1a76b5dc0729ad6fa3e688a9673040c9061fc80",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "LoadFailure",
@@ -73,7 +82,8 @@
           "signature": "export enum LoadFailure<Failure: Error>: Error",
           "declarationDigest": "4f0b6ae286dcec2234861b1e8ce1961b605c455f6f51af0be9e6b4bd7b889dad",
           "line": 40,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "LocalBinding",
@@ -81,7 +91,8 @@
           "signature": "export struct LocalBinding<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
           "declarationDigest": "6fbdb508268246517409ab91ee546d0e950832be964f56fb5bbacb85d026af8d",
           "line": 9,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "LocalCache",
@@ -89,7 +100,8 @@
           "signature": "export protocol LocalCache<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
           "declarationDigest": "bd1e91eb098d9dc256fd2551ea40ab4182920aa89965c3fcf5b30cb46db17919",
           "line": 45,
-          "profile": "cache-provider"
+          "profile": "cache-provider",
+          "status": "draft"
         }
       ]
     },
@@ -106,7 +118,8 @@
           "signature": "export struct Binding",
           "declarationDigest": "58c72a4efb6adb57d77b0c8420886b05df94af153d5ca0767b17757552e42b17",
           "line": 15,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "Command",
@@ -114,7 +127,8 @@
           "signature": "export struct Command<Parameters>",
           "declarationDigest": "fcd37aeeb366041c31e6250680d47ed9fa329a54e52cbc1677bc17cef28c3e15",
           "line": 38,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "Database",
@@ -122,7 +136,8 @@
           "signature": "export protocol Database: Transactional<Transaction, TransactionContract, DatabaseError>",
           "declarationDigest": "4aba0571bcac4fd5572bc6aa55d655ed24cd3791cb731537f3f92548bc015075",
           "line": 117,
-          "profile": "database-provider"
+          "profile": "database-provider",
+          "status": "draft"
         },
         {
           "symbol": "DatabaseError",
@@ -130,7 +145,8 @@
           "signature": "export enum DatabaseError: Error",
           "declarationDigest": "ccb19248dd2911b7fd3923e8d9f3ba0f69a824781a78b25bd805832daeb38584",
           "line": 72,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Dialect",
@@ -138,7 +154,8 @@
           "signature": "export enum Dialect",
           "declarationDigest": "c8c14ce51dfc122a63dfb919dfbd5d5a2ff8ab3c1c5b13ad591e0f79d85389e6",
           "line": 9,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Isolation",
@@ -146,7 +163,8 @@
           "signature": "export enum Isolation",
           "declarationDigest": "81c88182c9526ef81cfab98a858a2d1e11ef7cfaeaefff0cc7691f8ac18185f9",
           "line": 56,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Query",
@@ -154,7 +172,8 @@
           "signature": "export struct Query<Parameters, Row>",
           "declarationDigest": "ccdbc49264a3892b7730aa2c11546c6b277f22445d773b6f9b5c950435bb958d",
           "line": 25,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "RowLimits",
@@ -162,7 +181,8 @@
           "signature": "export struct RowLimits",
           "declarationDigest": "4c47493b600cd52499ef6407125c4366582d3982b5076844e128697bcfc2afba",
           "line": 51,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Transaction",
@@ -170,7 +190,8 @@
           "signature": "export protocol Transaction",
           "declarationDigest": "56ce2f25fc56a0639888ff0ec37f0c3ea6eaf55151b89bdee49ab17f6db80548",
           "line": 89,
-          "profile": "database-transaction"
+          "profile": "database-transaction",
+          "status": "draft"
         },
         {
           "symbol": "TransactionAccess",
@@ -178,7 +199,8 @@
           "signature": "export enum TransactionAccess",
           "declarationDigest": "853e1f1c801294b4a57bbef33e89b30365e2203790b5e9f89636a5aabc2f0874",
           "line": 62,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "TransactionContract",
@@ -186,7 +208,8 @@
           "signature": "export struct TransactionContract",
           "declarationDigest": "134095577a2935c1d0cefd5b30770d955c3259438f07d8ee7205857071b1cc95",
           "line": 67,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "TransactionFailure",
@@ -194,7 +217,8 @@
           "signature": "export alias TransactionFailure<Failure: Error> = RuntimeTransactionFailure<Failure, DatabaseError>",
           "declarationDigest": "61b7d55625646c2a77430ce6783c6123db4fcbd1881f5145dc4c68b494e1f961",
           "line": 86,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -203,127 +227,281 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "catalogedDeclarationsDigest": "dd8ea92dbbc1b193651ce8559b90cb7d97ad246cbdab01c80d99e06e3027d625",
+      "catalogedDeclarationsDigest": "02ab51b9baef270bb2a84ca5c7421fcbb61c04091605acc834387d18d7f67a36",
       "apis": [
+        {
+          "symbol": "BodyCloneError",
+          "kind": "enum",
+          "signature": "export enum BodyCloneError: Error",
+          "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
+          "line": 711,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "BodyDecodeError",
+          "kind": "enum",
+          "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
+          "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
+          "line": 706,
+          "profile": "value-contract",
+          "status": "draft"
+        },
         {
           "symbol": "HeaderField",
           "kind": "struct",
           "signature": "export struct HeaderField",
-          "declarationDigest": "48171c93f9714571c5df7405ad7150c63f60d7d518706a8224b341d5267864d2",
-          "line": 99,
-          "profile": "validated-http-token"
+          "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
+          "line": 371,
+          "profile": "normalized-http-header-component",
+          "status": "draft"
+        },
+        {
+          "symbol": "HeaderMutationDenied",
+          "kind": "enum",
+          "signature": "export enum HeaderMutationDenied",
+          "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
+          "line": 442,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "HeaderName",
           "kind": "struct",
           "signature": "export struct HeaderName",
-          "declarationDigest": "624274616e6ac80b1da3f4fb9d750eb218c64bc5e06bc370efcd867a178774bc",
-          "line": 86,
-          "profile": "validated-http-token"
+          "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
+          "line": 293,
+          "profile": "normalized-http-header-component",
+          "status": "draft"
+        },
+        {
+          "symbol": "Headers",
+          "kind": "struct",
+          "signature": "export struct Headers",
+          "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
+          "line": 462,
+          "profile": "http-headers",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ initialFields: take HeaderField...)",
+                  "line": 466
+                },
+                {
+                  "signature": "export init(copying source: ref Headers)",
+                  "line": 471
+                }
+              ],
+              "profile": "http-headers-construction"
+            },
+            {
+              "symbol": "append",
+              "overloads": [
+                {
+                  "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
+                  "line": 487
+                }
+              ],
+              "profile": "http-headers-append"
+            },
+            {
+              "symbol": "delete",
+              "overloads": [
+                {
+                  "signature": "export mut fn delete(name: ref String): () throws HeadersError",
+                  "line": 500
+                }
+              ],
+              "profile": "http-headers-mutation"
+            },
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(name: ref String): String? throws HeadersError",
+                  "line": 515
+                }
+              ],
+              "profile": "http-headers-query"
+            },
+            {
+              "symbol": "getSetCookie",
+              "overloads": [
+                {
+                  "signature": "export fn getSetCookie(): Array<String>",
+                  "line": 531
+                }
+              ],
+              "profile": "http-headers-list-query"
+            },
+            {
+              "symbol": "has",
+              "overloads": [
+                {
+                  "signature": "export fn has(name: ref String): Bool throws HeadersError",
+                  "line": 541
+                }
+              ],
+              "profile": "http-headers-membership"
+            },
+            {
+              "symbol": "set",
+              "overloads": [
+                {
+                  "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
+                  "line": 549
+                }
+              ],
+              "profile": "http-headers-mutation"
+            },
+            {
+              "symbol": "entries",
+              "overloads": [
+                {
+                  "signature": "export fn entries(): Array<HeaderField>",
+                  "line": 589
+                }
+              ],
+              "profile": "http-headers-iteration"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "HeadersError",
+          "kind": "enum",
+          "signature": "export enum HeadersError: Error",
+          "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
+          "line": 449,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "HttpBodyError",
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error",
-          "declarationDigest": "579432d4af58da993f910f552e8d0c3622d38f38d2ca68bfb89e842d2f4bb0c6",
-          "line": 129,
-          "profile": "value-contract"
+          "declarationDigest": "b788216b224b5f54b66885b6e2af4f9c09782d1a4975747f13d7ec6df8b11c68",
+          "line": 696,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "HttpError",
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 146,
-          "profile": "value-contract"
+          "line": 735,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "HttpHandler",
           "kind": "protocol",
           "signature": "export protocol HttpHandler",
           "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
-          "line": 184,
-          "profile": "http-handler"
+          "line": 773,
+          "profile": "http-handler",
+          "status": "missing",
+          "requires": [
+            "sdk0-http-context",
+            "sdk0-http-request",
+            "sdk0-http-response"
+          ]
         },
         {
           "symbol": "HttpSyntaxError",
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 121,
-          "profile": "value-contract"
+          "line": 688,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "IncomingBody",
           "kind": "protocol",
           "signature": "export protocol IncomingBody: ByteSource<HttpBodyError>",
           "declarationDigest": "f2f987d1f5a2a229f43a7194e642398c724d032c9eec5f2a1246fa0dfc6be4ad",
-          "line": 180,
-          "profile": "http-body"
+          "line": 769,
+          "profile": "http-body",
+          "status": "draft"
         },
         {
           "symbol": "MessageLimits",
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 165,
-          "profile": "value-contract"
+          "line": 754,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "Method",
           "kind": "enum",
           "signature": "export enum Method",
           "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
-          "line": 61,
-          "profile": "value-contract"
+          "line": 268,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "MethodToken",
           "kind": "struct",
           "signature": "export struct MethodToken",
           "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
-          "line": 48,
-          "profile": "validated-http-token"
+          "line": 255,
+          "profile": "validated-http-token",
+          "status": "draft"
         },
         {
-          "symbol": "RequestDecodeError",
+          "symbol": "RequestError",
           "kind": "enum",
-          "signature": "export enum RequestDecodeError<CodecFailure: Error>: Error",
-          "declarationDigest": "0fc7d5ff775f7f65be41ecb4ac50ea2769cb1a3687dc846e80e21677d81ee486",
-          "line": 136,
-          "profile": "value-contract"
+          "signature": "export enum RequestError: Error",
+          "declarationDigest": "5990bafcfd10e97e1a38e396e3c209140119bf620dd684edc77309b18f44e1a2",
+          "line": 717,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "ResponseError",
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
-          "declarationDigest": "02aca7c65c7bee0ea8735b3a6d2abbed0e23d6e7e20db6babf96dcfa30b35e38",
-          "line": 141,
-          "profile": "value-contract"
+          "declarationDigest": "9280c483ae93f95b7364a28e0dfc60b187cd84aca8b538c15136f48479a6b378",
+          "line": 726,
+          "profile": "value-contract",
+          "status": "missing",
+          "requires": [
+            "sdk0-http-response-error"
+          ]
         },
         {
           "symbol": "ServerError",
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "3784a196602185f64193dd8b43db6309a65f76f690199ce84bd25542817679a7",
-          "line": 156,
-          "profile": "value-contract"
+          "line": 745,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "ServerLimits",
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 172,
-          "profile": "value-contract"
+          "line": 761,
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "StatusCode",
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
           "declarationDigest": "96c376c9e2a47e5c7f8a21cf810b49dec6387200b49146c767462aca584b0f95",
-          "line": 75,
-          "profile": "value-contract"
+          "line": 282,
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -340,7 +518,8 @@
           "signature": "export protocol ByteSink<Failure: Error>",
           "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
           "line": 25,
-          "profile": "byte-sink"
+          "profile": "byte-sink",
+          "status": "draft"
         },
         {
           "symbol": "ByteSource",
@@ -348,7 +527,8 @@
           "signature": "export protocol ByteSource<Failure: Error>",
           "declarationDigest": "ca1ad9ae6b8ed908b62adae664342385b559cc1f53ba9f78c184a2f4e0e91fb9",
           "line": 18,
-          "profile": "byte-source"
+          "profile": "byte-source",
+          "status": "draft"
         },
         {
           "symbol": "ReadStep",
@@ -356,7 +536,8 @@
           "signature": "export enum ReadStep",
           "declarationDigest": "1469f25e49cd86766027741ed01c789834e8a34ba2508107a083cac8e51e281b",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WriteAllError",
@@ -364,7 +545,8 @@
           "signature": "export struct WriteAllError<Cause: Error>: Error",
           "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
           "line": 13,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WriteStep",
@@ -372,7 +554,8 @@
           "signature": "export enum WriteStep",
           "declarationDigest": "d566289714bc5cf2aa28cdef36f3606fc74d3c30558e65587a8a92304f2a3e3d",
           "line": 8,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -389,7 +572,8 @@
           "signature": "export enum CancellationReason",
           "declarationDigest": "0745827bfa1844259c7a6325421cfe7ae7e5d168bb18588c26a219e50246c309",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "TaskBudgetKind",
@@ -397,7 +581,8 @@
           "signature": "export enum TaskBudgetKind",
           "declarationDigest": "6190218b5c92db3ef176788e449c3a5275319e212f44f4e2226e4296947b4d74",
           "line": 9,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "TaskOutcome",
@@ -405,7 +590,8 @@
           "signature": "export enum TaskOutcome<Value, Failure: Error>",
           "declarationDigest": "c61854ecf3d8996089be8f03e9e651c84dcc70e4e7611b44708eec4dfc581a1b",
           "line": 16,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "TaskTimeout",
@@ -413,7 +599,8 @@
           "signature": "export alias TaskTimeout = Duration<(0...)>",
           "declarationDigest": "8897786340b1e7b793a52be96359d2f1072209c811ff2d6bb513092dfa8c9cb7",
           "line": 22,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -430,7 +617,8 @@
           "signature": "export protocol Transactional<Scope, Contract, Failure: Error>",
           "declarationDigest": "ed77b4bf0b706e644b08325de467e32fee10f8a8dfb4f01c3aff650cdeca6f32",
           "line": 9,
-          "profile": "transaction-provider"
+          "profile": "transaction-provider",
+          "status": "draft"
         },
         {
           "symbol": "TransactionFailure",
@@ -438,7 +626,8 @@
           "signature": "export enum TransactionFailure<OperationFailure: Error, ProviderFailure: Error>: Error",
           "declarationDigest": "22cfe4acbb46ed6b6023d00e521e6a198ef648a8ff7c4de2e21b106eea772095",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -455,7 +644,8 @@
           "signature": "export enum SupervisorFailure: Error",
           "declarationDigest": "5737bb151ff310216bdcce4b54433fdede67ecaff4e192f341f18eded5542cab",
           "line": 58,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkBoundaryFailure",
@@ -463,7 +653,8 @@
           "signature": "export enum WorkBoundaryFailure",
           "declarationDigest": "46ba53e57cace769d182c4b9b7f75e7b98151ff052dc89fcd53923912586eb02",
           "line": 36,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkCancelResult",
@@ -471,7 +662,8 @@
           "signature": "export enum WorkCancelResult<Progress>",
           "declarationDigest": "1d193cc11b7fed49209b02d98c6e6a8730279cbf8188cf107635bce680dcc11c",
           "line": 47,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkLookupError",
@@ -479,7 +671,8 @@
           "signature": "export enum WorkLookupError: Error",
           "declarationDigest": "9a3aba051af42a8aacb84961a2b54e5ea41589fd7cee995ab5d2a4ee9bbacb8b",
           "line": 53,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkOutcome",
@@ -487,7 +680,8 @@
           "signature": "export enum WorkOutcome<Output, Failure: Error>",
           "declarationDigest": "b4956e577425d85d196d634577e3da0f9e54e2db879a0f65d0adb410e82f7ecf",
           "line": 29,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkRight",
@@ -495,7 +689,8 @@
           "signature": "export enum WorkRight",
           "declarationDigest": "e380eaae3a7b5fabbeb5e95342212954cd77a1c54872cb93a7bb40a5029789b2",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkSnapshot",
@@ -503,7 +698,8 @@
           "signature": "export struct WorkSnapshot<Progress>",
           "declarationDigest": "0ead9cefee5c8b20ce33bb5217ebb1be4fdac542545d01c2a929215ebfc91c83",
           "line": 19,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkStartError",
@@ -511,7 +707,8 @@
           "signature": "export enum WorkStartError<Key, Input>: Error",
           "declarationDigest": "445db95012b96804dd953a5aea160370e3c4ca16d11590dfefac9b3eb59e429d",
           "line": 65,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkState",
@@ -519,7 +716,8 @@
           "signature": "export enum WorkState",
           "declarationDigest": "19df58f23bc25e591a2a2c49eb103a5a7950998c95834a18f92f5d962a62e495",
           "line": 9,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     },
@@ -536,7 +734,8 @@
           "signature": "export enum StepBackoff",
           "declarationDigest": "fefe34536c261f7066033e0860ed8f00e20817fca572b0475b8af57501f1e79d",
           "line": 10,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "StepEffect",
@@ -544,7 +743,8 @@
           "signature": "export enum StepEffect",
           "declarationDigest": "77b53f89459fd512a458b550fe1bd882a31ebbc9a497fc463d2352bd8b3f4ee6",
           "line": 3,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "StepRetry",
@@ -552,7 +752,8 @@
           "signature": "export struct StepRetry<Failure: Error>",
           "declarationDigest": "9e6f357bd65771d8c6dd35051a6be414f9028475dcd3cc2e75f1c7ed60bb4f43",
           "line": 25,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WaitOutcome",
@@ -560,7 +761,8 @@
           "signature": "export enum WaitOutcome<Payload>",
           "declarationDigest": "b00973c1704663a96717013d51cfe16dfc0497e9c3e2311bdb9cedf171128e75",
           "line": 47,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkEventBinding",
@@ -568,7 +770,8 @@
           "signature": "export struct WorkEventBinding<Payload>",
           "declarationDigest": "122b7b1af6da7aa01cc11c9dd3ee5d057ebe692d4a26c9ffb2ea6c57fa4109bf",
           "line": 42,
-          "profile": "const-binding"
+          "profile": "const-binding",
+          "status": "draft"
         },
         {
           "symbol": "WorkEventSendError",
@@ -576,7 +779,8 @@
           "signature": "export enum WorkEventSendError<Payload>: Error",
           "declarationDigest": "1409568c36b49d4a3083e520ef20bb8f8f97f6b5a5e8dfcaa1086388661c9466",
           "line": 57,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkEventSendResult",
@@ -584,7 +788,8 @@
           "signature": "export enum WorkEventSendResult",
           "declarationDigest": "05d19ed8bea6cadb885cd07b08f3c095c0b8fa35d6dccebebdd4576804603bc9",
           "line": 52,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         },
         {
           "symbol": "WorkSuspension",
@@ -592,7 +797,8 @@
           "signature": "export enum WorkSuspension",
           "declarationDigest": "d1777397d4aafdf60c9480e0e443e3ae552a6ded75e58b182ed95dc59b4974fb",
           "line": 32,
-          "profile": "value-contract"
+          "profile": "value-contract",
+          "status": "draft"
         }
       ]
     }
@@ -712,6 +918,22 @@
     },
     {
       "module": "std.http",
+      "surface": "BodyCloneError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/gateway.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "BodyDecodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/gateway.w"
+      ]
+    },
+    {
+      "module": "std.http",
       "surface": "Context",
       "status": "missing",
       "consumers": [
@@ -723,7 +945,7 @@
     {
       "module": "std.http",
       "surface": "Headers",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w"
       ]
@@ -756,14 +978,6 @@
     },
     {
       "module": "std.http",
-      "surface": "RequestDecodeError",
-      "status": "draft",
-      "consumers": [
-        "reference/last-light/gateway.w"
-      ]
-    },
-    {
-      "module": "std.http",
       "surface": "Response",
       "status": "missing",
       "consumers": [
@@ -775,7 +989,7 @@
     {
       "module": "std.http",
       "surface": "ResponseError",
-      "status": "draft",
+      "status": "missing",
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w"
@@ -811,7 +1025,94 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w",
+        "reference/last-light/gateway.w",
         "reference/last-light/wifi_app.w"
+      ]
+    }
+  ],
+  "carrierRequirements": [
+    {
+      "id": "sdk0-json-codec",
+      "providerModule": null,
+      "surface": "JsonEncodable/JsonDecodable",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "json-codec-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response",
+        "std.http.ResponseError"
+      ]
+    },
+    {
+      "id": "sdk0-web-abort-signal",
+      "providerModule": null,
+      "surface": "AbortSignal",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "web-abort-carrier",
+      "consumers": [
+        "std.http.Request"
+      ]
+    },
+    {
+      "id": "sdk0-web-blob",
+      "providerModule": null,
+      "surface": "Blob",
+      "status": "missing",
+      "readiness": "profile-final",
+      "profile": "web-body-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response"
+      ]
+    },
+    {
+      "id": "sdk0-web-form-data",
+      "providerModule": "std.http",
+      "surface": "FormData",
+      "status": "missing",
+      "readiness": "profile-final",
+      "profile": "web-body-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response"
+      ]
+    },
+    {
+      "id": "sdk0-web-readable-stream",
+      "providerModule": "std.stream",
+      "surface": "ReadableStream",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "web-stream-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response"
+      ]
+    },
+    {
+      "id": "sdk0-web-url",
+      "providerModule": "std.url",
+      "surface": "URL",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "web-url-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response"
+      ]
+    },
+    {
+      "id": "sdk0-web-url-search-params",
+      "providerModule": "std.url",
+      "surface": "URLSearchParams",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "web-url-carrier",
+      "consumers": [
+        "std.http.Request",
+        "std.http.Response"
       ]
     }
   ],
@@ -844,7 +1145,7 @@
       "id": "sdk0-http-headers",
       "module": "std.http",
       "surface": "Headers",
-      "status": "missing",
+      "status": "draft",
       "profile": "http-headers",
       "consumer": "reference/last-light/benchmark_app.w"
     },
@@ -854,6 +1155,13 @@
       "surface": "Request",
       "status": "missing",
       "profile": "http-request",
+      "requires": [
+        "sdk0-json-codec",
+        "sdk0-web-abort-signal",
+        "sdk0-web-readable-stream",
+        "sdk0-web-url",
+        "sdk0-web-url-search-params"
+      ],
       "consumer": "reference/last-light/benchmark_app.w"
     },
     {
@@ -862,14 +1170,23 @@
       "surface": "Response",
       "status": "missing",
       "profile": "http-response",
+      "requires": [
+        "sdk0-json-codec",
+        "sdk0-web-readable-stream",
+        "sdk0-web-url",
+        "sdk0-web-url-search-params"
+      ],
       "consumer": "reference/last-light/benchmark_app.w"
     },
     {
       "id": "sdk0-http-response-error",
       "module": "std.http",
       "surface": "ResponseError",
-      "status": "draft",
+      "status": "missing",
       "profile": "value-contract",
+      "requires": [
+        "sdk0-json-codec"
+      ],
       "consumer": "reference/last-light/gateway.w"
     },
     {
