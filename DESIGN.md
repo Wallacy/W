@@ -8750,7 +8750,9 @@ nearest ancestor cancellation ID: optional
 `TaskBudgetKind` possui cases estáveis para live tasks, task-frame bytes,
 timers e ready jobs. `Cancellation` tem tamanho bounded e não aloca ao receber
 outro sinal. Seus sets crescem de forma monotônica. A ordem de chegada não
-seleciona um “motivo vencedor”.
+seleciona um “motivo vencedor”. Cada observação materializa um snapshot
+fixed-size que atende a `Copy`. Uma causa posterior aparece em uma observação
+posterior e não muta um snapshot já entregue.
 
 `Deadline`, budget, scope exit e sibling failure não fingem ser um motivo
 escolhido pelo caller. Um diagnostic ou trace pode anexar valores medidos. Esses
@@ -13686,16 +13688,17 @@ O manifesto de compatibilidade classifica cada item como `exact`, `adapted`,
 a diferença e o impacto. Um item ausente não recebe o rótulo compatível.
 
 Nomes globais do standard viram exports de módulos W. `std.http`, `std.url`,
-`std.stream`, `std.encoding`, `std.compression`, `std.crypto`, `std.time` e
-`std.wasm` formam a projeção inicial. Import flattening pode produzir o mesmo
-nome curto. O runtime não cria `globalThis` ou um namespace ambiental.
+`std.stream`, `std.abort`, `std.encoding`, `std.compression`, `std.crypto`,
+`std.time` e `std.wasm` formam a projeção inicial. Import flattening pode
+produzir o mesmo nome curto. O runtime não cria `globalThis` ou um namespace
+ambiental.
 
 | Família WinterTC 2025 | Contrato W | Estado de design |
 |---|---|---|
 | Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | núcleo lógico fechado em 14.3.1–14.3.3; readiness SDK0 de cada export deriva dos requisitos e carriers catalogados |
 | URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra no SDK0 |
 | Streams | readable, writable, transform, BYOB e queuing strategies | `ReadableStream` e BYOB têm draft em 14.3.4; provider executável ausente; writable, transform e strategies continuam sem interface SDK0 |
-| cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | adapter sobre cancellation W; events gerais continuam pesquisa |
+| cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | `std.abort` tem draft em 14.3.5; events gerais continuam pesquisa |
 | encoding e compression | text encoders/decoders e compression streams | alvo T2; algorithms e error policy precisam de catálogo |
 | binary e files | `Blob` e `File` | alvo T2; backing store, lifetime e limits precisam de contrato |
 | messaging | `MessageChannel`, `MessagePort` e structured clone | channels W são base; o clone compatível não é universal |
@@ -14399,7 +14402,7 @@ service transfer, fetch, serve e o slot `http.fetch`.
 
 Questões ainda não provadas:
 
-1. o módulo público de `AbortSignal` ainda não possui source SDK0;
+1. `std.abort-state@1` ainda precisa de implementação e conformance;
 2. `std.readable-stream@1` ainda precisa de implementação e conformance;
 3. Blob e FormData precisam de backing store, limits e corpus;
 4. um iterator borrowed só entra se provar vantagem sem invalidation;
@@ -15087,7 +15090,322 @@ mostram a diferença prática entre um source interno com um read em voo e uma
 queue JavaScript controlada por high-water mark. W preserva a semântica
 observável necessária, mas exige bounds e ownership na interface.
 
-#### 14.3.5 SQL estático e rows tipadas
+#### 14.3.5 AbortSignal, AbortController e cancellation W
+
+**Forma vigente:** `std.abort` é o adapter Web explícito sobre cancellation W.
+Ele não substitui `Task.cancel`, `Task.checkCancellation`, `Cancellation` ou
+`TaskOutcome.canceled`. O adapter existe para APIs que usam o contrato
+`AbortSignal`, em especial Fetch, Request e operações Web embutidas.
+
+O [DOM Standard](https://dom.spec.whatwg.org/#interface-abortsignal) fixa uma
+transição de aborto única, um motivo estável, consulta síncrona, composição de
+signals e notificação de observers. O
+[Fetch Standard](https://fetch.spec.whatwg.org/#request-class) cria signals
+dependentes para Request e clone, testa o estado já abortado e registra passos
+de aborto. W preserva esses fatos. W não importa `EventTarget`, callbacks
+dinâmicos, object identity ou um motivo `any`.
+
+A superfície SDK0 é:
+
+```text
+AbortSourceLimit = usize<(1...1_024)>
+
+AbortExternalReason: Copy = peerDisconnected | transportReset
+AbortReason: Error & Copy = requested(CancellationReason)
+                          | timeout
+                          | cancellation(Cancellation)
+                          | external(AbortExternalReason)
+
+AbortSignal.abort(reason = .requested(.userRequest)) -> AbortSignal
+AbortSignal.timeout(for: TaskTimeout) -> AbortSignal
+AbortSignal.any(
+  maximumSources: AbortSourceLimit,
+  _ sources: ref AbortSignal...,
+) -> AbortSignal throws AbortSignalCombineError
+
+AbortSignal.aborted: Bool
+AbortSignal.reason: AbortReason?
+AbortSignal.duplicate() -> AbortSignal
+AbortSignal.throwIfAborted() -> () throws AbortReason
+AbortSignal.wait() async -> AbortReason
+
+AbortController()
+AbortController.signal: ref AbortSignal
+AbortController.abort(reason = .requested(.userRequest)) -> ()
+```
+
+`AbortReason` é um snapshot owned, fechado, `Error` e `Copy`. Ele não aceita
+message sem limite, error arbitrário, task, capability ou resource owner. O
+default de `AbortSignal.abort` e `AbortController.abort` é
+`.requested(.userRequest)`. Um timeout criado pelo programa usa `.timeout`.
+Disconnect e reset de transport usam
+`.external(.peerDisconnected)` e `.external(.transportReset)`.
+
+Uma cancellation W observada pela boundary usa `.cancellation(snapshot)`. O
+snapshot contém as causas bounded da seção 12.5 no instante da transição. O
+motivo do signal não muda depois disso. A `Cancellation` nativa pode ganhar
+causas posteriores e continua visível no `TaskOutcome` e no trace. Esta regra
+preserva o first-wins Web sem inventar uma ordem de chegada dentro do conjunto
+monotônico de causas W.
+
+`AbortSignal` é um value `Duplicable` com um handle opaco. `copy signal` faz um
+retain atômico O(1) e compartilha o mesmo estado. A cópia não recebe authority
+para abortar. O type não atende a `Copy`, pois duplicate e drop possuem custo de
+refcount. `aborted` faz uma leitura acquire O(1). `reason` devolve o snapshot
+`Copy` por valor: `.none` antes do aborto e o mesmo motivo depois dele. A
+consulta não aloca.
+
+`AbortController` é move-only. Ele contém a única authority de transição e uma
+projeção borrowed do signal. Um `ref AbortController` pode ser compartilhado em
+um scope porque a transição interna é atômica; `copy controller` é rejeitado.
+Chamadas repetidas ou concorrentes a `abort` são idempotentes. A primeira
+transição publicada vence. Cada reason perdedor é destruído uma vez.
+
+Destruir o controller não aborta o signal. Drop libera a authority e sua
+referência ao estado. Signals e waiters restantes continuam válidos. Se a
+última authority some enquanto o estado está pending, o signal pode permanecer
+pending para sempre. Esta regra também evita que uma refatoração de lifetime
+transforme cleanup em cancelamento observável. A documentação de
+[`CancellationTokenSource.Dispose`](https://learn.microsoft.com/en-us/dotnet/api/system.threading.cancellationtokensource.dispose)
+confirma que dispose não comunica cancellation. Tokio oferece cancelamento em
+drop por um guard separado, enquanto o token normal não possui esse efeito;
+consulte o source de
+[`CancellationToken`](https://docs.rs/tokio-util/latest/src/tokio_util/sync/cancellation_token.rs.html).
+W pode adicionar um guard nominal separado se um consumer provar essa
+necessidade. O controller padrão não ganha esse comportamento.
+
+`throwIfAborted()` é a consulta síncrona fallible. Ela devolve `()` quando o
+signal está pending e lança uma cópia do `AbortReason` quando já está abortado.
+Ela não observa cancellation da task.
+
+`wait()` é a operação de observer W. Ela testa e registra o waiter como uma
+única operação race-free. Um aborto entre esses passos não perde o wake. O
+retorno é uma cópia do reason vencedor. Na corrida entre aborto e cancellation
+da task, vale a regra geral de settlement: uma completion de `wait` já committed
+vence; caso contrário, cancellation remove o waiter uma vez e segue como
+control outcome. Cada waiter ocupa um node intrusivo do próprio task frame. Um
+observer lento recebe um wake, não uma fila de events.
+
+`AbortSignal.abort` cria um estado já abortado. `AbortSignal.timeout` usa a
+duração não negativa de `TaskTimeout`. Zero cria um signal já abortado e não
+registra timer. Um timeout positivo cria um timer-resource owned pelo estado do
+signal. Ele não cria task, child ou dependência do root. A API não lê wall clock
+e não concede a capability `Clock`.
+
+O timer continua enquanto existir signal ou dependent que precise do estado e
+pode escapar do frame criador. Cancellation da task ou root que criou o signal
+não o aborta. Cancellation de uma task que espera cancela somente o waiter e
+seu control flow. Fire, que publica o aborto `.timeout`, ou último drop removem
+o timer uma vez. A reserva permanece cobrada no execution domain de origem até
+fire ou drop, mas não mantém task ou root vivo. O source de
+[workerd AbortSignal](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/basics.c++)
+também mantém timeout e dependents no estado do signal, sem exigir uma Promise
+ou task pública para sustentar a lifetime.
+
+Falha do timer budget cria um signal já abortado com
+`.cancellation(snapshot)` cujo snapshot registra `.timers`, e solicita a
+cancellation estrutural corrente como admission de task. Ela não cria
+application error. O scheduler virtual da seção 12.6.3 controla esse timer nos
+testes.
+
+`AbortSignal.any` preserva o nome Web e torna a inscrição bounded com
+`maximumSources`. Antes de registrar qualquer dependent, a call executa esta
+ordem:
+
+1. valida que a quantidade de argumentos diretos não passa de
+   `maximumSources`;
+2. examina os argumentos na ordem lexical e preserva o primeiro já abortado
+   como winner candidato;
+3. para cada input pending que é result de `any`, achata e deduplica suas folhas
+   pending pela identidade interna; um input pending normal conta como uma
+   folha;
+4. valida que o total de folhas pending únicas não passa de `maximumSources`;
+5. se uma validação falha, lança
+   `AbortSignalCombineError.sourceLimitExceeded` sem registrar nada; se ambas
+   passam e existe winner candidato, devolve esse estado abortado; caso
+   contrário, registra uma vez por folha pending.
+
+O refinement limita o máximo declarado a 1.024. Argumentos já abortados não
+contornam o limite direto. Um `any` pending aninhado não contorna o limite de
+registrations. Um input terminal não precisa conservar a história de seu DAG.
+Uma lista vazia produz um signal que nunca aborta. Para abortos concorrentes
+futuros, uma única transição atômica escolhe o winner. Sem relação
+happens-before, qualquer fonte concorrente pode vencer; o trace registra a
+escolhida. A API não promete simultaneidade nem usa wall clock como desempate.
+
+`any` forma um DAG. O result retém as source leaves necessárias. Cada source
+mantém uma registration non-owning para o result. Estado terminal ou último
+drop remove as registrations uma vez. Essa direção evita ciclo de refcount. A
+composição executa em O(N), usa O(N) metadata e não inicia tasks. O DOM Standard
+também modela signals dependentes e mantém os vínculos necessários vivos; o
+provider W torna essa retenção explícita e bounded. O mesmo source de
+[workerd AbortSignal](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/basics.c++)
+é evidência executável para timeout, `any` e lifecycle de dependents.
+
+O provider privado `std.abort-state@1` mantém estes estados:
+
+```text
+pending -> publishing(reason) -> aborted(reason)
+```
+
+O winner reserva `publishing`, armazena o reason `Copy` em storage pré-reservado
+e faz uma store release de `aborted`. Readers e waiters usam acquire. Nenhum
+observer vê `aborted == true` sem o reason completo. Consulta, retorno de
+`wait`, `throwIfAborted` e construção dos errors correspondentes não alocam. O
+provider serializa check e enqueue do waiter com a mesma transição, ou repete o
+check sob o lock interno. Abort acorda os W waiters e D dependents atuais em
+O(W + D), sem allocation nessa fase. D não deriva do fan-in de uma única call.
+A ordem dos wakes não é observável;
+fairness segue o scheduler. `duplicate`, `drop`, `aborted`, `reason` e registro
+de waiter são O(1). A lista de waiters é limitada por live tasks e task-frame
+budget. As registrations criadas por um result são limitadas por
+`maximumSources`. O total de states, dependents e registrations vivos no
+execution domain é limitado pelo allocation/admission budget do provider.
+Timers são limitados pelo timer budget.
+
+O handle pode separar o word read-mostly da lista de observers para reduzir
+false sharing. A ABI continua opaca. `w explain abort` mostra provider,
+execution domain de origem, refcount, estado, motivo, waiters, source leaves,
+dependents, timer, limites e cleanup pendente. Safe W não expõe atomics, locks
+ou a lista de callbacks dessa implementação.
+
+##### Integração HTTP, streams e service transfer
+
+Incoming `Request.signal` depende do request root. Parent cancellation,
+deadline e disconnect abortam o signal. O handler recebe somente o signal e
+não consegue abortá-lo. A cancellation do root também encerra a task do handler
+como control outcome. O signal espelha a causa para APIs Web e cleanup; ele não
+converte a task cancelada em `throws`.
+
+Essa é uma construção interna de Request. Ela não generaliza a dependência do
+root para `AbortSignal.timeout`, `AbortController` ou signals criados pelo
+programa.
+
+A documentação de
+[`Request`](https://developers.cloudflare.com/workers/runtime-apis/request/)
+do Cloudflare Workers expõe esse signal. O
+[changelog de cancellation de request](https://developers.cloudflare.com/changelog/post/2025-05-22-handle-request-cancellation/)
+registra disconnect do client como fonte de cancelamento. W acrescenta o
+deadline e o parent root pelo modelo estruturado das seções 12.3–12.6.
+
+Outbound `fetch` aceita `ref AbortSignal`. Um aborto explícito do signal termina
+a operação com `FetchError.aborted(AbortReason)`. Uma leitura de body Web
+termina com `HttpBodyError.aborted(AbortReason)`. A cancellation da própria task
+continua fora desses enums. Na corrida entre aborto Web e task cancellation,
+vale a regra geral de arbitration e commit: o error tipado vence somente se a
+completion da operação Web já estava committed; caso contrário, o outcome é
+task cancellation. O provider sempre cancela e drena o I/O físico e executa
+cleanup uma vez antes de devolver o error do adapter ou propagar o control
+outcome.
+
+Um clone de Request duplica o handle de observação e compartilha o mesmo estado
+de aborto. W não promete object identity. Uma boundary Web que precisa de
+objetos distintos cria wrappers dependentes sobre esse estado. Os testes de
+workerd cobrem signal em Request, primeiro reason e composição; consulte
+[`abortsignal-test.js`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/tests/abortsignal-test.js)
+e
+[`request-signal-enabled.js`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/tests/request-signal-enabled.js).
+
+`AbortSignal` não atende a `WireValue` e seu handle nunca entra em payload
+remoto. O SDK0 não aceita AbortSignal como argumento remoto geral. A automatic
+call cancellation da seção 23 cobre a lifetime estruturada comum. O protocol
+especial de transferência de Request cria um signal local dependente no
+receiver e usa frames de cancellation ou reset do transport. O envelope de
+control pode levar o snapshot bounded de `AbortReason`. O sender não transfere
+um controller nem authority de network ou timer. Uma rota local pode
+compartilhar o handle O(1).
+
+**Alternativa futura:** um live-control edge explícito poderia transportar um
+signal independente por RPC. A implementação de workerd possui serialização
+especial para AbortSignal em sua boundary RPC; consulte
+[`basics.c++`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/basics.c++)
+e
+[`http.h`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/http.h).
+Essa evidência preserva a alternativa, mas não publica a superfície no SDK0.
+
+Se um body Web é abortado por signal, seu terminal `Failure` é
+`HttpBodyError.aborted(reason)`. `ReadableStream.cancel()` continua a operação
+consuming de W-330. Ele não recebe um payload `any`, não cria outra cancellation
+de task e não restaura o owner.
+
+##### Compatibilidade, gates e alternativas
+
+A classificação do profile é:
+
+| Superfície Web | Classificação W | Diferença observável |
+|---|---|---|
+| `AbortSignal` e `AbortController` | `adapted` | values de módulo, ownership e reason fechado substituem objects globais e `any` |
+| `aborted` e `reason` | `adapted` | reason `Copy` sai por valor e preserva first reason; não há identity Web |
+| `AbortSignal.abort` | `adapted` | default tipado `.requested(.userRequest)` |
+| `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task.withTimeout(0)` e torna o caso determinístico |
+| `AbortSignal.any` | `adapted` | nome Web preservado; argumentos diretos e folhas pending únicas usam o mesmo fan-in explícito por result |
+| `throwIfAborted` | `adapted` | lança somente o enum fechado e tipado `AbortReason` |
+| `EventTarget`, `onabort`, `addEventListener` | `notApplicable` no SDK0 | `wait` fornece observação one-shot bounded; events gerais permanecem separados |
+| serialização geral do signal | `notApplicable` | handle não é `WireValue`; automatic call cancellation e Request control frames cobrem o SDK0 |
+| `globalThis` e `[SameObject]` | `notApplicable` | import de `std.abort`, values e estado compartilhado preservam o contrato útil |
+
+O snapshot 2025 do
+[Minimum Common Web API](https://min-common-api.proposal.wintertc.org/) exige
+AbortController, AbortSignal, Event e EventTarget para runtimes ECMAScript. W
+não declara essa conformidade. Ele marca os dois primeiros como adapted e os
+dois últimos como notApplicable nesta edição. A diferença aparece no manifesto
+e não fica escondida por igualdade de nomes.
+
+O provider `std.abort-state@1` permanece `missing`. A interface só muda para
+available depois de passar:
+
+- os casos aplicáveis de AbortSignal e AbortController do
+  [Web Platform Tests](https://github.com/web-platform-tests/wpt/tree/master/dom/abort);
+- DOM para abort, timeout, any, reason e throwIfAborted, e Fetch para Request,
+  clone e signals dependentes;
+- o snapshot WinterTC 2025 e differential tests contra workerd;
+- scheduler virtual para zero, um tick, ties, escape do creator e cancellation
+  independente de creator/root;
+- races abort/wait/task-cancel/drop/any com TSan e settlement em cada commit;
+- overflow de argumentos diretos, inclusive inputs abortados, antes de qualquer
+  registration;
+- flatten, dedup e limite de folhas pending de `any` antes de registration;
+- fault injection antes e depois de cada registro e transição;
+- ASan e leak sanitizer para timer, waiter, DAG, dependent, reason e último
+  drop, inclusive ausência de refcount cycle.
+
+O fault provider fixa quatro ensaios mínimos. Primeiro, abort, wait e task
+cancellation intercalam em todos os pontos, não perdem wake e respeitam o commit
+vencedor. Segundo, duas calls concorrentes publicam um único reason `Copy`, e
+`throwIfAborted` observa exatamente esse valor. Terceiro, timeout escapa do
+creator, ignora cancellation do creator/root e remove o timer uma vez em fire
+ou último drop. Quarto, `any` rejeita overflow de argumentos diretos mesmo com
+signals abortados, rejeita overflow de folhas pending aninhadas, registra uma
+folha pending duplicada uma vez, preserva o primeiro input já abortado somente
+depois das duas validações, permite qualquer winner concorrente válido e remove
+todas as registrations sem cycle ou leak.
+
+**Rejeitado:** colocar esses types em `std.runtime` ou chamar signal de
+cancellation W. Essa forma duplicaria `Task` e confundiria control outcome com
+error de adapter. Ela só volta à revisão se APIs não Web provarem a mesma
+semântica first-wins.
+
+**Rejeitado:** EventTarget e listeners públicos no SDK0. Eles voltam somente
+com um bundle geral de events que limite registros, lifetime, callback effects
+e reentrância.
+
+**Rejeitado:** renomear `AbortSignal.any` como `combining`. O rename não remove
+estado inválido e reduz compatibilidade sem benefício. O limite e o flatten já
+deixam a diferença W explícita na assinatura preservada.
+
+**Rejeitado:** reason genérico, `any` ou error arbitrário. Essa forma perde
+bounds, duplicação e transfer policy. Ela só volta com um carrier fechado e
+wire-safe que preserve esses contratos.
+
+**Rejeitado:** abort implícito no drop do controller. Um guard nominal separado
+pode ser reconsiderado com consumer e oracle próprios.
+
+**Rejeitado:** implementar a transição somente em W safe no draft atual. A
+operação exige publication atômica, integração com task frames e timer/root
+hooks que ainda não são públicos. Essa alternativa volta quando a linguagem
+conseguir expressar o provider sem unsafe boundary e sem perder os gates.
+
+#### 14.3.6 SQL estático e rows tipadas
 
 **Exemplo:** parâmetros e resultado pertencem ao tipo do descriptor:
 
@@ -15147,7 +15465,7 @@ As fases públicas de
 [prepare, bind, step, reset e finalize](https://sqlite.org/c3ref/stmt.html)
 fundamentam o descriptor W.
 
-#### 14.3.6 Database, pipeline e transaction
+#### 14.3.7 Database, pipeline e transaction
 
 **Exemplo:** cada item continua um statement independente, mesmo quando o
 adapter usa pipeline. A mutation usa a transação estruturada da seção 12.13:
@@ -15211,7 +15529,7 @@ Buffers de driver podem alimentar o decoder por view. Nenhuma view de row escapa
 da call. Um stream de rows futuro precisa possuir seu pool lease e declarar
 limites, cancellation e cleanup antes de entrar na std.
 
-#### 14.3.7 Cache local com limite
+#### 14.3.8 Cache local com limite
 
 **Exemplo:** o binding fixa a autoridade local e o limite de entries:
 
@@ -15343,7 +15661,7 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos 11 módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos 12 módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -15359,8 +15677,8 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 75 declarations exportadas em 11 módulos, das quais 73 estão
-draft-ready e duas estão bloqueadas. Ele também registra 31 superfícies
+registra 81 declarations exportadas em 12 módulos, das quais 79 estão
+draft-ready e duas estão bloqueadas. Ele também registra 36 superfícies
 qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
 qualificado desconhecido, profile
 incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
@@ -15391,16 +15709,16 @@ O Última Luz exige seis superfícies que ainda não possuem draft pronto:
 | `std.http` | `ResponseError` | codec JSON ausente | gateway HTTP |
 | `std.http` | `serve` | declaration ausente | host nativo |
 
-Sete requisitos de carrier tornam o bloqueio verificável. Três possuem draft e
-quatro continuam missing; entre os cinco obrigatórios do núcleo Fetch, dois
-continuam missing:
+Sete requisitos de carrier tornam o bloqueio verificável. Quatro possuem draft
+e três continuam missing; entre os cinco obrigatórios do núcleo Fetch, um
+continua missing:
 
 | Carrier | Provider SDK0 | Interface | Provider executável |
 |---|---|---|---|
 | `URL` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
 | `URLSearchParams` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
 | `ReadableStream` | `std.stream` | obrigatório; draft | `std.readable-stream@1`; missing |
-| `AbortSignal` | módulo ainda não decidido | obrigatório; missing | não aplicável |
+| `AbortSignal` | `std.abort` | obrigatório; draft | `std.abort-state@1`; missing |
 | `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing | não aplicável |
 | `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
 | `FormData` | `std.http` | profile final; missing | não aplicável |
@@ -15424,12 +15742,13 @@ SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
 1. resolver as seis superfícies sem draft pronto;
-2. fechar os dois carriers obrigatórios restantes do núcleo Web;
+2. fechar o carrier JSON obrigatório restante do núcleo Web;
 3. catalogar operações de Request e Response depois desses carriers;
 4. adicionar um segundo consumer antes de classificar uma API como estável;
 5. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
 6. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
-7. substituir digests de source por interfaces emitidas pelo checker real.
+7. implementar `std.abort-state@1` pelos gates DOM, Fetch, workerd e races;
+8. substituir digests de source por interfaces emitidas pelo checker real.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -23956,7 +24275,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 75 exports em 11 módulos; 73 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; quatro carriers e seis superfícies de referência continuam sem draft pronto | fechar os dois carriers Web obrigatórios restantes, resolver as seis ausências, implementar os dois providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 81 exports em 12 módulos; 79 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; três carriers e seis superfícies de referência continuam sem draft pronto | fechar o carrier JSON obrigatório restante, resolver as seis ausências, implementar os três providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -25714,7 +26033,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 75 exports em 11 módulos, nove requisitos e sete carriers; 73 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 31 usos e registra seis requisitos de referência ausentes; quatro carriers e dois providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-891 | catálogo std SDK0 | profiles cobrem 81 exports em 12 módulos, nove requisitos e sete carriers; 79 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 36 usos e registra seis requisitos de referência ausentes; três carriers e três providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
@@ -25722,6 +26041,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-896 | URL portátil | `URL` guarda record canônico opaco; getters textuais são views O(1); base é `ref URL`; mutation usa errors tipados; `searchParams()` devolve snapshot owned atual; edição `inout` fallible e scoped faz commit único e distingue query ausente e vazia; `URLSearchParams` preserva ordem, repetição, form encoding e sort UTF-16; WPT fecha o provider | doze Strings owned; params eager; cache interior; callback para leitura; property Web com allocation escondida; `SameObject`; parser parcial no contrato; aliases HTTP; silent no-op; alias mutável escapável; URLPattern no SDK0 |
 | W-897 | intrinsic interno da std | `foreign intrinsic from "provider@major"` é primitive unsafe não exportável, restrita a módulos internos do SDK; manifest versionado fixa signatures, effects e gates; wrapper W safe contém a boundary; não existe ABI pública nem capability implícita; bootstrap usa allowlist e os mesmos digests | foreign symbol comum; `fn<C>`; annotation nova; provider ambiental; declaration por package; intrinsic público; authority por nome |
 | W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
+| W-899 | AbortSignal portátil | `std.abort` adapta o first-wins Web sem substituir a cancellation monotônica de W; `AbortReason` é `Error & Copy`, fechado e bounded; signal duplica handle O(1), devolve reason por valor, oferece `throwIfAborted` tipado, espera pelo reason sem perder wake, não concede authority e não é `WireValue`; controller é move-only, first-wins atômico e drop não aborta; timeout zero já está abortado, timeout positivo possui timer-resource independente do creator/root, continua ao escapar e cobra o execution domain sem manter task viva; falha de timer budget publica cancellation e solicita cancellation estrutural; `any` preserva o nome Web e valida antes de registrar: argumentos diretos e folhas pending únicas após flatten/dedup precisam caber no mesmo `maximumSources` por result, inputs abortados só vencem depois das duas validações e cada folha pending recebe uma registration; total vivo do execution domain depende do allocation/admission budget do provider, não do fan-in de uma call; o DAG não cria cycle; Request recebe signal interno dependente; error Web versus task cancellation segue settlement/commit e sempre drena I/O; RPC geral usa automatic call cancellation, Request usa control frames e live-control edge fica alternativa futura; provider continua missing | colocar em `std.runtime`; transformar cancellation de task em application error; reason dinâmico, message, error arbitrário ou resource owner; renomear `any` como `combining`; EventTarget e callbacks no SDK0; signal com authority; controller duplicável; abort implícito no drop; ligar timeout genérico ao creator/root; wall clock; timer ou observer sem bound; tratar fan-in de uma call como limite global de dependents; validar winner antes dos bounds; permitir que terminal direto ou `any` pending contorne limite; ordem total fictícia para races; handle como `WireValue`; AbortSignal remoto geral no SDK0; implementação safe W sem atomics e hooks provados |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

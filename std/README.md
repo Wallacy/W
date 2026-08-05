@@ -20,6 +20,8 @@ O product inclui somente o grafo alcançável.
 
 ```text
 std/
+  abort/
+    contracts.w
   build/
     contracts.w
   cache/
@@ -57,6 +59,14 @@ O overload de bytes possui bound exato em bytes. O provider intrinsic interno
 um runtime paralelo nem alega execução. `from` pode pagar box e indirection. O
 handle tipado preserva `Item` e `Failure`. `cancel` consome o owner também em
 Failure, deixa o handle inert e mantém o drain no root estruturado.
+`abort/contracts.w` materializa o adapter Web de aborto. `AbortSignal` é um
+handle de observação duplicável, `AbortController` é move-only e o primeiro
+reason `Copy` bounded permanece estável. Timeout usa timer-resource monotônico
+independente do creator/root. `any` limita primeiro os argumentos diretos e
+depois as folhas pending únicas após flatten/dedup. Esse fan-in é por result; o
+total vivo usa o allocation/admission budget do provider. Nenhum signal concede
+authority ou vira `WireValue`. O provider intrinsic `std.abort-state@1`
+continua missing.
 `url/contracts.w` materializa os values portáteis de URL e parâmetros. Seu
 provider intrinsic interno `std.url-record@1` segue o mecanismo da seção 19.3.1
 e precisa implementar o URL Standard completo. A interface está em draft, mas
@@ -74,13 +84,15 @@ fornecer namespaces como `std.device`, `std.mobile` e `std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
 
-O rascunho fixa oito fronteiras:
+O rascunho fixa nove fronteiras:
 
 - build transforms recebem somente inputs e outputs declarados;
 - workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
 - streams readable mantêm um cursor e um pull em voo. Item lag é estrutural e
   byte lag é bounded em bytes. BYOB reutiliza `ByteSource`, sem reader object;
+- abort signals espelham cancellation em boundaries Web, mas não substituem o
+  control outcome de task. Controller drop não aborta e composição é bounded;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
   `Method.query` representa o método QUERY do RFC 10008;
 - URL preserva serialização canônica, snapshots explícitos e edição live scoped

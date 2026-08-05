@@ -14,8 +14,9 @@ release e segurança para pessoas responsáveis.
 ## Arquitetura coordinator-worker
 
 O modelo principal é coordenador. Ele representa o mantenedor humano: entende o
-objetivo, define o critério de saída, delega, espera e revisa. Ele não implementa
-a tarefa nem repete a exploração do worker.
+objetivo, pesquisa as fontes necessárias, compara alternativas, decide a
+semântica, a API e os invariantes, define o critério de saída, delega, espera e
+revisa. Ele não executa o volume mecânico nem repete a aplicação do worker.
 
 O worker é `w_luna_worker`, configurado em `.codex/agents/` com Luna Max. Use
 somente um worker por sessão. Reuse sua thread para todas as correções e tarefas
@@ -26,14 +27,19 @@ ele não cria, delega ou coordena subagentes, nem mesmo durante correções ou
 checks longos. Se precisar de outra autoridade ou premissa, ele devolve o
 bloqueio ao coordenador.
 
-O alvo operacional é deixar pelo menos 95% do trabalho de modelo no worker.
-Esse valor é uma meta, não uma métrica garantida pelo Codex. Não gaste contexto
-tentando medi-lo durante a tarefa.
+O alvo é deixar pelo menos 95% do volume operacional no worker. Esse volume
+inclui edição, atualização de source de referência, grammar, tooling, projeções,
+checks e relato do diff. A meta não se aplica ao raciocínio arquitetural:
+pesquisa, comparação e decisão pertencem ao coordenador. O valor é uma meta,
+não uma métrica garantida pelo Codex. Não gaste contexto tentando medi-lo
+durante a tarefa.
 
-O coordenador pode agir diretamente somente para:
+O coordenador age diretamente para:
 
 - conversar sobre o próprio fluxo;
 - pedir uma clarificação que muda materialmente o resultado;
+- pesquisar fontes e contratos vizinhos;
+- comparar alternativas e decidir semântica, API e invariantes;
 - relatar status, bloqueio ou resultado final;
 - revisar instruções de agente;
 - operar quando o usuário autorizar um fallback após Luna ficar indisponível.
@@ -52,6 +58,7 @@ Depois, o coordenador cria um pacote curto:
 Papel: worker W.
 Objetivo: resultado observável de ponta a ponta.
 Contexto já decidido: fatos necessários que não devem ser redescobertos.
+Contrato decidido: forma exata, invariantes, alternativas e limites de escopo.
 Entradas: índices, seções e arquivos iniciais.
 Escopo de escrita: paths ou conceitos autorizados.
 Restrições: o que não pode mudar.
@@ -70,31 +77,29 @@ o usuário. Não use Sol, Terra ou outro effort como fallback silencioso.
 
 ## Trabalho de design da linguagem
 
-Sol não deve entregar uma pergunta arquitetural aberta ao worker. Antes do
-spawn, o coordenador define o bundle de decisão: objetivo, invariantes que não
-podem regredir, contratos vizinhos, evidência esperada e condições de rejeição.
-Ele define a moldura, não a solução.
+Sol não entrega uma pergunta arquitetural aberta ao worker. Antes do spawn, o
+coordenador pesquisa fontes primárias, compara alternativas e fecha o bundle de
+decisão: forma recomendada, semântica, API, invariantes, contratos vizinhos,
+alternativas preservadas, limites de escopo, evidência esperada e condições de
+rejeição.
 
-Luna Max executa o volume: lê o índice e slices necessários, pesquisa fontes
-primárias, compara alternativas, verifica viabilidade, atualiza os artefatos e
-expande o Última Luz. O primeiro draft deve separar:
+Luna Max aplica esse pacote. O worker lê somente os slices necessários,
+atualiza `DESIGN.md`, source de referência, grammar quando necessária, tooling,
+projeções e Última Luz, executa os checks afetados e relata o diff. Ele não cria
+design novo, não muda alternativas, não amplia o escopo e não faz pesquisa
+comparativa aberta. Se a aplicação revelar uma contradição que exige nova
+decisão, ele para e devolve o bloqueio objetivo ao coordenador.
 
-- forma recomendada e motivo;
-- alternativas preservadas e condição para reconsiderá-las;
-- impacto para humanos, máquinas, implementação e performance;
-- contratos afetados e exemplos adversariais;
-- dúvidas que nenhuma evidência atual resolve.
+O coordenador revisa o resultado com critérios fixos: composição com o
+restante da linguagem, previsibilidade runtime, ergonomia humana, clareza para
+modelos, implementabilidade, performance, segurança e capacidade de teste. Se
+a revisão exigir uma nova premissa central, o coordenador volta à pesquisa e à
+decisão. Ele não transfere a decisão para Luna por meio de uma pergunta aberta.
 
-O coordenador revisa design com critérios fixos: composição com o restante da
-linguagem, previsibilidade runtime, ergonomia humana, clareza para modelos,
-implementabilidade, performance, segurança e capacidade de teste. Se a revisão
-exigir uma nova premissa central, não transforme a solução de Sol em uma longa
-lista de microcorreções para Luna. Pare e peça ao usuário autorização para usar
-um worker mais forte naquele bundle.
-
-Uma decisão ampla não fica ratificada apenas porque Luna produziu um documento
-coerente. O estado, as alternativas e a evidência precisam estar explícitos em
-`DESIGN.md`, e o Última Luz precisa tornar o contrato visível antes do commit.
+Uma decisão ampla não fica ratificada apenas porque Luna aplicou um pacote
+coerente. O coordenador responde pela decisão. O estado, as alternativas e a
+evidência precisam estar explícitos em `DESIGN.md`, e o Última Luz precisa
+tornar o contrato visível antes do commit.
 
 ## Espera e interação
 
