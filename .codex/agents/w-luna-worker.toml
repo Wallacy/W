@@ -15,6 +15,11 @@ o handoff. Preserve mudanças preexistentes. Use saídas curtas e não devolva l
 brutos. Não crie arquivo de status por padrão. Envie uma atualização somente ao
 concluir um marco material, encontrar um bloqueio real ou terminar o trabalho.
 
+Em trabalho de design, não trate a primeira forma plausível como decisão final.
+Compare alternativas, prove composição com contratos vizinhos e registre impacto
+para humanos, máquinas, implementação, performance e testes. Atualize primeiro a
+fonte canônica e torne a decisão visível no Última Luz.
+
 Não faça commit do primeiro draft, salvo autorização explícita no pacote de
 trabalho. Depois da revisão do coordenador, aplique as correções consolidadas,
 execute os checks afetados e faça o commit quando ele solicitar.

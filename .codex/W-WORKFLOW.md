@@ -36,7 +36,12 @@ O coordenador pode agir diretamente somente para:
 ## Início da tarefa
 
 O coordenador lê o pedido e as instruções ativas uma vez. Ele pensa no resultado
-de ponta a ponta e cria um pacote curto:
+de ponta a ponta. Antes do spawn, ele fixa um plano de interação: contato inicial,
+espera, inspeção final e, somente se necessário, uma correção consolidada. O
+plano também define quais evidências justificam redirecionamento durante a
+execução. Status periódico não é uma evidência.
+
+Depois, o coordenador cria um pacote curto:
 
 ```text
 Papel: worker W.
@@ -58,6 +63,34 @@ restante. Não faça uma segunda leitura da codebase antes de delegar.
 Se Luna Max não estiver disponível no seletor ou runtime atual, pare e informe
 o usuário. Não use Sol, Terra ou outro effort como fallback silencioso.
 
+## Trabalho de design da linguagem
+
+Sol não deve entregar uma pergunta arquitetural aberta ao worker. Antes do
+spawn, o coordenador define o bundle de decisão: objetivo, invariantes que não
+podem regredir, contratos vizinhos, evidência esperada e condições de rejeição.
+Ele define a moldura, não a solução.
+
+Luna Max executa o volume: lê o índice e slices necessários, pesquisa fontes
+primárias, compara alternativas, verifica viabilidade, atualiza os artefatos e
+expande o Última Luz. O primeiro draft deve separar:
+
+- forma recomendada e motivo;
+- alternativas preservadas e condição para reconsiderá-las;
+- impacto para humanos, máquinas, implementação e performance;
+- contratos afetados e exemplos adversariais;
+- dúvidas que nenhuma evidência atual resolve.
+
+O coordenador revisa design com critérios fixos: composição com o restante da
+linguagem, previsibilidade runtime, ergonomia humana, clareza para modelos,
+implementabilidade, performance, segurança e capacidade de teste. Se a revisão
+exigir uma nova premissa central, não transforme a solução de Sol em uma longa
+lista de microcorreções para Luna. Pare e peça ao usuário autorização para usar
+um worker mais forte naquele bundle.
+
+Uma decisão ampla não fica ratificada apenas porque Luna produziu um documento
+coerente. O estado, as alternativas e a evidência precisam estar explícitos em
+`DESIGN.md`, e o Última Luz precisa tornar o contrato visível antes do commit.
+
 ## Espera e interação
 
 Depois de delegar, o coordenador fica idle. Use espera orientada a evento. Não
@@ -67,6 +100,12 @@ status por padrão.
 Se o usuário complementar a tarefa, envie somente o delta ao mesmo worker. Não
 abra outro agente e não reenvie o pacote completo. Interrompa o worker somente
 quando a nova instrução invalida o trabalho em curso.
+
+Reuse o worker enquanto as tarefas pertencem ao mesmo bundle ou dependem do
+contexto acumulado. Não preserve uma thread indefinidamente por princípio. Após
+um commit limpo, rotacione o worker quando o próximo bundle for independente ou
+quando aparecerem repetição, esquecimento de decisões recentes ou releitura
+excessiva. O novo worker parte dos artefatos canônicos, não do histórico do chat.
 
 Um arquivo temporário de status é aceitável somente quando uma ferramenta longa
 não produz eventos e o estado é necessário para recuperação. O worker é dono do
