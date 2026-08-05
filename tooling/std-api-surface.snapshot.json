@@ -1,22 +1,220 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "2712a63ba40c9b8b0ce4a90747cb9f2643c33b40a603daed370c5e25188a8801",
+  "catalogDigest": "8db9eff3d7a799fbe65e1dc0d9188400578b7c5b1fe996837fb5a4bf27f189bd",
   "summary": {
-    "modules": 11,
-    "catalogedApis": 75,
-    "draftCatalogedApis": 73,
+    "modules": 12,
+    "catalogedApis": 81,
+    "draftCatalogedApis": 79,
     "missingCatalogedApis": 2,
-    "qualifiedReferenceSurfaces": 31,
+    "qualifiedReferenceSurfaces": 36,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
     "missingReferenceRequirements": 6,
     "carrierRequirements": 7,
-    "missingCarrierRequirements": 4,
-    "implementationProviders": 2,
-    "missingImplementationProviders": 2
+    "missingCarrierRequirements": 3,
+    "implementationProviders": 3,
+    "missingImplementationProviders": 3
   },
   "modules": [
+    {
+      "id": "std.abort",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/abort/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.abort-state@1",
+        "status": "missing",
+        "gates": [
+          "abort-linearization-faults",
+          "any-direct-and-pending-leaf-bounds",
+          "any-flatten-dedup-cycle",
+          "independent-timeout-lifetime",
+          "tsan-asan-leak",
+          "virtual-timer-budget",
+          "whatwg-dom-abort",
+          "whatwg-fetch-request-signal",
+          "wintertc-2025",
+          "workerd-differential",
+          "wpt-dom-abort"
+        ]
+      },
+      "catalogedDeclarationsDigest": "77dd3aaa6d6c50d0c4eb24ac0d9b654a7a7b2317c3b7bd359ee66f998a9b2ff4",
+      "apis": [
+        {
+          "symbol": "AbortController",
+          "kind": "struct",
+          "signature": "export struct AbortController",
+          "declarationDigest": "433f5484b044c9d67c4ffd660e4db7b496a7addb51ac80a59ebf0f4ddb3f79b5",
+          "line": 137,
+          "profile": "web-abort-control",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init()",
+                  "line": 141
+                }
+              ],
+              "profile": "web-abort-construction"
+            },
+            {
+              "symbol": "signal",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export signal: ref AbortSignal",
+                  "line": 147
+                }
+              ],
+              "profile": "web-abort-carrier"
+            },
+            {
+              "symbol": "abort",
+              "overloads": [
+                {
+                  "signature": "export fn abort( reason: AbortReason = .requested(.userRequest), )",
+                  "line": 151
+                }
+              ],
+              "profile": "web-abort-control"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "AbortExternalReason",
+          "kind": "enum",
+          "signature": "export enum AbortExternalReason: Copy",
+          "declarationDigest": "5b0269ab862f156e30fc45ba593f4af9454887f508171ab52da65e6510b2e239",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AbortReason",
+          "kind": "enum",
+          "signature": "export enum AbortReason: Error & Copy",
+          "declarationDigest": "167f6e6997f4a1d1c9c72a35d0397424d593877145f121a81a2b6d4893451f5f",
+          "line": 18,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AbortSignal",
+          "kind": "struct",
+          "signature": "export struct AbortSignal: Duplicable",
+          "declarationDigest": "f05909a4bec738df2bbd5eafa06f90c3929cb9bb647c47aca64cace50550ed5e",
+          "line": 59,
+          "profile": "web-abort-carrier",
+          "members": [
+            {
+              "symbol": "abort",
+              "overloads": [
+                {
+                  "signature": "export static fn abort( reason: AbortReason = .requested(.userRequest), ): AbortSignal",
+                  "line": 66
+                }
+              ],
+              "profile": "web-abort-construction"
+            },
+            {
+              "symbol": "timeout",
+              "overloads": [
+                {
+                  "signature": "export static fn timeout(for timeout: TaskTimeout): AbortSignal",
+                  "line": 73
+                }
+              ],
+              "profile": "web-abort-timeout"
+            },
+            {
+              "symbol": "any",
+              "overloads": [
+                {
+                  "signature": "export static fn any( maximumSources: AbortSourceLimit, _ sources: ref AbortSignal..., ): AbortSignal throws AbortSignalCombineError",
+                  "line": 89
+                }
+              ],
+              "profile": "web-abort-any"
+            },
+            {
+              "symbol": "aborted",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export aborted: Bool",
+                  "line": 102
+                }
+              ],
+              "profile": "web-abort-carrier"
+            },
+            {
+              "symbol": "reason",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export reason: AbortReason?",
+                  "line": 106
+                }
+              ],
+              "profile": "web-abort-carrier"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): AbortSignal",
+                  "line": 110
+                }
+              ],
+              "profile": "web-abort-carrier"
+            },
+            {
+              "symbol": "throwIfAborted",
+              "overloads": [
+                {
+                  "signature": "export fn throwIfAborted(): () throws AbortReason",
+                  "line": 115
+                }
+              ],
+              "profile": "web-abort-check"
+            },
+            {
+              "symbol": "wait",
+              "overloads": [
+                {
+                  "signature": "export async fn wait(): AbortReason",
+                  "line": 125
+                }
+              ],
+              "profile": "web-abort-wait"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "AbortSignalCombineError",
+          "kind": "enum",
+          "signature": "export enum AbortSignalCombineError: Error",
+          "declarationDigest": "a3845bd615effa6c84424ea70765be339f61f3583f2339f7ad662dd1a1c4ba90",
+          "line": 25,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "AbortSourceLimit",
+          "kind": "type",
+          "signature": "export type AbortSourceLimit = usize<(1...1_024)>",
+          "declarationDigest": "182d51210ee436d857e63b3162dcb74fb4aa4186ce5082432dbd88604342bd5c",
+          "line": 8,
+          "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
     {
       "id": "std.build",
       "tier": "T1",
@@ -229,14 +427,14 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "catalogedDeclarationsDigest": "a732e4d636bd6ad0492597ddfce2b07195634bd1df427e56493d5957fb9ce1a3",
+      "catalogedDeclarationsDigest": "385cb3f7ee3d966ddf953620cbeb831450a9c16a9304ebe5a1afd74ffdb5cc81",
       "apis": [
         {
           "symbol": "BodyCloneError",
           "kind": "enum",
           "signature": "export enum BodyCloneError: Error",
           "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
-          "line": 711,
+          "line": 713,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -245,7 +443,7 @@
           "kind": "enum",
           "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
           "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
-          "line": 706,
+          "line": 708,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -254,7 +452,7 @@
           "kind": "struct",
           "signature": "export struct HeaderField",
           "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
-          "line": 371,
+          "line": 373,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -263,7 +461,7 @@
           "kind": "enum",
           "signature": "export enum HeaderMutationDenied",
           "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
-          "line": 442,
+          "line": 444,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -272,7 +470,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
-          "line": 293,
+          "line": 295,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -281,7 +479,7 @@
           "kind": "struct",
           "signature": "export struct Headers",
           "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
-          "line": 462,
+          "line": 464,
           "profile": "http-headers",
           "members": [
             {
@@ -289,11 +487,11 @@
               "overloads": [
                 {
                   "signature": "export init(_ initialFields: take HeaderField...)",
-                  "line": 466
+                  "line": 468
                 },
                 {
                   "signature": "export init(copying source: ref Headers)",
-                  "line": 471
+                  "line": 473
                 }
               ],
               "profile": "http-headers-construction"
@@ -303,7 +501,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
-                  "line": 487
+                  "line": 489
                 }
               ],
               "profile": "http-headers-append"
@@ -313,7 +511,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String): () throws HeadersError",
-                  "line": 500
+                  "line": 502
                 }
               ],
               "profile": "http-headers-mutation"
@@ -323,7 +521,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): String? throws HeadersError",
-                  "line": 515
+                  "line": 517
                 }
               ],
               "profile": "http-headers-query"
@@ -333,7 +531,7 @@
               "overloads": [
                 {
                   "signature": "export fn getSetCookie(): Array<String>",
-                  "line": 531
+                  "line": 533
                 }
               ],
               "profile": "http-headers-list-query"
@@ -343,7 +541,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool throws HeadersError",
-                  "line": 541
+                  "line": 543
                 }
               ],
               "profile": "http-headers-membership"
@@ -353,7 +551,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
-                  "line": 549
+                  "line": 551
                 }
               ],
               "profile": "http-headers-mutation"
@@ -363,7 +561,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<HeaderField>",
-                  "line": 589
+                  "line": 591
                 }
               ],
               "profile": "http-headers-iteration"
@@ -376,7 +574,7 @@
           "kind": "enum",
           "signature": "export enum HeadersError: Error",
           "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
-          "line": 449,
+          "line": 451,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -384,17 +582,20 @@
           "symbol": "HttpBodyError",
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error & Duplicable",
-          "declarationDigest": "a1046eaa7a5cd3e109a4d3a5b065d71b62f2a1b5a788002e1142bd5561dc748b",
-          "line": 696,
+          "declarationDigest": "3836d56c16be2c254cd3ce892ce4c1cee745a2adddc1cf2f07b29c7d0c9b68de",
+          "line": 698,
           "profile": "value-contract",
-          "status": "draft"
+          "status": "draft",
+          "requires": [
+            "sdk0-web-abort-signal"
+          ]
         },
         {
           "symbol": "HttpError",
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 735,
+          "line": 737,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -403,7 +604,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler",
           "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
-          "line": 769,
+          "line": 771,
           "profile": "http-handler",
           "status": "missing",
           "requires": [
@@ -417,7 +618,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 688,
+          "line": 690,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -426,7 +627,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 754,
+          "line": 756,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -435,7 +636,7 @@
           "kind": "enum",
           "signature": "export enum Method",
           "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
-          "line": 268,
+          "line": 270,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -444,7 +645,7 @@
           "kind": "struct",
           "signature": "export struct MethodToken",
           "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
-          "line": 255,
+          "line": 257,
           "profile": "validated-http-token",
           "status": "draft"
         },
@@ -453,7 +654,7 @@
           "kind": "enum",
           "signature": "export enum RequestError: Error",
           "declarationDigest": "5990bafcfd10e97e1a38e396e3c209140119bf620dd684edc77309b18f44e1a2",
-          "line": 717,
+          "line": 719,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -462,7 +663,7 @@
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
           "declarationDigest": "9280c483ae93f95b7364a28e0dfc60b187cd84aca8b538c15136f48479a6b378",
-          "line": 726,
+          "line": 728,
           "profile": "value-contract",
           "status": "missing",
           "requires": [
@@ -474,7 +675,7 @@
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "3784a196602185f64193dd8b43db6309a65f76f690199ce84bd25542817679a7",
-          "line": 745,
+          "line": 747,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -483,7 +684,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 761,
+          "line": 763,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -492,7 +693,7 @@
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
           "declarationDigest": "39bf47df05a185d89bf44e6fe4e00494c3e9aaca929c201d0334defe3c216550",
-          "line": 282,
+          "line": 284,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -1488,6 +1689,38 @@
   ],
   "qualifiedReferences": [
     {
+      "module": "std.abort",
+      "surface": "AbortController",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/abort.w"
+      ]
+    },
+    {
+      "module": "std.abort",
+      "surface": "AbortReason",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/abort.w"
+      ]
+    },
+    {
+      "module": "std.abort",
+      "surface": "AbortSignal",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/abort.w"
+      ]
+    },
+    {
+      "module": "std.abort",
+      "surface": "AbortSignalCombineError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/abort.w"
+      ]
+    },
+    {
       "module": "std.build",
       "surface": "Context",
       "status": "missing",
@@ -1635,6 +1868,14 @@
     },
     {
       "module": "std.http",
+      "surface": "HttpBodyError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/abort.w"
+      ]
+    },
+    {
+      "module": "std.http",
       "surface": "MessageLimits",
       "status": "draft",
       "consumers": [
@@ -1654,6 +1895,7 @@
       "surface": "Request",
       "status": "missing",
       "consumers": [
+        "reference/last-light/abort.w",
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
         "reference/last-light/wifi_app.w"
@@ -1664,6 +1906,7 @@
       "surface": "Response",
       "status": "missing",
       "consumers": [
+        "reference/last-light/abort.w",
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
         "reference/last-light/wifi_app.w"
@@ -1761,14 +2004,18 @@
     },
     {
       "id": "sdk0-web-abort-signal",
-      "providerModule": null,
+      "providerModule": "std.abort",
       "surface": "AbortSignal",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "profile": "web-abort-carrier",
       "consumers": [
         "std.http.Request"
-      ]
+      ],
+      "implementationProvider": {
+        "id": "std.abort-state@1",
+        "status": "missing"
+      }
     },
     {
       "id": "sdk0-web-blob",

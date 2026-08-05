@@ -327,11 +327,53 @@
       "complexity": { "time": "linear-duplicated-progress", "space": "item-graphs-or-exact-byte-lag" }
     },
     "web-abort-carrier": {
-      "capabilities": ["task-cancellation"],
+      "capabilities": [],
       "effects": ["cancellation-observation"],
       "failures": { "mode": "none", "types": [] },
-      "bounds": ["request-root-lifetime"],
-      "complexity": { "time": "constant", "space": "bounded-by-contract" }
+      "bounds": ["copy-first-reason", "shared-state", "execution-domain-provider-allocation-admission", "not-wire-value"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "web-abort-construction": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["allocation-budget", "cleanup-once"],
+      "complexity": { "time": "constant", "space": "fixed-state" }
+    },
+    "web-abort-timeout": {
+      "capabilities": [],
+      "effects": ["allocation", "timer-registration"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["origin-execution-domain-timer-budget", "creator-root-independent", "allocation-budget", "cleanup-once"],
+      "complexity": { "time": "constant", "space": "fixed-state-plus-timer" }
+    },
+    "web-abort-wait": {
+      "capabilities": [],
+      "effects": ["suspension", "cancellation-observation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["task-frame-budget", "one-wake", "cleanup-once"],
+      "complexity": { "time": "constant-registration", "space": "intrusive-task-frame-node" }
+    },
+    "web-abort-check": {
+      "capabilities": [],
+      "effects": ["cancellation-observation"],
+      "failures": { "mode": "typed", "types": ["AbortReason"] },
+      "bounds": ["copy-first-reason", "no-task-cancellation-observation"],
+      "complexity": { "time": "constant", "space": "no-allocation" }
+    },
+    "web-abort-control": {
+      "capabilities": [],
+      "effects": ["cancellation-publication"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["first-reason", "idempotent", "cleanup-once"],
+      "complexity": { "time": "linear-current-observers", "space": "no-abort-allocation" }
+    },
+    "web-abort-any": {
+      "capabilities": [],
+      "effects": ["allocation", "cancellation-observation"],
+      "failures": { "mode": "typed", "types": ["AbortSignalCombineError"] },
+      "bounds": ["direct-arguments-within-maximum-sources", "unique-pending-leaves-within-maximum-sources", "both-validations-before-registration", "lexical-terminal-winner-after-validation", "deduplicated-pending-leaves", "per-result-fan-in-not-global-dependent-bound", "execution-domain-provider-allocation-admission", "acyclic-registrations", "cleanup-once"],
+      "complexity": { "time": "linear-direct-arguments-plus-flattened-leaves", "space": "linear-unique-pending-leaves" }
     },
     "json-codec-carrier": {
       "capabilities": [],
@@ -490,6 +532,66 @@
       ]
     },
     {
+      "id": "std.abort",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/abort/contracts.w",
+      "designAnchors": ["12.5", "12.6.3", "14.3.1", "14.3.5", "19.3.1"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.abort-state@1",
+        "status": "missing",
+        "gates": [
+          "whatwg-dom-abort",
+          "whatwg-fetch-request-signal",
+          "wpt-dom-abort",
+          "wintertc-2025",
+          "workerd-differential",
+          "virtual-timer-budget",
+          "abort-linearization-faults",
+          "any-flatten-dedup-cycle",
+          "any-direct-and-pending-leaf-bounds",
+          "independent-timeout-lifetime",
+          "tsan-asan-leak"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/abort.w",
+        "symbols": ["AbortSignal", "AbortController", "AbortSignalCombineError"]
+      },
+      "apis": [
+        { "symbol": "AbortSourceLimit", "kind": "type", "profile": "value-contract" },
+        { "symbol": "AbortExternalReason", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AbortReason", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AbortSignalCombineError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "AbortSignal",
+          "kind": "struct",
+          "profile": "web-abort-carrier",
+          "members": [
+            { "symbol": "abort", "profile": "web-abort-construction" },
+            { "symbol": "timeout", "profile": "web-abort-timeout" },
+            { "symbol": "any", "profile": "web-abort-any" },
+            { "symbol": "aborted", "profile": "web-abort-carrier" },
+            { "symbol": "reason", "profile": "web-abort-carrier" },
+            { "symbol": "duplicate", "profile": "web-abort-carrier" },
+            { "symbol": "throwIfAborted", "profile": "web-abort-check" },
+            { "symbol": "wait", "profile": "web-abort-wait" }
+          ]
+        },
+        {
+          "symbol": "AbortController",
+          "kind": "struct",
+          "profile": "web-abort-control",
+          "members": [
+            { "symbol": "init", "profile": "web-abort-construction" },
+            { "symbol": "signal", "profile": "web-abort-carrier" },
+            { "symbol": "abort", "profile": "web-abort-control" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.stream",
       "tier": "T2",
       "availability": "bundled-portable",
@@ -639,7 +741,7 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "designAnchors": ["14.3.1", "14.3.2", "14.3.3"],
+      "designAnchors": ["14.3.1", "14.3.2", "14.3.3", "14.3.5"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
         "symbols": ["Request", "Response", "Context"]
@@ -676,7 +778,12 @@
           ]
         },
         { "symbol": "HttpSyntaxError", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "HttpBodyError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "HttpBodyError",
+          "kind": "enum",
+          "profile": "value-contract",
+          "requires": ["sdk0-web-abort-signal"]
+        },
         { "symbol": "BodyDecodeError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "BodyCloneError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "RequestError", "kind": "enum", "profile": "value-contract" },
@@ -703,7 +810,7 @@
       "tier": "T2",
       "availability": "database-adapter",
       "source": "std/database/contracts.w",
-      "designAnchors": ["14.3.5", "14.3.6"],
+      "designAnchors": ["14.3.6", "14.3.7"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
         "symbols": ["Binding", "Query", "Command", "Database", "DatabaseError"]
@@ -728,7 +835,7 @@
       "tier": "T2",
       "availability": "process-local-cache-adapter",
       "source": "std/cache/contracts.w",
-      "designAnchors": ["14.3.7"],
+      "designAnchors": ["14.3.8"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
         "symbols": ["LocalBinding", "CacheError", "LoadFailure"]
@@ -772,10 +879,10 @@
     },
     {
       "id": "sdk0-web-abort-signal",
-      "providerModule": null,
+      "providerModule": "std.abort",
       "surface": "AbortSignal",
       "profile": "web-abort-carrier",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.Request"]
     },
@@ -808,6 +915,7 @@
     }
   ],
   "referenceScans": [
+    { "binding": "webAbort", "module": "std.abort" },
     { "binding": "build", "module": "std.build" },
     { "binding": "cache", "module": "std.cache" },
     { "binding": "database", "module": "std.database" },

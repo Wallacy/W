@@ -168,6 +168,7 @@ alvo de execução independente.
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
+| `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
 | `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
@@ -573,6 +574,24 @@ devolver. Fault injection também faz `cancel` falhar antes e depois da
 solicitação física e confirma owner consumido, handle inert, drain e cleanup
 único. Um caso genérico varia o tamanho dos grafos com o mesmo lag para provar
 que item count não promete byte bound.
+
+`abort.w` fixa o adapter Web sem substituir cancellation de task. O timeout usa
+clock monotônico operacional e mantém um timer-resource independente do
+creator/root. `AbortSignal.any` achata e deduplica folhas pending antes de
+aplicar o segundo limite, depois de limitar os argumentos diretos. As duas
+validações precedem o winner lexical e qualquer registration. O controller é
+move-only, seu drop não aborta e o signal não concede authority. O oracle
+positivo usa `throwIfAborted`, recebe o reason de `wait`, passa `Request.signal`
+para outro fetch e cria um controller apenas para uma lifetime independente.
+
+Enquanto `std.abort-state@1` estiver missing, os casos de runtime permanecem
+provider-gated. O harness futuro intercala abort, wait, task cancellation,
+drop, timeout e `any` em todos os pontos de commit. Ele exige timeout
+independente do creator/root; overflow de argumentos diretos, inclusive signals
+abortados, sem registration; overflow de folhas pending aninhadas sem
+registration; folha pending duplicada com uma registration; reason publicado,
+nenhum wake perdido, cleanup único, zero refcount cycle, zero task órfã e
+nenhuma fila de events.
 
 ### 3.5.4 Arquivo Posicional das Receitas Extintas
 

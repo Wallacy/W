@@ -1,5 +1,7 @@
 // Public value contracts for HTTP messages and server admission.
 
+import { AbortReason } from std.abort
+
 const fn isHttpTokenByte(byte: u8): Bool {
   if (byte >= b'0' && byte <= b'9')
     || (byte >= b'A' && byte <= b'Z')
@@ -696,7 +698,7 @@ export enum HttpSyntaxError: Error {
 export enum HttpBodyError: Error & Duplicable {
   alreadyUsed
   locked
-  aborted
+  aborted(AbortReason)
   malformed
   limitExceeded(maximumBytes: usize)
   incomplete
