@@ -9466,6 +9466,10 @@ fila entre eles sem compartilhar a semântica pública.
 ```w
 export protocol Stream<Item, Failure: Error> {
   mut async fn next(): Item? throws Failure
+
+  take async fn cancel(): () throws Failure {
+    // O default destrói um source puramente pull no fim deste frame.
+  }
 }
 ```
 
@@ -9515,7 +9519,21 @@ temporário ou deixar seu owner sair de escopo solicita cancelamento ao producer
 Não existe uma chamada implícita a `await` no destructor. Um producer
 estruturado pertence ao scope que criou o stream; esse scope não termina antes
 de o producer concluir seu cleanup. Um tipo que exige close assíncrono também
-oferece uma operação consuming própria, usada com `defer async`.
+substitui `cancel()`. A operação consuming solicita cancelamento, aguarda o
+drain e pode devolver `Failure`. O default serve somente para um source pull
+sem trabalho físico pendente: o receiver é destruído no fim do frame async.
+Código que precisa confirmar cleanup chama `try await (take stream).cancel()`,
+inclusive por `defer async`.
+
+A call segue W-330. O receiver `take` termina em success, `Failure` ou
+cancellation da task. Um `catch` observa o error, mas não recupera o stream.
+`cancel` não possui rollback implícito. Um tipo que precisa devolver outro owner
+usa um outcome enum. Esse não é o contrato de cancelamento.
+
+Cancellation da task continua separada. Ela sai como control outcome e executa
+o cleanup estrutural. Ela não chama `Stream.cancel()` como uma função que possa
+lançar application error. Um adapter físico resolve a corrida entre task cancel
+e completion antes de liberar storage.
 
 Esta forma mantém uma única abstração pública. Adapters como `map`, `filter` e
 `take` devolvem `some Stream<..., ...>`. Eles não exigem classes públicas como
@@ -9842,6 +9860,12 @@ error terminal e cancellation fecham o mesmo scope. A ordem é preservada. Um
 adapter paralelo declara `limit` e `ordering: .input | .completion`, como
 `TaskGroup`.
 
+`ReadableStream<Item, Failure>` da seção 14.3.4 atende diretamente a este
+protocol. Ele não adiciona outro cursor, scheduler ou regra de terminal. Seu
+provider privado pode adaptar um source concreto, mas mantém no máximo um pull
+upstream em voo. High-water mark e prefetch continuam operações explícitas de
+`buffer(capacity:)`. Eles não viram estado ambiental do carrier.
+
 Low e high watermarks são policies de wake-up e batching. Elas não mudam a
 capacity nem o ownership. A ideia histórica `stream<watermark: ...>` permanece
 registrada em `history/WIP-audit.md`; ela não entra na assinatura antes de um benchmark
@@ -9896,6 +9920,7 @@ O ensaio do restaurante verifica:
 - FIFO por sender e ausência de ordem presumida entre senders;
 - `trySend` sem bypass;
 - stream owned, stream de `view String` e erro terminal;
+- `Stream.cancel()` default e override com drain e cleanup único;
 - adapter bounded sem producer órfão;
 - uma, duas e quatro worker threads;
 - TSan, leak sanitizer e allocation fault injection.
@@ -13353,7 +13378,7 @@ record close e protocol errors não desaparecem dentro de `read`.
 podem mostrar o código nativo.
 
 ```w
-export struct IoError: Error {
+export struct IoError: Error & Duplicable {
   kind: IoErrorKind
   operation: IoOperation
   cause: IoCause?
@@ -13372,6 +13397,13 @@ export enum IoErrorKind {
   other
 }
 ```
+
+`IoError` é `Duplicable` porque `kind`, `operation` e `cause` são snapshots
+owned e imutáveis. Duplicar o diagnostic não duplica handle, request física ou
+authority. `IoCause` não guarda file, socket, task, capability ou outro resource
+owner. Um adapter materializa código e diagnostic redigível antes de construir
+o error. Essa propriedade permite que duas branches observem o mesmo error
+terminal sem compartilhar mutation.
 
 `IoCause` é opaca, target-specific e redigível. Ela não participa de igualdade,
 serialization ou resultado de domínio. Um programa pode pedir o código nativo
@@ -13442,6 +13474,11 @@ novo `next()` não ocorre enquanto `chunk` está vivo.
 
 `chunks(maximum:using:) -> some Stream<Bytes, E>` devolve owners independentes e
 pode alocar. A escolha entre owned e borrowed aparece no tipo.
+
+`ReadableStream<Bytes, E>` também atende a `ByteSource<E>`. Por isso, os mesmos
+adapters `chunks`, `lines` e `readToEnd` operam sobre um body Web sem um segundo
+pump público. A construção a partir de `ByteSource` recebe `chunkBytes`
+positivo. Uma leitura normal move o chunk. Ela não exige cópia.
 
 `lines(maximumBytes:)` combina byte source, decoder incremental e framing:
 
@@ -13657,7 +13694,7 @@ nome curto. O runtime não cria `globalThis` ou um namespace ambiental.
 |---|---|---|
 | Fetch | `fetch`, `Request`, `Response`, `Headers`, `FormData` | núcleo lógico fechado em 14.3.1–14.3.3; readiness SDK0 de cada export deriva dos requisitos e carriers catalogados |
 | URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra no SDK0 |
-| Streams | readable, writable, transform, BYOB e queuing strategies | semântica aceita; ownership, transfer e bounds precisam de interfaces completas |
+| Streams | readable, writable, transform, BYOB e queuing strategies | `ReadableStream` e BYOB têm draft em 14.3.4; provider executável ausente; writable, transform e strategies continuam sem interface SDK0 |
 | cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | adapter sobre cancellation W; events gerais continuam pesquisa |
 | encoding e compression | text encoders/decoders e compression streams | alvo T2; algorithms e error policy precisam de catálogo |
 | binary e files | `Blob` e `File` | alvo T2; backing store, lifetime e limits precisam de contrato |
@@ -14109,7 +14146,7 @@ preserva a prova de parse e a estrutura canônica.
 | `URLSearchParams` | move | form URL encoded UTF-8 | draft em `std.url` |
 | `Blob` | move ou sharing explícito | `blob.type`, se existir | profile final ausente |
 | `FormData` | move | multipart com boundary | profile final ausente |
-| `ReadableStream<Bytes, HttpBodyError>` | move | nenhum | carrier ausente |
+| `ReadableStream<Bytes, HttpBodyError>` | move | nenhum | draft em `std.stream`; provider ausente |
 
 Blob e FormData permanecem no profile final. Eles entram no source somente com
 backing store, limits e corpora. String, Bytes e stream usam o mesmo constructor
@@ -14363,7 +14400,7 @@ service transfer, fetch, serve e o slot `http.fetch`.
 Questões ainda não provadas:
 
 1. o módulo público de `AbortSignal` ainda não possui source SDK0;
-2. ReadableStream ainda precisa de interface SDK0;
+2. `std.readable-stream@1` ainda precisa de implementação e conformance;
 3. Blob e FormData precisam de backing store, limits e corpus;
 4. um iterator borrowed só entra se provar vantagem sem invalidation;
 5. peers legacy precisam de corpus para medir rejeição por UTF-8.
@@ -14550,7 +14587,7 @@ precisa fechar validation, commit e failure antes dessa superfície.
 
 Questões ainda não provadas:
 
-1. o SDK0 não possui ReadableStream ou codec JSON;
+1. o provider executável de ReadableStream e o codec JSON ainda estão ausentes;
 2. Blob e FormData ainda não possuem contracts de storage e limits;
 3. fixed-length stream precisa de contrato antes de controlar Content-Length;
 4. trailers precisam de corpus para HTTP/1.1, HTTP/2, HTTP/3 e WASI HTTP.
@@ -14698,7 +14735,359 @@ compiler deriva o requirement do source e rejeita authority ausente no link.
 O parâmetro `binding` de cada `get` é `const`; um nome calculado em runtime não
 abre outro resource.
 
-#### 14.3.4 SQL estático e rows tipadas
+#### 14.3.4 ReadableStream, BYOB e backpressure
+
+**Forma vigente:** `std.stream.ReadableStream<Item, Failure>` é o carrier
+portátil readable do profile Web. Ele é um `struct` move-only que atende
+diretamente a `Stream<Item, Failure>` da seção 12.9. Não existe uma segunda
+interface de iteração, cursor ou runtime de streaming.
+
+A superfície SDK0 é:
+
+```text
+ReadableStream<Item, Failure>.from(take some Stream<Item, Failure>)
+  -> ReadableStream<Item, Failure>
+ReadableStream<Bytes, Failure>.from(
+  byteSource: take some ByteSource<Failure>,
+  chunkBytes: usize<(1...)>,
+) -> ReadableStream<Bytes, Failure>
+
+mut async next() -> Item? throws Failure
+take async cancel() -> () throws Failure
+
+take tee(maximumBufferedItems: usize<(1...)>)
+  -> (ReadableStream<Item, Failure>, ReadableStream<Item, Failure>)
+  throws ReadableStreamUseError
+  where Item: Duplicable, Failure: Duplicable
+
+take tee(maximumBufferedBytes: usize<(1...)>)
+  -> (ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>)
+  throws ReadableStreamUseError
+  where Failure: Duplicable
+```
+
+O primeiro `from` guarda o source concreto no provider privado, sem iniciar um
+pull. O segundo adapta `ByteSource` e usa `chunkBytes` como máximo de cada item
+owned produzido por `next`. O carrier pode voltar a qualquer algoritmo genérico
+`S: Stream<Item, Failure>` sem conversão. A boundary não publica `any Stream`,
+object dinâmico ou callback de controller.
+
+Essa façade não é zero-cost por definição. `from` precisa apagar o type concreto
+do source dentro do handle. O provider pode alocar uma box e fazer uma
+indirection por call, manter sources pequenos em storage inline ou monomorfizar
+o wrapper e eliminar a indirection quando o target permite. O custo e a escolha
+aparecem em `w explain stream`. Código W que não precisa do carrier Web mantém o
+type concreto `S: Stream` e não passa por esse provider.
+
+O handle contém um witness privado da especialização exata
+`(Item, Failure, Source)`. Um wrapper privado
+`TypedReadableStreamHandle<Item, Failure>` mantém os parâmetros no type W mesmo
+quando o raw handle é opaco. Cada operação intrinsic usa o witness runtime e o
+digest de sua signature. O initializer público aceita somente um
+`Source: Stream<Item, Failure>` ou `Source: ByteSource<Failure>`, e o initializer
+de handle validado continua privado. Assim, um handle com combinação diferente
+de `Item` ou `Failure` não pode ser criado pelo wrapper. Mismatch no provider é
+fault do compiler/runtime, não cast dinâmico nem error público.
+
+O `ReadableStream` possui o único cursor. `next()` e `for try await` são as
+operações normais. Não existe `getReader()`, `ReadableStreamDefaultReader` ou
+reader BYOB na API W. Um borrow `inout` do owner exclui outra leitura durante a
+suspensão. Mover o owner transfere o direito de leitura. `copy` é rejeitado.
+Assim, safe W resolve o estado Web `locked` estaticamente. Um adapter de object
+Web ainda verifica `locked` em runtime antes de criar ou transferir o carrier.
+
+O provider mantém estes estados internos:
+
+```text
+readable -> closed
+    |         ^
+    +-> errored
+
+disturbed: false -> true
+foreign locked: false | true na boundary
+```
+
+O primeiro `next`, `read`, `cancel`, `tee` ou pipe marca `disturbed` antes de
+observar o source. `closed` é estável. Em W, o primeiro error terminal sai como
+`Failure`. Chamadas posteriores devolvem `.none`, conforme 12.9.1. Um adapter
+para object Web pode guardar a rejection terminal e reapresentá-la conforme o
+Streams Standard. Essa diferença fica na boundary e não muda `Stream`.
+`ReadableStreamUseError.disturbed` e `.locked` cobrem operações consuming que
+precisam de um body intacto. `Request.bodyUsed`, `Response.bodyUsed` e clone
+consultam o mesmo bit interno. Eles não mantêm uma flag paralela.
+
+Tee invalida o owner original e deixa seu estado disturbed somente para
+diagnóstico. As duas branches novas começam undisturbed. Por isso, clone HTTP de
+um body intacto devolve dois bodies com `bodyUsed == false`. Ele não reaproveita
+o owner original como uma das branches.
+
+`cancel()` é uma operação consuming e segue W-330. Antes da primeira suspensão,
+o provider marca o handle lógico como terminal e inert. Esse commit vence
+success, `Failure` e cancellation da própria task. O caller nunca recupera o
+owner num `catch`, e `deinit` posterior observa o handle inert. Não existe
+rollback implícito nem uma segunda tentativa de cancel ou cleanup.
+
+A call solicita o cancel do source e aguarda o drain de seu root estruturado.
+Ela lança `Failure` somente quando o source informa falha em seu algoritmo de
+cancelamento ou cleanup físico. O error descreve essa falha. Ele não significa
+que o stream voltou a readable, não transporta o owner e não autoriza retry. O
+provider mascara cancellation durante o drain mínimo necessário. Depois que o
+trabalho físico termina e o storage fica seguro, ele propaga o application
+error escolhido ou o control outcome da task.
+
+A signature continua `() throws Failure`. Um outcome enum é necessário em
+W-330 somente quando alguma saída devolve um novo owner. Cancel não devolve
+stream terminal. Success e Failure possuem o mesmo estado inert. Trocar
+`throws` por um enum repetiria o error effect sem recuperar valor útil.
+
+Se a task é cancelada durante `next` ou `read`, o provider cancela a operação
+física, drena a completion e conclui o cleanup antes de liberar o root.
+Destruir um owner live chama `drop`: a operação é idempotente e best-effort,
+solicita cancelamento uma vez e não executa `await` no destructor. O root
+estruturado ainda drena o trabalho físico. Drop de um handle terminal ou inert é
+no-op. EOF, error, cancel explícito e branch final convergem para o mesmo
+registro de cleanup único. O wrapper chama o requirement `Stream.cancel()` de
+12.9.1. Ele não inventa um hook de lifecycle inacessível ao source nativo.
+
+Cancelar um stream já fechado tem success sem chamar o source outra vez. Depois
+que `next` já moveu um error terminal para o caller, `cancel` também tem success.
+W não exige duplicar um `Failure` para reapresentá-lo. O adapter de object Web
+mantém a rejection no seu próprio modelo quando a API Web exige replay.
+
+O caminho sem adapter buffered mantém no máximo um pull upstream em voo. Ele não
+faz prefetch e não executa `pull` de forma reentrante. Um completion agenda o
+próximo pull somente depois de publicar o item ou terminal anterior. O source
+não chama o consumer pela pilha. Para buffering normal, o programa usa
+`Stream.buffer(capacity:)`. O high-water mark é a capacity explícita desse
+adapter. `lowWaterMark` pode controlar wake-up, mas não aumenta o limite. Para
+bytes, `capacity * chunkBytes` fornece um limite exato quando ambos são
+refinements positivos. Não existem `CountQueuingStrategy`,
+`ByteLengthQueuingStrategy`, controller público ou high-water mark oculto no
+constructor SDK0.
+
+`tee(maximumBufferedItems:)` consome o source e devolve dois owners. Ele existe
+somente quando `Item` e `Failure` atendem a `Duplicable`, porque cada branch deve
+observar valores independentes e o mesmo error terminal. O limite conta itens
+duplicados que uma branch ainda não consumiu. Ele não tenta medir o tamanho
+transitivo de um grafo. A branch rápida pode ficar no máximo esse número de
+itens à frente. Ao alcançar o limite, ela aguarda a branch lenta. O provider
+mantém FIFO, um único pull upstream e fairness sem starvation quando ambas
+progridem.
+
+Esse overload permanece no SDK0 porque o limite estrutural em itens é útil e
+testável para values de tamanho conhecido pelo domínio. Ele não promete um
+limite de memória derivado de `maximumBufferedItems`. Cada item pode possuir um
+grafo arbitrariamente grande. O pico inclui as duplicatas, o item upstream, as
+branches, o storage da erasure e o allocation budget do runtime. Excesso segue
+a policy comum de OOM ou admission do domínio. Ele não vira uma medida falsa do
+grafo. W não usa `sizeOf`, callback de custo confiada ou travessia transitiva
+para converter esse limite em bytes.
+
+O refinement começa em um. Um tee com zero precisaria esperar os dois readers
+como rendezvous antes de entregar qualquer item. Uma sequência comum que
+aguarda `left.next()` antes de iniciar `right.next()` não faria progresso. Uma
+duplicata pendente é o mínimo para uma branch avançar sem esse pareamento, por
+isso `maximumBufferedItems: 0` é rejeitado em vez de introduzir outra semântica
+de tee.
+
+O overload de bytes também começa em um. Com zero, nenhum prefixo positivo
+caberia no lag e a primeira leitura não poderia fazer progress.
+
+O overload de bytes conta bytes de lag, não chunks. O total interno ainda não
+consumido pela branch lenta nunca ultrapassa `maximumBufferedBytes`. Quando um
+chunk cruzaria o limite, o provider o divide e só admite o prefixo que cabe. A
+branch rápida aguarda espaço para o restante. Esse é o mesmo contrato usado por
+`Request.clone(maximumBufferedBytes:)` e
+`Response.clone(maximumBufferedBytes:)`. HTTP não possui outro tee. A
+implementação pode compartilhar backing privado ou duplicar bytes, mas as duas
+branches precisam de owners semanticamente independentes. Sem tee, cada chunk é
+movido e nenhuma cópia é obrigatória.
+
+Independência semântica não exige dois backings físicos. `Bytes` pode usar
+storage compartilhado ou copy-on-write enquanto ambas as branches observam
+bytes imutáveis. A primeira mutation separa o backing antes de mudar conteúdo.
+Nenhum alias mutável cruza as branches. O bound de bytes conta o lag lógico uma
+vez, independentemente de o provider compartilhar ou copiar o backing.
+
+Cancelar ou destruir uma branch libera seus itens de lag. A outra branch
+continua diretamente do source e não herda o cancel da primeira. O upstream é
+cancelado somente quando as duas branches pararam, ou quando o root externo é
+cancelado. Um error upstream é duplicado uma vez para cada branch viva e depois
+cada cursor termina. `HttpBodyError` e `IoError` atendem a `Duplicable`. Seus
+payloads são snapshots owned e imutáveis. `IoError` contém somente kind,
+operation e um cause snapshot redigível. Ele não possui file, socket, task,
+capability ou outro resource owner. Duplicar `HttpBodyError` não repete request,
+cancelamento ou transport effect. Um type de error ou item que não
+atende ao protocol recebe diagnostic na call de tee. Não existe overload
+unbounded nem equivalência com o tee Web que pode reter o body inteiro.
+
+O `cancel()` da primeira branch aguarda somente a remoção de seu waiter e o
+cleanup de seus itens de lag. Ele então retorna. Não espera a irmã terminar. O
+último cancel explícito solicita o cancel upstream e aguarda seu drain. Se a
+última branch termina por drop, o root estruturado faz esse drain sem um await
+implícito no destructor.
+
+##### BYOB e ByteSource
+
+`ReadableStream<Bytes, Failure>` atende a `ByteSource<Failure>`:
+
+```w
+mut async fn read(
+  appendTo destination: inout Bytes,
+  maximum: usize<(1...)>,
+) -> ReadStep throws Failure
+```
+
+Essa é a forma BYOB W. O provider inicializa diretamente a spare capacity de
+`destination` quando o target permite. Ele não precisa criar um chunk
+intermediário. `.data(count)` adiciona exatamente `count`, com
+`0 < count <= maximum`. `.end` não adiciona bytes. Um read parcial antes de EOF
+devolve `.data`. A próxima call devolve `.end`. Se a capacity é insuficiente,
+`Bytes` pode crescer pelo allocation budget normal. O borrow `inout` vive pela
+suspensão e impede resize ou outro acesso concorrente.
+
+`maximum` limita somente a quantidade anexada por esta call, não
+`destination.count` total nem a capacity física. O destination pode conter um
+prefixo anterior. Quando sua spare capacity não comporta o progresso, a call
+pode alocar e mover o backing antes de anexar até `maximum` bytes. O retorno
+positivo informa o delta confirmado. Ele nunca usa zero como progress.
+
+`next` e `read` avançam o mesmo cursor. Se `read(maximum:)` consome somente um
+prefixo de um item `Bytes`, o provider retém o remainder desse owner como o item
+corrente. Uma call posterior a `read` ou `next` recebe esse remainder antes de
+outro pull. Essa retenção não copia bytes e não é uma queue. Existe no máximo um
+item corrente, cujo tamanho pertence ao contrato do source. O constructor de
+`ByteSource` limita esse item por `chunkBytes`. HTTP também aplica
+`MessageLimits` antes da entrega.
+
+W não expõe `ArrayBuffer`, typed-array detach, `respond`, `respondWithNewView`
+ou um reader object. `ByteSource` preserva o resultado importante de BYOB:
+storage fornecido pelo caller, máximo explícito, short progress e nenhuma cópia
+obrigatória. O adapter HTTP alimenta o constructor por um `ByteSource` interno.
+Não existe um protocol público `IncomingBody`, outro consumer, cursor ou queue.
+Essa forma é `adapted`, não um buffer Web fixo idêntico: `Bytes` pode crescer,
+seu backing não é observável por identity e nenhuma detach atravessa a call.
+
+##### Pipe e transform
+
+`WritableStream` e `TransformStream` ainda não entram no SDK0. Por isso,
+`pipeTo` e `pipeThrough` não são members atuais de `ReadableStream`. A direção
+reservada é consuming e estruturada:
+
+```text
+take async pipeTo(take WritableStream<Item, WriteFailure>, policy: PipePolicy)
+  -> () throws PipeFailure<Failure, WriteFailure>
+take pipeThrough(take TransformStream<Input, Output, TransformFailure>)
+  -> ReadableStream<Output, TransformFailure>
+```
+
+O primeiro owner mantém source, destination e task root até close, error,
+cancel e cleanup. O segundo stream devolvido possui o transform e esse root.
+Nenhuma forma inicia uma task detached. `PipePolicy` será um enum fechado. W não
+copiará os três Booleans `preventClose`, `preventAbort` e `preventCancel` sem
+tipar as combinações. `ByteSink` não é chamado `WritableStream`: ele prova agora
+a direção de pull, short write e backpressure. O oracle
+`pumpReadableBytes` usa `read` e `writeAll` em uma única task. O oracle
+`mirrorReadableBytes` executa dois pumps filhos sobre tee byte-bounded. Uma branch
+lenta aplica backpressure e uma destination que termina cedo destrói somente a
+sua branch.
+
+##### Transfer, custos e gates
+
+Transferir o carrier por service move o owner. O sender perde o cursor e o
+receiver recebe o mesmo estado `disturbed`. Uma rota process-local pode mover o
+handle e o backing sem cópia. Uma rota remota usa o stream protocol da seção
+23.1.5: credits explícitos, envelope bounded, reset tipado e drain estruturado.
+O adapter não envia o opaque handle, não cria buffer sem limite e não publica
+`any`. Drop do receiver envia reset uma vez e o root aguarda a confirmação ou o
+limite físico do transport.
+
+Na rota remota, `Item` e o terminal `Failure` precisam dos carriers `WireValue`
+já exigidos por 23.1.5. Um type local pode usar o mesmo `ReadableStream`, mas não
+ganha serialização por estar dentro dele.
+
+Os custos máximos são:
+
+| Operação | Tempo | Espaço adicional |
+|---|---|---|
+| `from(Stream)` | move do source + criação da erasure | source storage + handle; box/indirection possível, SBO ou monomorfização permitida |
+| transfer local do carrier | O(1) | move do handle e backing; nenhuma nova erasure |
+| `next` normal | custo do pull + O(1) | item movido; nenhuma cópia exigida |
+| `from(ByteSource)` | move do source + criação da erasure | source storage + handle e `chunkBytes`; nenhum buffer eager |
+| `read` BYOB | O(bytes adicionados) | pode alocar se a spare capacity não basta |
+| tee genérico | O(itens duplicados) | N limita lag em itens; memória depende dos grafos e do allocation budget |
+| tee de bytes | O(bytes duplicados) | até B bytes de lag + chunk upstream atual + metadata fixa |
+| cancel explícito | custo de cancel + drain, inclusive antes de propagar Failure | estado inert fixo; sem task órfã ou owner restaurado |
+
+`w explain stream` mostra source, witness, erasure box/SBO/monomorfização,
+indirections, modo de pull, item ou byte bound, high-water mark efetivo, pulls
+em voo, lag por branch, bytes retidos, cancel source e provider. O compiler
+diagnostica cópia do owner, duas chamadas `inout`
+concorrentes, tee sem `Duplicable`, limite zero e escape de BYOB. O linter avisa
+sobre branch de tee não consumida, lag que permanece no limite e buffering
+adicional sobre tee sem necessidade.
+
+O provider `std.readable-stream@1` permanece `missing`. A interface só muda para
+available quando passa:
+
+- os testes aplicáveis de `ReadableStream`, default reader, BYOB, cancel e tee do
+  [Web Platform Tests](https://github.com/web-platform-tests/wpt/tree/master/streams);
+- os estados disturbed, locked, clone e body unusable do
+  [Fetch Standard](https://fetch.spec.whatwg.org/#body-mixin);
+- a superfície de Streams do
+  [Minimum Common Web Platform API](https://min-common-api.proposal.wintertc.org/);
+- differential tests contra
+  [workerd streams](https://github.com/cloudflare/workerd/tree/main/src/workerd/api/streams),
+  inclusive fast/slow branch, cancel de uma branch e BYOB;
+- scheduler virtual com limites 1, 2 e 64, EOF, error, reentrância hostil,
+  cancel antes e depois de cada commit, branch drop, fault injection, TSan,
+  ASan e leak sanitizer.
+
+O fault provider executa três ensaios mínimos. Primeiro, `cancel` falha antes e
+depois da solicitação física. Nos dois casos o owner permanece consumido, o
+handle fica inert antes do error, o root drena e `deinit` não repete cleanup.
+Segundo, dois itens `Duplicable` com o mesmo lag e grafos de bytes diferentes
+confirmam que o tee genérico limita somente quantidade e não publica byte bound.
+Terceiro, o tee de bytes mede lag a cada split, mantém `lag <= B` e confirma que
+drop de uma branch não cancela a irmã.
+
+Esses três casos são gates do provider, não testes runtime executáveis do draft
+atual. Enquanto `std.readable-stream@1` estiver `missing`, o Última Luz oferece
+somente source positivo, compile-fail comments e a forma esperada do harness.
+
+Os testes WPT de pipe, writable e transform tornam-se gates somente quando as
+interfaces correspondentes entrarem no SDK. Eles não bloqueiam o provider
+readable atual nem autorizam uma implementação parcial dessas superfícies.
+
+Quando o provider existir, o oracle local também verifica que o lag do tee de
+bytes não passa do limite, o ramo rápido bloqueia, chunks podem ser divididos,
+cleanup ocorre uma vez e não fica task detached. WPT fixa o comportamento Web.
+Os casos locais fixam as divergências bounded e de ownership.
+
+A compatibilidade é explícita:
+
+| Superfície Web | Classificação W | Diferença observável |
+|---|---|---|
+| `ReadableStream`, `readable`, `closed`, `errored` | `adapted` | owner implementa `Stream`; terminal W lança uma vez e depois termina |
+| constructor com underlying source e strategy | `adapted` | `from` consome `Stream` ou `ByteSource` nominal e pode pagar erasure/indirection; não aceita callback object nem strategy oculta |
+| async iteration e pull de um item | `adapted` | usa `for try await` e `next`, sem Promise ou iterator object |
+| `getReader`, reader release e property `locked` | `notApplicable` em safe W; `adapted` na boundary | ownership e `inout` excluem outro reader; object foreign ainda é validado |
+| `cancel(reason)` | `adapted` | call consuming sem payload `any`; Failure não restaura owner; task cancellation continua separada |
+| `tee()` | `adapted` | exige `Duplicable`; limita lag por item ou exatamente por byte; item count não promete memória bounded |
+| BYOB reader e controller | `adapted` | `ByteSource.read(appendTo:maximum:)` usa `Bytes` growable do caller, sem fixed-buffer identity ou detach |
+| underlying-source callbacks e queuing strategies | `notApplicable` no SDK0 | source nominal, `Stream.buffer` e `Channel` substituem object callbacks |
+| `pipeTo` e `pipeThrough` | ausente; direção fechada | aguardam carriers writable/transform e errors tipados |
+| `WritableStream` e `TransformStream` | ausente | este bundle não alega compatibilidade dessas superfícies |
+
+O [Streams Standard](https://streams.spec.whatwg.org/) define locking, cancel,
+tee, pipe e BYOB. O [Fetch Standard](https://fetch.spec.whatwg.org/) define body
+disturbed, unusable e clone por tee. A documentação e o source de
+[workerd](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/streams/README.md)
+mostram a diferença prática entre um source interno com um read em voo e uma
+queue JavaScript controlada por high-water mark. W preserva a semântica
+observável necessária, mas exige bounds e ownership na interface.
+
+#### 14.3.5 SQL estático e rows tipadas
 
 **Exemplo:** parâmetros e resultado pertencem ao tipo do descriptor:
 
@@ -14758,7 +15147,7 @@ As fases públicas de
 [prepare, bind, step, reset e finalize](https://sqlite.org/c3ref/stmt.html)
 fundamentam o descriptor W.
 
-#### 14.3.5 Database, pipeline e transaction
+#### 14.3.6 Database, pipeline e transaction
 
 **Exemplo:** cada item continua um statement independente, mesmo quando o
 adapter usa pipeline. A mutation usa a transação estruturada da seção 12.13:
@@ -14822,7 +15211,7 @@ Buffers de driver podem alimentar o decoder por view. Nenhuma view de row escapa
 da call. Um stream de rows futuro precisa possuir seu pool lease e declarar
 limites, cancellation e cleanup antes de entrar na std.
 
-#### 14.3.6 Cache local com limite
+#### 14.3.7 Cache local com limite
 
 **Exemplo:** o binding fixa a autoridade local e o limite de entries:
 
@@ -14954,7 +15343,7 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos dez módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos 11 módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -14970,9 +15359,10 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 74 declarations exportadas, das quais 72 estão draft-ready e duas estão
-bloqueadas. Ele também registra 29 superfícies qualificadas usadas pelo Última
-Luz. O checker rejeita export sem profile, uso qualificado desconhecido, profile
+registra 75 declarations exportadas em 11 módulos, das quais 73 estão
+draft-ready e duas estão bloqueadas. Ele também registra 31 superfícies
+qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
+qualificado desconhecido, profile
 incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
 declaration mede somente a interface W. Quando uma interface depende de um
 provider intrinsic, o catálogo registra separadamente o ID, os gates e o estado
@@ -15001,15 +15391,15 @@ O Última Luz exige seis superfícies que ainda não possuem draft pronto:
 | `std.http` | `ResponseError` | codec JSON ausente | gateway HTTP |
 | `std.http` | `serve` | declaration ausente | host nativo |
 
-Sete requisitos de carrier tornam o bloqueio verificável. Dois possuem draft e
-cinco continuam missing; entre os cinco obrigatórios do núcleo Fetch, três
+Sete requisitos de carrier tornam o bloqueio verificável. Três possuem draft e
+quatro continuam missing; entre os cinco obrigatórios do núcleo Fetch, dois
 continuam missing:
 
 | Carrier | Provider SDK0 | Interface | Provider executável |
 |---|---|---|---|
 | `URL` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
 | `URLSearchParams` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
-| `ReadableStream` | `std.stream` | obrigatório; missing | não aplicável |
+| `ReadableStream` | `std.stream` | obrigatório; draft | `std.readable-stream@1`; missing |
 | `AbortSignal` | módulo ainda não decidido | obrigatório; missing | não aplicável |
 | `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing | não aplicável |
 | `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
@@ -15034,11 +15424,12 @@ SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
 1. resolver as seis superfícies sem draft pronto;
-2. fechar os três carriers obrigatórios restantes do núcleo Web;
+2. fechar os dois carriers obrigatórios restantes do núcleo Web;
 3. catalogar operações de Request e Response depois desses carriers;
 4. adicionar um segundo consumer antes de classificar uma API como estável;
 5. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
-6. substituir digests de source por interfaces emitidas pelo checker real.
+6. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
+7. substituir digests de source por interfaces emitidas pelo checker real.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -23565,7 +23956,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 74 exports em dez módulos; 72 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; cinco carriers e seis superfícies de referência continuam sem draft pronto | fechar os três carriers Web obrigatórios restantes, resolver as seis ausências, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 75 exports em 11 módulos; 73 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; quatro carriers e seis superfícies de referência continuam sem draft pronto | fechar os dois carriers Web obrigatórios restantes, resolver as seis ausências, implementar os dois providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -25323,13 +25714,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 74 exports, nove requisitos e sete carriers; 72 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 29 usos e registra seis requisitos de referência ausentes | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ainda sem source |
+| W-891 | catálogo std SDK0 | profiles cobrem 75 exports em 11 módulos, nove requisitos e sete carriers; 73 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 31 usos e registra seis requisitos de referência ausentes; quatro carriers e dois providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
 | W-895 | profile WinterTC | `web-common@2025` fixa e classifica o Minimum Common Web API como exact, adapted, extension, browser-only ou não aplicável; W não declara conformidade ECMAScript | alegar conformidade formal; copiar `globalThis`; seguir living surface sem snapshot; chamar extension de API portátil |
 | W-896 | URL portátil | `URL` guarda record canônico opaco; getters textuais são views O(1); base é `ref URL`; mutation usa errors tipados; `searchParams()` devolve snapshot owned atual; edição `inout` fallible e scoped faz commit único e distingue query ausente e vazia; `URLSearchParams` preserva ordem, repetição, form encoding e sort UTF-16; WPT fecha o provider | doze Strings owned; params eager; cache interior; callback para leitura; property Web com allocation escondida; `SameObject`; parser parcial no contrato; aliases HTTP; silent no-op; alias mutável escapável; URLPattern no SDK0 |
 | W-897 | intrinsic interno da std | `foreign intrinsic from "provider@major"` é primitive unsafe não exportável, restrita a módulos internos do SDK; manifest versionado fixa signatures, effects e gates; wrapper W safe contém a boundary; não existe ABI pública nem capability implícita; bootstrap usa allowlist e os mesmos digests | foreign symbol comum; `fn<C>`; annotation nova; provider ambiental; declaration por package; intrinsic público; authority por nome |
+| W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

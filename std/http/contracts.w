@@ -693,7 +693,7 @@ export enum HttpSyntaxError: Error {
   invalidStatus(found: u16)
 }
 
-export enum HttpBodyError: Error {
+export enum HttpBodyError: Error & Duplicable {
   alreadyUsed
   locked
   aborted
@@ -764,10 +764,6 @@ export struct ServerLimits {
   queuedBytes: usize
   connections: usize<(1...)>
   message: MessageLimits
-}
-
-export protocol IncomingBody: ByteSource<HttpBodyError> {
-  take async fn discard(): () throws HttpBodyError
 }
 
 export protocol HttpHandler {

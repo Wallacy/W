@@ -35,6 +35,8 @@ std/
     transaction.w
     work.w
     workflow.w
+  stream/
+    contracts.w
   url/
     contracts.w
 ```
@@ -47,6 +49,14 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de T1.
+`stream/contracts.w` materializa o carrier readable do profile Web como owner
+move-only que atende diretamente a `Stream` e, para bytes, a `ByteSource`. Tee
+sempre recebe limite de lag. Item count é estrutural e usa o allocation budget.
+O overload de bytes possui bound exato em bytes. O provider intrinsic interno
+`std.readable-stream@1` continua missing. O arquivo fecha a interface, não cria
+um runtime paralelo nem alega execução. `from` pode pagar box e indirection. O
+handle tipado preserva `Item` e `Failure`. `cancel` consome o owner também em
+Failure, deixa o handle inert e mantém o drain no root estruturado.
 `url/contracts.w` materializa os values portáteis de URL e parâmetros. Seu
 provider intrinsic interno `std.url-record@1` segue o mecanismo da seção 19.3.1
 e precisa implementar o URL Standard completo. A interface está em draft, mas
@@ -64,11 +74,13 @@ fornecer namespaces como `std.device`, `std.mobile` e `std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
 
-O rascunho fixa sete fronteiras:
+O rascunho fixa oito fronteiras:
 
 - build transforms recebem somente inputs e outputs declarados;
 - workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
+- streams readable mantêm um cursor e um pull em voo. Item lag é estrutural e
+  byte lag é bounded em bytes. BYOB reutiliza `ByteSource`, sem reader object;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
   `Method.query` representa o método QUERY do RFC 10008;
 - URL preserva serialização canônica, snapshots explícitos e edição live scoped

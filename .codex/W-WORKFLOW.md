@@ -21,6 +21,11 @@ O worker é `w_luna_worker`, configurado em `.codex/agents/` com Luna Max. Use
 somente um worker por sessão. Reuse sua thread para todas as correções e tarefas
 relacionadas. Não use Ultra ou agentes paralelos.
 
+Somente o coordenador cria o worker. O próprio worker executa o pacote sozinho:
+ele não cria, delega ou coordena subagentes, nem mesmo durante correções ou
+checks longos. Se precisar de outra autoridade ou premissa, ele devolve o
+bloqueio ao coordenador.
+
 O alvo operacional é deixar pelo menos 95% do trabalho de modelo no worker.
 Esse valor é uma meta, não uma métrica garantida pelo Codex. Não gaste contexto
 tentando medi-lo durante a tarefa.
