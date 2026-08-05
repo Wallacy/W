@@ -179,6 +179,53 @@ function extractExportedMembers(declaration) {
   return members;
 }
 
+function extractExtensions(source, owner) {
+  const lines = source.split(/\r?\n/);
+  const escapedOwner = owner.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const extensionPattern = new RegExp(
+    `^extension(?:<[^{}]*>)?\\s+${escapedOwner}\\b`,
+  );
+  const declarations = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/^extension\b/.test(lines[index])) continue;
+
+    const header = [];
+    let headerCursor = index;
+    while (headerCursor < lines.length) {
+      header.push(lines[headerCursor].trim());
+      if (structuralCharacters(lines[headerCursor]).includes("{")) break;
+      headerCursor += 1;
+    }
+    if (!extensionPattern.test(header.join(" ").replace(/\s+/g, " "))) continue;
+
+    const declarationLines = [];
+    let depth = 0;
+    let bodyStarted = false;
+    let cursor = index;
+
+    while (cursor < lines.length) {
+      declarationLines.push(lines[cursor]);
+      const structural = structuralCharacters(lines[cursor]);
+      for (const character of structural) {
+        if (character === "{") {
+          depth += 1;
+          bodyStarted = true;
+        } else if (character === "}") {
+          depth -= 1;
+        }
+      }
+      if (bodyStarted && depth === 0) break;
+      cursor += 1;
+    }
+
+    declarations.push({ declarationLines, line: index + 1 });
+    index = cursor;
+  }
+
+  return declarations;
+}
+
 function hasDesignAnchor(anchor) {
   const escaped = anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^#{3,4} ${escaped}(?:\\s|$)`, "m").test(design);
@@ -319,7 +366,17 @@ for (const module of catalog.modules ?? []) {
       errors.push(`${apiId}: unknown profile ${api.profile}.`);
     }
 
-    const exportedMembers = extractExportedMembers(declaration);
+    const extensions = extractExtensions(source, api.symbol);
+    const exportedMembers = [
+      ...extractExportedMembers(declaration),
+      ...extensions.flatMap((extension) => extractExportedMembers(extension)),
+    ];
+    const declarationDigest = digest(
+      [
+        ...declaration.declarationLines,
+        ...extensions.flatMap((extension) => extension.declarationLines),
+      ].join("\n"),
+    );
     const snapshotMembers = [];
     const catalogMembers = new Set();
     for (const member of api.members ?? []) {
@@ -363,7 +420,7 @@ for (const module of catalog.modules ?? []) {
       symbol: api.symbol,
       kind: declaration.kind,
       signature: declaration.signature,
-      declarationDigest: declaration.declarationDigest,
+      declarationDigest,
       line: declaration.line,
       profile: api.profile,
       ...(snapshotMembers.length > 0 ? { members: snapshotMembers } : {}),

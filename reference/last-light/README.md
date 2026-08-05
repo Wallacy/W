@@ -168,7 +168,7 @@ alvo de execução independente.
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
-| `streams.w` | stream pull, views borrowed, channel MPSC e backpressure |
+| `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
@@ -519,6 +519,19 @@ Aceite:
 - `Stream<view String, E>` mantém a view vinculada ao stream;
 - outro `next()` não ocorre enquanto uma view conflitante está viva;
 - adapters devolvem `some Stream`, sem classes utilitárias públicas;
+- `ReadableStream<Item, Failure>` é move-only e atende diretamente a `Stream`;
+- `ReadableStream<Bytes, Failure>` atende a `ByteSource` para BYOB;
+- `from` pode usar box, indirection ou storage inline para apagar o source;
+- `maximum` em BYOB limita o delta anexado e não impede allocation de `Bytes`;
+- HTTP não publica outro protocol `IncomingBody`;
+- o carrier mantém um único pull em voo e não possui `getReader` paralelo;
+- falha de `cancel` consome o owner, deixa o handle inert e não repete cleanup;
+- tee genérico exige `Duplicable`; seu limite é lag em itens, não memória;
+- zero itens é rejeitado para não transformar tee em rendezvous;
+- tee de bytes usa limite exato e aplica backpressure ao ramo rápido;
+- cancel de uma branch não cancela a outra; drop das duas cancela o source;
+- `pumpReadableBytes` prova a direção para `ByteSink` sem `WritableStream`;
+- `mirrorReadableBytes` mantém os dois pumps em children estruturados;
 - `Channel<T><.send>` pode ser copiado somente com `copy`;
 - `Channel<T><.receive>` é único e move-only;
 - o channel aceita somente payload `transferable` owned;
@@ -550,6 +563,16 @@ pedido deve terminar em exatamente um destes destinos:
 O teste de view percorre linhas borrowed do cardápio sem allocation. O corpus
 rejeita guardar uma linha depois do próximo `next()`, enviá-la por channel ou
 movê-la para task detached.
+
+Enquanto `std.readable-stream@1` estiver missing, o oracle readable fixa source
+e compile-fail comments, mas não alega execução. O gate futuro usa destinations
+com velocidades diferentes. O lag fica em `maximumBufferedBytes`. O ramo rápido
+aguarda no limite. Um sink que falha devolve seu outcome e destrói somente a
+própria branch. O outro pump continua, e o scope aguarda os dois antes de
+devolver. Fault injection também faz `cancel` falhar antes e depois da
+solicitação física e confirma owner consumido, handle inert, drain e cleanup
+único. Um caso genérico varia o tamanho dos grafos com o mesmo lag para provar
+que item count não promete byte bound.
 
 ### 3.5.4 Arquivo Posicional das Receitas Extintas
 

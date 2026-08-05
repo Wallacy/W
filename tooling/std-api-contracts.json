@@ -49,10 +49,10 @@
     },
     "byte-source": {
       "capabilities": ["byte-io-provider"],
-      "effects": ["suspension", "byte-io"],
+      "effects": ["suspension", "byte-io", "allocation"],
       "failures": { "mode": "generic", "types": ["Failure"] },
-      "bounds": ["maximum-argument", "destination-capacity"],
-      "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+      "bounds": ["maximum-argument", "destination-capacity", "allocation-budget"],
+      "complexity": { "time": "linear-progress", "space": "destination-growth-bounded-by-maximum" }
     },
     "byte-sink": {
       "capabilities": ["byte-io-provider"],
@@ -60,13 +60,6 @@
       "failures": { "mode": "generic", "types": ["Failure", "WriteAllError"] },
       "bounds": ["source-size", "segment-count"],
       "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
-    },
-    "http-body": {
-      "capabilities": ["http-body-provider"],
-      "effects": ["suspension", "byte-io"],
-      "failures": { "mode": "typed", "types": ["HttpBodyError"] },
-      "bounds": ["message-limits"],
-      "complexity": { "time": "linear-progress", "space": "bounded-by-contract" }
     },
     "http-handler": {
       "capabilities": ["http-context"],
@@ -296,11 +289,42 @@
       "complexity": { "time": "n-log-n-plus-utf16-comparison", "space": "linear-pairs" }
     },
     "web-stream-carrier": {
-      "capabilities": ["byte-stream-provider"],
-      "effects": ["suspension", "byte-io", "allocation"],
-      "failures": { "mode": "typed", "types": ["HttpBodyError"] },
-      "bounds": ["message-limits", "queue-high-water-mark", "clone-buffer"],
-      "complexity": { "time": "linear-progress", "space": "bounded-by-contract" }
+      "capabilities": [],
+      "effects": ["suspension", "byte-io", "cancellation", "allocation"],
+      "failures": {
+        "mode": "generic",
+        "types": ["Failure", "ReadableStreamUseError"]
+      },
+      "bounds": ["source-contract", "structural-item-lag", "exact-byte-lag", "allocation-budget"],
+      "complexity": { "time": "linear-progress", "space": "source-storage-plus-runtime-budget" }
+    },
+    "web-stream-construction": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["source-contract", "source-size", "chunk-bytes", "allocation-budget"],
+      "complexity": { "time": "source-move-plus-erasure", "space": "source-storage-plus-fixed-handle" }
+    },
+    "web-stream-pull": {
+      "capabilities": [],
+      "effects": ["suspension"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["one-upstream-pull", "source-contract"],
+      "complexity": { "time": "provider-bounded", "space": "one-item" }
+    },
+    "web-stream-cancel": {
+      "capabilities": [],
+      "effects": ["suspension", "cancellation"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["consuming-on-failure", "inert-before-propagation", "structured-drain", "cleanup-once"],
+      "complexity": { "time": "provider-bounded", "space": "fixed-state" }
+    },
+    "web-stream-tee": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["ReadableStreamUseError"] },
+      "bounds": ["structural-item-lag", "allocation-budget", "exact-byte-lag", "one-upstream-pull"],
+      "complexity": { "time": "linear-duplicated-progress", "space": "item-graphs-or-exact-byte-lag" }
     },
     "web-abort-carrier": {
       "capabilities": ["task-cancellation"],
@@ -466,6 +490,46 @@
       ]
     },
     {
+      "id": "std.stream",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/stream/contracts.w",
+      "designAnchors": ["12.9.1", "12.9.10", "14.2.10", "14.3.4", "19.3.1"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.readable-stream@1",
+        "status": "missing",
+        "gates": [
+          "whatwg-streams",
+          "wpt-streams",
+          "wintertc-2025",
+          "workerd-differential",
+          "erasure-type-witness",
+          "cancel-failure-drain",
+          "tee-boundary-faults"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/streams.w",
+        "symbols": ["ReadableStream", "ReadableStreamUseError"]
+      },
+      "apis": [
+        { "symbol": "ReadableStreamUseError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "ReadableStream",
+          "kind": "struct",
+          "profile": "web-stream-carrier",
+          "members": [
+            { "symbol": "from", "overloads": 2, "profile": "web-stream-construction" },
+            { "symbol": "next", "profile": "web-stream-pull" },
+            { "symbol": "cancel", "profile": "web-stream-cancel" },
+            { "symbol": "tee", "overloads": 2, "profile": "web-stream-tee" },
+            { "symbol": "read", "profile": "byte-source" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.url",
       "tier": "T2",
       "availability": "bundled-portable",
@@ -626,7 +690,6 @@
         { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
-        { "symbol": "IncomingBody", "kind": "protocol", "profile": "http-body" },
         {
           "symbol": "HttpHandler",
           "kind": "protocol",
@@ -640,7 +703,7 @@
       "tier": "T2",
       "availability": "database-adapter",
       "source": "std/database/contracts.w",
-      "designAnchors": ["14.3.4", "14.3.5"],
+      "designAnchors": ["14.3.5", "14.3.6"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
         "symbols": ["Binding", "Query", "Command", "Database", "DatabaseError"]
@@ -665,7 +728,7 @@
       "tier": "T2",
       "availability": "process-local-cache-adapter",
       "source": "std/cache/contracts.w",
-      "designAnchors": ["14.3.6"],
+      "designAnchors": ["14.3.7"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
         "symbols": ["LocalBinding", "CacheError", "LoadFailure"]
@@ -703,7 +766,7 @@
       "providerModule": "std.stream",
       "surface": "ReadableStream",
       "profile": "web-stream-carrier",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response"]
     },
@@ -749,6 +812,7 @@
     { "binding": "cache", "module": "std.cache" },
     { "binding": "database", "module": "std.database" },
     { "binding": "http", "module": "std.http" },
+    { "binding": "streaming", "module": "std.stream" },
     { "binding": "url", "module": "std.url" }
   ],
   "referenceRequirements": [

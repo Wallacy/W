@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "b169d280c497ecbca120b8cf0e53e18ee6e5d8ecfe15cd557fb9b89f03b6edd4",
+  "catalogDigest": "2712a63ba40c9b8b0ce4a90747cb9f2643c33b40a603daed370c5e25188a8801",
   "summary": {
-    "modules": 10,
-    "catalogedApis": 74,
-    "draftCatalogedApis": 72,
+    "modules": 11,
+    "catalogedApis": 75,
+    "draftCatalogedApis": 73,
     "missingCatalogedApis": 2,
-    "qualifiedReferenceSurfaces": 29,
+    "qualifiedReferenceSurfaces": 31,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
     "missingReferenceRequirements": 6,
     "carrierRequirements": 7,
-    "missingCarrierRequirements": 5,
-    "implementationProviders": 1,
-    "missingImplementationProviders": 1
+    "missingCarrierRequirements": 4,
+    "implementationProviders": 2,
+    "missingImplementationProviders": 2
   },
   "modules": [
     {
@@ -229,7 +229,7 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "catalogedDeclarationsDigest": "02ab51b9baef270bb2a84ca5c7421fcbb61c04091605acc834387d18d7f67a36",
+      "catalogedDeclarationsDigest": "a732e4d636bd6ad0492597ddfce2b07195634bd1df427e56493d5957fb9ce1a3",
       "apis": [
         {
           "symbol": "BodyCloneError",
@@ -383,8 +383,8 @@
         {
           "symbol": "HttpBodyError",
           "kind": "enum",
-          "signature": "export enum HttpBodyError: Error",
-          "declarationDigest": "b788216b224b5f54b66885b6e2af4f9c09782d1a4975747f13d7ec6df8b11c68",
+          "signature": "export enum HttpBodyError: Error & Duplicable",
+          "declarationDigest": "a1046eaa7a5cd3e109a4d3a5b065d71b62f2a1b5a788002e1142bd5561dc748b",
           "line": 696,
           "profile": "value-contract",
           "status": "draft"
@@ -403,7 +403,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler",
           "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
-          "line": 773,
+          "line": 769,
           "profile": "http-handler",
           "status": "missing",
           "requires": [
@@ -419,15 +419,6 @@
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
           "line": 688,
           "profile": "value-contract",
-          "status": "draft"
-        },
-        {
-          "symbol": "IncomingBody",
-          "kind": "protocol",
-          "signature": "export protocol IncomingBody: ByteSource<HttpBodyError>",
-          "declarationDigest": "f2f987d1f5a2a229f43a7194e642398c724d032c9eec5f2a1246fa0dfc6be4ad",
-          "line": 769,
-          "profile": "http-body",
           "status": "draft"
         },
         {
@@ -500,7 +491,7 @@
           "symbol": "StatusCode",
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
-          "declarationDigest": "96c376c9e2a47e5c7f8a21cf810b49dec6387200b49146c767462aca584b0f95",
+          "declarationDigest": "39bf47df05a185d89bf44e6fe4e00494c3e9aaca929c201d0334defe3c216550",
           "line": 282,
           "profile": "value-contract",
           "status": "draft"
@@ -799,6 +790,107 @@
           "signature": "export enum WorkSuspension",
           "declarationDigest": "d1777397d4aafdf60c9480e0e443e3ae552a6ded75e58b182ed95dc59b4974fb",
           "line": 32,
+          "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.stream",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/stream/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.readable-stream@1",
+        "status": "missing",
+        "gates": [
+          "cancel-failure-drain",
+          "erasure-type-witness",
+          "tee-boundary-faults",
+          "whatwg-streams",
+          "wintertc-2025",
+          "workerd-differential",
+          "wpt-streams"
+        ]
+      },
+      "catalogedDeclarationsDigest": "0d1084afad3e21ed2da367ce3dc5ceabb863bf8cfbc6d3f3af3e2c1476e3ddc0",
+      "apis": [
+        {
+          "symbol": "ReadableStream",
+          "kind": "struct",
+          "signature": "export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure>",
+          "declarationDigest": "31e16f85b8c0ef4289722bb4fa81ef7b0810a7d0634497d2ac201cf54c57ee53",
+          "line": 89,
+          "profile": "web-stream-carrier",
+          "members": [
+            {
+              "symbol": "from",
+              "overloads": [
+                {
+                  "signature": "export static fn from<Source: Stream<Item, Failure>>( _ source: take Source, ): ReadableStream<Item, Failure>",
+                  "line": 92
+                },
+                {
+                  "signature": "export static fn from<Source: ByteSource<Failure>>( byteSource source: take Source, chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, Failure>",
+                  "line": 145
+                }
+              ],
+              "profile": "web-stream-construction"
+            },
+            {
+              "symbol": "next",
+              "overloads": [
+                {
+                  "signature": "export mut async fn next(): Item? throws Failure",
+                  "line": 104
+                }
+              ],
+              "profile": "web-stream-pull"
+            },
+            {
+              "symbol": "cancel",
+              "overloads": [
+                {
+                  "signature": "export take async fn cancel(): () throws Failure",
+                  "line": 108
+                }
+              ],
+              "profile": "web-stream-cancel"
+            },
+            {
+              "symbol": "tee",
+              "overloads": [
+                {
+                  "signature": "export take fn tee( maximumBufferedItems: usize<(1...)>, ): ( ReadableStream<Item, Failure>, ReadableStream<Item, Failure>, ) throws ReadableStreamUseError",
+                  "line": 122
+                },
+                {
+                  "signature": "export take fn tee( maximumBufferedBytes: usize<(1...)>, ): ( ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>, ) throws ReadableStreamUseError",
+                  "line": 179
+                }
+              ],
+              "profile": "web-stream-tee"
+            },
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws Failure",
+                  "line": 160
+                }
+              ],
+              "profile": "byte-source"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "ReadableStreamUseError",
+          "kind": "enum",
+          "signature": "export enum ReadableStreamUseError: Error",
+          "declarationDigest": "db7b3402136c15b9942ae29b04e9f3ffaeeb0abd5d44c250cfe56ee618f71165",
+          "line": 11,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -1621,6 +1713,22 @@
       ]
     },
     {
+      "module": "std.stream",
+      "surface": "ReadableStream",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/streams.w"
+      ]
+    },
+    {
+      "module": "std.stream",
+      "surface": "ReadableStreamUseError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/streams.w"
+      ]
+    },
+    {
       "module": "std.url",
       "surface": "URL",
       "status": "draft",
@@ -1690,13 +1798,17 @@
       "id": "sdk0-web-readable-stream",
       "providerModule": "std.stream",
       "surface": "ReadableStream",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "profile": "web-stream-carrier",
       "consumers": [
         "std.http.Request",
         "std.http.Response"
-      ]
+      ],
+      "implementationProvider": {
+        "id": "std.readable-stream@1",
+        "status": "missing"
+      }
     },
     {
       "id": "sdk0-web-url",
