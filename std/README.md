@@ -35,6 +35,8 @@ std/
     transaction.w
     work.w
     workflow.w
+  url/
+    contracts.w
 ```
 
 `build/contracts.w` materializa bindings de transforms herméticas.
@@ -45,7 +47,14 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de T1.
-Os outros arquivos materializam values e protocols de T2.
+`url/contracts.w` materializa os values portáteis de URL e parâmetros. Seu
+provider intrinsic interno `std.url-record@1` segue o mecanismo da seção 19.3.1
+e precisa implementar o URL Standard completo. A interface está em draft, mas
+o provider executável continua missing; o arquivo não contém um parser
+substituto. `URL` mantém backing canônico opaco, oferece views textuais O(1) e
+materializa snapshots owned de `URLSearchParams` somente por call explícita.
+`editSearchParams` mantém a mutação do URL scoped. Os outros arquivos
+materializam values e protocols de T2.
 
 `std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
 `ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.
@@ -55,13 +64,15 @@ fornecer namespaces como `std.device`, `std.mobile` e `std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
 
-O rascunho fixa seis fronteiras:
+O rascunho fixa sete fronteiras:
 
 - build transforms recebem somente inputs e outputs declarados;
 - workflows persistem points e outcomes, não task frames;
 - I/O preserva short progress, borrows e cancellation até completion;
 - HTTP valida tokens e fields antes de entregar uma mensagem a uma API safe;
   `Method.query` representa o método QUERY do RFC 10008;
+- URL preserva serialização canônica, snapshots explícitos e edição live scoped
+  de parâmetros, sem conceder network ou filesystem authority;
 - database exige SQL const em parâmetros de chamada, usa binds nomeados, rows
   tipadas e transactions;
 - cache local possui capacidade, devolve values owned e nunca vira rede por

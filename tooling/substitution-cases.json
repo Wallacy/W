@@ -1079,13 +1079,14 @@
     {
       "id": "R0-web-request-url",
       "reviewItem": "URL e URLSearchParams padrão contra aliases HTTP locais",
-      "decisions": ["W-894"],
+      "decisions": ["W-894", "W-896"],
       "task": "Route an incoming request by pathname and read the first repeated query value.",
       "selected": {
         "language": "w",
         "source": [
           "let path = request.url.pathname",
-          "let count = request.url.searchParams.get(\"count\")"
+          "let params = request.url.searchParams()",
+          "let count = params.get(\"count\")"
         ]
       },
       "alternatives": [

@@ -4,6 +4,7 @@ import cache from std
 import database from std
 import http from std
 import random from std
+import url from std
 
 export struct BenchmarkMessage {
   message: String
@@ -89,11 +90,15 @@ export enum BenchmarkError: Error {
   transaction(database.TransactionFailure<database.DatabaseError>)
 }
 
+enum QueryEditError: Error {
+  rejected
+}
+
 fn boundedCount(
-  request: ref http.Request,
+  parameters: ref url.URLSearchParams,
   parameter: ref String,
 ): usize<(1...500)> {
-  let count = request.url.searchParams.get(parameter)
+  let count = parameters.get(parameter)
     .flatMap((value) => usize.parse(value))
     ?? 1
 
@@ -102,6 +107,21 @@ fn boundedCount(
     case 500...: 500
     case 1..<500: count
   }
+}
+
+fn boundedRequestCount(
+  request: ref http.Request,
+  parameter: ref String,
+): usize<(1...500)> {
+  let parameters = request.url.searchParams()
+  return boundedCount(parameters, parameter: parameter)
+}
+
+fn rejectQueryEdit(
+  parameters: inout url.URLSearchParams,
+): () throws QueryEditError {
+  parameters.append("discarded", "1")
+  throw .rejected
 }
 
 fn randomWorldKeys(
@@ -254,19 +274,62 @@ async fn fetchBenchmark(
     case (.get, "/db"):
       try http.Response.json(try await world(ctx))
     case (.get, "/queries"):
-      let count = boundedCount(request, parameter: "queries")
+      let count = boundedRequestCount(request, parameter: "queries")
       try http.Response.json(try await worlds(count, ctx: ctx))
     case (.get, "/fortunes"):
       try await renderFortunes(ctx)
     case (.get, "/updates"):
-      let count = boundedCount(request, parameter: "queries")
+      let count = boundedRequestCount(request, parameter: "queries")
       try http.Response.json(try await updateWorlds(count, ctx: ctx))
     case (.get, "/cached-queries"):
-      let count = boundedCount(request, parameter: "count")
+      let count = boundedRequestCount(request, parameter: "count")
       try http.Response.json(try await cachedQueries(count, ctx: ctx))
     case (_, _):
       try http.Response(status: http.StatusCode.notFound)
   }
+}
+
+test "benchmark query URLs preserve canonical Web semantics" for boundedCount {
+  let encoded = url.URLSearchParams(
+    "queries=%35%30%30&queries=2&note=%2B+dessert",
+  )
+  expect boundedCount(encoded, parameter: "queries") == 500
+  expect encoded.getAll("queries") == ["500", "2"]
+  expect encoded.get("note") == "+ dessert"
+
+  let base = try url.URL("https://faß.example:443/bench/round?#")
+  var target = try url.URL("../queries?", base: base)
+  expect target.href == "https://xn--fa-hia.example/queries?"
+
+  target.editSearchParams((params) => {
+    params.append("queries", "500")
+    params.append("queries", "2")
+    params.append("note", "+ dessert")
+  })
+
+  expect target.href
+    == "https://xn--fa-hia.example/queries?queries=500&queries=2&note=%2B+dessert"
+  let targetParameters = target.searchParams()
+  expect boundedCount(targetParameters, parameter: "queries") == 500
+
+  let beforeRejectedEdit = copy target.href
+  do {
+    try target.editSearchParams(rejectQueryEdit)
+    panic("fallible URL edit was accepted")
+  } catch .rejected {}
+  expect target.href == beforeRejectedEdit
+
+  var empty = try url.URL("https://example.test/queries?")
+  empty.editSearchParams((_) => {})
+  expect empty.href == "https://example.test/queries?"
+
+  empty.editSearchParams((parameters) => { parameters.sort() })
+  expect empty.href == "https://example.test/queries"
+
+  empty.setSearch("?")
+  expect empty.href == "https://example.test/queries?"
+  empty.editSearchParams((parameters) => { parameters.delete("missing") })
+  expect empty.href == "https://example.test/queries"
 }
 
 entry LastLightBenchmark(fetchBenchmark)

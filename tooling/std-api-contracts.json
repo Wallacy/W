@@ -167,9 +167,133 @@
     "web-url-carrier": {
       "capabilities": [],
       "effects": ["allocation"],
-      "failures": { "mode": "typed", "types": ["UrlParseError"] },
-      "bounds": ["input-size", "url-component-limits"],
+      "failures": {
+        "mode": "typed",
+        "types": ["UrlParseError", "UrlMutationError"]
+      },
+      "bounds": ["input-size", "allocation-budget"],
+      "complexity": {
+        "time": "linear-input-plus-idna",
+        "space": "canonical-backing-plus-fixed-index"
+      }
+    },
+    "web-url-search-params-carrier": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["input-size", "pair-count", "allocation-budget"],
       "complexity": { "time": "linear-input", "space": "linear-input" }
+    },
+    "web-url-construction": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["UrlParseError"] },
+      "bounds": ["input-size", "base-size", "allocation-budget"],
+      "complexity": { "time": "linear-input-plus-base-and-idna", "space": "linear-result" }
+    },
+    "web-url-probe": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["input-size", "base-size", "allocation-budget"],
+      "complexity": { "time": "linear-input-plus-base-and-idna", "space": "linear-result" }
+    },
+    "web-url-copy-or-serialization": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["url-size", "allocation-budget"],
+      "complexity": { "time": "linear-result", "space": "linear-result" }
+    },
+    "web-url-mutation": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["UrlMutationError"] },
+      "bounds": ["url-size", "input-size", "allocation-budget"],
+      "complexity": { "time": "linear-url-plus-input", "space": "linear-result" }
+    },
+    "web-url-text-mutation": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["url-size", "input-size", "allocation-budget"],
+      "complexity": { "time": "linear-url-plus-input", "space": "linear-result" }
+    },
+    "web-url-live-search-params": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["url-size", "pair-count", "allocation-budget"],
+      "complexity": {
+        "time": "linear-query-plus-mutations-and-output",
+        "space": "linear-materialized-pairs-plus-output"
+      }
+    },
+    "web-url-search-params-materialization": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["query-size", "pair-count", "allocation-budget"],
+      "complexity": {
+        "time": "linear-query",
+        "space": "linear-materialized-pairs"
+      }
+    },
+    "web-url-borrow-query": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["owner-borrow-lifetime"],
+      "complexity": { "time": "constant", "space": "constant" }
+    },
+    "web-url-constant-query": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["owner-size"],
+      "complexity": { "time": "constant", "space": "constant" }
+    },
+    "web-url-search-params-append": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["input-size", "allocation-budget"],
+      "complexity": { "time": "linear-input-amortized", "space": "linear-input" }
+    },
+    "web-url-search-params-mutation": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["pair-count", "input-size", "allocation-budget"],
+      "complexity": { "time": "linear-pairs-plus-input", "space": "linear-pairs" }
+    },
+    "web-url-search-params-query": {
+      "capabilities": [],
+      "effects": [],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["pair-count", "name-size"],
+      "complexity": { "time": "linear-pairs", "space": "constant" }
+    },
+    "web-url-search-params-snapshot": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["pair-count", "output-size", "allocation-budget"],
+      "complexity": { "time": "linear-pairs-plus-output", "space": "linear-output" }
+    },
+    "web-url-search-params-serialization": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["pair-count", "output-size", "allocation-budget"],
+      "complexity": { "time": "linear-output", "space": "linear-output" }
+    },
+    "web-url-search-params-sort": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["pair-count", "name-size", "allocation-budget"],
+      "complexity": { "time": "n-log-n-plus-utf16-comparison", "space": "linear-pairs" }
     },
     "web-stream-carrier": {
       "capabilities": ["byte-stream-provider"],
@@ -342,6 +466,111 @@
       ]
     },
     {
+      "id": "std.url",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/url/contracts.w",
+      "designAnchors": ["14.3.1", "19.3.1"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.url-record@1",
+        "status": "missing",
+        "gates": ["whatwg-url", "wpt-url", "unicode-17"]
+      },
+      "consumer": {
+        "path": "reference/last-light/benchmark_app.w",
+        "symbols": ["URL", "URLSearchParams"]
+      },
+      "apis": [
+        { "symbol": "UrlParseError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "URLComponent", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "UrlMutationError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "URLSearchParam",
+          "kind": "struct",
+          "profile": "web-url-search-params-carrier",
+          "members": [
+            { "symbol": "init", "profile": "web-url-search-params-carrier" },
+            { "symbol": "name", "profile": "web-url-borrow-query" },
+            { "symbol": "value", "profile": "web-url-borrow-query" },
+            { "symbol": "duplicate", "profile": "web-url-copy-or-serialization" }
+          ]
+        },
+        {
+          "symbol": "URLSearchParams",
+          "kind": "struct",
+          "profile": "web-url-search-params-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": 3,
+              "profile": "web-url-search-params-carrier"
+            },
+            { "symbol": "size", "profile": "web-url-constant-query" },
+            { "symbol": "duplicate", "profile": "web-url-copy-or-serialization" },
+            { "symbol": "append", "profile": "web-url-search-params-append" },
+            {
+              "symbol": "delete",
+              "overloads": 2,
+              "profile": "web-url-search-params-mutation"
+            },
+            { "symbol": "get", "profile": "web-url-search-params-query" },
+            { "symbol": "getAll", "profile": "web-url-search-params-snapshot" },
+            {
+              "symbol": "has",
+              "overloads": 2,
+              "profile": "web-url-search-params-query"
+            },
+            { "symbol": "set", "profile": "web-url-search-params-mutation" },
+            { "symbol": "sort", "profile": "web-url-search-params-sort" },
+            { "symbol": "entries", "profile": "web-url-search-params-snapshot" },
+            { "symbol": "keys", "profile": "web-url-search-params-snapshot" },
+            { "symbol": "values", "profile": "web-url-search-params-snapshot" },
+            { "symbol": "toString", "profile": "web-url-search-params-serialization" }
+          ]
+        },
+        {
+          "symbol": "URL",
+          "kind": "struct",
+          "profile": "web-url-carrier",
+          "members": [
+            { "symbol": "init", "overloads": 2, "profile": "web-url-construction" },
+            { "symbol": "parse", "overloads": 2, "profile": "web-url-probe" },
+            { "symbol": "canParse", "overloads": 2, "profile": "web-url-probe" },
+            { "symbol": "href", "profile": "web-url-borrow-query" },
+            { "symbol": "origin", "profile": "web-url-borrow-query" },
+            { "symbol": "protocol", "profile": "web-url-borrow-query" },
+            { "symbol": "username", "profile": "web-url-borrow-query" },
+            { "symbol": "password", "profile": "web-url-borrow-query" },
+            { "symbol": "host", "profile": "web-url-borrow-query" },
+            { "symbol": "hostname", "profile": "web-url-borrow-query" },
+            { "symbol": "port", "profile": "web-url-borrow-query" },
+            { "symbol": "pathname", "profile": "web-url-borrow-query" },
+            { "symbol": "search", "profile": "web-url-borrow-query" },
+            {
+              "symbol": "searchParams",
+              "profile": "web-url-search-params-materialization"
+            },
+            { "symbol": "hash", "profile": "web-url-borrow-query" },
+            { "symbol": "duplicate", "profile": "web-url-copy-or-serialization" },
+            { "symbol": "toString", "profile": "web-url-copy-or-serialization" },
+            { "symbol": "toJSON", "profile": "web-url-copy-or-serialization" },
+            { "symbol": "setHref", "profile": "web-url-mutation" },
+            { "symbol": "setProtocol", "profile": "web-url-mutation" },
+            { "symbol": "setUsername", "profile": "web-url-mutation" },
+            { "symbol": "setPassword", "profile": "web-url-mutation" },
+            { "symbol": "setHost", "profile": "web-url-mutation" },
+            { "symbol": "setHostname", "profile": "web-url-mutation" },
+            { "symbol": "setPort", "profile": "web-url-mutation" },
+            { "symbol": "setPathname", "profile": "web-url-mutation" },
+            { "symbol": "setSearch", "profile": "web-url-text-mutation" },
+            { "symbol": "setHash", "profile": "web-url-text-mutation" },
+            { "symbol": "editSearchParams", "profile": "web-url-live-search-params" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.http",
       "tier": "T2",
       "availability": "http-host-or-adapter",
@@ -456,7 +685,7 @@
       "providerModule": "std.url",
       "surface": "URL",
       "profile": "web-url-carrier",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response"]
     },
@@ -464,8 +693,8 @@
       "id": "sdk0-web-url-search-params",
       "providerModule": "std.url",
       "surface": "URLSearchParams",
-      "profile": "web-url-carrier",
-      "status": "missing",
+      "profile": "web-url-search-params-carrier",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response"]
     },
@@ -519,7 +748,8 @@
     { "binding": "build", "module": "std.build" },
     { "binding": "cache", "module": "std.cache" },
     { "binding": "database", "module": "std.database" },
-    { "binding": "http", "module": "std.http" }
+    { "binding": "http", "module": "std.http" },
+    { "binding": "url", "module": "std.url" }
   ],
   "referenceRequirements": [
     {

@@ -16,6 +16,8 @@ const errors = [];
 
 const allowedTiers = new Set(["T0", "T1", "T2"]);
 const allowedFailureModes = new Set(["none", "typed", "generic"]);
+const allowedImplementationProviderKinds = new Set(["std-intrinsic"]);
+const allowedImplementationProviderStatuses = new Set(["available", "missing"]);
 const requiredProfileFields = [
   "capabilities",
   "effects",
@@ -145,14 +147,19 @@ function extractExports(source, sourcePath) {
 function extractExportedMembers(declaration) {
   const members = [];
   const lines = declaration.declarationLines;
+  const exportedMemberPattern = new RegExp(
+    "^\\s*export\\s+" +
+      "(?:(?:(?:static|async|const|mut|take)\\s+)*" +
+      "(?:(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)|(init)\\b)|" +
+      "(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*:)",
+  );
 
   for (let index = 1; index < lines.length; index += 1) {
-    const match = lines[index].match(
-      /^\s*export\s+(?:(?:async|const|mut|take)\s+)*(?:(fn)\s+([A-Za-z_][A-Za-z0-9_]*)|(init)\b)/,
-    );
+    const match = lines[index].match(exportedMemberPattern);
     if (!match) continue;
 
-    const symbol = match[3] ? "init" : match[2];
+    const symbol = match[3] ? "init" : match[2] ?? match[4];
+    const kind = match[4] ? "property" : match[3] ? "initializer" : "method";
     const header = [lines[index].trim()];
     let cursor = index + 1;
     while (!header.at(-1).includes("{") && cursor < lines.length) {
@@ -163,6 +170,7 @@ function extractExportedMembers(declaration) {
 
     members.push({
       symbol,
+      kind,
       line: declaration.line + index,
       signature: normalizeHeader(header),
     });
@@ -249,6 +257,39 @@ for (const module of catalog.modules ?? []) {
   const exports = new Map(declarations.map((declaration) => [declaration.symbol, declaration]));
   moduleStates.set(module.id, { source, exports });
 
+  const implementationProvider = module.implementationProvider;
+  if (implementationProvider) {
+    if (!allowedImplementationProviderKinds.has(implementationProvider.kind)) {
+      errors.push(`${module.id}: implementation provider kind is invalid.`);
+    }
+    if (!allowedImplementationProviderStatuses.has(implementationProvider.status)) {
+      errors.push(`${module.id}: implementation provider status is invalid.`);
+    }
+    if (
+      !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*)+@[1-9][0-9]*$/.test(
+        implementationProvider.id ?? "",
+      )
+    ) {
+      errors.push(`${module.id}: implementation provider ID must be namespace.name@major.`);
+    }
+    if (
+      !Array.isArray(implementationProvider.gates) ||
+      implementationProvider.gates.length === 0 ||
+      new Set(implementationProvider.gates).size !== implementationProvider.gates.length ||
+      implementationProvider.gates.some((gate) => typeof gate !== "string" || gate.length === 0)
+    ) {
+      errors.push(`${module.id}: implementation provider gates must be unique nonempty strings.`);
+    }
+    if (
+      implementationProvider.kind === "std-intrinsic" &&
+      !source.includes(`foreign intrinsic from "${implementationProvider.id}"`)
+    ) {
+      errors.push(
+        `${module.id}: source does not declare intrinsic provider ${implementationProvider.id}.`,
+      );
+    }
+  }
+
   for (const anchor of module.designAnchors ?? []) {
     if (!hasDesignAnchor(anchor)) {
       errors.push(`${module.id}: design anchor ${anchor} does not exist.`);
@@ -302,6 +343,7 @@ for (const module of catalog.modules ?? []) {
 
       snapshotMembers.push({
         symbol: member.symbol,
+        ...(matches[0]?.kind === "property" ? { kind: "property" } : {}),
         overloads: matches.map((match) => ({
           signature: match.signature,
           line: match.line,
@@ -361,6 +403,16 @@ for (const module of catalog.modules ?? []) {
     tier: module.tier,
     availability: module.availability,
     source: module.source,
+    ...(implementationProvider
+      ? {
+          implementationProvider: {
+            kind: implementationProvider.kind,
+            id: implementationProvider.id,
+            status: implementationProvider.status,
+            gates: [...implementationProvider.gates].sort(),
+          },
+        }
+      : {}),
     catalogedDeclarationsDigest: digest(JSON.stringify(orderedApis)),
     apis: orderedApis,
   });
@@ -401,6 +453,9 @@ for (const requirement of catalog.carrierRequirements ?? []) {
   const provider = requirement.providerModule
     ? moduleStates.get(requirement.providerModule)
     : undefined;
+  const providerCatalogModule = requirement.providerModule
+    ? catalog.modules.find((module) => module.id === requirement.providerModule)
+    : undefined;
   const actualStatus = provider?.exports.has(requirement.surface) ? "draft" : "missing";
   carrierRequirementStates.set(requirement.id, actualStatus);
 
@@ -418,6 +473,14 @@ for (const requirement of catalog.carrierRequirements ?? []) {
     readiness: requirement.readiness,
     profile: requirement.profile,
     consumers: [...(requirement.consumers ?? [])].sort(),
+    ...(providerCatalogModule?.implementationProvider
+      ? {
+          implementationProvider: {
+            id: providerCatalogModule.implementationProvider.id,
+            status: providerCatalogModule.implementationProvider.status,
+          },
+        }
+      : {}),
   });
 }
 
@@ -569,7 +632,10 @@ for (const scan of catalog.referenceScans ?? []) {
   }
 
   const escapedBinding = scan.binding.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`\\b${escapedBinding}\\.([A-Za-z_][A-Za-z0-9_]*)`, "g");
+  const pattern = new RegExp(
+    `(?<!\\.)\\b${escapedBinding}\\.([A-Za-z_][A-Za-z0-9_]*)`,
+    "g",
+  );
   const surfaces = new Map();
 
   for (const sourcePath of referenceSources) {
@@ -612,6 +678,12 @@ const contractedRequirementCount = snapshotRequirements.filter((item) => item.pr
 const missingCarrierCount = snapshotCarrierRequirements.filter(
   (item) => item.status === "missing",
 ).length;
+const implementationProviderCount = snapshotModules.filter(
+  (module) => module.implementationProvider,
+).length;
+const missingImplementationProviderCount = snapshotModules.filter(
+  (module) => module.implementationProvider?.status === "missing",
+).length;
 const snapshot = {
   $schema: "w-std-api-surface-snapshot-1",
   status: "generated-design-projection",
@@ -627,6 +699,8 @@ const snapshot = {
     missingReferenceRequirements: missingCount,
     carrierRequirements: snapshotCarrierRequirements.length,
     missingCarrierRequirements: missingCarrierCount,
+    implementationProviders: implementationProviderCount,
+    missingImplementationProviders: missingImplementationProviderCount,
   },
   modules: snapshotModules.sort((left, right) => left.id.localeCompare(right.id)),
   qualifiedReferences: snapshotQualifiedReferences.sort((left, right) =>
@@ -657,6 +731,7 @@ if (errors.length > 0) {
       `${snapshotQualifiedReferences.length} qualified Last Light surfaces, ` +
       `${contractedRequirementCount}/${snapshotRequirements.length} contracted requirements, ` +
       `${missingCount} missing drafts, ${missingCarrierCount}/${snapshotCarrierRequirements.length} ` +
-      `missing carriers.`,
+      `missing carriers, ${missingImplementationProviderCount}/${implementationProviderCount} ` +
+      `missing implementation providers.`,
   );
 }

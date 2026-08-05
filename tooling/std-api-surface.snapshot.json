@@ -1,18 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "8c4bb8ee156f0f385bb9c6b5e52583fe2165cabfb5dd74ee1451b2a710c785f7",
+  "catalogDigest": "b169d280c497ecbca120b8cf0e53e18ee6e5d8ecfe15cd557fb9b89f03b6edd4",
   "summary": {
-    "modules": 9,
-    "catalogedApis": 68,
-    "draftCatalogedApis": 66,
+    "modules": 10,
+    "catalogedApis": 74,
+    "draftCatalogedApis": 72,
     "missingCatalogedApis": 2,
-    "qualifiedReferenceSurfaces": 27,
+    "qualifiedReferenceSurfaces": 29,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
     "missingReferenceRequirements": 6,
     "carrierRequirements": 7,
-    "missingCarrierRequirements": 7
+    "missingCarrierRequirements": 5,
+    "implementationProviders": 1,
+    "missingImplementationProviders": 1
   },
   "modules": [
     {
@@ -801,6 +803,595 @@
           "status": "draft"
         }
       ]
+    },
+    {
+      "id": "std.url",
+      "tier": "T2",
+      "availability": "bundled-portable",
+      "source": "std/url/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.url-record@1",
+        "status": "missing",
+        "gates": [
+          "unicode-17",
+          "whatwg-url",
+          "wpt-url"
+        ]
+      },
+      "catalogedDeclarationsDigest": "7b2571ab92239d5b089e3a813048aed5c317111b991164582ae2aadc31fe930a",
+      "apis": [
+        {
+          "symbol": "URL",
+          "kind": "struct",
+          "signature": "export struct URL: Duplicable",
+          "declarationDigest": "afab4b5f7305bc1b3812557df644dea50f4f3831ff9eae3961ca6336bda19bf4",
+          "line": 241,
+          "profile": "web-url-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ input: String) throws UrlParseError",
+                  "line": 244
+                },
+                {
+                  "signature": "export init(_ input: String, base: ref URL) throws UrlParseError",
+                  "line": 248
+                }
+              ],
+              "profile": "web-url-construction"
+            },
+            {
+              "symbol": "parse",
+              "overloads": [
+                {
+                  "signature": "export static fn parse(_ input: ref String): URL?",
+                  "line": 258
+                },
+                {
+                  "signature": "export static fn parse(_ input: ref String, base: ref URL): URL?",
+                  "line": 262
+                }
+              ],
+              "profile": "web-url-probe"
+            },
+            {
+              "symbol": "canParse",
+              "overloads": [
+                {
+                  "signature": "export static fn canParse(_ input: ref String): Bool",
+                  "line": 266
+                },
+                {
+                  "signature": "export static fn canParse(_ input: ref String, base: ref URL): Bool",
+                  "line": 270
+                }
+              ],
+              "profile": "web-url-probe"
+            },
+            {
+              "symbol": "href",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export href: view String",
+                  "line": 274
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "origin",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export origin: view String",
+                  "line": 278
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "protocol",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export protocol: view String",
+                  "line": 282
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "username",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export username: view String",
+                  "line": 286
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "password",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export password: view String",
+                  "line": 290
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "host",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export host: view String",
+                  "line": 294
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "hostname",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export hostname: view String",
+                  "line": 298
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "port",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export port: view String",
+                  "line": 302
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "pathname",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export pathname: view String",
+                  "line": 306
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "search",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export search: view String",
+                  "line": 310
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "searchParams",
+              "overloads": [
+                {
+                  "signature": "export fn searchParams(): URLSearchParams",
+                  "line": 318
+                }
+              ],
+              "profile": "web-url-search-params-materialization"
+            },
+            {
+              "symbol": "hash",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export hash: view String",
+                  "line": 314
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): URL",
+                  "line": 322
+                }
+              ],
+              "profile": "web-url-copy-or-serialization"
+            },
+            {
+              "symbol": "toString",
+              "overloads": [
+                {
+                  "signature": "export fn toString(): String",
+                  "line": 326
+                }
+              ],
+              "profile": "web-url-copy-or-serialization"
+            },
+            {
+              "symbol": "toJSON",
+              "overloads": [
+                {
+                  "signature": "export fn toJSON(): String",
+                  "line": 330
+                }
+              ],
+              "profile": "web-url-copy-or-serialization"
+            },
+            {
+              "symbol": "setHref",
+              "overloads": [
+                {
+                  "signature": "export mut fn setHref(_ value: String): () throws UrlMutationError",
+                  "line": 334
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setProtocol",
+              "overloads": [
+                {
+                  "signature": "export mut fn setProtocol(_ value: String): () throws UrlMutationError",
+                  "line": 340
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setUsername",
+              "overloads": [
+                {
+                  "signature": "export mut fn setUsername(_ value: String): () throws UrlMutationError",
+                  "line": 346
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setPassword",
+              "overloads": [
+                {
+                  "signature": "export mut fn setPassword(_ value: String): () throws UrlMutationError",
+                  "line": 352
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setHost",
+              "overloads": [
+                {
+                  "signature": "export mut fn setHost(_ value: String): () throws UrlMutationError",
+                  "line": 358
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setHostname",
+              "overloads": [
+                {
+                  "signature": "export mut fn setHostname(_ value: String): () throws UrlMutationError",
+                  "line": 364
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setPort",
+              "overloads": [
+                {
+                  "signature": "export mut fn setPort(_ value: String): () throws UrlMutationError",
+                  "line": 370
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setPathname",
+              "overloads": [
+                {
+                  "signature": "export mut fn setPathname(_ value: String): () throws UrlMutationError",
+                  "line": 376
+                }
+              ],
+              "profile": "web-url-mutation"
+            },
+            {
+              "symbol": "setSearch",
+              "overloads": [
+                {
+                  "signature": "export mut fn setSearch(_ value: String)",
+                  "line": 382
+                }
+              ],
+              "profile": "web-url-text-mutation"
+            },
+            {
+              "symbol": "setHash",
+              "overloads": [
+                {
+                  "signature": "export mut fn setHash(_ value: String)",
+                  "line": 386
+                }
+              ],
+              "profile": "web-url-text-mutation"
+            },
+            {
+              "symbol": "editSearchParams",
+              "overloads": [
+                {
+                  "signature": "export mut fn editSearchParams<Failure: Error>( _ edit: fn(inout URLSearchParams): () throws Failure, ): () throws Failure",
+                  "line": 390
+                }
+              ],
+              "profile": "web-url-live-search-params"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "URLComponent",
+          "kind": "enum",
+          "signature": "export enum URLComponent",
+          "declarationDigest": "e86a55c8e7db2de11c70352e8175aeac59ce40060dfedffedab717cbfb5468c4",
+          "line": 11,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "UrlMutationError",
+          "kind": "enum",
+          "signature": "export enum UrlMutationError: Error",
+          "declarationDigest": "c340fac6e5cef827ddd4b3ea331aafb059c4f281bf0b76eba86a983feac167b2",
+          "line": 24,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "UrlParseError",
+          "kind": "enum",
+          "signature": "export enum UrlParseError: Error",
+          "declarationDigest": "9f2baa042a2fdc5a7c6c3bd91ea8737cd7f9385f53819f725a02081e462131d0",
+          "line": 7,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "URLSearchParam",
+          "kind": "struct",
+          "signature": "export struct URLSearchParam: Duplicable",
+          "declarationDigest": "231556053366d58ee7cc1476a9507ef79b2db23c657e1c09c8a30236ccfb90ce",
+          "line": 29,
+          "profile": "web-url-search-params-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(name: String, value: String)",
+                  "line": 33
+                }
+              ],
+              "profile": "web-url-search-params-carrier"
+            },
+            {
+              "symbol": "name",
+              "overloads": [
+                {
+                  "signature": "export fn name(): view String",
+                  "line": 38
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "value",
+              "overloads": [
+                {
+                  "signature": "export fn value(): view String",
+                  "line": 42
+                }
+              ],
+              "profile": "web-url-borrow-query"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): URLSearchParam",
+                  "line": 46
+                }
+              ],
+              "profile": "web-url-copy-or-serialization"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "URLSearchParams",
+          "kind": "struct",
+          "signature": "export struct URLSearchParams: Duplicable",
+          "declarationDigest": "b60b46e1ebfde1eff9700ed6523bbb22965a8375b9e4b5c313bb8761ec6400e2",
+          "line": 96,
+          "profile": "web-url-search-params-carrier",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ initialPairs: take URLSearchParam...)",
+                  "line": 100
+                },
+                {
+                  "signature": "export init(_ encoded: String)",
+                  "line": 105
+                },
+                {
+                  "signature": "export init(copying source: ref URLSearchParams)",
+                  "line": 110
+                }
+              ],
+              "profile": "web-url-search-params-carrier"
+            },
+            {
+              "symbol": "size",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export size: usize",
+                  "line": 115
+                }
+              ],
+              "profile": "web-url-constant-query"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): URLSearchParams",
+                  "line": 119
+                }
+              ],
+              "profile": "web-url-copy-or-serialization"
+            },
+            {
+              "symbol": "append",
+              "overloads": [
+                {
+                  "signature": "export mut fn append(name: String, value: String)",
+                  "line": 123
+                }
+              ],
+              "profile": "web-url-search-params-append"
+            },
+            {
+              "symbol": "delete",
+              "overloads": [
+                {
+                  "signature": "export mut fn delete(name: ref String)",
+                  "line": 128
+                },
+                {
+                  "signature": "export mut fn delete(name: ref String, value: ref String)",
+                  "line": 139
+                }
+              ],
+              "profile": "web-url-search-params-mutation"
+            },
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(name: ref String): Option<view String>",
+                  "line": 152
+                }
+              ],
+              "profile": "web-url-search-params-query"
+            },
+            {
+              "symbol": "getAll",
+              "overloads": [
+                {
+                  "signature": "export fn getAll(name: ref String): Array<String>",
+                  "line": 160
+                }
+              ],
+              "profile": "web-url-search-params-snapshot"
+            },
+            {
+              "symbol": "has",
+              "overloads": [
+                {
+                  "signature": "export fn has(name: ref String): Bool",
+                  "line": 170
+                },
+                {
+                  "signature": "export fn has(name: ref String, value: ref String): Bool",
+                  "line": 178
+                }
+              ],
+              "profile": "web-url-search-params-query"
+            },
+            {
+              "symbol": "set",
+              "overloads": [
+                {
+                  "signature": "export mut fn set(name: String, value: String)",
+                  "line": 186
+                }
+              ],
+              "profile": "web-url-search-params-mutation"
+            },
+            {
+              "symbol": "sort",
+              "overloads": [
+                {
+                  "signature": "export mut fn sort()",
+                  "line": 209
+                }
+              ],
+              "profile": "web-url-search-params-sort"
+            },
+            {
+              "symbol": "entries",
+              "overloads": [
+                {
+                  "signature": "export fn entries(): Array<URLSearchParam>",
+                  "line": 214
+                }
+              ],
+              "profile": "web-url-search-params-snapshot"
+            },
+            {
+              "symbol": "keys",
+              "overloads": [
+                {
+                  "signature": "export fn keys(): Array<String>",
+                  "line": 218
+                }
+              ],
+              "profile": "web-url-search-params-snapshot"
+            },
+            {
+              "symbol": "values",
+              "overloads": [
+                {
+                  "signature": "export fn values(): Array<String>",
+                  "line": 222
+                }
+              ],
+              "profile": "web-url-search-params-snapshot"
+            },
+            {
+              "symbol": "toString",
+              "overloads": [
+                {
+                  "signature": "export fn toString(): String",
+                  "line": 226
+                }
+              ],
+              "profile": "web-url-search-params-serialization"
+            }
+          ],
+          "status": "draft"
+        }
+      ]
     }
   ],
   "qualifiedReferences": [
@@ -1028,6 +1619,22 @@
         "reference/last-light/gateway.w",
         "reference/last-light/wifi_app.w"
       ]
+    },
+    {
+      "module": "std.url",
+      "surface": "URL",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.url",
+      "surface": "URLSearchParams",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
     }
   ],
   "carrierRequirements": [
@@ -1095,25 +1702,33 @@
       "id": "sdk0-web-url",
       "providerModule": "std.url",
       "surface": "URL",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "profile": "web-url-carrier",
       "consumers": [
         "std.http.Request",
         "std.http.Response"
-      ]
+      ],
+      "implementationProvider": {
+        "id": "std.url-record@1",
+        "status": "missing"
+      }
     },
     {
       "id": "sdk0-web-url-search-params",
       "providerModule": "std.url",
       "surface": "URLSearchParams",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
-      "profile": "web-url-carrier",
+      "profile": "web-url-search-params-carrier",
       "consumers": [
         "std.http.Request",
         "std.http.Response"
-      ]
+      ],
+      "implementationProvider": {
+        "id": "std.url-record@1",
+        "status": "missing"
+      }
     }
   ],
   "referenceRequirements": [
