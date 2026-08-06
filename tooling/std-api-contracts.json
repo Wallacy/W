@@ -18,10 +18,59 @@
     },
     "build-context": {
       "capabilities": ["build-action-bindings"],
-      "effects": ["suspension", "build-read", "build-write", "codec", "allocation"],
+      "effects": [
+        "suspension",
+        "build-read",
+        "build-write",
+        "codec",
+        "allocation",
+        "cancellation-drain",
+        "staging"
+      ],
       "failures": { "mode": "typed", "types": ["build.Error"] },
-      "bounds": ["action-budget", "maximum-argument", "codec-bound"],
+      "bounds": [
+        "action-budget",
+        "binding-type-budget-preflight",
+        "distinct-bindings",
+        "codec-bound",
+        "staging-only",
+        "deterministic-bounds",
+        "recipe-key-bounds",
+        "preflight-bound-compatibility"
+      ],
       "complexity": { "time": "linear-input", "space": "bounded-by-contract" }
+    },
+    "build-context-read": {
+      "capabilities": ["build-action-bindings"],
+      "effects": ["suspension", "build-read", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["build.Error"] },
+      "bounds": [
+        "call-maximum-bytes",
+        "action-maximum-bytes",
+        "host-profile-toolchain-ceiling",
+        "declared-effective-minimum",
+        "preflight-bound-compatibility",
+        "recipe-key-bounds",
+        "strict-codec",
+        "read-only-input"
+      ],
+      "complexity": { "time": "linear-encoded-bytes", "space": "bounded-by-maximum" }
+    },
+    "build-context-write": {
+      "capabilities": ["build-action-bindings"],
+      "effects": ["suspension", "build-write", "allocation", "cancellation-drain", "staging"],
+      "failures": { "mode": "typed", "types": ["build.Error"] },
+      "bounds": [
+        "action-maximum-bytes",
+        "host-profile-toolchain-ceiling",
+        "declared-effective-minimum",
+        "preflight-bound-compatibility",
+        "recipe-key-bounds",
+        "single-output-staging",
+        "duplicate-output",
+        "take-consumption"
+      ],
+      "complexity": { "time": "linear-encoded-bytes", "space": "bounded-by-maximum" }
     },
     "validated-http-token": {
       "capabilities": [],
@@ -545,7 +594,26 @@
       "tier": "T1",
       "availability": "build-host",
       "source": "std/build/contracts.w",
-      "designAnchors": ["14.2", "21.2.4"],
+      "designAnchors": ["14.5", "14.5.1", "21.2.4"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.build@1",
+        "status": "missing",
+        "gates": [
+          "binding-type-budget-preflight",
+          "strict-utf8-and-byte-identity",
+          "concurrent-distinct-bindings",
+          "duplicate-output-boundary",
+          "cancellation-panic-error-staging-discard",
+          "atomic-action-result-publication",
+          "deterministic-bounds-recipe-key",
+          "deterministic-local-remote-differential",
+          "capability-denial-sandbox",
+          "fault-injection",
+          "asan-tsan-leak",
+          "limits-name-utf8-fuzzing"
+        ]
+      },
       "consumer": {
         "path": "reference/last-light/packages/menu-compiler/transform.w",
         "symbols": ["Input", "Output", "Error", "Context"]
@@ -553,7 +621,16 @@
       "apis": [
         { "symbol": "Input", "kind": "struct", "profile": "const-binding" },
         { "symbol": "Output", "kind": "struct", "profile": "const-binding" },
-        { "symbol": "Error", "kind": "enum", "profile": "value-contract" }
+        { "symbol": "Error", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "profile": "build-context",
+          "members": [
+            { "symbol": "read", "profile": "build-context-read", "overloads": 2 },
+            { "symbol": "write", "profile": "build-context-write", "overloads": 2 }
+          ]
+        }
       ]
     },
     {
@@ -1586,7 +1663,7 @@
       "kind": "symbol",
       "consumer": "reference/last-light/packages/menu-compiler/transform.w",
       "profile": "build-context",
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-byte-sink-write-all",

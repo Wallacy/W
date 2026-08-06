@@ -16176,8 +16176,8 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 
 ### 14.5 Catálogo verificável SDK0
 
-**Exemplo:** o build transform recebe `build.Context`. O consumer existe, mas o
-rascunho de `std.build` ainda não declara esse tipo.
+**Exemplo:** o build transform recebe `build.Context`. A declaration existe,
+mas o provider `std.build@1` continua **missing**.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
 catálogo da seção 14 aos 14 módulos W atuais. Cada export usa um profile que
@@ -16196,7 +16196,7 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 158 declarations exportadas em 14 módulos: todas possuem declaration
+registra 159 declarations exportadas em 14 módulos: todas possuem declaration
 draft-ready. Ele também registra 42 superfícies
 qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
 qualificado desconhecido, profile
@@ -16221,12 +16221,13 @@ workerd, ownership/tee, admission/cancellation, ASan/TSan/leak e
 limits/fuzzing.
 
 O Última Luz exige cinco superfícies neste bundle. `Context`, `Request`,
-`Response` e `serve` possuem declaration draft. `serve` ainda exige o provider
-missing `std.net@1`, e `std.build.Context` continua sem declaration.
+`Response` e `serve` possuem declaration draft. `std.build.Context` exige o
+provider missing `std.build@1`; `serve` ainda exige `std.net@1` e
+`std.http@1`.
 
 | Módulo | Superfície | Motivo | Consumer |
 |---|---|---|---|
-| `std.build` | `Context` | declaration ausente | build transform do cardápio |
+| `std.build` | `Context` | declaration draft; provider `std.build@1` missing | build transform do cardápio |
 | `std.http` | `Context` | draft; provider `std.http@1` missing | gateway HTTP |
 | `std.http` | `Request` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
 | `std.http` | `Response` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
@@ -16268,19 +16269,25 @@ provider, `missing` informa que a interface compila somente quando o SDK fornece
 o algoritmo versionado. Adicionar outra API não satisfaz nenhum dos requisitos
 sem migração de design.
 
-SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
-revisão precisa:
+No `build-context`, o `Context` faz read de input e materializa candidatos em
+staging. A publicação do action-result pertence ao host depois do handler e não
+é um effect do `Context`.
 
-1. resolver `std.build.Context` antes de liberar o build transform e implementar
-   `std.net@1` antes de liberar execução de `serve`;
-2. catalogar operações de Request e Response depois desses carriers;
-3. adicionar um segundo consumer antes de classificar uma API como estável;
-4. implementar e validar `std.json@1` pelos gates RFC, I-JSON, Unicode,
+SDK0 fecha o inventário de declarations. Ele ainda não fecha os providers da
+std. A próxima revisão precisa:
+
+1. implementar e validar `std.build@1` pelos gates de binding/type/budget
+   preflight, codecs estritos, concorrência, descarte de staging e publicação
+   do action-result;
+2. implementar `std.net@1` antes de liberar execução de `serve`;
+3. catalogar operações de Request e Response depois desses carriers;
+4. adicionar um segundo consumer antes de classificar uma API como estável;
+5. implementar e validar `std.json@1` pelos gates RFC, I-JSON, Unicode,
    fuzzing e differential vectors;
-5. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
-6. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
-7. implementar `std.abort-state@1` pelos gates DOM, Fetch, workerd e races;
-8. substituir digests de source por interfaces emitidas pelo checker real.
+6. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
+7. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
+8. implementar `std.abort-state@1` pelos gates DOM, Fetch, workerd e races;
+9. substituir digests de source por interfaces emitidas pelo checker real.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -16318,6 +16325,55 @@ requirements dos members alcançados, não somente do nome do context.
 oculta somente dentro da std e dos shims. Source comum recebe contexts nominais
 explícitos. LTO pode substituir um method por call direta quando provider e
 target estão fechados.
+
+`build.Context` é a instância de `w.host/build-transform@1`. Seu provider único
+`std.build@1` permanece **missing**. O host entrega o owner no entry e o tipo
+não possui initializer público. A interface expõe somente overloads explícitos
+para `Input<String>`, `Input<Bytes>`, `Output<String>` e `Output<Bytes>`:
+
+```w
+async fn read(input: const Input<String>, maximumBytes: usize<(1...)>): String throws build.Error
+async fn read(input: const Input<Bytes>, maximumBytes: usize<(1...)>): Bytes throws build.Error
+async fn write(output: const Output<String>, value: take String): () throws build.Error
+async fn write(output: const Output<Bytes>, value: take Bytes): () throws build.Error
+```
+
+`Input` e `Output` são descriptors const phantom-typed. O nome possui de 1 a
+64 caracteres ASCII lowercase, digits e `-`, com letra no primeiro caractere.
+O compiler verifica binding, tipo e budget antes de iniciar o tool. Qualquer
+ceiling de `std.build@1` menor que o limite da call ou da action fica fixado no
+host profile ou toolchain plan e entra na action recipe key. O preflight rejeita
+incompatibilidade antes do tool. Nenhum limite ambiental oculto pode mudar a
+mesma recipe entre executores. Input e output compartilham o namespace da
+action. Depois do preflight, vale o menor bound declarado aplicável. Não existe
+lookup por String runtime.
+
+`read` recebe shared borrow de `Context`, devolve owner novo e pode executar em
+paralelo com outro read. `write` também recebe shared borrow, consome o value em
+success, `build.Error` e cancellation, e prepara somente um candidato em
+staging privado. Writes para bindings distintos podem coexistir. Borrows async
+terminam ou passam por cancellation drain antes de Safe W alcançar `deinit`.
+`deinit` é síncrono. Ele não espera nem drena. O drop libera o wrapper e o handle
+residual uma vez.
+
+Bytes usam identidade. String exige UTF-8 estrito. O provider mede bytes
+codificados, valida o menor bound declarado entre call, action e host profile ou
+toolchain plan antes de allocation/decode, e não normaliza Unicode, newline, BOM
+ou path. Somente `read(Input<String>)` produz `.codec(name)` quando os bytes de
+input não são UTF-8 válidos. W String já é UTF-8 válida. Bytes são identity. Os
+overloads de `write` SDK0 não produzem `.codec`. `missingOutput` é falha do host
+após o handler e não é produzido por `read` ou `write`.
+
+O effect summary registra `build.read(inputIdentity)` e
+`build.write(outputIdentity)`. O compiler rejeita duplicação provada. A
+boundary retorna `.duplicateOutput` para unsafe, foreign ou bug do compiler.
+Cancellation é outcome estrutural. Ela drena I/O e invalida toda a tentativa.
+Panic, error ou cancellation não publicam o action-result. `write` somente
+prepara ou materializa candidatos. Blobs content-addressed podem existir sem
+publicação e blobs órfãos podem ser coletados por GC. Depois do success do entry,
+com todos os outputs obrigatórios e budgets válidos, o host publica atomicamente
+um único action-result/manifest que referencia o conjunto completo de digests.
+O handler não recebe commit, rollback ou syntax `transaction`.
 
 `http.Context` é a instância SDK0 deste contrato. Seu provider é
 `std.http@1`, com handle privado e lifetime igual ao request root. A interface
@@ -22132,53 +22188,93 @@ build.transform:
 ```
 
 `build.Context` concede somente bindings declarados. `build.Input<T>` e
-`build.Output<T>` usam nomes const, tipos e codecs fechados. A v0 oferece
-`String`, `Bytes`, source tree, artifact e metadata target tipada. Um transform
-não enumera diretórios, abre path arbitrário ou consulta environment.
+`build.Output<T>` usam nomes const, tipos e codecs fechados. SDK0 oferece
+exatamente `Input<String>`, `Input<Bytes>`, `Output<String>` e `Output<Bytes>`.
+Source tree, artifact e metadata target tipada ficam para expansão futura, pois
+exigem contratos próprios de path, tree, artifact e target. Um transform não
+enumera diretórios, abre path arbitrário ou consulta environment.
 
 `build.Context` segue o carrier nominal da seção 14.5.1. Ele é move-only,
 process-local e fornecido pelo host. O tipo não possui initializer público. Um
 shared borrow pode entrar em child tasks estruturadas porque o provider do
 profile `build-transform@1` é thread-safe.
 
-A interface pública possui duas operações:
+O provider `std.build@1` permanece **missing** até passar estes gates:
 
-```text
-read<Value>(
-  input: const Input<Value>,
+- preflight de binding, tipo e budget;
+- UTF-8 estrito e identidade de Bytes;
+- operações concorrentes para bindings distintos;
+- duplicação de output na boundary;
+- descarte de staging em cancellation, panic e error;
+- publicação atômica do action-result;
+- bounds determinísticos fixados na recipe key;
+- differential determinístico local/remoto;
+- capability denial e sandbox;
+- fault injection;
+- ASan, TSan e leak checks;
+- fuzzing de limits, nomes e UTF-8.
+
+A interface pública possui quatro overloads explícitos. Não existe intrinsic
+genérico ou codec aberto:
+
+```w
+async fn read(
+  input: const Input<String>,
   maximumBytes: usize<(1...)>,
-) async -> Value throws build.Error
+): String throws build.Error
 
-write<Value>(
-  output: const Output<Value>,
-  value: take Value,
-) async -> () throws build.Error
+async fn read(
+  input: const Input<Bytes>,
+  maximumBytes: usize<(1...)>,
+): Bytes throws build.Error
+
+async fn write(
+  output: const Output<String>,
+  value: take String,
+): () throws build.Error
+
+async fn write(
+  output: const Output<Bytes>,
+  value: take Bytes,
+): () throws build.Error
 ```
 
-`read` devolve um owner novo. O limite efetivo é o menor valor entre a call e a
-action. O host rejeita o input antes de allocation acima desse limite. Decode
-usa o codec fechado de `Value`. Tempo e memória são lineares nos bytes lidos,
-com overhead bounded do codec.
+`read` devolve um owner novo. O limite efetivo é o menor bound declarado da call,
+da action e do host profile ou toolchain plan. Qualquer ceiling de `std.build@1`
+menor que call ou action entra na action recipe key. O preflight rejeita
+incompatibilidade antes de iniciar o tool. Nenhum limite ambiental oculto pode
+fazer a mesma recipe divergir entre executores. O provider valida o bound antes
+de allocation ou decode. Bytes usam identidade. String usa UTF-8 estrito. O
+codec não normaliza Unicode, newline, BOM ou path. Tempo e memória são lineares
+nos bytes codificados, com overhead bounded do codec. Depois do preflight, vale o
+menor bound declarado aplicável.
 
-`write` consome `value` em success e error. Ele codifica uma vez, aplica o
-limite da action e grava um output privado. O segundo write para o mesmo binding
-no mesmo caminho é um erro estático. Incremental output exige um binding de
-sink explícito numa revisão futura. Ele não reutiliza esta operação.
+`write` consome `value` em success, `build.Error` e cancellation. String é
+codificada em UTF-8 estrito. W String já é UTF-8 válida, e Bytes são identity.
+Os overloads de `write` SDK0 não produzem `.codec`. O provider aplica o menor
+bound declarado da action e do host profile ou toolchain plan antes de preparar
+ou materializar o candidato em staging privado. O segundo write para o mesmo
+binding invalida a tentativa. O compiler rejeita duplicação provada, e a
+boundary retorna `.duplicateOutput` para unsafe, foreign ou bug. Incremental
+output exige um binding de sink explícito numa revisão futura.
 
 Reads podem executar em paralelo. Writes para bindings distintos também podem
 executar em paralelo. A ordem não altera action identity ou output. O effect
-summary registra `build.write(outputIdentity)`. Branches exclusivas podem gravar
-o mesmo output. Um loop ou siblings paralelos não podem repetir essa identity.
+summary registra `build.read(inputIdentity)` e `build.write(outputIdentity)`.
+Branches exclusivas podem gravar o mesmo output. Um loop ou siblings paralelos
+não podem repetir essa identity.
 
 O runtime ainda verifica duplicação na boundary. Uma duplicata indica interface
 foreign inválida ou compiler incorreto. Ela produz `.duplicateOutput`, invalida
 a tentativa e impede publicação mesmo quando código unsafe captura o error.
 
 `read` pode lançar `.unknownInput`, `.incompatibleInput`, `.inputLimit`,
-`.codec` ou `.unavailable`. `write` pode lançar `.unknownOutput`,
-`.incompatibleOutput`, `.outputLimit`, `.duplicateOutput`, `.codec` ou
-`.unavailable`. Cancellation permanece outcome da task e descarta a tentativa.
-Ela não vira `build.Error`.
+`.codec` ou `.unavailable`. `.codec` ocorre somente em `read(Input<String>)`
+quando os bytes de input não são UTF-8 válidos. `write` pode lançar
+`.unknownOutput`, `.incompatibleOutput`, `.outputLimit`, `.duplicateOutput` ou
+`.unavailable`. `.missingOutput` é falha do host após o handler e não é
+produzido por `read` ou `write`. Cancellation permanece outcome estrutural da
+task, drena as operações e descarta a tentativa. Ela não vira `build.Error`.
 
 Um binding possui de 1 a 64 caracteres ASCII lowercase, digits e `-`; o
 primeiro caractere é uma letra. Input e output compartilham o namespace da
@@ -22190,10 +22286,14 @@ capability específica, mas ela entra no action schema, lock, recipe e policy.
 Install scripts, shell fragments e callbacks de package não são transforms.
 
 O runtime cria um diretório de trabalho descartável ou uma sandbox equivalente.
-Inputs são read-only. Outputs começam privados e entram no CAS somente quando o
-handler termina com success, todos os outputs obrigatórios existem e cada budget
-confere. Error, panic ou cancellation descartam a tentativa. O tool nunca
-escreve no source tree.
+Inputs são read-only. `write` somente prepara ou materializa candidatos. Blobs
+content-addressed podem existir sem publicação. Depois do success do entry, o
+host publica atomicamente um único action-result/manifest que referencia todos
+os digests dos outputs obrigatórios, quando cada budget confere. Error, panic ou
+cancellation não publicam esse record. Blobs órfãos podem ser coletados por GC.
+Uma completion staged que vence cancellation permanece apenas como registro
+interno até o drain. O handler não recebe commit, rollback ou syntax
+`transaction`. O tool nunca escreve no source tree.
 
 Tool e payload usam configurações distintas:
 
@@ -22202,15 +22302,17 @@ execution target -> artifact executável do menu-compiler
 product target   -> artifact last-light-native
 ```
 
-Uma cross-build em Windows para Cortex-M ainda executa o tool em Windows. Se um
-transform precisa de facts do target final, o action declara
-`.targetMetadata(...)` como input. O host não fica observável por acidente.
+Uma cross-build em Windows para Cortex-M ainda executa o tool em Windows. SDK0
+não expõe metadata do target final por `build.Context`. Uma revisão futura pode
+adicionar um carrier ou input tipado. Quando existir, o action schema deve
+declará-lo e a recipe deve incluí-lo. O host não fica observável por acidente.
 
 Action identity inclui:
 
 ```text
 tool artifact + entry + host profile + execution platform + typed inputs
-+ target metadata declarada + output schema + budgets + allowed capabilities
++ output schema + budgets + allowed capabilities
++ std.build@1 ceilings do host profile/toolchain plan
 ```
 
 Essa identidade é a action recipe key. Ela não contém os output digests. Após a
@@ -24841,7 +24943,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 158 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing, e `std.build.Context` é o único requisito de referência sem declaration; seis providers intrinsics estão missing | resolver `std.build.Context`, implementar os seis providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 159 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; `std.build.Context` agora é draft e `std.build@1` continua missing; sete providers intrinsics estão missing | implementar e validar `std.build@1`, implementar os seis providers restantes, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -26599,9 +26701,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 158 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é o único requisito de referência sem declaration; Blob e FormData continuam missing, e seis providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
-| W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
-| W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
+| W-891 | catálogo std SDK0 | profiles cobrem 159 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
+| W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em quatro cases, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions, com serve usando carrier `std.net`; provider único `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal com `T??`; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html`; Blob/FormData parcial |
 | W-895 | profile WinterTC | `web-common@2025` fixa e classifica o Minimum Common Web API como exact, adapted, extension, browser-only ou não aplicável; W não declara conformidade ECMAScript | alegar conformidade formal; copiar `globalThis`; seguir living surface sem snapshot; chamar extension de API portátil |
 | W-896 | URL portátil | `URL` guarda record canônico opaco; getters textuais são views O(1); base é `ref URL`; mutation usa errors tipados; `searchParams()` devolve snapshot owned atual; edição `inout` fallible e scoped faz commit único e distingue query ausente e vazia; `URLSearchParams` preserva ordem, repetição, form encoding e sort UTF-16; WPT fecha o provider | doze Strings owned; params eager; cache interior; callback para leitura; property Web com allocation escondida; `SameObject`; parser parcial no contrato; aliases HTTP; silent no-op; alias mutável escapável; URLPattern no SDK0 |

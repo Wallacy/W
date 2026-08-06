@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "e0bfbf50469c25cf14f791b5c9fd871b598864a104e3fbcb3e0107dde2ec2689",
+  "catalogDigest": "fb067ac41377c11814a31e546a70b3f41520ac72c98403435cfedcbcbdca2131",
   "summary": {
     "modules": 14,
-    "catalogedApis": 158,
-    "draftCatalogedApis": 158,
+    "catalogedApis": 159,
+    "draftCatalogedApis": 159,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 42,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
-    "missingReferenceRequirements": 1,
+    "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 6,
-    "missingImplementationProviders": 6
+    "implementationProviders": 7,
+    "missingImplementationProviders": 7
   },
   "modules": [
     {
@@ -220,14 +220,72 @@
       "tier": "T1",
       "availability": "build-host",
       "source": "std/build/contracts.w",
-      "catalogedDeclarationsDigest": "9117a1b9d9187f16c9d268474538bf084ba59d40c3da2b434b9bbf0e98a82e83",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.build@1",
+        "status": "missing",
+        "gates": [
+          "asan-tsan-leak",
+          "atomic-action-result-publication",
+          "binding-type-budget-preflight",
+          "cancellation-panic-error-staging-discard",
+          "capability-denial-sandbox",
+          "concurrent-distinct-bindings",
+          "deterministic-bounds-recipe-key",
+          "deterministic-local-remote-differential",
+          "duplicate-output-boundary",
+          "fault-injection",
+          "limits-name-utf8-fuzzing",
+          "strict-utf8-and-byte-identity"
+        ]
+      },
+      "catalogedDeclarationsDigest": "bd8562b3c6d279760597ae96e797c42333a14fc6e3067a71513ce8fadaad82de",
       "apis": [
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "signature": "export struct Context",
+          "declarationDigest": "d4e38cef54f86b50ae43b15429bd50620d0d55501cd325702c4ee8e97a527693",
+          "line": 97,
+          "profile": "build-context",
+          "members": [
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export async fn read( input: const Input<String>, maximumBytes: usize<(1...)>, ): String throws Error",
+                  "line": 107
+                },
+                {
+                  "signature": "export async fn read( input: const Input<Bytes>, maximumBytes: usize<(1...)>, ): Bytes throws Error",
+                  "line": 120
+                }
+              ],
+              "profile": "build-context-read"
+            },
+            {
+              "symbol": "write",
+              "overloads": [
+                {
+                  "signature": "export async fn write( output: const Output<String>, value: take String, ): () throws Error",
+                  "line": 136
+                },
+                {
+                  "signature": "export async fn write( output: const Output<Bytes>, value: take Bytes, ): () throws Error",
+                  "line": 149
+                }
+              ],
+              "profile": "build-context-write"
+            }
+          ],
+          "status": "draft"
+        },
         {
           "symbol": "Error",
           "kind": "enum",
-          "signature": "export enum Error: Error",
-          "declarationDigest": "eefa4091ec58c52fedd5331c01d38d855cf685c8769373f42e96dc55bc634353",
-          "line": 38,
+          "signature": "export enum Error: Error & Equatable",
+          "declarationDigest": "8ad64a362ad0384f1bb88200b9c7e73c037f53859902fb81ffb6b5d7d00936ef",
+          "line": 42,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -235,7 +293,7 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input<Value>",
-          "declarationDigest": "f7bfcff81139db0fa1b71962515d95c33cb511d1d29b09b316207a46591ae9da",
+          "declarationDigest": "b45ecf0c34b64fd88bacd8a8099247a36a2e983356bedc82e392eefd09559956",
           "line": 20,
           "profile": "const-binding",
           "status": "draft"
@@ -244,8 +302,8 @@
           "symbol": "Output",
           "kind": "struct",
           "signature": "export struct Output<Value>",
-          "declarationDigest": "f7b98408aef01cc78977d672feb0773d9ffa7cbdc4e0a3f23f4c1a4b829cfe70",
-          "line": 29,
+          "declarationDigest": "5b6fb3a47132a947bbad9ed373b4c62ac6c17e8eca7615d9f3ec684c6e7af722",
+          "line": 30,
           "profile": "const-binding",
           "status": "draft"
         }
@@ -4553,7 +4611,7 @@
     {
       "module": "std.build",
       "surface": "Context",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/packages/menu-compiler/transform.w"
       ]
@@ -5007,7 +5065,7 @@
       "id": "sdk0-build-context",
       "module": "std.build",
       "surface": "Context",
-      "status": "missing",
+      "status": "draft",
       "profile": "build-context",
       "consumer": "reference/last-light/packages/menu-compiler/transform.w"
     },
