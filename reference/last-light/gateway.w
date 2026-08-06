@@ -1,6 +1,7 @@
 // Host-independent command dispatch and HTTP adapter.
 
 import http from std
+import json from std.json
 import { Command } from command
 import { AppResponse } from presentation
 import { RestaurantApi, RestaurantError, lastLight } from restaurant
@@ -14,7 +15,7 @@ enum DispatchError: Error {
 }
 
 enum GatewayError: Error {
-  decode(http.BodyDecodeError<DecodeError>)
+  decode(http.BodyDecodeError<json.DecodeError>)
   dispatch(DispatchError)
   response(http.ResponseError)
   service(ServiceFailure)
@@ -61,7 +62,7 @@ async fn dispatch(
 
 async fn decodeCommandBody(
   request: take http.Request,
-): Command throws http.BodyDecodeError<DecodeError> {
+): Command throws http.BodyDecodeError<json.DecodeError> {
   // The consuming receiver makes a second body read a compile-time ownership error.
   return try await (take request).json<Command>(maximumBytes: commandLimit)
 }
@@ -85,7 +86,7 @@ async fn fetch(request: take http.Request, ctx: http.Context): http.Response thr
     restaurant: lastLight,
     authority: .remoteClient,
   )
-  return try http.Response.json(response)
+  return try http.Response.json(response, maximumBytes: commandLimit)
 }
 
 test "a remote command cannot stop the process" for canDispatch {

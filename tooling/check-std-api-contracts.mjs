@@ -236,6 +236,14 @@ function hasToken(source, token) {
   return new RegExp(`\\b${escaped}\\b`).test(source);
 }
 
+function hasExportedSurface(moduleState, surface) {
+  return surface
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .every((part) => moduleState.exports.has(part));
+}
+
 function resolveRequirement(requirement, moduleState) {
   if (requirement.kind === "symbol") {
     return moduleState.exports.has(requirement.surface);
@@ -513,7 +521,9 @@ for (const requirement of catalog.carrierRequirements ?? []) {
   const providerCatalogModule = requirement.providerModule
     ? catalog.modules.find((module) => module.id === requirement.providerModule)
     : undefined;
-  const actualStatus = provider?.exports.has(requirement.surface) ? "draft" : "missing";
+  const actualStatus = provider && hasExportedSurface(provider, requirement.surface)
+    ? "draft"
+    : "missing";
   carrierRequirementStates.set(requirement.id, actualStatus);
 
   if (requirement.status !== actualStatus) {

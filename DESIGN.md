@@ -1731,7 +1731,7 @@ Postfixes associam à esquerda:
 
 ```w
 let city = guests[index()]?.address?.city?
-let decoded = try request.json.decode<Order>()
+let decoded = try await (take request).json<Order>(maximumBytes: 64<KiB>)
 ```
 
 `?.` faz member access condicional e achata uma camada de Option. Postfix `?`
@@ -6182,7 +6182,7 @@ let found = contains(values, target: needle)
 Um argumento explícito fixa uma parte da solução:
 
 ```w
-let order = try request.json.decode<Order>()
+let order = try await (take request).json<Order>(maximumBytes: 64<KiB>)
 let forecast = try forecast<tables: 2, courses: 4>(
   observations,
   weights: weights,
@@ -13748,7 +13748,7 @@ async fn fetch(
   let command = try await (take request).json<Command>(
     maximumBytes: 64<KiB>,
   )
-  return try http.Response.json(command)
+  return try http.Response.json(command, maximumBytes: 64<KiB>)
 }
 ```
 
@@ -13826,8 +13826,12 @@ referrer: RequestReferrer
 referrerPolicy: ReferrerPolicy
 integrity: view String
 duplex: RequestDuplex
-take async json<Value: JsonDecodable>(maximumBytes: usize<(1...)>)
-  -> Value throws http.BodyDecodeError<JsonDecodeError>
+take async json<Value: json.Decodable>(
+  maximumBytes: usize<(1...)>,
+  profile: json.Profile = .interoperable,
+  unknownMembers: json.UnknownMemberPolicy = .reject,
+)
+  -> Value throws http.BodyDecodeError<json.DecodeError>
 take async bytes(maximumBytes: usize<(1...)>)
   -> Bytes throws http.HttpBodyError
 take async text(maximumBytes: usize<(1...)>)
@@ -14457,8 +14461,19 @@ Response.redirect(URL, status: RedirectStatus = .found)
   -> Response throws ResponseError
 Response.redirect(String, status: RedirectStatus = .found)
   -> Response throws ResponseError
-Response.json<Value: JsonEncodable>(take Value, status: StatusCode = StatusCode.ok,
-  take headers: Headers = Headers())
+Response.json<Value: json.Encodable>(
+  take Value,
+  maximumBytes: usize<(1...)>,
+  status: StatusCode = StatusCode.ok,
+  take headers: Headers = Headers(),
+)
+  -> Response throws ResponseError
+Response.json<Value: json.Encodable>(
+  take Value,
+  limits: json.Limits,
+  status: StatusCode = StatusCode.ok,
+  take headers: Headers = Headers(),
+)
   -> Response throws ResponseError
 
 type: ResponseType
@@ -14507,7 +14522,7 @@ immutable.
 
 O [Fetch Standard para Response](https://fetch.spec.whatwg.org/#response-class)
 define static constructors, properties e clone. W troca `any` por
-`JsonEncodable` e exceptions por errors tipados.
+`json.Encodable` e exceptions por errors tipados.
 
 `ResponseError` separa syntax, header guard, header limit na attachment, JSON
 encoding, body proibido e response inválido para server. Status, statusText e
@@ -14519,7 +14534,7 @@ constructor.
 
 `Response` inclui as mesmas operações `bytes`, `text`, `json`, `blob` e
 `formData` do Body comum. Cada operação consome o owner e exige limite. JSON
-usa `BodyDecodeError`; text e bytes usam `HttpBodyError`. `arrayBuffer` é
+usa `BodyDecodeError<json.DecodeError>`; text e bytes usam `HttpBodyError`. `arrayBuffer` é
 `notApplicable`; `bytes` devolve o carrier W sem o object model ECMAScript.
 
 Clone consome um owner e devolve dois. Metadata e headers são duplicados. O body
@@ -14560,7 +14575,10 @@ Esses valores correspondem aos
 [null body statuses do Fetch Standard](https://fetch.spec.whatwg.org/#null-body-status).
 
 `Response.json` é o constructor estático do Fetch Standard com um contrato W
-tipado. Ele exige `JsonEncodable` e não usa reflection universal. A baseline
+tipado. Ele exige `json.Encodable` e um `maximumBytes` ou `json.Limits` explícito;
+o overload `maximumBytes` expande para `json.Limits(maximumBytes:)` com defaults
+fixos, e um host somente pode reduzir esse envelope. Ele não usa reflection
+universal. A baseline
 não cria `Response.text`, `.bytes`, `.stream` ou `.html`; o overload de
 `Response` cobre esses bodies sem uma família paralela de nomes.
 
@@ -15588,6 +15606,198 @@ Um deployment pode reduzir capacidade. Ele não pode converter `LocalCache` em
 rede. Um cache remoto usa `ServiceRef<CacheApi>` e methods async. Assim, latency,
 failure boundary e placement continuam visíveis na assinatura.
 
+#### 14.3.9 JSON bounded e conformance explícita
+
+**Direção:** `std.json` é o codec T1 para interoperabilidade, HTTP e oracles.
+JSON é um formato específico. Ele não é um serializer universal. O módulo não
+introduz reflection runtime, `Any`, annotation, macro ou construção por
+metatype.
+
+Os carriers obrigatórios são protocols nominais:
+
+```w
+export protocol Encodable {
+  fn encode(to writer: inout json.Writer) throws json.EncodeError
+}
+
+export protocol Decodable {
+  static fn decode(from reader: inout json.Reader): Self throws json.DecodeError
+}
+
+export protocol Codable: Encodable & Decodable {}
+```
+
+O receiver `encode` é borrowed. `decode` é associated e devolve `Self`. Os dois
+methods são síncronos e fallible. `Writer` e `Reader` são cursors opacos. Eles
+existem somente dentro da call de codec. Um cursor não pode escapar por return,
+field, task, service ou closure armazenada.
+
+Uma conformance manual usa fronteiras scoped para fechar cada container:
+
+```w
+struct Ticket: json.Codable {
+  id: u64
+  displayName: String
+
+  fn encode(to writer: inout json.Writer) throws json.EncodeError {
+    try writer.withObject((object) => {
+      try object.field("ticket_id", value: ref id)
+      try object.field("display_name", value: ref displayName)
+    })
+  }
+
+  static fn decode(from reader: inout json.Reader): Ticket throws json.DecodeError {
+    return try reader.withObject((object) => {
+      let id: u64 = try object.required("ticket_id")
+      let displayName: String = try object.required("display_name")
+      return Ticket(id: id, displayName: displayName)
+    })
+  }
+}
+```
+
+`withObject` e `withArray` criam um cursor somente para a closure. A closure é
+síncrona, não escapante e é consumida uma vez. O type é
+`some take fn(inout Cursor): () throws ...`, não um ponteiro fino `fn(...)` com
+captures. O provider fecha o cursor em success e em failure. Assim, um output
+incompleto não é publicado. No decoder, `withObject<Output>` e `withArray<Output>`
+devolvem o `Output` produzido pela closure; isso permite construir o valor sem
+capturar vars locais. A API não oferece um cursor público que possa ser guardado.
+`ObjectWriter.field` recebe `ref String`; o provider emite o name durante a
+call e não retém o storage do caller.
+
+As calls de entrada têm bounds em todos os caminhos:
+
+```w
+json.encode<Value: json.Encodable>(
+  ref Value,
+  limits: json.Limits,
+  profile: json.Profile = .interoperable,
+) -> Bytes throws json.EncodeError
+
+json.decode<Decoded: json.Decodable>(
+  ref Bytes,
+  limits: json.Limits,
+  profile: json.Profile = .interoperable,
+  unknownMembers: json.UnknownMemberPolicy = .reject,
+) -> Decoded throws json.DecodeError
+```
+
+`json.Limits` exige `maximumBytes`, `maximumDepth`, `maximumValues`,
+`maximumStringBytes`, `maximumNumberTokenBytes`, `maximumObjectMembers` e
+`maximumAllocationBytes`. Cada refinement é positivo e finito. Não existe
+default unlimited. `Limits(maximumBytes:)` escolhe defaults finitos e fixos:
+depth 128, values e object members no máximo `maximumBytes`, string bytes e
+allocation bytes iguais a `maximumBytes`, e number-token bytes no mínimo entre
+`maximumBytes` e 1024. Fields são read-only, e `Limits` atende `Copy` e
+`Equatable`. O menor bound entre a call, o body HTTP e o host vence; o host
+pode reduzir o envelope, mas não escolhe silenciosamente os outros limits.
+
+O profile `.interoperable` segue [RFC 7493/I-JSON](https://www.rfc-editor.org/rfc/rfc7493)
+e a Web Platform. Ele exige UTF-8
+estrito sem BOM, Unicode scalar válido, nomes de object únicos, integer exato
+em `-(2^53-1)...(2^53-1)` e binary64 finito. O profile `.rfc8259` aceita a
+grammar numérica de [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259), mas o
+target ainda rejeita valor fora do range do carrier escolhido; `Number` mantém
+o token decimal exato dentro do bound. Os dois profiles rejeitam
+NaN, Infinity, surrogate inválido, nomes duplicados, comments e trailing comma.
+
+O encoder produz UTF-8 compacto. Ele mantém a ordem de declaração de struct.
+`Map<String, V>` mantém a ordem de insertion. Escapes usam `\"` e `\\`, os
+short escapes `\\b`, `\\t`, `\\n`, `\\f` e `\\r`, e lowercase `\\u00xx` para
+os demais C0. Slash não escapa; os outros Unicode scalars saem em UTF-8
+direto, sem surrogate pair para non-BMP. Floats finitos usam o shortest
+round-trip e preservam signed zero. O output é determinístico para o mesmo
+value e profile nos vectors definidos, mas o provider ainda precisa fechar os
+vectors de signed zero e exponent. Ele não é chamado de canonical JSON ou JCS.
+Ele não é uma identidade de signature, content-address ou integrity.
+
+`json.Number` é um struct nominal encapsulado. Seu initializer/parser aceita
+somente token decimal validado e bounded, normaliza sem passar por binary64,
+expõe apenas `text`, `duplicate` e equality numérica coerente, e preserva
+signed zero para re-encode. Não existe constructor unchecked. `json.Value` é
+um sum type explícito com somente `null`,
+`bool`, `number`, `string`, `array` e `object`. `json.Object` preserva a ordem
+dos entries e rejeita duplicate names. Construção dinâmica usa `ValueError`;
+decode usa `DecodeError` com `Location`. Equality de Object e Value ignora a
+ordem dos members, mas re-encode preserva a ordem de cada value. Esses values
+servem para oracle, interoperabilidade e adapters. `ObjectEntry.name` é view e
+`ObjectEntry.value` é ref read-only. `count`, `entry(at:)` e
+`value(for:)` têm custo bounded pelo `maximumObjectMembers`; o provider pode
+manter um índice interno sem mudar a ordem observável. Eles não ativam
+synthesis tipada.
+
+`DecodeError` carrega `Location(byteOffset:)` em syntax, trailing bytes,
+Unicode/surrogate, duplicate, missing, unknown, unsafe integer, invalid number
+e limit. `SyntaxKind` é fechado. `ValueError` separa construção dinâmica de
+decode e cobre number/object inválido, duplicate e limit; OOM continua na
+policy geral. `EncodeError` mantém somente limit, integer fora do profile e
+nonfinite float entre as falhas de valor.
+
+Synthesis exige conformance explícita no type head. O compiler reconhece o
+protocol por identidade de módulo. Ele não usa o nome textual `Codable`. A
+synthesis JSON fechada aplica estas regras:
+
+- struct transparente com stored fields visíveis vira object;
+- key é o field name exato e a ordem é declaration order;
+- decode aceita qualquer ordem de members;
+- field `Option<T>` ausente ou `null` vira `.none`;
+- field required ausente falha;
+- unknown members seguem `UnknownMemberPolicy` da call;
+- duplicate names sempre falham, também com policy `.ignore`;
+- payloadless enum usa o case name exato do source; o profile não escolhe o nome;
+- generic constraints precisam declarar `T: Encodable`, `T: Decodable` ou
+  `T: Codable` no type head;
+- newtype não unwrap automaticamente.
+
+O conjunto automático inclui `null`/`Option`, `Bool`, `String`, floats finitos,
+os integer carriers suportados (`i8`...`i128`, `u8`...`u128`; `Int` e `UInt`
+seguem a identidade de `i64` e `u64`), `Array`, fixed array e
+`Map<String, V>`. A synthesis exige que cada elemento, field ou value tenha o
+witness correspondente. Tuple labeled ou positional fica fora por ter forma
+ambígua e exige witness manual. Refined types herdam somente quando o
+witness do base type e o refinement permitem o valor.
+
+Payload enum, object e struct encapsulado, rename de key, property behavior,
+`Bytes`, `Set`, Map com key que não é `String`, `Result` e qualquer shape
+ambígua exigem witness manual. `Display`, outros codecs e schemas continuam
+**Rejeitado** para synthesis automática. A decisão não adiciona annotation ou
+macro. Ela refina W-314 somente para esta família JSON fechada.
+
+O HTTP usa os nomes qualificados do módulo. `Request.json` continua consuming e
+bounded e devolve `http.BodyDecodeError<json.DecodeError>`. O constructor
+`Response.json` exige `maximumBytes` ou um `json.Limits` explícito; ele não
+possui rota sem bound. `ResponseError.encoding` carrega `json.EncodeError`.
+Quando a forma usa somente `maximumBytes`, ela expande para
+`json.Limits(maximumBytes:)` com os defaults fixos do codec. O host pode impor um
+bound menor depois, mas não escolhe silenciosamente as outras dimensões.
+`Request` e `Response` permanecem requisitos ausentes até o bundle HTTP
+seguinte. A mudança de carrier desbloqueia somente `ResponseError` quando seus
+outros requirements estiverem satisfeitos. `Command`, `AppResponse` e
+`WifiSession` ainda precisam de schemas/witnesses de domínio; as calls atuais
+são targets de source, não prova de type-check. O próximo bundle HTTP fecha
+esses schemas junto de `Request` e `Response`.
+
+O provider interno `std.json@1` permanece missing. Antes de promover a
+interface, os gates precisam cobrir RFC 8259, RFC 7493/I-JSON, UTF-8 e Unicode,
+fuzzing de grammar, duplicate detection, limits de profundidade/values/
+allocation, vectors de escape C0/Unicode, shortest-round-trip, signed zero e
+exponent, e differential tests com os vectors da Web.
+O design usa como referências a [Apple Codable](https://developer.apple.com/documentation/swift/encoding-and-decoding-custom-types)
+e a documentação oficial do [Serde](https://serde.rs/), mas não copia
+derivation aberta, reflection ou attributes desses ecossistemas.
+
+**Alternativa:** um serializer universal baseado em reflection reduziria
+boilerplate, mas criaria schema implícito, custo não bounded e incompatibilidade
+de nomes. Fica **Rejeitado**.
+
+**Alternativa:** chamar o output determinístico de canonical JSON ou JCS daria
+uma garantia de signature que o profile não prova. Fica **Rejeitado**.
+
+**Rejeitado por enquanto:** aceitar `Any`, number IEEE sem range, duplicate
+last-wins, cursor escapante ou rota unlimited. Cada forma perde uma garantia
+de segurança ou interoperabilidade necessária ao núcleo HTTP.
+
 ### 14.4 Catálogo mínimo da standard library
 
 **Exemplo:** um target freestanding fornece T0. Um server adiciona T1. Um
@@ -15661,7 +15871,7 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos 12 módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos 13 módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -15677,8 +15887,8 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 81 declarations exportadas em 12 módulos, das quais 79 estão
-draft-ready e duas estão bloqueadas. Ele também registra 36 superfícies
+registra 105 declarations exportadas em 13 módulos, das quais 104 estão
+draft-ready e uma está bloqueada. Ele também registra 36 superfícies
 qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
 qualificado desconhecido, profile
 incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
@@ -15694,11 +15904,11 @@ Uma declaration não fica pronta quando sua relação `requires` aponta um
 requisito ou carrier obrigatório ausente. Os IDs são os mesmos das tabelas de
 requisitos e carriers; o catálogo não mantém um segundo grafo. Por isso,
 `http.ResponseError` aponta o requisito existente `sdk0-http-response-error`,
-que continua `missing` porque o shape menciona o error do codec JSON.
+que passa a `draft` depois que `std.json` fornece o error do codec.
 `http.HttpHandler` também continua `missing`: sua assinatura exige os requisitos
 já catalogados de `Request`, `Response` e `Context`.
 
-O Última Luz exige seis superfícies que ainda não possuem draft pronto:
+O Última Luz exige cinco superfícies que ainda não possuem draft pronto:
 
 | Módulo | Superfície | Motivo | Consumer |
 |---|---|---|---|
@@ -15706,12 +15916,17 @@ O Última Luz exige seis superfícies que ainda não possuem draft pronto:
 | `std.http` | `Context` | declaration ausente | gateway HTTP |
 | `std.http` | `Request` | declaration e carriers ausentes | benchmark e apps HTTP |
 | `std.http` | `Response` | declaration e carriers ausentes | benchmark e apps HTTP |
-| `std.http` | `ResponseError` | codec JSON ausente | gateway HTTP |
 | `std.http` | `serve` | declaration ausente | host nativo |
 
-Sete requisitos de carrier tornam o bloqueio verificável. Quatro possuem draft
-e três continuam missing; entre os cinco obrigatórios do núcleo Fetch, um
-continua missing:
+Os consumers de JSON no Última Luz (`Command`, `AppResponse` e `WifiSession`)
+continuam targets de source. Eles ainda precisam de schemas/witnesses de
+domínio e não provam type-check enquanto `Request` e `Response` estiverem
+ausentes. O próximo bundle HTTP fecha esses schemas junto das duas superfícies;
+esta projeção não inventa declarations nem altera a contagem acima.
+
+Sete requisitos de carrier tornam o bloqueio verificável. Cinco possuem draft
+e dois continuam missing. Os cinco carriers obrigatórios do núcleo Fetch têm
+interface draft; `Blob` e `FormData` continuam profile-final:
 
 | Carrier | Provider SDK0 | Interface | Provider executável |
 |---|---|---|---|
@@ -15719,7 +15934,7 @@ continua missing:
 | `URLSearchParams` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
 | `ReadableStream` | `std.stream` | obrigatório; draft | `std.readable-stream@1`; missing |
 | `AbortSignal` | `std.abort` | obrigatório; draft | `std.abort-state@1`; missing |
-| `JsonEncodable` e `JsonDecodable` | módulo ainda não decidido | obrigatório; missing | não aplicável |
+| `json.Encodable` e `json.Decodable` | `std.json` | obrigatório; draft | `std.json@1`; missing |
 | `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
 | `FormData` | `std.http` | profile final; missing | não aplicável |
 
@@ -15741,10 +15956,11 @@ sem migração de design.
 SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
-1. resolver as seis superfícies sem draft pronto;
-2. fechar o carrier JSON obrigatório restante do núcleo Web;
-3. catalogar operações de Request e Response depois desses carriers;
-4. adicionar um segundo consumer antes de classificar uma API como estável;
+1. resolver as cinco superfícies sem draft pronto;
+2. catalogar operações de Request e Response depois desses carriers;
+3. adicionar um segundo consumer antes de classificar uma API como estável;
+4. implementar e validar `std.json@1` pelos gates RFC, I-JSON, Unicode,
+   fuzzing e differential vectors;
 5. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
 6. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
 7. implementar `std.abort-state@1` pelos gates DOM, Fetch, workerd e races;
@@ -24275,7 +24491,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 81 exports em 12 módulos; 79 estão draft-ready e dois estão bloqueados; nove requisitos e sete carriers têm profile; três carriers e seis superfícies de referência continuam sem draft pronto | fechar o carrier JSON obrigatório restante, resolver as seis ausências, implementar os três providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 105 exports em 13 módulos; 104 estão draft-ready e um está bloqueado; nove requisitos e sete carriers têm profile; dois carriers e cinco superfícies de referência continuam sem draft pronto; quatro providers intrinsics estão missing | resolver as cinco ausências, implementar os quatro providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -25456,7 +25672,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
 | W-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
 | W-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
-| W-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object | qualquer protocol; Display/codec automáticos |
+| W-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object; somente a synthesis JSON fechada de W-900 | qualquer protocol; Display e codecs automáticos fora do JSON |
 | W-315 | synthesis witness | all-or-none por protocol; constraints explícitas | completar witness parcial; inferir constraints |
 | W-316 | rest syntax | último `T...`; zero ou mais; um label inicial | `params`; `*args`; overloads por aridade |
 | W-317 | rest shape | conjunto infinito deve ser disjunto de todo overload | fixed vence rest; ranking por tipos |
@@ -26033,7 +26249,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 81 exports em 12 módulos, nove requisitos e sete carriers; 79 exports estão draft-ready e dois apontam requisitos ou carriers ausentes; scan compara 36 usos e registra seis requisitos de referência ausentes; três carriers e três providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-891 | catálogo std SDK0 | profiles cobrem 105 exports em 13 módulos, nove requisitos e sete carriers; 104 exports estão draft-ready e um aponta requisitos ou carriers ausentes; scan compara 36 usos e registra cinco requisitos de referência ausentes; dois carriers e quatro providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions | API HTTP paralela; copiar JavaScript/Web IDL; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html` |
@@ -26042,6 +26258,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-897 | intrinsic interno da std | `foreign intrinsic from "provider@major"` é primitive unsafe não exportável, restrita a módulos internos do SDK; manifest versionado fixa signatures, effects e gates; wrapper W safe contém a boundary; não existe ABI pública nem capability implícita; bootstrap usa allowlist e os mesmos digests | foreign symbol comum; `fn<C>`; annotation nova; provider ambiental; declaration por package; intrinsic público; authority por nome |
 | W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
 | W-899 | AbortSignal portátil | `std.abort` adapta o first-wins Web sem substituir a cancellation monotônica de W; `AbortReason` é `Error & Copy`, fechado e bounded; signal duplica handle O(1), devolve reason por valor, oferece `throwIfAborted` tipado, espera pelo reason sem perder wake, não concede authority e não é `WireValue`; controller é move-only, first-wins atômico e drop não aborta; timeout zero já está abortado, timeout positivo possui timer-resource independente do creator/root, continua ao escapar e cobra o execution domain sem manter task viva; falha de timer budget publica cancellation e solicita cancellation estrutural; `any` preserva o nome Web e valida antes de registrar: argumentos diretos e folhas pending únicas após flatten/dedup precisam caber no mesmo `maximumSources` por result, inputs abortados só vencem depois das duas validações e cada folha pending recebe uma registration; total vivo do execution domain depende do allocation/admission budget do provider, não do fan-in de uma call; o DAG não cria cycle; Request recebe signal interno dependente; error Web versus task cancellation segue settlement/commit e sempre drena I/O; RPC geral usa automatic call cancellation, Request usa control frames e live-control edge fica alternativa futura; provider continua missing | colocar em `std.runtime`; transformar cancellation de task em application error; reason dinâmico, message, error arbitrário ou resource owner; renomear `any` como `combining`; EventTarget e callbacks no SDK0; signal com authority; controller duplicável; abort implícito no drop; ligar timeout genérico ao creator/root; wall clock; timer ou observer sem bound; tratar fan-in de uma call como limite global de dependents; validar winner antes dos bounds; permitir que terminal direto ou `any` pending contorne limite; ordem total fictícia para races; handle como `WireValue`; AbortSignal remoto geral no SDK0; implementação safe W sem atomics e hooks provados |
+| W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, errors tipados com `Location`/`SyntaxKind`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; schemas de Command/AppResponse/WifiSession continuam futuros; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

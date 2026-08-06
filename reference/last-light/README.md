@@ -169,6 +169,7 @@ alvo de execução independente.
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS e locks scoped |
 | `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
+| `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
@@ -592,6 +593,21 @@ abortados, sem registration; overflow de folhas pending aninhadas sem
 registration; folha pending duplicada com uma registration; reason publicado,
 nenhum wake perdido, cleanup único, zero refcount cycle, zero task órfã e
 nenhuma fila de events.
+
+`json.w` fixa o carrier T1 de JSON. A conformance é explícita e a synthesis
+reconhece somente o protocol `std.json` por identidade. `Writer` e `Reader`
+mantêm object/array cursors dentro de closures scoped. `Limits` cobre bytes,
+depth, values, strings, number tokens, members e allocation; não existe rota
+unlimited; `Limits(maximumBytes:)` usa defaults finitos e fixos. O profile
+interoperable aplica I-JSON/Web e o profile RFC 8259 preserva números decimais
+exatos dentro do target. `Number` é nominal e validado; `Value` é o sum type,
+não `Any`; duplicates, Unicode inválido, nonfinite, trailing comma e comments
+falham. Object equality ignora ordem, mas re-encode preserva insertion order.
+`Command`, `AppResponse` e `WifiSession` ainda precisam de schemas/witnesses de
+domínio; as calls são targets de source, não prova de type-check. O próximo
+bundle HTTP fecha esses schemas junto de Request/Response. O provider
+`std.json@1` continua missing, portanto os testes do arquivo são oracles
+provider-gated e não alegam execução.
 
 ### 3.5.4 Arquivo Posicional das Receitas Extintas
 
@@ -1930,7 +1946,8 @@ Aceite:
 - `LocalCache` continua process-local; um cache remoto usa uma API async;
 - pool, cache, requests ativos, filas e bytes possuem limites;
 - nenhuma rota retorna dados constantes quando o workload exige database;
-- o codec JSON executa por request e preserva exatamente os nomes dos fields;
+- o gate do codec JSON preserva exatamente os nomes dos fields e aplica seus
+  limits por request;
 - prepared statements usam parameters nomeados e SQL const;
 - configuração, hardware, compiler e artifact digest acompanham o resultado;
 - monolito e nanoservices executam o mesmo oracle;

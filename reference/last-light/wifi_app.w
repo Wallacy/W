@@ -17,7 +17,7 @@ async fn fetchWifi(
     case (.post, "/login"):
       let input = try await (take request).json<LoginRequest>(maximumBytes: 4<KiB>)
       let session = try await wifiSessions.login(take input)
-      try http.Response.json(session)
+      try http.Response.json(session, maximumBytes: 4<KiB>)
     case (.post, "/logout"):
       let id = try await (take request).json<SessionId>(maximumBytes: 1<KiB>)
       try await wifiSessions.revoke(id)

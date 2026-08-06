@@ -378,8 +378,16 @@
     "json-codec-carrier": {
       "capabilities": [],
       "effects": ["codec", "allocation"],
-      "failures": { "mode": "typed", "types": ["JsonEncodeError", "JsonDecodeError"] },
-      "bounds": ["maximum-argument", "codec-depth", "codec-allocation"],
+      "failures": { "mode": "typed", "types": ["json.EncodeError", "json.DecodeError"] },
+      "bounds": [
+        "maximum-argument",
+        "codec-depth",
+        "codec-values",
+        "codec-string-bytes",
+        "codec-number-token-bytes",
+        "codec-object-members",
+        "codec-allocation"
+      ],
       "complexity": { "time": "linear-input", "space": "bounded-by-argument" }
     },
     "web-body-carrier": {
@@ -529,6 +537,171 @@
         { "symbol": "WriteAllError", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ByteSource", "kind": "protocol", "profile": "byte-source" },
         { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" }
+      ]
+    },
+    {
+      "id": "std.json",
+      "tier": "T1",
+      "availability": "bundled-portable",
+      "source": "std/json/contracts.w",
+      "designAnchors": ["14.3.9", "14.5", "23.2.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.json@1",
+        "status": "missing",
+        "gates": [
+          "rfc8259-grammar-and-fuzzing",
+          "i-json-interoperability",
+          "strict-utf8-unicode",
+          "bounded-depth-values-allocation",
+          "duplicate-member-rejection",
+          "escape-c0-unicode-vectors",
+          "shortest-round-trip-signed-zero",
+          "signed-zero-exponent-vectors",
+          "web-differential-vectors"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/json.w",
+        "symbols": ["Ticket", "Envelope", "json"]
+      },
+      "apis": [
+        { "symbol": "Profile", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "UnknownMemberPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract", "overloads": 2 },
+            { "symbol": "maximumBytes", "profile": "value-contract" },
+            { "symbol": "maximumDepth", "profile": "value-contract" },
+            { "symbol": "maximumValues", "profile": "value-contract" },
+            { "symbol": "maximumStringBytes", "profile": "value-contract" },
+            { "symbol": "maximumNumberTokenBytes", "profile": "value-contract" },
+            { "symbol": "maximumObjectMembers", "profile": "value-contract" },
+            { "symbol": "maximumAllocationBytes", "profile": "value-contract" }
+          ]
+        },
+        { "symbol": "Location", "kind": "struct", "profile": "value-contract", "members": [
+          { "symbol": "init", "profile": "value-contract" },
+          { "symbol": "byteOffset", "profile": "value-contract" }
+        ] },
+        { "symbol": "SyntaxKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ValueError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "EncodeError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "DecodeError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Number",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "parse", "profile": "value-contract" },
+            { "symbol": "text", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "ObjectEntry",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "name", "profile": "value-contract" },
+            { "symbol": "value", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Object",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "count", "profile": "value-contract" },
+            { "symbol": "entry", "profile": "value-contract" },
+            { "symbol": "value", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Value",
+          "kind": "enum",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        { "symbol": "Encodable", "kind": "protocol", "profile": "json-codec-carrier" },
+        { "symbol": "Decodable", "kind": "protocol", "profile": "json-codec-carrier" },
+        { "symbol": "Codable", "kind": "protocol", "profile": "json-codec-carrier" },
+        {
+          "symbol": "Writer",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "writeNull", "profile": "json-codec-carrier" },
+            { "symbol": "writeBool", "profile": "json-codec-carrier" },
+            { "symbol": "writeString", "profile": "json-codec-carrier" },
+            { "symbol": "writeNumber", "profile": "json-codec-carrier" },
+            { "symbol": "withObject", "profile": "json-codec-carrier" },
+            { "symbol": "withArray", "profile": "json-codec-carrier" }
+          ]
+        },
+        {
+          "symbol": "ObjectWriter",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "field", "profile": "json-codec-carrier" }
+          ]
+        },
+        {
+          "symbol": "ArrayWriter",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "element", "profile": "json-codec-carrier" }
+          ]
+        },
+        {
+          "symbol": "Reader",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "readNull", "profile": "json-codec-carrier" },
+            { "symbol": "readBool", "profile": "json-codec-carrier" },
+            { "symbol": "readString", "profile": "json-codec-carrier" },
+            { "symbol": "readNumber", "profile": "json-codec-carrier" },
+            { "symbol": "withObject", "profile": "json-codec-carrier" },
+            { "symbol": "withArray", "profile": "json-codec-carrier" }
+          ]
+        },
+        {
+          "symbol": "ObjectReader",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "required", "profile": "json-codec-carrier" },
+            { "symbol": "optional", "profile": "json-codec-carrier" }
+          ]
+        },
+        {
+          "symbol": "ArrayReader",
+          "kind": "struct",
+          "profile": "json-codec-carrier",
+          "members": [
+            { "symbol": "next", "profile": "json-codec-carrier" }
+          ]
+        },
+        { "symbol": "encode", "kind": "fn", "profile": "json-codec-carrier" },
+        { "symbol": "decode", "kind": "fn", "profile": "json-codec-carrier" }
       ]
     },
     {
@@ -888,10 +1061,10 @@
     },
     {
       "id": "sdk0-json-codec",
-      "providerModule": null,
-      "surface": "JsonEncodable/JsonDecodable",
+      "providerModule": "std.json",
+      "surface": "Encodable/Decodable",
       "profile": "json-codec-carrier",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response", "std.http.ResponseError"]
     },
@@ -1017,7 +1190,7 @@
       "consumer": "reference/last-light/gateway.w",
       "profile": "value-contract",
       "requires": ["sdk0-json-codec"],
-      "status": "missing"
+      "status": "draft"
     }
   ]
 }
