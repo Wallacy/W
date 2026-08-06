@@ -1142,11 +1142,12 @@ Os arquivos atuais exigem contratos ainda não implementados:
 5. `build-transform@1`, sandbox e action CAS;
 6. host profiles e slot registry;
 7. std de process, mobile, device, audio e accelerator;
-8. implementação do provider `std.http@1`, dos carriers executáveis e dos
-   adapters HTTP. As interfaces W de `Request`, `Response`, `http.Context` e
-   `Request`, `Response` e `http.Context` estão em draft; `serve` fica bloqueado
-   pelo carrier `std.net` (`sdk0-net-listener`). `http_oracle.w` fixa o shape
-   sem alegar execução;
+8. implementação dos providers `std.net@1` e `std.http@1`, dos carriers
+   executáveis e dos adapters HTTP. As interfaces W de `Request`, `Response`,
+   `http.Context` e `net` estão em draft. `serve` fica bloqueado pelos
+   providers `std.net@1` e `std.http@1`. `net_oracle.w` fixa borrowed
+   descriptors, bounded partial I/O e borrow/drain lifecycle sem alegar execução;
+   `http_oracle.w` fixa o shape sem alegar execução;
 9. codecs JSON explícitos ou derivados por synthesis autorizada, mais encoder,
    decoder, oracle e fuzzer dos profiles wWire;
 10. pool, adapters de protocolo e validação de schema do database;

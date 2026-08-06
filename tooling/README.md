@@ -32,7 +32,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `execution-concurrency-cases.json` + máquina E0 | 28 sequências e 280 operações cobrem lifecycle, cancelamento, oito origens happens-before e races | oracle host de eventos; não é scheduler, checker nem runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 134 exports em 13 módulos, 133 draft-ready e 1 bloqueado, 42 superfícies qualificadas, nove requisitos adversariais e oito carriers | catálogo e snapshot são projeções; três carriers permanecem missing (incluindo `std.net` para `serve`); os cinco providers executáveis catalogados estão missing |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 158 exports em 14 módulos, 42 superfícies qualificadas, nove requisitos adversariais e oito carriers | catálogo e snapshot são projeções; Blob e FormData permanecem missing, `std.build.Context` é o único requisito de referência sem declaration e os seis providers executáveis catalogados estão missing |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A

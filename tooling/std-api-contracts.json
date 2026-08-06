@@ -420,10 +420,24 @@
     },
     "net-listener-carrier": {
       "capabilities": ["network-listener"],
-      "effects": ["network"],
+      "effects": ["suspension", "network", "cancellation"],
       "failures": { "mode": "typed", "types": ["NetworkError"] },
-      "bounds": ["listener-address", "network-capability-budget"],
+      "bounds": ["listener-address", "network-capability-budget", "minimum-call-product-provider", "borrow-drain-before-release", "lifecycle-cleanup-once"],
       "complexity": { "time": "provider-defined", "space": "provider-defined" }
+    },
+    "net-address-value": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["AddressError"] },
+      "bounds": ["address-shape", "strict-ip-socket-parse", "socket-address-text-roundtrip", "scope-zero-rejected", "rfc5952-format", "dns-idna-uts46", "dns-name-bounds", "allocation-budget"],
+      "complexity": { "time": "linear-input", "space": "bounded-by-contract" }
+    },
+    "net-transport": {
+      "capabilities": ["network-capability"],
+      "effects": ["suspension", "network", "byte-io", "cancellation", "allocation"],
+      "failures": { "mode": "typed", "types": ["NetworkError"] },
+      "bounds": ["network-capability-budget", "io-maximum", "queue-limits", "minimum-call-product-provider", "mut-operation-exclusive", "borrow-drain-before-release", "take-operation-consumed", "tcp-terminal-latched", "udp-single-mutator", "lifecycle-cleanup-once", "physical-cancel-not-promised"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
     },
     "database-transaction": {
       "capabilities": ["database-binding"],
@@ -931,6 +945,272 @@
       ]
     },
     {
+      "id": "std.net",
+      "tier": "T1",
+      "availability": "network-capability-carrier",
+      "source": "std/net/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.net@1",
+        "status": "missing",
+        "gates": [
+          "ipv4-ipv6-parse-format",
+          "rfc5952-format",
+          "dns-idna-policy",
+          "rfc6724-ordering",
+          "rfc8305-happy-eyeballs-bounded",
+          "tcp-udp-differential-linux-macos-windows-wasi",
+          "capability-denial-ssrf",
+          "cancellation-races",
+          "partial-io",
+          "fault-injection",
+          "asan-tsan-leak",
+          "limits-fuzzing"
+        ]
+      },
+      "designAnchors": ["14.2.7", "14.2.7.1", "14.5"],
+      "consumer": {
+        "path": "reference/last-light/net_oracle.w",
+        "symbols": ["Ipv4Address", "Network", "TcpConnection", "Datagram"]
+      },
+      "apis": [
+        { "symbol": "AddressFamily", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "AddressError", "kind": "enum", "profile": "net-address-value" },
+        { "symbol": "NetworkLimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "NetworkError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Ipv4Address",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "init", "profile": "net-address-value" },
+            { "symbol": "parse", "profile": "net-address-value" },
+            { "symbol": "loopback", "profile": "value-contract" },
+            { "symbol": "unspecified", "profile": "value-contract" },
+            { "symbol": "octets", "profile": "value-contract" },
+            { "symbol": "text", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Ipv6Address",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "init", "profile": "net-address-value" },
+            { "symbol": "parse", "profile": "net-address-value" },
+            { "symbol": "loopback", "profile": "value-contract" },
+            { "symbol": "unspecified", "profile": "value-contract" },
+            { "symbol": "segments", "profile": "value-contract" },
+            { "symbol": "text", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "IpAddress",
+          "kind": "enum",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "parse", "profile": "net-address-value" },
+            { "symbol": "family", "profile": "value-contract" },
+            { "symbol": "text", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "SocketAddress",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "init", "profile": "net-address-value" },
+            { "symbol": "ip", "profile": "value-contract" },
+            { "symbol": "port", "profile": "value-contract" },
+            { "symbol": "scopeId", "profile": "value-contract" },
+            { "symbol": "parse", "profile": "net-address-value" },
+            { "symbol": "family", "profile": "value-contract" },
+            { "symbol": "text", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "HostName",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "init", "profile": "net-address-value" },
+            { "symbol": "text", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Endpoint",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "init", "overloads": 2, "profile": "net-address-value" },
+            { "symbol": "host", "profile": "value-contract" },
+            { "symbol": "port", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "EndpointHost",
+          "kind": "enum",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "ListenAddress",
+          "kind": "struct",
+          "profile": "net-address-value",
+          "members": [
+            { "symbol": "loopback", "profile": "net-address-value" },
+            { "symbol": "allInterfaces", "profile": "net-address-value" },
+            { "symbol": "address", "profile": "net-address-value" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "ResolveLimits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "maximumAddresses", "profile": "value-contract" },
+            { "symbol": "maximumCnameDepth", "profile": "value-contract" },
+            { "symbol": "maximumResponseBytes", "profile": "value-contract" },
+            { "symbol": "maximumAllocationBytes", "profile": "value-contract" }
+          ]
+        },
+        { "symbol": "AddressPreference", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "ConnectOptions",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "maximumAttempts", "profile": "value-contract" },
+            { "symbol": "fallbackDelay", "profile": "value-contract" },
+            { "symbol": "preference", "profile": "value-contract" },
+            { "symbol": "local", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" },
+            { "symbol": "equals", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "ListenerLimits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "maximumBacklog", "profile": "value-contract" },
+            { "symbol": "maximumQueuedAccepts", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "DatagramLimits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "maximumDatagramBytes", "profile": "value-contract" },
+            { "symbol": "maximumQueuedDatagrams", "profile": "value-contract" },
+            { "symbol": "maximumQueuedBytes", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Datagram",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "bytes", "profile": "value-contract" },
+            { "symbol": "peer", "profile": "value-contract" },
+            { "symbol": "truncated", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "Network",
+          "kind": "struct",
+          "profile": "net-listener-carrier",
+          "members": [
+            { "symbol": "resolve", "profile": "net-listener-carrier" },
+            { "symbol": "connectTcp", "profile": "net-listener-carrier" },
+            { "symbol": "listenTcp", "profile": "net-listener-carrier" },
+            { "symbol": "bindUdp", "profile": "net-listener-carrier" }
+          ]
+        },
+        {
+          "symbol": "TcpConnection",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "localAddress", "profile": "net-address-value" },
+            { "symbol": "peerAddress", "profile": "net-address-value" },
+            { "symbol": "read", "profile": "byte-source" },
+            { "symbol": "write", "profile": "byte-sink" },
+            { "symbol": "split", "profile": "net-transport" },
+            { "symbol": "finishWriting", "profile": "net-transport" }
+          ]
+        },
+        {
+          "symbol": "TcpReadHalf",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "read", "profile": "byte-source" }
+          ]
+        },
+        {
+          "symbol": "TcpWriteHalf",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "write", "profile": "byte-sink" },
+            { "symbol": "finish", "profile": "net-transport" }
+          ]
+        },
+        {
+          "symbol": "AcceptedTcp",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "connection", "profile": "net-transport" },
+            { "symbol": "peer", "profile": "net-address-value" }
+          ]
+        },
+        {
+          "symbol": "TcpListener",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "accept", "profile": "net-transport" },
+            { "symbol": "localAddresses", "profile": "net-address-value" }
+          ]
+        },
+        {
+          "symbol": "UdpSocket",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "localAddresses", "profile": "net-address-value" },
+            { "symbol": "receive", "profile": "net-transport" },
+            { "symbol": "send", "profile": "net-transport" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.http",
       "tier": "T2",
       "availability": "http-host-or-adapter",
@@ -1005,7 +1285,6 @@
         },
         { "symbol": "HttpError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "NetworkError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "BodySource", "kind": "enum", "profile": "http-body-source" },
@@ -1285,7 +1564,7 @@
       "providerModule": "std.net",
       "surface": "ListenAddress/Network",
       "profile": "net-listener-carrier",
-      "status": "missing",
+      "status": "draft",
       "readiness": "required",
       "consumers": ["std.http.serve"]
     }
@@ -1384,7 +1663,7 @@
       "consumer": "reference/last-light/app.w",
       "profile": "http-server",
       "requires": ["sdk0-net-listener"],
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-response-error",

@@ -32,6 +32,8 @@ std/
     contracts.w
   io/
     contracts.w
+  net/
+    contracts.w
   json/
     contracts.w
   runtime/
@@ -109,7 +111,26 @@ independentemente, o wrapper temporário cai no fim da full expression e um
 wrapper explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao
 `request root`; `signal` devolve uma duplicata owned com a mesma regra.
 `serve` exige limits, usa `net.ListenAddress`/`ref net.Network` e não transforma
-cancellation em `ServerError`; o carrier `std.net` continua missing.
+cancellation em `ServerError`. A interface `std.net` está em draft, mas seu
+provider `std.net@1` continua missing.
+
+`net/contracts.w` materializa o carrier de rede SDK0 T1. `Network` é uma
+capability host-provided move-only, sem initializer público, e as operações
+públicas borrowam descriptors. Address values são data-only e bounded.
+`HostName` usa UTS #46 nontransitional, STD3, validade IDNA2008 e forma A-label
+ASCII lowercase; um único trailing dot é removido e nenhum OS search suffix é
+aplicado. Parse/format de IP e socket não fazem DNS. `SocketAddress` exige
+port, usa `192.0.2.1:443` ou `[2001:db8::1]:443`, e mantém scope numérico
+IPv6 dentro dos brackets. TCP atende diretamente a `std.io.ByteSource` e
+`ByteSink`, e `split` cria read/write halves owned. `finishWriting` faz FIN na
+connection não dividida. Calls por borrow de `Network` têm state independente.
+Calls `mut async` mantêm borrow exclusivo até completion ou cancellation drain.
+UDP mantém datagram boundaries, informa truncation e serializa uma receive ou
+send por socket. `ResolveLimits`, `ConnectOptions`,
+`ListenerLimits` e `DatagramLimits` possuem defaults finitos. O provider
+`std.net@1` continua missing até os gates de RFC 6724/8305/5952/8085,
+differential targets, capability denial, SSRF, cancellation, partial I/O, fault
+injection, sanitizers, leak, limits e fuzzing.
 
 `std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
 `ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.

@@ -741,14 +741,6 @@ export enum ResponseError: Error {
   invalidServerResponse
 }
 
-export enum NetworkError: Error {
-  unavailable
-  overloaded
-  timedOut
-  protocol
-  disconnected
-}
-
 export enum HttpError: Error {
   syntax(HttpSyntaxError)
   body(HttpBodyError)
@@ -763,8 +755,8 @@ export enum ServerError: Error {
   unavailable
   unsupported
   invalidConfiguration
-  listen(NetworkError)
-  accept(NetworkError)
+  listen(net.NetworkError)
+  accept(net.NetworkError)
   protocol(HttpError)
 }
 

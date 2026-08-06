@@ -172,6 +172,7 @@ alvo de execução independente.
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
+| `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -1604,6 +1605,13 @@ missing. `benchmark_app.w` anexa `Headers` a uma resposta HTML e constrói JSON
 com `Response.json`. `wifi_app.w` devolve 204 sem body.
 `worker_app.w` liga o gateway ao slot. `app.w` serve o mesmo handler no processo
 nativo. Todos usam o mesmo modelo de mensagem.
+
+`net_oracle.w` fixa o carrier de network SDK0. Ele usa somente constructors e
+parse textual estrito para IPv4, IPv6, socket e listen addresses. O oracle
+também chama resolve e connect com limits finitos e descriptors borrowed,
+separa os cursors TCP, demonstra `finishWriting` e termina o write half com
+`finish`, aceita uma conexão no listener e preserva truncation no UDP. Ele não
+alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
