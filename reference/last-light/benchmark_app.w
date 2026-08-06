@@ -3,24 +3,25 @@
 import cache from std
 import database from std
 import http from std
+import json from std
 import random from std
 import url from std
 
-export struct BenchmarkMessage {
+export struct BenchmarkMessage: json.Codable {
   message: String
 }
 
-export struct World {
+export struct World: json.Codable {
   id: i32
   randomNumber: i32
 }
 
-export struct CachedWorld {
+export struct CachedWorld: json.Codable {
   id: i32
   randomNumber: i32
 }
 
-export struct Fortune {
+export struct Fortune: json.Codable {
   id: i32
   message: String
 }
@@ -47,6 +48,15 @@ const cachedWorlds = cache.LocalBinding<i32, CachedWorld>(
   maximumEntries: 10_000,
   maximumActiveLoads: 256,
   maximumQueuedLoads: 4_096,
+)
+
+const fortunesTemplate = http.TemplateBinding(
+  name: "fortunes",
+  limits: http.TemplateLimits(
+    maximumOutputBytes: 1<MiB>,
+    maximumValues: 501,
+  ),
+  version: 1,
 )
 
 const worldById: database.Query<WorldKey, WorldRow> = database.Query(
@@ -86,7 +96,7 @@ export enum BenchmarkError: Error {
   cacheLoad(cache.LoadFailure<database.DatabaseError>)
   database(database.DatabaseError)
   response(http.ResponseError)
-  template(TemplateError)
+  template(http.TemplateError)
   transaction(database.TransactionFailure<database.DatabaseError>)
 }
 
@@ -138,7 +148,7 @@ fn randomWorldKeys(
 }
 
 async fn world(ctx: http.Context): World throws BenchmarkError {
-  let store = try ctx.databases.get(benchmarkDatabase)
+  let store = ctx.databases.get(benchmarkDatabase)
   let row = try await store.one(
     worldById,
     parameters: WorldKey(id: ctx.random.integer(in: 1...10_000)),
@@ -160,7 +170,7 @@ async fn worlds(
   count: usize<(1...500)>,
   ctx: http.Context,
 ): Array<World> throws BenchmarkError {
-  let store = try ctx.databases.get(benchmarkDatabase)
+  let store = ctx.databases.get(benchmarkDatabase)
   let keys = randomWorldKeys(count, ctx: ctx)
   let rows = try await store.queryMany(
     worldById,
@@ -173,7 +183,7 @@ async fn worlds(
 async fn renderFortunes(
   ctx: http.Context,
 ): http.Response throws BenchmarkError {
-  let store = try ctx.databases.get(benchmarkDatabase)
+  let store = ctx.databases.get(benchmarkDatabase)
   let rows = try await store.all(
     allFortunes,
     parameters: (),
@@ -191,7 +201,8 @@ async fn renderFortunes(
   ))
   fortunes.sort(by: (left, right) => left.message.compare(right.message))
 
-  let page = try ctx.templates.render("fortunes", values: fortunes)
+  let template = ctx.templates.get(fortunesTemplate)
+  let page = try template.render(values: ref fortunes)
   var headers = http.Headers()
   try headers.set("content-type", "text/html; charset=utf-8")
   return try http.Response(take page, headers: take headers)
@@ -201,7 +212,7 @@ async fn updateWorlds(
   count: usize<(1...500)>,
   ctx: http.Context,
 ): Array<World> throws BenchmarkError {
-  let store = try ctx.databases.get(benchmarkDatabase)
+  let store = ctx.databases.get(benchmarkDatabase)
   let keys = randomWorldKeys(count, ctx: ctx)
   let rows = try await store.queryMany(
     worldById,
@@ -247,8 +258,8 @@ async fn cachedQueries(
   count: usize<(1...500)>,
   ctx: http.Context,
 ): Array<CachedWorld> throws BenchmarkError {
-  let store = try ctx.databases.get(benchmarkDatabase)
-  let local = try ctx.caches.get(cachedWorlds)
+  let store = ctx.databases.get(benchmarkDatabase)
+  let local = ctx.caches.get(cachedWorlds)
   let loader = capture(ref store) (id: ref i32) => {
     return try await loadCachedWorld(id, store: store)
   }
@@ -270,27 +281,32 @@ async fn fetchBenchmark(
     case (.get, "/plaintext"):
       try http.Response("Hello, World!")
     case (.get, "/json"):
+      let payload = BenchmarkMessage(message: "Hello, World!")
       try http.Response.json(
-        BenchmarkMessage(message: "Hello, World!"),
+        value: ref payload,
         maximumBytes: 64<KiB>,
       )
     case (.get, "/db"):
-      try http.Response.json(try await world(ctx), maximumBytes: 64<KiB>)
+      let payload = try await world(ctx)
+      try http.Response.json(value: ref payload, maximumBytes: 64<KiB>)
     case (.get, "/queries"):
       let count = boundedRequestCount(request, parameter: "queries")
-      try http.Response.json(try await worlds(count, ctx: ctx), maximumBytes: 64<KiB>)
+      let payload = try await worlds(count, ctx: ctx)
+      try http.Response.json(value: ref payload, maximumBytes: 64<KiB>)
     case (.get, "/fortunes"):
       try await renderFortunes(ctx)
     case (.get, "/updates"):
       let count = boundedRequestCount(request, parameter: "queries")
+      let payload = try await updateWorlds(count, ctx: ctx)
       try http.Response.json(
-        try await updateWorlds(count, ctx: ctx),
+        value: ref payload,
         maximumBytes: 64<KiB>,
       )
     case (.get, "/cached-queries"):
       let count = boundedRequestCount(request, parameter: "count")
+      let payload = try await cachedQueries(count, ctx: ctx)
       try http.Response.json(
-        try await cachedQueries(count, ctx: ctx),
+        value: ref payload,
         maximumBytes: 64<KiB>,
       )
     case (_, _):

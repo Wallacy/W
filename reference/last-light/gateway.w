@@ -68,7 +68,7 @@ async fn decodeCommandBody(
 }
 
 // Compile-surface oracle only. The production route does not clone its request.
-// Runtime evidence waits for the Request draft and its bounded body tee.
+// Runtime evidence waits for std.http@1 and its bounded body tee.
 fn boundedRequestCloneCompileOracle(
   request: take http.Request,
 ): (http.Request, http.Request) throws http.BodyCloneError {
@@ -86,7 +86,7 @@ async fn fetch(request: take http.Request, ctx: http.Context): http.Response thr
     restaurant: lastLight,
     authority: .remoteClient,
   )
-  return try http.Response.json(response, maximumBytes: commandLimit)
+  return try http.Response.json(value: ref response, maximumBytes: commandLimit)
 }
 
 test "a remote command cannot stop the process" for canDispatch {

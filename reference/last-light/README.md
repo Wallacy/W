@@ -180,6 +180,7 @@ alvo de execução independente.
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch, routing por URL, body único e oracle de compile surface para clone bounded |
+| `http_oracle.w` | constructors, limits, consuming reads, bounded clone, JSON, copied-headers override e net serve signature |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
@@ -604,8 +605,7 @@ exatos dentro do target. `Number` é nominal e validado; `Value` é o sum type,
 não `Any`; duplicates, Unicode inválido, nonfinite, trailing comma e comments
 falham. Object equality ignora ordem, mas re-encode preserva insertion order.
 `Command`, `AppResponse` e `WifiSession` ainda precisam de schemas/witnesses de
-domínio; as calls são targets de source, não prova de type-check. O próximo
-bundle HTTP fecha esses schemas junto de Request/Response. O provider
+domínio; as calls são targets de source, não prova de type-check. O provider
 `std.json@1` continua missing, portanto os testes do arquivo são oracles
 provider-gated e não alegam execução.
 
@@ -1591,13 +1591,17 @@ cancel 42
 shutdown
 ```
 
-O oracle de mensagens Web cruza cinco sources HTTP. `gateway.w` roteia por
+O oracle de mensagens Web cruza seis sources HTTP. `gateway.w` roteia por
 `request.url.pathname` antes de consumir o body. O receiver `take` impede uma
 segunda leitura. `boundedRequestCloneCompileOracle` registra somente a
-assinatura consuming e o limite do clone. O caminho de produção não chama esse
-helper, e o corpus não alega execução do tee enquanto o draft de `Request` e os
-carriers estão ausentes. `benchmark_app.w` anexa `Headers` a uma resposta HTML e
-constrói JSON com `Response.json`. `wifi_app.w` devolve 204 sem body.
+assinatura consuming e o limite do clone. `http_oracle.w` concentra os
+constructors, o limite de body, as leituras consuming, o clone bounded, o JSON
+de um tipo simples `json.Codable`, a cópia explícita de incoming headers via
+`RequestOverride` e a assinatura de `serve` com carriers `net`. O caminho de
+produção não chama esse helper, e o corpus
+não alega execução enquanto `std.http@1` e os carriers executáveis estão
+missing. `benchmark_app.w` anexa `Headers` a uma resposta HTML e constrói JSON
+com `Response.json`. `wifi_app.w` devolve 204 sem body.
 `worker_app.w` liga o gateway ao slot. `app.w` serve o mesmo handler no processo
 nativo. Todos usam o mesmo modelo de mensagem.
 

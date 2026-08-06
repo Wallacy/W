@@ -82,9 +82,9 @@ import { Command } from command
 import { lastLight } from restaurant
 
 async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let command = try request.json.decode<Command>()
+  let command = try await (take request).json<Command>(maximumBytes: 64<KiB>)
   let response = try await dispatch(take command, restaurant: lastLight)
-  return try http.Response.json(response)
+  return try http.Response.json(value: ref response, maximumBytes: 64<KiB>)
 }
 
 entry(runNative)

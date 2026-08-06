@@ -90,6 +90,27 @@ materializa snapshots owned de `URLSearchParams` somente por call explícita.
 `editSearchParams` mantém a mutação do URL scoped. Os outros arquivos
 materializam values e protocols de T2.
 
+`http/contracts.w` materializa o draft SDK0 de `Request`, `Response`,
+`Context` e a declaration de `serve`. Um único provider intrinsic `std.http@1` possui handles de
+mensagem, body, contexto e host. O provider continua missing até os gates
+WHATWG Fetch, Streams integration, WPT Fetch/Headers, WinterTC/WinterCG,
+workerd differential, ownership/tee fault injection, admission/cancellation,
+ASan/TSan/leak e limits/fuzzing.
+
+`BodySource` aceita somente String, Bytes, URLSearchParams e
+`ReadableStream<Bytes, HttpBodyError>`. `Blob` e `FormData` permanecem
+profile-final. Request e Response são owners move-only. Reads e clone são
+consuming e bounded. `Request.json`/`Response.json` compõem `std.json` comum;
+o valor de `Response.json` é borrowed. `http.Context` expõe wrappers tipados
+para random, databases, caches, templates e signal. Registries usam bindings
+const infallible resolvidos no link/startup e retornam `some` protocol owners.
+As properties do `Context` são lazy: cada acesso recebe um owner retido
+independentemente, o wrapper temporário cai no fim da full expression e um
+wrapper explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao
+`request root`; `signal` devolve uma duplicata owned com a mesma regra.
+`serve` exige limits, usa `net.ListenAddress`/`ref net.Network` e não transforma
+cancellation em `ServerError`; o carrier `std.net` continua missing.
+
 `std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
 `ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.
 Um namespace alias, como `process.Arguments`, continua válido. O módulo não
@@ -128,8 +149,9 @@ failure semantics.
 
 `Duration`, `Task`, `Deadline`, `Cancellation`, `CancellationId`, `WorkId`,
 `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`, `StepContext`,
-`build.Context`, `ProcessContext`, `Request`, `Response`, `http.Context` e
-handles de capability ainda são intrinsics do compiler/runtime.
+`build.Context`, `ProcessContext` e handles de capability ainda são intrinsics
+do compiler/runtime. `Request`, `Response` e `http.Context` têm wrappers W
+draft sobre o provider `std.http@1`.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:
