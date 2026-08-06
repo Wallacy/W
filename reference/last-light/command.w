@@ -53,8 +53,10 @@ fn decodeCourse(value: view String): Course throws CommandError {
 fn decodeOrder(fields: ref Array<view String>, span: SourceSpan): Order throws CommandError {
   guard fields.count >= 5 else throw .missingField(name: "order", span: span)
 
-  let orderId = try OrderId.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
-  let guestId = try GuestId.parse(fields[2]).mapError((_) => .invalidNumber(name: "guest-id", span: span))
+  let orderIdCarrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
+  let guestIdCarrier = try u64.parse(fields[2]).mapError((_) => .invalidNumber(name: "guest-id", span: span))
+  let orderId = OrderId(orderIdCarrier)
+  let guestId = GuestId(guestIdCarrier)
   let guests = try GuestCount.parse(fields[3]).mapError((_) => .invalidNumber(name: "guests", span: span))
   let course = try decodeCourse(fields[4])
   var notes: String? = .none
@@ -74,7 +76,8 @@ fn decodeOrder(fields: ref Array<view String>, span: SourceSpan): Order throws C
 
 fn decodeOrderId(fields: ref Array<view String>, span: SourceSpan): OrderId throws CommandError {
   guard fields.count >= 2 else throw .missingField(name: "order-id", span: span)
-  return try OrderId.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
+  let carrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
+  return OrderId(carrier)
 }
 
 fn decodeSimulationProfile(

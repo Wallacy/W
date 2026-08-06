@@ -4,6 +4,13 @@ import http from std
 import json from std.json
 import { Command } from command
 import { AppResponse } from presentation
+import {
+  AppResponseDocument,
+  CommandDocument,
+  CommandDocumentError,
+  ProblemCode,
+  problemResponse,
+} from http_documents
 import { RestaurantApi, RestaurantError, lastLight } from restaurant
 import { SimulationError, simulateShift } from simulation
 import { commandLimit } from units
@@ -16,6 +23,7 @@ enum DispatchError: Error {
 
 enum GatewayError: Error {
   decode(http.BodyDecodeError<json.DecodeError>)
+  schema(CommandDocumentError)
   dispatch(DispatchError)
   response(http.ResponseError)
   service(ServiceFailure)
@@ -30,6 +38,16 @@ const fn canDispatch(command: ref Command, authority: HostAuthority): Bool {
   return switch (authority, command) {
     case (.remoteClient, .shutdown): false
     case (_, _): true
+  }
+}
+
+fn gatewayProblemCode(error: ref GatewayError): ProblemCode? {
+  return switch error {
+    case .decode(_): .some(.malformedJson)
+    case .schema(_): .some(.invalidCommand)
+    case .dispatch(.unauthorizedCommand):
+      .some(.forbiddenShutdown)
+    case _: .none
   }
 }
 
@@ -62,9 +80,39 @@ async fn dispatch(
 
 async fn decodeCommandBody(
   request: take http.Request,
-): Command throws http.BodyDecodeError<json.DecodeError> {
+): Command throws GatewayError {
   // The consuming receiver makes a second body read a compile-time ownership error.
-  return try await (take request).json<Command>(maximumBytes: commandLimit)
+  let document: CommandDocument
+  do {
+    document = try await (take request).json<CommandDocument>(maximumBytes: commandLimit)
+  } catch error {
+    throw .decode(error)
+  }
+  do {
+    return try (take document).command()
+  } catch error {
+    throw .schema(error)
+  }
+}
+
+async fn handle(
+  request: take http.Request,
+  ctx: http.Context,
+): AppResponse throws GatewayError {
+  let command = try await decodeCommandBody(take request)
+  return try await dispatch(
+    take command,
+    restaurant: lastLight,
+    authority: .remoteClient,
+  )
+}
+
+fn gatewayProblemResponse(code: ProblemCode): http.Response throws GatewayError {
+  do {
+    return try problemResponse(code: code, maximumBytes: commandLimit)
+  } catch error {
+    throw .response(error)
+  }
 }
 
 // Compile-surface oracle only. The production route does not clone its request.
@@ -80,13 +128,26 @@ async fn fetch(request: take http.Request, ctx: http.Context): http.Response thr
     return try http.Response(status: http.StatusCode.notFound)
   }
 
-  let command = try await decodeCommandBody(take request)
-  let response = try await dispatch(
-    take command,
-    restaurant: lastLight,
-    authority: .remoteClient,
-  )
-  return try http.Response.json(value: ref response, maximumBytes: commandLimit)
+  do {
+    let response = try await handle(take request, ctx)
+    let document = AppResponseDocument(response: ref response)
+    do {
+      return try http.Response.json(value: ref document, maximumBytes: commandLimit)
+    } catch error {
+      throw .response(error)
+    }
+  } catch error {
+    switch error {
+      case .decode(_):
+        return try gatewayProblemResponse(.malformedJson)
+      case .schema(_):
+        return try gatewayProblemResponse(.invalidCommand)
+      case .dispatch(.unauthorizedCommand):
+        return try gatewayProblemResponse(.forbiddenShutdown)
+      case _:
+        throw error
+    }
+  }
 }
 
 test "a remote command cannot stop the process" for canDispatch {
@@ -96,6 +157,18 @@ test "a remote command cannot stop the process" for canDispatch {
   expect canDispatch(shutdown, authority: .localOperator)
   expect !canDispatch(shutdown, authority: .remoteClient)
   expect canDispatch(menu, authority: .remoteClient)
+}
+
+test "gateway maps only documented boundary failures" {
+  let malformed = GatewayError.decode(.codec(.invalidNumber(location: json.Location(byteOffset: 0))))
+  let invalid = GatewayError.schema(.invalidKind(.kind))
+  let forbidden = GatewayError.dispatch(.unauthorizedCommand)
+  let unclassified = GatewayError.dispatch(.restaurant(.domain(.overflow)))
+
+  expect gatewayProblemCode(ref malformed) == .some(.malformedJson)
+  expect gatewayProblemCode(ref invalid) == .some(.invalidCommand)
+  expect gatewayProblemCode(ref forbidden) == .some(.forbiddenShutdown)
+  expect gatewayProblemCode(ref unclassified) == .none
 }
 
 export {

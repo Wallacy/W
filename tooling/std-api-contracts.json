@@ -701,6 +701,8 @@
           { "symbol": "byteOffset", "profile": "value-contract" }
         ] },
         { "symbol": "SyntaxKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ValueKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ValueConstraint", "kind": "enum", "profile": "value-contract" },
         { "symbol": "ValueError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "EncodeError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "DecodeError", "kind": "enum", "profile": "value-contract" },
