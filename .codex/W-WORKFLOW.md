@@ -75,7 +75,7 @@ Retorno: resultado, arquivos, checks, riscos e diff resumido.
 ```
 
 Crie o worker com o nome `w_luna_worker` e sem copiar o histórico completo
-quando a interface permitir, como `fork_turns: none`. O pacote deve conter o
+quando a interface permitir, como `fork_turns: "none"`. O pacote deve conter o
 contexto mínimo suficiente. Configuração e instruções do repositório fornecem o
 restante. Não faça uma segunda leitura da codebase antes de delegar.
 
@@ -88,6 +88,25 @@ como fallback silencioso.
 
 Depois de alterar `.codex/config.toml` ou `.codex/agents/`, inicie uma tarefa
 nova antes do teste. Uma tarefa existente pode preservar a configuração antiga.
+
+## Compatibilidade do runtime do Codex
+
+Em 6 de agosto de 2026, o `spawn_agent` nativo do Multi-Agent V2 aceita Sol e
+Terra, mas rejeita Luna. O erro lista Luna como modelo desconhecido. `task_name`
+nomeia a tarefa e não seleciona um perfil. `fork_turns: "none"`, o perfil local
+e os defaults do projeto não corrigem essa limitação.
+
+Tarefas antigas de QCC, Yes Cloud e Lynx Studio ainda criaram Luna por um runtime
+anterior. Uma tarefa nova com Sol não reproduziu esse resultado. W e Woobie
+criaram Sol sob nomes que indicavam Luna. Verifique sempre os metadados reais.
+
+Dois contornos foram verificados:
+
+- `codex exec` aceita Luna Max como processo independente, sem handoff integrado;
+- uma tarefa principal Luna Max consegue criar um subagente Sol High.
+
+Não altere o catálogo de modelos e não use hooks de reescrita como correção
+silenciosa. Use um contorno somente depois de o usuário escolher a topologia.
 
 ## Granularidade do bundle
 
@@ -228,5 +247,7 @@ Não repita um check quando nenhuma entrada mudou.
 - [OpenAI — Customization e AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
 - [OpenAI — modelos no Codex](https://learn.chatgpt.com/docs/models#recommended-models)
 - [OpenAI — subagentes](https://learn.chatgpt.com/docs/agent-configuration/subagents)
+- [OpenAI Codex — Luna rejeitado no `spawn_agent`](https://github.com/openai/codex/issues/34909)
+- [OpenAI Codex — roteamento Sol para Luna](https://github.com/openai/codex/issues/31814)
 
 Reavalie o roteamento quando modelos, limites ou avaliações mudarem.
