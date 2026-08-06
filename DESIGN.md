@@ -13982,8 +13982,8 @@ antes de Response produz 500 fixo do host profile, sem payload do error.
 ou tee sem bound, Context ambiental/string lookup/global, um segundo modelo de
 HTTP server-side, Blob/FormData parcial e JSON de domínio lossy para contornar
 Quantity/SI. Schemas `Command`, `AppResponse` e `WifiSession` continuam targets
-separados. `AppResponse.simulation` permanece bloqueado até uma política wire de
-Quantity/SI fechar.
+separados. A policy wire de Quantity/SI está fechada por W-903. Os witnesses de
+`Command`, `AppResponse` e `WifiSession` permanecem trabalho seguinte.
 
 **Forma vigente:** a superfície web de W usa os contratos da Web Platform como
 base. `Request`, `Response`, `Headers`, `URL`, `URLSearchParams`, `fetch`,
@@ -16071,6 +16071,17 @@ ambígua exigem witness manual. `Display`, outros codecs e schemas continuam
 **Rejeitado** para synthesis automática. A decisão não adiciona annotation ou
 macro. Ela refina W-314 somente para esta família JSON fechada.
 
+**Quantity em JSON.** Quantity não recebe `json.Codable` genérico ou automático.
+O schema de domínio escolhe a unit e a representation de documento. A forma
+canônica está em [15.5.4](#1554-json-de-domínio-para-quantity).
+
+```json
+{ "value": 30, "unit": "s" }
+```
+
+O object usa os members `value` e `unit`. O resumo deste protocolo não duplica o
+contrato de token, rounding ou decimal de 15.5.4.
+
 O HTTP usa os nomes qualificados do módulo. `Request.json` continua consuming e
 bounded e devolve `http.BodyDecodeError<json.DecodeError>` por composição W de
 `bytes` e `json.decode`. O constructor `Response.json` recebe `ref Value`,
@@ -16084,8 +16095,9 @@ bound menor depois, mas não escolhe silenciosamente as outras dimensões.
 provider e os carriers executáveis continuam missing. A mudança de carrier
 desbloqueia `ResponseError` quando seus outros requirements estão satisfeitos.
 `Command`, `AppResponse` e `WifiSession` continuam targets de source e ainda
-precisam de schemas/witnesses de domínio. `AppResponse.simulation` aguarda uma
-política wire para `Quantity`/SI. Este bundle HTTP não fecha esses schemas.
+precisam de schemas/witnesses de domínio. `AppResponse.simulation` passa a usar
+a policy de Quantity/SI fechada por W-903. Os witnesses de
+`Command`, `AppResponse` e `WifiSession` continuam trabalho seguinte.
 
 O provider interno `std.json@1` permanece missing. Antes de promover a
 interface, os gates precisam cobrir RFC 8259, RFC 7493/I-JSON, UTF-8 e Unicode,
@@ -16235,9 +16247,9 @@ provider missing `std.build@1`; `serve` ainda exige `std.net@1` e
 
 Os consumers de JSON no Última Luz (`Command`, `AppResponse` e `WifiSession`)
 continuam targets separados de source. Eles ainda precisam de
-schemas/witnesses de domínio. `AppResponse.simulation` está bloqueado porque a
-política wire para `Quantity`/SI continua aberta. Este bundle não fecha esses
-schemas e não promete fechá-los junto de `Request` ou `Response`.
+schemas/witnesses de domínio. A policy wire para `Quantity`/SI está fechada por
+W-903. Os witnesses de `Command`, `AppResponse` e `WifiSession` continuam
+trabalho seguinte e não entram neste bundle.
 
 Oito requisitos de carrier tornam o bloqueio verificável. Seis possuem draft
 e dois continuam missing. Os carriers obrigatórios do núcleo Fetch têm
@@ -16866,8 +16878,11 @@ currency, rate, instante e fonte explícitos. Mês e ano pertencem a Calendar.
 unit smoot = 1.7018<m>
 
 let measured = Quantity(input, unit: smoot)
-let meters = measured.converted(to: m)
+let meters = measured.value(in: m)
 ```
+
+`converted(to:)` não entra na surface. Ele retornaria o mesmo tipo e carrier,
+sem preferred unit runtime.
 
 Import de unit usa o mesmo sistema de módulos. A metadata registra dimensão,
 escala, offset, símbolo e origem versionada. Units são apagadas quando
@@ -16875,6 +16890,189 @@ reflection/formatting não as alcança.
 
 Sugars como `90C`, `90°F`, `5km` e `64KiB` continuam num mapa da edição. Tooling
 mostra a expansão. Source gerado e API pública preferem a forma delimitada.
+
+### 15.5 Quantity/SI: identidade e representação
+
+**Exemplo:** `30<s>` e `0.5<min>` representam a mesma duração canônica.
+
+Uma `dimension` define um eixo semântico. Uma dimensão derivada normaliza para
+uma lista ordenada de IDs estáveis de dimensões-base e expoentes inteiros.
+`Angle` e uma dimensão customizada continuam semanticamente fortes. Elas não
+colapsam somente porque uma análise SI tradicional as chama de dimensionless.
+
+```w
+let fromSeconds: PhysicalDuration = 30<s>
+let fromMinutes: PhysicalDuration = 0.5<min>
+let sameBits = fromSeconds.canonicalValue.toBits() == fromMinutes.canonicalValue.toBits()
+```
+
+Cada dimensão-base declara exatamente uma reference unit. A reference de uma
+dimensão derivada é a unidade coerente formada pelas references das bases.
+`std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol` e `cd`. `si.Angle` usa `rad` como
+eixo semântico forte. Essa é uma escolha de W, não uma nova base SI oficial.
+Temperature point e delta usam `K`. `std.iec.Information` usa `bit` como
+reference.
+
+Uma dimensão customizada exige exatamente uma declaração `unit name: Dimension`,
+independente da ordem dos arquivos ou declarations no módulo. Essa declaração
+é a reference. Uma segunda declaration com `:` é diagnostic.
+
+```w
+dimension Applause
+unit clap: Applause       // reference única de Applause
+unit ovation = 1_000<clap>
+// `unit second: Applause` é diagnostic: a dimensão já tem sua reference.
+```
+
+Aliases de unit e grafias equivalentes resolvem para o mesmo D e a mesma
+reference. O ID de uma dimensão-base customizada é a identidade pública
+qualificada da declaration. Um alias ou rename que altera essa identidade pode
+alterar o schema. W não inventa annotation para congelar essa identidade.
+
+`Quantity<D, R>` guarda somente o magnitude de D em sua reference unit,
+representado por R. O value não guarda source unit, display unit, string ou
+runtime tag.
+
+```w
+let duration: PhysicalDuration = 30<s>
+let magnitude: f64 = duration.canonicalValue
+```
+
+Quantity linear, affine point e affine delta são identidades distintas. Units
+afins não participam de multiply, divide ou power. Point mais delta produz
+point. Point menos point produz delta. Point mais point é diagnostic.
+
+```w
+let opening: Temperature = 180<degC>
+let closing: Temperature = 20<degC>
+let elapsed: TemperatureDelta = opening - closing
+let restored: Temperature = closing + elapsed
+// `opening + closing` é diagnostic por somar dois affine points.
+```
+
+Units logarítmicas produzem `Level`, não Quantity linear. Currency e duração
+calendárica continuam fora deste modelo. Uma unit afim usa a equação exata
+`referenceValue = value * scale + offset`.
+
+#### 15.5.1 Conversão e bits
+
+Scale e offset de unit são constantes racionais exatas no type checker. Ao
+materializar R integer, o checker usa aritmética racional checked. O resultado
+deve ser integral e caber em R. Um literal que falha é diagnostic.
+
+```w
+let invalid: Quantity<si.Duration, u64> = 0.5<si.s> // diagnostic: fractional
+let bytes: MemorySize = 64<KiB>
+let referenceBits: u64 = bytes.canonicalValue
+let octets: u64 = try bytes.exactValue(in: B)
+```
+
+Uma conversão runtime dependente do value usa constructor fallible. O
+constructor normal existe somente para conversão total. A forma
+`Quantity(exactly: ..., unit: ...)` é fallible.
+
+```w
+let inputBytes: u64 = bytesFromDevice
+let measured: MemorySize = try Quantity(exactly: inputBytes, unit: B)
+let identity: MemorySize = Quantity(inputBits, unit: bit)
+```
+
+Ao materializar f32 ou f64, cada coeficiente racional converte uma vez com
+nearest-even. A operação linear executa multiply. A operação afim executa
+multiply e depois add. Essas operações são strict, sem FMA implícita ou
+reassociação. Const evaluation usa o mesmo plano observável de runtime.
+
+`canonicalValue` é read-only e expõe R. `value(in:)` só existe quando a
+conversão é total para R, inclusive identity e float IEEE. `exactValue(in:)` é
+fallible e nunca arredonda. A forma `try value(in:, rounding:)` torna explícito
+o rounding integer. Ela ainda pode falhar por overflow ou non-finite conforme
+as regras numéricas.
+
+```w
+let displayMinutes: f64 = fromSeconds.value(in: si.min)
+let exactBytes: u64 = try bytes.exactValue(in: B)
+let integralDuration: Quantity<si.Duration, u64> = 1<s>
+let roundedMinutes: u64 = try integralDuration.value(in: min, rounding: .towardZero)
+```
+
+Conversão entre representations é explícita e segue as regras numéricas de
+15.1.2. Ela não esconde narrowing, non-finite, fraction ou perda de precisão.
+
+#### 15.5.2 Layout e performance
+
+Quantity possui o mesmo storage interno e layout de R. Não existe metadata por
+value. A ABI pública e a FFI continuam sujeitas às regras gerais. O layout
+sozinho não promete equivalência ABI ou FFI.
+
+```w
+let packed: u64 = bytes.canonicalValue // somente o carrier R atravessa esta leitura
+```
+
+O optimizer pode apagar uma conversão provada, combinar factors exatos antes da
+materialização, propagar refinements, estreitar operações e vetorizar ou
+tensorizar. Ele não pode apagar uma dimensão semântica, reassociar float strict
+ou mudar o rounding.
+
+Reflection e formatting podem reter metadata estática alcançável. Essa metadata
+não muda cada value. W não possui runtime unit registry nem parsing de unit no
+hot path.
+
+#### 15.5.3 wWire para Quantity
+
+O wWire codifica somente os bytes portáveis de R já normalizado. Ele nunca
+codifica source unit ou display unit por value.
+
+```w
+// `30<s>` e `0.5<min>` usam o mesmo R e os mesmos bytes wWire.
+```
+
+`WireSchemaDigest` de Quantity inclui a forma normal da dimensão, com stable IDs
+de bases e expoentes inteiros, o kind `linear`, `point` ou `delta`, a identidade
+da reference unit, R, refinements e validation. Alias de Quantity não cria
+schema novo.
+
+Alterar display symbol ou a unit escrita no source não altera o schema. Alterar a
+identidade da dimensão, a semântica da reference, o kind ou R é incompatível
+sem adapter explícito e prova de conversion. Profiles `exact` e `compatible`
+não negociam nem convertem units dinamicamente no payload.
+
+#### 15.5.4 JSON de domínio para Quantity
+
+Quantity não recebe `json.Codable` genérico ou automático. O schema de domínio
+escolhe unit e representation de documento.
+
+```json
+{ "value": 30, "unit": "s" }
+```
+
+A forma recomendada é um object redundante para debug e interoperabilidade
+humana. O schema declara os members na ordem `value`, depois `unit`. O encoder
+emite essa ordem e sempre usa o mesmo token. O decoder aceita qualquer ordem de
+members, mas exige igualdade exata do token. Unknown e duplicate seguem 14.3.9.
+Ele não aceita token alternativo ou conversão.
+
+Recomenda-se o código [UCUM](https://unitsofmeasure.org/ucum) case-sensitive para
+units cobertas. UCUM é um precedente para código canônico e equivalence de units.
+W não declara conformidade completa com UCUM. Uma custom unit usa um token
+estável definido pelo schema. O token JSON não precisa ser o display symbol W.
+
+Floats usam JSON number e devem ser finite no profile existente. Integer que
+pode exceder o safe range I-JSON usa String decimal canônica em `value`. A forma
+do schema não muda conforme o value runtime.
+
+Uma decimal unsigned canônica segue `0|[1-9][0-9]*`. Uma decimal signed segue
+`0|-?[1-9][0-9]*`. Não há sinal plus nem leading zero. O decoder faz range check.
+
+Para o schema `tickDuration`, o token é sempre `s`. Para `energyUsed`, o token é
+sempre `J`. Para `MemorySize`, o profile integer usa
+`{"value":"524288","unit":"bit"}`. `{"value": 30, "unit": "ms"}` é rejeitado. A forma com field
+embutido, como `tickDurationSeconds`, permanece **Alternativa** para APIs muito
+compactas. `{ "value": 30, "arbitraryUnit": "ms" }` permanece **Rejeitado por
+enquanto** por canonicality, attack surface e schema ambiguity.
+
+`std.json@1` continua missing. O contrato JSON de Quantity é, portanto, um
+oracle de compile surface e schema documentado até existir provider. Ele não
+afirma writer, decoder ou negociação executáveis.
 
 ## 16. Texto, bytes e collections
 
@@ -24209,7 +24407,10 @@ error de uma operation. O digest inclui:
 - stable IDs, wire kinds e presença dos fields;
 - domínio dos scalars e enum subsets;
 - ordem de collections e shapes de tensors;
-- refinements, units e regras necessárias para validar o valor.
+- forma normal de cada dimensão, com stable IDs de dimensões-base e expoentes
+  inteiros;
+- kind de Quantity (`linear`, `point` ou `delta`), identidade da reference unit,
+  representation R, refinements e regras necessárias para validar o valor.
 
 O digest não inclui nome source, documentation, span ou layout de memória. A
 negociação semântica ocorre primeiro. Depois, cada raiz seleciona seu profile:
@@ -24222,6 +24423,10 @@ negociação semântica ocorre primeiro. Depois, cada raiz seleciona seu profile
 Ambos usam bytes portáveis. `exact` não é o layout de memória, a ABI W ou uma
 cópia de struct. Uma call pode usar `exact` no input e `compatible` no output.
 Adicionar outra operation não força um payload inalterado a usar `compatible`.
+
+Quantity segue a elegibilidade de `newtype` e unit. A integração detalhada está
+em [15.5.3](#1553-wwire-para-quantity). O wWire continua carregando somente o
+carrier R normalizado, sem metadata de unit por value.
 
 **Elegibilidade estrutural.** O compiler deriva um fato interno `WireValue`.
 Ele não é protocol público e não aceita conformance manual. O fato segue estas
@@ -26711,8 +26916,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
 | W-899 | AbortSignal portátil | `std.abort` adapta o first-wins Web sem substituir a cancellation monotônica de W; `AbortReason` é `Error & Copy`, fechado e bounded; signal duplica handle O(1), devolve reason por valor, oferece `throwIfAborted` tipado, espera pelo reason sem perder wake, não concede authority e não é `WireValue`; controller é move-only, first-wins atômico e drop não aborta; timeout zero já está abortado, timeout positivo possui timer-resource independente do creator/root, continua ao escapar e cobra o execution domain sem manter task viva; falha de timer budget publica cancellation e solicita cancellation estrutural; `any` preserva o nome Web e valida antes de registrar: argumentos diretos e folhas pending únicas após flatten/dedup precisam caber no mesmo `maximumSources` por result, inputs abortados só vencem depois das duas validações e cada folha pending recebe uma registration; total vivo do execution domain depende do allocation/admission budget do provider, não do fan-in de uma call; o DAG não cria cycle; Request recebe signal interno dependente; error Web versus task cancellation segue settlement/commit e sempre drena I/O; RPC geral usa automatic call cancellation, Request usa control frames e live-control edge fica alternativa futura; provider continua missing | colocar em `std.runtime`; transformar cancellation de task em application error; reason dinâmico, message, error arbitrário ou resource owner; renomear `any` como `combining`; EventTarget e callbacks no SDK0; signal com authority; controller duplicável; abort implícito no drop; ligar timeout genérico ao creator/root; wall clock; timer ou observer sem bound; tratar fan-in de uma call como limite global de dependents; validar winner antes dos bounds; permitir que terminal direto ou `any` pending contorne limite; ordem total fictícia para races; handle como `WireValue`; AbortSignal remoto geral no SDK0; implementação safe W sem atomics e hooks provados |
 | W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, errors tipados com `Location`/`SyntaxKind`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; schemas de Command/AppResponse/WifiSession continuam futuros; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
-| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e agora possui declaration draft, mas depende dos providers `std.net@1` e `std.http@1` missing; Blob/FormData continuam profile-final; schemas Command/AppResponse/WifiSession permanecem targets e AppResponse.simulation aguarda policy wire Quantity/SI | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; claims de execução sem provider |
+| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e agora possui declaration draft, mas depende dos providers `std.net@1` e `std.http@1` missing; Blob/FormData continuam profile-final; schemas Command/AppResponse/WifiSession permanecem targets e seus witnesses continuam futuros; AppResponse.simulation usa a policy wire Quantity/SI fechada em W-903 | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; claims de execução sem provider |
 | W-902 | rede SDK0 | `std.net` é módulo T1 com provider intrinsic único `std.net@1` missing; `Network` é capability nominal move-only sem initializer público e as APIs públicas borrowam HostName, Endpoint, ListenAddress e SocketAddress; AddressFamily, Ipv4Address, Ipv6Address, IpAddress, SocketAddress, HostName, Endpoint e ListenAddress são values tipados com bounds DNS/port, UTS #46 nontransitional, STD3, IDNA2008, trailing-dot único, ASCII lowercase e RFC 5952; `SocketAddress` exige port e aceita somente IPv4 `192.0.2.1:443`, IPv6 `[2001:db8::1]:443` e scope IPv6 dentro de brackets, como `[fe80::1%3]:443`; hostname e scope zero são rejeitados; parse/format de IP e socket são estritos, canônicos, fazem round-trip e não resolvem DNS; resolve usa ResolveLimits, port remoto `1...65_535` e connect usa RFC 6724/RFC 8305 bounded com attempts `1...16`, `fallbackDelay` não negativo e finito; cada IP é revalidado imediatamente antes de cada tentativa; calls por borrow em Network criam state independente e podem coexistir sem conflito de capability/policy; calls `mut async` mantêm borrow exclusivo até completion ou cancellation drain; TCP full duplex concorrente exige `split()` síncrono, e `finishWriting()` e `TcpWriteHalf.finish()` são `take async` consumidos antes da suspensão e em todo outcome; EOF é sticky, errors latched são observados antes da próxima operação e reset/abort/disconnect são terminais; drops só ocorrem após drain de borrows, limpam residual e liberam uma vez; UDP serializa no mesmo socket no máximo uma receive ou send em voo e mantém truncation explícita; NetworkLimitKind, `limitExceeded(kind, maximum)` e `messageTooLarge(maximum)` são portáveis; http.serve usa `net.NetworkError`, o carrier `sdk0-net-listener` está draft e o provider `std.net@1` continua missing; gates cobrem parse/format, differential targets, capabilities/SSRF, cancellation, partial I/O, fault injection, sanitizers, leak, limits e fuzzing | socket global, constructor de capability, network String names, raw sockets, fd inheritance, socket-option escape hatch, multicast/broadcast, Unix sockets, named pipes, TLS/STARTTLS, QUIC, WebSocket ou interface enumeration sem contracts próprios; tratar deadline de task como NetworkError.timedOut; prometer reliability, ordering ou congestion control no UDP; prometer cancelamento físico de syscall em target sem suporte; prometer split direcional ou protocolo genérico de datagram no SDK0 |
+| W-903 | Quantity/SI | dimensões normalizam para IDs-base e expoentes; `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol`, `cd`, Angle usa `rad` como eixo forte W e Temperature point/delta usam K; cada dimensão customizada exige exatamente uma declaration `unit name: Dimension`, independente de source/file order; `Quantity<D, R>` guarda somente magnitude em R; aliases preservam D; linear, affine point e affine delta são identidades distintas; scale/offset são rationals exact; integer exige resultado integral/in-range checked; float usa coeficiente nearest-even, multiply strict e affine multiply-then-add; `canonicalValue`, `value(in:)`, `exactValue(in:)` fallible sem rounding e `try value(in:, rounding:)` formam a surface explícita; layout é o de R sem metadata por value e não promete ABI/FFI; optimizer preserva dimensão, rounding e strict float; wWire carrega somente R e inclui dimensão normal, kind, reference, R, refinements e validation no `WireSchemaDigest`; JSON escolhe schema fixo `{value, unit}` na ordem value/unit, exige token exato, recomenda UCUM e decimal canônica, sem `json.Codable` genérico; Last Light usa `quantity_oracle.w` para 30 s/0.5 min, affine points, bits IEC e schemas `s`/`J`; providers `std.json@1` e wWire de produção continuam missing | **Alternativa:** field name com unit embutida para APIs compactas; **Pesquisa:** optimizer/vectorização e providers; **Rejeitado por enquanto:** `{value, arbitraryUnit}` com conversão dinâmica, level/log em Quantity linear, registry runtime e metadata por value |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

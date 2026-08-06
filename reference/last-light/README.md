@@ -156,6 +156,7 @@ alvo de execução independente.
 | `reflection.w` | TypeId local, reflection opt-in, synthesis e visibilidade |
 | `rest_arguments.w` | rest homogêneo, expansão `each`, ownership e call shape |
 | `units.w` | SI, dimensão e units customizadas |
+| `quantity_oracle.w` | Quantity/SI canonical value, affine points, IEC bits e schemas JSON |
 | `numerics.w` | literais, conversões, overflow, float, ranges, post-test loop e quantization |
 | `kitchen.w` | resources move-only, protocols térmicos, ranges e controle PID |
 | `oracle.w` | matriz/tensor, `@`, shape e cálculo de lotes |
@@ -414,14 +415,27 @@ Aceite:
 - `m`, `smoot`, `K`, `degC` e `clap` resolvem pelo import;
 - `PhysicalDuration`, `Power` e `Energy` são aliases; a dimensão já fornece
   identidade;
+- `30<s>` e `0.5<min>` têm o mesmo canonical value e o mesmo bit pattern;
+- `180<degC>` é affine point, e point menos point produz `TemperatureDelta`;
+- `64<KiB>` guarda reference bits em `MemorySize`, e `exactValue(in: B)` produz
+  bytes sem arredondamento;
 - `Power * PhysicalDuration` produz Energy;
 - `Duration` operacional não aceita conversão float implícita;
 - point menos point produz delta;
 - point mais point falha;
+- JSON de domínio fixa `{ "value": 30, "unit": "s" }` para `tickDuration` e
+  `{ "value": 12.5, "unit": "J" }` para `energyUsed`;
+- JSON usa `{"value":"524288","unit":"bit"}` para `MemorySize` integer;
+- token alternativo, como `"ms"` no schema de `tickDuration`, é rejeitado por
+  igualdade exata;
 - `switch` com range e `if` preserva a regra anti-windup;
 - `clamp` prova que o `DutyCycle` refinado está em `0.0...1.0`;
 - `{unit}` e `[unit]` aparecem somente no corpus comparativo;
 - lowering sem reflection remove metadata de unit.
+
+`quantity_oracle.w` registra esses casos. O caso JSON é um oracle de compile
+surface e schema documentado. `std.json@1` e o codec wWire de produção continuam
+missing. O arquivo não chama helper novo de writer ou decoder.
 
 ### 3.4.1 Arquivo das Filas Improváveis
 
