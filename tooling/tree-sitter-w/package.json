@@ -17,7 +17,7 @@
     "parse:platforms": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/platform/*/*.w",
     "parse:packages": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/packages/*/*.w",
     "parse:deployments": "tree-sitter parse --grammar-path . --quiet --stat ../../reference/last-light/deployments/*.w",
-    "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w ../../std/build/*.w ../../std/io/*.w ../../std/http/*.w ../../std/database/*.w ../../std/cache/*.w ../../std/url/*.w ../../std/stream/*.w ../../std/abort/*.w ../../std/json/*.w",
+    "parse:std": "tree-sitter parse --grammar-path . --quiet --stat ../../std/runtime/*.w ../../std/build/*.w ../../std/io/*.w ../../std/http/*.w ../../std/database/*.w ../../std/cache/*.w ../../std/url/*.w ../../std/stream/*.w ../../std/abort/*.w ../../std/json/*.w ../../std/net/*.w",
     "parse:fixture": "tree-sitter parse --grammar-path . --quiet --stat ../vscode-w/fixtures/*.w",
     "parse:studies": "tree-sitter parse --grammar-path . --quiet --stat ../studies/*/*.w",
     "index:design": "bun ../design-index.mjs --write",

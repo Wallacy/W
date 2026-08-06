@@ -13367,12 +13367,178 @@ async let response = writeResponse(take output)
 
 Os halves atendem a `ByteSource<NetworkError>` e
 `ByteSink<NetworkError>`. Cada half é move-only e transferable. O write half
-oferece `take async fn finish()` para half-close; destruir a conexão é abortivo.
+oferece `take async fn finish()` para half-close. A conexão não dividida oferece
+`take async fn finishWriting()` e devolve o read half depois de enviar FIN.
 
-TCP não preserva messages. UDP não atende a `ByteSource`: ele usa
-`DatagramSource<Message, Failure>` e devolve um datagram, endereço e truncation
-status por receive. TLS e HTTP são adapters T2 sobre byte contracts; handshake,
-record close e protocol errors não desaparecem dentro de `read`.
+TCP não preserva messages. UDP é uma boundary concreta de SDK0 e devolve
+`Datagram { bytes, peer, truncated }`. Uma interface genérica de datagram fica
+para uma decisão futura. TLS e HTTP são adapters T2 sobre byte contracts;
+handshake, record close e protocol errors não desaparecem dentro de `read`.
+
+#### 14.2.7.1 Rede SDK0 e o carrier `std.net`
+
+**Exemplo:** um server recebe a capability do host e abre um listener bounded.
+
+```w
+let address = .loopback(port: 8_080)
+let listener = try await ctx.network.listenTcp(
+  at: ref address,
+  limits: net.ListenerLimits(maximumBacklog: 128),
+)
+```
+
+**Forma vigente:** `std.net` é um módulo T1 com a interface pública fechada e
+um único provider intrinsic `std.net@1`. O provider continua **missing**. A
+interface fixa o carrier usado por `http.serve`, mas não inventa um runtime de
+sockets.
+
+`Network` é uma capability nominal move-only fornecida pelo host. Seu
+initializer não é público. Process e HTTP recebem `ref Network` a partir de um
+slot de entry. Um shared borrow somente existe no root autorizado pelo host.
+`Network` não cruza service, wire, storage ou FFI. O product e o deployment
+podem reduzir independentemente direction, protocol, address e prefix,
+hostname suffix, port, DNS, sockets e buffers.
+
+Cada endpoint dinâmico deve ser verificado depois de resolver e imediatamente
+antes de cada tentativa. Essa verificação bloqueia bypass por DNS rebinding ou
+por uma resposta que muda a família de endereço. A ordenação DNS e o Happy
+Eyeballs devem respeitar o menor limite entre product, deployment e call. Um IP
+literal não usa DNS. Nenhum OS search suffix deve ser aplicado.
+
+Os values de endereço são data-only e não concedem authority:
+
+- `AddressFamily` possui `ipv4`, `ipv6` e `any`.
+- `Ipv4Address` guarda quatro octets e possui constructor `const`, helpers de
+  loopback e unspecified, parse estrito e format decimal pontuado.
+- `Ipv6Address` guarda oito segments `u16`, possui os mesmos helpers e usa a
+  forma RFC 5952 para format. Scope ID não pertence ao value.
+- `IpAddress` fecha os cases `v4` e `v6`.
+- `SocketAddress` contém `IpAddress`, port `u16` e scope ID opcional somente
+  para IPv6. Port zero é válido para bind. `parse` e `text` são estritos e
+  não fazem DNS. Port é obrigatório. IPv4 usa `192.0.2.1:443`. IPv6 usa
+  `[2001:db8::1]:443`. Scope numérico IPv6 fica dentro dos brackets, como em
+  `[fe80::1%3]:443`. Hostname não é aceito. Scope zero é rejeitado. `text`
+  emite a forma canônica e faz round-trip com `parse`.
+- `HostName` é nominal. A normalização converte uma entrada Unicode para a
+  forma ASCII canônica definida pelo profile, aplica os bounds DNS e rejeita
+  nome inválido.
+- `Endpoint` separa `EndpointHost.ip` de `EndpointHost.name` e exige port
+  remoto em `1...65_535`. Parsing de endereço nunca resolve DNS.
+- `ListenAddress` é nominal e seguro. `loopback` e `allInterfaces` aceitam
+  port e `AddressFamily`. `address(SocketAddress)` aceita um endereço local
+  validado. Com `.any`, o host pode criar listeners IPv4 e IPv6 e deve expor
+  todos os `localAddresses` reais.
+
+Quando a identidade do value é estável, o tipo implementa `Duplicable`,
+`Equatable` e `Hashable`. `Network`, conexões, halves, listeners e sockets não
+implementam esses protocols. Eles são owners lineares sobre handles privados.
+
+A política DNS usa UTS #46 nontransitional processing, STD3 rules e validade
+IDNA2008. O input é absoluto. No máximo um trailing dot é aceito e removido
+antes da forma canônica. O resultado armazenado é A-label ASCII lowercase sem
+trailing dot. Cada label possui `1...63` octets e o nome ASCII completo possui
+`1...253` octets. A política rejeita scalar inválido, label vazia, label que
+começa ou termina com hyphen e input que seja um IP literal. Nenhum OS search
+suffix é aplicado. A política faz parte do digest do provider e não pode variar
+por target.
+
+`AddressError` cobre texto e shape inválidos, hostname inválido, scope ID em
+IPv4 e scope zero. `NetworkLimitKind` nomeia budgets portáteis. `net.NetworkError` é um
+error fechado e `Duplicable`. `limitExceeded(kind, maximum)` preserva o budget
+efetivo. `messageTooLarge(maximum)` preserva o tamanho máximo do datagram.
+Os demais cases cobrem denial, indisponibilidade, overload, conflito ou
+ausência de endereço, falhas de name lookup, unreachable, refusal, reset,
+abort, disconnect, timeout de peer/provider, unsupported e `system(IoError)`.
+O contrato não expõe errno como semântica. Cancellation e deadline
+estruturados são outcomes de controle. `timedOut` não representa a cancellation
+do caller.
+
+DNS usa `ResolveLimits` para limitar addresses, profundidade de CNAME, bytes de
+resposta e allocation. `Network.resolve(ref host, port, limits)` devolve uma
+lista bounded de `SocketAddress`. Connect usa `ConnectOptions` com attempts em
+`1...16` e `fallbackDelay` não negativo, refinado a `0...30<s>`. O menor limite
+entre call, product e provider vence. A política de conexão ordena os
+resultados conforme RFC 6724 e aplica RFC 8305 com o número de tentativas e o
+delay limitados. Cada IP deve ser revalidado imediatamente antes de cada
+tentativa. Timeout do caller usa structured deadline, não mutable socket
+deadline.
+
+TCP expõe `TcpConnection`, `TcpReadHalf`, `TcpWriteHalf` e `TcpListener` como
+owners move-only. `TcpConnection` implementa `ByteSource<NetworkError>` e
+`ByteSink<NetworkError>`. `split()` consome a connection e retorna halves owned
+que podem ir para children distintos. TCP full duplex concorrente exige
+`split()`. `finishWriting()` consome a connection não dividida antes de
+suspender, faz FIN e retorna o read half. O receiver permanece consumido em
+success, error e cancellation. Cada cursor aceita no máximo uma operação
+mutável em voo. EOF é sticky para read. Um error latched é observado antes da
+operação seguinte. Reset, abort e disconnect são terminais e não reabrem o
+handle.
+O write half faz FIN com `finish()`. Drop sem `finish()` aborta a conexão
+inteira; o read half irmão observa reset ou aborted e não fica pendente. Drop do
+read half encerra somente a authority de receive e não termina a escrita.
+
+Calls por borrow em `Network` criam state independente de operação. Elas podem
+coexistir quando não existe conflito de capability ou policy. `Network` continua
+live depois do completion, error ou cancellation drain. Calls `mut async`
+mantêm o borrow exclusivo do cursor, listener ou socket até completion ou
+cancellation drain. O owner continua live, salvo quando o transporte confirma
+um estado terminal e o mantém latched. Somente `finishWriting()` e
+`TcpWriteHalf.finish()` são receivers `take async`; ambos tornam o receiver
+consumido antes de suspender e permanecem consumidos em todo outcome.
+
+`split()` é consuming síncrono. Safe code não executa deinit enquanto existe
+borrow pendente. Cancellation drena a operação antes de liberar borrow ou
+buffer. Depois do drain, deinit pode limpar estado físico ou latched residual e
+liberar cada handle uma vez. O progresso, completion, error e cancellation
+seguem integralmente a seção 14.2.4. A cancellation não promete interromper
+fisicamente uma syscall sem suporte no target.
+
+`listenTcp` usa `ListenerLimits` para backlog e accepts enfileirados. Budgets de
+socket e buffers continuam requirements do provider, product e deployment.
+`accept()` devolve `AcceptedTcp` com connection e peer. `localAddresses()`
+expõe os endereços reais, inclusive todos os listeners agregados por `.any`.
+
+UDP mantém boundaries de datagram. `DatagramLimits` limita payload e queues.
+O menor limite entre limits da call, do socket e do product vence.
+`receive(maximumBytes:)` devolve `Datagram { bytes, peer, truncated }` e nunca
+oculta truncation. `send(source:ref to:)` preserva atomicidade do datagram ou
+falha com `messageTooLarge(maximum)` ou outro `NetworkError`. UDP não promete
+reliability, ordering ou congestion control. O profile registra a orientação do
+RFC 8085.
+
+SDK0 serializa as operações mutáveis de um mesmo `UdpSocket`: no máximo uma
+`receive` ou uma `send` fica em voo. Essa limitação é deliberada na primeira
+surface. Um split direcional ou um protocolo genérico de datagram é uma
+alternativa futura.
+
+**Alternativa:** um socket global ou um constructor público de `Network`
+esconderia authority e permitiria SSRF. A forma vigente exige capability do
+host e valida cada tentativa.
+
+**Alternativa:** expor nomes como `"tcp4"` ou herdar file descriptors levaria
+semântica do target para source comum. SDK0 usa types fechados e não aceita raw
+sockets, descriptors herdados ou socket-option escape hatch.
+
+**Rejeitado por enquanto:** multicast, broadcast, Unix domain sockets, named
+pipes, TLS, STARTTLS, QUIC, WebSocket e enumeração de interfaces. Esses casos
+entram em adapters separados quando possuírem authority, limits e providers.
+
+Os gates do provider são parse e format IPv4/IPv6, RFC 5952, política DNS/IDNA,
+ordenação RFC 6724, Happy Eyeballs bounded RFC 8305, differential TCP/UDP em
+Linux, macOS, Windows e WASI, capability denial e SSRF, cancellation races,
+partial I/O, fault injection, ASan, TSan, leak, limits e fuzzing. O draft fica
+invalidado se um gate exigir uma nova autoridade, uma promessa de ordering ou
+um buffer sem bound.
+
+As fontes primárias desta decisão são [`std::net`](https://doc.rust-lang.org/std/net/),
+[`net` do Go](https://pkg.go.dev/net), o [modelo de capabilities da
+WASI](https://github.com/WebAssembly/WASI/blob/main/docs/Capabilities.md),
+[TCP sockets do Cloudflare](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/),
+[RFC 6724](https://www.rfc-editor.org/info/rfc6724),
+[RFC 8305](https://www.rfc-editor.org/info/rfc8305),
+[RFC 5952](https://www.rfc-editor.org/info/rfc5952) e
+[RFC 8085](https://www.rfc-editor.org/info/rfc8085/). Elas orientam diferenças
+de target e não são alegações de conformance do provider W.
 
 #### 14.2.8 Errors portáteis
 
@@ -13729,7 +13895,8 @@ fuzzing listados em 14.5.
 
 `serve` usa os carriers canônicos `net.ListenAddress` e `ref net.Network`.
 Essa superfície pertence ao requisito `sdk0-net-listener`, fornecido por
-`std.net`; ela é `missing` e bloqueia a readiness de `serve` até existir.
+`std.net`; a interface do carrier é `draft`, mas o provider `std.net@1` é
+`missing` e bloqueia a execução de `serve`.
 
 **Forma vigente:** `Request` e `Response` são owners move-only. Seus handles são
 privados. Eles não atendem `Copy` ou `Duplicable`. `Drop` libera cada handle uma
@@ -14773,8 +14940,9 @@ serve<Failure: Error>(
 ```
 
 `net.ListenAddress` e `net.Network` pertencem ao carrier `std.net`, não a
-`std.http`. O requisito `sdk0-net-listener` permanece `missing`; a interface
-`serve` existe para fixar a forma, mas não fica draft-ready sem esse carrier.
+`std.http`. O requisito `sdk0-net-listener` passa a `draft` quando essas duas
+declarations existem. O provider `std.net@1` continua `missing`, portanto a
+interface `serve` fica draft, mas a execução ainda está bloqueada.
 
 `serve` mantém o listener até shutdown ou cancellation. Cancellation termina a
 task depois de fechar admission e drenar requests aceitos. Ela não vira
@@ -14784,8 +14952,8 @@ task depois de fechar admission e drenar requests aceitos. Ela não vira
 unavailable
 unsupported
 invalidConfiguration
-listen(NetworkError)
-accept(NetworkError)
+listen(net.NetworkError)
+accept(net.NetworkError)
 protocol(HttpError)
 ```
 
@@ -16012,7 +16180,7 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 rascunho de `std.build` ainda não declara esse tipo.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos 13 módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos 14 módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -16028,8 +16196,8 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 134 declarations exportadas em 13 módulos: 133 draft-ready e uma
-bloqueada por carrier. Ele também registra 42 superfícies
+registra 158 declarations exportadas em 14 módulos: todas possuem declaration
+draft-ready. Ele também registra 42 superfícies
 qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
 qualificado desconhecido, profile
 incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
@@ -16052,9 +16220,9 @@ gates primários de Fetch, Streams, WPT Fetch/Headers, WinterTC/WinterCG,
 workerd, ownership/tee, admission/cancellation, ASan/TSan/leak e
 limits/fuzzing.
 
-O Última Luz exige cinco superfícies neste bundle. `Context`, `Request` e
-`Response` possuem declaration draft; `serve` permanece bloqueado pelo carrier
-`std.net`, e `std.build.Context` continua sem declaration.
+O Última Luz exige cinco superfícies neste bundle. `Context`, `Request`,
+`Response` e `serve` possuem declaration draft. `serve` ainda exige o provider
+missing `std.net@1`, e `std.build.Context` continua sem declaration.
 
 | Módulo | Superfície | Motivo | Consumer |
 |---|---|---|---|
@@ -16062,7 +16230,7 @@ O Última Luz exige cinco superfícies neste bundle. `Context`, `Request` e
 | `std.http` | `Context` | draft; provider `std.http@1` missing | gateway HTTP |
 | `std.http` | `Request` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
 | `std.http` | `Response` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
-| `std.http` | `serve` | declaration fechada; carrier `sdk0-net-listener` e provider `std.http@1` missing | host nativo |
+| `std.http` | `serve` | declaration draft; carrier `sdk0-net-listener` draft; providers `std.net@1` e `std.http@1` missing | host nativo |
 
 Os consumers de JSON no Última Luz (`Command`, `AppResponse` e `WifiSession`)
 continuam targets separados de source. Eles ainda precisam de
@@ -16070,10 +16238,9 @@ schemas/witnesses de domínio. `AppResponse.simulation` está bloqueado porque a
 política wire para `Quantity`/SI continua aberta. Este bundle não fecha esses
 schemas e não promete fechá-los junto de `Request` ou `Response`.
 
-Oito requisitos de carrier tornam o bloqueio verificável. Cinco possuem draft
-e três continuam missing. Os cinco carriers obrigatórios do núcleo Fetch têm
-interface draft; `std.net` é obrigatório para `serve`, e `Blob` e `FormData`
-continuam profile-final:
+Oito requisitos de carrier tornam o bloqueio verificável. Seis possuem draft
+e dois continuam missing. Os carriers obrigatórios do núcleo Fetch têm
+interface draft. `Blob` e `FormData` continuam profile-final:
 
 | Carrier | Provider SDK0 | Interface | Provider executável |
 |---|---|---|---|
@@ -16082,7 +16249,7 @@ continuam profile-final:
 | `ReadableStream` | `std.stream` | obrigatório; draft | `std.readable-stream@1`; missing |
 | `AbortSignal` | `std.abort` | obrigatório; draft | `std.abort-state@1`; missing |
 | `json.Encodable` e `json.Decodable` | `std.json` | obrigatório; draft | `std.json@1`; missing |
-| `net.ListenAddress` e `net.Network` | `std.net` | obrigatório para `serve`; missing | `std.net@1`; missing |
+| `net.ListenAddress` e `net.Network` | `std.net` | obrigatório para `serve`; draft | `std.net@1`; missing |
 | `Blob` | módulo ainda não decidido | profile final; missing | não aplicável |
 | `FormData` | `std.http` | profile final; missing | não aplicável |
 
@@ -16104,8 +16271,8 @@ sem migração de design.
 SDK0 fecha o inventário de declarations. Ele ainda não fecha a std. A próxima
 revisão precisa:
 
-1. resolver `std.net`/`sdk0-net-listener` e `std.build.Context` antes de liberar
-   `serve` e o build transform;
+1. resolver `std.build.Context` antes de liberar o build transform e implementar
+   `std.net@1` antes de liberar execução de `serve`;
 2. catalogar operações de Request e Response depois desses carriers;
 3. adicionar um segundo consumer antes de classificar uma API como estável;
 4. implementar e validar `std.json@1` pelos gates RFC, I-JSON, Unicode,
@@ -24674,7 +24841,7 @@ mesma profundidade em todas as famílias:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre os 73 codes com meaning citados; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 134 exports em 13 módulos; 133 estão draft-ready e `serve` fica bloqueado pelo carrier `std.net`; nove requisitos e oito carriers têm profile; três carriers (`std.net`, Blob e FormData) e `std.build.Context` continuam missing; cinco providers intrinsics estão missing | resolver `std.net`/`sdk0-net-listener` e `std.build.Context`, implementar os cinco providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
+| std | SDK0 cataloga 158 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing, e `std.build.Context` é o único requisito de referência sem declaration; seis providers intrinsics estão missing | resolver `std.build.Context`, implementar os seis providers intrinsics, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
 | memória e execução | M0 fixa 21 casos/61 operações; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | ampliar projections e failure paths; validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
@@ -26432,7 +26599,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 134 exports em 13 módulos, nove requisitos e oito carriers; 133 exports estão draft-ready; scan compara 42 usos; `std.build.Context` e `serve`/`sdk0-net-listener` permanecem bloqueados; três carriers e cinco providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar declaration bloqueada como draft pronto; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-891 | catálogo std SDK0 | profiles cobrem 158 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é o único requisito de referência sem declaration; Blob e FormData continuam missing, e seis providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa input const e limite efetivo; write consome value e possui effect linear por output; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa | filesystem sandbox como API; overwrite concorrente; output incremental implícito; Context apagado; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em quatro cases, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions, com serve usando carrier `std.net`; provider único `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal com `T??`; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html`; Blob/FormData parcial |
@@ -26442,7 +26609,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
 | W-899 | AbortSignal portátil | `std.abort` adapta o first-wins Web sem substituir a cancellation monotônica de W; `AbortReason` é `Error & Copy`, fechado e bounded; signal duplica handle O(1), devolve reason por valor, oferece `throwIfAborted` tipado, espera pelo reason sem perder wake, não concede authority e não é `WireValue`; controller é move-only, first-wins atômico e drop não aborta; timeout zero já está abortado, timeout positivo possui timer-resource independente do creator/root, continua ao escapar e cobra o execution domain sem manter task viva; falha de timer budget publica cancellation e solicita cancellation estrutural; `any` preserva o nome Web e valida antes de registrar: argumentos diretos e folhas pending únicas após flatten/dedup precisam caber no mesmo `maximumSources` por result, inputs abortados só vencem depois das duas validações e cada folha pending recebe uma registration; total vivo do execution domain depende do allocation/admission budget do provider, não do fan-in de uma call; o DAG não cria cycle; Request recebe signal interno dependente; error Web versus task cancellation segue settlement/commit e sempre drena I/O; RPC geral usa automatic call cancellation, Request usa control frames e live-control edge fica alternativa futura; provider continua missing | colocar em `std.runtime`; transformar cancellation de task em application error; reason dinâmico, message, error arbitrário ou resource owner; renomear `any` como `combining`; EventTarget e callbacks no SDK0; signal com authority; controller duplicável; abort implícito no drop; ligar timeout genérico ao creator/root; wall clock; timer ou observer sem bound; tratar fan-in de uma call como limite global de dependents; validar winner antes dos bounds; permitir que terminal direto ou `any` pending contorne limite; ordem total fictícia para races; handle como `WireValue`; AbortSignal remoto geral no SDK0; implementação safe W sem atomics e hooks provados |
 | W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, errors tipados com `Location`/`SyntaxKind`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; schemas de Command/AppResponse/WifiSession continuam futuros; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
-| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e permanece bloqueado pelo carrier `std.net`; providers/carriers continuam missing; schemas Command/AppResponse/WifiSession permanecem targets e AppResponse.simulation aguarda policy wire Quantity/SI | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; claims de execução sem provider |
+| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e agora possui declaration draft, mas depende dos providers `std.net@1` e `std.http@1` missing; Blob/FormData continuam profile-final; schemas Command/AppResponse/WifiSession permanecem targets e AppResponse.simulation aguarda policy wire Quantity/SI | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; claims de execução sem provider |
+| W-902 | rede SDK0 | `std.net` é módulo T1 com provider intrinsic único `std.net@1` missing; `Network` é capability nominal move-only sem initializer público e as APIs públicas borrowam HostName, Endpoint, ListenAddress e SocketAddress; AddressFamily, Ipv4Address, Ipv6Address, IpAddress, SocketAddress, HostName, Endpoint e ListenAddress são values tipados com bounds DNS/port, UTS #46 nontransitional, STD3, IDNA2008, trailing-dot único, ASCII lowercase e RFC 5952; `SocketAddress` exige port e aceita somente IPv4 `192.0.2.1:443`, IPv6 `[2001:db8::1]:443` e scope IPv6 dentro de brackets, como `[fe80::1%3]:443`; hostname e scope zero são rejeitados; parse/format de IP e socket são estritos, canônicos, fazem round-trip e não resolvem DNS; resolve usa ResolveLimits, port remoto `1...65_535` e connect usa RFC 6724/RFC 8305 bounded com attempts `1...16`, `fallbackDelay` não negativo e finito; cada IP é revalidado imediatamente antes de cada tentativa; calls por borrow em Network criam state independente e podem coexistir sem conflito de capability/policy; calls `mut async` mantêm borrow exclusivo até completion ou cancellation drain; TCP full duplex concorrente exige `split()` síncrono, e `finishWriting()` e `TcpWriteHalf.finish()` são `take async` consumidos antes da suspensão e em todo outcome; EOF é sticky, errors latched são observados antes da próxima operação e reset/abort/disconnect são terminais; drops só ocorrem após drain de borrows, limpam residual e liberam uma vez; UDP serializa no mesmo socket no máximo uma receive ou send em voo e mantém truncation explícita; NetworkLimitKind, `limitExceeded(kind, maximum)` e `messageTooLarge(maximum)` são portáveis; http.serve usa `net.NetworkError`, o carrier `sdk0-net-listener` está draft e o provider `std.net@1` continua missing; gates cobrem parse/format, differential targets, capabilities/SSRF, cancellation, partial I/O, fault injection, sanitizers, leak, limits e fuzzing | socket global, constructor de capability, network String names, raw sockets, fd inheritance, socket-option escape hatch, multicast/broadcast, Unix sockets, named pipes, TLS/STARTTLS, QUIC, WebSocket ou interface enumeration sem contracts próprios; tratar deadline de task como NetworkError.timedOut; prometer reliability, ordering ou congestion control no UDP; prometer cancelamento físico de syscall em target sem suporte; prometer split direcional ou protocolo genérico de datagram no SDK0 |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
