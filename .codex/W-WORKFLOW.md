@@ -1,8 +1,8 @@
 # Fluxo do Codex para W
 
 > **Status:** orientação operacional, não parte da linguagem
-> **Executor principal:** **GPT-5.6 Luna · Max**
-> **Arquiteto e revisor:** **GPT-5.6 Sol · High**
+> **Coordenador principal:** **GPT-5.6 Sol · High ou superior**
+> **Executor:** **GPT-5.6 Luna · Max**
 
 Este arquivo define roteamento de modelos e controle de contexto.
 `CONTRIBUTING.md` define contribuição. `MAINTAINERS.md` define revisão e merge.
@@ -11,79 +11,86 @@ autoridade.
 
 ## Contrato dos modelos
 
-O Luna principal mantém a conversa e o contexto operacional. Ele localiza
-fontes, coleta fatos, edita, valida, refatora e faz commits. Ele não decide uma
-questão arquitetural aberta.
+O Sol principal mantém a conversa. Ele pesquisa, compara alternativas, decide
+design, fecha o bundle e revisa o resultado. Ele evita trabalho operacional que
+o Luna pode executar com um contrato completo.
 
-O `w_sol_architect` decide design e faz revisão adversarial. Ele usa Sol High
-com acesso somente para leitura. Ele não edita, não valida mecanicamente, não
-faz commit e não cria subagentes.
+O `w_luna_worker` aplica o bundle. Ele usa Luna Max, edita, valida, refatora e
+faz o commit após revisão. Ele não decide uma questão arquitetural aberta e não
+cria subagentes.
 
-Use somente um Sol ativo. Não crie agentes paralelos. Mantenha pelo menos 95%
+Use somente um Luna ativo. Não crie agentes paralelos. Mantenha pelo menos 95%
 do consumo de tokens da tarefa no Luna. Essa porcentagem é uma meta de
 comportamento, não uma métrica do Codex. Não gaste contexto para calculá-la.
 
-## Quando usar Sol
+## Quando usar Luna
 
-Use Sol quando a tarefa exigir uma destas ações:
+Use Luna quando o Sol já definiu estes itens:
 
-- decidir sintaxe, semântica, API ou invariantes;
-- comparar alternativas com impacto de longo prazo;
-- resolver uma contradição entre contratos;
-- revisar uma mudança material antes do commit.
+- objetivo e resultado observável;
+- forma, semântica e invariantes;
+- escopo de escrita e contratos vizinhos;
+- checks e condição de parada.
 
-Não use Sol para uma destas ações:
+Não use Luna para uma destas ações:
 
-- responder um status ou uma pergunta factual curta;
-- localizar um W ID ou um arquivo;
-- corrigir texto ou tooling sem mudar contrato;
-- executar checks já definidos;
-- aplicar uma decisão ratificada.
+- decidir sintaxe, semântica, API ou arquitetura;
+- comparar alternativas abertas;
+- interpretar uma contradição nova;
+- responder um status ou uma pergunta curta.
 
-Se a classificação não estiver clara, Luna faz a descoberta mínima. Luna chama
-Sol somente quando a descoberta revela uma decisão real.
+Se o contrato não cabe em um pacote compacto, Sol continua o design. Ele não
+transfere uma pergunta aberta ao Luna.
 
 ## Fluxo de um bundle
 
-### 1. Delimitar
+### 1. Delimitar e decidir
 
-Luna lê o pedido e as instruções uma vez. Ele começa por `DESIGN-INDEX.md` e
-abre somente os slices necessários. Ele verifica `git status --short` antes de
-editar.
+Sol lê o pedido e as instruções uma vez. Ele começa por `DESIGN-INDEX.md` e abre
+somente os slices necessários. Ele verifica `git status --short` antes do
+spawn.
 
 Um bundle fecha uma decisão que pode ser revisada e revertida como unidade. Ele
 pode incluir `DESIGN.md`, contratos dependentes, Última Luz, grammar, tooling,
 projeções e checks. Não divida o bundle por arquivo.
 
-### 2. Preparar a decisão
-
-Quando o bundle exige design, Luna coleta somente os fatos necessários. Ele não
-decide a solução. Depois, ele cria um Sol com contexto novo e este pacote:
+Sol decide a forma recomendada, as alternativas preservadas, os invariantes,
+os contratos vizinhos, as condições de rejeição e a aceitação. Depois, ele
+prepara este pacote:
 
 ```text
-Papel: arquiteto W.
-Objetivo: decisão observável de ponta a ponta.
-Pergunta: escolha arquitetural que precisa de resposta.
-Fatos: evidência já confirmada e slices canônicos.
-Restrições: contratos, compatibilidade, escopo e autoridade.
-Alternativas: candidatas conhecidas, sem decisão implícita.
-Saída: recomendação, semântica, invariantes, riscos, rejeições e aceitação.
+Papel: worker W.
+Objetivo: resultado observável de ponta a ponta.
+Fatos: evidência confirmada que não deve ser redescoberta.
+Contrato: forma, semântica, invariantes e alternativas fechadas.
+Entradas: índices, W IDs, slices e arquivos iniciais.
+Escrita: paths e conceitos autorizados.
+Restrições: contratos e superfícies que não podem mudar.
+Concluído quando: checks, diff, commit e estado Git esperados.
+Retorno: resultado, arquivos, checks, riscos e diff resumido.
 ```
 
-Use `fork_turns: "none"` quando a interface permitir. Selecione
-`w_sol_architect`. Se o perfil não estiver disponível, use explicitamente
-`gpt-5.6-sol` com effort `high` e inclua o contrato do perfil no pacote. O nome
-da tarefa, sozinho, não seleciona modelo ou perfil.
+### 2. Criar o worker
 
-Luna espera um evento longo. Ele não faz polling, não lê o contexto privado do
-Sol e não executa trabalho paralelo. Uma atualização de status sem nova decisão
-não justifica interromper a espera.
+Crie exatamente um `w_luna_worker` com contexto novo. Selecione o perfil quando
+a interface expuser `agent_type`. Caso contrário, informe explicitamente
+`model: "gpt-5.6-luna"` e `reasoning_effort: "max"`, e inclua o contrato do
+perfil no pacote. Use `fork_context: false` ou `fork_turns: "none"`, conforme a
+interface.
+
+Confirme nos metadados que o filho usa Luna Max. O nome do perfil ou da tarefa
+não comprova o modelo. Se o runtime selecionar outro modelo, interrompa o filho
+e informe o usuário. Não use fallback silencioso.
+
+Sol usa uma espera longa orientada a evento. Ele não faz polling, não lê o
+contexto privado do Luna e não duplica a execução. Uma atualização sem nova
+decisão não justifica interromper a espera.
 
 ### 3. Aplicar
 
-Luna aplica a decisão sem ampliá-la. Ele atualiza primeiro a fonte canônica.
-Depois, ele atualiza somente as superfícies afetadas. Se a aplicação revelar
-uma nova premissa, Luna para e devolve o fato ao mesmo Sol.
+Luna atualiza primeiro a fonte canônica. Depois, ele atualiza somente as
+superfícies afetadas. Se encontrar uma nova premissa, ele para e devolve o fato
+ao Sol.
 
 Luna valida a menor superfície após cada fatia coerente. Ele amplia os checks
 uma vez no limite de integração. Um resultado verde permanece válido até uma
@@ -91,7 +98,7 @@ entrada relacionada mudar.
 
 ### 4. Revisar
 
-Antes da revisão, Luna executa `git diff --check`. Depois, ele envia ao mesmo Sol:
+O primeiro handoff permanece sem commit, salvo ordem explícita. Ele contém:
 
 - resultado observável;
 - `git diff --stat` e lista completa de arquivos;
@@ -99,42 +106,43 @@ Antes da revisão, Luna executa `git diff --check`. Depois, ele envia ao mesmo S
 - checks executados e primeiro erro útil;
 - riscos, pendências e mudanças remotas.
 
-Sol revisa composição, previsibilidade, ergonomia, clareza, implementação,
-performance, segurança e testes. Ele retorna uma lista consolidada de achados
-materiais. Luna corrige e repete somente os checks invalidados.
+Sol inspeciona o diff de forma adversarial. Ele verifica composição,
+previsibilidade, ergonomia, clareza, implementação, performance, segurança e
+testes. Ele não relê arquivos inteiros nem repete checks verdes.
 
-Evite uma revisão cerimonial. Se duas rodadas não fecharem o contrato, pare e
-informe o usuário. Não esconda a falha com outro modelo.
+Sol envia uma lista consolidada ao mesmo Luna. Luna corrige e repete somente os
+checks invalidados. Evite revisão cerimonial. Se duas rodadas não fecharem o
+contrato, pare e informe o usuário.
 
 ### 5. Fechar
 
 Luna faz a revisão final de manutenção. Ele remove duplicação, artefatos
-temporários e complexidade acidental. Depois, ele executa os gates finais
-afetados, faz o commit e confirma `git status --short`.
+temporários e complexidade acidental. Depois, ele executa os gates finais,
+faz o commit e confirma `git status --short`.
 
-O handoff final contém resultado, commit, arquivos, checks e riscos restantes.
-Não repita logs ou o histórico da tarefa.
+Sol confirma o hash, o estado Git e as evidências. O resultado final contém
+commit, arquivos, checks e riscos restantes. Não repita logs ou o histórico da
+tarefa.
 
 ## Jornada contínua
 
-Mantenha o Luna principal entre bundles relacionados. Use os artefatos
-canônicos como memória durável. Não releia uma entrada que não mudou.
+Mantenha o Sol principal entre bundles relacionados. Use os artefatos canônicos
+como memória durável. Não releia uma entrada que não mudou.
 
-Reuse o mesmo Sol para decisão, revisão e correções do bundle corrente. Feche o
-Sol após o commit. Use um Sol novo para um bundle independente. Essa rotação
-limita contexto antigo sem perder a continuidade operacional do Luna.
+Reuse o mesmo Luna para draft, revisão, correção e commit do bundle corrente.
+Feche o Luna após o commit. Use um Luna novo para um bundle independente. Essa
+rotação limita contexto antigo sem perder a continuidade decisória do Sol.
 
-Quando o usuário acrescentar informação, Luna incorpora o delta. Ele envia o
-delta ao Sol somente quando a informação muda a decisão ativa. Ele interrompe o
-Sol somente se o objetivo for substituído ou a continuação gerar trabalho
-inválido.
+Quando o usuário acrescentar informação, Sol incorpora o delta. Ele envia o
+delta ao Luna somente quando a informação preserva o contrato ativo. Se o delta
+mudar uma premissa, Sol interrompe o worker, decide novamente e só então retoma.
 
 Depois de uma compactação, retome o plano e o estado Git. Não repita descoberta
 sem evidência de mudança no workspace.
 
 ## Design da linguagem
 
-Sol responde por decisões amplas. A decisão deve conter:
+Sol responde por decisões amplas. Cada decisão contém:
 
 - forma recomendada e semântica exata;
 - alternativas preservadas e motivo da rejeição atual;
@@ -170,9 +178,6 @@ Use saídas curtas:
 - diff: estatística, lista de arquivos e hunks de contrato;
 - pesquisa: uma fonte primária por afirmação técnica.
 
-Não crie arquivo de status por padrão. Um arquivo temporário é permitido quando
-uma ferramenta longa não produz eventos. Luna remove o arquivo antes do commit.
-
 Não narre buscas, leituras ou checks rotineiros. Comunique somente escopo
 inicial, decisão material, bloqueio, operação remota e resultado. Não crie um
 plano visível quando uma lista interna curta for suficiente.
@@ -181,22 +186,36 @@ Depois de editar, prefira o diff à releitura integral. Agrupe comandos de
 leitura independentes somente quando todas as saídas forem necessárias. Não
 execute um check verde novamente sem uma entrada relacionada alterada.
 
+Não crie arquivo de status por padrão. Um arquivo temporário é permitido quando
+uma ferramenta longa não produz eventos. Luna remove o arquivo antes do commit.
+
 ## Runtime do Codex
 
-Em 6 de agosto de 2026, Multi-Agent V2 rejeitou Luna como filho de Sol. Uma
-tarefa Luna Max conseguiu criar Sol High. Por isso, W usa Luna como tarefa
-principal e Sol como filho de design.
+O QCC comprovou o fluxo desejado em 6 de agosto de 2026. Uma tarefa V1 antiga
+com Sol High criou um worker Luna Max. O spawn usou `agent_type: "worker"`,
+`model: "gpt-5.6-luna"`, `reasoning_effort: "max"` e contexto novo.
 
-Esta topologia é um contorno temporário. Reavalie quando
-[OpenAI Codex issue 34909](https://github.com/openai/codex/issues/34909) for
-resolvida. Retorne para Sol como pai somente quando uma tarefa real confirmar
-Luna Max nos metadados do filho.
+Uma tarefa Sol nova usa Multi-Agent V2. O catálogo de 6 de agosto marca Luna
+como V1. Por isso, V2 rejeita Luna mesmo quando o modelo principal consegue
+selecioná-lo. O bloco `features.multi_agent_v2` mantém os campos de roteamento
+visíveis, mas não altera essa classificação do catálogo.
 
-Depois de alterar `.codex/config.toml` ou `.codex/agents/`, inicie uma tarefa
-nova. Uma tarefa existente pode manter a configuração anterior.
+Um probe com um catálogo temporário que classificou Luna como V2 criou o filho
+Luna Max corretamente. Não mantenha uma cópia estática do catálogo no
+repositório. Ela inclui metadados do runtime, fica obsoleta e afeta seleção de
+modelo além do W.
+
+Depois de alterar `.codex/config.toml`, `.codex/agents/` ou o catálogo ativo,
+inicie uma tarefa nova. Uma tarefa existente mantém o schema anterior. A
+primeira tarefa nova executa um probe curto e confirma Luna Max nos metadados do
+filho antes de delegar um bundle real.
+
+Remova qualquer contorno de catálogo quando o runtime classificar Luna para V2
+por padrão. Valide uma tarefa nova antes da remoção.
 
 ## Fontes
 
 - [OpenAI — instruções com AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
 - [OpenAI — subagentes](https://learn.chatgpt.com/docs/agent-configuration/subagents)
-- [OpenAI Codex — Luna rejeitado no spawn](https://github.com/openai/codex/issues/34909)
+- [OpenAI Codex — contorno de roteamento Sol para Luna](https://github.com/openai/codex/issues/31814)
+- [OpenAI Codex — Luna está classificado como V1](https://github.com/openai/codex/issues/35097)
