@@ -64,7 +64,7 @@
     "http-handler": {
       "capabilities": ["http-context"],
       "effects": ["suspension", "network"],
-      "failures": { "mode": "typed", "types": ["HttpError"] },
+      "failures": { "mode": "generic", "types": ["Failure", "HttpError"] },
       "bounds": ["server-limits", "message-limits"],
       "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
     },
@@ -74,6 +74,13 @@
       "failures": { "mode": "none", "types": [] },
       "bounds": ["product-capability-set"],
       "complexity": { "time": "constant", "space": "bounded-by-contract" }
+    },
+    "template-provider": {
+      "capabilities": ["http-context-bindings"],
+      "effects": ["codec", "allocation"],
+      "failures": { "mode": "typed", "types": ["TemplateError"] },
+      "bounds": ["template-output-bytes", "template-values"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
     },
     "http-request": {
       "capabilities": ["http-body-provider"],
@@ -393,8 +400,15 @@
     "web-body-carrier": {
       "capabilities": [],
       "effects": ["allocation"],
-      "failures": { "mode": "typed", "types": ["BodyInitError"] },
+      "failures": { "mode": "none", "types": [] },
       "bounds": ["body-size", "part-count", "field-count"],
+      "complexity": { "time": "linear-input", "space": "owned-input" }
+    },
+    "http-body-source": {
+      "capabilities": ["http-body-provider"],
+      "effects": ["allocation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["body-size", "allocation-budget"],
       "complexity": { "time": "linear-input", "space": "owned-input" }
     },
     "http-server": {
@@ -403,6 +417,13 @@
       "failures": { "mode": "typed", "types": ["ServerError"] },
       "bounds": ["server-limits", "message-limits", "host-capability-budget"],
       "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "net-listener-carrier": {
+      "capabilities": ["network-listener"],
+      "effects": ["network"],
+      "failures": { "mode": "typed", "types": ["NetworkError"] },
+      "bounds": ["listener-address", "network-capability-budget"],
+      "complexity": { "time": "provider-defined", "space": "provider-defined" }
     },
     "database-transaction": {
       "capabilities": ["database-binding"],
@@ -914,6 +935,22 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.http@1",
+        "status": "missing",
+        "gates": [
+          "whatwg-fetch",
+          "whatwg-streams-fetch-integration",
+          "wpt-fetch-headers",
+          "wintertc-wintercg-server-baseline",
+          "workerd-differential",
+          "ownership-tee-fault-injection",
+          "admission-cancellation",
+          "asan-tsan-leak",
+          "limits-fuzzing"
+        ]
+      },
       "designAnchors": ["14.3.1", "14.3.2", "14.3.3", "14.3.5"],
       "consumer": {
         "path": "reference/last-light/benchmark_app.w",
@@ -968,8 +1005,165 @@
         },
         { "symbol": "HttpError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "NetworkError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "BodySource", "kind": "enum", "profile": "http-body-source" },
+        { "symbol": "BodyOverride", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestMode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "CredentialsMode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "CacheMode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RedirectMode", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ReferrerPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Duplex", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Priority", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestDestination", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestReferrer", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RequestIntegrity", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ResponseType", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "RequestInit",
+          "kind": "struct",
+          "profile": "http-request",
+          "members": [{ "symbol": "init", "profile": "http-request" }]
+        },
+        {
+          "symbol": "RequestOverride",
+          "kind": "struct",
+          "profile": "http-request",
+          "members": [{ "symbol": "init", "profile": "http-request" }]
+        },
+        { "symbol": "TemplateLimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TemplateError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "TemplateLimits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [{ "symbol": "init", "profile": "value-contract" }]
+        },
+        {
+          "symbol": "TemplateBinding",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [{ "symbol": "init", "profile": "value-contract" }]
+        },
+        {
+          "symbol": "Request",
+          "kind": "struct",
+          "profile": "http-request",
+          "members": [
+            { "symbol": "init", "overloads": 4, "profile": "http-request" },
+            { "symbol": "method", "profile": "http-request" },
+            { "symbol": "url", "profile": "http-request" },
+            { "symbol": "headers", "profile": "http-request" },
+            { "symbol": "signal", "profile": "http-request" },
+            { "symbol": "bodyUsed", "profile": "http-request" },
+            { "symbol": "destination", "profile": "http-request" },
+            { "symbol": "mode", "profile": "http-request" },
+            { "symbol": "credentials", "profile": "http-request" },
+            { "symbol": "cache", "profile": "http-request" },
+            { "symbol": "redirect", "profile": "http-request" },
+            { "symbol": "referrer", "profile": "http-request" },
+            { "symbol": "referrerPolicy", "profile": "http-request" },
+            { "symbol": "integrity", "profile": "http-request" },
+            { "symbol": "duplex", "profile": "http-request" },
+            { "symbol": "priority", "profile": "http-request" },
+            { "symbol": "body", "profile": "http-request" },
+            { "symbol": "bytes", "profile": "http-request" },
+            { "symbol": "text", "profile": "http-request" },
+            { "symbol": "json", "overloads": 2, "profile": "http-request" },
+            { "symbol": "clone", "profile": "http-request" }
+          ],
+          "requires": [
+            "sdk0-web-url",
+            "sdk0-web-url-search-params",
+            "sdk0-web-readable-stream",
+            "sdk0-web-abort-signal",
+            "sdk0-json-codec"
+          ]
+        },
+        {
+          "symbol": "Response",
+          "kind": "struct",
+          "profile": "http-response",
+          "members": [
+            { "symbol": "init", "overloads": 6, "profile": "http-response" },
+            { "symbol": "error", "profile": "http-response" },
+            { "symbol": "json", "overloads": 4, "profile": "http-response" },
+            { "symbol": "status", "profile": "http-response" },
+            { "symbol": "ok", "profile": "http-response" },
+            { "symbol": "statusText", "profile": "http-response" },
+            { "symbol": "headers", "profile": "http-response" },
+            { "symbol": "url", "profile": "http-response" },
+            { "symbol": "redirected", "profile": "http-response" },
+            { "symbol": "type", "profile": "http-response" },
+            { "symbol": "bodyUsed", "profile": "http-response" },
+            { "symbol": "body", "profile": "http-response" },
+            { "symbol": "bytes", "profile": "http-response" },
+            { "symbol": "text", "profile": "http-response" },
+            { "symbol": "clone", "profile": "http-response" }
+          ],
+          "requires": [
+            "sdk0-web-url",
+            "sdk0-web-url-search-params",
+            "sdk0-web-readable-stream",
+            "sdk0-json-codec"
+          ]
+        },
+        {
+          "symbol": "RandomSource",
+          "kind": "struct",
+          "profile": "http-context",
+          "members": [{ "symbol": "integer", "profile": "http-context" }]
+        },
+        {
+          "symbol": "DatabaseRegistry",
+          "kind": "struct",
+          "profile": "http-context",
+          "members": [{ "symbol": "get", "profile": "http-context" }]
+        },
+        {
+          "symbol": "CacheRegistry",
+          "kind": "struct",
+          "profile": "http-context",
+          "members": [{ "symbol": "get", "profile": "http-context" }]
+        },
+        {
+          "symbol": "Template",
+          "kind": "struct",
+          "profile": "template-provider",
+          "members": [{ "symbol": "render", "profile": "template-provider" }],
+          "requires": ["sdk0-json-codec"]
+        },
+        {
+          "symbol": "TemplateRegistry",
+          "kind": "struct",
+          "profile": "http-context",
+          "members": [{ "symbol": "get", "profile": "http-context" }]
+        },
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "profile": "http-context",
+          "members": [
+            { "symbol": "random", "profile": "http-context" },
+            { "symbol": "databases", "profile": "http-context" },
+            { "symbol": "caches", "profile": "http-context" },
+            { "symbol": "templates", "profile": "http-context" },
+            { "symbol": "signal", "profile": "http-context" }
+          ]
+        },
+        {
+          "symbol": "serve",
+          "kind": "fn",
+          "profile": "http-server",
+          "requires": [
+            "sdk0-http-request",
+            "sdk0-http-response",
+            "sdk0-http-context",
+            "sdk0-net-listener"
+          ]
+        },
         {
           "symbol": "HttpHandler",
           "kind": "protocol",
@@ -1085,6 +1279,15 @@
       "status": "missing",
       "readiness": "profile-final",
       "consumers": ["std.http.Request", "std.http.Response"]
+    },
+    {
+      "id": "sdk0-net-listener",
+      "providerModule": "std.net",
+      "surface": "ListenAddress/Network",
+      "profile": "net-listener-carrier",
+      "status": "missing",
+      "readiness": "required",
+      "consumers": ["std.http.serve"]
     }
   ],
   "referenceScans": [
@@ -1122,7 +1325,7 @@
       "kind": "symbol",
       "consumer": "reference/last-light/gateway.w",
       "profile": "http-context",
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-request",
@@ -1138,7 +1341,7 @@
         "sdk0-web-abort-signal",
         "sdk0-json-codec"
       ],
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-response",
@@ -1153,7 +1356,7 @@
         "sdk0-web-readable-stream",
         "sdk0-json-codec"
       ],
-      "status": "missing"
+      "status": "draft"
     },
     {
       "id": "sdk0-http-headers",
@@ -1180,6 +1383,7 @@
       "kind": "symbol",
       "consumer": "reference/last-light/app.w",
       "profile": "http-server",
+      "requires": ["sdk0-net-listener"],
       "status": "missing"
     },
     {

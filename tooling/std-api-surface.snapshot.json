@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "2d8d50528804155ee146f5ecd690cda79d4491647baa2fb69f60d841df206af7",
+  "catalogDigest": "7a14434847f5b85b7601ef61e45b37bc12de949a5735fd3cc9cbb0098482b39e",
   "summary": {
     "modules": 13,
-    "catalogedApis": 105,
-    "draftCatalogedApis": 104,
+    "catalogedApis": 134,
+    "draftCatalogedApis": 133,
     "missingCatalogedApis": 1,
-    "qualifiedReferenceSurfaces": 36,
+    "qualifiedReferenceSurfaces": 42,
     "referenceRequirements": 9,
     "contractedReferenceRequirements": 9,
-    "missingReferenceRequirements": 5,
-    "carrierRequirements": 7,
-    "missingCarrierRequirements": 2,
-    "implementationProviders": 4,
-    "missingImplementationProviders": 4
+    "missingReferenceRequirements": 2,
+    "carrierRequirements": 8,
+    "missingCarrierRequirements": 3,
+    "implementationProviders": 5,
+    "missingImplementationProviders": 5
   },
   "modules": [
     {
@@ -427,14 +427,30 @@
       "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
-      "catalogedDeclarationsDigest": "8deaddcd307f281ff4dd46f12ca256c908ca95e8f25bcdc32c436960d8a90882",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.http@1",
+        "status": "missing",
+        "gates": [
+          "admission-cancellation",
+          "asan-tsan-leak",
+          "limits-fuzzing",
+          "ownership-tee-fault-injection",
+          "whatwg-fetch",
+          "whatwg-streams-fetch-integration",
+          "wintertc-wintercg-server-baseline",
+          "workerd-differential",
+          "wpt-fetch-headers"
+        ]
+      },
+      "catalogedDeclarationsDigest": "5d533b71dcc00ac705e3700dcc4fa9dab381781a5bec66a04da41b6e5213bd0c",
       "apis": [
         {
           "symbol": "BodyCloneError",
           "kind": "enum",
           "signature": "export enum BodyCloneError: Error",
           "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
-          "line": 714,
+          "line": 719,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -443,7 +459,160 @@
           "kind": "enum",
           "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
           "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
-          "line": 709,
+          "line": 714,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "BodyOverride",
+          "kind": "enum",
+          "signature": "export enum BodyOverride",
+          "declarationDigest": "4f725590407320cf81bbc614a148f033bbb5f66a4c071fe5da21a03b7f86101e",
+          "line": 795,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "BodySource",
+          "kind": "enum",
+          "signature": "export enum BodySource",
+          "declarationDigest": "3e1b845242422c23140b97bfa083c3ff8db6959c19ed4ce232bfd679eb13e1c5",
+          "line": 788,
+          "profile": "http-body-source",
+          "status": "draft"
+        },
+        {
+          "symbol": "CacheMode",
+          "kind": "enum",
+          "signature": "export enum CacheMode",
+          "declarationDigest": "a7462fb4d55473c20eb66ce1c8e23dd8bde1728b3788a6f9a8be9c4192bc9ebc",
+          "line": 814,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "CacheRegistry",
+          "kind": "struct",
+          "signature": "export struct CacheRegistry",
+          "declarationDigest": "2720acd39392d59807441ceaed78aa67837732de3a731f8150c162c709813d15",
+          "line": 1596,
+          "profile": "http-context",
+          "members": [
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>( binding: const cache.LocalBinding<Key, Value>, ): some cache.LocalCache<Key, Value>",
+                  "line": 1603
+                }
+              ],
+              "profile": "http-context"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Context",
+          "kind": "struct",
+          "signature": "export struct Context",
+          "declarationDigest": "fe16b5bc88fb099851530184f0e0727885c073280ec2bc514426037fba4c77ec",
+          "line": 1673,
+          "profile": "http-context",
+          "members": [
+            {
+              "symbol": "random",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export random: RandomSource",
+                  "line": 1684
+                }
+              ],
+              "profile": "http-context"
+            },
+            {
+              "symbol": "databases",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export databases: DatabaseRegistry",
+                  "line": 1690
+                }
+              ],
+              "profile": "http-context"
+            },
+            {
+              "symbol": "caches",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export caches: CacheRegistry",
+                  "line": 1696
+                }
+              ],
+              "profile": "http-context"
+            },
+            {
+              "symbol": "templates",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export templates: TemplateRegistry",
+                  "line": 1702
+                }
+              ],
+              "profile": "http-context"
+            },
+            {
+              "symbol": "signal",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export signal: AbortSignal",
+                  "line": 1710
+                }
+              ],
+              "profile": "http-context"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "CredentialsMode",
+          "kind": "enum",
+          "signature": "export enum CredentialsMode",
+          "declarationDigest": "4670a3ce47d8e34bc416d5b6cbffbff14b05f087396fd0cf51491c4a5b9127fb",
+          "line": 808,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "DatabaseRegistry",
+          "kind": "struct",
+          "signature": "export struct DatabaseRegistry",
+          "declarationDigest": "6474e19a878ede485e74ce325207ebbf55dee4588027bef941fb6978240fff83",
+          "line": 1578,
+          "profile": "http-context",
+          "members": [
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get( binding: const database.Binding, ): some database.Database",
+                  "line": 1585
+                }
+              ],
+              "profile": "http-context"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Duplex",
+          "kind": "enum",
+          "signature": "export enum Duplex",
+          "declarationDigest": "7eb2fc32a0d3b9636e68f9d66c3a58c36d1e6f1176d545622d99ab50e9bcf63b",
+          "line": 840,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -452,7 +621,7 @@
           "kind": "struct",
           "signature": "export struct HeaderField",
           "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
-          "line": 374,
+          "line": 379,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -461,7 +630,7 @@
           "kind": "enum",
           "signature": "export enum HeaderMutationDenied",
           "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
-          "line": 445,
+          "line": 450,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -470,7 +639,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
-          "line": 296,
+          "line": 301,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -479,7 +648,7 @@
           "kind": "struct",
           "signature": "export struct Headers",
           "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
-          "line": 465,
+          "line": 470,
           "profile": "http-headers",
           "members": [
             {
@@ -487,11 +656,11 @@
               "overloads": [
                 {
                   "signature": "export init(_ initialFields: take HeaderField...)",
-                  "line": 469
+                  "line": 474
                 },
                 {
                   "signature": "export init(copying source: ref Headers)",
-                  "line": 474
+                  "line": 479
                 }
               ],
               "profile": "http-headers-construction"
@@ -501,7 +670,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
-                  "line": 490
+                  "line": 495
                 }
               ],
               "profile": "http-headers-append"
@@ -511,7 +680,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String): () throws HeadersError",
-                  "line": 503
+                  "line": 508
                 }
               ],
               "profile": "http-headers-mutation"
@@ -521,7 +690,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): String? throws HeadersError",
-                  "line": 518
+                  "line": 523
                 }
               ],
               "profile": "http-headers-query"
@@ -531,7 +700,7 @@
               "overloads": [
                 {
                   "signature": "export fn getSetCookie(): Array<String>",
-                  "line": 534
+                  "line": 539
                 }
               ],
               "profile": "http-headers-list-query"
@@ -541,7 +710,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool throws HeadersError",
-                  "line": 544
+                  "line": 549
                 }
               ],
               "profile": "http-headers-membership"
@@ -551,7 +720,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
-                  "line": 552
+                  "line": 557
                 }
               ],
               "profile": "http-headers-mutation"
@@ -561,7 +730,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<HeaderField>",
-                  "line": 592
+                  "line": 597
                 }
               ],
               "profile": "http-headers-iteration"
@@ -574,7 +743,7 @@
           "kind": "enum",
           "signature": "export enum HeadersError: Error",
           "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
-          "line": 452,
+          "line": 457,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -583,7 +752,7 @@
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error & Duplicable",
           "declarationDigest": "3836d56c16be2c254cd3ce892ce4c1cee745a2adddc1cf2f07b29c7d0c9b68de",
-          "line": 699,
+          "line": 704,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -595,18 +764,18 @@
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 738,
+          "line": 752,
           "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "HttpHandler",
           "kind": "protocol",
-          "signature": "export protocol HttpHandler",
-          "declarationDigest": "4b98a2cd25b5832b9a4da23a7883d26be92d312934385f141f5a072135054665",
-          "line": 772,
+          "signature": "export protocol HttpHandler<Failure: Error>",
+          "declarationDigest": "fc9db826e80d97ce7fc122f230a76727fabfcfc9f3008cdecf7bc99bc04bcdff",
+          "line": 1735,
           "profile": "http-handler",
-          "status": "missing",
+          "status": "draft",
           "requires": [
             "sdk0-http-context",
             "sdk0-http-request",
@@ -618,7 +787,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 691,
+          "line": 696,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -627,7 +796,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 757,
+          "line": 771,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -636,7 +805,7 @@
           "kind": "enum",
           "signature": "export enum Method",
           "declarationDigest": "f218517e6bfcc193b5dae1ad01920bb440a17209234a96493870f9881927145a",
-          "line": 271,
+          "line": 276,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -645,25 +814,626 @@
           "kind": "struct",
           "signature": "export struct MethodToken",
           "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
-          "line": 258,
+          "line": 263,
           "profile": "validated-http-token",
+          "status": "draft"
+        },
+        {
+          "symbol": "NetworkError",
+          "kind": "enum",
+          "signature": "export enum NetworkError: Error",
+          "declarationDigest": "ef58afbf0511c62421fcc573ea3c5447703b026a396bc9e3c2bbc43e78eb1237",
+          "line": 744,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Priority",
+          "kind": "enum",
+          "signature": "export enum Priority",
+          "declarationDigest": "fcd5d3a517f018d9b0168165ada47c339d835078a8338db57bfa5b7ac4bfe9b5",
+          "line": 844,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "RandomSource",
+          "kind": "struct",
+          "signature": "export struct RandomSource",
+          "declarationDigest": "b6705b6dcef83199aaf6f8bf4882d412d1abb127b5c7952f08bab99705c675a8",
+          "line": 1562,
+          "profile": "http-context",
+          "members": [
+            {
+              "symbol": "integer",
+              "overloads": [
+                {
+                  "signature": "export fn integer(in range: Range<i32>): i32",
+                  "line": 1569
+                }
+              ],
+              "profile": "http-context"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "RedirectMode",
+          "kind": "enum",
+          "signature": "export enum RedirectMode",
+          "declarationDigest": "2adb67c040396e9229ea07f102b624382132a44cb7fd68830389a3df2cb60af2",
+          "line": 823,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ReferrerPolicy",
+          "kind": "enum",
+          "signature": "export enum ReferrerPolicy",
+          "declarationDigest": "fe490b8ae21e4d99f5a8617bde0666e7ba81c33299810f9b57893c6496e1245f",
+          "line": 829,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Request",
+          "kind": "struct",
+          "signature": "export struct Request",
+          "declarationDigest": "78b13b3c81331692073ab6a6123bf068a0429ee1c640ba51a6fd7979ea49d5a2",
+          "line": 1146,
+          "profile": "http-request",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError",
+                  "line": 1153
+                },
+                {
+                  "signature": "export init(_ input: take URL, take init: RequestInit = RequestInit()) throws RequestError",
+                  "line": 1159
+                },
+                {
+                  "signature": "export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError",
+                  "line": 1167
+                },
+                {
+                  "signature": "export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError",
+                  "line": 1173
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "method",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export method: Method",
+                  "line": 1178
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "url",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export url: ref URL",
+                  "line": 1182
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "headers",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export headers: ref Headers",
+                  "line": 1186
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "signal",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export signal: ref AbortSignal",
+                  "line": 1190
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "bodyUsed",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export bodyUsed: Bool",
+                  "line": 1194
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "destination",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export destination: RequestDestination",
+                  "line": 1198
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "mode",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export mode: RequestMode",
+                  "line": 1202
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "credentials",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export credentials: CredentialsMode",
+                  "line": 1206
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "cache",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export cache: CacheMode",
+                  "line": 1210
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "redirect",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export redirect: RedirectMode",
+                  "line": 1214
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "referrer",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export referrer: RequestReferrer",
+                  "line": 1218
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "referrerPolicy",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export referrerPolicy: ReferrerPolicy",
+                  "line": 1222
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "integrity",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export integrity: view String",
+                  "line": 1226
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "duplex",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export duplex: Duplex",
+                  "line": 1230
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "priority",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export priority: Priority",
+                  "line": 1234
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "body",
+              "overloads": [
+                {
+                  "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
+                  "line": 1239
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "bytes",
+              "overloads": [
+                {
+                  "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
+                  "line": 1243
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "text",
+              "overloads": [
+                {
+                  "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
+                  "line": 1247
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "json",
+              "overloads": [
+                {
+                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "line": 1251
+                },
+                {
+                  "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "line": 1263
+                }
+              ],
+              "profile": "http-request"
+            },
+            {
+              "symbol": "clone",
+              "overloads": [
+                {
+                  "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
+                  "line": 1288
+                }
+              ],
+              "profile": "http-request"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-json-codec",
+            "sdk0-web-abort-signal",
+            "sdk0-web-readable-stream",
+            "sdk0-web-url",
+            "sdk0-web-url-search-params"
+          ]
+        },
+        {
+          "symbol": "RequestDestination",
+          "kind": "enum",
+          "signature": "export enum RequestDestination",
+          "declarationDigest": "7f402ff297e9f78eec1cf3da2eab233fab32e871ae1b4c8b95c5221e1caff785",
+          "line": 850,
+          "profile": "value-contract",
           "status": "draft"
         },
         {
           "symbol": "RequestError",
           "kind": "enum",
           "signature": "export enum RequestError: Error",
-          "declarationDigest": "5990bafcfd10e97e1a38e396e3c209140119bf620dd684edc77309b18f44e1a2",
-          "line": 720,
+          "declarationDigest": "e282bba2b6e7db32f2f21c5b54d51e24880b7eb65acfc80c718339db387e56d2",
+          "line": 725,
           "profile": "value-contract",
           "status": "draft"
+        },
+        {
+          "symbol": "RequestInit",
+          "kind": "struct",
+          "signature": "export struct RequestInit",
+          "declarationDigest": "032a5c7bb02099d00930a5023fef65d1547403b96af1b9a4012f4765eeea063f",
+          "line": 898,
+          "profile": "http-request",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodySource? = .none, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
+                  "line": 915
+                }
+              ],
+              "profile": "http-request"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "RequestIntegrity",
+          "kind": "enum",
+          "signature": "export enum RequestIntegrity",
+          "declarationDigest": "c479d8442cb550d779f476f0582845319a26a0ae406423f62fa21fb80877e447",
+          "line": 884,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "RequestMode",
+          "kind": "enum",
+          "signature": "export enum RequestMode",
+          "declarationDigest": "e31a569e23b6167b79d752942051be3966b96d47bfca09db8f98d1acb2b42602",
+          "line": 801,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "RequestOverride",
+          "kind": "struct",
+          "signature": "export struct RequestOverride",
+          "declarationDigest": "ca500fe1c720ac8edabf93afa6b3c4df4c60d5a5d868eaae5b01b0ec2e7f57d5",
+          "line": 946,
+          "profile": "http-request",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodyOverride = .inherit, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
+                  "line": 962
+                }
+              ],
+              "profile": "http-request"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "RequestReferrer",
+          "kind": "enum",
+          "signature": "export enum RequestReferrer",
+          "declarationDigest": "fd56203f3257879a99d8afc1ff2b69cf402d8290d8199a3d40dc65a69217642e",
+          "line": 876,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Response",
+          "kind": "struct",
+          "signature": "export struct Response",
+          "declarationDigest": "7d0c42a0fb732683038867c827d7cbdfd07dc41c62980e7b18d5e4fa620ae22a",
+          "line": 1305,
+          "profile": "http-response",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1312
+                },
+                {
+                  "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1327
+                },
+                {
+                  "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1343
+                },
+                {
+                  "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1359
+                },
+                {
+                  "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1375
+                },
+                {
+                  "signature": "export init( take body: BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1391
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "error",
+              "overloads": [
+                {
+                  "signature": "export static fn error(): Response",
+                  "line": 1407
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "json",
+              "overloads": [
+                {
+                  "signature": "export static fn json<Value: json.Encodable>( value: ref Value, maximumBytes: usize<(1...)>, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1411
+                },
+                {
+                  "signature": "export static fn json<Value: json.Encodable>( value: ref Value, limits: json.Limits, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
+                  "line": 1429
+                },
+                {
+                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "line": 1509
+                },
+                {
+                  "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "line": 1521
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "status",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export status: u16<(0..<600)>",
+                  "line": 1465
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "ok",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export ok: Bool",
+                  "line": 1469
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "statusText",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export statusText: view String",
+                  "line": 1473
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "headers",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export headers: ref Headers",
+                  "line": 1477
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "url",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export url: URL?",
+                  "line": 1481
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "redirected",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export redirected: Bool",
+                  "line": 1485
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "type",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export type: ResponseType",
+                  "line": 1489
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "bodyUsed",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export bodyUsed: Bool",
+                  "line": 1493
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "body",
+              "overloads": [
+                {
+                  "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
+                  "line": 1497
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "bytes",
+              "overloads": [
+                {
+                  "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
+                  "line": 1501
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "text",
+              "overloads": [
+                {
+                  "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
+                  "line": 1505
+                }
+              ],
+              "profile": "http-response"
+            },
+            {
+              "symbol": "clone",
+              "overloads": [
+                {
+                  "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
+                  "line": 1545
+                }
+              ],
+              "profile": "http-response"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-json-codec",
+            "sdk0-web-readable-stream",
+            "sdk0-web-url",
+            "sdk0-web-url-search-params"
+          ]
         },
         {
           "symbol": "ResponseError",
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
           "declarationDigest": "4058e9bc7fd1fdece9c519970f92ed0bd179adb0bf0bc2349c8d8f3bf020d630",
-          "line": 729,
+          "line": 735,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -671,11 +1441,35 @@
           ]
         },
         {
+          "symbol": "ResponseType",
+          "kind": "enum",
+          "signature": "export enum ResponseType",
+          "declarationDigest": "0606765b20dd26b6b4bb8af28eb240aaf0750c6c962f86318e92c603bbb64959",
+          "line": 889,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "serve",
+          "kind": "fn",
+          "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, limits: ServerLimits, handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
+          "declarationDigest": "11a2bf72109c5f7f956d5f421cdd4687530258194bd6c4d414818efb85f973db",
+          "line": 1719,
+          "profile": "http-server",
+          "status": "missing",
+          "requires": [
+            "sdk0-http-context",
+            "sdk0-http-request",
+            "sdk0-http-response",
+            "sdk0-net-listener"
+          ]
+        },
+        {
           "symbol": "ServerError",
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "3784a196602185f64193dd8b43db6309a65f76f690199ce84bd25542817679a7",
-          "line": 748,
+          "line": 762,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -684,7 +1478,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 764,
+          "line": 778,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -693,8 +1487,113 @@
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
           "declarationDigest": "39bf47df05a185d89bf44e6fe4e00494c3e9aaca929c201d0334defe3c216550",
-          "line": 285,
+          "line": 290,
           "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Template",
+          "kind": "struct",
+          "signature": "export struct Template",
+          "declarationDigest": "f6e207cfb4a97c3b35e26d153b18ec11e1ec176f60e056c3b8c267cb0804b741",
+          "line": 1635,
+          "profile": "template-provider",
+          "members": [
+            {
+              "symbol": "render",
+              "overloads": [
+                {
+                  "signature": "export fn render<Value: json.Encodable>( values: ref Array<Value>, ): String throws TemplateError",
+                  "line": 1642
+                }
+              ],
+              "profile": "template-provider"
+            }
+          ],
+          "status": "draft",
+          "requires": [
+            "sdk0-json-codec"
+          ]
+        },
+        {
+          "symbol": "TemplateBinding",
+          "kind": "struct",
+          "signature": "export struct TemplateBinding",
+          "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
+          "line": 1617,
+          "profile": "value-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init( name: String, limits: TemplateLimits, version: u32<(1...)> = 1, )",
+                  "line": 1622
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "TemplateError",
+          "kind": "enum",
+          "signature": "export enum TemplateError: Error",
+          "declarationDigest": "433a533d2e06fbc573ae91b6724f70a44adefe4738bcb82d5fdafdc457bafaa0",
+          "line": 998,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "TemplateLimitKind",
+          "kind": "enum",
+          "signature": "export enum TemplateLimitKind",
+          "declarationDigest": "177cafea0d129b250d4bc7225fd3336c244339b729370172acd47bcb3026b1c1",
+          "line": 993,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "TemplateLimits",
+          "kind": "struct",
+          "signature": "export struct TemplateLimits",
+          "declarationDigest": "91044be5884ee2dcf30d6b7ba396abac01b414a3a5c77a69f1c55c57e5bb4838",
+          "line": 1005,
+          "profile": "value-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init( maximumOutputBytes: usize<(1...)>, maximumValues: usize, )",
+                  "line": 1009
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "TemplateRegistry",
+          "kind": "struct",
+          "signature": "export struct TemplateRegistry",
+          "declarationDigest": "e22549b44aaf4b057d6f8fbd651d8da2a8c1621d4b1ce0d4fcb4a74bb6c70388",
+          "line": 1655,
+          "profile": "http-context",
+          "members": [
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(binding: const TemplateBinding): Template",
+                  "line": 1662
+                }
+              ],
+              "profile": "http-context"
+            }
+          ],
           "status": "draft"
         }
       ]
@@ -2567,7 +3466,8 @@
       "surface": "BodyCloneError",
       "status": "draft",
       "consumers": [
-        "reference/last-light/gateway.w"
+        "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2581,10 +3481,11 @@
     {
       "module": "std.http",
       "surface": "Context",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -2593,7 +3494,8 @@
       "surface": "Headers",
       "status": "draft",
       "consumers": [
-        "reference/last-light/benchmark_app.w"
+        "reference/last-light/benchmark_app.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2601,7 +3503,8 @@
       "surface": "HttpBodyError",
       "status": "draft",
       "consumers": [
-        "reference/last-light/abort.w"
+        "reference/last-light/abort.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2623,22 +3526,48 @@
     {
       "module": "std.http",
       "surface": "Request",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/abort.w",
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
       ]
     },
     {
       "module": "std.http",
+      "surface": "RequestError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/http_oracle.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "RequestInit",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/http_oracle.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "RequestOverride",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/http_oracle.w"
+      ]
+    },
+    {
+      "module": "std.http",
       "surface": "Response",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/abort.w",
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
       ]
     },
@@ -2648,7 +3577,8 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w",
-        "reference/last-light/gateway.w"
+        "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2656,7 +3586,8 @@
       "surface": "serve",
       "status": "missing",
       "consumers": [
-        "reference/last-light/app.w"
+        "reference/last-light/app.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2664,7 +3595,8 @@
       "surface": "ServerError",
       "status": "draft",
       "consumers": [
-        "reference/last-light/app.w"
+        "reference/last-light/app.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2672,7 +3604,8 @@
       "surface": "ServerLimits",
       "status": "draft",
       "consumers": [
-        "reference/last-light/app.w"
+        "reference/last-light/app.w",
+        "reference/last-light/http_oracle.w"
       ]
     },
     {
@@ -2682,7 +3615,32 @@
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "TemplateBinding",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "TemplateError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.http",
+      "surface": "TemplateLimits",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/benchmark_app.w"
       ]
     },
     {
@@ -2737,6 +3695,17 @@
       }
     },
     {
+      "id": "sdk0-net-listener",
+      "providerModule": "std.net",
+      "surface": "ListenAddress/Network",
+      "status": "missing",
+      "readiness": "required",
+      "profile": "net-listener-carrier",
+      "consumers": [
+        "std.http.serve"
+      ]
+    },
+    {
       "id": "sdk0-web-abort-signal",
       "providerModule": "std.abort",
       "surface": "AbortSignal",
@@ -2773,7 +3742,11 @@
       "consumers": [
         "std.http.Request",
         "std.http.Response"
-      ]
+      ],
+      "implementationProvider": {
+        "id": "std.http@1",
+        "status": "missing"
+      }
     },
     {
       "id": "sdk0-web-readable-stream",
@@ -2845,7 +3818,7 @@
       "id": "sdk0-http-context",
       "module": "std.http",
       "surface": "Context",
-      "status": "missing",
+      "status": "draft",
       "profile": "http-context",
       "consumer": "reference/last-light/gateway.w"
     },
@@ -2861,7 +3834,7 @@
       "id": "sdk0-http-request",
       "module": "std.http",
       "surface": "Request",
-      "status": "missing",
+      "status": "draft",
       "profile": "http-request",
       "requires": [
         "sdk0-json-codec",
@@ -2876,7 +3849,7 @@
       "id": "sdk0-http-response",
       "module": "std.http",
       "surface": "Response",
-      "status": "missing",
+      "status": "draft",
       "profile": "http-response",
       "requires": [
         "sdk0-json-codec",
@@ -2903,6 +3876,9 @@
       "surface": "serve",
       "status": "missing",
       "profile": "http-server",
+      "requires": [
+        "sdk0-net-listener"
+      ],
       "consumer": "reference/last-light/app.w"
     },
     {
