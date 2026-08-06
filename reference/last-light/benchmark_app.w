@@ -270,20 +270,29 @@ async fn fetchBenchmark(
     case (.get, "/plaintext"):
       try http.Response("Hello, World!")
     case (.get, "/json"):
-      try http.Response.json(BenchmarkMessage(message: "Hello, World!"))
+      try http.Response.json(
+        BenchmarkMessage(message: "Hello, World!"),
+        maximumBytes: 64<KiB>,
+      )
     case (.get, "/db"):
-      try http.Response.json(try await world(ctx))
+      try http.Response.json(try await world(ctx), maximumBytes: 64<KiB>)
     case (.get, "/queries"):
       let count = boundedRequestCount(request, parameter: "queries")
-      try http.Response.json(try await worlds(count, ctx: ctx))
+      try http.Response.json(try await worlds(count, ctx: ctx), maximumBytes: 64<KiB>)
     case (.get, "/fortunes"):
       try await renderFortunes(ctx)
     case (.get, "/updates"):
       let count = boundedRequestCount(request, parameter: "queries")
-      try http.Response.json(try await updateWorlds(count, ctx: ctx))
+      try http.Response.json(
+        try await updateWorlds(count, ctx: ctx),
+        maximumBytes: 64<KiB>,
+      )
     case (.get, "/cached-queries"):
       let count = boundedRequestCount(request, parameter: "count")
-      try http.Response.json(try await cachedQueries(count, ctx: ctx))
+      try http.Response.json(
+        try await cachedQueries(count, ctx: ctx),
+        maximumBytes: 64<KiB>,
+      )
     case (_, _):
       try http.Response(status: http.StatusCode.notFound)
   }

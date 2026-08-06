@@ -2,6 +2,7 @@
 
 import * from std.crypto
 import * from std.http
+import json from std.json
 import * from std.storage
 import * from std.time
 
@@ -27,7 +28,7 @@ export struct WifiSession {
 }
 
 export enum WifiError: Error {
-  decode(BodyDecodeError<DecodeError>)
+  decode(BodyDecodeError<json.DecodeError>)
   response(ResponseError)
   service(ServiceFailure)
   invalidVoucher

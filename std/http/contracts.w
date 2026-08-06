@@ -1,6 +1,7 @@
 // Public value contracts for HTTP messages and server admission.
 
 import { AbortReason } from std.abort
+import json from std.json
 
 const fn isHttpTokenByte(byte: u8): Bool {
   if (byte >= b'0' && byte <= b'9')
@@ -729,7 +730,7 @@ export enum ResponseError: Error {
   syntax(HttpSyntaxError)
   headers(HeadersError)
   headerLimitExceeded(maximumFields: usize, maximumBytes: usize)
-  encoding(JsonEncodeError)
+  encoding(json.EncodeError)
   bodyNotAllowed(status: StatusCode)
   invalidServerResponse
 }

@@ -10,7 +10,7 @@ testam se os contratos podem ser escritos em W.
 | Camada | Conteúdo |
 |---|---|
 | T0 | tipos e operações necessários para compilar W e executar o core |
-| T1 | process, files, network, tasks, services e integração comum de host |
+| T1 | process, files, network, tasks, services, JSON e integração comum de host |
 | T2 | HTTP, database, SI, tensor, accelerator, crypto e domínios maiores |
 
 Um tier não define distribuição separada. O SDK pode enviar todas as camadas.
@@ -32,6 +32,8 @@ std/
     contracts.w
   io/
     contracts.w
+  json/
+    contracts.w
   runtime/
     task.w
     transaction.w
@@ -51,6 +53,18 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de T1.
+`json/contracts.w` materializa o codec JSON bounded de T1. `Encodable`,
+`Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
+cursors opacos; object e array cursors vivem somente em closures scoped.
+`Limits` exige bounds positivos para bytes, depth, values, strings, number
+tokens, object members e allocation, e `Limits(maximumBytes:)` escolhe defaults
+finitos e fixos. `.interoperable` segue I-JSON/Web; `.rfc8259` aceita a grammar
+numérica do RFC 8259 e verifica o range no target. `Number` é nominal,
+validado e bounded; `Value` é o sum type explícito. Synthesis inclui Array,
+fixed array, Option e Map<String,V>, com integers até i128/u128; tuples ficam
+fora por shape ambígua. Synthesis fica limitada ao JSON fechado; não há
+reflection, `Any`, annotation, macro ou serializer universal.
+O provider `std.json@1` continua missing, e os oracles não alegam execução.
 `stream/contracts.w` materializa o carrier readable do profile Web como owner
 move-only que atende diretamente a `Stream` e, para bytes, a `ByteSource`. Tee
 sempre recebe limite de lag. Item count é estrutural e usa o allocation budget.
