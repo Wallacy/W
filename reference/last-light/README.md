@@ -188,6 +188,7 @@ alvo de execução independente.
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `gateway.w` | dispatch, routing por URL, body único e oracle de compile surface para clone bounded |
+| `http_documents.w` | adapters direcionais de Command/AppResponse e Problem Details |
 | `http_oracle.w` | constructors, limits, consuming reads, bounded clone, JSON, copied-headers override e net serve signature |
 | `service_oracle.w` | seleção de link, camadas de boundary, commit gate, pipeline e evolução de schema |
 | `session_security_oracle.w` | channel, transcript, 0-RTT e replay de session wRPC |
@@ -220,6 +221,7 @@ alvo de execução independente.
 | `audio.w` | render de áudio com buffers fixos e sem allocation |
 | `audio_app.w` | callback do audio device |
 | `wifi.w` | captive portal, sessions, authority e limits |
+| `wifi_documents.w` | adapters direcionais de Login, Revoke e Session |
 | `wifi_app.w` | component HTTP do Wi-Fi |
 | `ai_harness.w` | kernels, shapes e device bundle |
 | `ai_lab_app.w` | harness nativo de treinamento e oracle CPU/device |
@@ -625,10 +627,11 @@ interoperable aplica I-JSON/Web e o profile RFC 8259 preserva números decimais
 exatos dentro do target. `Number` é nominal e validado; `Value` é o sum type,
 não `Any`; duplicates, Unicode inválido, nonfinite, trailing comma e comments
 falham. Object equality ignora ordem, mas re-encode preserva insertion order.
-`Command`, `AppResponse` e `WifiSession` ainda precisam de schemas/witnesses de
-domínio; as calls são targets de source, não prova de type-check. O provider
-`std.json@1` continua missing, portanto os testes do arquivo são oracles
-provider-gated e não alegam execução.
+`ValueKind` e `ValueConstraint` distinguem type mismatch, enum/refinement e
+canonical form. `http_documents.w` e `wifi_documents.w` usam adapters
+direcionais. Eles validam documents em domain values e codificam responses por
+borrow. Os testes são targets de source e oracles provider-gated. O provider
+`std.json@1` continua missing e não há alegação de execução.
 
 ### 3.5.4 Arquivo Posicional das Receitas Extintas
 
@@ -1618,7 +1621,7 @@ cancel 42
 shutdown
 ```
 
-O oracle de mensagens Web cruza seis sources HTTP. `gateway.w` roteia por
+O oracle de mensagens Web cruza oito sources HTTP. `gateway.w` roteia por
 `request.url.pathname` antes de consumir o body. O receiver `take` impede uma
 segunda leitura. `boundedRequestCloneCompileOracle` registra somente a
 assinatura consuming e o limite do clone. `http_oracle.w` concentra os
@@ -1627,8 +1630,20 @@ de um tipo simples `json.Codable`, a cópia explícita de incoming headers via
 `RequestOverride` e a assinatura de `serve` com carriers `net`. O caminho de
 produção não chama esse helper, e o corpus
 não alega execução enquanto `std.http@1` e os carriers executáveis estão
-missing. `benchmark_app.w` anexa `Headers` a uma resposta HTML e constrói JSON
-com `Response.json`. `wifi_app.w` devolve 204 sem body.
+missing. `http_documents.w` valida os tagged documents de Command e encoda cada
+AppResponse com order canônica. Os adapters são endpoint-owned/dedicated:
+exportar sua plumbing para o host não cria `json.Codable` nos types de domínio
+nem transforma o schema local em contrato global. Seus Problem Details usam
+RFC 9457, a extensão `code` com tokens ASCII estáveis e status derivado do code
+em 400, 422 e 403. O helper de produto fixa
+`application/problem+json`; somente decode, erro semântico do document e
+shutdown remoto são convertidos, enquanto service/response errors propagam.
+Quantity usa adapters nominais que escrevem tokens de unit constantes.
+Os adapters parseiam e formatam IDs pelos carriers `u64`/`u128`; o voucher usa
+o alias nominal `WifiVoucher` antes de construir `LoginRequest`. `benchmark_app.w`
+anexa `Headers` a uma resposta HTML e
+constrói JSON com `Response.json`. `wifi_documents.w` valida login/revoke e
+encoda Session. `wifi_app.w` devolve 204 sem body.
 `worker_app.w` liga o gateway ao slot. `app.w` serve o mesmo handler no processo
 nativo. Todos usam o mesmo modelo de mensagem.
 

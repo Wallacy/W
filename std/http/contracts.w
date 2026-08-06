@@ -293,7 +293,10 @@ extension StatusCode {
   export const ok = StatusCode(200)
   export const noContent = StatusCode(204)
   export const badRequest = StatusCode(400)
+  export const forbidden = StatusCode(403)
   export const notFound = StatusCode(404)
+  export const methodNotAllowed = StatusCode(405)
+  export const unprocessableContent = StatusCode(422)
   export const internalServerError = StatusCode(500)
   export const serviceUnavailable = StatusCode(503)
 }

@@ -7,6 +7,7 @@ import * from std.storage
 import * from std.time
 
 export type DeviceId = String<(.graphemes.count <= 128)>
+export type WifiVoucher = String<(.bytes.count <= 256)>
 export type SessionId = u128
 
 export enum WifiRole {
@@ -17,7 +18,7 @@ export enum WifiRole {
 
 export struct LoginRequest {
   device: DeviceId
-  voucher: String<(.bytes.count <= 256)>
+  voucher: WifiVoucher
 }
 
 export struct WifiSession {

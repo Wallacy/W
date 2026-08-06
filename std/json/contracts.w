@@ -107,6 +107,26 @@ export enum SyntaxKind: Copy & Equatable {
   end
 }
 
+// ValueKind classifies the JSON node found at a document location.  The set
+// is closed so adapters can report a stable mismatch without exposing a
+// runtime type name.
+export enum ValueKind: Copy & Equatable {
+  null
+  boolean
+  number
+  string
+  array
+  object
+}
+
+// ValueConstraint identifies a semantic constraint that a typed decoder
+// could not satisfy.  Domain validation after decode uses a domain error.
+export enum ValueConstraint: Copy & Equatable {
+  enumCase
+  refinement
+  canonicalForm
+}
+
 export enum ValueError: Error {
   invalidNumber
   duplicateMember(name: String)
@@ -124,6 +144,8 @@ export enum DecodeError: Error {
   unsafeInteger(token: String, location: Location)
   invalidNumber(location: Location)
   limitExceeded(kind: LimitKind, maximum: usize, location: Location)
+  typeMismatch(expected: ValueKind, found: ValueKind, location: Location)
+  invalidValue(constraint: ValueConstraint, location: Location)
 }
 
 // Number is nominal and invariant-preserving. Construction validates and

@@ -18,6 +18,8 @@ enum CourseTag: json.Codable {
   cake
 }
 
+type TinyCount = u16<(1...3)>
+
 struct Payload: json.Codable {
   orderId: u64
   amount: i32
@@ -206,6 +208,33 @@ test "missing required field fails" {
     panic("missing required field was accepted")
   } catch .missingMember(let name, _) {
     expect name == "id"
+  }
+}
+
+test "decode reports JSON kind, enum, and refinement failures" {
+  // Provider-gated vectors.  They do not claim execution without std.json@1.
+  var object: Bytes = b"{}"
+  do {
+    let _ = try json.decode<u64>(ref object, limits: limits(1<KiB>))
+    panic("object was accepted as an integer")
+  } catch .typeMismatch(.number, .object, let location) {
+    expect location.byteOffset == 0
+  }
+
+  var unknownCase: Bytes = b"\"unknown\""
+  do {
+    let _ = try json.decode<CourseTag>(ref unknownCase, limits: limits(1<KiB>))
+    panic("unknown enum case was accepted")
+  } catch .invalidValue(.enumCase, let location) {
+    expect location.byteOffset == 0
+  }
+
+  var outOfRefinement: Bytes = b"4"
+  do {
+    let _ = try json.decode<TinyCount>(ref outOfRefinement, limits: limits(1<KiB>))
+    panic("refinement failure was accepted")
+  } catch .invalidValue(.refinement, let location) {
+    expect location.byteOffset == 0
   }
 }
 

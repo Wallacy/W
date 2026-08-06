@@ -9038,6 +9038,21 @@ total signed de nanoseconds no intervalo de `i128`. Seu layout físico é opaco.
 Ele não possui NaN nem infinity. A aritmética mantém a semântica checked dos
 integers.
 
+`Duration` expõe somente o valor por uma projection read-only e por um
+constructor total:
+
+```w
+export struct Duration {
+  export nanoseconds: i128 { get }
+  export const init(nanoseconds: i128)
+}
+```
+
+`nanoseconds` e `Duration(nanoseconds:)` não prometem o layout físico. Eles
+permitem adapters de schema que escolhem sua própria representation. Um
+refinement, como `Duration<(0...)>`, ainda exige narrowing checked quando a
+entrada é runtime.
+
 Um unit literal de tempo materializa `Duration` quando o expected type pede esse
 tipo. A conversão precisa ser exata:
 
@@ -14619,6 +14634,11 @@ adapter valida limits antes de criar `Headers`. Essa boundary não é export de
 customizado é validado. `StatusCode` aceita `100..<600`; associated constants
 como `http.StatusCode.ok` evitam números soltos.
 
+O draft também publica `StatusCode.forbidden`,
+`StatusCode.methodNotAllowed` e `StatusCode.unprocessableContent` para os
+adapters de referência. `StatusCode.tooManyRequests` fica fora até existir uma
+rota que use esse status.
+
 `Method` também é `adapted`: Fetch expõe String. `method.text()` preserva o
 token observável e `.other` impede que um method de extension seja perdido.
 
@@ -14809,6 +14829,42 @@ define static constructors, properties e clone. W troca `any` por
 `ResponseError` separa syntax, header guard, header limit na attachment, JSON
 encoding, body proibido e response inválido para server. Status, statusText e
 headers são validados antes de criar o owner.
+
+#### 14.3.2.1 Erros de documento HTTP
+
+O adapter HTTP distingue três classes de resultado antes do commit:
+
+- JSON malformado ou shape incompatível produz `400 Bad Request`;
+- documento JSON bem formado, mas semanticamente inválido, produz
+  `422 Unprocessable Content`;
+- shutdown recebido sem authority produz `403 Forbidden`.
+
+Essas respostas usam [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457)
+com media type `application/problem+json`. O campo `type` usa URIs
+`https://last-light.example/problems/...` somente como referência fictícia.
+O objeto também possui a extensão estável `code`, com tokens ASCII explícitos
+`malformed-json`, `invalid-command`, `forbidden-shutdown` e
+`invalid-wifi-document`. `ProblemCode` é a fonte total de `StatusCode`, e o
+body e o response usam essa mesma projeção; não existe combinação livre de
+status e code. O produto não deve expor error interno, voucher, token ou input
+sensível.
+
+`BodyDecodeError<json.DecodeError>` permanece o carrier de syntax e kind errors.
+O adapter converte `CommandDocumentError` e `WifiDocumentError` em problem
+details sem incluir seus valores brutos. `GatewayError` mantém uma categoria de
+schema separada da categoria de body decode. A implementação executável desses
+caminhos aguarda `std.http@1`; o produto de referência fornece um oracle focado
+de problem documents. O helper de produto grava `content-type:
+application/problem+json`, deriva o status de `ProblemCode` e converte
+`HeadersError` para `ResponseError`. Os handlers capturam somente as classes
+documentadas: decode para 400, erro semântico do document para 422 e shutdown
+sem authority para 403. Service, response e outros errors continuam propagados.
+
+```text
+malformed JSON           -> 400 application/problem+json
+invalid adapter document -> 422 application/problem+json
+remote shutdown          -> 403 application/problem+json
+```
 
 Um body String usa UTF-8 e recebe o media type padrão do Fetch Standard. HTML
 exige `content-type` explícito. Bytes e streams não são copiados pelo
@@ -16034,6 +16090,13 @@ servem para oracle, interoperabilidade e adapters. `ObjectEntry.name` é view e
 manter um índice interno sem mudar a ordem observável. Eles não ativam
 synthesis tipada.
 
+`json.ValueKind` é fechado com `null`, `boolean`, `number`, `string`, `array` e
+`object`. `json.ValueConstraint` é fechado com `enumCase`, `refinement` e
+`canonicalForm`. `DecodeError.typeMismatch` representa um kind JSON errado.
+`DecodeError.invalidValue` representa uma falha de enum, refinement ou forma
+canônica depois que o kind foi reconhecido. Um erro semântico do documento do
+domínio permanece um enum separado e não usa esses dois cases.
+
 `DecodeError` carrega `Location(byteOffset:)` em syntax, trailing bytes,
 Unicode/surrogate, duplicate, missing, unknown, unsafe integer, invalid number
 e limit. `SyntaxKind` é fechado. `ValueError` separa construção dinâmica de
@@ -16071,16 +16134,58 @@ ambígua exigem witness manual. `Display`, outros codecs e schemas continuam
 **Rejeitado** para synthesis automática. A decisão não adiciona annotation ou
 macro. Ela refina W-314 somente para esta família JSON fechada.
 
+#### 14.3.9.1 Adapters direcionais de schema
+
+**Direção:** types de domínio não conformam diretamente a `json.Codable`.
+Cada endpoint declara um adapter endpoint-owned dedicado para seu documento de
+entrada e outro para seu documento de saída. O inbound atende somente
+`json.Decodable`. O outbound atende somente `json.Encodable`.
+
+O módulo pode exportar a plumbing do adapter para o host chamar o endpoint.
+Esse export não cria `json.Codable` no type de domínio, não publica um schema
+global e não transforma a projeção local em contrato de todos os endpoints.
+
+Essa separação permite versões e shapes diferentes sem reflection, annotation,
+conformance global ou vínculo entre source field names e wire names. Unknown
+members continuam reject na call. Duplicate names sempre falham.
+
+Syntax e type errors continuam `http.BodyDecodeError<json.DecodeError>`.
+Refinement e enum failures do adapter são errors semânticos do documento. Eles
+não carregam voucher, token, nome bruto ou outro valor sensível.
+
+IDs `u64` e `u128`, `Money.minorUnits` `i128`, `Duration.nanoseconds` e
+`completedOrders` `u64` usam String decimal canônica. `u16` e `u32` usam JSON
+number por caberem sempre no range inteiro exato do profile I-JSON. A shape não
+muda conforme o valor runtime. Para IDs nominais, o adapter faz parse do
+carrier (`u64` ou `u128`), compara o texto com `Display` do carrier e constrói
+o ID; a saída usa a conversão total para o carrier. Ele não depende de members
+associados herdados por newtype enquanto essa regra permanece em fechamento.
+
+Tokens de domínio são explícitos em ASCII kebab-case. Os tokens fechados usados
+por Last Light incluem `horizon-cake`, `quiet-orbit`, `timeline-collision` e
+`shutting-down`. Stages e roles simples usam lowercase. Currency usa `CR`,
+`USD` e `BRL`. O adapter não deriva token de source name.
+
+O encoder canônico escreve `kind` primeiro e depois os payload members na ordem
+documentada. `notes` escreve `null`; o decoder aceita member ausente ou `null`.
+Uma resposta HTTP usa adapters borrowed para não mover o modelo de domínio nem
+alocar arrays DTO durante a call síncrona de `Response.json`. Cada forma de
+Quantity usa um adapter nominal dedicado (por exemplo, segundos ou joules) que
+escreve um token de unit constante; não existe um campo `unit: String` que o
+runtime possa preencher arbitrariamente.
+
+Uma projeção futura pode gerar documentação ou checks a partir desses adapters
+explícitos. Ela não vira autoridade nem substitui os contracts canônicos. O
+oracle `reference/last-light/http_documents.w` e
+`reference/last-light/wifi_documents.w` mostra essa forma com providers
+ausentes.
+
 **Quantity em JSON.** Quantity não recebe `json.Codable` genérico ou automático.
 O schema de domínio escolhe a unit e a representation de documento. A forma
 canônica está em [15.5.4](#1554-json-de-domínio-para-quantity).
 
-```json
-{ "value": 30, "unit": "s" }
-```
-
-O object usa os members `value` e `unit`. O resumo deste protocolo não duplica o
-contrato de token, rounding ou decimal de 15.5.4.
+O object usa os members `value` e `unit`; o adapter fixo escolhe o token e o
+resumo deste protocolo não duplica o contrato de rounding ou decimal de 15.5.4.
 
 O HTTP usa os nomes qualificados do módulo. `Request.json` continua consuming e
 bounded e devolve `http.BodyDecodeError<json.DecodeError>` por composição W de
@@ -16094,10 +16199,10 @@ bound menor depois, mas não escolhe silenciosamente as outras dimensões.
 `Request` e `Response` agora possuem declaration draft no bundle HTTP, mas o
 provider e os carriers executáveis continuam missing. A mudança de carrier
 desbloqueia `ResponseError` quando seus outros requirements estão satisfeitos.
-`Command`, `AppResponse` e `WifiSession` continuam targets de source e ainda
-precisam de schemas/witnesses de domínio. `AppResponse.simulation` passa a usar
-a policy de Quantity/SI fechada por W-903. Os witnesses de
-`Command`, `AppResponse` e `WifiSession` continuam trabalho seguinte.
+`Command`, `AppResponse` e `WifiSession` agora possuem adapters direcionais no
+produto de referência. Esses arquivos são oracles compile/provider-gated. Eles
+não afirmam que os providers executam. `AppResponse.simulation` usa a policy de
+Quantity/SI fechada por W-903.
 
 O provider interno `std.json@1` permanece missing. Antes de promover a
 interface, os gates precisam cobrir RFC 8259, RFC 7493/I-JSON, UTF-8 e Unicode,
@@ -16727,6 +16832,70 @@ Tipos `fast8` ou `fast16` dependentes do target
 ficam **Rejeitado por enquanto**; ProofFacts e o optimizer escolhem a largura
 física sem mudar o tipo source.
 
+#### 15.1.6 Texto decimal de integers
+
+**Direção:** todos os integers de largura fixa, `Int` e `UInt` atendem
+`Display` com decimal ASCII canônica. A forma é independente de locale.
+
+`Display` de um integer usa somente estes bytes:
+
+- `0` para zero;
+- `1` a `9` como primeiro byte de valor não zero;
+- `0` a `9` nos bytes restantes;
+- um único `-` antes dos digits para um signed negativo.
+
+O output não usa `+`, separador, whitespace ou prefixo de radix. O valor mínimo
+de um signed também é formatado sem overflow intermediário. `Int` e `UInt`
+seguem a mesma regra dos carriers `i64` e `u64`.
+
+```w
+expect i32(0).display() == "0"
+expect i32(7).display() == "7"
+expect i32(-7).display() == "-7"
+expect i32.min.display() == "-2147483648"
+expect u64(42).display() == "42"
+```
+
+`T.parse(view String)` reconhece decimal estrita. A entrada não pode conter
+whitespace, `_`, prefixo de radix, fraction ou exponent. Um `+` inicial é
+aceito para qualquer integer. `-` é aceito somente para signed. O parser faz
+range check depois de validar todos os digits. Ele não usa locale.
+
+```w
+expect try i32.parse("+7") == 7
+expect try i32.parse("-0") == 0
+expect try u32.parse("+7") == 7
+// try u32.parse("-1")                 // invalidSign
+// try i32.parse("01")                 // parse válido, não canonical
+// try i32.parse("1_000")              // invalidDigit
+// try i32.parse("1e3")                // invalidDigit
+// try i32.parse("2147483648")         // outOfRange
+```
+
+`IntegerParseError` é estruturado e fechado:
+
+```w
+export enum IntegerParseError: Error {
+  empty
+  invalidSign
+  invalidDigit(byteOffset: usize)
+  outOfRange
+}
+```
+
+`invalidDigit` aponta o byte que viola a grammar. O erro não devolve o token
+inteiro. O acumulador usa uma operação checked que trata o limite signed mínimo
+sem negar esse valor em um carrier positivo intermediário.
+
+Um schema que exige decimal canônica executa `parse` e compara o texto de
+entrada byte a byte com `Display` do valor. Assim `+1`, `01` e `-0` podem
+parsear, mas falham a validação de canonical form. O schema nunca escolhe a
+representation conforme o valor runtime.
+
+APIs de radix podem existir como alternativa explícita futura. Elas não mudam o
+texto decimal usado por `Display`, schemas JSON ou IDs de Last Light. Locale
+não é uma opção de formatação numérica na baseline.
+
 ### 15.2 Ranges
 
 **Exemplo:** `1>..<5` contém `2`, `3` e `4`. Ele não aloca nem cria um
@@ -17039,7 +17208,9 @@ não negociam nem convertem units dinamicamente no payload.
 #### 15.5.4 JSON de domínio para Quantity
 
 Quantity não recebe `json.Codable` genérico ou automático. O schema de domínio
-escolhe unit e representation de documento.
+escolhe unit e representation de documento por um adapter nominal dedicado. O
+adapter de cada field escreve seu token constante; não existe um adapter
+genérico com `unit: String` que aceite qualquer unit em runtime.
 
 ```json
 { "value": 30, "unit": "s" }
@@ -17063,8 +17234,8 @@ do schema não muda conforme o value runtime.
 Uma decimal unsigned canônica segue `0|[1-9][0-9]*`. Uma decimal signed segue
 `0|-?[1-9][0-9]*`. Não há sinal plus nem leading zero. O decoder faz range check.
 
-Para o schema `tickDuration`, o token é sempre `s`. Para `energyUsed`, o token é
-sempre `J`. Para `MemorySize`, o profile integer usa
+Para o schema `tickDuration`, o adapter fixo escreve sempre `s`. Para
+`energyUsed`, o adapter fixo escreve sempre `J`. Para `MemorySize`, o profile integer usa
 `{"value":"524288","unit":"bit"}`. `{"value": 30, "unit": "ms"}` é rejeitado. A forma com field
 embutido, como `tickDurationSeconds`, permanece **Alternativa** para APIs muito
 compactas. `{ "value": 30, "arbitraryUnit": "ms" }` permanece **Rejeitado por
@@ -26915,10 +27086,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-897 | intrinsic interno da std | `foreign intrinsic from "provider@major"` é primitive unsafe não exportável, restrita a módulos internos do SDK; manifest versionado fixa signatures, effects e gates; wrapper W safe contém a boundary; não existe ABI pública nem capability implícita; bootstrap usa allowlist e os mesmos digests | foreign symbol comum; `fn<C>`; annotation nova; provider ambiental; declaration por package; intrinsic público; authority por nome |
 | W-898 | ReadableStream portátil | owner move-only atende diretamente a `Stream`; erasure interna pode usar box/indirection, SBO ou monomorfização com witness exato; `next` é o cursor único; `cancel` segue W-330, com handle inert antes de success, Failure ou task cancellation, sem owner restaurado e com drain estruturado; drop é idempotente e best-effort; BYOB é `ByteSource.read` sobre `Bytes` growable; sem prefetch, controller, reader object, `IncomingBody` público ou `any`; tee exige `Duplicable`; o genérico limita lag em itens e depende do allocation budget, sem promessa de memória transitiva; o overload de bytes limita lag exato e serve clone HTTP; COW preserva independência; branch drop não cancela a irmã; cleanup e pull upstream ocorrem uma vez; pipe fica direção até fechar writable/transform; provider continua missing | runtime de stream paralelo; façade declarada zero-cost; witness apagado sem prova; `getReader`; `IncomingBody`; rollback em catch; retry de cancel; resource owner dentro de error duplicável; lock dinâmico em safe W; tee Web unbounded; item count chamado de byte/memory bound; `sizeOf`, callback de custo ou medida transitiva; tee zero como rendezvous implícito; chunk copy obrigatório; BYOB por ArrayBuffer ou fixed-buffer identity; HWM oculto; pull reentrante; task detached; `pipeTo` antes de WritableStream; cancel como error de task; clone HTTP com pump próprio |
 | W-899 | AbortSignal portátil | `std.abort` adapta o first-wins Web sem substituir a cancellation monotônica de W; `AbortReason` é `Error & Copy`, fechado e bounded; signal duplica handle O(1), devolve reason por valor, oferece `throwIfAborted` tipado, espera pelo reason sem perder wake, não concede authority e não é `WireValue`; controller é move-only, first-wins atômico e drop não aborta; timeout zero já está abortado, timeout positivo possui timer-resource independente do creator/root, continua ao escapar e cobra o execution domain sem manter task viva; falha de timer budget publica cancellation e solicita cancellation estrutural; `any` preserva o nome Web e valida antes de registrar: argumentos diretos e folhas pending únicas após flatten/dedup precisam caber no mesmo `maximumSources` por result, inputs abortados só vencem depois das duas validações e cada folha pending recebe uma registration; total vivo do execution domain depende do allocation/admission budget do provider, não do fan-in de uma call; o DAG não cria cycle; Request recebe signal interno dependente; error Web versus task cancellation segue settlement/commit e sempre drena I/O; RPC geral usa automatic call cancellation, Request usa control frames e live-control edge fica alternativa futura; provider continua missing | colocar em `std.runtime`; transformar cancellation de task em application error; reason dinâmico, message, error arbitrário ou resource owner; renomear `any` como `combining`; EventTarget e callbacks no SDK0; signal com authority; controller duplicável; abort implícito no drop; ligar timeout genérico ao creator/root; wall clock; timer ou observer sem bound; tratar fan-in de uma call como limite global de dependents; validar winner antes dos bounds; permitir que terminal direto ou `any` pending contorne limite; ordem total fictícia para races; handle como `WireValue`; AbortSignal remoto geral no SDK0; implementação safe W sem atomics e hooks provados |
-| W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, errors tipados com `Location`/`SyntaxKind`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; schemas de Command/AppResponse/WifiSession continuam futuros; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
-| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e agora possui declaration draft, mas depende dos providers `std.net@1` e `std.http@1` missing; Blob/FormData continuam profile-final; schemas Command/AppResponse/WifiSession permanecem targets e seus witnesses continuam futuros; AppResponse.simulation usa a policy wire Quantity/SI fechada em W-903 | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; claims de execução sem provider |
+| W-900 | JSON bounded SDK0 | `std.json` fornece `Encodable`, `Decodable`, `Codable`, `Limits` Copy/Equatable com defaults finitos, profiles `.interoperable`/`.rfc8259`, `ValueKind`/`ValueConstraint`, errors tipados com `Location`/`SyntaxKind`, `typeMismatch` e `invalidValue`, cursors `Writer`/`Reader` opacos e scoped com callbacks `some take fn`, `Number` nominal validado, `Value` sum type explícito, Object equality map-like com insertion order preservada no re-encode, synthesis somente por conformance JSON fechada (Array/fixed array/Option/Map<String,V>; sem tuple), unknown policy explícita e duplicate rejection; encoder compacto define escapes, shortest-round-trip e signed zero sem alegar canonical JSON; HTTP usa `json.*` e exige `maximumBytes` ou `json.Limits`; adapters direcionais de Command/AppResponse/WifiSession estão no produto de referência; provider `std.json@1` continua missing | serializer universal, reflection, `Any`, annotation, macro, metatype, cursor escapante, route unlimited, duplicate last-wins, NaN/Infinity, conformance Codable global de domain types ou codec automático para Display/outros schemas; chamar o output de JCS ou identity de signature/content |
+| W-901 | HTTP SDK0 | um provider `std.http@1` possui handles privados para Request, Response, body, Context e serve; owners são move-only e consuming operations inert antes de suspension/outcome; BodySource aceita somente String, Bytes, URLSearchParams e ReadableStream; RequestInit e RequestOverride separam defaults, inherit e none; `RequestIntegrity` separa inherit/clear; policies são enums fechados com Priority high/low/auto e destinations Web exatos; clone usa tee bounded; Response status 0..<600 e constructors normais 200..<600 rejeitam 204/205/304 body; JSON compõe `bytes`/`json.decode` e `json.encode`/`Response(Bytes)` com `ref Value`; Context nominal process-local expõe random, databases, caches, templates e signal por identity const, registries infallible e `some` owners; TemplateBinding fixa limits/version para extensão host provisória; serve usa `net.ListenAddress`/`ref net.Network` e agora possui declaration draft, mas depende dos providers `std.net@1` e `std.http@1` missing; erros de adapter distinguem 400/422/403 e usam RFC 9457 Problem Details; Blob/FormData continuam profile-final; AppResponse usa adapter borrowed síncrono | BodyInit universal com `T??`; clone sem bound; Context ambiental/string lookup/runtime failure; existential `any`; intrinsics genéricas JSON; template irrestrito; HTTP address/network declarations; Priority.normal; `integrity: String?`; mutation direta de Headers; URL overloads indistinguíveis; Blob/FormData parcial; JSON lossy para Quantity/SI; envelope genérico que mistura decode e domain errors; claims de execução sem provider |
 | W-902 | rede SDK0 | `std.net` é módulo T1 com provider intrinsic único `std.net@1` missing; `Network` é capability nominal move-only sem initializer público e as APIs públicas borrowam HostName, Endpoint, ListenAddress e SocketAddress; AddressFamily, Ipv4Address, Ipv6Address, IpAddress, SocketAddress, HostName, Endpoint e ListenAddress são values tipados com bounds DNS/port, UTS #46 nontransitional, STD3, IDNA2008, trailing-dot único, ASCII lowercase e RFC 5952; `SocketAddress` exige port e aceita somente IPv4 `192.0.2.1:443`, IPv6 `[2001:db8::1]:443` e scope IPv6 dentro de brackets, como `[fe80::1%3]:443`; hostname e scope zero são rejeitados; parse/format de IP e socket são estritos, canônicos, fazem round-trip e não resolvem DNS; resolve usa ResolveLimits, port remoto `1...65_535` e connect usa RFC 6724/RFC 8305 bounded com attempts `1...16`, `fallbackDelay` não negativo e finito; cada IP é revalidado imediatamente antes de cada tentativa; calls por borrow em Network criam state independente e podem coexistir sem conflito de capability/policy; calls `mut async` mantêm borrow exclusivo até completion ou cancellation drain; TCP full duplex concorrente exige `split()` síncrono, e `finishWriting()` e `TcpWriteHalf.finish()` são `take async` consumidos antes da suspensão e em todo outcome; EOF é sticky, errors latched são observados antes da próxima operação e reset/abort/disconnect são terminais; drops só ocorrem após drain de borrows, limpam residual e liberam uma vez; UDP serializa no mesmo socket no máximo uma receive ou send em voo e mantém truncation explícita; NetworkLimitKind, `limitExceeded(kind, maximum)` e `messageTooLarge(maximum)` são portáveis; http.serve usa `net.NetworkError`, o carrier `sdk0-net-listener` está draft e o provider `std.net@1` continua missing; gates cobrem parse/format, differential targets, capabilities/SSRF, cancellation, partial I/O, fault injection, sanitizers, leak, limits e fuzzing | socket global, constructor de capability, network String names, raw sockets, fd inheritance, socket-option escape hatch, multicast/broadcast, Unix sockets, named pipes, TLS/STARTTLS, QUIC, WebSocket ou interface enumeration sem contracts próprios; tratar deadline de task como NetworkError.timedOut; prometer reliability, ordering ou congestion control no UDP; prometer cancelamento físico de syscall em target sem suporte; prometer split direcional ou protocolo genérico de datagram no SDK0 |
 | W-903 | Quantity/SI | dimensões normalizam para IDs-base e expoentes; `std.si` fixa `m`, `kg`, `s`, `A`, `K`, `mol`, `cd`, Angle usa `rad` como eixo forte W e Temperature point/delta usam K; cada dimensão customizada exige exatamente uma declaration `unit name: Dimension`, independente de source/file order; `Quantity<D, R>` guarda somente magnitude em R; aliases preservam D; linear, affine point e affine delta são identidades distintas; scale/offset são rationals exact; integer exige resultado integral/in-range checked; float usa coeficiente nearest-even, multiply strict e affine multiply-then-add; `canonicalValue`, `value(in:)`, `exactValue(in:)` fallible sem rounding e `try value(in:, rounding:)` formam a surface explícita; layout é o de R sem metadata por value e não promete ABI/FFI; optimizer preserva dimensão, rounding e strict float; wWire carrega somente R e inclui dimensão normal, kind, reference, R, refinements e validation no `WireSchemaDigest`; JSON escolhe schema fixo `{value, unit}` na ordem value/unit, exige token exato, recomenda UCUM e decimal canônica, sem `json.Codable` genérico; Last Light usa `quantity_oracle.w` para 30 s/0.5 min, affine points, bits IEC e schemas `s`/`J`; providers `std.json@1` e wWire de produção continuam missing | **Alternativa:** field name com unit embutida para APIs compactas; **Pesquisa:** optimizer/vectorização e providers; **Rejeitado por enquanto:** `{value, arbitraryUnit}` com conversão dinâmica, level/log em Quantity linear, registry runtime e metadata por value |
+| W-904 | texto inteiro canônico | integers fixed, `Int` e `UInt` atendem `Display` em decimal ASCII sem locale, plus ou leading zero; zero usa `0`; signed negative usa um `-`; signed minimum é formatado sem overflow intermediário; `T.parse(view String)` aceita decimal estrita, `+` opcional, `-` somente signed, faz range check e retorna `empty`, `invalidSign`, `invalidDigit(byteOffset)` ou `outOfRange`; schema valida `parse` e igualdade byte a byte com `Display`; radix APIs continuam alternativa futura | locale numérico, parsing permissivo com whitespace/radix/fraction/exponent, formatar signed min por negação intermediária, canonizar por runtime value |
+| W-905 | Duration exata | `Duration` continua signed i128 nanoseconds com layout opaco; getter read-only `nanoseconds: i128` e constructor total `Duration(nanoseconds: i128)` expõem o valor sem expor layout; refinements exigem narrowing checked em input runtime; JSON genérico de Duration fica rejeitado e cada endpoint escolhe schema; Wifi usa String decimal `remainingNanoseconds` | layout público, float/infinity, narrowing implícito, serializer Duration universal |
+| W-906 | adapters direcionais de JSON | domain types não conformam diretamente `json.Codable`; cada endpoint possui adapter endpoint-owned/dedicated inbound somente `json.Decodable` e outbound somente `json.Encodable`; o módulo pode exportar a plumbing necessária ao host sem criar `json.Codable` no type de domínio ou um contrato global; schemas/versionamento ficam locais sem reflection, annotation ou conformance global; unknown members reject e duplicate sempre falha; IDs u64/u128, Money i128, Duration nanoseconds e completedOrders u64 usam decimal String canônica com parse/display no carrier explícito; u16/u32 usam JSON number; tokens são explícitos ASCII kebab-case; encoder põe `kind` primeiro e `notes` usa null; borrowed AppResponse adapters encodam sem mover/copiar o modelo; Quantity usa adapters nominais fixos para tokens de unit; Problem Details usam `code` estável e status derivado do code; Command, AppResponse e WifiSession têm source oracles provider-gated | conformance direta de domain type congelando um schema global, reflection/universal serializer, tokens derivados de source names, shape dependente de runtime value, envelope genérico que mistura decode e domain errors, status/code livres, unit String arbitrária |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

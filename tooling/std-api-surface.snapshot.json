@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "fb067ac41377c11814a31e546a70b3f41520ac72c98403435cfedcbcbdca2131",
+  "catalogDigest": "559c62be09041a2afce72dff4e0f6c3d88d0bddbefdafd994e19247a16f078af",
   "summary": {
     "modules": 14,
-    "catalogedApis": 159,
-    "draftCatalogedApis": 159,
+    "catalogedApis": 161,
+    "draftCatalogedApis": 161,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 42,
     "referenceRequirements": 9,
@@ -501,14 +501,14 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "7725dc48319767b2964c9171fbe4dfdd46cfcd897958563e80b3e74905f9f501",
+      "catalogedDeclarationsDigest": "d6e0d43262022f38ff9c4733cc11e691f612fc7978feaaf38981bb404e2d6005",
       "apis": [
         {
           "symbol": "BodyCloneError",
           "kind": "enum",
           "signature": "export enum BodyCloneError: Error",
           "declarationDigest": "eb151b2bc3a1d20c2683d781c874034f830851b1a79001b5cc3118e35fb9e267",
-          "line": 719,
+          "line": 722,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -517,7 +517,7 @@
           "kind": "enum",
           "signature": "export enum BodyDecodeError<CodecFailure: Error>: Error",
           "declarationDigest": "5f55fef3dd317ba454b03e285cb9829bfadfc0f536d34d8e43922cb7df514beb",
-          "line": 714,
+          "line": 717,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -526,7 +526,7 @@
           "kind": "enum",
           "signature": "export enum BodyOverride",
           "declarationDigest": "4f725590407320cf81bbc614a148f033bbb5f66a4c071fe5da21a03b7f86101e",
-          "line": 787,
+          "line": 790,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -535,7 +535,7 @@
           "kind": "enum",
           "signature": "export enum BodySource",
           "declarationDigest": "3e1b845242422c23140b97bfa083c3ff8db6959c19ed4ce232bfd679eb13e1c5",
-          "line": 780,
+          "line": 783,
           "profile": "http-body-source",
           "status": "draft"
         },
@@ -544,7 +544,7 @@
           "kind": "enum",
           "signature": "export enum CacheMode",
           "declarationDigest": "a7462fb4d55473c20eb66ce1c8e23dd8bde1728b3788a6f9a8be9c4192bc9ebc",
-          "line": 806,
+          "line": 809,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -553,7 +553,7 @@
           "kind": "struct",
           "signature": "export struct CacheRegistry",
           "declarationDigest": "2720acd39392d59807441ceaed78aa67837732de3a731f8150c162c709813d15",
-          "line": 1588,
+          "line": 1591,
           "profile": "http-context",
           "members": [
             {
@@ -561,7 +561,7 @@
               "overloads": [
                 {
                   "signature": "export fn get<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>( binding: const cache.LocalBinding<Key, Value>, ): some cache.LocalCache<Key, Value>",
-                  "line": 1595
+                  "line": 1598
                 }
               ],
               "profile": "http-context"
@@ -574,7 +574,7 @@
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "fe16b5bc88fb099851530184f0e0727885c073280ec2bc514426037fba4c77ec",
-          "line": 1665,
+          "line": 1668,
           "profile": "http-context",
           "members": [
             {
@@ -583,7 +583,7 @@
               "overloads": [
                 {
                   "signature": "export random: RandomSource",
-                  "line": 1676
+                  "line": 1679
                 }
               ],
               "profile": "http-context"
@@ -594,7 +594,7 @@
               "overloads": [
                 {
                   "signature": "export databases: DatabaseRegistry",
-                  "line": 1682
+                  "line": 1685
                 }
               ],
               "profile": "http-context"
@@ -605,7 +605,7 @@
               "overloads": [
                 {
                   "signature": "export caches: CacheRegistry",
-                  "line": 1688
+                  "line": 1691
                 }
               ],
               "profile": "http-context"
@@ -616,7 +616,7 @@
               "overloads": [
                 {
                   "signature": "export templates: TemplateRegistry",
-                  "line": 1694
+                  "line": 1697
                 }
               ],
               "profile": "http-context"
@@ -627,7 +627,7 @@
               "overloads": [
                 {
                   "signature": "export signal: AbortSignal",
-                  "line": 1702
+                  "line": 1705
                 }
               ],
               "profile": "http-context"
@@ -640,7 +640,7 @@
           "kind": "enum",
           "signature": "export enum CredentialsMode",
           "declarationDigest": "4670a3ce47d8e34bc416d5b6cbffbff14b05f087396fd0cf51491c4a5b9127fb",
-          "line": 800,
+          "line": 803,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -649,7 +649,7 @@
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
           "declarationDigest": "6474e19a878ede485e74ce325207ebbf55dee4588027bef941fb6978240fff83",
-          "line": 1570,
+          "line": 1573,
           "profile": "http-context",
           "members": [
             {
@@ -657,7 +657,7 @@
               "overloads": [
                 {
                   "signature": "export fn get( binding: const database.Binding, ): some database.Database",
-                  "line": 1577
+                  "line": 1580
                 }
               ],
               "profile": "http-context"
@@ -670,7 +670,7 @@
           "kind": "enum",
           "signature": "export enum Duplex",
           "declarationDigest": "7eb2fc32a0d3b9636e68f9d66c3a58c36d1e6f1176d545622d99ab50e9bcf63b",
-          "line": 832,
+          "line": 835,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -679,7 +679,7 @@
           "kind": "struct",
           "signature": "export struct HeaderField",
           "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
-          "line": 379,
+          "line": 382,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -688,7 +688,7 @@
           "kind": "enum",
           "signature": "export enum HeaderMutationDenied",
           "declarationDigest": "9f310f6e27f9dd3228f9dc1f7111636cfdf73b80146ee765dab255b8f7cc6650",
-          "line": 450,
+          "line": 453,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -697,7 +697,7 @@
           "kind": "struct",
           "signature": "export struct HeaderName",
           "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
-          "line": 301,
+          "line": 304,
           "profile": "normalized-http-header-component",
           "status": "draft"
         },
@@ -706,7 +706,7 @@
           "kind": "struct",
           "signature": "export struct Headers",
           "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
-          "line": 470,
+          "line": 473,
           "profile": "http-headers",
           "members": [
             {
@@ -714,11 +714,11 @@
               "overloads": [
                 {
                   "signature": "export init(_ initialFields: take HeaderField...)",
-                  "line": 474
+                  "line": 477
                 },
                 {
                   "signature": "export init(copying source: ref Headers)",
-                  "line": 479
+                  "line": 482
                 }
               ],
               "profile": "http-headers-construction"
@@ -728,7 +728,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn append( name: String, value: String, ): () throws HeadersError",
-                  "line": 495
+                  "line": 498
                 }
               ],
               "profile": "http-headers-append"
@@ -738,7 +738,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn delete(name: ref String): () throws HeadersError",
-                  "line": 508
+                  "line": 511
                 }
               ],
               "profile": "http-headers-mutation"
@@ -748,7 +748,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(name: ref String): String? throws HeadersError",
-                  "line": 523
+                  "line": 526
                 }
               ],
               "profile": "http-headers-query"
@@ -758,7 +758,7 @@
               "overloads": [
                 {
                   "signature": "export fn getSetCookie(): Array<String>",
-                  "line": 539
+                  "line": 542
                 }
               ],
               "profile": "http-headers-list-query"
@@ -768,7 +768,7 @@
               "overloads": [
                 {
                   "signature": "export fn has(name: ref String): Bool throws HeadersError",
-                  "line": 549
+                  "line": 552
                 }
               ],
               "profile": "http-headers-membership"
@@ -778,7 +778,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn set( name: String, value: String, ): () throws HeadersError",
-                  "line": 557
+                  "line": 560
                 }
               ],
               "profile": "http-headers-mutation"
@@ -788,7 +788,7 @@
               "overloads": [
                 {
                   "signature": "export fn entries(): Array<HeaderField>",
-                  "line": 597
+                  "line": 600
                 }
               ],
               "profile": "http-headers-iteration"
@@ -801,7 +801,7 @@
           "kind": "enum",
           "signature": "export enum HeadersError: Error",
           "declarationDigest": "72a5e407db7d3017b9713e040f1ab4e83989d799c4397a23e898d26c27dda9f0",
-          "line": 457,
+          "line": 460,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -810,7 +810,7 @@
           "kind": "enum",
           "signature": "export enum HttpBodyError: Error & Duplicable",
           "declarationDigest": "3836d56c16be2c254cd3ce892ce4c1cee745a2adddc1cf2f07b29c7d0c9b68de",
-          "line": 704,
+          "line": 707,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -822,7 +822,7 @@
           "kind": "enum",
           "signature": "export enum HttpError: Error",
           "declarationDigest": "bbfa669bc6f99c4ef5447f2cc8d110bc3f7a73adc2fc8059a77aa117426f0247",
-          "line": 744,
+          "line": 747,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -831,7 +831,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler<Failure: Error>",
           "declarationDigest": "fc9db826e80d97ce7fc122f230a76727fabfcfc9f3008cdecf7bc99bc04bcdff",
-          "line": 1727,
+          "line": 1730,
           "profile": "http-handler",
           "status": "draft",
           "requires": [
@@ -845,7 +845,7 @@
           "kind": "enum",
           "signature": "export enum HttpSyntaxError: Error",
           "declarationDigest": "1ea4222e48791e4d56bcc53a3d566799053313fc64851a36453a4164e4832432",
-          "line": 696,
+          "line": 699,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -854,7 +854,7 @@
           "kind": "struct",
           "signature": "export struct MessageLimits",
           "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
-          "line": 763,
+          "line": 766,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -881,7 +881,7 @@
           "kind": "enum",
           "signature": "export enum Priority",
           "declarationDigest": "fcd5d3a517f018d9b0168165ada47c339d835078a8338db57bfa5b7ac4bfe9b5",
-          "line": 836,
+          "line": 839,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -890,7 +890,7 @@
           "kind": "struct",
           "signature": "export struct RandomSource",
           "declarationDigest": "b6705b6dcef83199aaf6f8bf4882d412d1abb127b5c7952f08bab99705c675a8",
-          "line": 1554,
+          "line": 1557,
           "profile": "http-context",
           "members": [
             {
@@ -898,7 +898,7 @@
               "overloads": [
                 {
                   "signature": "export fn integer(in range: Range<i32>): i32",
-                  "line": 1561
+                  "line": 1564
                 }
               ],
               "profile": "http-context"
@@ -911,7 +911,7 @@
           "kind": "enum",
           "signature": "export enum RedirectMode",
           "declarationDigest": "2adb67c040396e9229ea07f102b624382132a44cb7fd68830389a3df2cb60af2",
-          "line": 815,
+          "line": 818,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -920,7 +920,7 @@
           "kind": "enum",
           "signature": "export enum ReferrerPolicy",
           "declarationDigest": "fe490b8ae21e4d99f5a8617bde0666e7ba81c33299810f9b57893c6496e1245f",
-          "line": 821,
+          "line": 824,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -929,7 +929,7 @@
           "kind": "struct",
           "signature": "export struct Request",
           "declarationDigest": "78b13b3c81331692073ab6a6123bf068a0429ee1c640ba51a6fd7979ea49d5a2",
-          "line": 1138,
+          "line": 1141,
           "profile": "http-request",
           "members": [
             {
@@ -937,19 +937,19 @@
               "overloads": [
                 {
                   "signature": "export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1145
+                  "line": 1148
                 },
                 {
                   "signature": "export init(_ input: take URL, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1151
+                  "line": 1154
                 },
                 {
                   "signature": "export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError",
-                  "line": 1159
+                  "line": 1162
                 },
                 {
                   "signature": "export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError",
-                  "line": 1165
+                  "line": 1168
                 }
               ],
               "profile": "http-request"
@@ -960,7 +960,7 @@
               "overloads": [
                 {
                   "signature": "export method: Method",
-                  "line": 1170
+                  "line": 1173
                 }
               ],
               "profile": "http-request"
@@ -971,7 +971,7 @@
               "overloads": [
                 {
                   "signature": "export url: ref URL",
-                  "line": 1174
+                  "line": 1177
                 }
               ],
               "profile": "http-request"
@@ -982,7 +982,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1178
+                  "line": 1181
                 }
               ],
               "profile": "http-request"
@@ -993,7 +993,7 @@
               "overloads": [
                 {
                   "signature": "export signal: ref AbortSignal",
-                  "line": 1182
+                  "line": 1185
                 }
               ],
               "profile": "http-request"
@@ -1004,7 +1004,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1186
+                  "line": 1189
                 }
               ],
               "profile": "http-request"
@@ -1015,7 +1015,7 @@
               "overloads": [
                 {
                   "signature": "export destination: RequestDestination",
-                  "line": 1190
+                  "line": 1193
                 }
               ],
               "profile": "http-request"
@@ -1026,7 +1026,7 @@
               "overloads": [
                 {
                   "signature": "export mode: RequestMode",
-                  "line": 1194
+                  "line": 1197
                 }
               ],
               "profile": "http-request"
@@ -1037,7 +1037,7 @@
               "overloads": [
                 {
                   "signature": "export credentials: CredentialsMode",
-                  "line": 1198
+                  "line": 1201
                 }
               ],
               "profile": "http-request"
@@ -1048,7 +1048,7 @@
               "overloads": [
                 {
                   "signature": "export cache: CacheMode",
-                  "line": 1202
+                  "line": 1205
                 }
               ],
               "profile": "http-request"
@@ -1059,7 +1059,7 @@
               "overloads": [
                 {
                   "signature": "export redirect: RedirectMode",
-                  "line": 1206
+                  "line": 1209
                 }
               ],
               "profile": "http-request"
@@ -1070,7 +1070,7 @@
               "overloads": [
                 {
                   "signature": "export referrer: RequestReferrer",
-                  "line": 1210
+                  "line": 1213
                 }
               ],
               "profile": "http-request"
@@ -1081,7 +1081,7 @@
               "overloads": [
                 {
                   "signature": "export referrerPolicy: ReferrerPolicy",
-                  "line": 1214
+                  "line": 1217
                 }
               ],
               "profile": "http-request"
@@ -1092,7 +1092,7 @@
               "overloads": [
                 {
                   "signature": "export integrity: view String",
-                  "line": 1218
+                  "line": 1221
                 }
               ],
               "profile": "http-request"
@@ -1103,7 +1103,7 @@
               "overloads": [
                 {
                   "signature": "export duplex: Duplex",
-                  "line": 1222
+                  "line": 1225
                 }
               ],
               "profile": "http-request"
@@ -1114,7 +1114,7 @@
               "overloads": [
                 {
                   "signature": "export priority: Priority",
-                  "line": 1226
+                  "line": 1229
                 }
               ],
               "profile": "http-request"
@@ -1124,7 +1124,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1231
+                  "line": 1234
                 }
               ],
               "profile": "http-request"
@@ -1134,7 +1134,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1235
+                  "line": 1238
                 }
               ],
               "profile": "http-request"
@@ -1144,7 +1144,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1239
+                  "line": 1242
                 }
               ],
               "profile": "http-request"
@@ -1154,11 +1154,11 @@
               "overloads": [
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1243
+                  "line": 1246
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1255
+                  "line": 1258
                 }
               ],
               "profile": "http-request"
@@ -1168,7 +1168,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
-                  "line": 1280
+                  "line": 1283
                 }
               ],
               "profile": "http-request"
@@ -1188,7 +1188,7 @@
           "kind": "enum",
           "signature": "export enum RequestDestination",
           "declarationDigest": "7f402ff297e9f78eec1cf3da2eab233fab32e871ae1b4c8b95c5221e1caff785",
-          "line": 842,
+          "line": 845,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1197,7 +1197,7 @@
           "kind": "enum",
           "signature": "export enum RequestError: Error",
           "declarationDigest": "e282bba2b6e7db32f2f21c5b54d51e24880b7eb65acfc80c718339db387e56d2",
-          "line": 725,
+          "line": 728,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1206,7 +1206,7 @@
           "kind": "struct",
           "signature": "export struct RequestInit",
           "declarationDigest": "032a5c7bb02099d00930a5023fef65d1547403b96af1b9a4012f4765eeea063f",
-          "line": 890,
+          "line": 893,
           "profile": "http-request",
           "members": [
             {
@@ -1214,7 +1214,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodySource? = .none, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 907
+                  "line": 910
                 }
               ],
               "profile": "http-request"
@@ -1227,7 +1227,7 @@
           "kind": "enum",
           "signature": "export enum RequestIntegrity",
           "declarationDigest": "c479d8442cb550d779f476f0582845319a26a0ae406423f62fa21fb80877e447",
-          "line": 876,
+          "line": 879,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1236,7 +1236,7 @@
           "kind": "enum",
           "signature": "export enum RequestMode",
           "declarationDigest": "e31a569e23b6167b79d752942051be3966b96d47bfca09db8f98d1acb2b42602",
-          "line": 793,
+          "line": 796,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1245,7 +1245,7 @@
           "kind": "struct",
           "signature": "export struct RequestOverride",
           "declarationDigest": "ca500fe1c720ac8edabf93afa6b3c4df4c60d5a5d868eaae5b01b0ec2e7f57d5",
-          "line": 938,
+          "line": 941,
           "profile": "http-request",
           "members": [
             {
@@ -1253,7 +1253,7 @@
               "overloads": [
                 {
                   "signature": "export init( method: Method? = .none, headers: Headers? = .none, body: BodyOverride = .inherit, signal: AbortSignal? = .none, mode: RequestMode? = .none, credentials: CredentialsMode? = .none, cache: CacheMode? = .none, redirect: RedirectMode? = .none, referrer: RequestReferrer? = .none, referrerPolicy: ReferrerPolicy? = .none, integrity: RequestIntegrity? = .none, duplex: Duplex? = .none, priority: Priority? = .none, )",
-                  "line": 954
+                  "line": 957
                 }
               ],
               "profile": "http-request"
@@ -1266,7 +1266,7 @@
           "kind": "enum",
           "signature": "export enum RequestReferrer",
           "declarationDigest": "fd56203f3257879a99d8afc1ff2b69cf402d8290d8199a3d40dc65a69217642e",
-          "line": 868,
+          "line": 871,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1275,7 +1275,7 @@
           "kind": "struct",
           "signature": "export struct Response",
           "declarationDigest": "7d0c42a0fb732683038867c827d7cbdfd07dc41c62980e7b18d5e4fa620ae22a",
-          "line": 1297,
+          "line": 1300,
           "profile": "http-response",
           "members": [
             {
@@ -1283,27 +1283,27 @@
               "overloads": [
                 {
                   "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1304
+                  "line": 1307
                 },
                 {
                   "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1319
+                  "line": 1322
                 },
                 {
                   "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1335
+                  "line": 1338
                 },
                 {
                   "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1351
+                  "line": 1354
                 },
                 {
                   "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1367
+                  "line": 1370
                 },
                 {
                   "signature": "export init( take body: BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1383
+                  "line": 1386
                 }
               ],
               "profile": "http-response"
@@ -1313,7 +1313,7 @@
               "overloads": [
                 {
                   "signature": "export static fn error(): Response",
-                  "line": 1399
+                  "line": 1402
                 }
               ],
               "profile": "http-response"
@@ -1323,19 +1323,19 @@
               "overloads": [
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value: ref Value, maximumBytes: usize<(1...)>, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1403
+                  "line": 1406
                 },
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value: ref Value, limits: json.Limits, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1421
+                  "line": 1424
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1501
+                  "line": 1504
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1513
+                  "line": 1516
                 }
               ],
               "profile": "http-response"
@@ -1346,7 +1346,7 @@
               "overloads": [
                 {
                   "signature": "export status: u16<(0..<600)>",
-                  "line": 1457
+                  "line": 1460
                 }
               ],
               "profile": "http-response"
@@ -1357,7 +1357,7 @@
               "overloads": [
                 {
                   "signature": "export ok: Bool",
-                  "line": 1461
+                  "line": 1464
                 }
               ],
               "profile": "http-response"
@@ -1368,7 +1368,7 @@
               "overloads": [
                 {
                   "signature": "export statusText: view String",
-                  "line": 1465
+                  "line": 1468
                 }
               ],
               "profile": "http-response"
@@ -1379,7 +1379,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1469
+                  "line": 1472
                 }
               ],
               "profile": "http-response"
@@ -1390,7 +1390,7 @@
               "overloads": [
                 {
                   "signature": "export url: URL?",
-                  "line": 1473
+                  "line": 1476
                 }
               ],
               "profile": "http-response"
@@ -1401,7 +1401,7 @@
               "overloads": [
                 {
                   "signature": "export redirected: Bool",
-                  "line": 1477
+                  "line": 1480
                 }
               ],
               "profile": "http-response"
@@ -1412,7 +1412,7 @@
               "overloads": [
                 {
                   "signature": "export type: ResponseType",
-                  "line": 1481
+                  "line": 1484
                 }
               ],
               "profile": "http-response"
@@ -1423,7 +1423,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1485
+                  "line": 1488
                 }
               ],
               "profile": "http-response"
@@ -1433,7 +1433,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1489
+                  "line": 1492
                 }
               ],
               "profile": "http-response"
@@ -1443,7 +1443,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1493
+                  "line": 1496
                 }
               ],
               "profile": "http-response"
@@ -1453,7 +1453,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1497
+                  "line": 1500
                 }
               ],
               "profile": "http-response"
@@ -1463,7 +1463,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
-                  "line": 1537
+                  "line": 1540
                 }
               ],
               "profile": "http-response"
@@ -1482,7 +1482,7 @@
           "kind": "enum",
           "signature": "export enum ResponseError: Error",
           "declarationDigest": "4058e9bc7fd1fdece9c519970f92ed0bd179adb0bf0bc2349c8d8f3bf020d630",
-          "line": 735,
+          "line": 738,
           "profile": "value-contract",
           "status": "draft",
           "requires": [
@@ -1494,7 +1494,7 @@
           "kind": "enum",
           "signature": "export enum ResponseType",
           "declarationDigest": "0606765b20dd26b6b4bb8af28eb240aaf0750c6c962f86318e92c603bbb64959",
-          "line": 881,
+          "line": 884,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1503,7 +1503,7 @@
           "kind": "fn",
           "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, limits: ServerLimits, handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
           "declarationDigest": "11a2bf72109c5f7f956d5f421cdd4687530258194bd6c4d414818efb85f973db",
-          "line": 1711,
+          "line": 1714,
           "profile": "http-server",
           "status": "draft",
           "requires": [
@@ -1518,7 +1518,7 @@
           "kind": "enum",
           "signature": "export enum ServerError: Error",
           "declarationDigest": "45fe60cd3c821618bd45f6a49f10dde73e17ad0ddacae9dc370ea8932460b992",
-          "line": 754,
+          "line": 757,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1527,7 +1527,7 @@
           "kind": "struct",
           "signature": "export struct ServerLimits",
           "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
-          "line": 770,
+          "line": 773,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1535,7 +1535,7 @@
           "symbol": "StatusCode",
           "kind": "type",
           "signature": "export type StatusCode = u16<(100..<600)>",
-          "declarationDigest": "39bf47df05a185d89bf44e6fe4e00494c3e9aaca929c201d0334defe3c216550",
+          "declarationDigest": "a4654d254d7edc4b527a489a0c2b91cb01e8fd2ed070d4303053f6668a690439",
           "line": 290,
           "profile": "value-contract",
           "status": "draft"
@@ -1545,7 +1545,7 @@
           "kind": "struct",
           "signature": "export struct Template",
           "declarationDigest": "f6e207cfb4a97c3b35e26d153b18ec11e1ec176f60e056c3b8c267cb0804b741",
-          "line": 1627,
+          "line": 1630,
           "profile": "template-provider",
           "members": [
             {
@@ -1553,7 +1553,7 @@
               "overloads": [
                 {
                   "signature": "export fn render<Value: json.Encodable>( values: ref Array<Value>, ): String throws TemplateError",
-                  "line": 1634
+                  "line": 1637
                 }
               ],
               "profile": "template-provider"
@@ -1569,7 +1569,7 @@
           "kind": "struct",
           "signature": "export struct TemplateBinding",
           "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
-          "line": 1609,
+          "line": 1612,
           "profile": "value-contract",
           "members": [
             {
@@ -1577,7 +1577,7 @@
               "overloads": [
                 {
                   "signature": "export const init( name: String, limits: TemplateLimits, version: u32<(1...)> = 1, )",
-                  "line": 1614
+                  "line": 1617
                 }
               ],
               "profile": "value-contract"
@@ -1590,7 +1590,7 @@
           "kind": "enum",
           "signature": "export enum TemplateError: Error",
           "declarationDigest": "433a533d2e06fbc573ae91b6724f70a44adefe4738bcb82d5fdafdc457bafaa0",
-          "line": 990,
+          "line": 993,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1599,7 +1599,7 @@
           "kind": "enum",
           "signature": "export enum TemplateLimitKind",
           "declarationDigest": "177cafea0d129b250d4bc7225fd3336c244339b729370172acd47bcb3026b1c1",
-          "line": 985,
+          "line": 988,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1608,7 +1608,7 @@
           "kind": "struct",
           "signature": "export struct TemplateLimits",
           "declarationDigest": "91044be5884ee2dcf30d6b7ba396abac01b414a3a5c77a69f1c55c57e5bb4838",
-          "line": 997,
+          "line": 1000,
           "profile": "value-contract",
           "members": [
             {
@@ -1616,7 +1616,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumOutputBytes: usize<(1...)>, maximumValues: usize, )",
-                  "line": 1001
+                  "line": 1004
                 }
               ],
               "profile": "value-contract"
@@ -1629,7 +1629,7 @@
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
           "declarationDigest": "e22549b44aaf4b057d6f8fbd651d8da2a8c1621d4b1ce0d4fcb4a74bb6c70388",
-          "line": 1647,
+          "line": 1650,
           "profile": "http-context",
           "members": [
             {
@@ -1637,7 +1637,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(binding: const TemplateBinding): Template",
-                  "line": 1654
+                  "line": 1657
                 }
               ],
               "profile": "http-context"
@@ -1722,14 +1722,14 @@
           "web-differential-vectors"
         ]
       },
-      "catalogedDeclarationsDigest": "7d93d97c864955780dbdaf6d19aff0ef40e7130ca3b547ebd30fe14edf9b60f9",
+      "catalogedDeclarationsDigest": "cff395c4afce0ee7af968b2e2bacfee565b0842943519d4cfec69ac6bdf2cd62",
       "apis": [
         {
           "symbol": "ArrayReader",
           "kind": "struct",
           "signature": "export struct ArrayReader",
           "declarationDigest": "2a113cb1bc0ad8307bba4d488c9f3024f90cea52ffa7cc9652236417d92a41a5",
-          "line": 659,
+          "line": 681,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -1737,7 +1737,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn next<Value: Decodable>(): Value? throws DecodeError",
-                  "line": 666
+                  "line": 688
                 }
               ],
               "profile": "json-codec-carrier"
@@ -1750,7 +1750,7 @@
           "kind": "struct",
           "signature": "export struct ArrayWriter",
           "declarationDigest": "644bbabdd7bdbe5d92c13530f6d43422715390538bfce0d0c6b86163bf5a5f7e",
-          "line": 523,
+          "line": 545,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -1758,7 +1758,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn element<Value: Encodable>(value: ref Value): () throws EncodeError",
-                  "line": 530
+                  "line": 552
                 }
               ],
               "profile": "json-codec-carrier"
@@ -1771,7 +1771,7 @@
           "kind": "protocol",
           "signature": "export protocol Codable: Encodable & Decodable {}",
           "declarationDigest": "5fdcbdbeaa29ddd699e71a4300b14db83fec4cdf41d8a21063a77cda72c21858",
-          "line": 345,
+          "line": 367,
           "profile": "json-codec-carrier",
           "status": "draft"
         },
@@ -1780,7 +1780,7 @@
           "kind": "protocol",
           "signature": "export protocol Decodable",
           "declarationDigest": "51f457d7ee0a4e00778d42e22db890e0e5192d3d9e8837c6a1a1f7615a195e8f",
-          "line": 341,
+          "line": 363,
           "profile": "json-codec-carrier",
           "status": "draft"
         },
@@ -1789,7 +1789,7 @@
           "kind": "fn",
           "signature": "export fn decode<Decoded: Decodable>( bytes: ref Bytes, limits: Limits, profile: Profile = .interoperable, unknownMembers: UnknownMemberPolicy = .reject, ): Decoded throws DecodeError",
           "declarationDigest": "6a759f25048e4b91232c84445ed87ebde95af146ece96b04dfa7636fa3042853",
-          "line": 693,
+          "line": 715,
           "profile": "json-codec-carrier",
           "status": "draft"
         },
@@ -1797,8 +1797,8 @@
           "symbol": "DecodeError",
           "kind": "enum",
           "signature": "export enum DecodeError: Error",
-          "declarationDigest": "996cacd5601a2ae8c37811eb92733c6ead28fa4e1b6246d4704da7db1a00e14a",
-          "line": 116,
+          "declarationDigest": "15daca554719ebd4e5abc0caba1b6f5c4f51c1555e1ab2ed8e1d8d0d156de359",
+          "line": 136,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1807,7 +1807,7 @@
           "kind": "protocol",
           "signature": "export protocol Encodable",
           "declarationDigest": "ac91ac5691baabc2685261f2deb8fb2b7596626145d8e5ee936387c286915882",
-          "line": 337,
+          "line": 359,
           "profile": "json-codec-carrier",
           "status": "draft"
         },
@@ -1816,7 +1816,7 @@
           "kind": "fn",
           "signature": "export fn encode<Value: Encodable>( value: ref Value, limits: Limits, profile: Profile = .interoperable, ): Bytes throws EncodeError",
           "declarationDigest": "8566b2736ef7b976a26497b215880979897116a0aecb0cfbf1b6ba27a0978ac5",
-          "line": 683,
+          "line": 705,
           "profile": "json-codec-carrier",
           "status": "draft"
         },
@@ -1977,7 +1977,7 @@
           "kind": "struct",
           "signature": "export struct Number: Duplicable & Equatable",
           "declarationDigest": "9bd14ee8eece87babf2c69db94d8f1fd72ca1ddc1b4f8d821363daf5adb07521",
-          "line": 131,
+          "line": 153,
           "profile": "value-contract",
           "members": [
             {
@@ -1985,7 +1985,7 @@
               "overloads": [
                 {
                   "signature": "export init(_ token: String, limits: Limits) throws ValueError",
-                  "line": 134
+                  "line": 156
                 }
               ],
               "profile": "value-contract"
@@ -1995,7 +1995,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse( _ token: ref String, limits: ref Limits, ): Number throws ValueError",
-                  "line": 144
+                  "line": 166
                 }
               ],
               "profile": "value-contract"
@@ -2005,7 +2005,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): view String",
-                  "line": 162
+                  "line": 184
                 }
               ],
               "profile": "value-contract"
@@ -2015,7 +2015,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Number",
-                  "line": 166
+                  "line": 188
                 }
               ],
               "profile": "value-contract"
@@ -2025,7 +2025,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Number): Bool",
-                  "line": 170
+                  "line": 192
                 }
               ],
               "profile": "value-contract"
@@ -2038,7 +2038,7 @@
           "kind": "struct",
           "signature": "export struct Object: Duplicable & Equatable",
           "declarationDigest": "fa66b946c3e7c0fd9e35b45421385747166bcffcd5d4ee80cf230cc374aef9ad",
-          "line": 203,
+          "line": 225,
           "profile": "value-contract",
           "members": [
             {
@@ -2046,7 +2046,7 @@
               "overloads": [
                 {
                   "signature": "export init( _ entries: take Array<ObjectEntry>, limits: Limits, ) throws ValueError",
-                  "line": 206
+                  "line": 228
                 }
               ],
               "profile": "value-contract"
@@ -2056,7 +2056,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Object",
-                  "line": 227
+                  "line": 249
                 }
               ],
               "profile": "value-contract"
@@ -2067,7 +2067,7 @@
               "overloads": [
                 {
                   "signature": "export count: usize",
-                  "line": 235
+                  "line": 257
                 }
               ],
               "profile": "value-contract"
@@ -2077,7 +2077,7 @@
               "overloads": [
                 {
                   "signature": "export fn entry(at index: usize): ref ObjectEntry?",
-                  "line": 239
+                  "line": 261
                 }
               ],
               "profile": "value-contract"
@@ -2087,7 +2087,7 @@
               "overloads": [
                 {
                   "signature": "export fn value(for name: ref String): ref Value?",
-                  "line": 243
+                  "line": 265
                 }
               ],
               "profile": "value-contract"
@@ -2097,7 +2097,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Object): Bool",
-                  "line": 250
+                  "line": 272
                 }
               ],
               "profile": "value-contract"
@@ -2110,7 +2110,7 @@
           "kind": "struct",
           "signature": "export struct ObjectEntry: Duplicable & Equatable",
           "declarationDigest": "e2e871449babdec211a3c838defe534a34b7e626e5982a0465898d98bde72096",
-          "line": 175,
+          "line": 197,
           "profile": "value-contract",
           "members": [
             {
@@ -2118,7 +2118,7 @@
               "overloads": [
                 {
                   "signature": "export init(name: String, value: take Value)",
-                  "line": 179
+                  "line": 201
                 }
               ],
               "profile": "value-contract"
@@ -2129,7 +2129,7 @@
               "overloads": [
                 {
                   "signature": "export name: view String",
-                  "line": 184
+                  "line": 206
                 }
               ],
               "profile": "value-contract"
@@ -2140,7 +2140,7 @@
               "overloads": [
                 {
                   "signature": "export value: ref Value",
-                  "line": 188
+                  "line": 210
                 }
               ],
               "profile": "value-contract"
@@ -2150,7 +2150,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): ObjectEntry",
-                  "line": 192
+                  "line": 214
                 }
               ],
               "profile": "value-contract"
@@ -2160,7 +2160,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref ObjectEntry): Bool",
-                  "line": 196
+                  "line": 218
                 }
               ],
               "profile": "value-contract"
@@ -2173,7 +2173,7 @@
           "kind": "struct",
           "signature": "export struct ObjectReader",
           "declarationDigest": "faa5215c37875c8a2de046a8ea48334bbe91520828e10a2a6ff151b36bfe3ce6",
-          "line": 627,
+          "line": 649,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -2181,7 +2181,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn required<Value: Decodable>(name: ref String): Value throws DecodeError",
-                  "line": 634
+                  "line": 656
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2191,7 +2191,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn optional<Value: Decodable>(name: ref String): Value? throws DecodeError",
-                  "line": 640
+                  "line": 662
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2204,7 +2204,7 @@
           "kind": "struct",
           "signature": "export struct ObjectWriter",
           "declarationDigest": "05928d43b24132e7be9b8f40dca6bb8e3b261070eb488173ecf43dd727d0bd98",
-          "line": 490,
+          "line": 512,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -2212,7 +2212,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn field<Value: Encodable>( name: ref String, value: ref Value, ): () throws EncodeError",
-                  "line": 497
+                  "line": 519
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2234,7 +2234,7 @@
           "kind": "struct",
           "signature": "export struct Reader",
           "declarationDigest": "5101b4dc04df9c0439d961b4ab27d59fa69f6d69674e9a940c160033a3be623f",
-          "line": 549,
+          "line": 571,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -2242,7 +2242,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn readNull(): () throws DecodeError",
-                  "line": 568
+                  "line": 590
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2252,7 +2252,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn readBool(): Bool throws DecodeError",
-                  "line": 572
+                  "line": 594
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2262,7 +2262,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn readString(): String throws DecodeError",
-                  "line": 576
+                  "line": 598
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2272,7 +2272,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn readNumber(): Number throws DecodeError",
-                  "line": 580
+                  "line": 602
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2282,7 +2282,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn withObject<Output>( _ body: some take fn(inout ObjectReader): Output throws DecodeError, ): Output throws DecodeError",
-                  "line": 588
+                  "line": 610
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2292,7 +2292,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn withArray<Output>( _ body: some take fn(inout ArrayReader): Output throws DecodeError, ): Output throws DecodeError",
-                  "line": 603
+                  "line": 625
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2323,7 +2323,7 @@
           "kind": "enum",
           "signature": "export enum Value: Duplicable & Equatable",
           "declarationDigest": "1bf5c4044820d4611d8d080004a4b1b1287f42dda7d144baa6d106bfdf0e8224",
-          "line": 276,
+          "line": 298,
           "profile": "value-contract",
           "members": [
             {
@@ -2331,7 +2331,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Value",
-                  "line": 313
+                  "line": 335
                 }
               ],
               "profile": "value-contract"
@@ -2341,7 +2341,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Value): Bool",
-                  "line": 324
+                  "line": 346
                 }
               ],
               "profile": "value-contract"
@@ -2350,11 +2350,29 @@
           "status": "draft"
         },
         {
+          "symbol": "ValueConstraint",
+          "kind": "enum",
+          "signature": "export enum ValueConstraint: Copy & Equatable",
+          "declarationDigest": "2750a05efa70e761f72ae98b828e35bd1f06335b81219aeea1e7fc40c633f78e",
+          "line": 124,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
           "symbol": "ValueError",
           "kind": "enum",
           "signature": "export enum ValueError: Error",
           "declarationDigest": "6799eeebe27af2ac7b2c6a73b6646d3af2c9b8334465893c3ce9b4150ea4170e",
-          "line": 110,
+          "line": 130,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ValueKind",
+          "kind": "enum",
+          "signature": "export enum ValueKind: Copy & Equatable",
+          "declarationDigest": "165d55ddd4a425a3464e837b7274513c0d69506508f18b6bb7aaef4636169d00",
+          "line": 113,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -2363,7 +2381,7 @@
           "kind": "struct",
           "signature": "export struct Writer",
           "declarationDigest": "80915c1e3427ccbf1168d57975f629f3ef68f1d6dd8fda8ed720d35ebb175d55",
-          "line": 428,
+          "line": 450,
           "profile": "json-codec-carrier",
           "members": [
             {
@@ -2371,7 +2389,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn writeNull(): () throws EncodeError",
-                  "line": 437
+                  "line": 459
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2381,7 +2399,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn writeBool(_ value: Bool): () throws EncodeError",
-                  "line": 441
+                  "line": 463
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2391,7 +2409,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn writeString(_ value: ref String): () throws EncodeError",
-                  "line": 445
+                  "line": 467
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2401,7 +2419,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn writeNumber(_ value: ref Number): () throws EncodeError",
-                  "line": 449
+                  "line": 471
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2411,7 +2429,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn withObject( _ body: some take fn(inout ObjectWriter): () throws EncodeError, ): () throws EncodeError",
-                  "line": 453
+                  "line": 475
                 }
               ],
               "profile": "json-codec-carrier"
@@ -2421,7 +2439,7 @@
               "overloads": [
                 {
                   "signature": "export mut fn withArray( _ body: some take fn(inout ArrayWriter): () throws EncodeError, ): () throws EncodeError",
-                  "line": 467
+                  "line": 489
                 }
               ],
               "profile": "json-codec-carrier"
@@ -4734,7 +4752,8 @@
       "surface": "BodyDecodeError",
       "status": "draft",
       "consumers": [
-        "reference/last-light/gateway.w"
+        "reference/last-light/gateway.w",
+        "reference/last-light/wifi_app.w"
       ]
     },
     {
@@ -4754,6 +4773,7 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w",
+        "reference/last-light/http_documents.w",
         "reference/last-light/http_oracle.w"
       ]
     },
@@ -4826,6 +4846,7 @@
         "reference/last-light/abort.w",
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_documents.w",
         "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
       ]
@@ -4837,7 +4858,9 @@
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
-        "reference/last-light/http_oracle.w"
+        "reference/last-light/http_documents.w",
+        "reference/last-light/http_oracle.w",
+        "reference/last-light/wifi_app.w"
       ]
     },
     {
@@ -4874,6 +4897,7 @@
       "consumers": [
         "reference/last-light/benchmark_app.w",
         "reference/last-light/gateway.w",
+        "reference/last-light/http_documents.w",
         "reference/last-light/http_oracle.w",
         "reference/last-light/wifi_app.w"
       ]

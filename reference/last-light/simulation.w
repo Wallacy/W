@@ -57,10 +57,10 @@ export struct SimulationReport {
   tables: SimulationTables
   tickDuration: PhysicalDuration
   ticksRun: SimulationTick
-  completed: usize
-  departed: usize
-  unfinished: usize
-  queueHighWater: usize
+  completed: u32
+  departed: u32
+  unfinished: u32
+  queueHighWater: u32
   energyUsed: Energy
   revenue: Money
   orders: Array<SimulationOrderSummary>
@@ -195,13 +195,25 @@ fn scenario(profile: SimulationProfile): Scenario {
   }
 }
 
-fn countStage(orders: ref Array<SimulatedOrder>, stage: SimulationStage): usize {
-  var count = 0_usize
+fn countStage(orders: ref Array<SimulatedOrder>, stage: SimulationStage): u32 {
+  var count = 0_u32
 
   for ref order in orders {
-    if order.stage == stage { count += 1 }
+    if order.stage == stage {
+      count += 1
+    }
   }
 
+  return count
+}
+
+fn countUnfinished(orders: ref Array<SimulatedOrder>): u32 {
+  var count = 0_u32
+  for ref order in orders {
+    if !(order.stage in (.completed, .departed)) {
+      count += 1
+    }
+  }
   return count
 }
 
@@ -233,7 +245,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
   var events: Array<SimulationEvent> = []
   var revenue = Money.zeroCredits
   var energyUsed: Energy = 0<si.J>
-  var queueHighWater = 0_usize
+  var queueHighWater = 0_u32
   var tick: SimulationTick = 0
 
   while tick < maximumTicks && !isTerminal(orders) {
@@ -262,7 +274,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
     }
 
     let seated = countStage(orders, stage: .seated)
-    var freeTables: usize = tables
+    var freeTables: u32 = u32(tables)
     freeTables -= seated
 
     for inout candidate in orders {
@@ -274,7 +286,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
     }
 
     let cooking = countStage(orders, stage: .cooking)
-    var freeCooks: usize = cooks
+    var freeCooks: u32 = u32(cooks)
     freeCooks -= cooking
 
     for inout candidate in orders {
@@ -324,7 +336,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
     ticksRun: tick,
     completed: completed,
     departed: departed,
-    unfinished: orders.count - completed - departed,
+    unfinished: countUnfinished(ref orders),
     queueHighWater: queueHighWater,
     energyUsed: energyUsed,
     revenue: revenue,
@@ -396,7 +408,7 @@ test "the timeline collision makes overload visible" for simulateShift {
   expect report.unfinished == 0
   expect report.ticksRun == 9
   expect report.queueHighWater == 2
-  expect report.completed + report.departed + report.unfinished == report.orders.count
+  expect report.completed + report.departed + report.unfinished == u32(report.orders.count)
 }
 
 test "a simulation profile replays the same observable history" for simulateShift {
