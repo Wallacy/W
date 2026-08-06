@@ -1,253 +1,202 @@
 # Fluxo do Codex para W
 
-> **Status:** orientação operacional para agentes, não parte da linguagem
-> **Coordenador recomendado:** **GPT-5.6 Sol · High ou superior**
-> **Worker padrão:** **GPT-5.6 Luna · Max**
+> **Status:** orientação operacional, não parte da linguagem
+> **Executor principal:** **GPT-5.6 Luna · Max**
+> **Arquiteto e revisor:** **GPT-5.6 Sol · High**
 
-`CONTRIBUTING.md` define o fluxo compartilhado. `MAINTAINERS.md` define revisão,
-merge e manutenção. Este arquivo acrescenta somente roteamento de modelos,
-delegação e controle de contexto.
+Este arquivo define roteamento de modelos e controle de contexto.
+`CONTRIBUTING.md` define contribuição. `MAINTAINERS.md` define revisão e merge.
+`GOVERNANCE.md` reserva autoridade humana. Uma instrução de agente não concede
+autoridade.
 
-Uma instrução de agente não concede autoridade. `GOVERNANCE.md` reserva merge,
-release e segurança para pessoas responsáveis.
+## Contrato dos modelos
 
-## Arquitetura coordinator-worker
+O Luna principal mantém a conversa e o contexto operacional. Ele localiza
+fontes, coleta fatos, edita, valida, refatora e faz commits. Ele não decide uma
+questão arquitetural aberta.
 
-O modelo principal é coordenador. Ele representa o mantenedor humano: entende o
-objetivo, pesquisa as fontes necessárias, compara alternativas, decide a
-semântica, a API e os invariantes, define o critério de saída, delega, espera e
-revisa. Ele não executa o volume mecânico nem repete a aplicação do worker.
+O `w_sol_architect` decide design e faz revisão adversarial. Ele usa Sol High
+com acesso somente para leitura. Ele não edita, não valida mecanicamente, não
+faz commit e não cria subagentes.
 
-O worker é `w_luna_worker`, configurado em `.codex/agents/` com Luna Max. Use
-somente um worker ativo. Reuse sua thread no mesmo bundle para draft, correções,
-gate final e commit. Depois de um commit limpo, use um worker novo para o próximo
-bundle independente. Não use Ultra ou agentes paralelos.
+Use somente um Sol ativo. Não crie agentes paralelos. Mantenha pelo menos 95%
+do consumo de tokens da tarefa no Luna. Essa porcentagem é uma meta de
+comportamento, não uma métrica do Codex. Não gaste contexto para calculá-la.
 
-Somente o coordenador cria o worker. O próprio worker executa o pacote sozinho:
-ele não cria, delega ou coordena subagentes, nem mesmo durante correções ou
-checks longos. Se precisar de outra autoridade ou premissa, ele devolve o
-bloqueio ao coordenador.
+## Quando usar Sol
 
-O alvo é deixar pelo menos 95% do volume operacional no worker. Esse volume
-inclui edição, atualização de source de referência, grammar, tooling, projeções,
-checks e relato do diff. A meta não se aplica ao raciocínio arquitetural:
-pesquisa, comparação e decisão pertencem ao coordenador. O valor é uma meta,
-não uma métrica garantida pelo Codex. Não gaste contexto tentando medi-lo
-durante a tarefa. Contadores brutos, principalmente input em cache, não medem
-diretamente custo, quota ou qualidade. Audite o fluxo somente em checkpoints.
+Use Sol quando a tarefa exigir uma destas ações:
 
-O coordenador age diretamente para:
+- decidir sintaxe, semântica, API ou invariantes;
+- comparar alternativas com impacto de longo prazo;
+- resolver uma contradição entre contratos;
+- revisar uma mudança material antes do commit.
 
-- conversar sobre o próprio fluxo;
-- pedir uma clarificação que muda materialmente o resultado;
-- pesquisar fontes e contratos vizinhos;
-- comparar alternativas e decidir semântica, API e invariantes;
-- relatar status, bloqueio ou resultado final;
-- revisar instruções de agente;
-- operar quando o usuário autorizar um fallback após Luna ficar indisponível.
+Não use Sol para uma destas ações:
 
-Depois do spawn, o coordenador limita a operação direta a revisão estratégica:
-status Git, diff resumido, hunks semânticos, resumo dos checks e confirmação do
-commit. Termine pesquisa e leitura canônica antes de delegar. Não refaça checks
-ou aplicação do worker.
+- responder um status ou uma pergunta factual curta;
+- localizar um W ID ou um arquivo;
+- corrigir texto ou tooling sem mudar contrato;
+- executar checks já definidos;
+- aplicar uma decisão ratificada.
 
-## Início da tarefa
+Se a classificação não estiver clara, Luna faz a descoberta mínima. Luna chama
+Sol somente quando a descoberta revela uma decisão real.
 
-O coordenador lê o pedido e as instruções ativas uma vez. Ele pensa no resultado
-de ponta a ponta. Antes do spawn, ele fixa um plano de interação: contato inicial,
-espera, inspeção final e, somente se necessário, uma correção consolidada. O
-plano também define quais evidências justificam redirecionamento durante a
-execução. Status periódico não é uma evidência.
+## Fluxo de um bundle
 
-Depois, o coordenador cria um pacote curto:
+### 1. Delimitar
+
+Luna lê o pedido e as instruções uma vez. Ele começa por `DESIGN-INDEX.md` e
+abre somente os slices necessários. Ele verifica `git status --short` antes de
+editar.
+
+Um bundle fecha uma decisão que pode ser revisada e revertida como unidade. Ele
+pode incluir `DESIGN.md`, contratos dependentes, Última Luz, grammar, tooling,
+projeções e checks. Não divida o bundle por arquivo.
+
+### 2. Preparar a decisão
+
+Quando o bundle exige design, Luna coleta somente os fatos necessários. Ele não
+decide a solução. Depois, ele cria um Sol com contexto novo e este pacote:
 
 ```text
-Papel: worker W.
-Objetivo: resultado observável de ponta a ponta.
-Contexto já decidido: fatos necessários que não devem ser redescobertos.
-Contrato decidido: forma exata, invariantes, alternativas e limites de escopo.
-Entradas: índices, seções e arquivos iniciais.
-Escopo de escrita: paths ou conceitos autorizados.
-Restrições: o que não pode mudar.
-Concluído quando: checks, inspeções e estado Git esperados.
-Commit: não no primeiro draft; aguarde revisão, salvo ordem contrária.
-Retorno: resultado, arquivos, checks, riscos e diff resumido.
+Papel: arquiteto W.
+Objetivo: decisão observável de ponta a ponta.
+Pergunta: escolha arquitetural que precisa de resposta.
+Fatos: evidência já confirmada e slices canônicos.
+Restrições: contratos, compatibilidade, escopo e autoridade.
+Alternativas: candidatas conhecidas, sem decisão implícita.
+Saída: recomendação, semântica, invariantes, riscos, rejeições e aceitação.
 ```
 
-Crie o worker com o nome `w_luna_worker` e sem copiar o histórico completo
-quando a interface permitir, como `fork_turns: "none"`. O pacote deve conter o
-contexto mínimo suficiente. Configuração e instruções do repositório fornecem o
-restante. Não faça uma segunda leitura da codebase antes de delegar.
+Use `fork_turns: "none"` quando a interface permitir. Selecione
+`w_sol_architect`. Se o perfil não estiver disponível, use explicitamente
+`gpt-5.6-sol` com effort `high` e inclua o contrato do perfil no pacote. O nome
+da tarefa, sozinho, não seleciona modelo ou perfil.
 
-Antes de enviar trabalho substantivo, confirme uma vez nos metadados do runtime
-ou da interface que a thread usa `gpt-5.6-luna` com effort `max`.
-O nome `w_luna_worker` sozinho não comprova o modelo. Essa confirmação não é
-polling. Se os metadados faltarem, Luna Max não estiver disponível ou o
-modelo divergir, pare e informe o usuário. Não use Sol, Terra ou outro effort
-como fallback silencioso.
+Luna espera um evento longo. Ele não faz polling, não lê o contexto privado do
+Sol e não executa trabalho paralelo. Uma atualização de status sem nova decisão
+não justifica interromper a espera.
 
-Depois de alterar `.codex/config.toml` ou `.codex/agents/`, inicie uma tarefa
-nova antes do teste. Uma tarefa existente pode preservar a configuração antiga.
+### 3. Aplicar
 
-## Compatibilidade do runtime do Codex
+Luna aplica a decisão sem ampliá-la. Ele atualiza primeiro a fonte canônica.
+Depois, ele atualiza somente as superfícies afetadas. Se a aplicação revelar
+uma nova premissa, Luna para e devolve o fato ao mesmo Sol.
 
-Em 6 de agosto de 2026, o `spawn_agent` nativo do Multi-Agent V2 aceita Sol e
-Terra, mas rejeita Luna. O erro lista Luna como modelo desconhecido. `task_name`
-nomeia a tarefa e não seleciona um perfil. `fork_turns: "none"`, o perfil local
-e os defaults do projeto não corrigem essa limitação.
+Luna valida a menor superfície após cada fatia coerente. Ele amplia os checks
+uma vez no limite de integração. Um resultado verde permanece válido até uma
+entrada relacionada mudar.
 
-Tarefas antigas de QCC, Yes Cloud e Lynx Studio ainda criaram Luna por um runtime
-anterior. Uma tarefa nova com Sol não reproduziu esse resultado. W e Woobie
-criaram Sol sob nomes que indicavam Luna. Verifique sempre os metadados reais.
+### 4. Revisar
 
-Dois contornos foram verificados:
+Antes da revisão, Luna executa `git diff --check`. Depois, ele envia ao mesmo Sol:
 
-- `codex exec` aceita Luna Max como processo independente, sem handoff integrado;
-- uma tarefa principal Luna Max consegue criar um subagente Sol High.
+- resultado observável;
+- `git diff --stat` e lista completa de arquivos;
+- hunks que alteram contrato ou comportamento;
+- checks executados e primeiro erro útil;
+- riscos, pendências e mudanças remotas.
 
-Não altere o catálogo de modelos e não use hooks de reescrita como correção
-silenciosa. Use um contorno somente depois de o usuário escolher a topologia.
+Sol revisa composição, previsibilidade, ergonomia, clareza, implementação,
+performance, segurança e testes. Ele retorna uma lista consolidada de achados
+materiais. Luna corrige e repete somente os checks invalidados.
 
-## Granularidade do bundle
+Evite uma revisão cerimonial. Se duas rodadas não fecharem o contrato, pare e
+informe o usuário. Não esconda a falha com outro modelo.
 
-Um bundle operacional fecha uma unidade semântica que pode ser revisada e
-revertida como uma decisão: contrato canônico, contratos dependentes, Última
-Luz, grammar quando necessária, tooling, projeções e checks. Não divida trabalho
-por arquivo ou por alteração pequena.
+### 5. Fechar
 
-Separe bundles quando duas decisões puderem ser aceitas ou revertidas de forma
-independente. Separe também uma mudança de infraestrutura habilitadora quando
-ela introduzir um formato novo de checker ou snapshot além do contrato da
-linguagem. O número de arquivos e o churn gerado não são limites por si só.
+Luna faz a revisão final de manutenção. Ele remove duplicação, artefatos
+temporários e complexidade acidental. Depois, ele executa os gates finais
+afetados, faz o commit e confirma `git status --short`.
 
-O fluxo esperado usa dois turnos do worker quando o draft é aprovado: draft e
-gate final com commit. Quando há correções, usa três: draft, correção consolidada
-e gate final com commit. Mais de duas rodadas de correção indicam que o contrato
-chegou aberto demais ou que a estratégia precisa de autorização do usuário.
+O handoff final contém resultado, commit, arquivos, checks e riscos restantes.
+Não repita logs ou o histórico da tarefa.
 
-## Trabalho de design da linguagem
+## Jornada contínua
 
-Sol não entrega uma pergunta arquitetural aberta ao worker. Antes do spawn, o
-coordenador pesquisa fontes primárias, compara alternativas e fecha o bundle de
-decisão: forma recomendada, semântica, API, invariantes, contratos vizinhos,
-alternativas preservadas, limites de escopo, evidência esperada e condições de
-rejeição.
+Mantenha o Luna principal entre bundles relacionados. Use os artefatos
+canônicos como memória durável. Não releia uma entrada que não mudou.
 
-Luna Max aplica esse pacote. O worker lê somente os slices necessários,
-atualiza `DESIGN.md`, source de referência, grammar quando necessária, tooling,
-projeções e Última Luz, executa os checks afetados e relata o diff. Ele não cria
-design novo, não muda alternativas, não amplia o escopo e não faz pesquisa
-comparativa aberta. Ele não usa pesquisa Web, salvo quando o pacote indicar uma
-fonte e uma verificação operacional específica. Ele não cria ou atualiza um
-plano visível, salvo pedido explícito do coordenador. Se a aplicação revelar uma
-contradição que exige nova decisão, ele para e devolve o bloqueio objetivo ao
-coordenador.
+Reuse o mesmo Sol para decisão, revisão e correções do bundle corrente. Feche o
+Sol após o commit. Use um Sol novo para um bundle independente. Essa rotação
+limita contexto antigo sem perder a continuidade operacional do Luna.
 
-O coordenador revisa o resultado com critérios fixos: composição com o
-restante da linguagem, previsibilidade runtime, ergonomia humana, clareza para
-modelos, implementabilidade, performance, segurança e capacidade de teste. Se
-a revisão exigir uma nova premissa central, o coordenador volta à pesquisa e à
-decisão. Ele não transfere a decisão para Luna por meio de uma pergunta aberta.
+Quando o usuário acrescentar informação, Luna incorpora o delta. Ele envia o
+delta ao Sol somente quando a informação muda a decisão ativa. Ele interrompe o
+Sol somente se o objetivo for substituído ou a continuação gerar trabalho
+inválido.
 
-Uma decisão ampla não fica ratificada apenas porque Luna aplicou um pacote
-coerente. O coordenador responde pela decisão. O estado, as alternativas e a
-evidência precisam estar explícitos em `DESIGN.md`, e o Última Luz precisa
-tornar o contrato visível antes do commit.
+Depois de uma compactação, retome o plano e o estado Git. Não repita descoberta
+sem evidência de mudança no workspace.
 
-## Espera e interação
+## Design da linguagem
 
-Depois de delegar, o coordenador fica idle. Use espera orientada a evento. Não
-leia a memória do worker, não faça polling de logs e não crie um arquivo de
-status por padrão.
+Sol responde por decisões amplas. A decisão deve conter:
 
-Se o usuário complementar a tarefa, envie somente o delta ao mesmo worker. Não
-abra outro agente e não reenvie o pacote completo. Interrompa o worker somente
-quando a nova instrução invalida o trabalho em curso.
+- forma recomendada e semântica exata;
+- alternativas preservadas e motivo da rejeição atual;
+- contratos vizinhos e impacto de implementação;
+- ergonomia humana e clareza para modelos;
+- performance, segurança e capacidade de teste;
+- condições que invalidam a recomendação.
 
-Reuse o worker enquanto as tarefas pertencem ao mesmo bundle ou dependem do
-contexto acumulado. Não preserve uma thread indefinidamente por princípio. Após
-um commit limpo, rotacione o worker para um bundle independente. Rotacione antes
-se aparecerem repetição, esquecimento de decisões recentes ou releitura
-excessiva. O novo worker parte dos artefatos canônicos, não do histórico do chat.
+Luna aplica a decisão em `DESIGN.md`. Depois, ele atualiza Última Luz, grammar,
+tooling e projeções quando necessário. Uma aplicação coerente não ratifica uma
+decisão incompleta. O estado e a evidência devem estar explícitos em
+`DESIGN.md` antes do commit.
 
-Um arquivo temporário de status é aceitável somente quando uma ferramenta longa
-não produz eventos e o estado é necessário para recuperação. O worker é dono do
-arquivo e o remove antes do handoff.
+## Leitura e saída econômicas
 
-## Revisão adversarial
+Use esta ordem:
 
-Quando o worker terminar, o coordenador inspeciona estrategicamente:
+1. `DESIGN-INDEX.md` para localização.
+2. `tooling/design-slice.mjs` para seção ou W ID.
+3. `reference/last-light/README.md` para localizar source.
+4. `history/HISTORY.md` somente para proveniência.
 
-1. `git status --short` e `git diff --stat`;
-2. hunks que mudam contratos, autoridade ou comportamento;
-3. resumo dos checks e o primeiro erro útil, se houver;
-4. aderência ao pedido, às fontes canônicas e ao escopo;
-5. regressões, omissões, artefatos temporários e trabalho não relacionado.
+Não leia `DESIGN.md` integralmente sem pedido de revisão integral. Não leia
+`tooling/tree-sitter-w/src/` fora de uma falha de geração.
 
-Não releia arquivos inteiros que o diff não afetou. Não refaça a implementação.
-Envie ao mesmo worker uma única lista consolidada de correções. Depois do novo
-handoff, repita somente as verificações atingidas. Se o trabalho continuar ruim
-após duas rodadas, informe o usuário e peça autorização para mudar o modelo ou a
-estratégia.
-
-Quando a revisão for aprovada, peça ao worker para executar o gate final, fazer
-o commit e devolver hash e estado Git. O coordenador confirma o resultado e
-responde ao usuário.
-
-## Contexto
-
-Entre pelo menor artefato:
-
-1. `DESIGN-INDEX.md` para localização;
-2. `tooling/design-slice.mjs` para seção ou ID;
-3. `reference/last-light/README.md` para localizar o source afetado;
-4. `history/HISTORY.md` somente para provenance.
-
-Não leia `DESIGN.md` integralmente sem uma revisão integral explícita.
-Não leia `tooling/tree-sitter-w/src/` fora de uma falha de geração.
-
-O cache humano é:
-
-- `DESIGN.md` para contratos e decisões;
-- `DESIGN-INDEX.md` para métricas e intervalos;
-- `reference/last-light/` para especificação executável;
-- `CONTRIBUTING.md` para fluxo;
-- `MAINTAINERS.md` para revisão;
-- `history/` para provenance.
-
-Não copie uma explicação canônica para este arquivo.
-
-## Fechamento de pendências
-
-Quando o usuário pedir todas as pendências:
-
-1. leia o índice e a seção 29 uma vez;
-2. consulte somente as seções ligadas aos bundles;
-3. dê recomendação, status e fallback para cada ID;
-4. agrupe perguntas independentes em um único formulário;
-5. atualize o design somente depois da ratificação;
-6. valide as projeções uma vez no final.
-
-## Saída de comandos
-
-Use estes defaults:
+Use saídas curtas:
 
 - inventário: paths e contagens;
-- busca: poucas dezenas de correspondências;
+- busca: somente correspondências relevantes;
 - leitura: intervalo necessário;
-- teste aprovado: código de saída e resumo;
-- teste falho: primeiro erro e até 80 linhas úteis;
-- diff durante edição: `--stat` e arquivos;
-- pesquisa: fonte primária por afirmação técnica.
+- sucesso: código de saída e resumo;
+- falha: primeiro erro e até 80 linhas úteis;
+- diff: estatística, lista de arquivos e hunks de contrato;
+- pesquisa: uma fonte primária por afirmação técnica.
 
-Não repita um check quando nenhuma entrada mudou.
+Não crie arquivo de status por padrão. Um arquivo temporário é permitido quando
+uma ferramenta longa não produz eventos. Luna remove o arquivo antes do commit.
 
-## Fontes desta política
+Não narre buscas, leituras ou checks rotineiros. Comunique somente escopo
+inicial, decisão material, bloqueio, operação remota e resultado. Não crie um
+plano visível quando uma lista interna curta for suficiente.
 
-- [OpenAI — Customization e AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
-- [OpenAI — modelos no Codex](https://learn.chatgpt.com/docs/models#recommended-models)
+Depois de editar, prefira o diff à releitura integral. Agrupe comandos de
+leitura independentes somente quando todas as saídas forem necessárias. Não
+execute um check verde novamente sem uma entrada relacionada alterada.
+
+## Runtime do Codex
+
+Em 6 de agosto de 2026, Multi-Agent V2 rejeitou Luna como filho de Sol. Uma
+tarefa Luna Max conseguiu criar Sol High. Por isso, W usa Luna como tarefa
+principal e Sol como filho de design.
+
+Esta topologia é um contorno temporário. Reavalie quando
+[OpenAI Codex issue 34909](https://github.com/openai/codex/issues/34909) for
+resolvida. Retorne para Sol como pai somente quando uma tarefa real confirmar
+Luna Max nos metadados do filho.
+
+Depois de alterar `.codex/config.toml` ou `.codex/agents/`, inicie uma tarefa
+nova. Uma tarefa existente pode manter a configuração anterior.
+
+## Fontes
+
+- [OpenAI — instruções com AGENTS.md](https://developers.openai.com/codex/concepts/customization#agents-guidance)
 - [OpenAI — subagentes](https://learn.chatgpt.com/docs/agent-configuration/subagents)
-- [OpenAI Codex — Luna rejeitado no `spawn_agent`](https://github.com/openai/codex/issues/34909)
-- [OpenAI Codex — roteamento Sol para Luna](https://github.com/openai/codex/issues/31814)
-
-Reavalie o roteamento quando modelos, limites ou avaliações mudarem.
+- [OpenAI Codex — Luna rejeitado no spawn](https://github.com/openai/codex/issues/34909)

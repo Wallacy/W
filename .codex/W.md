@@ -59,7 +59,7 @@ its projections.
   changes. Keep the frozen portal noncanonical.
 - Verify the smallest changed surface first. Run broader link, app, and diff
   checks once at the end.
-- For every substantive task, follow the coordinator-worker protocol in
+- For every substantive task, follow the architect-executor protocol in
   `.codex/W-WORKFLOW.md`.
 
 ## Definition of done

@@ -1,5 +1,11 @@
+# Codex Multi-Agent V2 did not support a Sol parent with a Luna child on
+# 2026-08-06. Keep Luna as the primary executor until issue 34909 is fixed and
+# a live task verifies the direct Sol-to-Luna topology.
+model = "gpt-5.6-luna"
+model_reasoning_effort = "max"
+
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 1
-default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "max"
+default_subagent_model = "gpt-5.6-sol"
+default_subagent_reasoning_effort = "high"

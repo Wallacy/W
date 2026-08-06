@@ -14,20 +14,14 @@ as regras equivalentes para português.
 
 ## Orquestração padrão
 
-Toda tarefa substantiva usa o protocolo coordinator-worker de
-`.codex/W-WORKFLOW.md`. O coordenador interpreta o pedido, delega a execução a
-um único `w_luna_worker`, espera o handoff e faz revisão adversarial. Não crie
-agentes paralelos.
+Toda tarefa substantiva segue `.codex/W-WORKFLOW.md`. A tarefa principal usa
+Luna Max para pesquisa operacional, edição, validação e commit. Uma decisão de
+design ou revisão material usa um único `w_sol_architect` com Sol High e acesso
+somente para leitura. Não crie agentes paralelos ou outros subagentes.
 
-Se este agente recebeu `Papel: worker W`, ele é o worker. Nesse caso, execute a
-tarefa diretamente e não delegue. Reuse a mesma thread do worker somente no
-bundle corrente, inclusive para correções e commit. Depois de um commit limpo,
-use um worker novo para um bundle independente.
-
-Antes do primeiro pacote, o coordenador confirma uma vez que o runtime carregou
-`gpt-5.6-luna` com effort `max`. Se os metadados faltarem, o modelo divergir
-ou Luna Max não estiver disponível, pare e informe a limitação. Não substitua o
-modelo sem autorização do usuário.
+Mantenha o Luna principal durante a jornada contínua. Reuse o mesmo Sol somente
+no bundle corrente. Use um Sol novo para um bundle independente. O nome da
+tarefa não comprova o modelo. Não substitua modelo ou effort silenciosamente.
 
 ## Artefatos canônicos
 
