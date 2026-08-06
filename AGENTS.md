@@ -20,9 +20,14 @@ um único `w_luna_worker`, espera o handoff e faz revisão adversarial. Não cri
 agentes paralelos.
 
 Se este agente recebeu `Papel: worker W`, ele é o worker. Nesse caso, execute a
-tarefa diretamente e não delegue. Reuse a mesma thread do worker durante a
-sessão. Se Luna Max não estiver disponível, o coordenador deve informar a
-limitação. Não substitua o modelo sem autorização do usuário.
+tarefa diretamente e não delegue. Reuse a mesma thread do worker somente no
+bundle corrente, inclusive para correções e commit. Depois de um commit limpo,
+use um worker novo para um bundle independente.
+
+Antes do primeiro pacote, o coordenador confirma uma vez que o runtime carregou
+`gpt-5.6-luna` com effort `max`. Se os metadados faltarem, o modelo divergir
+ou Luna Max não estiver disponível, pare e informe a limitação. Não substitua o
+modelo sem autorização do usuário.
 
 ## Artefatos canônicos
 

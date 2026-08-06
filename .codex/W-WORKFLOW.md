@@ -19,8 +19,9 @@ semântica, a API e os invariantes, define o critério de saída, delega, espera
 revisa. Ele não executa o volume mecânico nem repete a aplicação do worker.
 
 O worker é `w_luna_worker`, configurado em `.codex/agents/` com Luna Max. Use
-somente um worker por sessão. Reuse sua thread para todas as correções e tarefas
-relacionadas. Não use Ultra ou agentes paralelos.
+somente um worker ativo. Reuse sua thread no mesmo bundle para draft, correções,
+gate final e commit. Depois de um commit limpo, use um worker novo para o próximo
+bundle independente. Não use Ultra ou agentes paralelos.
 
 Somente o coordenador cria o worker. O próprio worker executa o pacote sozinho:
 ele não cria, delega ou coordena subagentes, nem mesmo durante correções ou
@@ -32,7 +33,8 @@ inclui edição, atualização de source de referência, grammar, tooling, proje
 checks e relato do diff. A meta não se aplica ao raciocínio arquitetural:
 pesquisa, comparação e decisão pertencem ao coordenador. O valor é uma meta,
 não uma métrica garantida pelo Codex. Não gaste contexto tentando medi-lo
-durante a tarefa.
+durante a tarefa. Contadores brutos, principalmente input em cache, não medem
+diretamente custo, quota ou qualidade. Audite o fluxo somente em checkpoints.
 
 O coordenador age diretamente para:
 
@@ -43,6 +45,11 @@ O coordenador age diretamente para:
 - relatar status, bloqueio ou resultado final;
 - revisar instruções de agente;
 - operar quando o usuário autorizar um fallback após Luna ficar indisponível.
+
+Depois do spawn, o coordenador limita a operação direta a revisão estratégica:
+status Git, diff resumido, hunks semânticos, resumo dos checks e confirmação do
+commit. Termine pesquisa e leitura canônica antes de delegar. Não refaça checks
+ou aplicação do worker.
 
 ## Início da tarefa
 
@@ -72,8 +79,32 @@ quando a interface permitir, como `fork_turns: none`. O pacote deve conter o
 contexto mínimo suficiente. Configuração e instruções do repositório fornecem o
 restante. Não faça uma segunda leitura da codebase antes de delegar.
 
-Se Luna Max não estiver disponível no seletor ou runtime atual, pare e informe
-o usuário. Não use Sol, Terra ou outro effort como fallback silencioso.
+Antes de enviar trabalho substantivo, confirme uma vez nos metadados do runtime
+ou da interface que a thread usa `gpt-5.6-luna` com effort `max`.
+O nome `w_luna_worker` sozinho não comprova o modelo. Essa confirmação não é
+polling. Se os metadados faltarem, Luna Max não estiver disponível ou o
+modelo divergir, pare e informe o usuário. Não use Sol, Terra ou outro effort
+como fallback silencioso.
+
+Depois de alterar `.codex/config.toml` ou `.codex/agents/`, inicie uma tarefa
+nova antes do teste. Uma tarefa existente pode preservar a configuração antiga.
+
+## Granularidade do bundle
+
+Um bundle operacional fecha uma unidade semântica que pode ser revisada e
+revertida como uma decisão: contrato canônico, contratos dependentes, Última
+Luz, grammar quando necessária, tooling, projeções e checks. Não divida trabalho
+por arquivo ou por alteração pequena.
+
+Separe bundles quando duas decisões puderem ser aceitas ou revertidas de forma
+independente. Separe também uma mudança de infraestrutura habilitadora quando
+ela introduzir um formato novo de checker ou snapshot além do contrato da
+linguagem. O número de arquivos e o churn gerado não são limites por si só.
+
+O fluxo esperado usa dois turnos do worker quando o draft é aprovado: draft e
+gate final com commit. Quando há correções, usa três: draft, correção consolidada
+e gate final com commit. Mais de duas rodadas de correção indicam que o contrato
+chegou aberto demais ou que a estratégia precisa de autorização do usuário.
 
 ## Trabalho de design da linguagem
 
@@ -87,8 +118,11 @@ Luna Max aplica esse pacote. O worker lê somente os slices necessários,
 atualiza `DESIGN.md`, source de referência, grammar quando necessária, tooling,
 projeções e Última Luz, executa os checks afetados e relata o diff. Ele não cria
 design novo, não muda alternativas, não amplia o escopo e não faz pesquisa
-comparativa aberta. Se a aplicação revelar uma contradição que exige nova
-decisão, ele para e devolve o bloqueio objetivo ao coordenador.
+comparativa aberta. Ele não usa pesquisa Web, salvo quando o pacote indicar uma
+fonte e uma verificação operacional específica. Ele não cria ou atualiza um
+plano visível, salvo pedido explícito do coordenador. Se a aplicação revelar uma
+contradição que exige nova decisão, ele para e devolve o bloqueio objetivo ao
+coordenador.
 
 O coordenador revisa o resultado com critérios fixos: composição com o
 restante da linguagem, previsibilidade runtime, ergonomia humana, clareza para
@@ -113,8 +147,8 @@ quando a nova instrução invalida o trabalho em curso.
 
 Reuse o worker enquanto as tarefas pertencem ao mesmo bundle ou dependem do
 contexto acumulado. Não preserve uma thread indefinidamente por princípio. Após
-um commit limpo, rotacione o worker quando o próximo bundle for independente ou
-quando aparecerem repetição, esquecimento de decisões recentes ou releitura
+um commit limpo, rotacione o worker para um bundle independente. Rotacione antes
+se aparecerem repetição, esquecimento de decisões recentes ou releitura
 excessiva. O novo worker parte dos artefatos canônicos, não do histórico do chat.
 
 Um arquivo temporário de status é aceitável somente quando uma ferramenta longa
