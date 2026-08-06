@@ -98,8 +98,10 @@ o module set nativo. O entry registra os process signals no runtime. Um worker
 usa outro product e outro host lifecycle.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
-fornece uma build transform tipada ao package principal. O tool recebe somente
-o cardápio declarado e produz um resource no CAS.
+descreve uma build transform tipada para o package principal. O contrato recebe
+somente o cardápio declarado e prepara candidatos para um action-result/manifest
+no CAS. O host publica esse record somente após success, outputs obrigatórios e
+budgets válidos. O provider `std.build@1` continua missing.
 
 O mesmo package publica uma static library `.wExact` e uma façade C dinâmica do
 horizon monitor. Esse laboratório separa `WInterface`, ABI W, runtime

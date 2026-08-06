@@ -47,7 +47,13 @@ std/
     contracts.w
 ```
 
-`build/contracts.w` materializa bindings de transforms herméticas.
+`build/contracts.w` materializa bindings de transforms herméticas e o wrapper
+nominal `Context`. SDK0 fecha quatro overloads para `String` e `Bytes`, com
+Bytes identity e String UTF-8 estrito. O provider intrínseco `std.build@1`
+continua missing. `Context` somente lê inputs e materializa candidatos em
+staging. O host publica um action-result/manifest atômico após success, outputs
+obrigatórios e budgets válidos. O arquivo descreve a interface e não alega
+execução.
 `runtime/task.w` materializa reasons, budget kinds, outcomes e timeout de tasks
 lexicais. `Duration` é um intrinsic T1 signed e exato, com resolução de
 nanosecond. `runtime/transaction.w` materializa o contrato de transação
@@ -170,9 +176,10 @@ failure semantics.
 
 `Duration`, `Task`, `Deadline`, `Cancellation`, `CancellationId`, `WorkId`,
 `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`, `StepContext`,
-`build.Context`, `ProcessContext` e handles de capability ainda são intrinsics
-do compiler/runtime. `Request`, `Response` e `http.Context` têm wrappers W
-draft sobre o provider `std.http@1`.
+`ProcessContext` e handles de capability ainda são intrinsics do
+compiler/runtime. `build.Context`, `Request`, `Response` e `http.Context` têm
+wrappers W draft sobre providers intrinsics versionados. `std.build@1` e
+`std.http@1` continuam missing.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:

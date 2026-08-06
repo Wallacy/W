@@ -18,6 +18,7 @@ const fn isBindingName(value: ref String): Bool {
 }
 
 export struct Input<Value> {
+  // Value is phantom. It selects the closed provider codec at the call site.
   name: String
 
   export const init(name: String) {
@@ -27,6 +28,7 @@ export struct Input<Value> {
 }
 
 export struct Output<Value> {
+  // Value is phantom. It selects the closed provider codec at the call site.
   name: String
 
   export const init(name: String) {
@@ -35,7 +37,9 @@ export struct Output<Value> {
   }
 }
 
-export enum Error: Error {
+// Error conforms to Equatable because typed build failures are compared by
+// the design oracle and by host boundary tests.
+export enum Error: Error & Equatable {
   unknownInput(name: String)
   unknownOutput(name: String)
   incompatibleInput(name: String)
@@ -46,6 +50,121 @@ export enum Error: Error {
   missingOutput(name: String)
   codec(name: String)
   unavailable
+}
+
+// The provider owns the action handle and its private staging area. Public W
+// code sees only the typed descriptors and this nominal Context wrapper.
+// The handle never crosses a service, wire, storage, or foreign boundary.
+// Provider calls borrow the handle so shared Context borrows can run in
+// parallel. Safe W reaches deinit only after every async borrow completes or
+// passes cancellation drain. The synchronous drop releases residual state.
+foreign intrinsic from "std.build@1" {
+  type ContextHandle
+
+  async fn stdBuildReadString(
+    handle: ref ContextHandle,
+    input: const Input<String>,
+    maximumBytes: usize<(1...)>,
+  ): String throws Error
+  async fn stdBuildReadBytes(
+    handle: ref ContextHandle,
+    input: const Input<Bytes>,
+    maximumBytes: usize<(1...)>,
+  ): Bytes throws Error
+  async fn stdBuildWriteString(
+    handle: ref ContextHandle,
+    output: const Output<String>,
+    value: take String,
+  ): () throws Error
+  async fn stdBuildWriteBytes(
+    handle: ref ContextHandle,
+    output: const Output<Bytes>,
+    value: take Bytes,
+  ): () throws Error
+  fn stdBuildContextDrop(handle: inout ContextHandle)
+}
+
+// Bytes use identity encoding. String uses strict UTF-8. The provider checks
+// the effective declared byte bound before allocation or decode and does not
+// normalize Unicode, newline, BOM, or path text. Only read(Input<String>) can
+// raise .codec(name) for invalid input bytes. W String is already valid UTF-8,
+// and SDK0 writes do not raise .codec. After preflight, the smallest applicable
+// declared bound wins.
+
+// Context is a move-only, process-local owner supplied by the
+// w.host/build-transform@1 entry slot. It has no public initializer. It only
+// reads inputs and materializes private output candidates.
+export struct Context {
+  handle: ContextHandle
+
+  init(validatedHandle: ContextHandle) {
+    self.handle = validatedHandle
+  }
+
+  // Shared reads return new owners. The effective bound is the smallest
+  // declared call, action, and host-profile/toolchain-plan bound. Time and
+  // space are linear in encoded bytes with bounded overhead.
+  export async fn read(
+    input: const Input<String>,
+    maximumBytes: usize<(1...)>,
+  ): String throws Error {
+    return unsafe {
+      try await stdBuildReadString(
+        handle: ref handle,
+        input: input,
+        maximumBytes: maximumBytes,
+      )
+    }
+  }
+
+  export async fn read(
+    input: const Input<Bytes>,
+    maximumBytes: usize<(1...)>,
+  ): Bytes throws Error {
+    return unsafe {
+      try await stdBuildReadBytes(
+        handle: ref handle,
+        input: input,
+        maximumBytes: maximumBytes,
+      )
+    }
+  }
+
+  // write consumes value on success, build.Error, or task cancellation. The
+  // provider prepares one candidate in private staging. A second write for
+  // one binding invalidates the action, including unsafe or foreign calls.
+  export async fn write(
+    output: const Output<String>,
+    value: take String,
+  ): () throws Error {
+    unsafe {
+      try await stdBuildWriteString(
+        handle: ref handle,
+        output: output,
+        value: take value,
+      )
+    }
+  }
+
+  export async fn write(
+    output: const Output<Bytes>,
+    value: take Bytes,
+  ): () throws Error {
+    unsafe {
+      try await stdBuildWriteBytes(
+        handle: ref handle,
+        output: output,
+        value: take value,
+      )
+    }
+  }
+
+  deinit {
+    // Safe W proves that async borrows completed or passed cancellation drain
+    // before this synchronous deinit. Drop releases the wrapper and residual
+    // handle exactly once. It does not wait or drain.
+    unsafe { stdBuildContextDrop(handle: inout handle) }
+  }
 }
 
 test "input and output limits remain distinct build failures" {

@@ -962,9 +962,17 @@ w build last-light-native \
   --locked
 ```
 
-A action recebe um input de até 64 KiB e produz um output de até 1 MiB. Ela não
-recebe network, environment, clock, random, secret ou filesystem geral. Error,
-panic, cancellation ou output ausente não confirmam objeto no CAS.
+A action recebe um input `String` de até 64 KiB e prepara um output `Bytes` de
+até 1 MiB. SDK0 fixa somente os overloads `String`/`Bytes`, com Bytes identity e
+String UTF-8 estrito. Qualquer ceiling menor de `std.build@1` fica no host
+profile ou toolchain plan e entra na action recipe key. O preflight rejeita
+incompatibilidade antes do tool. A action não recebe network, environment,
+clock, random, secret ou filesystem geral. `write` somente prepara ou
+materializa candidatos. O host publica atomicamente um action-result/manifest
+que referencia todos os output digests após success, outputs obrigatórios e
+budgets válidos. Error, panic, cancellation ou output ausente não publicam esse
+record. Blobs órfãos podem ser coletados por GC. O provider `std.build@1`
+continua missing.
 
 ### 6.4 Publicação
 

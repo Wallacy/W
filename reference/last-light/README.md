@@ -72,8 +72,14 @@ last-light-ai-lab / LastLightAiLab
 compile-final-menu / menu-compiler
   → build.transform
   → input e output tipados
-  → resource imutável no CAS
+  → action-result/manifest e resource imutável no CAS
 ```
+
+O consumer oficial usa `build.Context` com os overloads fechados de `String` e
+`Bytes`. O provider `std.build@1` continua missing, portanto este source é um
+contrato e um oracle de integração, não uma alegação de execução. `Context`
+somente lê inputs e materializa candidatos em staging. O host publica o
+action-result/manifest depois de success, outputs obrigatórios e budgets válidos.
 
 `LastLightSimulation` é o primeiro alvo operacional. Ele não usa relógio,
 aleatoriedade, network nem deployment de services. O mesmo profile deve produzir
@@ -1037,7 +1043,13 @@ Aceite:
 - o tool artifact é compilado para o target da execution platform;
 - a action executa nessa platform, não no product target;
 - nenhum path, environment, clock, random ou network fica disponível;
-- error ou output acima de 1 MiB não confirma objeto no CAS;
+- SDK0 usa somente overloads fechados `String`/`Bytes`, com UTF-8 estrito e
+  Bytes identity;
+- ceilings menores do provider ficam no host profile ou toolchain plan e entram
+  na action recipe key;
+- error ou output acima de 1 MiB não publica o action-result;
+- panic, cancellation ou output ausente também não publicam o action-result;
+- blobs content-addressed sem record podem ser coletados por GC;
 - `const fn buildInstructionOpcodes` executa no evaluator CE0;
 - a mesma `const fn` continua callable em runtime;
 - o ConstValue de Map preserva pares em ordem de inserção e não preserva hash;
