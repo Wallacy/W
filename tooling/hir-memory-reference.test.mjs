@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  runMemoryProgram,
+  validateMemoryOperation,
+} from "./hir-memory-machine.mjs";
 
 const OWNER_STATE = Object.freeze({
   uninitialized: "uninitialized",
@@ -97,6 +101,16 @@ function canSuspend(value) {
   );
 }
 
+function movePinnedHandle(handle, destination) {
+  if (handle.state !== OWNER_STATE.owned) {
+    throw new HirMemoryError("moveRequiresOwner");
+  }
+  return {
+    source: { ...handle, state: OWNER_STATE.moved },
+    destination: { ...handle, name: destination },
+  };
+}
+
 function acceptsRepresentation(boundary, representation) {
   if (representation === REPRESENTATION.explicitTag) {
     return true;
@@ -174,20 +188,24 @@ test("an active borrow blocks move and drop until its token ends", () => {
   assert.equal(moveOwner(released).destination.state, OWNER_STATE.owned);
 });
 
-test("a suspended borrow needs stable storage, while pinning preserves its address", () => {
+test("a pinned payload supports suspension while its handle moves independently", () => {
   const ordinary = beginBorrow(owner());
   assert.equal(canSuspend(ordinary.owner), false);
 
   const pinned = beginBorrow(owner({ address: ADDRESS_STATE.published }));
   assert.equal(canSuspend(pinned.owner), true);
-
   assert.throws(() => moveOwner(pinned.owner), {
     code: "moveWithActiveBorrow",
   });
-  const released = endBorrow(pinned.owner, pinned.token);
-  const movedHandle = moveOwner(released);
-  assert.equal(movedHandle.destination.address, ADDRESS_STATE.published);
-  assert.equal(movedHandle.source.address, ADDRESS_STATE.published);
+  const handle = {
+    state: OWNER_STATE.owned,
+    name: "handle",
+    payload: pinned.owner,
+  };
+  const movedHandle = movePinnedHandle(handle, "movedHandle");
+  assert.equal(movedHandle.source.state, OWNER_STATE.moved);
+  assert.equal(movedHandle.destination.payload.address, ADDRESS_STATE.published);
+  assert.equal(movedHandle.destination.payload.borrowCount, 1);
 });
 
 test("boundary representation and allocator origin are explicit", () => {
@@ -248,4 +266,453 @@ test("ABI mismatch rejects the link before lowering", () => {
     sameAbi(consumer, { ...consumer, target: "windows-x64" }),
     false,
   );
+});
+
+test("M1 tracks disjoint places and conservative dynamic overlap", () => {
+  const accepted = runMemoryProgram([
+    { op: "initialize", binding: "kitchen" },
+    {
+      op: "beginBorrow",
+      binding: "kitchen",
+      token: "menu",
+      mode: "shared",
+      place: {
+        root: "kitchen",
+        projections: [{ kind: "field", name: "menu", container: "struct" }],
+      },
+    },
+    {
+      op: "beginBorrow",
+      binding: "kitchen",
+      token: "oven",
+      mode: "exclusive",
+      place: {
+        root: "kitchen",
+        projections: [{ kind: "field", name: "oven", container: "struct" }],
+      },
+    },
+  ]);
+  assert.equal(accepted.status, "accepted");
+
+  const rejected = runMemoryProgram([
+    { op: "initialize", binding: "items" },
+    {
+      op: "beginBorrow",
+      binding: "items",
+      token: "read",
+      mode: "shared",
+      place: { root: "items", projections: [{ kind: "index", dynamic: true }] },
+    },
+    {
+      op: "beginBorrow",
+      binding: "items",
+      token: "write",
+      mode: "exclusive",
+      place: { root: "items", projections: [{ kind: "index", dynamic: true }] },
+    },
+  ]);
+  assert.equal(rejected.code, "loanOverlap");
+});
+
+test("M1 freezes and restores a reborrow parent", () => {
+  const result = runMemoryProgram([
+    { op: "initialize", binding: "value" },
+    { op: "beginBorrow", binding: "value", token: "parent", mode: "exclusive" },
+    {
+      op: "reborrow",
+      binding: "value",
+      token: "child",
+      parent: "parent",
+      mode: "exclusive",
+    },
+    { op: "endBorrow", token: "child" },
+    { op: "endBorrow", token: "parent" },
+    { op: "drop", binding: "value" },
+  ]);
+  assert.equal(result.status, "accepted");
+});
+
+test("M1 carries origins through copies and rejects dependent escapes", () => {
+  const returned = runMemoryProgram([
+    {
+      op: "initialize",
+      binding: "document",
+      edges: [
+        { ownerSlot: "menu", origin: "menu", mode: "shared" },
+        { ownerSlot: "oven", origin: "oven", mode: "shared" },
+      ],
+    },
+    { op: "copy", from: "document", to: "copy" },
+    {
+      op: "escape",
+      binding: "copy",
+      target: "return",
+      availableOrigins: ["menu", "oven"],
+    },
+  ]);
+  assert.equal(returned.status, "accepted");
+
+  const escaped = runMemoryProgram([
+    {
+      op: "initialize",
+      binding: "document",
+      edges: [{ ownerSlot: "menu", origin: "menu", mode: "shared" }],
+    },
+    { op: "escape", binding: "document", target: "channel" },
+  ]);
+  assert.equal(escaped.code, "dependentEscape");
+
+  const joinedWhileBorrowed = runMemoryProgram([
+    { op: "initialize", binding: "menu" },
+    {
+      op: "initialize",
+      binding: "document",
+      edges: [{ ownerBinding: "menu", origin: "menu", mode: "shared" }],
+    },
+    { op: "initialize", binding: "outer" },
+    { op: "beginBorrow", binding: "document", token: "writer", mode: "exclusive" },
+    { op: "joinDependencies", binding: "outer", from: "document" },
+  ]);
+  assert.equal(joinedWhileBorrowed.code, "loanOverlap");
+});
+
+test("M1 await ignores an independent aggregate address and still requires drain", () => {
+  const independent = runMemoryProgram([
+    { op: "initialize", binding: "frame" },
+    {
+      op: "await",
+      binding: "frame",
+      conflictFree: true,
+      cleanupDrained: true,
+      cancelDrained: true,
+    },
+  ]);
+  assert.equal(independent.status, "accepted");
+
+  const undrained = runMemoryProgram([
+    { op: "initialize", binding: "frame" },
+    {
+      op: "await",
+      binding: "frame",
+      conflictFree: true,
+      cleanupDrained: false,
+      cancelDrained: true,
+    },
+  ]);
+  assert.equal(undrained.code, "awaitCleanupNotDrained");
+});
+
+test("M1 keeps lifetime independence separate from boundary capabilities", () => {
+  const missingServiceProofs = runMemoryProgram([
+    {
+      op: "initialize",
+      binding: "staticInput",
+      edges: [{ origin: "program", immortal: true }],
+    },
+    { op: "escape", binding: "staticInput", target: "service" },
+  ]);
+  assert.equal(missingServiceProofs.code, "dependentEscape");
+
+  const serviceReady = runMemoryProgram([
+    {
+      op: "initialize",
+      binding: "staticInput",
+      edges: [{ origin: "program", immortal: true }],
+    },
+    {
+      op: "escape",
+      binding: "staticInput",
+      target: "service",
+      wireValue: true,
+      transferable: true,
+    },
+  ]);
+  assert.equal(serviceReady.status, "accepted");
+});
+
+test("M1 rejects a noncanonical range bound before execution", () => {
+  assert.equal(
+    validateMemoryOperation({
+      op: "beginBorrow",
+      binding: "values",
+      token: "slice",
+      mode: "shared",
+      place: {
+        root: "values",
+        projections: [{ kind: "range", start: 0, end: 4 }],
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    validateMemoryOperation({
+      op: "beginBorrow",
+      binding: "values",
+      token: "slice",
+      mode: "shared",
+      place: {
+        root: "values",
+        projections: [{ kind: "range", dynamic: true, end: "limit" }],
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    validateMemoryOperation({
+      op: "accessDependency",
+      binding: "document",
+      edgeId: "title",
+      origin: "menu",
+    }),
+    false,
+  );
+  assert.equal(
+    validateMemoryOperation({ op: "endBorrow", token: "loan", loanId: "other" }),
+    false,
+  );
+  assert.equal(
+    validateMemoryOperation({ op: "joinDependencies", binding: "items", from: "items" }),
+    false,
+  );
+});
+
+test("M1 rejects widening and sibling reborrows and restores parent access", () => {
+  const widening = runMemoryProgram([
+    { op: "initialize", binding: "kitchen" },
+    {
+      op: "beginBorrow",
+      binding: "kitchen",
+      token: "parent",
+      mode: "exclusive",
+      place: { root: "kitchen", projections: [{ kind: "field", name: "west", container: "struct" }] },
+    },
+    {
+      op: "reborrow",
+      binding: "kitchen",
+      token: "child",
+      parent: "parent",
+      mode: "exclusive",
+      place: "kitchen",
+    },
+  ]);
+  assert.equal(widening.code, "reborrowPlaceMismatch");
+
+  const restored = runMemoryProgram([
+    { op: "initialize", binding: "kitchen" },
+    { op: "beginBorrow", binding: "kitchen", token: "parent", mode: "exclusive", place: "kitchen" },
+    {
+      op: "reborrow",
+      binding: "kitchen",
+      token: "child",
+      parent: "parent",
+      mode: "exclusive",
+      place: { root: "kitchen", projections: [{ kind: "field", name: "west", container: "struct" }] },
+    },
+    { op: "accessLoan", token: "parent", access: "write" },
+  ]);
+  assert.equal(restored.code, "frozenReborrowParent");
+  const afterChild = runMemoryProgram([
+    { op: "initialize", binding: "kitchen" },
+    { op: "beginBorrow", binding: "kitchen", token: "parent", mode: "exclusive", place: "kitchen" },
+    {
+      op: "reborrow",
+      binding: "kitchen",
+      token: "child",
+      parent: "parent",
+      mode: "exclusive",
+      place: { root: "kitchen", projections: [{ kind: "field", name: "west", container: "struct" }] },
+    },
+    { op: "endBorrow", token: "child" },
+    { op: "accessLoan", token: "parent", access: "write" },
+  ]);
+  assert.equal(afterChild.status, "accepted");
+});
+
+test("M1 keeps a reborrow parent frozen for every duplicated child", () => {
+  const prefix = [
+    { op: "initialize", binding: "kitchen" },
+    { op: "beginBorrow", binding: "kitchen", token: "parent", mode: "exclusive" },
+    {
+      op: "reborrow",
+      binding: "kitchen",
+      token: "child",
+      parent: "parent",
+      mode: "shared",
+      place: { root: "kitchen", projections: [{ kind: "field", name: "west", container: "struct" }] },
+    },
+    { op: "duplicateLoan", from: "child", token: "copy" },
+    { op: "endBorrow", token: "child" },
+  ];
+  const frozen = runMemoryProgram([
+    ...prefix,
+    { op: "accessLoan", token: "parent", access: "write" },
+  ]);
+  assert.equal(frozen.code, "frozenReborrowParent");
+
+  const released = runMemoryProgram([
+    ...prefix,
+    { op: "endBorrow", token: "copy" },
+    { op: "accessLoan", token: "parent", access: "write" },
+  ]);
+  assert.equal(released.status, "accepted");
+});
+
+test("M1 keeps dependency edges individual and checks referents at await", () => {
+  const blocked = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "dependent",
+      edges: [
+        { ownerBinding: "owner", origin: "owner", mode: "shared" },
+        { ownerBinding: "owner", origin: "owner", mode: "shared" },
+      ],
+    },
+    { op: "move", from: "owner", to: "out" },
+  ]);
+  assert.equal(blocked.code, "ownerMoveWithDependency");
+
+  const unstableReferent = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "dependent",
+      address: "stable",
+      edges: [{ ownerBinding: "owner", origin: "owner", mode: "shared" }],
+    },
+    {
+      op: "await",
+      binding: "dependent",
+      conflictFree: true,
+      cleanupDrained: true,
+      cancelDrained: true,
+    },
+  ]);
+  assert.equal(unstableReferent.code, "unstableReferentSuspension");
+});
+
+test("M1 requires exact interface keys and every dependent result mapping", () => {
+  const baseAbi = {
+    target: "linux-x64",
+    callingConvention: "w-v1",
+    representationPolicy: "portable-v1",
+    runtimeAbi: "core-v1",
+  };
+  const asymmetricKey = runMemoryProgram([
+    {
+      op: "verifyAbi",
+      consumer: baseAbi,
+      provider: { ...baseAbi, semanticInterfaceKey: "if-v1" },
+    },
+  ]);
+  assert.equal(asymmetricKey.code, "interfaceLockMismatch");
+
+  const missingResult = runMemoryProgram([
+    {
+      op: "verifyInterface",
+      body: true,
+      resultSlots: [
+        { slot: "result.title", borrowed: true },
+        { slot: "result.body", dependent: true },
+      ],
+      inferredMapping: { "result.title": ["parameter:0"] },
+    },
+  ]);
+  assert.equal(missingResult.code, "interfaceOriginUnknown");
+});
+
+test("M1 binds ProofFacts to exact place prefixes", () => {
+  const indexPlace = (root, value) => ({
+    root,
+    projections: [{ kind: "index", value }],
+  });
+  const correct = runMemoryProgram([
+    { op: "initialize", binding: "rows" },
+    { op: "beginBorrow", binding: "rows", token: "left", mode: "shared", place: indexPlace("rows", "i") },
+    {
+      op: "write",
+      binding: "rows",
+      place: indexPlace("rows", "j"),
+      proofFacts: [{ kind: "disjoint", left: "rows/index:i", right: "rows/index:j" }],
+    },
+  ]);
+  assert.equal(correct.status, "accepted");
+
+  const wrongPlace = runMemoryProgram([
+    { op: "initialize", binding: "rows" },
+    { op: "beginBorrow", binding: "rows", token: "left", mode: "shared", place: indexPlace("rows", "i") },
+    {
+      op: "write",
+      binding: "rows",
+      place: indexPlace("rows", "j"),
+      proofFacts: [{ kind: "disjoint", left: "other/index:i", right: "other/index:j" }],
+    },
+  ]);
+  assert.equal(wrongPlace.code, "loanOverlap");
+});
+
+test("M1 treats stored dependency edges as access capabilities", () => {
+  const sharedRead = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "document",
+      edges: [{ id: "title", ownerBinding: "owner", origin: "owner", mode: "shared" }],
+    },
+    { op: "accessDependency", binding: "document", edgeId: "title", access: "read" },
+  ]);
+  assert.equal(sharedRead.status, "accepted");
+
+  const sharedWrite = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "document",
+      edges: [{ id: "title", ownerBinding: "owner", origin: "owner", mode: "shared" }],
+    },
+    { op: "accessDependency", binding: "document", edgeId: "title", access: "write" },
+  ]);
+  assert.equal(sharedWrite.code, "dependencyAccessModeMismatch");
+
+  const exclusiveWrite = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "controller",
+      edges: [{ id: "temperature", ownerBinding: "owner", origin: "owner", mode: "exclusive" }],
+    },
+    { op: "accessDependency", binding: "controller", edgeId: "temperature", access: "write" },
+  ]);
+  assert.equal(exclusiveWrite.status, "accepted");
+});
+
+test("M1 requires unique dependency identity and commits edge creation atomically", () => {
+  const ambiguous = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "refs",
+      edges: [
+        { id: "item:0", ownerBinding: "owner", origin: "owner", mode: "shared" },
+        { id: "item:1", ownerBinding: "owner", origin: "owner", mode: "shared" },
+      ],
+    },
+    { op: "accessDependency", binding: "refs", origin: "owner", access: "read" },
+  ]);
+  assert.equal(ambiguous.code, "dependencyEdgeAmbiguous");
+
+  const duplicate = runMemoryProgram([
+    { op: "initialize", binding: "owner" },
+    {
+      op: "initialize",
+      binding: "refs",
+      edges: [
+        { id: "item", ownerBinding: "owner", origin: "owner", mode: "shared" },
+        { id: "item", ownerBinding: "owner", origin: "owner", mode: "shared" },
+      ],
+    },
+  ]);
+  assert.equal(duplicate.code, "dependencyEdgeIdAlreadyActive");
+  assert.equal(duplicate.state.bindings.refs, undefined);
+  assert.equal(duplicate.state.nextPayload, 1);
 });

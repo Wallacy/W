@@ -1,38 +1,59 @@
-// Minimal HIR oracle for ownership, suspension, representation, and ABI.
-// It models compiler facts. It is not a runtime implementation.
+// Small independent M1 oracle. The host corpus owns full state transitions.
+// This source records compiler facts. It does not describe runtime metadata.
 
-enum HirOwnerState {
-  owned
-  moved
-  dropped
+enum HirOwnerState { owned moved dropped }
+enum HirAddressState { unstable stable published }
+enum HirLoanMode { shared exclusive }
+enum HirProjectionKind { field tuple enumPayload index range dereference opaque }
+enum HirEdgeMode { shared exclusive }
+enum HirDependencyAccess { read write }
+enum HirDeclarationKind { instance initializer typeMember free }
+enum HirBoundary { internal wExact foreignC wire persisted capability }
+enum HirRepresentation { explicitTag provenNiche lowBit highBit nativeCarrier }
+enum HirBoundaryOwnership { borrowed owned }
+
+struct HirProjection {
+  kind: HirProjectionKind
+  name: String
+  start: usize
+  endExclusive: usize
 }
 
-enum HirAddressState {
-  unstable
-  stable
-  published
+struct HirPlaceId {
+  root: String
+  projections: Array<HirProjection>
 }
 
-enum HirBoundary {
-  internal
-  wExact
-  foreignC
-  wire
-  persisted
-  capability
+struct HirLoanRecord {
+  id: u32
+  place: HirPlaceId
+  mode: HirLoanMode
+  emittedAt: u32
+  endedAt: u32?
+  stable: Bool
+  parent: u32?
+  childCount: u32
 }
 
-enum HirRepresentation {
-  explicitTag
-  provenNiche
-  lowBit
-  highBit
-  nativeCarrier
+// An OriginSet is a deduplicated projection. Edges remain individual so two
+// copies of the same origin keep the owner blocked until both drops.
+struct HirDependencyEdge {
+  id: u32
+  ownerPlace: HirPlaceId?
+  ownerSlot: String?
+  mode: HirEdgeMode
+  origin: String
+  dynamic: Bool
 }
 
-enum HirBoundaryOwnership {
-  borrowed
-  owned
+struct HirDependentPayload {
+  edges: Array<HirDependencyEdge>
+  lifetimeIndependent: Bool
+}
+
+struct HirPinnedHandle {
+  payloadRoot: HirPlaceId
+  handleRoot: String
 }
 
 struct HirOwner {
@@ -60,58 +81,44 @@ struct HirBoundaryValue {
   allocatorKnown: Bool
 }
 
+struct HirResultMapping {
+  resultSlot: String
+  sources: Array<String>
+}
+
 fn newOwner(address: HirAddressState): HirOwner {
   return HirOwner(state: .owned, borrowCount: 0, address: address)
 }
 
-fn beginBorrow(owner: HirOwner): HirOwner? {
+fn beginOwnerBorrow(owner: HirOwner): HirOwner? {
   if owner.state != .owned { return .none }
-
   var next = owner
   next.borrowCount += 1
   return .some(next)
 }
 
-fn endBorrow(owner: HirOwner): HirOwner? {
-  if owner.state != .owned || owner.borrowCount == 0 {
-    return .none
-  }
-
+fn endOwnerBorrow(owner: HirOwner): HirOwner? {
+  if owner.state != .owned || owner.borrowCount == 0 { return .none }
   var next = owner
   next.borrowCount -= 1
   return .some(next)
 }
 
 fn moveOwner(owner: HirOwner): HirMove? {
-  if owner.state != .owned || owner.borrowCount != 0 {
-    return .none
-  }
-
+  if owner.state != .owned || owner.borrowCount != 0 { return .none }
   var source = owner
   source.state = .moved
   return .some(HirMove(source: source, destination: owner))
 }
 
 fn dropOwner(owner: HirOwner): HirOwner? {
-  if owner.state != .owned || owner.borrowCount != 0 {
-    return .none
-  }
-
+  if owner.state != .owned || owner.borrowCount != 0 { return .none }
   var next = owner
   next.state = .dropped
   return .some(next)
 }
 
-fn canSuspend(owner: HirOwner): Bool {
-  return owner.borrowCount == 0
-    || owner.address == .stable
-    || owner.address == .published
-}
-
-const fn acceptsRepresentation(
-  boundary: HirBoundary,
-  representation: HirRepresentation,
-): Bool {
+const fn acceptsRepresentation(boundary: HirBoundary, representation: HirRepresentation): Bool {
   return switch representation {
     case .explicitTag: true
     case .provenNiche:
@@ -123,6 +130,11 @@ const fn acceptsRepresentation(
   }
 }
 
+const fn acceptsBoundary(value: HirBoundaryValue): Bool {
+  if !acceptsRepresentation(value.boundary, value.representation) { return false }
+  return value.ownership == .borrowed || value.allocatorKnown
+}
+
 const fn sameAbi(left: HirAbiKey, right: HirAbiKey): Bool {
   return left.target == right.target
     && left.callingConvention == right.callingConvention
@@ -130,20 +142,98 @@ const fn sameAbi(left: HirAbiKey, right: HirAbiKey): Bool {
     && left.runtimeAbi == right.runtimeAbi
 }
 
-const fn acceptsBoundary(value: HirBoundaryValue): Bool {
-  if !acceptsRepresentation(value.boundary, value.representation) {
-    return false
-  }
-
-  return value.ownership == .borrowed || value.allocatorKnown
+fn knownFieldsDisjoint(left: HirProjection, right: HirProjection): Bool {
+  return left.kind == .field
+    && right.kind == .field
+    && left.name != right.name
 }
 
-test "move and drop have one owner edge" {
+fn placeIsSubplace(child: HirPlaceId, parent: HirPlaceId): Bool {
+  if child.root != parent.root || child.projections.count < parent.projections.count {
+    return false
+  }
+  for index in 0..<parent.projections.count {
+    if child.projections[index].name != parent.projections[index].name {
+      return false
+    }
+  }
+  return true
+}
+
+fn joinDependencies(left: HirDependentPayload, right: HirDependentPayload): HirDependentPayload {
+  var joined = left
+  for edge in right.edges {
+    joined.edges.append(edge)
+  }
+  joined.lifetimeIndependent = true
+  for edge in joined.edges {
+    if edge.dynamic { joined.lifetimeIndependent = false }
+  }
+  return joined
+}
+
+fn projectOrigins(value: ref HirDependentPayload): Array<String> {
+  var result: Array<String> = []
+  for edge in value.edges {
+    if !result.contains(edge.origin) {
+      result.append(copy edge.origin)
+    }
+  }
+  return result
+}
+
+fn dependentMayReturn(value: HirDependentPayload, surviving: Array<String>): Bool {
+  for edge in value.edges {
+    if edge.dynamic && !surviving.contains(edge.origin) { return false }
+  }
+  return true
+}
+
+fn dependencyPermits(edge: HirDependencyEdge, access: HirDependencyAccess): Bool {
+  return access == .read || edge.mode == .exclusive
+}
+
+fn deriveBodylessMapping(
+  kind: HirDeclarationKind,
+  receiverCompatible: Bool,
+  inputSlots: Array<String>,
+  resultSlots: Array<String>,
+): Array<HirResultMapping>? {
+  if resultSlots.count == 0 { return [] }
+  var sources: Array<String>
+  if kind == .instance {
+    if !receiverCompatible { return .none }
+    sources = ["receiver"]
+  } else {
+    if inputSlots.count == 0 { return .none }
+    sources = inputSlots
+  }
+  var mappings: Array<HirResultMapping> = []
+  for slot in resultSlots {
+    mappings.append(HirResultMapping(resultSlot: slot, sources: copy sources))
+  }
+  return mappings
+}
+
+fn loanCanSuspend(loan: HirLoanRecord, referentStable: Bool): Bool {
+  return loan.stable && referentStable
+}
+
+fn pinHandle(payloadRoot: HirPlaceId, handleRoot: String): HirPinnedHandle {
+  return HirPinnedHandle(payloadRoot: payloadRoot, handleRoot: handleRoot)
+}
+
+fn movePinnedHandle(handle: HirPinnedHandle, destination: String): HirPinnedHandle {
+  return HirPinnedHandle(
+    payloadRoot: handle.payloadRoot,
+    handleRoot: destination,
+  )
+}
+
+test "M1 owner moves and drops once" {
   let first = newOwner(.unstable)
   let moved = moveOwner(first)
   guard let moved = moved else { panic("move was rejected") }
-
-  expect first.state == .owned
   expect moved.source.state == .moved
   expect moved.destination.state == .owned
 
@@ -153,45 +243,23 @@ test "move and drop have one owner edge" {
   expect dropOwner(dropped) == .none
 }
 
-test "borrow blocks move and drop until it ends" {
-  let borrowed = beginBorrow(newOwner(.unstable))
+test "M1 owner borrow blocks payload movement" {
+  let borrowed = beginOwnerBorrow(newOwner(.published))
   guard let borrowed = borrowed else { panic("borrow was rejected") }
-
   expect moveOwner(borrowed) == .none
   expect dropOwner(borrowed) == .none
 
-  let released = endBorrow(borrowed)
+  let released = endOwnerBorrow(borrowed)
   guard let released = released else { panic("borrow end was rejected") }
-  expect released.borrowCount == 0
   expect moveOwner(released) != .none
 }
 
-test "pinned storage permits suspension and handle movement" {
-  let borrowed = beginBorrow(newOwner(.published))
-  guard let borrowed = borrowed else { panic("borrow was rejected") }
-
-  expect canSuspend(borrowed)
-
-  let moved = moveOwner(borrowed)
-  expect moved == .none
-
-  let released = endBorrow(borrowed)
-  guard let released = released else { panic("borrow end was rejected") }
-  let movedHandle = moveOwner(released)
-  guard let movedHandle = movedHandle else { panic("move was rejected") }
-  expect movedHandle.source.address == .published
-  expect movedHandle.destination.address == .published
-}
-
-test "representation and ABI are checked before lowering" {
+test "M1 representation and ABI are checked before lowering" {
   expect acceptsRepresentation(.internal, .lowBit)
   expect acceptsRepresentation(.wExact, .provenNiche)
   expect !acceptsRepresentation(.foreignC, .provenNiche)
-  expect !acceptsRepresentation(.wire, .lowBit)
   expect acceptsRepresentation(.foreignC, .nativeCarrier)
-  expect acceptsRepresentation(.capability, .nativeCarrier)
   expect !acceptsRepresentation(.internal, .highBit)
-
   expect acceptsBoundary(HirBoundaryValue(
     boundary: .wExact,
     representation: .provenNiche,
@@ -218,4 +286,127 @@ test "representation and ABI are checked before lowering" {
     representationPolicy: 1,
     runtimeAbi: 1,
   ))
+}
+
+test "M1 place IDs require a child reborrow to be a subplace" {
+  let parent = HirPlaceId(root: "kitchen", projections: [HirProjection(
+    kind: .field,
+    name: "westOven",
+    start: 0,
+    endExclusive: 0,
+  )])
+  let child = HirPlaceId(root: "kitchen", projections: [
+    HirProjection(kind: .field, name: "westOven", start: 0, endExclusive: 0),
+    HirProjection(kind: .field, name: "temperature", start: 0, endExclusive: 0),
+  ])
+  let sibling = HirPlaceId(root: "kitchen", projections: [HirProjection(
+    kind: .field,
+    name: "eastOven",
+    start: 0,
+    endExclusive: 0,
+  )])
+  expect placeIsSubplace(child, parent)
+  expect !placeIsSubplace(sibling, parent)
+  expect !placeIsSubplace(HirPlaceId(root: "kitchen", projections: []), parent)
+}
+
+test "M1 dependency edges project lifetime independence" {
+  let dynamic = HirDependencyEdge(
+    id: 1,
+    ownerPlace: .none,
+    ownerSlot: .some("menu"),
+    mode: .shared,
+    origin: "menu",
+    dynamic: true,
+  )
+  let immortal = HirDependencyEdge(
+    id: 2,
+    ownerPlace: .none,
+    ownerSlot: .none,
+    mode: .shared,
+    origin: "program",
+    dynamic: false,
+  )
+  let dynamicCopy = HirDependencyEdge(
+    id: 3,
+    ownerPlace: .none,
+    ownerSlot: .some("menu"),
+    mode: .shared,
+    origin: "menu",
+    dynamic: true,
+  )
+  let exclusive = HirDependencyEdge(
+    id: 4,
+    ownerPlace: .none,
+    ownerSlot: .some("oven"),
+    mode: .exclusive,
+    origin: "oven",
+    dynamic: true,
+  )
+  let value = HirDependentPayload(edges: [dynamic, immortal], lifetimeIndependent: false)
+  let surviving = joinDependencies(
+    value,
+    HirDependentPayload(edges: [dynamicCopy], lifetimeIndependent: false),
+  )
+  let origins = projectOrigins(ref surviving)
+  expect !surviving.lifetimeIndependent
+  expect surviving.edges.count == 3
+  expect origins.count == 2
+  expect dependentMayReturn(surviving, ["menu"])
+  expect !dependentMayReturn(surviving, [])
+  expect dependencyPermits(dynamic, .read)
+  expect !dependencyPermits(dynamic, .write)
+  expect dependencyPermits(exclusive, .write)
+}
+
+test "M1 pinned handle moves while payload root stays stable" {
+  let payload = HirPlaceId(root: "pin:state", projections: [])
+  let handle = pinHandle(payload, "handle")
+  expect handle.payloadRoot.root == "pin:state"
+  expect handle.handleRoot == "handle"
+  let loan = HirLoanRecord(
+    id: 1,
+    place: payload,
+    mode: .shared,
+    emittedAt: 1,
+    endedAt: .none,
+    stable: true,
+    parent: .none,
+    childCount: 0,
+  )
+  let moved = movePinnedHandle(handle, "movedHandle")
+  expect moved.handleRoot == "movedHandle"
+  expect moved.payloadRoot.root == handle.payloadRoot.root
+  expect loanCanSuspend(loan, true)
+}
+
+test "M1 bodyless interface mapping uses all compatible inputs" {
+  let mapping = deriveBodylessMapping(
+    .free,
+    false,
+    ["parameter:0", "parameter:1"],
+    ["result.title", "result.body"],
+  )
+  guard let mapping = mapping else { panic("mapping was rejected") }
+  expect mapping.count == 2
+  expect mapping[0].sources.count == 2
+
+  let receiver = deriveBodylessMapping(.instance, true, ["parameter:0"], ["result"])
+  guard let receiver = receiver else { panic("receiver mapping was rejected") }
+  expect receiver[0].sources == ["receiver"]
+}
+
+test "M1 await requires stable referent" {
+  let loan = HirLoanRecord(
+    id: 1,
+    place: HirPlaceId(root: "menu", projections: []),
+    mode: .shared,
+    emittedAt: 1,
+    endedAt: .none,
+    stable: true,
+    parent: .none,
+    childCount: 0,
+  )
+  expect loanCanSuspend(loan, true)
+  expect !loanCanSuspend(loan, false)
 }

@@ -44,11 +44,14 @@ function resolveReference(reference, location) {
   }
 }
 
-if (corpus.$schema !== "w-memory-transition-cases-1") {
-  errors.push("memory-transition-cases.json must use schema w-memory-transition-cases-1.");
+if (corpus.$schema !== "w-memory-transition-cases-m1") {
+  errors.push("memory-transition-cases.json must use schema w-memory-transition-cases-m1.");
 }
-if (corpus.status !== "design-oracle-input") {
-  errors.push("memory-transition-cases.json must have status design-oracle-input.");
+if (corpus.status !== "design-oracle-input-m1") {
+  errors.push("memory-transition-cases.json must have status design-oracle-input-m1.");
+}
+if (corpus.machine !== "hir-memory-machine-m1") {
+  errors.push("memory-transition-cases.json must name hir-memory-machine-m1.");
 }
 if (!Array.isArray(corpus.cases) || corpus.cases.length === 0) {
   errors.push("memory-transition-cases.json must contain cases.");
@@ -56,8 +59,8 @@ if (!Array.isArray(corpus.cases) || corpus.cases.length === 0) {
 
 for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
   const location = `cases[${caseIndex}]`;
-  if (!/^M0-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(testCase.id ?? "")) {
-    errors.push(`${location}.id must use the M0-kebab-case form.`);
+  if (!/^M1-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(testCase.id ?? "")) {
+    errors.push(`${location}.id must use the M1-kebab-case form.`);
   } else if (caseIds.has(testCase.id)) {
     errors.push(`${location}.id duplicates ${testCase.id}.`);
   } else {
@@ -122,11 +125,14 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-const expectedSnapshot = `${results.map((result) => JSON.stringify(result)).join("\n")}\n`;
+const expectedSnapshot = [
+  JSON.stringify({ schema: "w-memory-transition-results-m1", status: "design-oracle-output-m1" }),
+  ...results.map((result) => JSON.stringify(result)),
+].join("\n") + "\n";
 const acceptedCount = results.filter((result) => result.status === "accepted").length;
 const rejectedCount = results.length - acceptedCount;
 const summary =
-  `Memory transitions: ${results.length} cases, ${operationCount} operations, ` +
+  `Memory transitions M1: ${results.length} cases, ${operationCount} operations, ` +
   `${acceptedCount} accepted, ${rejectedCount} rejected.`;
 
 if (process.argv.includes("--write")) {

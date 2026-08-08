@@ -838,6 +838,168 @@
       "fixes": {}
     },
     {
+      "code": "W-BORROW-0002",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a loan overlaps another loan or structural mutation at the same storage",
+      "requiredFacts": {
+        "owner": "string",
+        "place": "string",
+        "conflictingLoan": "string",
+        "mode": "string"
+      },
+      "labelRoles": {
+        "loan-origin": { "minimum": 1, "maximum": 1 },
+        "loan-conflict": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "split-place-or-scope": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0003",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a lifetime-dependent value crosses a boundary without surviving origins",
+      "requiredFacts": {
+        "binding": "string",
+        "boundary": "string",
+        "missingOrigins": "string-set",
+        "type": "string"
+      },
+      "labelRoles": {
+        "dependent-value": { "minimum": 1, "maximum": 1 },
+        "origin": { "minimum": 1, "maximum": null }
+      },
+      "fixes": {
+        "materialize-dependent-value": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0004",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a loan crosses suspension with unstable storage or incomplete cleanup",
+      "requiredFacts": {
+        "owner": "string",
+        "place": "string",
+        "stability": "string",
+        "cleanup": "string"
+      },
+      "labelRoles": {
+        "suspension": { "minimum": 1, "maximum": 1 },
+        "loan-origin": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "stabilize-or-end-loan": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0005",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a reborrow parent is frozen while a child loan is active",
+      "requiredFacts": {
+        "parentLoan": "string",
+        "childLoan": "string",
+        "owner": "string",
+        "place": "string"
+      },
+      "labelRoles": {
+        "reborrow-parent": { "minimum": 1, "maximum": 1 },
+        "reborrow-child": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "end-child-loan": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an access, borrow, or structural mutation conflicts with a live dependency edge",
+      "requiredFacts": {
+        "access": "string",
+        "edgeMode": "string",
+        "owner": "string",
+        "place": "string",
+        "origin": "string"
+      },
+      "labelRoles": {
+        "dependency-origin": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "end-dependent-value": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0007",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a suspension has an unstable referent dependency",
+      "requiredFacts": {
+        "aggregate": "string",
+        "origin": "string",
+        "referentOwner": "string",
+        "stability": "string"
+      },
+      "labelRoles": {
+        "referent-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "stabilize-referent": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0008",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an owner move, drop, or pin is blocked by a dynamic dependency edge",
+      "requiredFacts": {
+        "edgeMode": "string",
+        "owner": "string",
+        "referent": "string",
+        "operation": "string"
+      },
+      "labelRoles": {
+        "referent-owner": { "minimum": 1, "maximum": 1 },
+        "dependent-value": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "drop-dependent-value": "review"
+      }
+    },
+    {
+      "code": "W-BORROW-0009",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an access through a dependency edge requests authority that its mode does not grant",
+      "requiredFacts": {
+        "access": "string",
+        "edgeId": "string",
+        "edgeMode": "string",
+        "owner": "string",
+        "place": "string",
+        "origin": "string"
+      },
+      "labelRoles": {
+        "dependency-origin": { "minimum": 1, "maximum": 1 },
+        "dependent-access": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "use-exclusive-dependency": "review",
+        "remove-write": "review"
+      }
+    },
+    {
       "code": "W-EFFECT-0011",
       "state": "active",
       "phase": "semantic.effect",
