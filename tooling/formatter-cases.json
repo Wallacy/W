@@ -163,6 +163,23 @@
       "requiredSemicolons": []
     },
     {
+      "id": "F0-spawn-domain-slots",
+      "decisions": ["W-039", "W-350", "W-708", "W-725", "W-927"],
+      "input": {
+        "lines": [
+          "async fn plan(left:Int,right:Int):(Int,Int){spawn<.compute> let port=mix(left) spawn<domain:.compute> let starboard=mix(right) return await(port,starboard)}"
+        ]
+      },
+      "output": [
+        "async fn plan(left: Int, right: Int): (Int, Int) {",
+        "  spawn<.compute> let port = mix(left)",
+        "  spawn<domain: .compute> let starboard = mix(right)",
+        "  return await (port, starboard)",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
       "id": "F0-contracts-and-source-order",
       "decisions": ["W-708", "W-758", "W-759"],
       "input": {
