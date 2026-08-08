@@ -10,6 +10,7 @@ const substitutionCorpus = JSON.parse(
   fs.readFileSync(path.join(toolingDirectory, "substitution-cases.json"), "utf8"),
 );
 const r0CaseIds = new Set(substitutionCorpus.cases.map((testCase) => testCase.id));
+const studiedR0CaseIds = new Set();
 const errors = [];
 const bundleIds = new Set();
 const requiredTaskKinds = ["explain", "recall", "repair", "change"];
@@ -104,6 +105,8 @@ for (const bundleFile of bundleFiles) {
     for (const caseId of bundle.r0Cases) {
       if (!r0CaseIds.has(caseId)) {
         errors.push(`${location}.r0Cases references unknown case ${caseId}.`);
+      } else {
+        studiedR0CaseIds.add(caseId);
       }
     }
   }
@@ -288,5 +291,6 @@ if (errors.length > 0) {
 process.stdout.write(
   `R1 study bundles: ${bundleFiles.length} ` +
     `${bundleFiles.length === 1 ? "bundle" : "bundles"}, ` +
-    `${variantCount} variants, ${taskCount} tasks.\n`,
+    `${variantCount} variants, ${taskCount} tasks, ` +
+    `${studiedR0CaseIds.size}/${r0CaseIds.size} R0 cases promoted.\n`,
 );

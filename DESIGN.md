@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui quatro bundles contrabalanceados do Última Luz; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui cinco bundles contrabalanceados do Última Luz que promovem 11/54 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -25621,7 +25621,7 @@ mesma profundidade em todas as famílias:
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 84 casos pareiam 42 resultados positivos com 42 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 86 casos pareiam 43 resultados positivos com 43 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre todos os codes com meaning citados; o índice gera a contagem corrente; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
 | std | SDK0 cataloga 159 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; `std.build.Context` agora é draft e `std.build@1` continua missing; sete providers intrinsics estão missing | implementar e validar `std.build@1`, implementar os seis providers restantes, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
@@ -25630,7 +25630,7 @@ mesma profundidade em todas as famílias:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 54/54 requisitos declarados e 87 decisões; R0S mede 121 formas; quatro bundles R1 cobrem controle, units, imports e fail-fast | marcar toda ausência de source no ledger, provar cobertura total por caso comparativo, ampliar R1, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; cinco bundles R1 promovem 11/54 casos e cobrem controle, units, imports, fail-fast e contratos sequenciais | marcar toda ausência de source no ledger, ampliar R1 com prioridade por risco, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -26080,9 +26080,13 @@ Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
 outcome. A variante pode mudar uma observação que pertence ao objeto do estudo,
 como latência de failure ou provenance visível de um nome.
 
-Os quatro bundles atuais possuem oito variantes e dezesseis tarefas. Todos
-fazem parse sem recovery. Oito testes de oracle host confirmam os outcomes e as
-diferenças observáveis declaradas.
+Os cinco bundles atuais possuem dez variantes e vinte tarefas. Eles promovem
+11 dos 54 casos R0. Todos fazem parse sem recovery. Dez testes de oracle host
+confirmam os outcomes e as diferenças observáveis declaradas.
+
+A promoção conta IDs R0 únicos citados por ao menos um bundle. Ela mede o
+planejamento do corpus. Ela não mede participantes, não ratifica uma forma e
+não conta duas vezes um caso usado em mais de um bundle.
 
 #### 26.3.1 Controle de fluxo estruturado
 
@@ -26154,6 +26158,34 @@ deriva de `mixPair`. As variantes retornam o mesmo application error:
 
 O oracle mantém o error final igual e mede `observedAt` separadamente. Assim o
 estudo testa surpresa de runtime sem trocar o requisito da aplicação.
+
+#### 26.3.5 Envelopes de contrato sequenciais
+
+**Exemplo:** o element type pertence ao primeiro contrato. O predicate seguinte
+restringe a lista completa:
+
+```w
+StaticList<ServiceStage><(isValidStagePath(.member))>
+```
+
+[`tooling/studies/r1-contract-envelopes/bundle.json`](tooling/studies/r1-contract-envelopes/bundle.json)
+deriva de `StagePath` no módulo `domain` do Última Luz. As variantes preservam
+o mesmo enum, validator, inputs e outcomes:
+
+- `sequential.w` aplica `ServiceStage` e depois restringe o resultado;
+- `fused.w` coloca o type e o predicate em uma static list no primeiro
+  contrato.
+
+A alternativa fused faz parse porque uma static list é um payload estrutural
+válido. Ela não passa no checker vigente. O slot primário de `StaticList` exige
+um type, e a lista não informa se o predicate restringe o element ou a lista
+completa. O estudo mede explicação do subject, recall, reparo e a adição de um
+segundo limite. O oracle host confirma somente a regra de transição. Ele não
+executa o evaluator de contratos W.
+
+O par `S0-POS-contract-sequential-static-list` e
+`S0-NEG-contract-fused-static-list` fixa a rejeição semântica. A forma fused
+produz `W-CONTRACT-0002`: o slot `T` espera um type e recebe uma static list.
 
 ## 27. Plano de implementação
 
@@ -27393,7 +27425,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | quatro bundles, oito variantes e dezesseis tarefas cobrem controle, units, imports e fail-fast com source base, inputs, digests e oracle | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | cinco bundles, dez variantes e vinte tarefas cobrem controle, units, imports, fail-fast e contratos sequenciais com source base, inputs, digests e oracle; 11/54 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
@@ -27426,6 +27458,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
 | W-917 | endurecimento executável M1 | schema M1 fixa 135 casos e 442 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, boundary gates, interface keys/result slots, immortal origin, referent await, handle pinned, self-reference, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar owner origin implícito, fact sem place, endereço do aggregate como prova, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
+| W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 11/54 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

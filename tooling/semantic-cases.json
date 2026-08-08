@@ -1516,6 +1516,41 @@
       }
     },
     {
+      "id": "S0-POS-contract-sequential-static-list",
+      "kind": "positive",
+      "rule": "W-757",
+      "source": [
+        "type BoundedStages = StaticList<ServiceStage><(.count <= 8)>"
+      ],
+      "expect": {
+        "focus": { "text": "StaticList<ServiceStage><(.count <= 8)>" },
+        "semanticResult": {
+          "resultType": "StaticList<ServiceStage><(.count <= 8)>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "refinement", "subject": ".count", "value": "<=8" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "StaticList" },
+              { "id": "element", "operation": "bind-type-slot", "subject": "ServiceStage" },
+              { "id": "list", "operation": "apply-contract", "subject": "StaticList<ServiceStage>" },
+              { "id": "predicate", "operation": "const-predicate", "subject": ".count<=8" },
+              { "id": "result", "operation": "apply-refinement", "subject": "StaticList<ServiceStage>" }
+            ],
+            "edges": [
+              { "from": "head", "to": "element", "kind": "next" },
+              { "from": "element", "to": "list", "kind": "next" },
+              { "from": "list", "to": "predicate", "kind": "next" },
+              { "from": "predicate", "to": "result", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-NEG-expr-mutable-assignment",
       "kind": "negative",
       "rule": "W-770",
@@ -2617,6 +2652,37 @@
               "applicableKinds": ["predicate"],
               "envelopeKind": "static-list",
               "head": "Array<Order>"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-fused-static-list",
+      "kind": "negative",
+      "rule": "W-757",
+      "baseline": "S0-POS-contract-sequential-static-list",
+      "failureField": "resultType",
+      "source": [
+        "type BoundedStages = StaticList<[ServiceStage, (.count <= 8)]>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0002",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "[ServiceStage, (.count <= 8)]" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "StaticList" } }
+            ],
+            "facts": {
+              "actualKind": "static-list",
+              "expectedKind": "type",
+              "head": "StaticList",
+              "slot": "T"
             },
             "notes": [],
             "fixes": []

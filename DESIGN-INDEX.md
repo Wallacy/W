@@ -15,28 +15,30 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 27432 |
-| tokens aproximados de `DESIGN.md` | 316000 |
+| linhas de `DESIGN.md` | 27467 |
+| tokens aproximados de `DESIGN.md` | 316600 |
 | seções numeradas | 30 |
-| seções terminais com evidência local | 326/326 |
-| decisões | 918 (W-001–W-918) |
+| seções terminais com evidência local | 327/327 |
+| decisões | 921 (W-001–W-921) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 54 |
 | casos de substituição estruturados | 54/54 |
+| decisões referenciadas por casos R0 | 88/921 |
 | formas R0 com baseline estática | 121 |
 | surface lexemes das formas vigentes R0 | 1029 total; mediana 15.5; máximo 50 |
-| bundles executáveis R1 | 4 |
-| variantes/tarefas R1 | 8/16 |
+| bundles executáveis R1 | 5 |
+| variantes/tarefas R1 | 10/20 |
+| casos R0 promovidos a R1 | 11/54 |
 | casos do corpus Tree-sitter | 87 |
 | pares canônicos do formatter F0 | 17 |
 | casos/operações do kernel de memória M1 | 135/442 (60 aceitos + 75 rejeitados) |
 | casos/operações do kernel de execução E0 | 28/280 (17 aceitos + 11 rejeitados; 8/8 origens happens-before) |
 | casos/operações do kernel de boundary effects B0 | 39/320 (25 aceitos + 14 rejeitados) |
 | casos/operações do kernel de packages e releases P0 | 44/379 (22 aceitos + 22 rejeitados) |
-| casos do corpus semântico S0 | 84 (42 positivos + 42 negativos) |
-| outcomes SemanticResult S0 | 84 |
-| snapshots de diagnostic D0 | 42 |
+| casos do corpus semântico S0 | 86 (43 positivos + 43 negativos) |
+| outcomes SemanticResult S0 | 86 |
+| snapshots de diagnostic D0 | 43 |
 | snapshots F0 no formato D0 | 17 |
 | codes D0 catalogados | 81/81 |
 | sources W no root do Última Luz | 77 |
@@ -105,10 +107,10 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 23 | 23878–25306 | 16900 | Protocolos e pesquisas de ecossistema |
 | 24 | 25307–25649 | 8500 | Classificação de viabilidade |
 | 25 | 25650–25860 | 1900 | Produto de referência Última Luz |
-| 26 | 25861–26157 | 3400 | Protocolo de revisão |
-| 27 | 26158–26472 | 3900 | Plano de implementação |
-| 28 | 26473–26503 | 500 | Relação com a consolidação histórica |
-| 29 | 26504–27432 | 44700 | Registro de decisões e alternativas |
+| 26 | 25861–26189 | 3800 | Protocolo de revisão |
+| 27 | 26190–26504 | 3900 | Plano de implementação |
+| 28 | 26505–26535 | 500 | Relação com a consolidação histórica |
+| 29 | 26536–27467 | 45000 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -120,7 +122,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 6975–13248 | 63000 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 13249–20085 | 74700 | tiers, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 20086–25306 | 54200 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 25307–27432 | 62900 | viabilidade, Última Luz, gates, roadmap e ledger |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 25307–27467 | 63600 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
