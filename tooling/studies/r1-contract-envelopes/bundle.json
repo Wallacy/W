@@ -1,0 +1,90 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-contract-envelopes-last-light",
+  "title": "Stage-path contract envelopes at the Last Light restaurant",
+  "r0Cases": [
+    "R0-computed-contract",
+    "R0-sequential-refinement",
+    "R0-static-payload-kinds",
+    "R0-sequential-contract-envelopes"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/domain.w",
+    "symbol": "StagePath<",
+    "digest": "sha256:afc998c9481040659387602c13b7a53b630b0f6f193981cc6c2cf6d2bea45305"
+  },
+  "variants": [
+    {
+      "id": "sequential",
+      "role": "selected",
+      "language": "w",
+      "path": "sequential.w",
+      "digest": "sha256:a90d56bc1b642c3d6f0f05fc5ec8c49bd81ac82b908bc4e8706694977c29deb3",
+      "changedConstructs": [
+        "element type in the primary contract envelope",
+        "complete-list refinement in a second contract envelope"
+      ]
+    },
+    {
+      "id": "fused",
+      "role": "alternative",
+      "language": "w-rejected",
+      "path": "fused.w",
+      "digest": "sha256:de908271da5f81c8cf5469ac3dc9935d29df976efa6def44450a05e454f231ee",
+      "changedConstructs": [
+        "element type and predicate fused into one static-list payload",
+        "ambiguous refinement subject inside the primary contract envelope"
+      ]
+    }
+  ],
+  "entry": "isValidStagePath",
+  "inputs": [
+    {
+      "id": "standard-service",
+      "stages": ["accepted", "reserving", "preparing", "serving", "completed"],
+      "expected": { "valid": true, "firstInvalidIndex": null, "terminal": "completed" }
+    },
+    {
+      "id": "skipped-reservation",
+      "stages": ["accepted", "completed"],
+      "expected": { "valid": false, "firstInvalidIndex": 1, "terminal": "completed" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify the element type, the value constrained by the predicate, and the meaning of `.member`."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the StagePath parameter without changing the predicate subject.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that changes `.member` to the nonexistent `.members` subject.",
+      "mutations": {
+        "sequential": "Replace `isValidStagePath(.member)` with `isValidStagePath(.members)`.",
+        "fused": "Replace `isValidStagePath(.member)` with `isValidStagePath(.members)`."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Limit a path to eight stages while preserving its element type and transition validation."
+    }
+  ],
+  "presentationOrders": [["sequential", "fused"], ["fused", "sequential"]],
+  "blinding": {
+    "participantLabels": { "sequential": "A", "fused": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:94b3e701364b9031024228757f7d784c4bef49835e13dad486992feb3cbf46c6"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

@@ -239,6 +239,9 @@ const substitutionCorpus = JSON.parse(
 const structuredSubstitutionCases = new Set(
   substitutionCorpus.cases.map((testCase) => testCase.reviewItem.trim().replace(/[.;]$/, "")),
 ).size;
+const substitutionDecisionIds = new Set(
+  substitutionCorpus.cases.flatMap((testCase) => testCase.decisions),
+);
 const substitutionSurface = JSON.parse(
   fs.readFileSync(
     path.join(wDirectory, "tooling", "substitution-surface.snapshot.json"),
@@ -273,6 +276,7 @@ const studyVariants = studyBundles.reduce(
   0,
 );
 const studyTasks = studyBundles.reduce((count, bundle) => count + bundle.tasks.length, 0);
+const studiedR0CaseIds = new Set(studyBundles.flatMap((bundle) => bundle.r0Cases));
 
 const referenceDirectory = path.join(wDirectory, "reference", "last-light");
 const rootReferenceSources = fs
@@ -454,12 +458,18 @@ output.push(`| requisitos de ratificação comparativa | ${comparisonCount} |`);
 output.push(
   `| casos de substituição estruturados | ${structuredSubstitutionCases}/${comparisonCount} |`,
 );
+output.push(
+  `| decisões referenciadas por casos R0 | ${substitutionDecisionIds.size}/${decisions.length} |`,
+);
 output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |`);
 output.push(
   `| surface lexemes das formas vigentes R0 | ${selectedSurfaceLexemeTotal} total; mediana ${selectedSurfaceLexemeMedian}; máximo ${selectedSurfaceLexemeMaximum} |`,
 );
 output.push(`| bundles executáveis R1 | ${studyBundles.length} |`);
 output.push(`| variantes/tarefas R1 | ${studyVariants}/${studyTasks} |`);
+output.push(
+  `| casos R0 promovidos a R1 | ${studiedR0CaseIds.size}/${structuredSubstitutionCases} |`,
+);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
