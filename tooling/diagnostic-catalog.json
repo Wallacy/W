@@ -821,6 +821,25 @@
       "fixes": {}
     },
     {
+      "code": "W-OWNERSHIP-0011",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a consuming member call does not transfer its owned receiver explicitly",
+      "requiredFacts": {
+        "member": "string",
+        "receiverCategory": "string",
+        "receiverMode": "string",
+        "receiverPlace": "string",
+        "receiverType": "string",
+        "requiredForm": "string"
+      },
+      "labelRoles": {
+        "receiver-declaration": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-BORROW-0001",
       "state": "active",
       "phase": "semantic.ownership",

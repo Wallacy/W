@@ -1,0 +1,85 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-consuming-receiver-last-light",
+  "title": "Command-stream ownership at the Last Light restaurant",
+  "r0Cases": ["R0-consuming-call", "R0-consuming-error"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/command.w",
+    "symbol": "(take stream).finish()",
+    "digest": "sha256:4bb9cd6313645a83c85afeac83f74bc46771db7e68d97d03146267010493a0d5"
+  },
+  "variants": [
+    {
+      "id": "explicit",
+      "role": "selected",
+      "language": "w",
+      "path": "explicit.w",
+      "digest": "sha256:00079ab6cf27524b12af5447821927c5ba3e4c2e5d03744785ab4e009ec2132d",
+      "changedConstructs": [
+        "explicit ownership transfer before member lookup",
+        "consuming receiver remains moved after an error"
+      ]
+    },
+    {
+      "id": "implicit",
+      "role": "alternative",
+      "language": "w-rejected",
+      "path": "implicit.w",
+      "digest": "sha256:7fb841b092359e65a7f93954a2d09c641edc6d8f8fbc97baff614628c9f069b2",
+      "changedConstructs": [
+        "receiver mode inferred from the selected member",
+        "consumption is not marked at the call site"
+      ]
+    }
+  ],
+  "entry": "observeFinish",
+  "inputs": [
+    {
+      "id": "complete-tail",
+      "tail": "cake",
+      "expected": { "kind": "completed", "bytes": 4, "ownerAvailable": false }
+    },
+    {
+      "id": "invalid-tail",
+      "tail": "invalid",
+      "expected": { "kind": "failed", "error": "invalidTail", "ownerAvailable": false }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify when ownership leaves `stream` and whether an error restores the caller binding."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the call to the consuming `finish` member.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that reads `stream.tail` after the `finish` call in the success branch.",
+      "mutations": {
+        "explicit": "Insert `let remaining = stream.tail` after the `finish` call.",
+        "implicit": "Insert `let remaining = stream.tail` after the `finish` call."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Permit retry after `invalidTail` without copying the stream or restoring an owner implicitly."
+    }
+  ],
+  "presentationOrders": [["explicit", "implicit"], ["implicit", "explicit"]],
+  "blinding": {
+    "participantLabels": { "explicit": "A", "implicit": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:9f62c836ace0d5634ae8de3fd6de512678e202c9af7d0456da41239d67c25ce6"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

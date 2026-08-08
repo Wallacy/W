@@ -925,6 +925,44 @@
       }
     },
     {
+      "id": "S0-POS-consuming-receiver-explicit",
+      "kind": "positive",
+      "rule": "W-174",
+      "source": [
+        "object CommandStream {",
+        "  take fn finish(): usize { return 0 }",
+        "}",
+        "fn finishStream(stream: take CommandStream): usize {",
+        "  return (take stream).finish()",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "(take stream).finish()" },
+        "semanticResult": {
+          "resultType": "usize",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "move", "place": "stream", "type": "CommandStream" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [{ "kind": "receiver-mode", "subject": "finish", "value": "take" }],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "receiver", "operation": "resolve-place", "subject": "stream" },
+              { "id": "take", "operation": "move", "subject": "stream" },
+              { "id": "member", "operation": "resolve-member", "subject": "CommandStream.finish" },
+              { "id": "call", "operation": "call", "subject": "finish" }
+            ],
+            "edges": [
+              { "from": "receiver", "to": "take", "kind": "next" },
+              { "from": "take", "to": "member", "kind": "next" },
+              { "from": "member", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-const-safe-call",
       "kind": "positive",
       "rule": "W-263",
@@ -1744,6 +1782,44 @@
               "operandCategory": "rvalue",
               "prefix": "ref",
               "requirement": "place"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-consuming-receiver-implicit",
+      "kind": "negative",
+      "rule": "W-174",
+      "baseline": "S0-POS-consuming-receiver-explicit",
+      "failureField": "ownerDelta",
+      "source": [
+        "object CommandStream {",
+        "  take fn finish(): usize { return 0 }",
+        "}",
+        "fn finishStream(stream: take CommandStream): usize {",
+        "  return stream.finish()",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0011",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "stream.finish()" },
+            "labels": [
+              { "role": "receiver-declaration", "selector": { "text": "take fn finish" } }
+            ],
+            "facts": {
+              "member": "finish",
+              "receiverCategory": "owned-movable-place",
+              "receiverMode": "take",
+              "receiverPlace": "stream",
+              "receiverType": "CommandStream",
+              "requiredForm": "(take stream).finish()"
             },
             "notes": [],
             "fixes": []

@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui cinco bundles contrabalanceados do Última Luz que promovem 11/54 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui seis bundles contrabalanceados do Última Luz que promovem 13/54 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -1918,6 +1918,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-EXPR-0007` | `each` não ocupa o último argumento rest compatível |
 | `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
+| `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
 `a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
@@ -1936,6 +1937,7 @@ return count?.name                 // W-EXPR-0006 quando count é Int
 estimate(1, courses: each xs, 2)   // W-EXPR-0007: each deve ser final
 return await try kitchen.load()    // W-EFFECT-0010: use try await
 inspect(ref makeDish())            // W-OWNERSHIP-0010: ref exige place
+stream.finish()                    // W-OWNERSHIP-0011: use (take stream).finish()
 ```
 
 Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
@@ -2479,9 +2481,10 @@ Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar outro
 enum ou import não muda candidates porque essa lista não existe.
 
-Seis pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
+Sete pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
 resultado Unit de assignment, a aplicabilidade de postfix, a expansão rest, a
-ordem de effects e os requisitos de place dos prefixes de ownership.
+ordem de effects, os requisitos de place dos prefixes de ownership e a
+transferência explícita de um receiver consuming.
 
 | Code | Baseline positivo | Campo que falha |
 |---|---|---|
@@ -2491,6 +2494,7 @@ ordem de effects e os requisitos de place dos prefixes de ownership.
 | `W-EXPR-0007` | `each` final para rest compatível | `evaluationGraph` |
 | `W-EFFECT-0010` | prefixos em ordem `try await` | `effectSummary` |
 | `W-OWNERSHIP-0010` | `ref` aplicado a place | `ownerDelta` |
+| `W-OWNERSHIP-0011` | `(take stream).finish()` | `ownerDelta` |
 
 O corpus não duplica falhas que já pertencem a outra fase. Chaining de
 comparison pertence a `W-PARSE-0030`. Condition sem Bool pertence a
@@ -4053,6 +4057,14 @@ O call site transfere o receiver de forma explícita:
 let tail = try (take stream).finish()
 try await (take reservation).release()
 ```
+
+`stream.finish()` não infere a transferência a partir da declaração
+`take fn`. Quando `stream` é um place owned e movível, a call produz
+`W-OWNERSHIP-0011` antes de criar um move. O diagnostic registra place, type e
+categoria. Ele não oferece fix automático: inserir `take` muda a disponibilidade
+do binding em todos os outcomes. Um receiver borrowed, shared, weak ou de
+service falha pela incompatibilidade de ownership; o marker ausente não é sua
+primeira causa.
 
 Os parênteses aplicam `take` ao receiver antes do member lookup. A forma
 `take value.method()` não é válida. Ela poderia parecer uma transferência do
@@ -25620,8 +25632,8 @@ mesma profundidade em todas as famílias:
 
 | Artefato | Estado atual | Condição de fechamento |
 |---|---|---|
-| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 17 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 86 casos pareiam 43 resultados positivos com 43 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
+| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 18 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 88 casos pareiam 44 resultados positivos com 44 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre todos os codes com meaning citados; o índice gera a contagem corrente; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
 | std | SDK0 cataloga 159 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; `std.build.Context` agora é draft e `std.build@1` continua missing; sete providers intrinsics estão missing | implementar e validar `std.build@1`, implementar os seis providers restantes, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
@@ -25630,7 +25642,7 @@ mesma profundidade em todas as famílias:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; cinco bundles R1 promovem 11/54 casos e cobrem controle, units, imports, fail-fast e contratos sequenciais | marcar toda ausência de source no ledger, ampliar R1 com prioridade por risco, executar os estudos e publicar os resultados da seção 26 |
+| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; seis bundles R1 promovem 13/54 casos e cobrem controle, units, imports, fail-fast, contratos e receivers consuming | marcar toda ausência de source no ledger, ampliar R1 com prioridade por risco, executar os estudos e publicar os resultados da seção 26 |
 
 Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
 gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
@@ -26080,8 +26092,8 @@ Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
 outcome. A variante pode mudar uma observação que pertence ao objeto do estudo,
 como latência de failure ou provenance visível de um nome.
 
-Os cinco bundles atuais possuem dez variantes e vinte tarefas. Eles promovem
-11 dos 54 casos R0. Todos fazem parse sem recovery. Dez testes de oracle host
+Os seis bundles atuais possuem doze variantes e vinte e quatro tarefas. Eles
+promovem 13 dos 54 casos R0. Todos fazem parse sem recovery. Doze testes de oracle host
 confirmam os outcomes e as diferenças observáveis declaradas.
 
 A promoção conta IDs R0 únicos citados por ao menos um bundle. Ela mede o
@@ -26186,6 +26198,31 @@ executa o evaluator de contratos W.
 O par `S0-POS-contract-sequential-static-list` e
 `S0-NEG-contract-fused-static-list` fixa a rejeição semântica. A forma fused
 produz `W-CONTRACT-0002`: o slot `T` espera um type e recebe uma static list.
+
+#### 26.3.6 Receiver consuming explícito
+
+**Exemplo:** `finish` recebe ownership de `stream` antes do member lookup:
+
+```w
+let tail = try (take stream).finish()
+```
+
+[`tooling/studies/r1-consuming-receiver/bundle.json`](tooling/studies/r1-consuming-receiver/bundle.json)
+deriva de `CommandStream.finish()` no Última Luz. As variantes mudam somente o
+receiver da call:
+
+- `explicit.w` usa `(take stream).finish()`;
+- `implicit.w` usa `stream.finish()` e depende do mode declarado pelo member.
+
+Os inputs cobrem success e error. Nos dois outcomes hipotéticos, o owner fica
+indisponível. A variante implicit faz parse, mas produz `W-OWNERSHIP-0011` no
+checker vigente. O estudo mede quando o participante percebe a transferência,
+se espera restauração no `catch` e como redesenha a API para permitir retry.
+
+O par `S0-POS-consuming-receiver-explicit` e
+`S0-NEG-consuming-receiver-implicit` fixa o diagnostic. A falha ocorre antes do
+move. Por isso, ela não afirma que uma call W inválida consumiu o binding. O
+oracle host compara somente a semântica hipotética das duas alternativas.
 
 ## 27. Plano de implementação
 
@@ -27380,7 +27417,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-838 | expansão `each` | collection é avaliada uma vez; `each` ocupa o argumento final de rest compatível; diagnostic usa índice zero-based em source order | spread universal; expansão intermediária; índice por parameter order; reavaliar collection por item |
 | W-839 | ordem de effect prefix | ordem source canônica é `try await`; ausência, redundância e ordem compartilham W-EFFECT-0010 com facts distintos | `await try`; code separado para cada spelling; inferir effect no caller; fix sem schema |
 | W-840 | operand de ownership prefix | `ref` e `inout` exigem place; `take`, `copy` e `pin` verificam owner, mobility e origem antes de criar delta | borrow de rvalue com lifetime temporário implícito; annotation de lifetime; operação inferida pelo callee |
-| W-841 | corpus G4/S0 | seis families de expression, effect e ownership possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples sem outcome; um fixture com várias falhas; duplicar errors de parser, type e expression |
+| W-841 | corpus G4/S0 | sete families de expression, effect e ownership possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples sem outcome; um fixture com várias falhas; duplicar errors de parser, type e expression |
 | W-842 | ownership de diagnostic const | W-CONST possui sete meanings fechados; a primeira falha que impede ConstValue cria o root e a cadeia permanece estruturada | texto livre do evaluator; um code para toda falha; error por cada caller da mesma cadeia |
 | W-843 | operação não const-safe | W-CONST-0001 cobre call, capability ou target semantic que ConstIR não reproduz; target é fact, não outro meaning | usar W-CONST-0007 para target; executar host semantic; fallback runtime num const obrigatório |
 | W-844 | ciclo const | grafo falha antes de executar quando contém ciclo; diagnostic registra sequência fechada e todos os members | executar até quota; escolher member por hash; cortar ciclo sem mostrar edge de retorno |
@@ -27399,7 +27436,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-857 | elegibilidade wire | W-WIRE-0001 pertence à fase interface e registra type path, domain reason, required profiles e alternatives quando boundary portátil alcança value local | falhar no decoder; permitir placement mudar tipo silenciosamente; mensagem sem path ou profile |
 | W-858 | corpus wire D0 | Duration portátil e Instant local formam par único; o teste resolve spans e compara facts contra o catálogo | usar somente prose do erro; codec test como prova de type eligibility; snapshot manual como interface checker |
 | W-859 | fechamento do catálogo citado | todos os codes com meaning citado possuem schema; o índice gera a contagem corrente; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem manual; reservar toda família; remover status antes do checker |
-| W-860 | expansão F0 semântica | repeat rotulado, effect prefix, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; reordenar constructs para legibilidade |
+| W-860 | expansão F0 semântica | repeat rotulado, effect/ownership prefix, receiver consuming, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; remover grouping de ownership; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
 | W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/54`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 54 bullets como 54 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
@@ -27425,7 +27462,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | cinco bundles, dez variantes e vinte tarefas cobrem controle, units, imports, fail-fast e contratos sequenciais com source base, inputs, digests e oracle; 11/54 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | seis bundles, doze variantes e vinte e quatro tarefas cobrem controle, units, imports, fail-fast, contratos e receivers consuming com source base, inputs, digests e oracle; 13/54 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
@@ -27459,8 +27496,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-917 | endurecimento executável M1 | schema M1 fixa 135 casos e 442 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, boundary gates, interface keys/result slots, immortal origin, referent await, handle pinned, self-reference, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar owner origin implícito, fact sem place, endereço do aggregate como prova, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 11/54 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 13/54 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
+| W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
+| W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
+| W-924 | formatter de receiver consuming | F0 preserva `(take stream).finish()` e prova CST equivalente; os parênteses pertencem ao operand de ownership e não são style opcional | remover grouping; formatar como `take stream.finish()`; mover `take` após member lookup; snapshot sem decisão |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

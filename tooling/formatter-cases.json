@@ -247,6 +247,19 @@
       "requiredSemicolons": []
     },
     {
+      "id": "F0-consuming-receiver-grouping",
+      "decisions": ["W-174", "W-708", "W-774", "W-922"],
+      "input": {
+        "lines": [
+          "fn finish(stream:take CommandStream):usize{return (take stream).finish()}"
+        ]
+      },
+      "output": [
+        "fn finish(stream: take CommandStream): usize { return (take stream).finish() }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
       "id": "F0-const-call-parameter",
       "decisions": ["W-548", "W-708"],
       "input": {
