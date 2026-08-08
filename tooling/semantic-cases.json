@@ -1589,6 +1589,39 @@
       }
     },
     {
+      "id": "S0-POS-module-domain-requirement",
+      "kind": "positive",
+      "rule": "W-925",
+      "source": [
+        "module kitchen<domains: [.serial(.thermal)]>"
+      ],
+      "expect": {
+        "focus": { "text": "module kitchen<domains: [.serial(.thermal)]>" },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "domain-requirement", "subject": "kitchen.thermal", "value": "serial" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "module", "operation": "resolve-module", "subject": "kitchen" },
+              { "id": "domains", "operation": "bind-contract-slot", "subject": "domains" },
+              { "id": "result", "operation": "declare-module", "subject": "kitchen" }
+            ],
+            "edges": [
+              { "from": "module", "to": "domains", "kind": "next" },
+              { "from": "domains", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-NEG-expr-mutable-assignment",
       "kind": "negative",
       "rule": "W-770",
@@ -2759,6 +2792,36 @@
               "expectedKind": "type",
               "head": "StaticList",
               "slot": "T"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-module-parallel-default",
+      "kind": "negative",
+      "rule": "W-925",
+      "baseline": "S0-POS-module-domain-requirement",
+      "failureField": "resultType",
+      "source": [
+        "module kitchen<domains: [.serial(.thermal)], parallelDefault: .compute>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "parallelDefault" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "module kitchen" } }
+            ],
+            "facts": {
+              "availableSlots": ["domains"],
+              "head": "module kitchen",
+              "slot": "parallelDefault"
             },
             "notes": [],
             "fixes": []

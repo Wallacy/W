@@ -1501,7 +1501,8 @@ vez e não criar um worker adicional.
 `spawn` sem `parallelDefault`, mantém `.compute` válido com capacity um e
 impede que o deployment aumente a capacity do artifact. Declarar ou importar
 um domain continua sendo somente uma requirement. Não cria queue, thread ou
-executor.
+executor. Somente o execution profile selecionado pelo product fornece
+`parallelDefault`; o header do módulo não possui esse slot.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 
@@ -2115,7 +2116,7 @@ O Book deve mostrar pares lado a lado:
 | export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
 | plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` |
+| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` (válido e equivalente) |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
