@@ -463,7 +463,7 @@ output.push(`| variantes/tarefas R1 | ${studyVariants}/${studyTasks} |`);
 output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
-  `| casos/operações do kernel de memória M0 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
+  `| casos/operações do kernel de memória M1 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
 );
 output.push(
   "| casos/operações do kernel de execução E0 | " +

@@ -164,7 +164,8 @@ alvo de execução independente.
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `memory.w` | ownership, identidade, Address, provenance, niches, pinning e callback C |
-| `hir_memory_oracle.w` | estados mínimos de owner/borrow, suspensão, representação e ABI |
+| `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
+| `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
@@ -2051,31 +2052,46 @@ Aceite:
 O caso compara a boundary W exata, a façade C e a component schema. As três
 formas resolvem problemas diferentes.
 
-### 3.44 Kernel de HIR para memória e ABI
+### 3.44 Kernel M1 de HIR para memória e ABI
 
-Famílias: owner único, borrow, pinning, representação e `WAbiKey`.
+Famílias: PlaceId, LoanId, overlap, reborrow, OriginSet, pinning, representação,
+FFI e `WAbiKey`.
 
-`hir_memory_oracle.w` é o primeiro recorte do verifier. Ele não executa código
-de produção. Ele modela as transições que o HIR deve rejeitar ou aceitar.
+`hir_memory_oracle.w` é o recorte M1 do verifier. Ele não executa código de
+produção. Ele modela as transições que o HIR deve rejeitar ou aceitar.
 
 Aceite:
 
 - somente um owner `owned` pode mover ou destruir;
-- um move marca o binding de origem como `moved` e cria um destino `owned`;
-- um borrow ativo bloqueia move e drop;
-- o fim do borrow libera exatamente uma obrigação;
-- drop repetido e encerramento repetido de borrow falham;
-- suspension com borrow exige storage `stable` ou `published`;
-- mover um handle pinned preserva o estado do endereço do payload;
+- PlaceId usa root estável e projections com overlap conservador;
+- LoanId registra mode, origin, estabilidade e parent de reborrow;
+- fields conhecidos distintos, índices constantes e ranges provados podem ser
+  disjuntos;
+- ProofFacts identificam o prefixo PlaceId exato e não valem para outro root;
+- enum variants distintos e projections opaque continuam conservadores;
+- move/drop do root e mutation estrutural observam loans descendants;
+- reborrow congela parent e restaura a capability no fim do child;
+- cópias shared de um child preservam o parent até o fim de todas as cópias;
+- child sibling ou mais amplo é rejeitado e children disjuntos podem coexistir;
+- edges individuais compõem stored fields e `Array<ref T>` sem apagar erasure;
+- edge shared permite read; edge exclusive permite read/write;
+- `.lifetimeIndependent` observa somente ausência de origin dinâmica;
+- service, wire, persistence e FFI aplicam gates próprios depois de lifetime;
+- dependent escape, channel, share e await seguem regras de origin e drain;
+- pin exige zero loans e separa root pinned de handle móvel;
+- self-reference safe initializer é rejeitado;
+- FFI ref/inout é call-scoped e retenção exige lease pinned e destroy;
 - `lowBit` só é aceito em `internal`;
 - `provenNiche` não cruza C, wire ou persistence;
 - C e capability usam carriers nativos explícitos;
 - um owner que cruza uma boundary precisa de allocator origin conhecido;
-- mismatch de target, calling convention, representation policy ou runtime ABI
-  rejeita o link antes do lowering.
+- mismatch de target, calling convention, representation policy, runtime ABI ou
+  SemanticInterfaceKey rejeita o link antes do lowering.
 
 O modelo Node em `tooling/hir-memory-reference.test.mjs` repete essas regras
-com estados pequenos. Ele é uma referência de contrato, não o futuro verifier.
+com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
+possui 135 casos e 442 operações. Ele é uma referência de contrato, não o
+futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
 
 ## 4. Alternativas visuais obrigatórias
