@@ -26,6 +26,8 @@ export fn stageMenu(
       title: try title.tryDuplicate(using: staging),
       dishes: take stagedDishes,
     )
+    // Rehome changes allocation origins. It does not erase a borrow origin.
+    // The result interface maps owned storage to the `memory` parameter.
     return try (take staged).rehome(using: memory)
   }
 }

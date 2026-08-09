@@ -1923,6 +1923,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-EXPR-0007` | `each` não ocupa o último argumento rest compatível |
 | `W-EFFECT-0010` | `try`, `await` ou `?` está ausente, redundante ou fora da ordem canônica |
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
+| `W-BORROW-0010` | `share` recebe payload com origin de borrow dinâmica |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
@@ -2486,10 +2487,11 @@ Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar outro
 enum ou import não muda candidates porque essa lista não existe.
 
-Sete pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
+Oito pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
 resultado Unit de assignment, a aplicabilidade de postfix, a expansão rest, a
 ordem de effects, os requisitos de place dos prefixes de ownership e a
-transferência explícita de um receiver consuming.
+transferência explícita de um receiver consuming. O oitavo separa lifetime de
+borrow da criação de shared ownership.
 
 | Code | Baseline positivo | Campo que falha |
 |---|---|---|
@@ -2499,6 +2501,7 @@ transferência explícita de um receiver consuming.
 | `W-EXPR-0007` | `each` final para rest compatível | `evaluationGraph` |
 | `W-EFFECT-0010` | prefixos em ordem `try await` | `effectSummary` |
 | `W-OWNERSHIP-0010` | `ref` aplicado a place | `ownerDelta` |
+| `W-BORROW-0010` | `share` de payload lifetime-independent | `proofFacts` |
 | `W-OWNERSHIP-0011` | `(take stream).finish()` | `ownerDelta` |
 
 O corpus não duplica falhas que já pertencem a outra fase. Chaining de
@@ -7209,9 +7212,22 @@ edges para cada referent.
 `.lifetimeIndependent` é true quando não existe origin dinâmica. Static e
 immortal satisfazem somente esse gate. Eles não provam `WireValue`, `Send`,
 `Sync`, shareability, transferability ou segurança FFI. Escapes rejeitam edges
-dinâmicas externas, não toda ref immortal. `share(dependent)` é rejeitado sem
-prova de shareability. Structured child exige join antes do fim de cada origin
-e mobilidade transferível.
+dinâmicas externas, não toda ref immortal. `share(dependent)` é rejeitado até o
+payload atender a `.lifetimeIndependent`. `shareable` não repara lifetime e só
+entra quando aliases cruzam uma fronteira paralela. Structured child exige join
+antes do fim de cada origin e mobilidade transferível.
+
+`OriginSet` contém dependências de borrow. `AllocationOriginSet` contém as
+origens dos storages owned que o value mantém transitivamente. Os conjuntos não
+se substituem. Um `String` alocado numa arena pode ter `OriginSet` vazio e ainda
+depender da arena para lifetime e deallocation. Um `view String` pode não possuir
+storage e ainda ter uma edge dinâmica para o owner.
+
+Move transfere os dois conjuntos. Drop libera primeiro as obrigações usadas por
+`deinit` e depois cada storage pela sua origem. Copy de um value owned cria novas
+origens de allocation conforme a API usada. `rehome` reescreve
+`AllocationOriginSet`; ele não remove uma edge de borrow. A interface semântica
+mantém mappings separados para results borrowed e storage owned.
 
 Uma boundary aplica seus próprios gates depois do gate de lifetime. Channel e
 task exigem transferability. Service exige `WireValue` e transferability mesmo
@@ -7260,10 +7276,15 @@ Diagnostics distinguem pelo menos:
 - `W-BORROW-0007` para referent unstable durante await;
 - `W-BORROW-0008` para move, drop ou pin bloqueado por edge dinâmica;
 - `W-BORROW-0009` para write solicitado por uma dependency edge shared.
+- `W-BORROW-0010` para `share` de payload com origin de borrow dinâmica.
 
 Cada diagnostic sugere reordenar, encerrar scope, materializar, copiar, fazer
 `take` antes do borrow, separar ou limpar um container, ou usar pin quando o
 endereço for realmente necessário. O diagnostic não inventa annotation.
+
+O par `S0-POS-share-lifetime-independent` e
+`S0-NEG-share-borrow-dependent` fixa que `shareable` não repara uma origin de
+borrow. A falha usa `W-BORROW-0010` antes de alocar o control block.
 
 O corpus M1 mantém uma forma aceita e uma inversão para cada regra crítica:
 
@@ -7392,6 +7413,12 @@ pode falhar antes de publicar o endereço. `Pinned<T>` pode mudar de endereço; 
 `Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um segundo
 owner.
 
+Depois que `take` transfere o source para `pin`, uma falha de allocation também
+consome esse source. O compiler destrói `T` uma vez, libera storage parcial e
+propaga `AllocationError`. Nenhum endereço é publicado. Essa regra evita um
+estado condicional no binding original e coincide com calls consuming que usam
+`throws`.
+
 `pin` exige zero `LoanId` e zero dependency edge dirigida ao payload. A operação
 pode relocar o valor antes de estabilizar seu endereço. O payload pinned recebe
 um root estável distinto do handle. Mover o handle é permitido com loans ou
@@ -7450,6 +7477,33 @@ Um temporary não usa `take`. Promover um owner existente exige
 `share(take value, using:)`. A forma sem `using` usa o allocator default. W não
 converte um owner único para `shared T` somente por expected type ou parâmetro.
 
+`share` exige que o payload seja `.lifetimeIndependent`. A operação não estende
+o lifetime de `ref`, `view`, `inout` ou capture borrowed. Ela preserva o
+`AllocationOriginSet` do payload e adiciona a origem do control block. Cada
+origem interna precisa durar pelo menos tanto quanto o control block. Caso
+contrário, o caller usa `rehome` antes de `share`.
+
+```w
+struct MenuView { title: view String }
+
+let title = menu.title.scalars
+let borrowed = MenuView(title: title)
+let invalid = try share(take borrowed, using: memory)
+// W-BORROW-0010: share não prolonga a origin de title.
+```
+
+O resultado pode depender do allocator explícito. Essa dependência aparece no
+`AllocationOriginMap` da interface, mesmo quando o tipo source continua
+`shared T`. Ela não é uma annotation de lifetime escrita pelo usuário. Um
+control block criado numa arena pode ser usado dentro da arena, mas nenhum
+strong ou weak handle sobrevive ao fechamento dela.
+
+Falha de allocation consome o temporary ou o argumento marcado com `take`,
+executa o drop de `T` uma vez e libera qualquer control block parcial. Ela não
+publica handle strong ou weak. Esse comportamento segue as outras operações
+consuming. Uma API de retry precisa devolver o source num outcome explícito; a
+baseline não cria `attemptShare` implicitamente.
+
 `shared T` e `weak T` são move-first. `copy handle` cria outro owner e torna o
 retain visível no source. `upgrade()` é a única operação que cria um shared owner
 a partir de `weak`. Uma função pode mover seu último shared handle sem retain.
@@ -7470,6 +7524,27 @@ O compiler pode remover retains e releases quando prova owner único. Um handle
 `shared T` que cruza `spawn` usa contagem thread-safe e exige que `T` seja
 `shareable`. A implementação pode usar contagem local somente quando prova que o
 handle não cruza uma fronteira paralela.
+
+Criar aliases no mesmo isolation domain não exige que `T` seja `shareable`.
+Cruzar `spawn`, channel, service ou callback concorrente exige, em conjunto:
+
+1. `T` shareable;
+2. contador thread-safe;
+3. mobility `.crossDomain` para o control block e todo storage alcançável;
+4. lifetime válido para cada origem de allocation.
+
+O compiler deriva esses fatos. `share` não recebe uma flag de thread safety no
+source.
+
+Um borrow obtido por um strong handle usa esse handle como sua origin. Enquanto
+o borrow estiver vivo, o programa não move nem destrói o handle de origem. Ele
+pode destruir outro alias strong. Essa regra evita ligar o borrow a um contador
+global e mantém a causa no place que criou o acesso.
+
+`shared T` oferece acesso shared ao payload. Ele não concede `inout T` nem
+mutation direta. Interior mutation usa uma API que publica atomicidade,
+serialization ou exclusividade verificada. `weak T` não oferece acesso ao
+payload; o programa chama `upgrade()` e testa o `Option<shared T>` primeiro.
 
 Overflow de contador nunca faz wrap. Ele encerra a fault boundary antes de
 perder um owner. O último release executa `deinit` uma vez. `weak` expira antes
@@ -7497,6 +7572,12 @@ handle de service mantém identity e capability, não ownership direto do estado
 `w explain ownership` mostra retains, releases, possíveis ciclos e a razão de
 uma contagem atômica. Isso é evidence de tooling, não prova global de ausência
 de ciclo.
+
+A documentação de [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html)
+confirma a separação entre payload, strong owners, weak owners e allocator. Ela
+também mostra que reference counting thread-safe não torna o payload seguro para
+concorrência. W mantém esses fatos, mas usa `copy`, predicates derivados e
+origens de allocation explícitas na interface.
 
 ### 9.5 Regiões
 
@@ -7563,6 +7644,17 @@ operação limpa o source e qualquer destino parcial antes de propagar o error. 
 variante `attemptRehome` pode devolver o source num outcome quando o caller
 precisa de retry. Adoção sem cópia só ocorre quando o allocator de destino
 declara transferência de origem compatível.
+
+`rehome` altera somente `AllocationOriginSet`. Uma edge dinâmica de `OriginSet`
+continua apontando para o mesmo referent. Portanto, rehome de storage não torna
+um borrow independente e não autoriza fechar a origin do referent. O diagnostic
+separa “storage local” de “referent local” e sugere, respectivamente, `rehome`
+ou materialização/copy.
+
+No caminho de sucesso, cada storage transferido passa a usar a origem de destino. Na falha,
+o source já foi consumido e todos os storages parciais são liberados pelas suas
+origens corretas. O fechamento da região pode continuar depois do error. A HIR
+registra esse estado; não depende de exception unwind do host.
 
 Plain data usa bulk release. Um valor com `deinit` entra num drop ledger. O
 cleanup usa a ordem inversa da construção concluída, não a ordem de conclusão de
@@ -7707,6 +7799,26 @@ AllocationOrigin = {
   bulk-release owner, when present,
 }
 ```
+
+`AllocationOriginSet` é a projeção transitiva dessas records para um value
+owned. Ela pode conter mais de uma origem porque `String`, `Array` e fields
+owned podem usar allocators diferentes. O set serve para lifetime, mobility e
+interface checking. Ele não substitui a lista de allocations usada para drop.
+
+```text
+AllocationOriginMap = {
+  result storage path -> allocator input slot, product default or runtime owner
+}
+```
+
+Uma função que devolve storage criado com `ref Allocator` publica esse mapping
+na interface sem exigir annotation no source. O mapping participa da
+`SemanticInterfaceKey`. Trocar `parameter:memory` pelo allocator default é uma
+mudança de interface, mesmo quando os bytes físicos e o tipo nominal não mudam.
+
+**Exemplo:** `stageMenu(..., memory:)` publica
+`result.$storage -> parameter:memory` depois de `rehome`. O caller não pode
+encerrar `memory` enquanto o result estiver vivo.
 
 A origem pode ficar no owner, num control block ou numa side table. Ela não
 precisa ocupar bits do pointer. Move preserva a origem. FFI preserva o
@@ -20165,6 +20277,7 @@ sem runtime geral:
 | owner | `owned`, `moved`, `dropped` | initialize → owned; move → moved + novo owned; drop → dropped |
 | place loan | `PlaceId` root + projections e `LoanId` | begin registra mode, origin, estabilidade e parent; end restaura parent |
 | dependency edges | edges individuais + `OriginSet` deduplicado | composição, insert e join adicionam; clear libera; remove exige prova |
+| storage | allocations individuais + `AllocationOriginSet` | move transfere; rehome reescreve; drop usa o deallocator da origem |
 | address | `unstable`, `stable`, `published` | `pin` ou placement provado torna storage estável |
 | boundary | internal, W exact, C, wire, persistence, capability | representation é verificada antes do lowering |
 | ABI | `WAbiKey` + `SemanticInterfaceKey` | fields e dependency mapping precisam coincidir para link exato |
@@ -20186,7 +20299,12 @@ O verifier aplica estas regras:
 9. `lowBit` fica interno; `provenNiche` não cruza C, wire ou persistence;
 10. um owner que cruza uma boundary carrega allocator origin conhecido;
 11. mismatch de `WAbiKey` ou `SemanticInterfaceKey` rejeita o link antes de LTO;
-12. HIR incompleta produz diagnostic e nunca baixa para W/MLIR.
+12. `share` exige payload lifetime-independent e origens que sobrevivem ao
+    control block;
+13. uma fronteira paralela verifica payload, contador e mobility de todas as
+    origens;
+14. falha de `pin`, `share` ou `rehome` consome e limpa o source uma vez;
+15. HIR incompleta produz diagnostic e nunca baixa para W/MLIR.
 
 O kernel não fixa stack, heap, register, layout ou calling convention física. Ele
 fixa somente fatos necessários para provar cleanup, alias e fronteira. O
@@ -20204,8 +20322,8 @@ mantém um borrow durante suspensão, move somente o handle e faz drop no payloa
 estável uma vez.
 
 [`tooling/memory-transition-cases.json`](tooling/memory-transition-cases.json)
-mantém 135 sequências ligadas a symbols do Última Luz. A
-[`máquina M1`](tooling/hir-memory-machine.mjs) executa 442 operações sobre:
+mantém 156 sequências ligadas a symbols do Última Luz. A
+[`máquina M1`](tooling/hir-memory-machine.mjs) executa 546 operações sobre:
 
 - bindings `owned`, `moved` e `dropped`;
 - payload identity preservada por move;
@@ -20221,21 +20339,27 @@ mantém 135 sequências ligadas a symbols do Última Luz. A
 - Array de refs, clear, remove provado e mutation estrutural;
 - endereço `unstable`, `stable` e `published`;
 - handle `Pinned<T>` separado do payload;
+- `AllocationOriginSet`, budget de região, fechamento e `rehome`;
+- control block strong/weak, upgrade, drop único e origem do último weak;
+- estado após falha fallible consuming de `pin`, `share` e `rehome`;
+- payload, contador e mobility combinados numa fronteira paralela;
 - representação por boundary, allocator origin e FFI scope/retention;
-- mapping de `WInterface`, `SemanticInterfaceKey` e igualdade de `WAbiKey`;
+- mappings de borrow/storage em `WInterface`, `SemanticInterfaceKey` e igualdade
+  de `WAbiKey`;
 - await estável, cleanup drain e join de owner states.
 
-O runner aceita 60 sequências e rejeita 75. O snapshot M1 registra schema, estado
+O runner aceita 67 sequências e rejeita 89. O snapshot M1 registra schema, estado
 e trace de cada operação byte a byte. Todo caso aponta para source do Última Luz.
 Uma operação só publica o estado seguinte quando é aceita. Uma rejeição preserva
 o estado anterior e não deixa payload, loan ou edge parcial no oracle.
 O teste Node preserva os checks de owner, pin, representation, allocator e ABI
 do kernel anterior e inclui as novas transições M1 como oracles pequenos.
 
-M1 não é HIR emitida pelo frontend. Ele não prova allocation failure de `pin`,
-`shared`/`weak`, região, drop em panic, branch graph completo, happens-before ou
-cancellation física. Esses itens permanecem gates antes do freeze de memória e
-execução.
+M1 não é HIR emitida pelo frontend. Ele modela o estado lógico após allocation
+failure, mas não executa um allocator real. Ele também não prova interleaving
+atômico de strong/weak, overflow do contador, destruição física de arena, drop em
+panic, branch graph completo, happens-before ou cancellation física. Esses itens
+permanecem gates antes do freeze de memória e execução.
 
 ### 20.3 Dialeto W/MLIR
 
@@ -20501,6 +20625,7 @@ A signature ABI semântica registra:
 - `async`, typed error e `unsafe`;
 - generic metadata e witnesses necessários;
 - provenance de cada result borrowed;
+- `AllocationOriginMap` de cada result owned com storage;
 - address spaces e target-specific carriers;
 - availability e runtime requirements.
 
@@ -20515,6 +20640,16 @@ error não usa exception unwind do host. Panic não é um result oculto.
 Um return owned transfere responsabilidade ao caller. Um return borrowed aponta
 somente para uma origem publicada na interface. O compiler não inventa owner
 metadata para prolongar o borrow.
+
+Um return owned pode depender do lifetime de um allocator recebido. Essa
+dependência não o transforma em borrow, mas limita seu escape e informa qual
+deallocator continua válido. `OriginSet` e `AllocationOriginMap` são serializados
+separadamente. Divergência em qualquer mapping altera a
+`SemanticInterfaceKey` e rejeita o link W exato antes do lowering físico.
+
+Uma façade C não exporta esse mapping oculto. Ela retorna um carrier com destroy
+operation, recebe storage do caller ou copia para uma allocation family
+declarada pela ABI C.
 
 #### 20.4.5 Lowering físico de call
 
@@ -25334,14 +25469,14 @@ Uma pesquisa só avança quando possui:
 | `withAddress` com provenance do receiver | **Possível agora** | lowering pointer-based evita exposed provenance |
 | cópia tipada de pointers com estado externo | **Possível agora** | loads/stores tipados e target data layout preservam o carrier |
 | pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
-| `pin` e `Pinned<T>` públicos | **Provável** | contrato claro; FFI persistente precisa de protótipo |
+| `pin` e `Pinned<T>` públicos | **Provável** | M1 fecha estado lógico e falha consuming; FFI persistente precisa de protótipo |
 | placement local sem annotation | **Possível agora** | escape e frame analysis conservadores fornecem fallback stack |
 | gate sem allocator geral | **Provável** | call graph e allocation facts são conhecidos; FFI exige summary |
-| `Arena` T0 e bloco `region` | **Provável** | lifetime lexical e bulk release são conhecidos; async e rehome exigem corpus |
+| `Arena` T0 e bloco `region` | **Provável** | M1 fecha lifetime, budget e rehome lógicos; async e destruição física exigem protótipo |
 | allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
-| mobilidade derivada da origem | **Provável** | análise é conhecida; allocators locais, FFI e cross-domain exigem corpus |
+| mobilidade derivada da origem | **Provável** | M1 separa origem local/cross-domain; FFI e matriz de providers exigem protótipo |
 | allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
-| `shared` + `weak` sem cycle collector | **Provável** | RC é conhecido; tooling de ciclos precisa de avaliação |
+| `shared` + `weak` sem cycle collector | **Provável** | M1 fecha lifecycle lógico; atomics, overflow e tooling de ciclos exigem avaliação |
 | `async let`/`spawn let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
@@ -25645,7 +25780,7 @@ mesma profundidade em todas as famílias:
 | std | SDK0 cataloga 159 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; `std.build.Context` agora é draft e `std.build@1` continua missing; sete providers intrinsics estão missing | implementar e validar `std.build@1`, implementar os seis providers restantes, adicionar segundo consumer e comparar interfaces emitidas |
 | targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
 | ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
-| memória e execução | M1 fixa 135 casos/442 operações, 60 aceitos e 75 rejeitados; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | validar liveness/fairness; substituir oracles host por HIR, checker e scheduler reais |
+| memória e execução | M1 fixa 156 casos/546 operações, 67 aceitos e 89 rejeitados; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | validar allocator/atomics/liveness; substituir oracles host por HIR, checker e scheduler reais |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
@@ -26002,8 +26137,8 @@ substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
 alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
-O kernel executável de memória usa a baseline M1. O corpus possui 135 casos e
-442 operações, com 60 outcomes aceitos e 75 rejeitados. Cada caso liga
+O kernel executável de memória usa a baseline M1. O corpus possui 156 casos e
+546 operações, com 67 outcomes aceitos e 89 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
@@ -27479,7 +27614,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-869 | seed R1 de controle | scanner de carrier do Última Luz compara labels estruturados e flags mutáveis; duas variantes W fazem parse e dois inputs coincidem no oracle host; execução W permanece ausente | medir snippets R0 como programa; comparar W com C de escopo menor; chamar simulação host de runtime W |
 | W-870 | máquina de memória M1 | bindings apontam para payloads; PlaceId usa root e projections; LoanId registra mode, origin, stability e parent; move/drop preservam payload e pin separa handle de payload | owner como Boolean; place sem root; loan sem token; pin copia valor; endereço pertence ao binding |
 | W-871 | forma do corpus M1 | casos ligam owner, overlap, reborrow, origins, escapes, await, pin, FFI, representation, ABI e join ao Última Luz; snapshot guarda traces byte-exact; W-917 e W-918 fixam a revisão corrente | exemplos isolados sem state; caso sem source; apenas success; resultado sem trace |
-| W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; nenhum é HIR real ou prova runtime, allocation failure, shared/weak, region, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; apagar segundo oracle por duplicação aparente |
+| W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; modelam outcomes de allocation, shared/weak e region sem executar allocator, atomics, destructor graph, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; chamar outcome lógico de allocator real; apagar segundo oracle por duplicação aparente |
 | W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
 | W-874 | corpus E0 | 28 sequências e 280 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
 | W-875 | limite de E0 | oracle host recebe task, storage identity e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
@@ -27524,7 +27659,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; presença e bytes de SemanticInterfaceKey coincidem nos dois lados; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 135 casos e 442 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, boundary gates, interface keys/result slots, immortal origin, referent await, handle pinned, self-reference, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar owner origin implícito, fact sem place, endereço do aggregate como prova, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 156 casos e 546 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle e alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 14/54 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -27535,6 +27670,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-925 | ownership do parallel default | header de módulo publica somente `domains`; `parallelDefault`, pool, capacity, queue e fallback pertencem ao execution profile selecionado pelo product; S0 rejeita o slot de módulo com W-CONTRACT-0001 | import escolhe executor; default em cada módulo; módulo concede budget; duplicar profile em source |
 | W-926 | estudo R1 de domain | `spawn<.compute>` canônico e `spawn<domain: .compute>` válido normalizam para o mesmo TaskContract; capacity um aceita parallel intent sem prometer simultaneidade; binding serial é rejeitado pelo oracle de profile | tratar domain como thread; proibir label válido; capacity um invalida spawn; chamar oracle de scheduler |
 | W-927 | formatter de domain | F0 preserva as formas positional e named e não troca uma pela outra; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
+| W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
+| W-929 | criação de shared | `share` exige payload lifetime-independent, preserva origins internas e cria origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
+| W-930 | falha de operação consuming de storage | allocation failure de `pin`, `share` e `rehome` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address; retry exige outcome que devolve o source | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer antes do success |
+| W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
+| W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
+| W-933 | expansão de composição M1 | 21 novos casos e quatro testes independentes cobrem budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; snapshots registram 156 casos e 546 operações | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

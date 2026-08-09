@@ -716,3 +716,126 @@ test("M1 requires unique dependency identity and commits edge creation atomicall
   assert.equal(duplicate.state.bindings.refs, undefined);
   assert.equal(duplicate.state.nextPayload, 1);
 });
+
+test("M1 keeps borrow origins separate from allocator origins", () => {
+  const dependentShare = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "process",
+      lifetime: "product",
+      mobility: "crossDomain",
+      adoptionFamily: "general",
+      limit: 256,
+    },
+    { op: "initialize", binding: "menu" },
+    {
+      op: "initialize",
+      binding: "borrowed",
+      edges: [{ ownerBinding: "menu", origin: "menu", mode: "shared" }],
+    },
+    { op: "share", from: "borrowed", to: "root", using: "process" },
+  ]);
+  assert.equal(dependentShare.code, "shareRequiresLifetimeIndependent");
+
+  const localStorage = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "scratch",
+      lifetime: "scoped",
+      mobility: "local",
+      adoptionFamily: "arena",
+      limit: 64,
+    },
+    { op: "initialize", binding: "snapshot", using: "scratch", bytes: 32 },
+    {
+      op: "escape",
+      binding: "snapshot",
+      target: "structuredChild",
+      transferable: true,
+      joinPrecedesOrigins: true,
+    },
+  ]);
+  assert.equal(localStorage.code, "allocationOriginNotTransferable");
+});
+
+test("M1 rehome rewrites storage provenance before parallel transfer", () => {
+  const result = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "scratch",
+      lifetime: "scoped",
+      mobility: "local",
+      adoptionFamily: "arena",
+      limit: 64,
+    },
+    {
+      op: "defineAllocator",
+      allocator: "process",
+      lifetime: "product",
+      mobility: "crossDomain",
+      adoptionFamily: "general",
+      limit: 256,
+    },
+    { op: "initialize", binding: "snapshot", using: "scratch", bytes: 32 },
+    { op: "rehome", from: "snapshot", to: "portable", using: "process", bytes: 32 },
+    { op: "closeAllocator", allocator: "scratch" },
+    {
+      op: "escape",
+      binding: "portable",
+      target: "structuredChild",
+      transferable: true,
+      joinPrecedesOrigins: true,
+    },
+  ]);
+  assert.equal(result.status, "accepted");
+  assert.deepEqual(result.state.payloads.p0.storageOrigins, ["process"]);
+  assert.equal(result.state.allocators.scratch.state, "closed");
+});
+
+test("M1 keeps weak storage until the last weak handle and drops payload once", () => {
+  const result = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "process",
+      lifetime: "product",
+      mobility: "crossDomain",
+      adoptionFamily: "general",
+      limit: 256,
+    },
+    { op: "initialize", binding: "menu", using: "process", bytes: 32 },
+    {
+      op: "share",
+      from: "menu",
+      to: "root",
+      using: "process",
+      bytes: 16,
+      threadSafe: true,
+    },
+    { op: "makeWeak", from: "root", to: "observer" },
+    { op: "drop", binding: "root" },
+    { op: "upgradeWeak", from: "observer", to: "expired", result: "afterRelease" },
+    { op: "drop", binding: "observer" },
+  ]);
+  assert.equal(result.status, "accepted");
+  assert.equal(result.state.outcomes.afterRelease, "none");
+  assert.equal(result.state.controlBlocks.c0.deinitCount, 1);
+  assert.equal(result.state.controlBlocks.c0.blockAlive, false);
+  assert.equal(result.state.payloads.p0.dropCount, 1);
+});
+
+test("M1 consuming allocation failure drops the source before propagation", () => {
+  const result = runMemoryProgram([
+    { op: "initialize", binding: "bellState" },
+    {
+      op: "pin",
+      from: "bellState",
+      to: "pinned",
+      outcome: "allocationError",
+      result: "pin",
+    },
+  ]);
+  assert.equal(result.status, "accepted");
+  assert.equal(result.state.bindings.bellState.state, "dropped");
+  assert.equal(result.state.payloads.p0.dropCount, 1);
+  assert.equal(result.state.outcomes.pin, "allocationError");
+});

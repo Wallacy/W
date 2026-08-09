@@ -1019,6 +1019,25 @@
       }
     },
     {
+      "code": "W-BORROW-0010",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "share receives a payload with a dynamic borrow origin",
+      "requiredFacts": {
+        "operation": "string",
+        "owner": "string",
+        "origins": "string-set"
+      },
+      "labelRoles": {
+        "dependent-value": { "minimum": 1, "maximum": 1 },
+        "share-call": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {
+        "materialize-before-share": "review"
+      }
+    },
+    {
       "code": "W-EFFECT-0011",
       "state": "active",
       "phase": "semantic.effect",
