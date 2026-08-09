@@ -19,6 +19,7 @@ const corpusFiles = [
   "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
+  "runtime-liveness-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "wmeta-cases.json",

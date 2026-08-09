@@ -9225,6 +9225,10 @@ defer async {
 scope. O body trata seus próprios errors. O runtime mascara cancelamento durante
 uma janela limitada pelo profile. A janela não permite cleanup sem limite.
 
+O recorte [E1](#12121-runtime-closure-e-liveness-e1) fecha a ordem entre esse cleanup, os children, os
+waits de I/O, os wakers e a publicação do outcome. Ele não cria uma forma nova
+de `defer` nem promete que código foreign termina por cooperação.
+
 Um remote lease não pode depender de `deinit`. Destruction é síncrona. A forma
 líder registra o cleanup logo após a aquisição:
 
@@ -9341,6 +9345,10 @@ scheduler:             ready ↔ running ↔ suspended
 
 O estado de scheduler não muda o lifetime. Uma task pode alternar entre ready,
 running e suspended muitas vezes. Ela publica somente um outcome.
+
+O [E1](#12121-runtime-closure-e-liveness-e1) refina esse lifetime em eixos independentes de body, closure, observation e
+storage. O refinement não muda a superfície de `Task`; ele fixa quando o frame,
+o TCB e a outcome cell podem ser reclamados.
 
 O body seleciona success, application error ou cancellation quando fica
 settled. Depois desse ponto, cancelamentos novos não substituem a seleção.
@@ -9547,6 +9555,12 @@ sinal durante a janela bounded de `defer async`. Um adapter pode declarar que
 uma operação externa não é cancelável; isso não permite que código W esconda um
 scope inteiro do shutdown.
 
+E1 limita a máscara ao node de cleanup. Um `defer async` pode criar somente
+trabalho estruturado dentro desse node e herda a deadline de cleanup. O sinal de
+cancelamento recebido durante a máscara fica registrado, mas não é reentregue no
+node; um cancelamento local explícito continua válido. A grace expirada ou a
+fault boundary terminada vence a máscara.
+
 Cancelamento não é rollback. Uma operação externa deve declarar um commit point
 ou um outcome desconhecido. Antes do commit, o adapter pode garantir ausência de
 efeito. Depois do commit, cleanup não desfaz o efeito sem compensação explícita.
@@ -9555,6 +9569,10 @@ efeito. Depois do commit, cleanup não desfaz o efeito sem compensação explíc
 Não existe um marker público `CancelSafe`. O verifier usa ownership, cleanup,
 commit points e metadata do adapter. Uma API que não informa o contrato recebe a
 policy conservadora.
+
+O refinement de completion, reclamation e shutdown está em
+[12.12.1](#12121-runtime-closure-e-liveness-e1). E1 não altera a distinção entre
+cancelamento solicitado e completion do provider.
 
 ### 12.6 Isolation, preference, paralelismo e affinity
 
@@ -11305,6 +11323,118 @@ A garantia segue as mesmas premissas bounded e non-blocking documentadas pelo
 W grava as premissas no profile e testa starvation com scheduler virtual. Um
 profile real-time precisa publicar bounds mais fortes e usar adapters próprios.
 
+#### 12.12.1 Runtime closure e liveness E1
+
+**Forma vigente:** E1 é uma evidência de design para runtime closure e liveness.
+Ele refina `Task` sem mudar a superfície source e separa quatro eixos:
+
+```text
+body:        reserved → published → active → settled
+closure:     open → closing → child/wait drain → explicit cleanup
+             → typed drop → runtime quiescent → committed
+observation: unavailable → committed → joined | retained
+storage:     live → retired → reclaimable
+```
+
+O body fixa um outcome candidate quando fica `settled`. A closure então fecha a
+admission direta do scope, propaga cancellation quando a policy exige, drena
+children e waits pré-existentes, executa `defer` e `defer async` em LIFO misto,
+executa typed drops na ordem inversa de initialization, drena registrations,
+queue links, timers e wakers criados pelo cleanup e publica a outcome cell. Não
+há código W depois do último typed drop nesse path. Error capturado pelo cleanup
+é evidence secundária bounded; error não capturado produz diagnostic. Panic,
+falha não capturada do contrato ou grace de cleanup excedida termina a fault
+boundary e não publica `TaskOutcome` normal.
+
+O `defer` é instalado enquanto o body está `active` e a closure está `open`,
+logo após a aquisição que ele protege. A fase `explicitCleanup` somente executa
+essa stack pré-instalada. `finishCleanup` exige stack e nodes vazios e move a
+closure para `typedDrop`; cada `typedDrop` ocorre somente nessa fase, em ordem
+inversa, sem mudar a fase. Assim um scope sem defers ou valores inicializados
+também fecha por uma transição explícita.
+
+O runtime pré-reserva bookkeeping de frame e cleanup. O drain interno não usa
+allocation geral; allocation de user cleanup segue o profile. Um `defer async`
+pode criar somente trabalho estruturado no próprio node, não registra trabalho no
+parent já closing e herda sua cleanup deadline. Cancellation recebida dentro do
+node fica registrada, não é reentregue no node e não impede cancelamento local
+explícito do child desse node. O node permanece ativo até o child terminar e o
+cleanup fechar; a grace ou a fault boundary termina a máscara. W v0 não publica
+shield geral. Registration, queue, timer ou waker que o cleanup cria exige node
+`defer async` ativo e pode permanecer até o runtime drain.
+
+Uma operação ou wait segue:
+
+```text
+registered ──submit→ submitted → completing → terminal → drained
+     ╰──── cancel before submit → drained (local)
+```
+
+`cancelRequested` é ortogonal. Cada slot usa `(OperationId, generation)`. Somente
+a completion do provider escolhe success, error ou canceled; request de cancel
+não é completion. Depois de submission, cancel somente registra o pedido até a
+completion do provider; antes de submission pode retirar e drenar localmente.
+Cancel é idempotente: depois de terminal ou drained ele vira um registro tardio
+sem substituir o outcome. Completion tardia durante closing é drenada, restaura ou
+descarta ownership conforme o adapter, não retoma frame e não executa callback W.
+Generation mismatch nunca retoma um slot reutilizado, mas quita a registration
+antiga. No adapter IOCP, `OVERLAPPED` fica vivo até a completion; no adapter
+io_uring, o CQE do cancel e o CQE da operação podem chegar em ordem diferente.
+Depois de outcome committed, cancel de Task é apenas registro tardio idempotente e
+não altera o outcome.
+
+O execution frame pode ser `retired` e `reclaimable` depois de closure quiescent
+e outcome movido à outcome cell. TCB e outcome cell vivem até join, observer ou
+retention expiry. Reclaim exige zero children, registrations, queue tickets,
+timers, wakers e runtime refs; o handle normal não precisa ser joined para
+liberar os bytes do execution frame. Storage só passa de `retired` a
+`reclaimable` depois desse gate; A0 continua sendo o contrato físico do provider.
+
+Liveness é uma matriz, não uma promessa de término eventual:
+
+1. scheduler progress depende das três premissas bounded já publicadas;
+2. FIFO admission depende de consumer progress e scheduler progress;
+3. cancellation responsiveness existe somente em cancel points e adapters
+   declarados;
+4. cleanup bounded exige que todos os passos participantes — user, runtime e
+   provider — tenham bounds finitos;
+5. shutdown bounded exige participantes cooperativos e finitos, ou uma fault
+   boundary fisicamente terminável; provider finito isolado não encerra user
+   code;
+6. real-time exige profile mais forte.
+
+Ownership estruturado elimina orphan e ciclo de lifetime de children; ancestry
+detecta service call cycle. Locks e channels externos ainda podem deadlock e W
+não promete detector geral. Uma blocking foreign call mantém frame, buffers e
+library code até retorno ou kill físico. Profile de bounded shutdown rejeita
+adapter unbounded fora de uma boundary killable.
+
+Shutdown é:
+
+```text
+ready → admissionClosed → cancellationRequested → draining → quiescent → stopped
+                                                     ╰─ graceExpired → terminating → terminated
+```
+
+Depois de `admissionClosed`, novos starts são rejeitados. `graceExpired` leva a
+`terminating`; forced termination é `boundary failure`, nunca `.canceled`.
+Cleanup incompleto não vira success/canceled. O host libera seu cleanup registry,
+o trace registra roots não concluídos e cada generation mantém seus slots,
+registrations e completions isolados.
+
+O oracle E1 é host-puro e adversarial. Ele não prova scheduler, clock, OS I/O,
+fairness absoluta, hazard/epoch/RCU, device scopes, distributed recovery ou
+terminação de user code. Essas superfícies permanecem gates posteriores. A
+evidência comparativa inclui [Swift SE-0304](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md),
+[C++ P3149](https://wg21.link/P3149),
+[Tokio fairness](https://docs.rs/tokio/latest/tokio/runtime/#detailed-runtime-behavior)
+e [Tokio cancellation safety](https://docs.rs/tokio/latest/tokio/macro.select.html#cancellation-safety),
+[Erlang supervision](https://www.erlang.org/doc/system/sup_princ.html), além de
+[CancelIoEx](https://learn.microsoft.com/en-us/windows/win32/fileio/cancelioex-func)
+e [io_uring cancellation](https://man7.org/linux/man-pages/man7/io_uring_cancelation.7.html)
+para as ordens de completion e cancelamento dos providers. Essas fontes informam
+alternativas; não definem a semântica W.
+
 ### 12.13 Transação estruturada
 
 **Forma vigente:** `transaction` é uma expressão async ligada a um único
@@ -12497,17 +12627,18 @@ Exceder o limite produz `restartLimit`. O supervisor não reinicia para sempre.
 Essa regra segue o objetivo de evitar restart loops das supervision trees de
 Erlang/OTP.
 
-Shutdown usa:
+Shutdown usa a sequência refinada de
+[12.12.1](#12121-runtime-closure-e-liveness-e1):
 
 ```text
-ready → draining → stopped
-          ├─ reject new starts
-          ├─ request cancellation
-          └─ wait for cleanup until deadline
+ready → admissionClosed → cancellationRequested → draining → quiescent → stopped
+                                                     ╰─ graceExpired → terminating → terminated
 ```
 
-Depois do deadline, a fault boundary pode terminar. Nesse caso, W não promete
-user cleanup de frames interrompidos. O trace registra cada root não concluído.
+`graceExpired` não produz `.canceled`: a terminação forçada é uma falha da fault
+boundary. W não promete user cleanup de frames interrompidos; o host executa seu
+cleanup registry e o trace registra cada root não concluído. Gerações coexistentes
+permanecem isoladas e uma completion velha nunca altera a geração nova.
 
 O trace do root mantém `originCallId`, supervisor, key, incarnation e operation
 version. Ele não finge que o root ainda é child lexical da call encerrada.
@@ -26672,11 +26803,11 @@ evidência de design:
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar liveness, providers e scopes de device, cleanup runtime e reclamation concorrente avançada com modelos adversariais; HIR, allocator e scheduler reais ficam pós-freeze |
+| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; os corpora ligam 99 decisões a oracle; o audit classifica 180/956 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 776 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; os corpora ligam 113 decisões a oracle; o audit classifica 194/970 (93 source, 113 oracle, 8 explícitas, 20 overlaps) e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 776 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -28637,6 +28768,14 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-960 | retirement e reclamation A0 | retirement encerra acesso lógico; reclamation libera reuse físico somente depois de cleanup e do gate específico do owner | pointer atômico conceder lifetime; free executar destructor; reuse antes de quiescence; RCU genérico safe sem domain fechado |
 | W-961 | papel de tagged pointers | tags de endereço são somente uma otimização ou hardening interno provado por target; ownership usa PlaceId, LoanId, origin e receipts independentes da representação | encoded owner universal; depender de high bits portáveis; misturar tag MTE com tag W; mudar ABI pública por allocator |
 | W-962 | oracle físico A0 | corpus de layouts, failure, relocation, origem, domain, progress e reclamation usa uma máquina host pura e símbolos do Última Luz; não executa allocator real | benchmark como semântica; somente happy path; snapshot manual; chamar o modelo de runtime ou verifier implementado |
+| W-963 | fases da runtime closure E1 | body, closure, observation e storage são eixos separados; outcome candidate fecha admission antes de child/wait drain, cleanup, typed drop, quiescence e outcome cell; `finishCleanup` fecha explicit cleanup mesmo vazio; cancel de Task após commit é registro tardio idempotente | uma máquina única de lifetime; publicar outcome antes de cleanup; usar join como sinônimo de reclaim; esconder storage retirement na task; alterar outcome por cancel tardio |
+| W-964 | ordem de cleanup E1 | `defer` instala em body active/open; children e waits drenam antes de executar a stack LIFO mista; `finishCleanup` antecede typed drops inversos; registrations, queue links, timers e wakers criados pelo cleanup exigem node `defer async` ativo e drenam antes da outcome cell; nenhum código W segue o último typed drop | defer depois de drop; LIFO somente por categoria; callback pós-drop; allocation geral durante o drain; cleanup solto no parent closing; resource sem node |
+| W-965 | budget e máscara de async cleanup E1 | bookkeeping é pré-reservado; user allocation segue profile; error capturado é evidence bounded, error não capturado é diagnostic; node `defer async` ativo possui child estruturado, herda deadline e registra cancel recebido sem reentrega; child mantém cancel local; grace vence a máscara; sem shield geral | allocation ilimitada; reentregar cancel automaticamente no node; registrar child no parent closing; async destructor universal; shield público; cleanup sem deadline |
+| W-966 | completion e cancelamento de provider E1 | operation/wait usa registered→submitted→completing→terminal→drained, com cancel pré-submission podendo drenar localmente; cancel pós-submission é ortogonal e idempotente; `(OperationId, generation)` identifica slot; só completion escolhe outcome; late completion drena ownership sem retomar frame/callback; generation mismatch quita registro antigo | request de cancel ser completion; liberar `OVERLAPPED` antes de completion; assumir ordem CQE; callback W tardio; reutilizar slot sem generation; matar foreign frame por default |
+| W-967 | reclamation de frame e outcome E1 | frame pode ser retired/reclaimable após closure quiescent e outcome movido; TCB/outcome cell vivem até join, observer ou retention expiry; reclaim exige zero runtime-owned child refs (retirados no drain), registrations, tickets, timers, wakers e runtime refs; handle não precisa join para liberar bytes | reter frame até join sempre; reclaim com child ref, waker ou queue vivo; outcome cell no frame; pointer atômico conceder quiescence; misturar A0 receipt com frame lifetime |
+| W-968 | matriz de liveness E1 | progress é condicional a scheduler/consumer/host bounded; responsiveness só em cancel points/adapters; cleanup exige bounds finitos em user/runtime/provider; shutdown exige participantes cooperativos e finitos ou fault boundary fisicamente terminável; foreign/W arbitrário sem bound; ownership não promete detector de deadlock externo | eventualidade universal; fairness absoluta; cancelar qualquer foreign call; detector geral de deadlock; locks/channels considerados sempre progressivos |
+| W-969 | escalada de shutdown e generation E1 | ready→admissionClosed→cancellationRequested→draining→quiescent→stopped; graceExpired→terminating→terminated; forced termination é boundary failure; registry do host e trace encerram roots; generations isoladas e completion velha não muta nova | shutdown como cancelamento normal; aceitar starts depois de admission close; cleanup interrompido virar success; completar slot na generation nova; restart sem incarnation |
+| W-970 | oracle E1 e limites | `runtime-liveness-machine.mjs` é host-puro, adversarial e ligado a Última Luz; corpus cobre closure, completion/cancel races, generation, reclaim e shutdown; não prova scheduler/clock/OS I/O, fairness absoluta, advanced reclamation, device, recovery distribuído ou terminação de user code | snapshot manual; máquina runtime; declarar allocator/verifier implementado; ampliar E0/B0/A0; timing real; corpus sem símbolos ou decisões |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

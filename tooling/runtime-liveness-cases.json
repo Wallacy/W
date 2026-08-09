@@ -1,0 +1,990 @@
+{
+  "$schema": "w-runtime-liveness-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "E1-closure-full-drain-and-split-reclaim",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosurePhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixBatch" },
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextTaskState" }
+      ],
+      "decisions": ["W-963", "W-964", "W-967", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root", "cleanupAllocationLimit": 4 },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "outer" },
+        { "op": "initialize", "task": "root", "label": "inner" },
+        { "op": "registerCleanup", "task": "root", "kind": "defer", "label": "outer-cleanup" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "inner-cleanup" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "inner-cleanup" },
+        { "op": "registerResource", "task": "root", "kind": "waker", "resource": "cleanup-waker" },
+        { "op": "drainResource", "task": "root", "kind": "waker", "resource": "cleanup-waker" },
+        { "op": "finishCleanupNode", "task": "root", "label": "inner-cleanup" },
+        { "op": "runCleanup", "task": "root", "label": "outer-cleanup" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "inner" },
+        { "op": "typedDrop", "task": "root", "label": "outer" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "retireFrame", "task": "root" },
+        { "op": "reclaimFrame", "task": "root" },
+        { "op": "retireStorage", "task": "root" },
+        { "op": "joinObservation", "task": "root" },
+        { "op": "reclaimStorage", "task": "root" },
+        { "op": "verifyTask", "task": "root", "frame": "reclaimed", "storage": "reclaimable", "observation": "joined" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-empty-scope-finishes-cleanup",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosureEvent" },
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextTaskState" }
+      ],
+      "decisions": ["W-963", "W-964", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "verifyTask", "task": "root", "closure": "committed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-outcome-before-cleanup-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "canCommitOutcome" },
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "TaskLifecycle" }
+      ],
+      "decisions": ["W-963", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "commitOutcome", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "outcomeBeforeRuntimeQuiescence", "operation": 5 }
+    },
+    {
+      "id": "E1-cleanup-lifo-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosureEvent" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "fulfillOrder" }
+      ],
+      "decisions": ["W-964", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "defer", "label": "outer" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "inner" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "runCleanup", "task": "root", "label": "outer" }
+      ],
+      "expected": { "status": "rejected", "code": "cleanupNotLifo", "operation": 9 }
+    },
+    {
+      "id": "E1-typed-drop-order-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "FrameReclaimGate" },
+        { "path": "../reference/last-light/execution.w", "symbol": "closeBeforeTheLastCourse" }
+      ],
+      "decisions": ["W-964", "W-967"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "first" },
+        { "op": "initialize", "task": "root", "label": "second" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "first" }
+      ],
+      "expected": { "status": "rejected", "code": "typedDropOrder", "operation": 10 }
+    },
+    {
+      "id": "E1-cleanup-created-wait-drains",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
+        { "path": "../reference/last-light/workflow.w", "symbol": "FulfillmentPoint" }
+      ],
+      "decisions": ["W-964", "W-966", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "registerWait", "task": "root", "operationId": "close-io", "generation": 1, "owner": "cleanup" },
+        { "op": "submitWait", "task": "root", "operationId": "close-io", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "close-io", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "close-io", "generation": 1, "outcome": "success" },
+        { "op": "drainWait", "task": "root", "operationId": "close-io", "generation": 1 },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "verifyWait", "operationId": "close-io", "generation": 1, "phase": "drained", "disposition": "selectedSuccess" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-cleanup-wait-must-drain",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "nextRuntimeWaitPhase" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "billing.refund" }
+      ],
+      "decisions": ["W-964", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "error" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "registerWait", "task": "root", "operationId": "close-io", "generation": 1, "owner": "cleanup" },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" }
+      ],
+      "expected": { "status": "rejected", "code": "cleanupWaitNotDrained", "operation": 10 }
+    },
+    {
+      "id": "E1-preexisting-wait-must-drain-before-children",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosureEvent" },
+        { "path": "../reference/last-light/execution.w", "symbol": "cancellationResult" }
+      ],
+      "decisions": ["W-963", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "preexistingWaitNotDrained", "operation": 8 }
+    },
+    {
+      "id": "E1-cleanup-frame-wait-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "TaskLifecycle" }
+      ],
+      "decisions": ["W-964", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "registerWait", "task": "root", "operationId": "frame-io", "generation": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "cleanupWaitRequiresNode", "operation": 9 }
+    },
+    {
+      "id": "E1-cleanup-wait-without-node-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "closeBeforeTheLastCourse" }
+      ],
+      "decisions": ["W-964", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "defer", "label": "sync-close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "cleanup-io", "generation": 1, "owner": "cleanup" }
+      ],
+      "expected": { "status": "rejected", "code": "cleanupWaitRequiresNode", "operation": 8 }
+    },
+    {
+      "id": "E1-wait-admission-after-body-settled-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "cancellationResult" }
+      ],
+      "decisions": ["W-963", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "registerWait", "task": "root", "operationId": "late-io", "generation": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "waitBodyNotActive", "operation": 4 }
+    },
+    {
+      "id": "E1-cleanup-budget-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CommitGate" },
+        { "path": "../reference/last-light/execution.w", "symbol": "Task.withTimeout" }
+      ],
+      "decisions": ["W-965", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root", "cleanupAllocationLimit": 2 },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "cleanupAllocate", "task": "root", "bytes": 3 }
+      ],
+      "expected": { "status": "rejected", "code": "cleanupAllocationBudgetExceeded", "operation": 7 }
+    },
+    {
+      "id": "E1-cleanup-error-is-diagnostic",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "canCommitOutcome" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "Trace.current.recordCleanupError" }
+      ],
+      "decisions": ["W-965", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "cleanupError", "task": "root", "kind": "captured", "error": "refund" },
+        { "op": "cleanupError", "task": "root", "kind": "uncaught", "error": "metrics" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "verifyTask", "task": "root", "closure": "committed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-cleanup-panic-no-normal-outcome",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState" }
+      ],
+      "decisions": ["W-965", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "cleanupPanic", "task": "root" },
+        { "op": "verifyCleanupNode", "task": "root", "label": "close", "active": true, "mask": "faulted" },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "faultBoundaryHasNoNormalOutcome", "operation": 16 }
+    },
+    {
+      "id": "E1-cleanup-deadline-no-normal-outcome",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixBeforeTheLastBell" }
+      ],
+      "decisions": ["W-965", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "canceled" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "cleanupTimeout", "task": "root" },
+        { "op": "verifyCleanupNode", "task": "root", "label": "close", "active": true, "mask": "expired" },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "faultBoundaryHasNoNormalOutcome", "operation": 16 }
+    },
+    {
+      "id": "E1-provider-success-wins-cancel-request",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CompletionDisposition" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixBeforeTheLastBell" }
+      ],
+      "decisions": ["W-966", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "success" },
+        { "op": "verifyWait", "operationId": "read", "generation": 1, "phase": "terminal", "disposition": "selectedSuccess", "cancelRequested": true },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "settleBody", "task": "root", "outcome": "success" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-provider-canceled-after-request",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitEvent" },
+        { "path": "../reference/last-light/execution.w", "symbol": "cancellationResult" }
+      ],
+      "decisions": ["W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "canceled" },
+        { "op": "verifyWait", "operationId": "read", "generation": 1, "disposition": "selectedCanceled", "callback": "pending" },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-late-completion-suppresses-callback",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "completionDisposition" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "expectedInjectedOutcome" }
+      ],
+      "decisions": ["W-963", "W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "success" },
+        { "op": "verifyWait", "operationId": "read", "generation": 1, "callback": "suppressed", "callbackSuppressed": true },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "drainChildren", "task": "root" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-completion-before-cancel-request",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "completionDisposition" },
+        { "path": "../reference/last-light/execution.w", "symbol": "cancellationResult" }
+      ],
+      "decisions": ["W-966", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "success" },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        {
+          "op": "verifyWait",
+          "operationId": "read",
+          "generation": 1,
+          "phase": "terminal",
+          "disposition": "selectedSuccess",
+          "cancelRequested": true,
+          "cancelDisposition": "late"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-stale-generation-does-not-resume-new-slot",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "staleGeneration" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "FulfillmentKey" }
+      ],
+      "decisions": ["W-966", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root", "service": "orders" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "poll", "generation": 1, "service": "orders" },
+        { "op": "submitWait", "task": "root", "operationId": "poll", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "poll", "generation": 1 },
+        { "op": "newGeneration", "service": "orders" },
+        { "op": "completeWait", "task": "root", "operationId": "poll", "generation": 1, "outcome": "success" },
+        { "op": "verifyWait", "operationId": "poll", "generation": 1, "disposition": "staleGeneration", "callback": "suppressed" },
+        { "op": "drainWait", "task": "root", "operationId": "poll", "generation": 1 },
+        { "op": "registerWait", "task": "root", "operationId": "poll", "generation": 2, "service": "orders" },
+        { "op": "submitWait", "task": "root", "operationId": "poll", "generation": 2 },
+        { "op": "startWait", "task": "root", "operationId": "poll", "generation": 2 },
+        { "op": "completeWait", "task": "root", "operationId": "poll", "generation": 2, "outcome": "success" },
+        { "op": "verifyWait", "operationId": "poll", "generation": 2, "disposition": "selectedSuccess" },
+        { "op": "drainWait", "task": "root", "operationId": "poll", "generation": 2 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-cancel-idempotent-after-commit",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CommitGate" },
+        { "path": "../reference/last-light/execution.w", "symbol": "cancellationResult" }
+      ],
+      "decisions": ["W-963", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "requestCancellation", "task": "root", "reason": "user" },
+        { "op": "requestCancellation", "task": "root", "reason": "user" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "requestCancellation", "task": "root", "reason": "shutdown" },
+        { "op": "requestCancellation", "task": "root", "reason": "shutdown" },
+        {
+          "op": "verifyTask",
+          "task": "root",
+          "outcome": "success",
+          "cancellationRequested": true,
+          "cancellationDisposition": "late"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-child-drain-required",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosurePhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixPair" }
+      ],
+      "decisions": ["W-963", "W-968"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "createChild", "task": "root", "child": "child" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "childrenNotDrained", "operation": 6 }
+    },
+    {
+      "id": "E1-child-admission-after-body-settled-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosurePhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixPair" }
+      ],
+      "decisions": ["W-963", "W-968"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "createChild", "task": "root", "child": "late-child" }
+      ],
+      "expected": { "status": "rejected", "code": "childBodyNotActive", "operation": 4 }
+    },
+    {
+      "id": "E1-child-drain-then-closure",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "cleanupNodeMayContinue" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "SupervisorRef" }
+      ],
+      "decisions": ["W-963", "W-964", "W-965", "W-968"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "requestCancellation", "task": "root", "reason": "shutdown" },
+        {
+          "op": "verifyCleanupNode",
+          "task": "root",
+          "label": "close",
+          "kind": "deferAsync",
+          "active": true,
+          "mask": "active",
+          "cancellationReceived": true
+        },
+        {
+          "op": "createChild",
+          "task": "root",
+          "child": "child",
+          "owner": "cleanup",
+          "cleanupNode": "close"
+        },
+        { "op": "publishTask", "task": "child" },
+        { "op": "startBody", "task": "child" },
+        { "op": "requestCancellation", "task": "child", "reason": "local" },
+        { "op": "settleBody", "task": "child", "outcome": "canceled" },
+        { "op": "beginClosure", "task": "child" },
+        { "op": "drainChildren", "task": "child" },
+        { "op": "beginCleanup", "task": "child" },
+        { "op": "finishCleanup", "task": "child" },
+        { "op": "drainRuntime", "task": "child" },
+        { "op": "commitOutcome", "task": "child" },
+        { "op": "verifyTask", "task": "child", "closure": "committed", "cancellationRequested": true },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        {
+          "op": "verifyCleanupNode",
+          "task": "root",
+          "label": "close",
+          "active": false,
+          "mask": "active",
+          "cancellationReceived": true
+        },
+        { "op": "verifyTask", "task": "root", "children": [] },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "retireFrame", "task": "root" },
+        { "op": "reclaimFrame", "task": "root" },
+        { "op": "verifyTask", "task": "root", "frame": "reclaimed", "children": [] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-runtime-resource-drain-required",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "FrameReclaimGate" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "ReplayEvent" }
+      ],
+      "decisions": ["W-964", "W-967"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "close" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "startCleanupNode", "task": "root", "label": "close" },
+        { "op": "registerResource", "task": "root", "kind": "queue", "resource": "ticket" },
+        { "op": "finishCleanupNode", "task": "root", "label": "close" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "runtimeResourcesNotDrained", "operation": 14 }
+    },
+    {
+      "id": "E1-frame-reclaim-splits-from-join",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "canReclaimFrame" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "FulfillmentSnapshot" }
+      ],
+      "decisions": ["W-967", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "retireFrame", "task": "root" },
+        { "op": "reclaimFrame", "task": "root" },
+        { "op": "verifyTask", "task": "root", "frame": "reclaimed", "observation": "committed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-frame-runtime-ref-blocks-reclaim",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "FrameReclaimPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixAcrossTwoKitchens" }
+      ],
+      "decisions": ["W-967"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "retireFrame", "task": "root" },
+        { "op": "retainRuntimeRef", "task": "root" },
+        { "op": "reclaimFrame", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "frameRuntimeRefsLive", "operation": 15 }
+    },
+    {
+      "id": "E1-blocking-unbounded-adapter-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "mixCooperatively" }
+      ],
+      "decisions": ["W-968", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "enterBlocking", "task": "root", "killable": false, "graceFinite": false }
+      ],
+      "expected": { "status": "rejected", "code": "unboundedBlockingAdapter", "operation": 3 }
+    },
+    {
+      "id": "E1-blocking-kill-is-boundary-failure",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "ShutdownAction" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "FaultBoundary" }
+      ],
+      "decisions": ["W-968", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "enterBlocking", "task": "root", "killable": true, "graceFinite": true },
+        { "op": "shutdownCloseAdmission" },
+        { "op": "shutdownRequestCancellation" },
+        { "op": "shutdownBeginDrain" },
+        { "op": "killBlocking", "task": "root" },
+        { "op": "shutdownQuiescent" },
+        { "op": "shutdownStop" },
+        { "op": "verifyTask", "task": "root", "faultBoundary": "forcedTermination" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-premature-frame-reclaim-rejected",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "canReclaimFrame" },
+        { "path": "../reference/last-light/allocator_oracle.w", "symbol": "baselineReclamation" }
+      ],
+      "decisions": ["W-967", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "reclaimFrame", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "frameReclaimBeforeRetirement", "operation": 13 }
+    },
+    {
+      "id": "E1-shutdown-admission-closes",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "nextBoundaryShutdownPhase" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "tryStart" }
+      ],
+      "decisions": ["W-969", "W-970"],
+      "operations": [
+        { "op": "admitStart" },
+        { "op": "shutdownCloseAdmission" },
+        { "op": "admitStart" }
+      ],
+      "expected": { "status": "rejected", "code": "admissionClosed", "operation": 2 }
+    },
+    {
+      "id": "E1-shutdown-graceful-sequence",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "WorkState" }
+      ],
+      "decisions": ["W-968", "W-969"],
+      "operations": [
+        { "op": "shutdownCloseAdmission" },
+        { "op": "shutdownRequestCancellation" },
+        { "op": "shutdownBeginDrain" },
+        { "op": "shutdownQuiescent" },
+        { "op": "shutdownStop" },
+        { "op": "verifyShutdown", "phase": "stopped" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-shutdown-quiescence-waits-for-root",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "ShutdownAction" },
+        { "path": "../reference/last-light/execution.w", "symbol": "closeBeforeTheLastCourse" }
+      ],
+      "decisions": ["W-968", "W-969"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "shutdownCloseAdmission" },
+        { "op": "shutdownRequestCancellation" },
+        { "op": "shutdownBeginDrain" },
+        { "op": "shutdownQuiescent" }
+      ],
+      "expected": { "status": "rejected", "code": "shutdownRootsNotQuiescent", "operation": 6 }
+    },
+    {
+      "id": "E1-shutdown-grace-escalates-boundary",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "nextBoundaryShutdownPhase" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "InjectedOutcome" }
+      ],
+      "decisions": ["W-969", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "shutdownCloseAdmission" },
+        { "op": "shutdownRequestCancellation" },
+        { "op": "shutdownBeginDrain" },
+        { "op": "shutdownExpireGrace" },
+        { "op": "shutdownTerminate" },
+        {
+          "op": "verifyShutdown",
+          "phase": "terminated",
+          "hostCleanupRegistryReleased": true,
+          "traceEvent": "graceExpired",
+          "traceRoots": ["root"]
+        },
+        { "op": "verifyTask", "task": "root", "faultBoundary": "forcedTermination" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-stale-completion-after-drain-is-late",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CompletionDisposition" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "FaultPoint" }
+      ],
+      "decisions": ["W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "error" },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "success" },
+        {
+          "op": "verifyWait",
+          "operationId": "read",
+          "generation": 1,
+          "phase": "drained",
+          "disposition": "lateDrained",
+          "callback": "suppressed",
+          "callbackSuppressed": true
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-cancel-request-is-not-completion",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
+        { "path": "../reference/last-light/execution.w", "symbol": "Task.checkCancellation" }
+      ],
+      "decisions": ["W-966"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "submitWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "waitDrainBeforeCompletion", "operation": 6 }
+    },
+    {
+      "id": "E1-cancel-before-submit-drains-locally",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CancelDisposition" },
+        { "path": "../reference/last-light/execution.w", "symbol": "Task.checkCancellation" }
+      ],
+      "decisions": ["W-966", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "cancelWait", "task": "root", "operationId": "read", "generation": 1 },
+        { "op": "completeWait", "task": "root", "operationId": "read", "generation": 1, "outcome": "success" },
+        { "op": "drainWait", "task": "root", "operationId": "read", "generation": 1 },
+        {
+          "op": "verifyWait",
+          "operationId": "read",
+          "generation": 1,
+          "phase": "drained",
+          "providerOutcome": null,
+          "completionDisposition": "lateDrained",
+          "cancelDisposition": "late",
+          "callback": "suppressed"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-retain-then-expire-outcome-cell",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "FrameReclaimGate" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "WorkSnapshot" }
+      ],
+      "decisions": ["W-967", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "initialize", "task": "root", "label": "value" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "finishCleanup", "task": "root" },
+        { "op": "typedDrop", "task": "root", "label": "value" },
+        { "op": "drainRuntime", "task": "root" },
+        { "op": "commitOutcome", "task": "root" },
+        { "op": "moveOutcome", "task": "root" },
+        { "op": "retainObservation", "task": "root" },
+        { "op": "expireRetention", "task": "root" },
+        { "op": "verifyTask", "task": "root", "observation": "unavailable" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-cleanup-child-cannot-escape-node",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "TaskClosureEvent" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "SupervisorRef" }
+      ],
+      "decisions": ["W-965", "W-968"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerCleanup", "task": "root", "kind": "deferAsync", "label": "async-cleanup" },
+        { "op": "settleBody", "task": "root", "outcome": "success" },
+        { "op": "beginClosure", "task": "root" },
+        { "op": "drainChildren", "task": "root" },
+        { "op": "beginCleanup", "task": "root" },
+        { "op": "createChild", "task": "root", "child": "cleanup-child" }
+      ],
+      "expected": { "status": "rejected", "code": "childAdmissionClosed", "operation": 8 }
+    },
+    {
+      "id": "E1-generation-completion-does-not-cross-service",
+      "references": [
+        { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "orderCoordinators" }
+      ],
+      "decisions": ["W-969", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root", "service": "orders" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "registerWait", "task": "root", "operationId": "status", "generation": 1, "service": "orders" },
+        { "op": "submitWait", "task": "root", "operationId": "status", "generation": 1 },
+        { "op": "startWait", "task": "root", "operationId": "status", "generation": 1 },
+        { "op": "newGeneration", "service": "orders" },
+        { "op": "completeWait", "task": "root", "operationId": "status", "generation": 1, "outcome": "success" },
+        { "op": "verifyWait", "operationId": "status", "generation": 1, "disposition": "staleGeneration", "callback": "suppressed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E1-external-deadlock-detector-not-promised",
+      "references": [
+        { "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "TaskLifecycle" },
+        { "path": "../reference/last-light/supervision.w", "symbol": "WorkState" },
+        { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "FaultBoundary" }
+      ],
+      "decisions": ["W-968", "W-970"],
+      "operations": [
+        { "op": "createTask", "task": "root" },
+        { "op": "publishTask", "task": "root" },
+        { "op": "startBody", "task": "root" },
+        { "op": "claimDeadlockFreedom", "task": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "generalDeadlockDetectorNotPromised", "operation": 3 }
+    }
+  ]
+}
