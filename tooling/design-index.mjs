@@ -260,6 +260,7 @@ const oracleCorpusFiles = [
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "script-workflow-cases.json",
+  "repl-session-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
@@ -272,7 +273,7 @@ const oracleFreezeDecisionIds = new Set(
     return corpus.cases.flatMap(
       (testCase) =>
         testCase.decisions ??
-        (file === "script-workflow-cases.json" ? corpus.decisions ?? [] : []),
+        (["script-workflow-cases.json", "repl-session-cases.json"].includes(file) ? corpus.decisions ?? [] : []),
     );
   }),
 );
@@ -503,6 +504,17 @@ const scriptWorkflowOperations = scriptWorkflowCorpus.cases.reduce(
 const acceptedScriptWorkflowCases = scriptWorkflowCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const replSessionCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "repl-session-cases.json"), "utf8"),
+);
+const replSessionCases = replSessionCorpus.cases.length;
+const replSessionOperations = replSessionCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedReplSessionCases = replSessionCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const wmetaCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "wmeta-cases.json"), "utf8"),
 );
@@ -659,6 +671,12 @@ output.push(
     `${scriptWorkflowCases}/${scriptWorkflowOperations} ` +
     `(${acceptedScriptWorkflowCases} aceitos + ` +
     `${scriptWorkflowCases - acceptedScriptWorkflowCases} rejeitados) |`,
+);
+output.push(
+  `| casos/operações da sessão transacional PYN2 | ` +
+    `${replSessionCases}/${replSessionOperations} ` +
+    `(${acceptedReplSessionCases} aceitos + ` +
+    `${replSessionCases - acceptedReplSessionCases} rejeitados) |`,
 );
 output.push(
   `| casos do container WMeta1 W0 | ${wmetaCases} ` +

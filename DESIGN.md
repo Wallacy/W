@@ -1163,6 +1163,40 @@ de parse:
 | `W-SCRIPT-0015` | `source.resolution`: target pedido possui zero ou múltiplos contexts selecionáveis |
 | `W-SCRIPT-0016` | `source.provenance`: artifact, handle ou action-output record não está ligado ao lock e recipe |
 
+PYN2 usa uma família separada para fatos de sessão. O diagnóstico mantém a fase
+real e não transforma uma falha de drain em parse error:
+
+| Code | Fase e condição |
+|---|---|
+| `W-SESSION-0001` | `source.command`: token contextual desconhecido |
+| `W-SESSION-0002` | `source.parse`: parser normal devolve diagnóstico de parse separado |
+| `W-SESSION-0003` | `source.semantic`: checker normal devolve diagnóstico semântico separado |
+| `W-SESSION-0004` | `session.context`: lock, capability ou contexto fixado na abertura foi alterado |
+| `W-SESSION-0005` | `session.admission`: geração stale, desconhecida ou base sem `GenerationId` opaco |
+| `W-SESSION-0006` | `semantic.graph`: binding indisponível ou dependência/import versionada ausente |
+| `W-SESSION-0007` | `semantic.ownership`: `take` cross-generation de value non-Copy sem prova |
+| `W-SESSION-0008` | `semantic.ownership`: `inout` cross-generation sem adapter ou deferred no-fail |
+| `W-SESSION-0009` | `semantic.ownership`: `ref` cross-generation que escapa a submission |
+| `W-SESSION-0010` | `semantic.ownership`: `borrow` cross-generation que escapa a submission |
+| `W-SESSION-0011` | `semantic.ownership`: `view` cross-generation sem owner-backed proof |
+| `W-SESSION-0012` | `session.preflight`: closure, quota, retention, replaceability ou confirmação rejeita antes de effects |
+| `W-SESSION-0013` | `session.drain.post-publish`: falha, deadline ou foreign non-cooperative deixa a sessão degraded |
+| `W-SESSION-0014` | `session.close`: `:quit` fecha admission mas requer drain ou force boundary |
+| `W-SESSION-0015` | `session.history`: source/metadata reservation excede history bytes/count |
+| `W-SESSION-0016` | `session.output`: output budget exige rejeição, truncation ou cancelamento |
+| `W-SESSION-0017` | `session.cancel/lifetime`: cancellation ou child detached/non-joined alcança uma boundary |
+| `W-SESSION-0018` | `semantic.effects`: rollback exige capability/provider transaction e outcome explícito |
+| `W-SESSION-0019` | `session.quota.bindings`: total de versões de binding excede o limite |
+| `W-SESSION-0020` | `session.quota.edges`: hard-edge count excede o limite |
+| `W-SESSION-0021` | `session.quota.artifacts`: HIR/artifact count excede o limite |
+| `W-SESSION-0022` | `session.quota.resources`: task/resource owner count excede o limite |
+| `W-SESSION-0023` | `session.quota.invalidation`: closure hard-dependent excede o limite |
+| `W-SESSION-0024` | `session.quota.drain`: deadline derivado excede o limite |
+| `W-SESSION-0025` | `session.quota.source`: source bytes excedem o limite |
+| `W-SESSION-0026` | `session.preflight`: provider facts ausentes ou conclusão booleana fornecida |
+| `W-SESSION-0027` | `session.quota.effects`: effects por submission excedem o limite |
+| `W-SESSION-0028` | `session.quota.tickets`: tickets queued excedem o ring bounded |
+
 #### 3.5.4 Grammar normativa G2: tipos e contratos angulares
 
 **Exemplo:** cada envelope aplica uma operação estática ao resultado anterior:
@@ -27384,6 +27418,12 @@ preserva a generation corrente. A session pode `reset`, salvar source canônico 
 explicar invalidation e cost. O transcript é evidência de tooling. Ele não é
 source W de release por default.
 
+PYN2 fecha a forma executável desse contrato de design. Ele separa
+`SessionId`, `SessionIncarnation`, `ExecutionOrdinal` e `GenerationId`, torna
+receipts e fases machine-readable e corrige o transcript para `fn doubled` como
+compiled dependent e `let snapshot = limit * 2` como valor avaliado. O fixture e
+o oracle ficam em [24.1.3](#2413-sessãorepl-transacional-e-geracional-pyn2).
+
 Jupyter kernel é **Direção** de tooling e produto, não linguagem. O kernel
 compartilha o session model, implementa o protocol Jupyter e usa um protocol W
 tipado para rich output. O nome desse protocol permanece **Pesquisa**. MIME e
@@ -27674,6 +27714,269 @@ dependency inference e tool table aberto. A fonte é o
 O estado desta subseção é **Direção** de design e oracle. Nenhum command, resolver,
 compiler, runtime, provider ou network client é alegado como implementado.
 
+#### 24.1.3 Sessão/REPL transacional e geracional PYN2
+
+**Exemplo:** uma sessão preserva `snapshot = 6` quando `limit` muda para `4`,
+mas invalida a função que possui lookup compilado de `limit`.
+
+PYN2 fecha a sessão efêmera de `w repl`. A sessão usa o parser, o checker e o
+HIR normais. Ela não cria um dynamic mode. A máquina host em
+[`tooling/repl-session-machine.mjs`](tooling/repl-session-machine.mjs) deriva o
+estado. Ela não compila, executa ou publica W.
+
+##### Identidade e fronteira da sessão
+
+Uma sessão possui quatro identidades distintas:
+
+| Identidade | Regra | Projeção |
+|---|---|---|
+| `SessionId` | permanece estável enquanto a sessão existe | receipt, status e history |
+| `SessionIncarnation` | incrementa em `reset` ou `restart` | receipt e snapshot |
+| `ExecutionOrdinal` | incrementa em cada submission completa que guarda history, inclusive error | prompt `w[n]` |
+| `GenerationId` | muda somente quando o grafo/estado publicado muda | ID opaco interno e display `gN` |
+
+Buffer incompleto, completion e inspect não incrementam `ExecutionOrdinal`.
+`:reset`, `:restart` e `:quit` são mutating boundary submissions: produzem
+receipt/history e consomem um `ExecutionOrdinal`. Commands read-only e
+cancellation de request queued não consomem ordinal. O prompt continua no
+`w[n]` da última receipt; uma cancellation de submission active usa o ordinal
+da submission ativa.
+`GenerationId` não usa o ordinal como identidade. O prompt mostra `w[n]`, nunca
+o número da geração. `SubmissionReceipt` é machine-readable e informa request,
+session, incarnation, ordinal, prompt, generation base/final, outcome, phases,
+effects, diagnostics, invalidation e cleanup.
+
+O modo default é `ephemeral-std-only`. A abertura fixa lock, capabilities,
+parser profile, checker profile e contexto. A sessão não varre cwd, `PATH` ou
+environment. Ela não importa módulos implícitos, resolve dependency ou acessa
+network dentro da sessão. Contexto externo exige uma operação explícita antes da
+abertura. O contexto aberto permanece imutável. A primeira geração de cada
+incarnation é `g0`; o primeiro publish do grafo cria `g1`. `gN` é apenas uma
+projeção humana: `generationMatches` exige o par opaco `{id, incarnation}` e
+nunca aceita `gN` como identidade.
+
+Completion, inspect, status, history e `:why` leem um snapshot committed
+imutável, inclusive enquanto outra request está staged ou drenando. Eles não
+veem staged bindings, staged output ou effects. Vários frontends podem
+enfileirar requests, mas somente uma submission mutating é admitida por vez,
+por FIFO ticket/admission.
+
+Comandos contextuais só são reconhecidos quando `:` é o primeiro token não
+espaço de uma entrada nova sem source acumulado:
+
+```text
+:status
+:why doubled
+:history
+:cancel [request-17]
+:reset
+:quit
+```
+
+Um command no meio de source é source inválido. A classificação de um buffer usa
+facts do parser normal para distinguir `complete`, `incomplete` e `invalid`, e
+facts do checker normal para separar diagnóstico de parse e diagnóstico
+semântico. O wrapper aceita expression, declaration, statement, loop, call,
+tail expression, `;`/discard, `await` com owner async/structured sintético,
+`spawn` local que settle e `defer` no settle. Isso não torna essas formas module top-level
+legais em um arquivo `.w`: a regra de entry é separada. Append, complete e
+clear alteram o buffer real; buffer incompleto não guarda ordinal nem history.
+
+##### Fases e efeitos
+
+Uma submission completa segue estas fases:
+
+```text
+collected → parsed → checked → staged → preflight → executing → settling
+          → publish → draining-old → committed/ready
+```
+
+Falha de parse ou type-check gera receipt com `rejected`, sem effects e sem
+generation nova. O ordinal é atribuído a toda submission completa que guarda
+history, inclusive erro; incomplete, completion, inspect e cancel de request
+queued não incrementam. Falha de runtime antes de `publish` limpa o staged
+scope com drop E1. Effects externos já observados permanecem no receipt e no
+histórico. `recordEffects` registra invocation observed e o outcome durável do
+provider (`committed`, `rolledBack`, `unknown` ou `observed`); não infere
+rollback de uma falha runtime. Só uma capability/provider que declara
+explicitamente `transaction` pode produzir `rolledBack`, e mesmo esse provider
+pode produzir `unknown`. W não promete transaction externa geral.
+
+`publish` é atômico. Depois dele, a sessão fecha admission somente dos owner
+scopes invalidados, solicita cancelamento, drena children e waits, encerra
+loans e views e executa drops E1. Siblings e owners não invalidados continuam
+admitidos. Falha de drain depois de `publish` não desfaz a publicação. A nova
+generation permanece `committed`, a sessão fica `degraded` e mutações futuras
+ficam bloqueadas até reset ou escalation explícita.
+
+Cancellation estruturado é outcome próprio: cancel queued não cria ordinal;
+cancel active antes de `publish` cria receipt com ordinal, cancela/joins staged
+children e não publica; cancel depois de `publish` não faz rollback e pode deixar
+`degraded`, sobretudo para foreign non-cooperative ou deadline.
+
+O preflight de drain calcula closure, replaceability, quota, foreign retention e
+deadline sem mutar a sessão e antes de `executing`/effects. Esses fatos vêm de
+states/events do resource/provider; a máquina não recebe booleans de conclusão
+como `replaceability` ou `postPublishFailure`. Resource/task ativo exige uma
+confirmação estruturada `allowDrain`; forma CLI exata fica **Pesquisa**.
+Retenção conhecida, quota, deadline ou resource não substituível rejeita e
+preserva a generation antiga. Depois de `publish`, qualquer mudança nos facts
+ou falha/deadline no drain deixa a nova generation committed e a sessão
+`degraded`, sem rollback da publicação. `reset` cria nova incarnation, abre `g0`
+e usa o mesmo preflight. `force` é uma boundary registrada no histórico; não
+promete cleanup de código externo. Uma rejeição de `reset` no preflight não
+muta incarnation, generation, phase ou owner scopes, e não executa effects;
+somente ordinal, receipt e history avançam. `:quit` é diferente: o pedido fecha
+admission antes do drain e, se bloqueado sem `force`, deixa a sessão `closing`
+com o registry observável.
+
+##### Grafo de bindings e mutação cross-generation
+
+Cada versão de binding possui `incarnation`, `BindingId`, name,
+`createdGenerationId` opaco imutável, version, fingerprint de HIR/type/layout e
+fingerprint de effects. A geração do symbol graph é um campo separado no
+`GenerationId` da session; `publish` nunca reescreve a geração de criação de
+bindings existentes. Um hard edge
+guarda `kind` explícito (`compiledLookup`, `typeLayout`, `constEval`, `witness`,
+`resourceOwner` ou `importSymbol`) e o `BindingId`/version exato do alvo. A
+proveniência de valor avaliado é soft, inclusive para `snapshot = limit * 2`, e
+é derivada com o alvo exato; ela não cria dependência compilada. Import novo só
+afeta submissions futuras. HIR antigo conserva a versão de symbol locked; um
+import ausente rejeita sem resolver dependency.
+
+Durante staging, um binding committed pode ser lido ou borrowed. Um value
+`Copy` usado por `var counter = 0` e depois `counter += 1` recebe Copy staging
+automático e publicação atômica. Snapshot explícito, adapter/provider
+transaction e prova deferred-no-fail também são positivos. `take`, `inout`,
+escaping `ref`, escaping `borrow` e escaping `view` sobre value move-only ou
+non-Copy são rejeitados; um
+borrow lexical não escapante é aceito. O diagnóstico sugere copy, snapshot,
+novo valor/rebind, adapter explícito ou reset/drop. Handle externo opaque pode
+produzir effect registrado. Ele não torna o grafo rollbackável.
+
+Redefinição cria uma nova versão e invalida, por `BindingId`, a closure transitiva
+de hard dependents. O sistema não recompila nem reexecuta implicitamente. A
+resubmission precisa ser explícita. Old versions ficam somente em scopes de
+execução e metadata; current lookup não retorna old versions. Redefinição de
+tipo invalida values, code, layouts e witnesses pertinentes quando a interface
+muda. Adicionar binding independente não drena o grafo ou owner scope anterior.
+Symbol graph generations e lifetime owner scopes são máquinas separadas. Um
+resource/task persistente conserva o owner da submission como child da sessão
+em gerações posteriores. Só scopes realmente superseded/invalidated entram na
+closure de drain; siblings permanecem vivos.
+
+O transcript canônico é:
+
+```text
+w[1] g0 → g1  let limit = 3
+w[2] g1 → g2  fn doubled(): i32 { limit * 2 } // compiledLookup(limit@v1)
+w[3] g2 → g3  let snapshot = limit * 2; fn menu() { doubled() }
+               // snapshot 6; menu -> doubled@v1
+w[4] g3 → g4  let limit = 4                    // invalidated doubled, menu
+w[5] g4 → g4  doubled() unavailable           // no implicit rerun
+w[6] g4 → g4  var broken: i32 = "x"            // semantic error, generation preserved
+```
+
+`doubled` e `menu` ficam unavailable com reason, predecessor e closure de
+invalidation exatos. `snapshot` retém `6`. A forma `let doubled` não é o
+exemplo de compiled dependent.
+
+##### Lifetime estruturado, output e limites
+
+Children e waits locais à submission liquidam antes do commit. O owner
+synthetic é async/structured por definição: top-level `await` não exige uma
+annotation do chamador. Eventos de child passam por `settled`, cleanup, outcome
+e `joined`; detach, escape ou child não-joined rejeita antes de publish.
+`spawn` local e `defer` são settled nessa fase; só um owner persistente pode
+virar binding da sessão. Resource ou task persistent torna-se owner da
+generation scope que vira child da sessão no commit. Não existe detached task ou
+reparent retroativo. `ref`, `borrow` e `view` lexical não atravessam submission.
+Safe view owner-backed exige owner e hard dependency. History guarda metadata, source e
+digests, não live values, opaque capabilities ou handles serializados.
+
+Cada output carrega `RequestId`, `ExecutionOrdinal` e candidate generation.
+External print pode sair antes da falha e permanece observável. Result display
+staged não entra no snapshot committed após falha.
+
+History é bounded por count e bytes na memória. Source bruto pode conter segredo
+enquanto estiver em memória; a policy explícita de abertura pode redigir o raw
+source. Não há `~/.w_history`, startup script, import de cwd/environment ou
+persistência implícita. Opaque capabilities e live values nunca serializam.
+Persist e export explícitos ficam em **Pesquisa**. Cada receipt guarda source
+bruto conforme a policy, normalized digest, status, before/after generations,
+effects, diagnostics, invalidation, cleanup e degraded outcome. History reservation
+rejeita um record individual maior que o cap antes de effects; não executa para
+depois expulsar o próprio receipt. Output externo reserva/streama budget e
+registra truncation/cancelamento quando policy permitir. A policy default
+preserva `deliveredBytes`: entrega parcial é `truncated`; sem bytes restantes o
+item é `dropped`, nunca é mascarado como rollback.
+
+Quotas cobrem source, total de bindings (não só declarations novas), hard edges,
+HIR/artifacts, history reservation, tasks/resources, output bytes, diagnostic
+bytes, invalidation closure, effects, tickets/cancellations e drain deadline.
+Effects, outputs, invalidation, tickets, cancellations e trace usam rings
+bounded por count (e bytes quando aplicável), com eviction após entrega; facts de
+owner active não são evictados. A máquina deriva e rejeita uma operação quando
+o limite de admission é conhecido, sempre antes de
+executing/effects. O histórico mantém somente records recentes quando a policy
+de bounded retention permite eviction; o record corrente já deve ter reservation.
+
+##### Evidência e alternativas
+
+A classificação `complete`/`incomplete` segue a separação entre console e
+`compile_command` documentada por [Python `code`](https://docs.python.org/3/library/code.html)
+e [Python `codeop`](https://docs.python.org/3/library/codeop.html). O modo W é
+hermético e tipado, portanto não copia o namespace mutável do Python.
+
+[IPython autoreload](https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html)
+é evidência de patch/reload e de seus caveats. W não promete patch automático
+nem replay de effects.
+
+[Julia world age](https://docs.julialang.org/en/v1/manual/worldage/) é evidência
+de visibilidade exata por world. W usa generation explícita, invalidation por
+hard edge e resubmission explícita.
+
+[Pluto reactivity](https://plutojl.org/en/docs/reactivity/) é evidência de rerun
+implícito por dependência. W recusa rerun implícito porque ele repetiria effects.
+
+[Jupyter messaging](https://jupyter-client.readthedocs.io/en/latest/messaging.html)
+é evidência para session, counters, `busy`/`idle`, request identity e replies.
+Jupyter/rich output é PYN3. PYN2 reserva somente receipts, snapshots e output
+bounded do session core.
+
+| Sistema | Fato usado | Decisão W |
+|---|---|---|
+| Python | namespace mutável e console com completeness | `w repl` hermético, parser/checker/HIR normais |
+| IPython | autoreload aplica patch com caveats | sem patch ou replay automático |
+| Julia | world age separa visibilidade | generation e HIR version exatos |
+| Pluto | dependência reativa reroda cells | hard invalidation e resubmission explícita |
+| Jupyter | session/counter/status/request messages | protocolo rico fica PYN3 |
+
+As fontes sustentam somente esses fatos. Elas não definem syntax W, runtime W,
+rollback externo ou rich display.
+
+Alternativas humanas permanecem explícitas: `_`/`ans` como binding implícito do
+último resultado fica em **Pesquisa**. O baseline mostra tail result para
+display sem criar binding ou generation; `;`/discard suprime o display. Reactive
+rerun continua recusado porque repetiria effects. `let snapshot` continua um
+valor calculado; somente a função com lookup compilado é dependente.
+
+O corpus [`tooling/repl-session-cases.json`](tooling/repl-session-cases.json),
+o snapshot JSONL e o teste host exercitam identidades, parser versus semantic
+classification, expressions/statements/loops/calls/await/spawn/defer, transações,
+effects sobreviventes e provider outcomes, snapshot versus hard edge com
+BindingId/version/kind, imports locked, Copy staging, snapshot, adapter e
+deferred-no-fail, cinco rejeições de ownership, preflight derivado, scopes
+independentes, post-publish degraded, reset, stale opaque base, FIFO writer,
+reader durante staging, active/queued cancellation, quit/drain, quotas por
+família, redaction, outputs e bounds. O fixture parseável é
+[`repl_session_oracle.w`](reference/last-light/repl_session_oracle.w), com o
+mapa do transcript e o watcher do buraco negro. O README do produto mapeia a
+aceitação e os adversariais.
+
+O estado desta subseção é **Direção** de design e oracle. PYN2 não implementa
+CLI, compiler, checker, HIR, runtime, provider, resource drain ou Jupyter.
+
 ### 24.2 Resultado das pesquisas anteriores
 
 **Exemplo:** `ReadBatch` fica provável. `inout T...` fica rejeitado. Os dois
@@ -27799,7 +28102,7 @@ evidência de design:
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 96/96 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 285 exports em 18 módulos; todos possuem declaration draft-ready; 14/14 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 12/12 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
-| workflow single-file e científico PYN1/PYN0 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico, promotion e oracle host; PYN0 mantém REPL, tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, runtime, session transacional com resource/drain semantics, rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
+| workflow single-file e científico PYN1/PYN0/PYN2 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN0 mantém tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, runtime e drain físico, rich display/Jupyter PYN3, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
@@ -28708,6 +29011,48 @@ JSONL é gerado pelo checker e não repete o campo `expected` como semântica.
 Parse Tree-sitter, host oracle e cases são evidência de design. CLI, compiler,
 resolver, provider, runtime, estudo humano e estudo de modelo permanecem
 missing.
+
+#### 26.3.17 Sessão/REPL transacional PYN2
+
+**Exemplo:** `limit` muda de `3` para `4`, `snapshot` preserva `6`, `doubled`
+fica unavailable, e uma falha de runtime preserva a generation publicada.
+
+[`tooling/repl-session-cases.json`](tooling/repl-session-cases.json) possui casos
+positivos e negativos para identities, ordinal/prompt, classificação synthetic,
+contexto hermético, command position, snapshot read-only, fases transacionais,
+effects observados, adapter transaction, cross-generation mutation, graph
+invalidation, drain preflight, degraded post-publish, persistent scope, reset,
+stale base, single writer, output markers e quotas. O corpus usa
+[`repl_session_oracle.w`](reference/last-light/repl_session_oracle.w) como
+referência parseável e liga cada caso a um símbolo do Última Luz.
+
+O corte corrente tem 67 casos e 287 operações: 53 programas aceitos e 14
+rejeitados. Há negativos separados para parse/semantic, cada modo de ownership,
+base stale/display, preflight/close/reset, cancellation, provider rollback claim,
+structured child lifecycle, output partial/zero e cada família útil de quota; o
+snapshot JSONL é regenerável.
+
+O transcript canônico separa `w[n]` de `gN`. Ele usa `fn doubled` como compiled
+dependent e `let snapshot` como valor avaliado. `var broken: i32 = "x"` não
+publica binding. O caso adversarial do black-hole watcher cobre preflight reject,
+drain confirmation, post-publish degraded e force boundary no reset.
+
+[`tooling/repl-session-machine.mjs`](tooling/repl-session-machine.mjs) deriva
+state, graph fingerprints, trace, receipts, cleanup, effects e bounded history.
+[`tooling/check-repl-session-cases.mjs`](tooling/check-repl-session-cases.mjs)
+verifica casos, references e snapshot JSONL sem usar `expected` como semântica.
+O host test independente é
+[`tooling/repl-session-reference.test.mjs`](tooling/repl-session-reference.test.mjs).
+O modelo não compila ou executa W e não promete CLI, runtime ou provider.
+
+PYN3 permanece responsável por kernel Jupyter, counters e rich output. DLPack
+permanece um adapter T2 separado. PYN2 registra somente output bounded e
+receipts necessários ao session core.
+
+As fontes comparativas Python/codeop, IPython autoreload, Julia world age, Pluto
+reactivity e Jupyter messaging continuam evidência delimitada, não contratos W
+adicionais. A matriz de alternativas e a descrição do fixture são evidência de
+review, sem IDs de ledger artificiais para bookkeeping, status ou tooling.
 
 ## 27. Plano de implementação
 
@@ -30137,6 +30482,37 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1073 | edition e target | lock/resolution e recipe falham em edition ou target mismatch antes de build | ignorar edition, escolher target do host, compartilhar lock incompatível |
 | W-1074 | context explanation | `w context` mostra mode, roots, selected context, source/content digests, lock/fetches, artifact/record/recipe digests, authorities, capabilities e recipe antes do entry | saída resumida sem razão, provenance posterior apenas, merge silencioso |
 | W-1075 | status do bundle | PYN1 é direção de design e oracle; CLI, compiler, resolver, provider, runtime e network client continuam missing | apresentar cases como execução implementada, promover oracle a produto, iniciar implementação fora do bundle |
+| W-1076 | identidades da sessão | `SessionId`, `SessionIncarnation`, `ExecutionOrdinal` e `GenerationId` são campos separados; reset/restart muda incarnation; publish muda generation | usar ordinal como generation, prompt por generation, reset sem incarnation |
+| W-1077 | ordinal e prompt | submission completa que guarda history incrementa ordinal, inclusive error; incomplete/completion/inspect e queued cancel não incrementam; active cancel tem ordinal; prompt é `w[n]` | incrementar em cada tecla, usar `gN` no prompt, omitir erros do history |
+| W-1078 | generation opaque/display | ID interno é opaco e display `gN` é projeção; receipt carrega base/final | expor display como ID, derivar ID de path ou ordenar por frontend |
+| W-1079 | contexto default hermético | `w repl` abre `ephemeral-std-only`, fixa lock/capabilities e não varre cwd/PATH/environment | import ambient, resolver dentro da sessão, lock mutável |
+| W-1080 | parser/checker/HIR normais | sessão usa os mesmos profiles normais; facts do parser e checker separam parse/semantic e wrapper classifica expression, declaration, statement, loop, call, await e defer | dynamic mode, parser especial, regex como checker, wrapper que cria syntax |
+| W-1081 | command position | `:status`, `:why`, `:history`, `:cancel`, `:reset` e `:quit` só são command quando `:` é o primeiro token não espaço de uma entrada nova sem source acumulado | command no meio do source, token contextual global, top-level arbitrário legalizado |
+| W-1082 | read-only snapshot | completion, inspect e status leem snapshot committed e não veem staged visibility ou effects | completion executar code, inspect ler staged, status mutar |
+| W-1083 | fases transacionais | submission percorre collected→parsed→checked→staged→preflight→executing→settling→publish→draining-old→committed/ready; steps permitem reader/cancel interleave | commit em parse, effects antes de preflight, fase omitida, receipt booleano sem trace |
+| W-1084 | falha sem publication | parse/type falha sem effect/generation; runtime pré-publish limpa staged E1 e preserva effects externos observados | publicar binding parcial, rollback externo geral, apagar print observado |
+| W-1085 | transaction explícita | receipt distingue invocation observed de provider outcome; `rolledBack` só vem de capability/provider `transaction`, `unknown` permanece unknown | transaction universal, inferir rollback de runtime failure/kind, replay compensatório oculto |
+| W-1086 | receipt machine-readable | receipt informa request, session, incarnation, ordinal, prompt, base/final generations, outcome, phases, effects, diagnostics, invalidation e cleanup | terminal text como contrato, receipt sem base, omitir outcome degraded |
+| W-1087 | cross-generation mutation | Copy staging automático para value Copy; snapshot, adapter transaction e deferred-no-fail são positivos; take, inout, escaping ref/borrow/view têm rejeições separadas; borrow lexical nonescaping passa | liberar old value, borrow que escapa, exigir ceremony para Copy, aceitar take por conveniência |
+| W-1088 | binding graph fingerprints | versão guarda HIR/type/layout/effect fingerprint; hard edges carregam BindingId/version/incarnation e kind lookup, type/layout, const, witness, owner/import | grafo por nome atual, fingerprint omitido, edge só textual |
+| W-1089 | snapshot provenance | valor avaliado guarda soft provenance; `let snapshot = limit * 2` retém 6 após rebind | snapshot como dependent compilado, rerun implícito, stale value silencioso |
+| W-1090 | compiled dependent | função `doubled` guarda hard edge para `limit`; redefine invalida transitivamente com reason e closure | usar `let doubled`, preservar function stale, recompilar automaticamente |
+| W-1091 | redefinição explícita | nova versão invalida dependents sem recompilação/rerun; resubmission é explícita; old version não é current lookup | replay de cell, lookup old version, rebind que muda effects sem receipt |
+| W-1092 | type invalidation | mudança de type/layout invalida values, code e witnesses pertinentes | manter value vivo com layout antigo, invalidar somente name |
+| W-1093 | drain preflight | closure separa symbol graph de owner scopes e deriva replaceability/retention/deadline de provider events; resource/task ativo exige `allowDrain` estruturado | booleans de conclusão no caso, iniciar drop durante preflight, drenar sibling |
+| W-1094 | preflight rejection | known unreplaceable, quota, retention ou confirmação ausente rejeita antes de executing/effects e mantém generation antiga, staged scope e outputs removidos | publicar e depois rejeitar, liberar old resource, rebase silencioso |
+| W-1095 | drain pós-publication | falha/deadline após publish mantém nova generation committed e sessão degraded, bloqueando mutações | rollback da publication, marcar ready, aceitar mutation em degraded |
+| W-1096 | reset boundary | reset/restart incrementa incarnation, faz preflight/publish/drain e registra force boundary | reset sem drain, incarnation reutilizada, prometer cleanup foreign |
+| W-1097 | structured lifetime | child/wait/defer local settle antes do commit; persistent task/resource tem owner scope por binding, child da sessão e atravessa gerações não superseded | detached task, reparent retroativo, wait fora do owner, drenar sibling |
+| W-1098 | lexical loan boundary | ref/borrow/view lexical não cruza submission; safe view exige owner e hard dependency | view armazenada sem owner, borrow trans-generation implícito |
+| W-1099 | output identity | output carrega RequestId, ExecutionOrdinal e candidate generation; external print sobrevive falha | output sem request, display staged após reject, misturar output de generation |
+| W-1100 | single writer | uma submission mutating é admitida por vez; frontends enfileiram por FIFO ticket/admission | writers concorrentes, ordem por completion, rebase implícito |
+| W-1101 | stale base | base generation stale rejeita ou reanalisa somente com opção explícita; não há silent rebase | aceitar base antigo, escolher generation por último writer |
+| W-1102 | history bounded | history in-memory é limitado por count e bytes; raw source pode existir em memória ou ser redigido por policy, com reservation antes de effects; guarda metadata/digests, não live values | `~/.w_history`, log ilimitado, segredo implicitamente persistido, valor vivo serializado |
+| W-1103 | security e contexto | startup script, cwd/PATH/env import, segredo implícito e resolver/network na sessão são proibidos | descobrir ambiente, importar segredo, atualizar lock em submit |
+| W-1104 | quotas | source, total bindings, hard edges, HIR/artifacts, history reservation, tasks/resources, output, diagnostics, invalidation e drain deadline possuem limites derivados | quota só em output/declarations novas, limite não observável, executar e expulsar próprio receipt |
+| W-1105 | diagnostics de sessão | arquitetura usa fatos/fases para parser, semantic, context/lock, stale opaque base, invalidated binding, ownership, quota, cancellation/close e post-publish degraded | error genérico, phase falsa, diagnóstico sem fix boundary |
+| W-1106 | transcript canônico | transcript começa em g0, termina g4 após quatro publishes, mostra w[5] unavailable e w[6] type error preservando g4, além de snapshot 6 e closure limit→doubled→menu com edges imediatos | transcript usa somente `w[n]`, function como let, failure avançando generation |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

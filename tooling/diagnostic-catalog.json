@@ -140,6 +140,21 @@
         "script-owner": { "minimum": 0, "maximum": 1 }
       },
       "fixes": {}
+    },
+    "session": {
+      "phase": "session",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "session-owner": { "minimum": 0, "maximum": 1 },
+        "generation": { "minimum": 0, "maximum": 2 }
+      },
+      "fixes": {}
     }
   },
   "codes": [
@@ -1364,6 +1379,34 @@
         "transaction-owner": { "minimum": 1, "maximum": 1 }
       },
       "fixes": {}
-    }
+    },
+    { "code": "W-SESSION-0001", "state": "active", "profile": "session", "meaning": "a contextual command is unknown" },
+    { "code": "W-SESSION-0002", "state": "active", "profile": "session", "meaning": "the normal parser returns a parse diagnostic" },
+    { "code": "W-SESSION-0003", "state": "active", "profile": "session", "meaning": "the normal checker returns a semantic diagnostic" },
+    { "code": "W-SESSION-0004", "state": "active", "profile": "session", "meaning": "lock, capability, or context facts changed after session open" },
+    { "code": "W-SESSION-0005", "state": "active", "profile": "session", "meaning": "the requested base generation is stale, unknown, or not opaque" },
+    { "code": "W-SESSION-0006", "state": "active", "profile": "session", "meaning": "a current binding, import, or exact dependency version is unavailable" },
+    { "code": "W-SESSION-0007", "state": "active", "profile": "session", "meaning": "a cross-generation take lacks Copy, snapshot, adapter, or deferred proof" },
+    { "code": "W-SESSION-0008", "state": "active", "profile": "session", "meaning": "a cross-generation inout lacks an explicit transaction or no-fail proof" },
+    { "code": "W-SESSION-0009", "state": "active", "profile": "session", "meaning": "a ref operation escapes its submission" },
+    { "code": "W-SESSION-0010", "state": "active", "profile": "session", "meaning": "a borrow operation escapes its submission" },
+    { "code": "W-SESSION-0011", "state": "active", "profile": "session", "meaning": "a view crosses generations without an owner-backed proof" },
+    { "code": "W-SESSION-0012", "state": "active", "profile": "session", "meaning": "drain preflight rejects replacement or reset before effects" },
+    { "code": "W-SESSION-0013", "state": "active", "profile": "session", "meaning": "post-publish drain leaves a committed but degraded generation" },
+    { "code": "W-SESSION-0014", "state": "active", "profile": "session", "meaning": "session close requires owner drain or a recorded force boundary" },
+    { "code": "W-SESSION-0015", "state": "active", "profile": "session", "meaning": "history reservation exceeds the bounded memory quota" },
+    { "code": "W-SESSION-0016", "state": "active", "profile": "session", "meaning": "output budget requires rejection, truncation, or cancellation" },
+    { "code": "W-SESSION-0017", "state": "active", "profile": "session", "meaning": "queued or active cancellation or a detached/non-joined child reaches a boundary" },
+    { "code": "W-SESSION-0018", "state": "active", "profile": "session", "meaning": "rollback was claimed without explicit provider transaction evidence" },
+    { "code": "W-SESSION-0019", "state": "active", "profile": "session", "meaning": "total binding versions exceed the bounded quota" },
+    { "code": "W-SESSION-0020", "state": "active", "profile": "session", "meaning": "hard-edge count exceeds the bounded quota" },
+    { "code": "W-SESSION-0021", "state": "active", "profile": "session", "meaning": "HIR or artifact count exceeds the bounded quota" },
+    { "code": "W-SESSION-0022", "state": "active", "profile": "session", "meaning": "persistent task/resource owner count exceeds the bounded quota" },
+    { "code": "W-SESSION-0023", "state": "active", "profile": "session", "meaning": "hard-dependent invalidation closure exceeds the bounded quota" },
+    { "code": "W-SESSION-0024", "state": "active", "profile": "session", "meaning": "derived drain deadline exceeds the bounded quota" },
+    { "code": "W-SESSION-0025", "state": "active", "profile": "session", "meaning": "source bytes exceed the bounded quota" },
+    { "code": "W-SESSION-0026", "state": "active", "profile": "session", "meaning": "provider drain facts are missing or a conclusion boolean was supplied" },
+    { "code": "W-SESSION-0027", "state": "active", "profile": "session", "meaning": "effects exceed the per-submission bounded quota" },
+    { "code": "W-SESSION-0028", "state": "active", "profile": "session", "meaning": "queued admission tickets exceed the bounded ring" }
   ]
 }
