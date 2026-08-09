@@ -257,6 +257,7 @@ const oracleCorpusFiles = [
   "execution-concurrency-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
+  "wmeta-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -440,6 +441,13 @@ const packageReleaseOperations = packageReleaseCorpus.cases.reduce(
 const acceptedPackageReleaseCases = packageReleaseCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const wmetaCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "wmeta-cases.json"), "utf8"),
+);
+const wmetaCases = wmetaCorpus.cases.length;
+const acceptedWmetaCases = wmetaCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -551,6 +559,11 @@ output.push(
     `${packageReleaseCases}/${packageReleaseOperations} ` +
     `(${acceptedPackageReleaseCases} aceitos + ` +
     `${packageReleaseCases - acceptedPackageReleaseCases} rejeitados) |`,
+);
+output.push(
+  `| casos do container WMeta1 W0 | ${wmetaCases} ` +
+    `(${acceptedWmetaCases} aceitos + ${wmetaCases - acceptedWmetaCases} rejeitados; ` +
+    `2 readers independentes) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

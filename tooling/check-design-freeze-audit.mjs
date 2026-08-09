@@ -20,6 +20,7 @@ const corpusFiles = [
   "execution-concurrency-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
+  "wmeta-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",
