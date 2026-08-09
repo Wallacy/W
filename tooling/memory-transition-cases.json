@@ -5,6 +5,7 @@
   "cases": [
     {
       "id": "M1-initialize-move-drop",
+      "decisions": ["W-021", "W-243"],
       "references": [{ "path": "../reference/last-light/mobility.w", "symbol": "TemperatureBatch" }],
       "operations": [
         { "op": "initialize", "binding": "batch" },
@@ -99,6 +100,7 @@
     },
     {
       "id": "M1-unstable-suspension",
+      "decisions": ["W-104", "W-422"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "announceAfterYield" }],
       "operations": [
         { "op": "initialize", "binding": "section" },
@@ -109,6 +111,7 @@
     },
     {
       "id": "M1-stable-suspension",
+      "decisions": ["W-104", "W-422"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "announceAfterYield" }],
       "operations": [
         { "op": "initialize", "binding": "section", "address": "stable" },
@@ -121,6 +124,7 @@
     },
     {
       "id": "M1-pin-publish-move-handle",
+      "decisions": ["W-913"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
       "operations": [
         { "op": "initialize", "binding": "state", "allocatorKnown": true },
@@ -259,6 +263,7 @@
     },
     {
       "id": "M1-reborrow-shared-restores-parent",
+      "decisions": ["W-909"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "announceAfterYield" }],
       "operations": [
         { "op": "initialize", "binding": "section" },
@@ -307,6 +312,7 @@
     },
     {
       "id": "M1-dependent-copy-preserves-origins",
+      "decisions": ["W-910"],
       "references": [{ "path": "../reference/last-light/http_documents.w", "symbol": "MenuItemDocument" }],
       "operations": [
         { "op": "initialize", "binding": "document", "edges": [{ "ownerSlot": "menu", "origin": "menu", "mode": "shared" }, { "ownerSlot": "oven", "origin": "oven", "mode": "shared" }], "copyable": true },
@@ -328,6 +334,7 @@
     },
     {
       "id": "M1-array-ref-join-clear",
+      "decisions": ["W-911"],
       "references": [{ "path": "../reference/last-light/collections.w", "symbol": "stableServiceOrder" }],
       "operations": [
         { "op": "initialize", "binding": "refs", "edges": [{ "ownerSlot": "menu", "origin": "menu", "mode": "shared" }] },
@@ -369,6 +376,7 @@
     },
     {
       "id": "M1-structured-child-joins-before-origins",
+      "decisions": ["W-428"],
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixJob" }],
       "operations": [
         { "op": "initialize", "binding": "value", "edges": [{ "ownerSlot": "menu", "origin": "menu", "mode": "shared" }] },
@@ -421,6 +429,7 @@
     },
     {
       "id": "M1-ffi-call-scoped-ref",
+      "decisions": ["W-623", "W-915"],
       "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
       "operations": [{ "op": "verifyFfi", "form": "ref", "retention": "call" }],
       "expected": { "status": "accepted" }
@@ -433,6 +442,7 @@
     },
     {
       "id": "M1-ffi-persistent-pinned-lease",
+      "decisions": ["W-623", "W-915"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
       "operations": [{ "op": "verifyFfi", "form": "inout", "retention": "persistent", "pinned": true, "destroy": true, "unregister": true }],
       "expected": { "status": "accepted" }
@@ -1353,6 +1363,7 @@
     },
     {
       "id": "M1-region-budget-is-monotonic",
+      "decisions": ["W-410"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countEmergencyTokens" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "fixed", "limit": 64 },
@@ -1363,6 +1374,7 @@
     },
     {
       "id": "M1-rehome-enables-cross-domain-transfer",
+      "decisions": ["W-638", "W-928"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countStagedMenuInParallel" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1378,6 +1390,7 @@
     },
     {
       "id": "M1-local-storage-rejects-cross-domain-transfer",
+      "decisions": ["W-638", "W-928"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countStagedMenuInParallel" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1388,6 +1401,7 @@
     },
     {
       "id": "M1-rehome-failure-consumes-source",
+      "decisions": ["W-930"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1401,6 +1415,7 @@
     },
     {
       "id": "M1-share-rejects-borrow-dependent-payload",
+      "decisions": ["W-929"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
@@ -1412,6 +1427,7 @@
     },
     {
       "id": "M1-share-requires-storage-to-outlive-control-block",
+      "decisions": ["W-929"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "request", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1423,6 +1439,7 @@
     },
     {
       "id": "M1-shared-weak-lifecycle",
+      "decisions": ["W-637", "W-931"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "parentTitle" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 1024 },
@@ -1455,6 +1472,7 @@
     },
     {
       "id": "M1-share-allocation-failure-consumes-source",
+      "decisions": ["W-930"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
@@ -1466,6 +1484,7 @@
     },
     {
       "id": "M1-pin-allocation-failure-consumes-source",
+      "decisions": ["W-930"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
       "operations": [
         { "op": "initialize", "binding": "bellState" },
@@ -1498,6 +1517,7 @@
     },
     {
       "id": "M1-shared-cross-domain-composes-all-proofs",
+      "decisions": ["W-931"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "classifyBell" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
@@ -1511,18 +1531,21 @@
     },
     {
       "id": "M1-interface-storage-origin-mapping",
+      "decisions": ["W-932"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
       "operations": [{ "op": "verifyInterface", "body": true, "inferredStorageMapping": { "result.$storage": ["parameter:2"] }, "expectedStorageMapping": { "result.$storage": ["parameter:2"] } }],
       "expected": { "status": "accepted" }
     },
     {
       "id": "M1-interface-storage-origin-drift",
+      "decisions": ["W-932"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
       "operations": [{ "op": "verifyInterface", "body": true, "inferredStorageMapping": { "result.$storage": ["product.default"] }, "previousStorageMapping": { "result.$storage": ["parameter:2"] } }],
       "expected": { "status": "rejected", "code": "interfaceStorageMappingChanged", "operation": 0 }
     },
     {
       "id": "M1-shared-borrow-is-tied-to-originating-handle",
+      "decisions": ["W-931"],
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "sameMenuSection" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
@@ -1575,6 +1598,101 @@
         { "op": "drop", "binding": "observerCopy" },
         { "op": "closeAllocator", "allocator": "process" }
       ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-erasure-inline-preserves-storage-origins",
+      "decisions": ["W-194", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "request", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 64 },
+        { "op": "initialize", "binding": "handler", "using": "request", "bytes": 8 },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 16, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "allocator", "using": "process", "boxBytes": 32, "result": "erase" },
+        { "op": "closeAllocator", "allocator": "process" },
+        { "op": "drop", "binding": "stored" },
+        { "op": "closeAllocator", "allocator": "request" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-erasure-spill-preserves-payload-and-box-origins",
+      "decisions": ["W-194", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "request", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 64 },
+        { "op": "initialize", "binding": "handler", "using": "request", "bytes": 8 },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 64, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "allocator", "using": "process", "boxBytes": 32, "result": "erase" },
+        { "op": "drop", "binding": "stored" },
+        { "op": "closeAllocator", "allocator": "request" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-erasure-box-origin-stays-live",
+      "decisions": ["W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 64 },
+        { "op": "initialize", "binding": "handler" },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 64, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "allocator", "using": "process", "boxBytes": 32 },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "storageOriginStillLive", "operation": 3 }
+    },
+    {
+      "id": "M1-erasure-allocation-failure-consumes-source",
+      "decisions": ["W-930", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 64 },
+        { "op": "initialize", "binding": "handler" },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 64, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "allocator", "using": "process", "boxBytes": 32, "outcome": "allocationError", "result": "erase" },
+        { "op": "use", "binding": "handler" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 3 }
+    },
+    {
+      "id": "M1-erasure-budget-failure-consumes-source",
+      "decisions": ["W-930", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 16 },
+        { "op": "initialize", "binding": "handler" },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 64, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "allocator", "using": "process", "boxBytes": 32, "result": "erase" },
+        { "op": "use", "binding": "handler" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 3 }
+    },
+    {
+      "id": "M1-erasure-forbidden-spill-rejects-oversize-payload",
+      "decisions": ["W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "initialize", "binding": "handler" },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 64, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "forbid", "boxBytes": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "erasureSpillForbidden", "operation": 1 }
+    },
+    {
+      "id": "M1-erasure-preserves-borrow-dependencies",
+      "decisions": ["W-910", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [
+        { "op": "initialize", "binding": "gate" },
+        { "op": "initialize", "binding": "handler", "edges": [{ "ownerBinding": "gate", "origin": "gate", "mode": "shared" }] },
+        { "op": "erase", "from": "handler", "to": "stored", "payloadBytes": 16, "payloadAlignment": 8, "inlineBytes": 24, "inlineAlignment": 8, "spill": "forbid", "boxBytes": 0 },
+        { "op": "drop", "binding": "gate" }
+      ],
+      "expected": { "status": "rejected", "code": "ownerDropWithDependency", "operation": 3 }
+    },
+    {
+      "id": "M1-erasure-interface-maps-box-origin",
+      "decisions": ["W-932", "W-937", "W-938"],
+      "references": [{ "path": "../reference/last-light/callables.w", "symbol": "recoverableRoute" }],
+      "operations": [{ "op": "verifyInterface", "body": true, "inferredStorageMapping": { "result.$box": ["parameter:1"] }, "expectedStorageMapping": { "result.$box": ["parameter:1"] } }],
       "expected": { "status": "accepted" }
     }
   ]

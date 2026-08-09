@@ -6177,7 +6177,7 @@ extension Menu: Sequence {
 
 ```w
 fn first<S: Sequence<Dish>>(source: ref S): Dish?
-fn erase(source: take some Sequence<Dish>): any Sequence<Dish>
+fn eraseSequence(source: take some Sequence<Dish>): any Sequence<Dish>
 ```
 
 A aplicação não cria outra família de conformances. `Menu` possui uma única
@@ -6439,10 +6439,13 @@ O carrier de `any P` não atravessa C, wire ou persistence como layout implícit
 Essas boundaries usam façade, schema ou adapter explícito. W exact exige a mesma
 `WAbiKey` e a mesma policy de erasure nos dois lados.
 
-O estudo R1 vigente fixa as formas source e a diferença entre failure normal e
-recovery explícito. Ele não prova o layout físico. M1 ainda precisa cobrir
-inline, spill, falha consuming e `AllocationOriginMap` antes do congelamento
-deste contrato.
+O estudo R1 fixa as formas source e a diferença entre failure normal e recovery
+explícito. M1 deriva inline ou spill a partir da policy, preserva as origins do
+payload, adiciona a origin do box, rejeita spill proibido, consome o source numa
+falha de allocation e mantém dependency edges após erasure. O caso
+`M1-erasure-interface-maps-box-origin` fixa o `AllocationOriginMap`. Esses
+oracles provam o contrato lógico. Eles não fixam layout físico nem executam um
+allocator real.
 
 `any P` não conforma automaticamente a `P`. O design vigente também não abre existentials
 de forma implícita para uma função generic:
@@ -20345,6 +20348,7 @@ sem runtime geral:
 | place loan | `PlaceId` root + projections e `LoanId` | begin registra mode, origin, estabilidade e parent; end restaura parent |
 | dependency edges | edges individuais + `OriginSet` deduplicado | composição, insert e join adicionam; clear libera; remove exige prova |
 | storage | allocations individuais + `AllocationOriginSet` | move transfere; rehome reescreve; drop usa o deallocator da origem |
+| erasure | policy inline/spill + box origin | inline preserva origins; spill adiciona box; failure consuming não publica target |
 | address | `unstable`, `stable`, `published` | `pin` ou placement provado torna storage estável |
 | boundary | internal, W exact, C, wire, persistence, capability | representation é verificada antes do lowering |
 | ABI | `WAbiKey` + `SemanticInterfaceKey` | fields e dependency mapping precisam coincidir para link exato |
@@ -20370,8 +20374,11 @@ O verifier aplica estas regras:
     control block;
 13. uma fronteira paralela verifica payload, contador e mobility de todas as
     origens;
-14. falha de `pin`, `share` ou `rehome` consome e limpa o source uma vez;
-15. HIR incompleta produz diagnostic e nunca baixa para W/MLIR.
+14. erasure inline não cria origin; spill adiciona a origin do box sem apagar as
+    origins ou dependency edges do payload;
+15. falha de `pin`, `share`, `rehome` ou `erase` consome e limpa o source uma
+    vez, sem publicar target parcial;
+16. HIR incompleta produz diagnostic e nunca baixa para W/MLIR.
 
 O kernel não fixa stack, heap, register, layout ou calling convention física. Ele
 fixa somente fatos necessários para provar cleanup, alias e fronteira. O
@@ -20389,8 +20396,8 @@ mantém um borrow durante suspensão, move somente o handle e faz drop no payloa
 estável uma vez.
 
 [`tooling/memory-transition-cases.json`](tooling/memory-transition-cases.json)
-mantém 156 sequências ligadas a symbols do Última Luz. A
-[`máquina M1`](tooling/hir-memory-machine.mjs) executa 546 operações sobre:
+mantém 164 sequências ligadas a symbols do Última Luz. A
+[`máquina M1`](tooling/hir-memory-machine.mjs) executa 579 operações sobre:
 
 - bindings `owned`, `moved` e `dropped`;
 - payload identity preservada por move;
@@ -20408,14 +20415,15 @@ mantém 156 sequências ligadas a symbols do Última Luz. A
 - handle `Pinned<T>` separado do payload;
 - `AllocationOriginSet`, budget de região, fechamento e `rehome`;
 - control block strong/weak, upgrade, drop único e origem do último weak;
-- estado após falha fallible consuming de `pin`, `share` e `rehome`;
+- erasure inline/spill, box origin, spill proibido e dependency preservation;
+- estado após falha fallible consuming de `pin`, `share`, `rehome` e `erase`;
 - payload, contador e mobility combinados numa fronteira paralela;
 - representação por boundary, allocator origin e FFI scope/retention;
 - mappings de borrow/storage em `WInterface`, `SemanticInterfaceKey` e igualdade
   de `WAbiKey`;
 - await estável, cleanup drain e join de owner states.
 
-O runner aceita 67 sequências e rejeita 89. O snapshot M1 registra schema, estado
+O runner aceita 70 sequências e rejeita 94. O snapshot M1 registra schema, estado
 e trace de cada operação byte a byte. Todo caso aponta para source do Última Luz.
 Uma operação só publica o estado seguinte quando é aceita. Uma rejeição preserva
 o estado anterior e não deixa payload, loan ou edge parcial no oracle.
@@ -25815,12 +25823,16 @@ observável e referência para o Book.
 
 [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
 auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. As outras decisões exigem uma disposition explícita:
-contrato semântico com oracle, escolha de implementação sem diferença
-observável, hipótese com fallback, item histórico, policy do projeto ou waiver
-motivado do maintainer. O checker atual classifica 101/937 decisões: 93 por R0 e
-oito por evidência explícita. As 836 restantes continuam um worklist, não uma
-aprovação implícita. `--require-complete` é o gate do design freeze.
+source automaticamente. Um caso F0, S0, M1, E0, B0 ou P0 pode ligar seus
+oracles diretamente aos IDs que prova. As outras decisões exigem uma
+disposition explícita: escolha de implementação sem diferença observável,
+hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
+maintainer. Uma decisão que mistura ergonomia source e comportamento observável
+declara todos os eixos obrigatórios. O checker atual classifica 129/938 decisões:
+93 pelo eixo source, 51 pelo eixo oracle e cinco explicitamente; 20 decisões
+possuem os dois primeiros eixos. Duas decisões já exigem formalmente ambos. As
+809 restantes continuam um worklist, não uma aprovação implícita.
+`--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
 
@@ -25863,11 +25875,11 @@ evidência de design:
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | layouts e candidates selecionados | fixar vectors, readers host independentes, limites e regras de versão sem depender de backend W |
-| memória e execução | M1 fixa 156 casos/546 operações, 67 aceitos e 89 rejeitados; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | fechar allocator, atomics, liveness e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
+| memória e execução | M1 fixa 164 casos/579 operações, 70 aceitos e 94 rejeitados; erasure inline/spill possui oito casos próprios; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | fechar allocator, atomics, liveness e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; o audit classifica 101/937; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos e agora incluem callables | classificar as 836 decisões restantes; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1 ligam 51 decisões a oracle; o audit classifica 129/938 e já exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 809 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -26223,8 +26235,8 @@ substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
 alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
-O kernel executável de memória usa a baseline M1. O corpus possui 156 casos e
-546 operações, com 67 outcomes aceitos e 89 rejeitados. Cada caso liga
+O kernel executável de memória usa a baseline M1. O corpus possui 164 casos e
+579 operações, com 70 outcomes aceitos e 94 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
@@ -27777,7 +27789,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; presença e bytes de SemanticInterfaceKey coincidem nos dois lados; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 156 casos e 546 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle e alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 164 casos e 579 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 17/55 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -27790,14 +27802,15 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-927 | formatter de domain | F0 preserva as formas positional e named e não troca uma pela outra; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
 | W-929 | criação de shared | `share` exige payload lifetime-independent, preserva origins internas e cria origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
-| W-930 | falha de operação consuming de storage | allocation failure de `pin`, `share` e `rehome` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address; retry exige outcome que devolve o source | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer antes do success |
+| W-930 | falha de operação consuming de storage | allocation failure de `pin`, `share`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; retry exige outcome que devolve o source | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
 | W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
-| W-933 | expansão de composição M1 | 21 novos casos e quatro testes independentes cobrem budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; snapshots registram 156 casos e 546 operações | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
+| W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
-| W-935 | auditoria de decisões para freeze | R0 classifica automaticamente decisões com substituição de source; outras exigem contrato semântico com evidência, escolha interna, fallback provável, histórico, policy ou waiver; 101/937 estão classificadas e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; manter planilha manual fora do repository |
+| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; 129/938 estão classificadas, duas exigem source + oracle e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
-| W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
+| W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
+| W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 164 casos e 579 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

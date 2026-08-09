@@ -1,6 +1,7 @@
 // Callable routes for the maître d' at the end of the shift.
 
 import { GuestCount, OrderId } from domain
+import * from std.memory
 
 export struct Arrival {
   orderId: OrderId
@@ -30,6 +31,19 @@ export struct WelcomeRoute {
 export fn route(
   handler: take any fn(Arrival): Welcome,
 ): WelcomeRoute {
+  return WelcomeRoute(handler: take handler)
+}
+
+export fn recoverableRoute(
+  gate: usize,
+  memory: ref Allocator,
+): WelcomeRoute throws AllocationError {
+  let concrete = capture(copy gate) (arrival) => Welcome(
+    orderId: arrival.orderId,
+    gate: gate,
+  )
+  let handler: any fn(Arrival): Welcome =
+    try erase(take concrete, using: memory)
   return WelcomeRoute(handler: take handler)
 }
 
@@ -74,6 +88,15 @@ test "an erased callable owns its invocation environment" for route {
   let result = selected.handler(Arrival(orderId: 44, guests: try GuestCount(4)))
 
   expect result.gate == 2
+}
+
+test "explicit erasure exposes allocation recovery" for recoverableRoute {
+  var storage: [u8; 1<KiB>] = [0; 1<KiB>]
+  let memory = Arena.fixed(inout storage)
+  let selected = try recoverableRoute(gate: 3, memory: memory)
+  let result = selected.handler(Arrival(orderId: 45, guests: try GuestCount(5)))
+
+  expect result.gate == 3
 }
 
 test "callable modes expose mutation and consumption" {

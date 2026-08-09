@@ -839,3 +839,142 @@ test("M1 consuming allocation failure drops the source before propagation", () =
   assert.equal(result.state.payloads.p0.dropCount, 1);
   assert.equal(result.state.outcomes.pin, "allocationError");
 });
+
+test("M1 erasure derives inline and spill storage from the product policy", () => {
+  const allocators = [
+    {
+      op: "defineAllocator",
+      allocator: "request",
+      lifetime: "scoped",
+      mobility: "local",
+      adoptionFamily: "arena",
+      limit: 64,
+    },
+    {
+      op: "defineAllocator",
+      allocator: "process",
+      lifetime: "product",
+      mobility: "crossDomain",
+      adoptionFamily: "general",
+      limit: 64,
+    },
+  ];
+
+  const inline = runMemoryProgram([
+    ...allocators,
+    { op: "initialize", binding: "handler", using: "request", bytes: 8 },
+    {
+      op: "erase",
+      from: "handler",
+      to: "stored",
+      payloadBytes: 16,
+      payloadAlignment: 8,
+      inlineBytes: 24,
+      inlineAlignment: 8,
+      spill: "allocator",
+      using: "process",
+      boxBytes: 32,
+    },
+  ]);
+  assert.equal(inline.status, "accepted");
+  assert.equal(inline.state.payloads.p0.erasure.storage, "inline");
+  assert.equal(inline.state.payloads.p0.erasure.boxOrigin, null);
+  assert.deepEqual(inline.state.payloads.p0.storageOrigins, ["request"]);
+  assert.equal(inline.state.allocators.process.charged, 0);
+
+  const spill = runMemoryProgram([
+    ...allocators,
+    { op: "initialize", binding: "handler", using: "request", bytes: 8 },
+    {
+      op: "erase",
+      from: "handler",
+      to: "stored",
+      payloadBytes: 64,
+      payloadAlignment: 8,
+      inlineBytes: 24,
+      inlineAlignment: 8,
+      spill: "allocator",
+      using: "process",
+      boxBytes: 32,
+    },
+  ]);
+  assert.equal(spill.status, "accepted");
+  assert.equal(spill.state.payloads.p0.erasure.storage, "spill");
+  assert.equal(spill.state.payloads.p0.erasure.boxOrigin, "process");
+  assert.deepEqual(spill.state.payloads.p0.storageOrigins, ["process", "request"]);
+  assert.equal(spill.state.allocators.process.charged, 32);
+});
+
+test("M1 erasure failure consumes once and forbidden spill preserves the owner", () => {
+  const allocator = {
+    op: "defineAllocator",
+    allocator: "process",
+    lifetime: "product",
+    mobility: "crossDomain",
+    adoptionFamily: "general",
+    limit: 64,
+  };
+  const failed = runMemoryProgram([
+    allocator,
+    { op: "initialize", binding: "handler" },
+    {
+      op: "erase",
+      from: "handler",
+      to: "stored",
+      payloadBytes: 64,
+      payloadAlignment: 8,
+      inlineBytes: 24,
+      inlineAlignment: 8,
+      spill: "allocator",
+      using: "process",
+      boxBytes: 32,
+      outcome: "allocationError",
+      result: "erase",
+    },
+  ]);
+  assert.equal(failed.status, "accepted");
+  assert.equal(failed.state.bindings.handler.state, "dropped");
+  assert.equal(failed.state.bindings.stored, undefined);
+  assert.equal(failed.state.payloads.p0.dropCount, 1);
+  assert.equal(failed.state.outcomes.erase, "allocationError");
+
+  const exhausted = runMemoryProgram([
+    { ...allocator, limit: 16 },
+    { op: "initialize", binding: "handler" },
+    {
+      op: "erase",
+      from: "handler",
+      to: "stored",
+      payloadBytes: 64,
+      payloadAlignment: 8,
+      inlineBytes: 24,
+      inlineAlignment: 8,
+      spill: "allocator",
+      using: "process",
+      boxBytes: 32,
+      result: "erase",
+    },
+  ]);
+  assert.equal(exhausted.status, "accepted");
+  assert.equal(exhausted.state.bindings.handler.state, "dropped");
+  assert.equal(exhausted.state.payloads.p0.dropCount, 1);
+  assert.equal(exhausted.state.outcomes.erase, "allocationError");
+
+  const forbidden = runMemoryProgram([
+    { op: "initialize", binding: "handler" },
+    {
+      op: "erase",
+      from: "handler",
+      to: "stored",
+      payloadBytes: 64,
+      payloadAlignment: 8,
+      inlineBytes: 24,
+      inlineAlignment: 8,
+      spill: "forbid",
+      boxBytes: 0,
+    },
+  ]);
+  assert.equal(forbidden.code, "erasureSpillForbidden");
+  assert.equal(forbidden.state.bindings.handler.state, "owned");
+  assert.equal(forbidden.state.bindings.stored, undefined);
+});

@@ -28,6 +28,7 @@ const categories = new Set([
   "project-policy",
   "source-waiver",
 ]);
+const evidenceAxes = new Set(["source", "oracle", "explicit"]);
 const errors = [];
 
 function requireString(value, location) {
@@ -63,9 +64,32 @@ for (const testCase of substitutions.cases ?? []) {
 }
 
 const knownEvidenceIds = new Set((substitutions.cases ?? []).map((testCase) => testCase.id));
+const oracleByDecision = new Map();
 for (const file of corpusFiles) {
   const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, file), "utf8"));
-  for (const testCase of corpus.cases ?? []) knownEvidenceIds.add(testCase.id);
+  for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
+    knownEvidenceIds.add(testCase.id);
+    if (testCase.decisions === undefined) continue;
+    if (!Array.isArray(testCase.decisions) || testCase.decisions.length === 0) {
+      errors.push(`${file}.cases[${caseIndex}].decisions must be a non-empty array.`);
+      continue;
+    }
+    const localDecisions = new Set();
+    for (const [decisionIndex, decision] of testCase.decisions.entries()) {
+      const location = `${file}.cases[${caseIndex}].decisions[${decisionIndex}]`;
+      if (!requireString(decision, location)) continue;
+      if (!ledgerIdSet.has(decision)) {
+        errors.push(`${location} references missing ledger entry ${decision}.`);
+      }
+      if (localDecisions.has(decision)) {
+        errors.push(`${location} repeats ${decision}.`);
+      }
+      localDecisions.add(decision);
+      const cases = oracleByDecision.get(decision) ?? [];
+      cases.push(testCase.id);
+      oracleByDecision.set(decision, cases);
+    }
+  }
 }
 
 const studiesDirectory = path.join(toolingDirectory, "studies");
@@ -85,6 +109,37 @@ if (audit.status !== "design-oracle-input") {
 if (!Array.isArray(audit.entries)) {
   errors.push("design-freeze-audit.json must contain an entries array.");
 }
+if (!Array.isArray(audit.requirements)) {
+  errors.push("design-freeze-audit.json must contain a requirements array.");
+}
+
+const requirementByDecision = new Map();
+for (const [index, requirement] of (audit.requirements ?? []).entries()) {
+  const location = `requirements[${index}]`;
+  if (!requireString(requirement.decision, `${location}.decision`)) continue;
+  if (!ledgerIdSet.has(requirement.decision)) {
+    errors.push(`${location}.decision references missing ledger entry ${requirement.decision}.`);
+  }
+  if (requirementByDecision.has(requirement.decision)) {
+    errors.push(`${location}.decision duplicates ${requirement.decision}.`);
+  }
+  if (!Array.isArray(requirement.axes) || requirement.axes.length < 2) {
+    errors.push(`${location}.axes must contain at least two evidence axes.`);
+  } else {
+    const localAxes = new Set();
+    for (const [axisIndex, axis] of requirement.axes.entries()) {
+      if (!evidenceAxes.has(axis)) {
+        errors.push(`${location}.axes[${axisIndex}] must be source, oracle, or explicit.`);
+      }
+      if (localAxes.has(axis)) {
+        errors.push(`${location}.axes[${axisIndex}] repeats ${axis}.`);
+      }
+      localAxes.add(axis);
+    }
+  }
+  requireString(requirement.reason, `${location}.reason`);
+  requirementByDecision.set(requirement.decision, requirement);
+}
 
 const manualIds = new Set();
 let previousManualNumber = 0;
@@ -99,6 +154,9 @@ for (const [index, entry] of (audit.entries ?? []).entries()) {
   }
   if (r0ByDecision.has(entry.decision)) {
     errors.push(`${location}.decision is already classified by an R0 source comparison.`);
+  }
+  if (oracleByDecision.has(entry.decision)) {
+    errors.push(`${location}.decision is already classified by an oracle corpus case.`);
   }
   const manualNumber = Number(entry.decision.slice(2));
   if (manualNumber <= previousManualNumber) {
@@ -140,8 +198,27 @@ for (const [index, entry] of (audit.entries ?? []).entries()) {
 }
 
 const sourceDecisionIds = new Set(r0ByDecision.keys());
-const classifiedIds = new Set([...sourceDecisionIds, ...manualIds]);
+const oracleDecisionIds = new Set(oracleByDecision.keys());
+const classifiedIds = new Set([
+  ...sourceDecisionIds,
+  ...oracleDecisionIds,
+  ...manualIds,
+]);
 const unclassifiedIds = ledgerIds.filter((decision) => !classifiedIds.has(decision));
+const crossAxisOverlaps =
+  sourceDecisionIds.size + oracleDecisionIds.size + manualIds.size - classifiedIds.size;
+const decisionsByAxis = {
+  source: sourceDecisionIds,
+  oracle: oracleDecisionIds,
+  explicit: manualIds,
+};
+for (const [decision, requirement] of requirementByDecision) {
+  for (const axis of requirement.axes ?? []) {
+    if (evidenceAxes.has(axis) && !decisionsByAxis[axis].has(decision)) {
+      errors.push(`${decision} requires the ${axis} evidence axis.`);
+    }
+  }
+}
 
 if (process.argv.includes("--require-complete") && unclassifiedIds.length > 0) {
   errors.push(
@@ -157,7 +234,9 @@ if (errors.length > 0) {
 
 process.stdout.write(
   `Design freeze audit: ${classifiedIds.size}/${ledgerIds.length} decisions classified ` +
-    `(${sourceDecisionIds.size} by R0 + ${manualIds.size} explicit); ` +
+    `(${sourceDecisionIds.size} source, ${oracleDecisionIds.size} oracle, ` +
+    `${manualIds.size} explicit; ${crossAxisOverlaps} cross-axis overlaps); ` +
+    `${requirementByDecision.size} multi-axis requirements; ` +
     `${unclassifiedIds.length} unclassified.\n`,
 );
 
