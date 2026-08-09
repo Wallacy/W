@@ -371,19 +371,25 @@
     },
     {
       "id": "R0-explicit-self-return",
-      "reviewItem": "`: self` explícito contra retorno implícito do receiver e retorno `()`",
+      "reviewItem": "`: self` explícito com fallthrough contra retorno implícito do receiver e `return self` equivalente",
       "decisions": ["W-147"],
-      "task": "Mutate an oscillator and explicitly return a fluent reborrow.",
+      "task": "Mutate an oscillator and expose a fluent reborrow with an explicit `: self` contract.",
       "selected": {
         "language": "w",
-        "source": ["mut fn reset(): self {", "  phase = 0.0", "  return self", "}"]
+        "source": ["mut fn reset(): self {", "  phase = 0.0", "}"]
       },
       "alternatives": [
         {
           "name": "implicit-receiver",
           "language": "alternative-w",
           "source": ["mut fn reset() { phase = 0.0 }"],
-          "expectedDifference": "The signature does not reveal whether the method returns Unit or a receiver borrow."
+          "expectedDifference": "The omitted return type produces Unit and does not expose a receiver reborrow."
+        },
+        {
+          "name": "explicit-return-self",
+          "language": "w-equivalent",
+          "source": ["mut fn reset(): self {", "  phase = 0.0", "  return self", "}"],
+          "expectedDifference": "The explicit return spells the same receiver reborrow that canonical fallthrough returns."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

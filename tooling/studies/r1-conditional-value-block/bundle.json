@@ -1,0 +1,112 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-conditional-value-block",
+  "title": "Conditional stage values at the Last Light restaurant",
+  "r0Cases": ["R0-if-expression", "R0-explicit-function-return"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/allocation.w",
+    "symbol": "countEmergencyTokens",
+    "digest": "sha256:824e61ff88ecf9594dc825b5f0849691b387e427f5eb15c084fc4b68dd8ce965"
+  },
+  "variants": [
+    {
+      "id": "value-block",
+      "role": "selected",
+      "language": "w",
+      "path": "value-block.w",
+      "digest": "sha256:539e5faac054ed373acbe0f93d43c623c8678b6349a632c4dfeab35f8245a117",
+      "changedConstructs": ["if expression", "named value blocks", "explicit function return", "discard semicolon"]
+    },
+    {
+      "id": "branch-return",
+      "role": "alternative",
+      "language": "w",
+      "path": "branch-return.w",
+      "digest": "sha256:693d96bac1cd1f20c13c0f5517946db8780b37b4225edcbd981d643863b25a18",
+      "changedConstructs": ["statement if", "explicit branch returns", "ordinary function body"]
+    },
+    {
+      "id": "mutable-temporary",
+      "role": "alternative",
+      "language": "w",
+      "path": "mutable-temporary.w",
+      "digest": "sha256:1eaae63390381afe47e47f92dc58c6cd5920cd428dc9984d9737e5c7e634b5be",
+      "changedConstructs": ["mutable temporary e", "selected-branch trace", "value-block tail"]
+    },
+    {
+      "id": "implicit-function-tail",
+      "role": "alternative",
+      "language": "w",
+      "path": "implicit-function-tail.w",
+      "digest": "sha256:0c51decc56f13be763fbc9ce4b8794d2b9d97a341346449e5844a529a2a9e1c1",
+      "changedConstructs": ["parseable implicit tail", "ordinary function semantic rejection", "branch tail without return"]
+    }
+  ],
+  "entry": "nextStage",
+  "inputs": [
+    {
+      "id": "primary-true-branch",
+      "ready": true,
+      "expected": { "stage": "serving", "effects": [1], "otherBranchEffects": [] }
+    },
+    {
+      "id": "adversarial-false-branch",
+      "ready": false,
+      "expected": { "stage": "preparing", "effects": [2], "otherBranchEffects": [] }
+    },
+    {
+      "id": "negative-forms",
+      "ready": true,
+      "expected": {
+        "missingElse": "reject-non-unit",
+        "branchTypeMismatch": "reject-join",
+        "unitStatementWithoutElse": "accept-unit",
+        "implicitFunctionTail": "reject-non-unit",
+        "selectedEffects": { "true": [1], "false": [2] }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain the selected branch, the explicit function return, and the semicolon that discards an intermediate expression."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the value-block tail and the non-selected branch effect.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that gives a non-Unit conditional no else or mixes branch result types.",
+      "mutations": {
+        "value-block": "Remove the branch semicolon or change one branch tail to a mismatched type.",
+        "branch-return": "Delete one branch return and leave a non-Unit function fallthrough.",
+        "mutable-temporary": "Remove the selected-branch trace or reuse the mutable temporary after its block.",
+        "implicit-function-tail": "Add `return` to the ordinary function body and compare the changed contract."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a third stage while preserving one join type and effects from only the selected branch."
+    }
+  ],
+  "presentationOrders": [
+    ["value-block", "branch-return", "mutable-temporary", "implicit-function-tail"],
+    ["implicit-function-tail", "mutable-temporary", "branch-return", "value-block"],
+    ["branch-return", "value-block", "implicit-function-tail", "mutable-temporary"]
+  ],
+  "blinding": {
+    "participantLabels": { "value-block": "A", "branch-return": "B", "mutable-temporary": "C", "implicit-function-tail": "D" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:51752c30ba81524a16184d7653f1305e875dc0c42e2e4111d96c0a8b5889fc4f"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

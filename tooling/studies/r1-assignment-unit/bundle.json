@@ -1,0 +1,106 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-assignment-unit",
+  "title": "Unit assignment and place evaluation at the Last Light restaurant",
+  "r0Cases": ["R0-assignment-unit"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/restaurant.w",
+    "symbol": "advance",
+    "digest": "sha256:bf8efdb8c40b15ba294df8ac3e6aa999d1899e25603b7d0f92fe53a4000eba04"
+  },
+  "variants": [
+    {
+      "id": "separate-read",
+      "role": "selected",
+      "language": "w",
+      "path": "separate-read.w",
+      "digest": "sha256:d6de33903186e0e045a7f3cfd99ed9c8baf73bf3ca53eed57afbc237250f0ca0",
+      "changedConstructs": ["Unit assignment", "separate old-value read", "single-place compound update"]
+    },
+    {
+      "id": "temporary",
+      "role": "alternative",
+      "language": "w",
+      "path": "temporary.w",
+      "digest": "sha256:e59a9428e42e16c792c8ec102698ecaa51890ca4fc0fc8f851951eb67931de0e",
+      "changedConstructs": ["explicit RHS temporary", "separate old-value read", "named compound delta"]
+    },
+    {
+      "id": "value-producing",
+      "role": "alternative",
+      "language": "w",
+      "path": "value-producing.w",
+      "digest": "sha256:c6e80de036de647ac0524830638d3edc41257ee3c063df4482711603cc2e97ab",
+      "changedConstructs": ["parseable value-context assignment", "Unit-to-value semantic rejection", "chain-like return form"]
+    }
+  ],
+  "entry": "assignUnit",
+  "inputs": [
+    {
+      "id": "primary-success",
+      "old": 3,
+      "next": 8,
+      "expected": { "result": "Unit", "value": 8, "events": ["place", "rhs", "replace", "drop-old"] }
+    },
+    {
+      "id": "adversarial-rhs-failure",
+      "old": 8,
+      "next": "failure",
+      "expected": { "result": "error", "value": 8, "events": ["place", "rhs-failure"] }
+    },
+    {
+      "id": "move-only-and-compound",
+      "old": "owner-1",
+      "next": "owner-2",
+      "expected": { "oldOwnerDropped": 1, "ownerCopies": 0, "compoundPlaceReads": 1, "compoundPlaceWrites": 1 }
+    },
+    {
+      "id": "negative-value-context",
+      "old": 3,
+      "next": 8,
+      "expected": { "assignmentType": "Unit", "valueContext": "reject", "chain": "reject" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why assignment produces Unit and why the place and RHS are each evaluated once."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the success, failure, and move-only ownership order.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that drops the old value before RHS success or reads a compound place twice.",
+      "mutations": {
+        "separate-read": "Move the old-value drop before RHS evaluation and add a second place lookup.",
+        "temporary": "Use the temporary as a second assignment result and duplicate the move-only owner.",
+        "value-producing": "Keep `return place = rhs` in a non-Unit return context."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a checked replacement path while preserving the old value after RHS failure and rejecting chains."
+    }
+  ],
+  "presentationOrders": [
+    ["separate-read", "temporary", "value-producing"],
+    ["value-producing", "separate-read", "temporary"],
+    ["temporary", "value-producing", "separate-read"]
+  ],
+  "blinding": {
+    "participantLabels": { "separate-read": "A", "temporary": "B", "value-producing": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:37dc834d614b977e1d96ccf43dbe63b3a088dc730b2ee119d22791ec76caf30a"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
