@@ -1,14 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
-const designText = fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8");
+const rationaleText = fs.readFileSync(path.join(wDirectory, "RATIONALE.md"), "utf8");
 const corpus = JSON.parse(
   fs.readFileSync(path.join(toolingDirectory, "substitution-cases.json"), "utf8"),
 );
-const lines = designText.split(/\r?\n/);
+const lines = rationaleText.split(/\r?\n/);
 const errors = [];
 const requiredMeasures = [
   "semantic-correctness",
@@ -48,10 +49,10 @@ function checkSource(source, location) {
 }
 
 const reviewStart = lines.findIndex((line) => line === "O corpus compara, no mínimo:");
-const coverageStart = lines.findIndex((line) => line === "### 26.1 Cobertura de substituições");
+const coverageStart = lines.findIndex((line) => line === "### 1.1 Cobertura de substituições");
 
 if (reviewStart < 0 || coverageStart <= reviewStart) {
-  errors.push("DESIGN.md must contain the section 26 review list before section 26.1.");
+  errors.push("RATIONALE.md must contain the section 1 review list before section 1.1.");
 }
 
 const reviewItems = lines
@@ -97,7 +98,7 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
     const normalizedItem = normalizeReviewItem(testCase.reviewItem);
 
     if (!reviewItemSet.has(normalizedItem)) {
-      errors.push(`${location}.reviewItem does not match a section 26 review item.`);
+      errors.push(`${location}.reviewItem does not match a RATIONALE section 1 review item.`);
     }
 
     if (coveredItems.has(normalizedItem)) {
@@ -115,7 +116,7 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
     for (const decision of testCase.decisions) {
       if (!/^W-\d{3,}$/.test(decision)) {
         errors.push(`${location}.decisions contains invalid ID ${decision}.`);
-      } else if (!designText.includes(`| ${decision} |`)) {
+      } else if (!ledgerIdSet.has(decision)) {
         errors.push(`${location}.decisions references missing ledger entry ${decision}.`);
       } else if (localDecisions.has(decision)) {
         errors.push(`${location}.decisions repeats ${decision}.`);

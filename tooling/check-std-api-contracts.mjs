@@ -8,10 +8,12 @@ const rootDirectory = path.dirname(toolingDirectory);
 const catalogPath = path.join(toolingDirectory, "std-api-contracts.json");
 const snapshotPath = path.join(toolingDirectory, "std-api-surface.snapshot.json");
 const designPath = path.join(rootDirectory, "DESIGN.md");
+const rationalePath = path.join(rootDirectory, "RATIONALE.md");
 const write = process.argv.includes("--write");
 
 const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
 const design = fs.readFileSync(designPath, "utf8");
+const rationale = fs.readFileSync(rationalePath, "utf8");
 const errors = [];
 
 const allowedTiers = new Set(["T0", "T1", "T2"]);
@@ -228,7 +230,7 @@ function extractExtensions(source, owner) {
 
 function hasDesignAnchor(anchor) {
   const escaped = anchor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^#{3,4} ${escaped}(?:\\s|$)`, "m").test(design);
+  return new RegExp(`^#{2,4} ${escaped}(?:\\s|$)`, "m").test(`${design}\n${rationale}`);
 }
 
 function hasToken(source, token) {

@@ -6,17 +6,13 @@ import {
   runTabularCarrierProgram,
   validateTabularCarrierOperation,
 } from "./tabular-carrier-machine.mjs";
+import { ledgerIdSet as designDecisionIds } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
 const casesPath = path.join(toolingDirectory, "tabular-carrier-cases.json");
 const snapshotPath = path.join(toolingDirectory, "tabular-carrier-results.snapshot.jsonl");
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
-const designDecisionIds = new Set(
-  [...fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8").matchAll(/^\| (W-\d{3,}) \|/gm)].map(
-    (match) => match[1],
-  ),
-);
 const requiredDecisionIds = Array.from({ length: 14 }, (_, index) => `W-${988 + index}`);
 const requiredCaseIds = new Set([
   "TAB0-batch-publication-owned-columns",

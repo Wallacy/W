@@ -130,7 +130,7 @@
 
 (type_identifier) @type
 
-(type_parameter name: (type_identifier) @type.parameter)
+(generic_parameter name: (identifier) @variable.parameter)
 (associated_type_requirement name: (type_identifier) @type)
 (associated_const_requirement name: (identifier) @constant)
 (const_declaration name: (identifier) @constant)

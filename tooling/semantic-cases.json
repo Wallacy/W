@@ -1082,7 +1082,7 @@
         "  return stages == [.accepted, .reserving, .completed]",
         "}",
         "struct StagePath<",
-        "  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
+        "  _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
         "> {}",
         "type StandardPath = StagePath<[.accepted, .reserving, .completed]>"
       ],
@@ -1382,7 +1382,7 @@
       "kind": "positive",
       "rule": "W-757",
       "source": [
-        "struct Matrix<Element, const rows: usize, const columns: usize> {}",
+        "struct Matrix<Element, rows: usize, columns: usize> {}",
         "type KitchenBatch = Matrix<Dish, rows: 3, columns: 4>"
       ],
       "expect": {
@@ -1394,15 +1394,15 @@
           "ownerDelta": [],
           "effectSummary": { "signature": [], "control": [], "operational": [] },
           "proofFacts": [
-            { "kind": "const-slot", "subject": "columns", "value": "4" },
-            { "kind": "const-slot", "subject": "rows", "value": "3" }
+            { "kind": "value-slot", "subject": "columns", "value": "4" },
+            { "kind": "value-slot", "subject": "rows", "value": "3" }
           ],
           "evaluationGraph": {
             "nodes": [
               { "id": "head", "operation": "resolve-type", "subject": "Matrix" },
               { "id": "element", "operation": "bind-type-slot", "subject": "Dish" },
-              { "id": "rows", "operation": "bind-const-slot", "subject": "rows=3" },
-              { "id": "columns", "operation": "bind-const-slot", "subject": "columns=4" },
+              { "id": "rows", "operation": "bind-value-slot", "subject": "rows=3" },
+              { "id": "columns", "operation": "bind-value-slot", "subject": "columns=4" },
               { "id": "result", "operation": "apply-contract", "subject": "Matrix" }
             ],
             "edges": [
@@ -1417,11 +1417,56 @@
       }
     },
     {
+      "id": "S0-POS-generic-parameter-kinds",
+      "kind": "positive",
+      "rule": "W-1155",
+      "source": [
+        "struct Box<T> {}",
+        "protocol Encodable {}",
+        "struct Encoded<T: Encodable> {}",
+        "struct Matrix<Element, rows: usize, columns: usize> {}",
+        "struct StagePath<_ stages: StaticList<ServiceStage>> {}",
+        "type Kitchen = Matrix<Dish, rows: 3, columns: 4>"
+      ],
+      "expect": {
+        "focus": { "text": "Matrix<Dish, rows: 3, columns: 4>" },
+        "semanticResult": {
+          "resultType": "Matrix<Dish, rows: 3, columns: 4>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "type-parameter", "subject": "Box.T", "value": "type" },
+            { "kind": "type-parameter", "subject": "Encoded.T", "value": "type:Encodable" },
+            { "kind": "value-parameter", "subject": "Matrix.rows", "value": "value:usize" },
+            { "kind": "value-parameter", "subject": "StagePath.stages", "value": "value:StaticList<ServiceStage>" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "box", "operation": "classify-parameter", "subject": "Box.T:type" },
+              { "id": "encoded", "operation": "classify-parameter", "subject": "Encoded.T:type:Encodable" },
+              { "id": "matrix", "operation": "classify-parameter", "subject": "Matrix.rows:value:usize" },
+              { "id": "path", "operation": "classify-parameter", "subject": "StagePath.stages:value:StaticList<ServiceStage>" },
+              { "id": "result", "operation": "resolve-type", "subject": "Matrix<Dish, rows: 3, columns: 4>" }
+            ],
+            "edges": [
+              { "from": "box", "to": "encoded", "kind": "next" },
+              { "from": "encoded", "to": "matrix", "kind": "next" },
+              { "from": "matrix", "to": "path", "kind": "next" },
+              { "from": "path", "to": "result", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-contract-kind",
       "kind": "positive",
       "rule": "W-757",
       "source": [
-        "struct Buffer<const capacity: usize> {}",
+        "struct Buffer<capacity: usize> {}",
         "type MenuBuffer = Buffer<capacity: 64>"
       ],
       "expect": {
@@ -1432,11 +1477,11 @@
           "flow": { "kind": "next" },
           "ownerDelta": [],
           "effectSummary": { "signature": [], "control": [], "operational": [] },
-          "proofFacts": [{ "kind": "const-slot", "subject": "capacity", "value": "64" }],
+          "proofFacts": [{ "kind": "value-slot", "subject": "capacity", "value": "64" }],
           "evaluationGraph": {
             "nodes": [
               { "id": "head", "operation": "resolve-type", "subject": "Buffer" },
-              { "id": "capacity", "operation": "bind-const-slot", "subject": "capacity=64" },
+              { "id": "capacity", "operation": "bind-value-slot", "subject": "capacity=64" },
               { "id": "result", "operation": "apply-contract", "subject": "Buffer" }
             ],
             "edges": [
@@ -1484,7 +1529,7 @@
       "kind": "positive",
       "rule": "W-757",
       "source": [
-        "struct Tensor<Element, const rows: usize, const columns: usize> {}",
+        "struct Tensor<Element, rows: usize, columns: usize> {}",
         "type SensorTile = Tensor<Reading, rows: 2, columns: 8>"
       ],
       "expect": {
@@ -1496,15 +1541,15 @@
           "ownerDelta": [],
           "effectSummary": { "signature": [], "control": [], "operational": [] },
           "proofFacts": [
-            { "kind": "const-slot", "subject": "columns", "value": "8" },
-            { "kind": "const-slot", "subject": "rows", "value": "2" }
+            { "kind": "value-slot", "subject": "columns", "value": "8" },
+            { "kind": "value-slot", "subject": "rows", "value": "2" }
           ],
           "evaluationGraph": {
             "nodes": [
               { "id": "head", "operation": "resolve-type", "subject": "Tensor" },
               { "id": "element", "operation": "bind-type-slot", "subject": "Reading" },
-              { "id": "rows", "operation": "bind-const-slot", "subject": "rows=2" },
-              { "id": "columns", "operation": "bind-const-slot", "subject": "columns=8" },
+              { "id": "rows", "operation": "bind-value-slot", "subject": "rows=2" },
+              { "id": "columns", "operation": "bind-value-slot", "subject": "columns=8" },
               { "id": "result", "operation": "apply-contract", "subject": "Tensor" }
             ],
             "edges": [
@@ -2024,7 +2069,7 @@
         "  return stages == [.accepted, .reserving, .completed]",
         "}",
         "struct StagePath<",
-        "  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
+        "  _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,",
         "> {}",
         "type SkippedPath = StagePath<[.accepted, .completed]>"
       ],
@@ -2300,6 +2345,41 @@
               "instantiationPrefix": ["expand<u8>", "expand<Array<u8>>", "expand<Array<Array<u8>>>"],
               "reason": "strict-structural-growth",
               "transform": "T->Array<T>"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-generic-parameter-domain",
+      "kind": "negative",
+      "rule": "W-1155",
+      "baseline": "S0-POS-generic-parameter-kinds",
+      "failureField": "resultType",
+      "source": [
+        "struct Box<T> {}",
+        "protocol Encodable {}",
+        "struct Encoded<T: Encodable> {}",
+        "struct Matrix<Element, rows: usize, columns: usize> {}",
+        "struct StagePath<_ stages: StaticList<ServiceStage>> {}",
+        "struct Unknown<rows: UnknownName> {}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0001",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "UnknownName" },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "rows: UnknownName" } }
+            ],
+            "facts": {
+              "domain": "UnknownName",
+              "parameter": "rows",
+              "resolutionReason": "unresolved-domain"
             },
             "notes": [],
             "fixes": []
@@ -2663,7 +2743,7 @@
       "baseline": "S0-POS-contract-known-slot",
       "failureField": "resultType",
       "source": [
-        "struct Matrix<Element, const rows: usize, const columns: usize> {}",
+        "struct Matrix<Element, rows: usize, columns: usize> {}",
         "type KitchenBatch = Matrix<Dish, decks: 3, columns: 4>"
       ],
       "expect": {
@@ -2694,7 +2774,7 @@
       "baseline": "S0-POS-contract-kind",
       "failureField": "resultType",
       "source": [
-        "struct Buffer<const capacity: usize> {}",
+        "struct Buffer<capacity: usize> {}",
         "type MenuBuffer = Buffer<capacity: Dish>"
       ],
       "expect": {
@@ -2710,7 +2790,7 @@
             ],
             "facts": {
               "actualKind": "type",
-              "expectedKind": "const:usize",
+              "expectedKind": "value:usize",
               "head": "Buffer",
               "slot": "capacity"
             },
@@ -2757,7 +2837,7 @@
       "baseline": "S0-POS-contract-ordered-slots",
       "failureField": "evaluationGraph",
       "source": [
-        "struct Tensor<Element, const rows: usize, const columns: usize> {}",
+        "struct Tensor<Element, rows: usize, columns: usize> {}",
         "type SensorTile = Tensor<Reading, rows: 2, rows: 8>"
       ],
       "expect": {

@@ -14,27 +14,30 @@ Contribuições humanas, assistidas por IA e automatizadas são bem-vindas. W
 avalia o resultado, a evidência e a responsabilidade. A ferramenta usada não
 define a qualidade da contribuição.
 
-## Uma fonte de verdade
+## Fontes canônicas
 
 Leia estes artefatos nesta ordem:
 
 1. [DESIGN-INDEX.md](DESIGN-INDEX.md) — índice gerado com intervalos, métricas e
    pesquisas abertas; não define semântica;
-2. [DESIGN.md](DESIGN.md) — contrato integral de linguagem, runtime, SDK,
-   compilador, packages, distribuição, tooling, plano e alternativas;
-3. [Última Luz](reference/last-light/README.md) — produto de referência,
+2. [DESIGN.md](DESIGN.md) — autoridade normativa para contratos correntes,
+   estado, pesquisas que alteram o contrato e ordem de implementação;
+3. [RATIONALE.md](RATIONALE.md) — justificativas, evidência, alternativas e
+   proveniência; é complementar e não normativa;
+4. [Última Luz](reference/last-light/README.md) — produto de referência,
    oracles e fontes `.w`;
-4. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
+5. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
    specs, toolchain plans, ABIs, artifacts e gates;
-5. [Deployments](reference/last-light/deployments/README.md) — planos local e
+6. [Deployments](reference/last-light/deployments/README.md) — planos local e
    distribuído;
-6. [Rascunho da std](std/README.md) — contratos da standard library em W;
-7. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
+7. [Rascunho da std](std/README.md) — contratos da standard library em W;
+8. [Tooling](tooling/README.md) — Tree-sitter, TextMate e extensão local.
 
 O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
 acompanhar cada mudança antes do design freeze.
 
-`DESIGN.md` é a única autoridade para o estado atual. O Book e o produto de
+`DESIGN.md` é a autoridade normativa para o estado atual. `RATIONALE.md` explica
+por que o contrato existe, sem definir comportamento. O Book e o produto de
 referência mostram esse contrato, mas não criam regras próprias.
 
 Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
@@ -46,9 +49,11 @@ leitor sem escrita:
 ```powershell
 bun tooling/design-slice.mjs --heading 12.13
 bun tooling/design-slice.mjs --id W-711 --context 2
+bun tooling/design-slice.mjs --rationale-heading 1.1
 ```
 
-O leitor apenas recorta `DESIGN.md`; ele não cria uma segunda fonte de verdade.
+O leitor recorta `DESIGN.md` para contratos e `RATIONALE.md` para evidência e
+ledger; ele não cria uma segunda fonte de autoridade.
 
 Para validar somente documentação e índice:
 
@@ -65,7 +70,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 |---|---|
 | Visão e invariantes | **Direção** |
 | Forma integrada da linguagem | **Forma vigente** para avaliação |
-| Alternativas | preservadas por decisão em `DESIGN.md` |
+| Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |

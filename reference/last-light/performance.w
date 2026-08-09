@@ -19,7 +19,7 @@ export fn combineFlavor(
   return left + right
 }
 
-export fn flavorScore<const tables: usize>(
+export fn flavorScore<tables: usize>(
   samples: ref Tensor<FlavorSignal, shape: [tables, 64]>,
   weights: ref Tensor<FlavorSignal, shape: [64, 8]>,
 ): Tensor<Int, shape: [tables, 8]> {

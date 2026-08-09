@@ -100,7 +100,7 @@ export struct ManagedTensor {
   deinit { unsafe { stdDLPackDropUnconsumed(handle: inout handle) } }
 }
 
-export struct ImportedTensor<Element, const shape: StaticList<usize>> {
+export struct ImportedTensor<Element, shape: StaticList<usize>> {
   handle: ImportedTensorHandle
 
   init(validatedHandle: ImportedTensorHandle) {
@@ -128,7 +128,7 @@ export struct DynamicImportedTensor {
     self.handle = validatedHandle
   }
 
-  export take async fn bind<Element, const shape: StaticList<usize>>():
+  export take async fn bind<Element, shape: StaticList<usize>>():
     ImportedTensor<Element, shape> throws DLPackError {
     return ImportedTensor(validatedHandle: unsafe {
       try await stdDLPackBind(
@@ -144,7 +144,7 @@ export struct DynamicImportedTensor {
   }
 }
 
-export async fn open<Element, const shape: StaticList<usize>>(
+export async fn open<Element, shape: StaticList<usize>>(
   take managed: ManagedTensor,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
@@ -174,7 +174,7 @@ export async fn openDynamic(
   })
 }
 
-export async fn materialize<Element, const shape: StaticList<usize>>(
+export async fn materialize<Element, shape: StaticList<usize>>(
   take managed: ManagedTensor,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
@@ -192,7 +192,7 @@ export async fn materialize<Element, const shape: StaticList<usize>>(
   }
 }
 
-export async fn materialize<Element, const shape: StaticList<usize>>(
+export async fn materialize<Element, shape: StaticList<usize>>(
   take imported: ImportedTensor<Element, shape>,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
@@ -208,7 +208,7 @@ export async fn materialize<Element, const shape: StaticList<usize>>(
   }
 }
 
-export async fn export<Element, const shape: StaticList<usize>>(
+export async fn export<Element, shape: StaticList<usize>>(
   take value: Tensor<Element, shape>,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
@@ -228,7 +228,7 @@ foreign intrinsic from "std.dlpack@1" {
   type DynamicImportedTensorHandle
 
   fn stdDLPackDropUnconsumed(handle: inout ManagedTensorHandle)
-  async fn stdDLPackOpen<Element, const shape: StaticList<usize>>(
+  async fn stdDLPackOpen<Element, shape: StaticList<usize>>(
     managed: take ManagedTensorHandle,
     queue: ref tensor.Queue?,
     limits: ref Limits,
@@ -240,19 +240,19 @@ foreign intrinsic from "std.dlpack@1" {
     queue: ref tensor.Queue?,
     limits: ref Limits,
   ): DynamicImportedTensorHandle throws DLPackError
-  async fn stdDLPackBind<Element, const shape: StaticList<usize>>(
+  async fn stdDLPackBind<Element, shape: StaticList<usize>>(
     handle: take DynamicImportedTensorHandle,
     element: Element,
     shape: shape,
   ): ImportedTensorHandle throws DLPackError
-  async fn stdDLPackWithView<Element, const shape: StaticList<usize>, Output,
+  async fn stdDLPackWithView<Element, shape: StaticList<usize>, Output,
     OperationFailure: Error>(
     handle: inout ImportedTensorHandle,
     body: some mut async fn(view Tensor<Element, shape>): Output throws OperationFailure,
   ): Output throws ViewError<OperationFailure>
   async fn stdDLPackCloseImported(handle: take ImportedTensorHandle) throws DLPackError
   async fn stdDLPackCloseDynamic(handle: take DynamicImportedTensorHandle) throws DLPackError
-  async fn stdDLPackMaterializeManaged<Element, const shape: StaticList<usize>>(
+  async fn stdDLPackMaterializeManaged<Element, shape: StaticList<usize>>(
     managed: take ManagedTensorHandle,
     target: ref tensor.Device,
     queue: ref tensor.Queue?,
@@ -260,13 +260,13 @@ foreign intrinsic from "std.dlpack@1" {
     element: Element,
     shape: shape,
   ): Tensor<Element, shape> throws DLPackError
-  async fn stdDLPackMaterializeImported<Element, const shape: StaticList<usize>>(
+  async fn stdDLPackMaterializeImported<Element, shape: StaticList<usize>>(
     imported: take ImportedTensorHandle,
     target: ref tensor.Device,
     queue: ref tensor.Queue?,
     limits: ref Limits,
   ): Tensor<Element, shape> throws DLPackError
-  async fn stdDLPackExport<Element, const shape: StaticList<usize>>(
+  async fn stdDLPackExport<Element, shape: StaticList<usize>>(
     value: take Tensor<Element, shape>,
     queue: ref tensor.Queue?,
     limits: ref Limits,

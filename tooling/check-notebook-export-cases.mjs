@@ -6,14 +6,13 @@ import {
   notebookDigest,
   runNotebookExportFixtureProgram,
 } from "./notebook-export-machine.mjs";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(toolingDirectory, "..");
 const corpusPath = path.join(toolingDirectory, "notebook-export-cases.json");
 const snapshotPath = path.join(toolingDirectory, "notebook-export-results.snapshot.jsonl");
-const designPath = path.join(rootDirectory, "DESIGN.md");
 const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
-const design = fs.readFileSync(designPath, "utf8");
 const errors = [];
 const results = [];
 const covered = new Map();
@@ -52,7 +51,7 @@ if (corpus.status !== "design-oracle-input") errors.push("notebook export corpus
 if (corpus.machine !== "notebook-export-machine-pyn3") errors.push("notebook export machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
   if (!/^W-112[0-4]$/.test(decision)) errors.push(`unexpected notebook export decision ${decision}.`);
-  if (!design.includes(decision)) errors.push(`notebook export decision ${decision} is absent from DESIGN.md.`);
+  if (!ledgerIdSet.has(decision)) errors.push(`notebook export decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }
 for (const [index, reference] of (corpus.references ?? []).entries()) checkReference(reference, `references[${index}]`);

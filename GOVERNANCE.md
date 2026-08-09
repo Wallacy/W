@@ -12,7 +12,9 @@ operacional.
 2. O projeto avalia resultado e evidência, não a ferramenta usada.
 3. Uma pessoa identificável responde por cada contribuição aceita.
 4. Somente pessoas podem manter permissões, aprovar merges e assinar releases.
-5. `DESIGN.md` continua sendo a autoridade técnica da linguagem e do sistema.
+5. `DESIGN.md` continua sendo a autoridade normativa técnica da linguagem e do
+   sistema. `RATIONALE.md` é não normativa e guarda somente justificativas,
+   evidência, alternativas e proveniência.
 6. Decisões importantes registram motivo, alternativa e evidência ausente.
 7. Permissões seguem escopo, necessidade e menor privilégio.
 8. O projeto não cria um conselho ou quorum fictício antes de ter comunidade.
@@ -74,8 +76,10 @@ da decisão ou no histórico ligado.
 
 ## Autoridade técnica
 
-[`DESIGN.md`](DESIGN.md) possui a decisão técnica vigente. Pull requests e
-issues preservam discussão, mas não criam uma segunda especificação.
+[`DESIGN.md`](DESIGN.md) possui a decisão técnica normativa vigente.
+[`RATIONALE.md`](RATIONALE.md) preserva as justificativas, evidências,
+alternativas e o ledger sem definir comportamento. Pull requests e issues
+preservam discussão, mas não criam uma segunda especificação.
 
 Uma alteração de design deve:
 

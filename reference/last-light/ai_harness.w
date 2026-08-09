@@ -3,16 +3,16 @@
 import accelerator from std
 import { Tensor } from std.tensor
 
-export type FeatureBatch<const rows: usize, const columns: usize> =
+export type FeatureBatch<rows: usize, columns: usize> =
   Tensor<f32, shape: [rows, columns]>
 
-export type WeightMatrix<const inputs: usize, const outputs: usize> =
+export type WeightMatrix<inputs: usize, outputs: usize> =
   Tensor<f32, shape: [inputs, outputs]>
 
 export struct TrainingBatch<
-  const rows: usize<(1...)>,
-  const inputs: usize,
-  const outputs: usize,
+  rows: usize<(1...)>,
+  inputs: usize,
+  outputs: usize,
 > {
   features: FeatureBatch<rows: rows, columns: inputs>
   labels: FeatureBatch<rows: rows, columns: outputs>
@@ -23,9 +23,9 @@ export struct TrainingMetrics {
 }
 
 export fn forecastKernel<
-  const rows: usize,
-  const inputs: usize,
-  const outputs: usize,
+  rows: usize,
+  inputs: usize,
+  outputs: usize,
 >(
   features: ref FeatureBatch<rows: rows, columns: inputs>,
   weights: ref WeightMatrix<inputs: inputs, outputs: outputs>,
@@ -33,7 +33,7 @@ export fn forecastKernel<
   return features @ weights
 }
 
-export fn normalizeKernel<const rows: usize, const columns: usize>(
+export fn normalizeKernel<rows: usize, columns: usize>(
   values: inout FeatureBatch<rows: rows, columns: columns>,
 ) {
   let totals = values.sum(axis: 1, mode: .reproducible)
@@ -41,9 +41,9 @@ export fn normalizeKernel<const rows: usize, const columns: usize>(
 }
 
 export fn trainLinearKernel<
-  const rows: usize<(1...)>,
-  const inputs: usize,
-  const outputs: usize,
+  rows: usize<(1...)>,
+  inputs: usize,
+  outputs: usize,
 >(
   weights: inout WeightMatrix<inputs: inputs, outputs: outputs>,
   batch: ref TrainingBatch<rows: rows, inputs: inputs, outputs: outputs>,

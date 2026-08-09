@@ -23,20 +23,22 @@ Do not retain compatibility code without an exit condition.
 3. `GOVERNANCE.md` and `MAINTAINERS.md` define authority and maintenance.
 4. `DESIGN-INDEX.md` is the generated navigation and metrics projection.
    It never defines semantics.
-5. `DESIGN.md` is the only source of truth for current language and system
-   design, decisions, alternatives, status, and implementation order.
-6. `reference/last-light/` is the official reference product and executable
+5. `DESIGN.md` is the normative authority for current contracts, state, open
+   research that changes the contract, and implementation order.
+6. `RATIONALE.md` is complementary and nonnormative. It stores why, evidence,
+   alternatives, and provenance without defining W behavior.
+7. `reference/last-light/` is the official reference product and executable
    specification target. It does not override `DESIGN.md`.
-7. `portal/` and `tooling/` project the current design for people and
+8. `portal/` and `tooling/` project the current design for people and
    editors. They do not define semantics.
-8. `history/` owns provenance. `history/archive/db1-2026-07-27/` contains the
+9. `history/` owns obsolete provenance. `history/archive/db1-2026-07-27/` contains the
    replaced 2026-07-27 consolidation and corpus. Do not treat archived files as
    current.
 
 Use exactly these labels: **Direção**, **Forma vigente**, **Alternativa**,
 **Pesquisa**, and **Rejeitado por enquanto**. A historical idea is not a
-  decision. If current artifacts conflict, fix `DESIGN.md` first, then update
-its projections.
+decision. If current artifacts conflict, fix `DESIGN.md` first, then update
+`RATIONALE.md` and its projections.
 
 ## Read and write economically
 
@@ -49,8 +51,8 @@ its projections.
   authority.
 - Read archived material only for a provenance question or a suspected omitted
   alternative.
-- One concept has one canonical home. Link to `DESIGN.md` instead of copying
-  its explanation into another document.
+- One concept has one canonical home. Link to `DESIGN.md` for behavior and to
+  `RATIONALE.md` for evidence instead of copying either explanation.
 - Do not read `tooling/tree-sitter-w/src/` during language work. It is
   generated. Inspect it only for a parser-generation or distribution problem.
 - Search the file table in `reference/last-light/README.md`. Open only the
@@ -66,7 +68,8 @@ its projections.
 
 A design change is done only when:
 
-- its state and alternatives are explicit in `DESIGN.md`;
+- its state and chosen form are explicit in `DESIGN.md`;
+- its rationale and ledger links are current in `RATIONALE.md`;
 - the reference product and grammar agree with the selected form;
 - local links resolve;
 - `bun tooling/design-index.mjs --check` passes;

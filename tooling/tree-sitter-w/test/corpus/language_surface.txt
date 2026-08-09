@@ -11,7 +11,7 @@ export unit clap: Applause
 export unit ovation = 1_000<clap>
 
 export type Ratio = f64<(0.0...1.0)>
-export type Buffer<const count: usize> = [u8; count]
+export type Buffer<count: usize> = [u8; count]
 export type SmallBytes = Array<u8><(.count <= 64)>
 
 fn inspectStaticPayloads() {
@@ -69,8 +69,8 @@ fn inspectStaticPayloads() {
   (type_declaration
     (declaration_prefix)
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -359,7 +359,7 @@ entry LastLight(run)
 W tensors and switch expressions
 ==================
 
-fn classify<const batch: usize>(
+fn classify<batch: usize>(
   input: ref Tensor<f32, shape: [batch, 8]>,
   weights: ref Tensor<f32, shape: [8, 4]>,
 ): Tensor<f32, shape: [batch, 4]> {
@@ -376,8 +376,8 @@ fn classify<const batch: usize>(
 (source_file
   (function_declaration
     (identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -490,9 +490,9 @@ behavior Versioned<Value> for Value {
 (source_file
   (behavior_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
     (type
       (type_name
         (type_identifier)))
@@ -662,7 +662,7 @@ enum Stage {
   serve
 }
 
-struct StagePlan<const _ stages: StaticList<Stage>> {
+struct StagePlan<_ stages: StaticList<Stage>> {
   id: usize
 }
 
@@ -711,8 +711,8 @@ fn counter(initial: usize): some mut fn(): usize {
         (identifier))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name

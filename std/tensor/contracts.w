@@ -99,7 +99,7 @@ export struct Limits: Copy & Equatable {
 // Tensor is a core W head. This module does not redefine its storage or make
 // every Tensor depend on the provider. These adapters keep device operations
 // explicit at the std boundary while the core owns Tensor<Element, shape>.
-export async fn deviceOf<Element, const shape: StaticList<usize>>(
+export async fn deviceOf<Element, shape: StaticList<usize>>(
   source: ref Tensor<Element, shape>,
 ): Device throws TensorError {
   return Device(validatedHandle: unsafe {
@@ -107,7 +107,7 @@ export async fn deviceOf<Element, const shape: StaticList<usize>>(
   })
 }
 
-export async fn transfer<Element, const shape: StaticList<usize>>(
+export async fn transfer<Element, shape: StaticList<usize>>(
   take source: Tensor<Element, shape>,
   target: ref Device,
   on queue: ref Queue?,
@@ -133,10 +133,10 @@ foreign intrinsic from "std.tensor@1" {
     right: ref DeviceHandle,
   ): Bool
   fn stdTensorQueueDevice(handle: ref QueueHandle): DeviceHandle
-  async fn stdTensorDevice<Element, const shape: StaticList<usize>>(
+  async fn stdTensorDevice<Element, shape: StaticList<usize>>(
     source: ref Tensor<Element, shape>,
   ): DeviceHandle throws TensorError
-  async fn stdTensorTransfer<Element, const shape: StaticList<usize>>(
+  async fn stdTensorTransfer<Element, shape: StaticList<usize>>(
     source: take Tensor<Element, shape>,
     target: ref Device,
     queue: ref Queue?,

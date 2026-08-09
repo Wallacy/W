@@ -10,7 +10,7 @@ export struct TextBounds {
   max: usize
 }
 
-export type BoundedText<const _ bounds: TextBounds> =
+export type BoundedText<_ bounds: TextBounds> =
   String<(.scalars.count in bounds.min...bounds.max)>
 export type GuestName = BoundedText<{min: 1, max: 120}>
 export type DishLabel = BoundedText<{min: 1, max: 80}>
@@ -102,7 +102,7 @@ export fn classifyParty(
 }
 
 export struct StagePath<
-  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+  _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
 > {
   orderId: OrderId
 }

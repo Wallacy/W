@@ -27,13 +27,13 @@ export enum HorizonStatus {
   evacuation(score: f32)
 }
 
-export struct HorizonWindow<const samples: usize> {
+export struct HorizonWindow<samples: usize> {
   features: Tensor<f32, shape: [samples, 6]>
   firstSequence: EventSequence
   lastSequence: EventSequence
 }
 
-export struct HorizonForecast<const samples: usize> {
+export struct HorizonForecast<samples: usize> {
   status: HorizonStatus
   normalized: Tensor<f32, shape: [samples, 6]>
   anomalyBySample: Tensor<f32, shape: [samples]>
@@ -51,7 +51,7 @@ export protocol HorizonMonitorApi {
   async fn status(after sequence: EventSequence): HorizonStatus throws HorizonError
 }
 
-fn validate<const samples: usize>(
+fn validate<samples: usize>(
   window: ref HorizonWindow<samples>,
 ): () throws HorizonError {
   guard samples > 0 else throw .emptyWindow
@@ -61,7 +61,7 @@ fn validate<const samples: usize>(
   }
 }
 
-export fn forecast<const samples: usize>(
+export fn forecast<samples: usize>(
   window: ref HorizonWindow<samples>,
   calibration: ref Tensor<f32, shape: [6, 6]>,
 ): HorizonForecast<samples> throws HorizonError {

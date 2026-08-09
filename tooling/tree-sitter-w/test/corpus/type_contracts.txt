@@ -28,13 +28,13 @@ type SensorCallback = unsafe fn<abi: .c>(c.ptr<void>, c.int): ()
 
 struct Matrix<
   Element,
-  const rows: usize<(1...4_096)>,
-  const columns: usize<(1...4_096)>,
+  rows: usize<(1...4_096)>,
+  columns: usize<(1...4_096)>,
 > {
   values: [Element; rows * columns]
 }
 
-struct CoursePath<const _ stages: StaticList<ServiceStage>> {}
+struct CoursePath<_ stages: StaticList<ServiceStage>> {}
 
 fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
   let enabled = select<true>()
@@ -257,10 +257,10 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
           (tuple_type)))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier))
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
+        (identifier))
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -271,7 +271,7 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
                 (bounded_range_expression
                   (number_literal)
                   (number_literal)))))))
-      (type_parameter
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -295,8 +295,8 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
               (identifier)))))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name

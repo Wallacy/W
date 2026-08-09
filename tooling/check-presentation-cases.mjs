@@ -6,14 +6,13 @@ import {
   presentationDigest,
   runPresentationProgram,
 } from "./presentation-machine.mjs";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(toolingDirectory, "..");
 const corpusPath = path.join(toolingDirectory, "presentation-cases.json");
 const snapshotPath = path.join(toolingDirectory, "presentation-results.snapshot.jsonl");
-const designPath = path.join(rootDirectory, "DESIGN.md");
 const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
-const design = fs.readFileSync(designPath, "utf8");
 const errors = [];
 const results = [];
 const covered = new Map();
@@ -67,7 +66,7 @@ if (corpus.status !== "design-oracle-input") error("presentation corpus must be 
 if (corpus.machine !== "presentation-machine-pyn3") error("presentation corpus machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
   if (!/^W-11(?:0[7-9]|1[0-1]|23)$/.test(decision)) error(`unexpected presentation decision ${decision}.`);
-  if (!design.includes(decision)) error(`presentation decision ${decision} is absent from DESIGN.md.`);
+  if (!ledgerIdSet.has(decision)) error(`presentation decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }
 for (const [index, reference] of (corpus.references ?? []).entries()) checkReference(reference, `references[${index}]`);

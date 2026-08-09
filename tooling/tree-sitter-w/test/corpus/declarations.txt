@@ -93,11 +93,11 @@ export {
             name: (type_identifier))))))
   (enum_declaration
     name: (type_identifier)
-    (type_parameters
-      (type_parameter
-        name: (type_identifier))
-      (type_parameter
-        name: (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        name: (identifier))
+      (generic_parameter
+        name: (identifier)))
     (enum_body
       (enum_case
         name: (identifier)

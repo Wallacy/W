@@ -48,13 +48,16 @@ rejeitada pode exigir evidência nova, não uma nova descrição da mesma ideia.
 
 Use esta ordem:
 
-1. `DESIGN.md` define o design vigente, os estados e as alternativas.
-2. `DESIGN-INDEX.md` localiza seções. Ele é gerado e não define semântica.
-3. `reference/last-light/` demonstra o design e fornece oracles.
-4. `tooling/tree-sitter-w/grammar.js` e o corpus projetam a syntax vigente.
-5. `std/` projeta os contratos atuais da standard library.
-6. `portal/` é um protótipo visual congelado.
-7. `history/` preserva provenance. Ele não decide o W atual.
+1. `DESIGN.md` define os contratos normativos, o estado, pesquisas que mudam o
+   contrato e a ordem de implementação.
+2. `RATIONALE.md` guarda justificativas, evidência, alternativas e provenance;
+   é complementar e não normativa.
+3. `DESIGN-INDEX.md` localiza seções. Ele é gerado e não define semântica.
+4. `reference/last-light/` demonstra o design e fornece oracles.
+5. `tooling/tree-sitter-w/grammar.js` e o corpus projetam a syntax vigente.
+6. `std/` projeta os contratos atuais da standard library.
+7. `portal/` é um protótipo visual congelado.
+8. `history/` preserva provenance obsoleta. Ele não decide o W atual.
 
 Se dois artefatos divergem, corrija primeiro a fonte de maior autoridade.
 Depois atualize as projeções afetadas.
@@ -74,7 +77,8 @@ Uma proposta deve informar:
 Use os estados **Direção**, **Forma vigente**, **Alternativa**, **Pesquisa** e
 **Rejeitado por enquanto**. Não crie sinônimos para esses estados.
 
-Uma mudança de linguagem deve atualizar o ID W aplicável. Ela também deve
+Uma mudança de linguagem deve atualizar o ID W aplicável no ledger de
+`RATIONALE.md`. Ela também deve
 mostrar um exemplo real. Quando a forma for estrutural, atualize grammar,
 corpus e produto de referência na mesma mudança ou explique a ordem planejada.
 
@@ -144,7 +148,7 @@ Para grammar, corpus, std, tooling ou qualquer source `.w`:
 bun run check
 ```
 
-Para atualizar o índice depois de alterar `DESIGN.md`:
+Para atualizar o índice depois de alterar `DESIGN.md` ou `RATIONALE.md`:
 
 ```powershell
 bun run design:index

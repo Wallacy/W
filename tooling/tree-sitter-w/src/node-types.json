@@ -219,7 +219,7 @@
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "generic_parameters",
           "named": true
         }
       ]
@@ -1116,7 +1116,7 @@
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "generic_parameters",
           "named": true
         }
       ]
@@ -3950,7 +3950,7 @@
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "generic_parameters",
           "named": true
         }
       ]
@@ -4239,11 +4239,11 @@
           "named": true
         },
         {
-          "type": "type_body",
+          "type": "generic_parameters",
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "type_body",
           "named": true
         }
       ]
@@ -5023,11 +5023,11 @@
           "named": true
         },
         {
-          "type": "language_tag",
+          "type": "generic_parameters",
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "language_tag",
           "named": true
         }
       ]
@@ -5187,6 +5187,57 @@
       "types": [
         {
           "type": "type_argument",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "generic_parameter",
+    "named": true,
+    "fields": {
+      "domain": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "primary_marker": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_",
+            "named": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "generic_parameters",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "generic_parameter",
           "named": true
         }
       ]
@@ -7347,11 +7398,11 @@
           "named": true
         },
         {
-          "type": "type_body",
+          "type": "generic_parameters",
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "type_body",
           "named": true
         }
       ]
@@ -10232,11 +10283,11 @@
           "named": true
         },
         {
-          "type": "type_body",
+          "type": "generic_parameters",
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "type_body",
           "named": true
         }
       ]
@@ -11593,7 +11644,7 @@
           "named": true
         },
         {
-          "type": "type_parameters",
+          "type": "generic_parameters",
           "named": true
         }
       ]
@@ -11623,71 +11674,6 @@
           }
         ]
       }
-    }
-  },
-  {
-    "type": "type_parameter",
-    "named": true,
-    "fields": {
-      "constraint": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type",
-            "named": true
-          }
-        ]
-      },
-      "external_label": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "_",
-            "named": false
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          },
-          {
-            "type": "type_identifier",
-            "named": true
-          }
-        ]
-      },
-      "value_type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "type_parameters",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "type_parameter",
-          "named": true
-        }
-      ]
     }
   },
   {

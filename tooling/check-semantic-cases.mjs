@@ -2,6 +2,7 @@ import { createHash } from "node:crypto"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { resolve } from "node:path"
+import { ledgerIdSet } from "./design-ledger.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const design = await Bun.file(resolve(root, "DESIGN.md")).text()
@@ -349,7 +350,9 @@ for (const sourceEntry of catalog.codes) {
     }
     entry = { ...profile, ...sourceEntry }
   }
-  if (!/^W-[A-Z]+-[0-9]{4}$/.test(entry.code) || !design.includes(entry.code)) {
+  const familyWildcard = entry.code.replace(/[0-9]{4}$/, "*")
+  const codeIsDocumented = design.includes(entry.code) || design.includes(familyWildcard)
+  if (!/^W-[A-Z]+-[0-9]{4}$/.test(entry.code) || !codeIsDocumented) {
     fail(`catalog contains unknown code ${JSON.stringify(entry.code)}`)
   }
   if (catalogByCode.has(entry.code)) {
@@ -397,7 +400,7 @@ const diagnosticTablePatterns = [
   /\| `W-PARSE-0020`[\s\S]*?\| `W-OWNERSHIP-0011`[^\n]*\|/,
   /#### 3\.6\.8 Diagnostics e evidence[\s\S]*?\| `W-CONST-0001`[\s\S]*?\| `W-CONST-0007`[^\n]*\|/,
   /\| `W-TYPE-0121`[^\n]*\|/,
-  /#### 8\.7\.10 Diagnostics e evidence[\s\S]*?\| `W-GENERIC-0002`[\s\S]*?\| `W-GENERIC-0005`[^\n]*\|/,
+  /#### 8\.7\.10 Diagnostics e evidence[\s\S]*?\| `W-GENERIC-0001`[\s\S]*?\| `W-GENERIC-0005`[^\n]*\|/,
   /\| `W-TYPE-0122`[^\n]*\|/,
   /##### Diagnostics e evidence[\s\S]*?\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
 ]
@@ -434,7 +437,7 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   if (testCase.kind !== "positive" && testCase.kind !== "negative") {
     fail(`${testCase.id} has invalid kind`)
   }
-  if (!/^W-[0-9]{3,}$/.test(testCase.rule) || !design.includes(`| ${testCase.rule} |`)) {
+  if (!/^W-[0-9]{3,}$/.test(testCase.rule) || !ledgerIdSet.has(testCase.rule)) {
     fail(`${testCase.id} references an unknown decision`)
   }
   if (!Array.isArray(testCase.source) || testCase.source.length === 0) {

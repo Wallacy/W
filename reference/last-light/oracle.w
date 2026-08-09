@@ -12,7 +12,7 @@ export enum OracleError: Error {
   missingRecipe(Course)
 }
 
-export struct Forecast<const tables: usize, const courses: usize> {
+export struct Forecast<tables: usize, courses: usize> {
   demand: Tensor<f32, shape: [tables, courses]>
   confidence: Tensor<Probability, shape: [tables, courses]>
 }
@@ -40,7 +40,7 @@ export fn planningRequest(order: ref Order): PlanningRequest {
   )
 }
 
-fn normalized<const rows: usize, const columns: usize>(
+fn normalized<rows: usize, columns: usize>(
   values: ref Tensor<f32, shape: [rows, columns]>,
 ): Tensor<f32, shape: [rows, columns]> throws OracleError {
   let totals = values.sum(axis: 1, mode: .reproducible)
@@ -51,7 +51,7 @@ fn normalized<const rows: usize, const columns: usize>(
   return values / totals.broadcast(to: [rows, columns])
 }
 
-export fn forecast<const tables: usize, const features: usize, const courses: usize>(
+export fn forecast<tables: usize, features: usize, courses: usize>(
   observations: ref Tensor<f32, shape: [tables, features]>,
   weights: ref Tensor<f32, shape: [features, courses]>,
 ): Forecast<tables: tables, courses: courses> throws OracleError {

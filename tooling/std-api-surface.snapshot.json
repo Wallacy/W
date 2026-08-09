@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "0b858bcf9ad4cf6b22d7e18b205395c9802c1643c570c169c417f1eec488a916",
+  "catalogDigest": "525c33fc1a33c62fe00a42778a1ac8e9302728d6effe2ea5d19ada72c55e1862",
   "summary": {
     "modules": 21,
     "catalogedApis": 315,
@@ -1455,7 +1455,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "9c8dbffc001cca0c8fb8ef83a70870117615e14694cfc0926330c5dd335152c6",
+      "catalogedDeclarationsDigest": "43598c7012ee898109709ce559fd7dfcf32e7acdc2674669897fecd43a90909c",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1470,7 +1470,7 @@
           "symbol": "DynamicImportedTensor",
           "kind": "struct",
           "signature": "export struct DynamicImportedTensor",
-          "declarationDigest": "0e9870c40310ddf155d611481a3857f0db5c6c283e6375b95bcf9702381a8049",
+          "declarationDigest": "87e57a3d98c0e6f84a570511617233a58529326e74e211936c9c8e880d56b7a3",
           "line": 124,
           "profile": "dlpack-import",
           "members": [
@@ -1478,7 +1478,7 @@
               "symbol": "bind",
               "overloads": [
                 {
-                  "signature": "export take async fn bind<Element, const shape: StaticList<usize>>(): ImportedTensor<Element, shape> throws DLPackError",
+                  "signature": "export take async fn bind<Element, shape: StaticList<usize>>(): ImportedTensor<Element, shape> throws DLPackError",
                   "line": 131
                 }
               ],
@@ -1500,8 +1500,8 @@
         {
           "symbol": "export",
           "kind": "fn",
-          "signature": "export async fn export<Element, const shape: StaticList<usize>>( take value: Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
-          "declarationDigest": "90ab92c564fd8b1decc497d5d8eb2e3f9fa7063ea791308e849a6f422790a336",
+          "signature": "export async fn export<Element, shape: StaticList<usize>>( take value: Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
+          "declarationDigest": "4d0f5e22cdc67a69ca3977886f327792574e02c3ccac7c59864418d30c1e4cb0",
           "line": 211,
           "profile": "dlpack-export",
           "status": "draft"
@@ -1518,8 +1518,8 @@
         {
           "symbol": "ImportedTensor",
           "kind": "struct",
-          "signature": "export struct ImportedTensor<Element, const shape: StaticList<usize>>",
-          "declarationDigest": "8f6989f2607355867775351d70430fb3244dc779fb69ac24f0fe290ff7cd351d",
+          "signature": "export struct ImportedTensor<Element, shape: StaticList<usize>>",
+          "declarationDigest": "5fd09549e61139cd377d44a6b5bc9ed36a035b96e97e6e33ae04a53c065db0a1",
           "line": 103,
           "profile": "dlpack-import",
           "members": [
@@ -1579,8 +1579,8 @@
         {
           "symbol": "materialize",
           "kind": "fn",
-          "signature": "export async fn materialize<Element, const shape: StaticList<usize>>( take imported: ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
-          "declarationDigest": "acdea87dcc159b402270cbd37504068a6468205790cb35cc4c14adf8b4a85c32",
+          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( take imported: ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
+          "declarationDigest": "f964fe0275795c8f279f6fb5fac697109fdd3547de8763bf6e6c86ea4bd7872d",
           "line": 195,
           "profile": "dlpack-materialize",
           "status": "draft"
@@ -1588,8 +1588,8 @@
         {
           "symbol": "open",
           "kind": "fn",
-          "signature": "export async fn open<Element, const shape: StaticList<usize>>( take managed: ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
-          "declarationDigest": "71162c38ad15e8c993cb4cf248ed4fc56b1292456e23e7751c9570b2fc26eb98",
+          "signature": "export async fn open<Element, shape: StaticList<usize>>( take managed: ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
+          "declarationDigest": "f721c17b9dc8f9dd8e27d3ba46c310a21882da9b8fef8899f6dce29b474e9bc5",
           "line": 147,
           "profile": "dlpack-import",
           "status": "draft"
@@ -5758,7 +5758,7 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "4835baca0d094ca6eb224a938230473210b81eae4518423eb2e599aa086db042",
+      "catalogedDeclarationsDigest": "da03d29858b28827dcb97d094a4770e5a6860439c3131b9597492e3be0d2d935",
       "apis": [
         {
           "symbol": "Device",
@@ -5812,8 +5812,8 @@
         {
           "symbol": "deviceOf",
           "kind": "fn",
-          "signature": "export async fn deviceOf<Element, const shape: StaticList<usize>>( source: ref Tensor<Element, shape>, ): Device throws TensorError",
-          "declarationDigest": "1a154672d755cb11d009591b732d5f97c9dcb701a6bcc25ea330782afbdb04a6",
+          "signature": "export async fn deviceOf<Element, shape: StaticList<usize>>( source: ref Tensor<Element, shape>, ): Device throws TensorError",
+          "declarationDigest": "3270c79b620b57073748275a98886df95f2c488130c0e1cdba1cc1338bd518d6",
           "line": 102,
           "profile": "tensor-carrier",
           "status": "draft"
@@ -5881,8 +5881,8 @@
         {
           "symbol": "transfer",
           "kind": "fn",
-          "signature": "export async fn transfer<Element, const shape: StaticList<usize>>( take source: Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
-          "declarationDigest": "17ab864834d0181c8e76d6fce8999426f5fbb2885accb489871558ac79336f8c",
+          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( take source: Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
+          "declarationDigest": "8f0bce032a42ad95565cd6140793cfd87dd2e9734a5bafb1731a0288d4c3c6bc",
           "line": 110,
           "profile": "tensor-carrier",
           "status": "draft"

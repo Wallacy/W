@@ -318,7 +318,7 @@ module.exports = grammar({
         "fn",
         optional(choice($.language_tag, $.abi_contract)),
         field("name", $.identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         field("parameters", $.parameter_list),
         optional(seq(":", field("return_type", $.type))),
         optional(seq("throws", field("error_type", $.type))),
@@ -368,20 +368,19 @@ module.exports = grammar({
       ),
     rest_marker: (_) => "...",
 
-    type_parameters: ($) =>
-      seq(token.immediate("<"), commaSep1($.type_parameter), optional(","), ">"),
-    type_parameter: ($) =>
+    generic_parameters: ($) =>
+      seq(token.immediate("<"), commaSep1($.generic_parameter), optional(","), ">"),
+    generic_parameter: ($) =>
       choice(
         seq(
-          "const",
-          optional(field("external_label", "_")),
+          field("primary_marker", "_"),
           field("name", $.identifier),
           ":",
-          field("value_type", $.type),
+          field("domain", $.type),
         ),
         seq(
-          field("name", $._type_identifier),
-          optional(seq(":", field("constraint", $.type))),
+          field("name", $.identifier),
+          optional(seq(":", field("domain", $.type))),
         ),
       ),
 
@@ -390,7 +389,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "struct",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         optional($.conformance_clause),
         $.type_body,
       ),
@@ -399,7 +398,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "object",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         optional($.conformance_clause),
         $.type_body,
       ),
@@ -427,7 +426,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "enum",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         optional(seq(":", field("conformance", $.type))),
         $.enum_body,
       ),
@@ -592,7 +591,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "type",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         "=",
         field("value", $.type),
         optional(";"),
@@ -603,7 +602,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "alias",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         "=",
         field("value", $.type),
         optional(";"),
@@ -632,7 +631,7 @@ module.exports = grammar({
     extension_declaration: ($) =>
       seq(
         "extension",
-        optional($.type_parameters),
+        optional($.generic_parameters),
         field("extended_type", $.type),
         optional($.conformance_clause),
         $.type_body,
@@ -643,7 +642,7 @@ module.exports = grammar({
         optional($.declaration_prefix),
         "behavior",
         field("name", $._type_identifier),
-        optional($.type_parameters),
+        optional($.generic_parameters),
         "for",
         field("logical_type", $.type),
         $.behavior_body,

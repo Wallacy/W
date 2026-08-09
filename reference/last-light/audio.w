@@ -7,7 +7,7 @@ export const audioFrames = 256_usize
 export const audioChannels = 2_usize
 export const audioSampleRate = 48_000_u32
 
-export struct AudioBlock<const frames: usize, const channels: usize> {
+export struct AudioBlock<frames: usize, channels: usize> {
   var samples: [f32; frames * channels]
 
   mut fn clear(): self {

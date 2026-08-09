@@ -5,14 +5,13 @@ import {
   runReplSessionProgram,
   validateReplSessionOperation,
 } from "./repl-session-machine.mjs";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(toolingDirectory, "..");
 const corpusPath = path.join(toolingDirectory, "repl-session-cases.json");
 const snapshotPath = path.join(toolingDirectory, "repl-session-results.snapshot.jsonl");
-const designPath = path.join(rootDirectory, "DESIGN.md");
 const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
-const designText = fs.readFileSync(designPath, "utf8");
 const errors = [];
 const caseIds = new Set();
 const results = [];
@@ -233,7 +232,7 @@ if (corpus.machine !== "repl-session-machine-pyn2") errors.push("PYN2 machine na
 if (!Array.isArray(corpus.decisions) || corpus.decisions.length === 0) errors.push("PYN2 corpus must declare ledger IDs");
 for (const decision of corpus.decisions ?? []) {
   const number = Number(String(decision).slice(2));
-  if (!(number === 974 || (number >= 1076 && number <= 1106)) || !designText.includes(`| ${decision} |`)) errors.push(`unknown PYN2 ledger decision ${decision}`);
+  if (!(number === 974 || (number >= 1076 && number <= 1106)) || !ledgerIdSet.has(decision)) errors.push(`unknown PYN2 ledger decision ${decision}`);
 }
 if (!Array.isArray(corpus.references) || corpus.references.length === 0) errors.push("PYN2 corpus references are required");
 for (const [index, reference] of (corpus.references ?? []).entries()) resolveReference(reference, `references[${index}]`);

@@ -51,8 +51,8 @@ somente os slices necessários. Ele verifica `git status --short` antes do
 spawn.
 
 Um bundle fecha uma decisão que pode ser revisada e revertida como unidade. Ele
-pode incluir `DESIGN.md`, contratos dependentes, Última Luz, grammar, tooling,
-projeções e checks. Não divida o bundle por arquivo.
+pode incluir `DESIGN.md`, `RATIONALE.md`, contratos dependentes, Última Luz,
+grammar, tooling, projeções e checks. Não divida o bundle por arquivo.
 
 Sol decide a forma recomendada, as alternativas preservadas, os invariantes,
 os contratos vizinhos, as condições de rejeição e a aceitação. Depois, ele
@@ -151,10 +151,12 @@ Sol responde por decisões amplas. Cada decisão contém:
 - performance, segurança e capacidade de teste;
 - condições que invalidam a recomendação.
 
-Luna aplica a decisão em `DESIGN.md`. Depois, ele atualiza Última Luz, grammar,
-tooling e projeções quando necessário. Uma aplicação coerente não ratifica uma
-decisão incompleta. O estado e a evidência devem estar explícitos em
-`DESIGN.md` antes do commit.
+Luna aplica o contrato normativo em `DESIGN.md` e registra a justificativa e a
+evidência em `RATIONALE.md`. Depois, ele atualiza Última Luz, grammar, tooling e
+projeções quando necessário. Uma aplicação coerente não ratifica uma
+decisão incompleta. O contrato e o estado devem estar explícitos em
+`DESIGN.md`; justificativa e evidência devem estar em `RATIONALE.md` antes do
+commit.
 
 ## Leitura e saída econômicas
 
@@ -163,7 +165,8 @@ Use esta ordem:
 1. `DESIGN-INDEX.md` para localização.
 2. `tooling/design-slice.mjs` para seção ou W ID.
 3. `reference/last-light/README.md` para localizar source.
-4. `history/HISTORY.md` somente para proveniência.
+4. `RATIONALE.md` para evidência, alternativas e ledger.
+5. `history/HISTORY.md` somente para proveniência obsoleta.
 
 Não leia `DESIGN.md` integralmente sem pedido de revisão integral. Não leia
 `tooling/tree-sitter-w/src/` fora de uma falha de geração.

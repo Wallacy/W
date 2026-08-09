@@ -5,6 +5,7 @@ import {
   runExecutionProgram,
   validateExecutionOperation,
 } from "./execution-concurrency-machine.mjs";
+import { ledgerIdSet as designDecisionIds } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -14,10 +15,6 @@ const snapshotPath = path.join(
   "execution-concurrency-results.snapshot.jsonl",
 );
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
-const designDecisionIds = new Set(
-  [...fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8").matchAll(/^\| (W-\d{3,}) \|/gm)]
-    .map((match) => match[1]),
-);
 const errors = [];
 const caseIds = new Set();
 const results = [];

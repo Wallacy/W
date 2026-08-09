@@ -25,14 +25,16 @@ substitua modelo ou effort silenciosamente.
 
 ## Artefatos canônicos
 
-- `DESIGN.md` é a fonte única para contratos, decisões, alternativas, estado e
-  ordem de implementação.
+- `DESIGN.md` é a autoridade normativa para contratos correntes, estado,
+  pesquisas que mudam o contrato e ordem de implementação.
+- `RATIONALE.md` é complementar e não normativa: guarda justificativas,
+  evidência, alternativas e proveniência histórica.
 - `DESIGN-INDEX.md` é uma projeção gerada para navegação e leitura seletiva.
 - `reference/last-light/` é o produto de referência e o alvo da especificação
   executável.
 - `portal/` e `tooling/` são projeções e ferramentas. Não definem a semântica.
-- `history/` preserva proveniência, ideias antigas e material arquivado. Não
-  use o histórico como decisão corrente.
+- `history/` preserva proveniência obsoleta, ideias antigas e material
+  arquivado. Não use o histórico como decisão corrente.
 
 Não apresente uma proposta como comportamento implementado. Antes do W 1.0,
 não preserve compatibilidade por inércia. Depois do 1.0, toda compatibilidade
