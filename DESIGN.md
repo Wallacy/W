@@ -96,13 +96,17 @@ source, tipo, ABI ou comportamento runtime.
 Os ciclos restantes para o design freeze são:
 
 1. ratificar syntax, formatter e diagnostics com o corpus da seção 26;
-2. provar o kernel de memória, ownership, ABI e FFI em HIR pequena;
-3. provar tasks, services, transaction e wWire com fault injection;
-4. substituir P0 por metadata, resolver, rebuild e reprodução independentes e fechar `bootstrap.w0`;
+2. provar memória, ownership, ABI e FFI com modelos pequenos e independentes;
+3. provar tasks, services, transaction e wWire com modelos de fault injection;
+4. fechar schemas e oracles de metadata, resolver, rebuild, reprodução e
+   `bootstrap.w0`;
 5. limitar T0/T1/T2, revisar targets e fechar o contrato público.
 
 Pesquisas que possuem fallback não bloqueiam o freeze. Elas permanecem T2 ou
 experimentais. Uma pesquisa bloqueia somente quando pode alterar a baseline.
+Um oracle ou spike descartável pode produzir evidência de design. Formatter,
+checker, scheduler, runtime, provider e compiler de produção pertencem à seção
+27 e não são pré-requisitos do freeze documental.
 Mover W para outro repository também não muda este checkpoint.
 
 ### 0.1 Promessa
@@ -25760,6 +25764,12 @@ prova:
 4. self-host, packages, resolver, metadata e rebuild reproduzível;
 5. std T0/T1/T2, host profiles e matriz de targets.
 
+Antes do design freeze, essas provas usam contratos normalizados, casos
+positivos e negativos, modelos host independentes, vetores e spikes
+descartáveis. Elas não exigem componentes W de produção. A implementação da
+seção 27 substitui cada oracle pela evidência real e pode reabrir uma decisão
+quando contradiz a baseline.
+
 Os casos da seção 26 medem clareza e erro. Eles não escolhem entre designs ainda
 sem baseline. Um resultado ruim pode reabrir uma decisão por evidência.
 Implementação deve parar no primeiro gate que contradiz a semântica vigente.
@@ -25770,33 +25780,36 @@ Implementação deve parar no primeiro gate que contradiz a semântica vigente.
 capabilities e complexity bounds para esse módulo.
 
 Nenhuma família funcional está sem posição. A especificação ainda não possui a
-mesma profundidade em todas as famílias:
+mesma profundidade em todas as famílias. A coluna final abaixo exige somente
+evidência de design:
 
-| Artefato | Estado atual | Condição de fechamento |
+| Artefato | Estado atual | Condição de fechamento do design |
 |---|---|---|
-| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 19 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | implementar o formatter, provar idempotência e ampliar F0 para toda construção normalizada |
-| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 90 casos pareiam 45 resultados positivos com 45 inversões e outcomes JSONL | implementar o checker, ampliar o corpus por construct e comparar output real byte-exact |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; catálogo cobre todos os codes com meaning citados; o índice gera a contagem corrente; BUILD, DOC e FFI eram wildcards ou exemplos não reservados | implementar compile-fail runner, interface checker e adapters diferenciais antes de retirar `projection-seed` |
-| std | SDK0 cataloga 159 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; `std.build.Context` agora é draft e `std.build@1` continua missing; sete providers intrinsics estão missing | implementar e validar `std.build@1`, implementar os seis providers restantes, adicionar segundo consumer e comparar interfaces emitidas |
-| targets e host profiles | matriz e contracts de direção | manifests por target, availability e conformance mínima |
-| ABI e formats | layouts e candidates selecionados | vectors, readers independentes e version rules |
-| memória e execução | M1 fixa 156 casos/546 operações, 67 aceitos e 89 rejeitados; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | validar allocator/atomics/liveness; substituir oracles host por HIR, checker e scheduler reais |
-| services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | implementar adapters independentes, queues bounded, deduplication, recovery e fault injection de processo/rede |
-| packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | implementar schemas/readers reais, prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
-| bootstrap W0 | gates SH0–SH7 | grammar subset, std subset e source inventory fechados |
-| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; sete bundles R1 promovem 14/54 casos e cobrem controle, units, imports, fail-fast, contratos, receivers consuming e domains | marcar toda ausência de source no ledger, ampliar R1 com prioridade por risco, executar os estudos e publicar os resultados da seção 26 |
+| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 19 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
+| regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
+| std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
+| targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
+| ABI e formats | layouts e candidates selecionados | fixar vectors, readers host independentes, limites e regras de versão sem depender de backend W |
+| memória e execução | M1 fixa 156 casos/546 operações, 67 aceitos e 89 rejeitados; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | fechar allocator, atomics, liveness e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
+| services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
+| packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
+| bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
+| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; sete bundles R1 promovem 14/54 casos e cobrem controle, units, imports, fail-fast, contratos, receivers consuming e domains | classificar toda alternativa do ledger; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
-Esses itens bloqueiam o freeze documental. Provas de runtime continuam nos
-gates da seção 27. Um artefato pode fechar antes de existir um backend completo,
-mas não pode declarar comportamento que seu oracle ainda contradiz.
+Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
+compiler ou runtime. Provas sobre componentes reais continuam nos gates da
+seção 27. Um contrato pode fechar antes de existir backend, mas não pode declarar
+comportamento que seus modelos ou oracles contradizem.
 
 A ordem recomendada de fechamento é:
 
 1. ampliar R1 e ratificar a superfície que ainda pode mudar source;
-2. fechar formatter, checker e diagnostics sobre outputs reais;
-3. fechar HIR, ABI, memória e C com readers independentes;
-4. fechar scheduler, services e wire com fault injection;
-5. fechar package, release, bootstrap, std e targets com projetos reais.
+2. fechar as matrizes normativas de formatter, semantics e diagnostics;
+3. fechar ABI, memória e C com modelos e readers host independentes;
+4. fechar execução, services e wire com fault injection modelada;
+5. fechar package, release, bootstrap, std e targets com schemas e consumidores
+   de design.
 
 Essa ordem reduz retrabalho. Ela não impede spikes posteriores quando um risco
 de backend pode invalidar uma decisão de source.
@@ -27633,7 +27646,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 159 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-891 | catálogo std SDK0 | profiles cobrem 161 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em quatro cases, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions, com serve usando carrier `std.net`; provider único `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal com `T??`; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html`; Blob/FormData parcial |
@@ -27676,6 +27689,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | 21 novos casos e quatro testes independentes cobrem budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; snapshots registram 156 casos e 546 operações | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
+| W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
