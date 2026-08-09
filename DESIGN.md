@@ -7860,6 +7860,210 @@ um host fixed. Os
 mostram por que mobilidade de allocate e free precisa ser uma propriedade do
 profile, não uma suposição pelo nome do allocator.
 
+#### 9.6.1 Contrato físico do provider A0
+
+**Exemplo:** `Array<Dish>.tryReserve` pede um layout. O provider devolve um
+receipt opaco. O container não recebe somente um pointer sem origem.
+
+O runtime usa este modelo lógico entre collections e um provider:
+
+```text
+AllocationLayout = {
+  requestedBytes,
+  alignment,
+}
+
+RawBlock = {
+  base provenance,
+  requestedBytes,
+  usableBytes,
+  alignment,
+  originToken,
+}
+
+allocate(layout, initialization) -> Result<RawBlock, AllocationError>
+resize(take block, newLayout, tailInitialization) -> ResizeOutcome
+deallocate(take block) -> ()
+```
+
+`RawBlock` é affine e opaco. Somente runtime e adapters `unsafe` manipulam esse
+receipt. Uma implementação pode apagar fields provados estaticamente. Ela não
+pode apagar a verificação lógica de origem.
+
+Um layout válido satisfaz estas regras:
+
+- alignment é uma potência de dois não nula;
+- size e alignment cabem nos limits do target e do provider;
+- `base + usableBytes` não excede o address space aplicável;
+- `usableBytes` é maior ou igual a `requestedBytes`;
+- o base atende ao alignment solicitado;
+- uma allocation viva possui identity única naquela instance.
+
+Zero bytes usa o estado `noStorage`. Ele não chama o provider e não cria um
+pointer dereferenceable. Uma façade pode projetar esse estado como null quando
+seu contrato permite length zero.
+
+`initialization: .uninitialized` expõe bytes somente ao runtime. Código safe
+continua sujeito a definite initialization. `.zeroed` zera os bytes solicitados.
+Bytes excedentes do provider não recebem promessa de inicialização.
+
+`ResizeOutcome` possui três cases:
+
+```text
+resized(RawBlock)                 // success consome o receipt antigo
+unsupported(RawBlock)             // receipt antigo permanece válido
+failed(RawBlock, AllocationError) // receipt antigo permanece válido
+```
+
+`deallocate` consome o receipt correto. A operação não falha, não chama código
+W e não solicita allocation W. Um provider pode adiar reuse físico. O lifetime
+W termina no consumo do receipt.
+
+Um provider W publica um descriptor versionado:
+
+```text
+AllocatorProviderProfile = {
+  contract and provider revision,
+  maximum object bytes and alignment,
+  allocation concurrency,
+  deallocation mobility,
+  progress by operation,
+  resize and bulk-release capabilities,
+  zeroing and hardening facts,
+  adoption families,
+  failure mode,
+}
+```
+
+`failure mode` precisa devolver `AllocationError`. Um allocator que aborta em
+falha não atende às APIs `try*`. Ele pode existir atrás de uma fault boundary
+que nunca promete recovery, mas não implementa `Allocator` completo.
+
+O provider, sua versão e sua configuração entram na toolchain plan e na recipe.
+O descriptor entra nos runtime requirements. Ele só entra na `WAbiKey` quando
+muda um carrier ou uma operação ABI observável.
+
+O design do [`Allocator` de Rust](https://doc.rust-lang.org/std/alloc/trait.Allocator.html)
+confirma que grow ou shrink falho precisa preservar o bloco anterior. Essa API
+ainda é experimental. W fixa a propriedade no próprio contrato A0.
+
+#### 9.6.2 Relocation, growth e commit
+
+**Exemplo:** o provider pode mover o buffer de pratos. Um borrow de um prato
+impede essa operação antes da call raw.
+
+`resize` preserva o prefixo de tamanho
+`min(old.requestedBytes, new.requestedBytes)`. Um success invalida o receipt
+antigo. Um failure ou `unsupported` devolve o mesmo receipt.
+
+O provider não executa init, move ou `deinit` de elements. O compiler escolhe
+uma destas estratégias:
+
+1. usa remap quando o storage possui `RelocationFact.bytes`;
+2. aloca outro bloco e move-inicializa cada element;
+3. mantém o bloco quando a capacity existente basta;
+4. rejeita growth enquanto existe loan, address lease ou pin incompatível.
+
+`RelocationFact` é um fato da HIR. Ele não é um protocol ou annotation. Um tipo
+foreign, um payload address-sensitive ou uma representação opaca usa a
+estratégia conservadora.
+
+Pinning bloqueia relocation do payload. Uma API especializada pode tentar
+growth in-place quando o provider publica essa capacidade. A API normal não
+promete esse caminho.
+
+`tryReserve` usa prepare, copy ou move e commit. Se qualquer passo falhar, o
+container e seus elements anteriores permanecem válidos. O destino parcial é
+limpo antes do retorno.
+
+`rehome`, `share`, `pin` e `erase` continuam operações consuming. A falha delas
+segue W-930 e não restaura o source. `attemptRehome` pode devolver o source num
+outcome explícito.
+
+Um provider pode devolver mais bytes que o pedido. O container pode usar essa
+capacity quando o profile permite. Um budget de região cobra o span lógico
+calculado antes da call. Metadata e over-allocation do provider permanecem em
+`accounting: allocator`.
+
+O `remap` de Zig separa resize in-place de relocation opcional. A
+[documentação oficial](https://ziglang.org/download/0.14.0/release-notes.html#Allocator-API-Changes-remap)
+mostra por que W mantém fallback no caller e não exige `realloc` universal.
+
+#### 9.6.3 Progress, domains e targets
+
+**Exemplo:** o allocator geral serve um request normal. Um interrupt handler usa
+storage fixo com bounds próprios.
+
+Cada operação publica uma classe de progress independente:
+
+| Classe | Garantia |
+|---|---|
+| `general` | pode usar locks internos ou o OS; não publica deadline |
+| `bounded` | publica um limite de trabalho para uma capacity fixada |
+| `lockFree` | garante progress do sistema; não limita cada caller |
+| `waitFree` | publica um limite para cada caller |
+
+Essas classes não formam uma ordem total. Um requirement lista os cases aceitos.
+Allocation e deallocation também publicam domains permitidos. Uma instance pode
+aceitar free cross-domain e restringir allocate ao domain owner.
+
+Allocation geral não recebe o effect `blocking` somente por usar um lock interno.
+Ela recebe o fato `allocates(.general)`. Esse fato não satisfaz real-time,
+interrupt, signal-safe ou `no-general-allocation`.
+
+Um profile real-time usa storage fixed, arena pre-reservada ou outro provider
+com bounds. O profile fixa capacity, alignment, progress e comportamento de
+falha. Ele não usa o allocator do sistema como prova temporal.
+
+A baseline usa estes adapters:
+
+| Target | Default possível |
+|---|---|
+| hosted POSIX ou Windows | provider `system` do target |
+| Wasm linear memory | provider da instance sobre memory grow |
+| freestanding ou controller | `.none`, `fixed` ou provider do host |
+| GPU ou device memory | capability T2 com address space próprio |
+
+Device memory não é uma allocation geral do host. Copy, visibility, fence e
+reclamation pertencem ao provider do device.
+
+Mimalloc continua opcional. A documentação oficial distingue heaps v1/v2,
+limitados para allocate cross-thread, dos
+[heaps v3](https://microsoft.github.io/mimalloc/group__heap.html), que são
+first-class. Por isso o contract fixa major, mode e capabilities. O nome
+`mimalloc` sozinho não concede mobilidade.
+
+#### 9.6.4 Oracle físico A0
+
+**Exemplo:** o oracle injeta falha durante growth. Ele exige que o receipt antigo
+e seu prefixo continuem válidos.
+
+O corpus A0 modela:
+
+- layout, alignment, zero-size e limits do provider;
+- allocate, zeroing, excess capacity, resize e fallback;
+- strong failure e exact-once deallocation;
+- origin token, provider lifetime e mobility de domain;
+- loans, pinning, address leases e relocation;
+- progress requirements, bulk release e rehome;
+- logical retirement separado de physical reuse.
+
+O modelo usa bytes pequenos e providers host independentes. Ele não mede um
+allocator real. Benchmarks de `system`, mimalloc e fixed continuam no gate de
+implementação. A0 também não repete cleanup tipado de destino ou aritmética de
+endereços físicos. Esses eixos compõem M1 e L0, respectivamente.
+
+`tooling/allocation-cases.json` fixa 48 casos e 123 operações. A máquina pura
+está em `tooling/allocation-machine.mjs`. Treze testes host independentes do
+snapshot repetem as propriedades críticas. `allocator_oracle.w` liga cada
+família ao produto Última Luz. Esses artefatos são evidência de design. Eles não
+são um allocator, um verifier ou um runtime W.
+
+#### 9.6.5 Origem e mobilidade
+
+**Exemplo:** `stageMenu` devolve storage ligado ao allocator `memory`. Fechar
+essa instance antes do snapshot é um erro de lifetime.
+
 Cada allocation possui uma origem lógica:
 
 ```text
@@ -8357,6 +8561,16 @@ nome do tipo:
 Não existe annotation `compact`, `tagged` ou `nanBox` no source W. O compiler
 classifica a oportunidade a partir de alignment, validity, target facts,
 hardening e escape. A ausência de prova seleciona a representação portátil.
+
+**Resultado sobre tagged pointers:** address bits não fazem ownership tracking.
+PlaceId, LoanId e OriginSet existem na HIR. Shared state usa control block.
+Allocation usa receipt ou origem equivalente. Hardware tags podem detectar
+alguns acessos inválidos, mas não provam lifetime, alias, move, drop ou ABA.
+
+Uma tag MTE pertence ao pointer nativo do provider. Uma tag lógica low-bit do W
+pertence ao carrier interno. O lowering não mistura as duas. A forma entregue ao
+allocator preserva o pointer e o estado externo exigidos pelo target.
+
 O oracle [`representation_oracle.w`](reference/last-light/representation_oracle.w)
 testa essa matriz contra as fronteiras do Última Luz.
 
@@ -8495,6 +8709,64 @@ mostra o risco de suprimir `deinit` em somente alguns caminhos. O
 [`Drop` de Rust](https://doc.rust-lang.org/stable/core/ops/trait.Drop.html)
 também mantém o destructor separado do consumo explícito. W usa um estado
 válido e drop automático como baseline.
+
+#### 9.11.1 Retirement e reclamation
+
+**Exemplo:** remover um node da fila encerra seu uso lógico. O allocator só pode
+reutilizar os bytes depois que todos os readers perderem acesso.
+
+Retirement e reclamation são eventos diferentes:
+
+- retirement remove acesso W e encerra o lifetime lógico;
+- reclamation autoriza reuse ou devolução física do storage;
+- deallocation pede reclamation ao provider;
+- quarantine ou cache do allocator pode atrasar o reuse físico.
+
+A baseline usa esta matriz:
+
+| Storage | Condição de retirement | Condição de reclamation |
+|---|---|---|
+| owner único | drop ou consumo final | `deinit` e drops terminam; receipt é consumido |
+| region | fechamento após drain | drop ledger termina; provider faz bulk release |
+| `shared T` | strong count chega a zero | payload termina no strong zero; block termina no weak zero |
+| pinned | owner pinned inicia drop | address leases e loans terminaram; drop ocorre no endereço estável |
+| task frame | task entra em outcome terminal | children, cleanup, wakers, queue links e handles drenam |
+| service instance | lifecycle owner inicia shutdown | turns, calls, tasks e leases drenam; host libera a instance |
+| channel node | receive, close ou cancel transfere o node | queue perde todas as referências internas |
+| foreign owner | wrapper consome o carrier | destroy registrado termina na origem correta |
+| device allocation | provider encerra acesso host/device | fence ou event do provider confirma quiescence |
+
+Um deallocator raw nunca executa `deinit`. A transição de retirement invalida o
+acesso comum, executa o cleanup tipado final e só então consome `RawBlock`.
+Depois que a call do provider começa, nenhum código W pode executar nesse path.
+
+Um pointer atômico não protege o payload apontado. Compare-exchange também não
+concede reclamation. Um algoritmo lock-free precisa nomear um reclamation
+domain, registration, retire operation, quiescence e shutdown barrier.
+
+Hazard pointers, epoch-based reclamation e RCU permanecem T2 ou adapters
+`unsafe`. Eles não entram em T0/T1 antes de fechar:
+
+- lifetime do domain e registration de participants;
+- limits de retired records e comportamento em OOM;
+- contexto e ordem dos deleters;
+- cancellation, thread exit e task migration;
+- shutdown, leak detection e interaction com allocators;
+- memory orders e progress por target.
+
+O trabalho WG21 sobre
+[RCU](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2545r2.pdf)
+mostra que allocator, deleter context, thread registration e shutdown são
+partes do contrato. W não esconde esses eixos numa `Atomic<ptr>`.
+
+Safe T0/T1 usa owner único, `shared`, scopes, services, channels ou locks.
+`Atomic<shared T>` continua rejeitado. Uma collection concorrente pode usar
+reclamation interna `unsafe`, mas sua interface precisa publicar bounds,
+progress, cleanup e fault behavior.
+
+W não possui cycle collector por default. Um debug profile pode detectar ciclos
+alcançáveis de control blocks. Essa instrumentação não altera o ponto de drop e
+não autoriza o release a depender do detector.
 
 ### 9.12 Explicação e medição
 
@@ -26400,7 +26672,7 @@ evidência de design:
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa 165 casos/580 operações; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar allocator físico, liveness, device scopes, reclamation e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
+| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar liveness, providers e scopes de device, cleanup runtime e reclamation concorrente avançada com modelos adversariais; HIR, allocator e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
@@ -28359,6 +28631,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-954 | integridade e open modes WMeta1 | digest SHA-256 tagged por chunk detecta corrupção; artifact record autentica o container; `directory`, `core` e `full` concedem autoridades distintas | digest conceder confiança; directory conceder interface; release ignorar chunk opcional; algoritmo crítico desconhecido |
 | W-955 | corpus e readers WMeta1 | 42 casos byte-exact cobrem seed e mutations; readers Bun e C independentes precisam concordar; ambos são design oracles, não produto | fixture só positiva; dois wrappers sobre a mesma library; snapshot manual; chamar oracle de compiler |
 | W-956 | domínios de metadata | WMeta1 contém interface e ABI públicas; build record CBOR, wWire runtime e cache AST/HIR continuam formatos separados | container universal; publicar HIR como compatibilidade; usar wire RPC para object metadata; colocar provenance mutável na interface |
+| W-957 | receipt físico de allocation A0 | todo bloco não vazio carrega layout pedido, capacidade útil, alinhamento e token opaco de origem; zero bytes produz `noStorage` sem chamar o provider | pointer nu sem origem; sentinela alocada para zero; inferir provider pelo endereço; expor metadata mutável ao programa |
+| W-958 | resize e relocation A0 | `resize` retorna success, unsupported ou failure preservando o receipt anterior; fallback pertence ao caller e só storage provadamente relocatable usa remap raw | `realloc` universal; perder o bloco em failure; executar move ou destructor dentro do provider; mover com loan, pin ou address lease ativo |
+| W-959 | profiles físicos A0 | failure, progress, domains, mobility, resize, bulk release, limits e hardening são facts por provider e operação; target e recipe fixam provider e versão | escolher por nome; tratar progress como escala total; allocator geral em interrupt; confundir mimalloc v1/v2 com v3 |
+| W-960 | retirement e reclamation A0 | retirement encerra acesso lógico; reclamation libera reuse físico somente depois de cleanup e do gate específico do owner | pointer atômico conceder lifetime; free executar destructor; reuse antes de quiescence; RCU genérico safe sem domain fechado |
+| W-961 | papel de tagged pointers | tags de endereço são somente uma otimização ou hardening interno provado por target; ownership usa PlaceId, LoanId, origin e receipts independentes da representação | encoded owner universal; depender de high bits portáveis; misturar tag MTE com tag W; mudar ABI pública por allocator |
+| W-962 | oracle físico A0 | corpus de layouts, failure, relocation, origem, domain, progress e reclamation usa uma máquina host pura e símbolos do Última Luz; não executa allocator real | benchmark como semântica; somente happy path; snapshot manual; chamar o modelo de runtime ou verifier implementado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

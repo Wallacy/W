@@ -16,6 +16,7 @@ const corpusFiles = [
   "semantic-cases.json",
   "formatter-cases.json",
   "memory-transition-cases.json",
+  "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "boundary-effect-cases.json",

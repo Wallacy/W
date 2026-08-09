@@ -168,6 +168,7 @@ alvo de execução independente.
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
 | `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
+| `allocator_oracle.w` | layout físico, provider, resize, progress e reclamation A0 |
 | `representation_oracle.w` | matriz de representação por fronteira e fallback portátil |
 | `callables.w` | function pointer, opaque callable, erasure e callable modes |
 | `packages/menu-compiler/compiler.w` | compiler pequeno restrito ao profile `bootstrap.w0` |
@@ -2124,6 +2125,36 @@ com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
 possui 164 casos e 579 operações. Ele é uma referência de contrato, não o
 futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
+
+### 3.45 Kernel A0 de allocation física
+
+Famílias: layout, receipt de origem, resize, relocation, progress, domain,
+retirement e reclamation.
+
+`allocator_oracle.w` é o recorte source do contrato físico. Ele não aloca
+memória real. `tooling/allocation-machine.mjs` usa providers pequenos e bytes
+host para tornar cada transição observável.
+
+Aceite:
+
+- zero bytes cria `noStorage` e não chama o provider;
+- toda allocation não vazia preserva layout, capacidade útil e origem;
+- alinhamento inválido ou fora do profile falha antes de publicar storage;
+- resize falho preserva receipt, tamanho e prefixo anteriores;
+- fallback de resize pertence ao caller;
+- loan, pin e address lease impedem relocation incompatível;
+- `rehome` consome a origem e cria um receipt do provider de destino;
+- failure consuming de `rehome` não restaura a origem;
+- allocate e deallocate observam seus domains declarados;
+- progress é um fato por operação e não uma escala total;
+- bulk release exige drops, loans e leases drenados;
+- retirement remove acesso lógico antes de physical reuse;
+- o receipt volta somente ao provider que o criou;
+- tagged address não representa ownership.
+
+O corpus A0 em `tooling/allocation-cases.json` possui 48 casos e 123 operações.
+Treze testes host repetem propriedades críticas sem ler o snapshot. O futuro
+allocator e o verifier precisam substituir o modelo antes de alegar execução.
 
 ## 4. Alternativas visuais obrigatórias
 

@@ -253,6 +253,7 @@ const oracleCorpusFiles = [
   "semantic-cases.json",
   "formatter-cases.json",
   "memory-transition-cases.json",
+  "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "boundary-effect-cases.json",
@@ -357,6 +358,17 @@ const memoryTransitionOperations = memoryTransitionCorpus.cases.reduce(
   0,
 );
 const acceptedMemoryTransitions = memoryTransitionCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
+const allocationCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "allocation-cases.json"), "utf8"),
+);
+const allocationCases = allocationCorpus.cases.length;
+const allocationOperations = allocationCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedAllocationCases = allocationCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
 const layoutAbiCorpus = JSON.parse(
@@ -537,6 +549,9 @@ output.push(`| casos do corpus Tree-sitter | ${corpusCases} |`);
 output.push(`| pares canônicos do formatter F0 | ${formatterCases} |`);
 output.push(
   `| casos/operações do kernel de memória M1 | ${memoryTransitionCases}/${memoryTransitionOperations} (${acceptedMemoryTransitions} aceitos + ${memoryTransitionCases - acceptedMemoryTransitions} rejeitados) |`,
+);
+output.push(
+  `| casos/operações do kernel de allocation físico A0 | ${allocationCases}/${allocationOperations} (${acceptedAllocationCases} aceitos + ${allocationCases - acceptedAllocationCases} rejeitados) |`,
 );
 output.push(
   `| casos/operações do kernel de layout e ABI L0 | ${layoutAbiCases}/${layoutAbiOperations} (${acceptedLayoutAbiCases} aceitos + ${layoutAbiCases - acceptedLayoutAbiCases} rejeitados) |`,
