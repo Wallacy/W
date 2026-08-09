@@ -20535,6 +20535,225 @@ TAB1. O carrier tabular `data.Batch<Row>` e os contratos de columns, chunks e
 ownership estão em [14.4.1](#1441-carrier-tabular-tab0). Os adapters de formato
 e `SnapshotByteSource` estão em [14.4.2](#1442-adapters-tabulares-tab1).
 
+### 17.1 PYN4 — carrier tensorial e DLPack 1.3
+
+PYN4 fecha o intercâmbio tensorial entre W e produtores trusted in-process. Ele
+é design e oracle, não compiler, runtime, provider, bridge Python ou driver de
+device. O bundle liga [PYN0](#2411-auditoria-pythonw-pyn0), o contrato de
+device em [18.5](#185-matrizes-simd-e-devices),
+os bloqueios de [24.5](#245-artefatos-que-ainda-bloqueiam-o-design-freeze) e a
+[revisão em 26.3.18](#26318-carrier-tensorial-pyn4). O baseline documental é
+[DLPack 1.3](https://dmlc.github.io/dlpack/latest/), com
+[C API](https://dmlc.github.io/dlpack/latest/c_api.html) e
+[Python API](https://dmlc.github.io/dlpack/latest/python_spec.html).
+As fontes primárias para a versão e para as boundaries de linguagem são o
+[release DLPack v1.3](https://github.com/dmlc/dlpack/releases/tag/v1.3), a
+[API de capsules do CPython](https://docs.python.org/3/c-api/capsule.html),
+[threads, GIL e finalização do CPython](https://docs.python.org/3/c-api/init.html)
+e o contrato Array API de
+[`from_dlpack`](https://data-apis.org/array-api/latest/API_specification/generated/array_api.from_dlpack.html).
+
+**Direção:** `std.tensor@1` e `std.dlpack@1` são módulos T2 draft. Os providers
+continuam **missing**. Nenhuma semântica de tensor entra no runtime. A API
+principal não recebe `CopyPolicy`, porque zero-copy e materialização têm owners,
+receipts e resultados diferentes.
+`std.tensor` resolve somente `Device`, `Queue`, limites e adapters ao head
+genérico `Tensor<Element, shape>` do core; ele não redeclara `Tensor` nem torna o
+head dependente de `std.tensor@1`.
+
+#### 17.1.1 Identidade, carrier e confiança
+
+`tensor.Device` é uma identidade resolvida e scoped ao provider. Ele não é o par
+bruto `(DLDeviceType, device_id)`. A igualdade inclui a instância do provider.
+`tensor.Queue` é uma capability opaca criada pelo provider e ligada a um Device.
+Um mesmo número de device em dois providers não prova igualdade. Queue e Device
+incompatíveis falham. CPU não exige queue. Toda transferência entre devices é
+uma operação explícita.
+
+O perfil de device conhecido em DLPack 1.3 inclui `CPU`, `CUDA`, `CUDAHost`,
+`OpenCL`, `Vulkan`, `Metal`, `VPI`, `ROCm`, `ROCmHost`, `ExtDev`,
+`CUDAManaged`, `oneAPI`, `WebGPU`, `Hexagon`, `MAIA`, `Trainium`, `TPU` e
+`TPUHost`. O provider registra e resolve cada kind para uma identidade opaca.
+Um enum futuro ou um kind raw desconhecido é rejeitado com diagnostic; ele não
+é reduzido silenciosamente a `other`.
+
+`dlpack.ManagedTensor` é opaque, move-only e não forgeable em safe W. Um raw
+pointer não aparece em API safe, trace, receipt ou diagnostic. DLPack é somente
+intercâmbio trusted in-process. Não é serialização, transporte de rede nem
+entrada de bytes untrusted. A proveniência do producer/provider prova a extent
+da allocation, pois DLPack não a codifica.
+
+Fixture local: `reference/last-light/tensor_interop.w` usa somente carriers
+trusted e não publica raw pointer.
+
+`DLManagedTensorVersioned` é a forma vigente. `DLManagedTensor` legacy é
+rejeitado no baseline. Em major mismatch, o consumer lê somente o prefixo
+stable de versão e o deleter, chama o deleter uma vez e não dereference dtype,
+device, shape ou qualquer field poisoned. Um minor mismatch aceita somente
+fields e enums conhecidos.
+O C Exchange 1.3 é **Pesquisa** como fast path opcional. Ele não cria semântica
+adicional; a forma N0 rejeita DLTensor non-owning que escapa ou atravessa
+suspension. O bridge Python possui o `PyCapsule`, GIL e interpreter scope e não
+é parte de `std.dlpack`.
+
+#### 17.1.2 Layout, dtype e flags
+
+O import valida rank bounded e dimensões não negativas com aritmética checked
+antes de pointer arithmetic, allocation ou publication. Rank zero exige shape e
+strides null; rank maior que zero exige arrays non-null e comprimentos exatos.
+Strides são em elementos. O span usa
+`byte_offset + Σ((shape_i - 1) * stride_i) * elementBytes + elementBytes`,
+com cada soma e produto checked; padding de stride é aceito quando a extent vem
+de provenance confiável. Strides negativos são rejeitados no baseline. Zero-size
+usa data null. Data não nula exige alignment no endereço `data + byte_offset`
+necessário pelo consumer. O claim histórico de alignment 256 não é aceito como
+prova. Overlap sem layout proof do provider é rejeitado; read-only com proof
+explícito é a única exceção.
+
+Somente flags conhecidas são aceitas: read-only, producer-copied e
+subbyte-padded. Flags desconhecidas falham. O typed bind aceita mapping W exato,
+native endian, lane 1 e element type byte-aligned comprovado. A matriz inclui
+i8/i16/i32/i64, u8/u16/u32/u64, f16/bf16/f32/f64 e Complex somente quando o
+mapping do provider prova storage W. Bool exige mapping de storage de 8 bits
+provado pelo provider; um booleano fornecido pelo caller não é prova. Subbyte,
+opaque, endian não nativo e dtype unsupported ficam dynamic ou rejected, nunca
+reinterpretados. Signed zero e NaN permanecem inalterados. Não há conversão
+silenciosa.
+
+Fixture local: `reference/last-light/tensor_interop.w` usa f32 com mapping nativo
+do provider em shape `[samples, 6]` e deixa dtype adversarial para o oracle host.
+`scientificRoute` usa `defer async` depois de `open`; o close ocorre tanto no
+sucesso como em falha do callback. A fixture mapeia `DLPackError` e
+`ViewError<ScoreError>` para `InteropError` sem depender de coercion implícita.
+
+#### 17.1.3 API vigente
+
+As formas vigentes são:
+
+```w
+async dlpack.open<Element, const shape>(
+  take managed: dlpack.ManagedTensor,
+  on: ref tensor.Queue?,
+  limits: ref dlpack.Limits,
+): dlpack.ImportedTensor<Element, shape> throws dlpack.DLPackError
+
+async dlpack.openDynamic(
+  take managed: dlpack.ManagedTensor,
+  on: ref tensor.Queue?,
+  limits: ref dlpack.Limits,
+): dlpack.DynamicImportedTensor throws dlpack.DLPackError
+
+async dlpack.materialize<Element, shape>(
+  take source: dlpack.ManagedTensor | dlpack.ImportedTensor<Element, shape>,
+  target: ref tensor.Device,
+  on queue: ref tensor.Queue?,
+  limits: ref dlpack.Limits,
+): Tensor<Element, shape> throws dlpack.DLPackError
+
+async dlpack.export<Element, shape>(
+  take value: Tensor<Element, shape>,
+  on queue: ref tensor.Queue?,
+  limits: ref dlpack.Limits,
+): dlpack.ManagedTensor throws dlpack.DLPackError
+```
+
+O draft parseável usa o label `target:`. A operação continua async e o provider
+resolve o target antes de publicar o resultado.
+
+`open` é zero-copy somente e rejeita incompatibilidade e `producer-copied`.
+O owner importado é sempre foreign zero-copy e read-only; allocation de metadata
+ou control bounded é permitida, mas não é payload copy. `producer-copied` segue
+somente por `openDynamic` ou `materialize`. `openDynamic` devolve owner que
+`bind<Element, shape>()` consome e valida dtype, rank, shape e layout exatos.
+`materialize` sempre registra uma cópia ou transferência explícita e retorna o
+`Tensor` core. O receipt separa `producerCopied`, `wMaterialized`, transfer e
+metadata allocation. `export` consome o owner W e transfere a obrigação de
+release. Layout incompatível exige materialização anterior ou error. O export
+baseline é writable, sem payload copy, e exige uniqueness real derivada dos
+owner/storage events de W. Borrowed ou aliased state rejeita o export. Uma
+forma read-only futura precisa de API ou tipo canônico separado; nenhum caller
+booleano `readOnly` ou `ownershipProof` é aceito como prova.
+
+`openDynamic` e `materialize(take ManagedTensor)` encapsulam consume, rename e
+lease. Cases internos podem expor essas fases para testar a máquina, mas uma
+call pública não exige choreography manual. `providerResolve` registra o
+mapping de dtype, native endian, layout proof, base alignment e allocation
+extent. Um target de transfer também exige um evento de resolução de Device.
+O oracle usa os digests desses eventos; fields crus do descriptor ou um
+literal Device não concedem authority.
+
+`ImportedTensor` é owner move-only read-only e sempre foreign zero-copy. Ele só
+publica um `view Tensor` por `mut async withView<Output, OperationFailure>`
+lexical; o callback pode devolver `Output` e sua falha tipada é envelopada com
+`DLPackError`. Callback não escapa a view, não produz `inout` e drena structured
+work antes do fim do loan. `take async close` espera queues, jobs e views e
+chama release exatamente uma vez. Falha de close transfere o owner para runtime
+quarantine ou fault boundary. Nunca produz UAF.
+
+#### 17.1.4 Synchronization, Python e lifecycle
+
+Para CPU não há queue implícita e uma queue extra é rejeitada. Para stream
+devices o provider deve cunhar um receipt de `bindQueue`/`producerWait` com o
+fact `happens-before` em uma Queue provider-scoped; `ready: true` do caller não
+é prova. O producer estabelece happens-before no consumer stream. Não há stream
+integer raw. Cancellation depois do consumo mantém o owner,
+drena trabalho consumer e somente então chama deleter. Um close abandonado não
+pula release.
+
+`ManagedTensor` só pode fazer drop síncrono quando o handle opaque prova
+`versioned`, `unconsumed` e deleter sync-safe. O wrapper move o handle durante
+`open` ou `materialize`; o drop posterior é no-op e nunca faz foreign release
+assíncrito. Capsule names são one-shot. A forma versioned usa
+`dltensor_versioned` e `used_dltensor_versioned`. O destructor chama deleter
+somente antes do consumo. Depois do consumo o owner consumer chama deleter.
+Static names sobrevivem ao capsule. A máquina de lifecycle é
+`producerCreated → capsuleUnconsumed → consumedRenamed → leaseOwned → draining
+→ released`. Consumo ou release duplicado falha. Um capsule unconsumed
+abandonado libera uma vez. Um capsule consumed tem destructor no-op.
+
+CPython exige attached thread state e GIL. Finalization pode deadlock. O lease
+Python é child do interpreter scope e segue `open → draining → finalized`. O
+drain consome cada child lease e release job de forma explícita; não transforma
+um contador em zero por conclusão mágica. A thread libera GIL e attached state
+somente depois do drain. Late finalization envia o owner para quarantine ou
+rejeita sem callback. Sem prova, o bridge copia ou rejeita; ele nunca libera
+memória após a boundary.
+
+Fixture local: `reference/last-light/tensor_interop.w` mantém o callback scoped e
+delega GIL, finalization e release ao oracle host PYN4.
+
+#### 17.1.5 Bounds, receipts e rejeições
+
+`dlpack.Limits` limita rank, cada dimensão, element count, span bytes,
+metadata/control bytes, active leases, queued release jobs, wait e deadline.
+Overflow ocorre antes de aritmética de pointer, allocation ou publication.
+Receipts derivam de eventos de provider e consumer: device/provider,
+queue/happens-before, `payloadCopyCount`, transfer, metadata allocation, flags,
+dtype/layout, limits, provenance redacted e release state. Raw pointer, capsule
+address, secret, GIL token e interpreter pointer são redacted e proibidos; uma
+booleana fornecida pelo caller nunca prova cópia, ownership ou release.
+Cada release receipt mantém `carrier generation`, owner e event. O export não
+zera contadores nem sobrescreve o release do source; source e exported owner
+aparecem em records imutáveis separados.
+
+Unknown flag, unknown dtype, non-native endian, lane diferente de um,
+subbyte/opaque sem proof, shape/stride inconsistente, overflow, alignment
+insuficiente, provenance ausente, queue/device mismatch, queue ready fact
+ausente, inout alias não provado, capsule double consume, release duplo,
+untrusted bytes e callback fora do scope são rejeitados com diagnostics
+`W-DLPACK-*`. A superfície não adiciona buffer protocol ao core.
+
+O fixture [tensor_interop.w](reference/last-light/tensor_interop.w) importa
+um tensor científico zero-copy com shape `[samples, 6]`, usa Device e Queue
+explícitos, executa callback scoped, produz scores e exporta consumindo. O
+fixture também tem copy-to-host explícito e adversariais. A máquina host em
+`tooling/dlpack-*` testa os contratos sem executar W.
+
+O gate de performance mede zero bytes de payload copiados no `open`; metadata e
+control allocation bounded entram no receipt e podem ter custo. Benchmarks
+reais de provider, device e latency continuam **missing** e não são alegados
+pelo fixture ou pela máquina host.
+
 ## 18. Performance e custo
 
 ### 18.1 Contrato
@@ -28413,15 +28632,15 @@ evidência de design:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 96/96 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
-| std | SDK0 cataloga 285 exports em 18 módulos; todos possuem declaration draft-ready; 14/14 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 12/12 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
-| workflow single-file e científico PYN1/PYN0/PYN2/PYN3 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN0 mantém tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
+| std | SDK0 cataloga 315 exports em 21 módulos; todos possuem declaration draft-ready; 20/20 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 15/15 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
+| workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 63/63 requisitos declarados; R0S mede a superfície derivada por script; 14 bundles R1 possuem 31 variantes, 56 tarefas e promovem 25/63 casos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 68/68 requisitos declarados; R0S mede a superfície derivada por script; 15 bundles R1 possuem 34 variantes, 60 tarefas e promovem 25/68 casos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -29366,6 +29585,29 @@ As fontes comparativas Python/codeop, IPython autoreload, Julia world age, Pluto
 reactivity e Jupyter messaging continuam evidência delimitada, não contratos W
 adicionais. A matriz de alternativas e a descrição do fixture são evidência de
 review, sem IDs de ledger artificiais para bookkeeping, status ou tooling.
+
+#### 26.3.18 Carrier tensorial PYN4
+
+**Fixture:** [`reference/last-light/tensor_interop.w`](reference/last-light/tensor_interop.w).
+**Evidence:** [`tooling/dlpack-machine.mjs`](tooling/dlpack-machine.mjs),
+[`tooling/dlpack-cases.json`](tooling/dlpack-cases.json),
+[`tooling/check-dlpack-cases.mjs`](tooling/check-dlpack-cases.mjs),
+[`tooling/dlpack-results.snapshot.jsonl`](tooling/dlpack-results.snapshot.jsonl)
+e [`tooling/dlpack-reference.test.mjs`](tooling/dlpack-reference.test.mjs).
+
+PYN4 fecha dois módulos T2 draft e mantém `std.tensor@1` e `std.dlpack@1`
+missing. A baseline é DLPack 1.3 versioned, trusted in-process, com release
+exact-once, capsule one-shot, queue/device identity provider-scoped, transfer
+explícito, lease Python bounded e semântica de zero-copy sem cópia de payload.
+O fixture não executa W. A máquina host valida positivos e negativos de dtype,
+layout, flags, overflow, alignment, shape, queue happens-before, dynamic bind,
+materialização, export, cancellation, close/quarantine, GIL/finalization,
+provenance, redaction, untrusted input e ausência de hidden copy.
+
+O teste host independente repete invariantes de lifecycle, release e queue
+matching. O checker exige referências ao fixture, cobertura positiva e negativa
+para cada decisão PYN4 e um snapshot JSONL regenerável. A máquina não lê raw
+pointer, não chama Python, não inicia provider e não é oracle de execução W.
 
 ## 27. Plano de implementação
 
@@ -30844,6 +31086,29 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1122 | ordem e resultado do export | pure declarations usam topological order com ordinal como tie break; effects preservam execution order; conflito/redefinition não-lossless falha; resultado é PYN1/package mais audit manifest | renomear/remover binding, reexecutar, inserir value literal, ordem do documento como autoridade, comentário gerado de prose |
 | W-1123 | output transitório | tail expression summary não cria `_`/`ans`; display_id/update/clear/progress live ficam Pesquisa até owner/drain contract | binding implícito, handle frontend string cru, update atravessar reset, lifetime não bounded |
 | W-1124 | status do bundle PYN3 | PYN3 fecha design e oracles; ZeroMQ, sanitizer, kernel process, frontend, compiler/runtime/providers, DLPack e nomes CLI permanecem missing/Pesquisa conforme seção | apresentar oracle como kernel implementado, iniciar provider, misturar DLPack, congelar CLI sem estudo humano |
+| W-1125 | baseline DLPack PYN4 | DLPack 1.3 versioned é a baseline documental; `DLManagedTensor` legacy é rejeitado e provider/compiler/runtime ficam missing | tratar legacy como vigente, executar o provider a partir do oracle, declarar compatibilidade sem release proof |
+| W-1126 | major/minor version mismatch | major mismatch chama somente deleter uma vez sem dereference; minor mismatch aceita somente fields/enums conhecidos | ler fields após major mismatch, aceitar unknown minor fields, liberar duas vezes |
+| W-1127 | DLPack flags | somente read-only, producer-copied e subbyte-padded são conhecidos; unknown flags rejeitam | ignorar flags desconhecidas, reinterpretar subbyte, usar producer-copied como zero-copy |
+| W-1128 | tensor Device identity | `tensor.Device` vem de resolução do provider e equality inclui provider instance; raw `(type,id)` não é identidade W | comparar somente números, tratar handle foreign como CPU pointer, colapsar kind desconhecido em `other`, transferir implicitamente |
+| W-1129 | tensor Queue capability | Queue é opaca, provider-minted e ligada a Device; receipt de bindQueue/producerWait prova happens-before; mismatch falha e CPU rejeita queue extra | aceitar stream integer ou `ready: true`, inferir queue, misturar queues de devices/providers |
+| W-1130 | managed tensor carrier | `dlpack.ManagedTensor` é opaque move-only e não forgeable; raw pointer não entra em safe API, receipt ou diagnostic | expor pointer, serializar carrier, construir managed tensor a partir de bytes untrusted |
+| W-1131 | zero-copy open | `open` rejeita incompatibilidade e producer-copied e não copia payload; metadata bounded é permitida e registrada | esconder copy, chamar metadata allocation de payload copy, aceitar producer-copied |
+| W-1132 | dynamic bind | `openDynamic` devolve owner consuming e `bind<Element,shape>` valida dtype/rank/shape/layout exatos | fazer cast parcial, reinterpretar dtype, conservar owner após bind |
+| W-1133 | explicit materialization | `materialize` sempre é operação explícita e receipt separa producerCopied de wMaterialized | usar CopyPolicy condicional, copiar no open, omitir target ou queue |
+| W-1134 | imported owner and view | ImportedTensor é move-only read-only; `withView` é lexical, não escapa, não produz inout e drena work | retornar view, guardar borrow, mutar foreign storage, cruzar await sem drain |
+| W-1135 | close and quarantine | `close` drena views/queues/jobs e libera exatamente uma vez; failure vai para quarantine/fault boundary | UAF, skip release em cancel, callback após close, restaurar owner depois de failure |
+| W-1136 | DLPack layout validation | rank, dimensions, product e span `byte_offset + Σ((shape_i-1)*stride_i)*elementBytes + elementBytes`, shape/stride length, element strides, rank-zero null rules, alignment em data+offset, overflow e overlap proof são checked | usar pointer arithmetic unchecked, aceitar negative stride, tratar stride bytes como elements, aceitar overlap sem proof, assumir extent do DLPack |
+| W-1137 | dtype matrix | typed baseline aceita mapping nativo do provider, lanes 1 e mapping W byte-aligned; Bool/Complex exigem storage profile provado; DLPack não expõe Endian público; subbyte/opaque ficam dynamic/rejected | converter endian, aceitar lane diferente, usar booleano do caller como storage proof, alterar NaN/signed zero, reinterpretar unsupported |
+| W-1138 | producer provenance | allocation extent exige trusted producer/provider provenance; DLPack não prova extent | confiar em raw shape, aceitar provenance ausente, ler bytes untrusted |
+| W-1139 | synchronization receipt | producer estabelece happens-before no consumer Queue por receipt de bindQueue/producerWait; CPU não exige queue e rejeita queue extra; receipt não aceita `ready: true` | usar stream integer, inferir cross-provider sameness, publicar sem provider receipt |
+| W-1140 | capsule one-shot | names versioned são `dltensor_versioned`→`used_dltensor_versioned`; destructor libera somente antes do consumo e static names outlive capsule | consumir duas vezes, chamar deleter no destructor consumed, usar nome legacy |
+| W-1141 | Python lease boundary | lease é child do interpreter scope, exige GIL/attached thread state e drena antes de finalization; sem prova copia ou rejeita | callback depois da finalization, free/UAF na boundary, deadlock deliberado |
+| W-1142 | limits and arithmetic | rank, dimensions, elements, span, metadata/control, leases, release jobs, wait e deadline são bounded; overflow precede allocation/publication | quota somente em payload, aritmética wraparound, alocar antes de validar |
+| W-1143 | consuming export | export consome owner W, transfere release obligation e só marca writable com uniqueness real; borrowed escaping rejeita | exportar borrow, copiar payload oculto, liberar owner W após transferência |
+| W-1144 | cancellation and close order | cancellation mantém owner, drena consumer work e chama deleter depois; close failure registra quarantine | abandonar owner, pular drain, tratar cancel como sucesso sem receipt |
+| W-1145 | receipts and redaction | receipts distinguem copy classes, device/queue/provenance e release state e redigem pointer, capsule address, secret, GIL e interpreter pointer | vazar endereço/secret, receipt booleano sem phase, chamar diagnostic de trace raw |
+| W-1146 | untrusted and network boundary | DLPack é trusted in-process e não é serialization, network ou bytes untrusted; buffer protocol não entra no core | desserializar ManagedTensor, aceitar pointer de rede, adicionar buffer protocol |
+| W-1147 | PYN4 status and evidence | fixture Last Light e machine/checker/snapshot/test host cobrem positivos e negativos e não executam W; C Exchange N0 permanece Pesquisa e non-owning/escaping/suspending callback rejeita | chamar machine de runtime, omitir adversarial ou snapshot, promover provider missing ou tratar C Exchange como semântica fechada |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

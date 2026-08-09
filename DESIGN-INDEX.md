@@ -15,17 +15,17 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 30850 |
-| tokens aproximados de `DESIGN.md` | 378800 |
+| linhas de `DESIGN.md` | 31115 |
+| tokens aproximados de `DESIGN.md` | 383700 |
 | seções numeradas | 30 |
-| seções terminais com evidência local | 348/348 |
-| decisões | 1124 (W-001–W-1124) |
+| seções terminais com evidência local | 353/353 |
+| decisões | 1147 (W-001–W-1147) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 68 |
 | casos de substituição estruturados | 68/68 |
-| decisões referenciadas por casos R0 | 120/1124 |
-| decisões classificadas para design freeze | 332/1124 (120 source + 245 oracle + 8 explícitas; 41 overlaps) |
+| decisões referenciadas por casos R0 | 120/1147 |
+| decisões classificadas para design freeze | 355/1147 (120 source + 268 oracle + 8 explícitas; 41 overlaps) |
 | decisões ainda sem classe de freeze | 792 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 164 |
@@ -50,18 +50,19 @@
 | casos do container WMeta1 W0 | 42 (5 aceitos + 37 rejeitados; 2 readers independentes) |
 | casos/operações do carrier tabular TAB0 | 64/155 (22 aceitos + 42 rejeitados; host oracle não executa W) |
 | casos/operações dos adapters tabulares TAB1 | 84/184 (35 aceitos + 49 rejeitados; host oracle não executa W) |
+| casos/operações do carrier DLPack PYN4 | 74/325 (25 aceitos + 49 rejeitados; host oracle não executa W) |
 | casos do corpus semântico S0 | 92 (46 positivos + 46 negativos) |
 | outcomes SemanticResult S0 | 92 |
 | snapshots de diagnostic D0 | 46 |
 | snapshots F0 no formato D0 | 20 |
-| codes D0 catalogados | 154/154 |
-| sources W no root do Última Luz | 85 |
-| sources W em todo o Última Luz | 93 |
-| sources W no rascunho da std | 19 |
-| módulos/APIs catalogados da std SDK0 | 19/295 |
-| superfícies qualificadas da std usadas pelo Última Luz | 67 |
-| requisitos do Última Luz com contrato std SDK0 | 15/15 |
-| requisitos do Última Luz ausentes na std SDK0 | 0/15 |
+| codes D0 catalogados | 186/154 |
+| sources W no root do Última Luz | 86 |
+| sources W em todo o Última Luz | 94 |
+| sources W no rascunho da std | 21 |
+| módulos/APIs catalogados da std SDK0 | 21/315 |
+| superfícies qualificadas da std usadas pelo Última Luz | 78 |
+| requisitos do Última Luz com contrato std SDK0 | 20/20 |
+| requisitos do Última Luz ausentes na std SDK0 | 0/20 |
 
 A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.
 
@@ -117,19 +118,19 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 14 | 14188–18073 | 49300 | Prelude e SDK |
 | 15 | 18074–18787 | 7200 | Números, ranges e unidades |
 | 16 | 18788–20391 | 13700 | Texto, bytes e collections |
-| 17 | 20392–20537 | 1300 | Matrizes, tensors e ML |
-| 18 | 20538–21052 | 5000 | Performance e custo |
-| 19 | 21053–21437 | 4400 | FFI, unsafe e ilhas de linguagem |
-| 20 | 21438–23040 | 17500 | Compilador e bootstrap |
-| 21 | 23041–25150 | 20200 | Packages, builds e releases |
-| 22 | 25151–25636 | 4600 | Tooling e interface para máquinas |
-| 23 | 25637–27065 | 16900 | Protocolos e pesquisas de ecossistema |
-| 24 | 27066–28447 | 24100 | Classificação de viabilidade |
-| 25 | 28448–28658 | 1900 | Produto de referência Última Luz |
-| 26 | 28659–29369 | 9200 | Protocolo de revisão |
-| 27 | 29370–29684 | 3900 | Plano de implementação |
-| 28 | 29685–29715 | 500 | Relação com a consolidação histórica |
-| 29 | 29716–30850 | 62400 | Registro de decisões e alternativas |
+| 17 | 20392–20756 | 4400 | Matrizes, tensors e ML |
+| 18 | 20757–21271 | 5000 | Performance e custo |
+| 19 | 21272–21656 | 4400 | FFI, unsafe e ilhas de linguagem |
+| 20 | 21657–23259 | 17500 | Compilador e bootstrap |
+| 21 | 23260–25369 | 20200 | Packages, builds e releases |
+| 22 | 25370–25855 | 4600 | Tooling e interface para máquinas |
+| 23 | 25856–27284 | 16900 | Protocolos e pesquisas de ecossistema |
+| 24 | 27285–28666 | 24200 | Classificação de viabilidade |
+| 25 | 28667–28877 | 1900 | Produto de referência Última Luz |
+| 26 | 28878–29611 | 9500 | Protocolo de revisão |
+| 27 | 29612–29926 | 3900 | Plano de implementação |
+| 28 | 29927–29957 | 500 | Relação com a consolidação histórica |
+| 29 | 29958–31115 | 63900 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -139,9 +140,9 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 |---|---:|---:|---:|---|
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–7245 | 66800 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 7246–14187 | 71300 | ownership, errors, tasks, domains, services e entries |
-| SDK e performance | 14, 15, 16, 17, 18, 19 | 14188–21437 | 80900 | tiers, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 21438–27065 | 59200 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 27066–30850 | 102000 | viabilidade, Última Luz, gates, roadmap e ledger |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 14188–21656 | 84000 | tiers, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 21657–27284 | 59200 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 27285–31115 | 103900 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

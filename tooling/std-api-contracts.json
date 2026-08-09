@@ -595,6 +595,62 @@
       "failures": { "mode": "typed", "types": ["presentation.Error", "presentation.MediaTypeError", "json.EncodeError"] },
       "bounds": ["total-bytes", "representation-count", "text-bytes", "image-bytes", "image-width", "image-height", "image-pixels", "json-depth", "json-nodes"],
       "complexity": { "time": "linear-bounded-payload", "space": "bounded-by-limits" }
+    },
+    "tensor-device": {
+      "capabilities": ["tensor-device-provider"],
+      "effects": ["allocation", "ownership-transfer"],
+      "failures": { "mode": "typed", "types": ["tensor.DeviceError"] },
+      "bounds": ["provider-scoped-identity", "device-kind", "no-raw-handle"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "tensor-queue": {
+      "capabilities": ["tensor-device-provider"],
+      "effects": ["synchronization", "allocation"],
+      "failures": { "mode": "typed", "types": ["tensor.QueueError"] },
+      "bounds": ["device-match", "happens-before-receipt", "no-raw-stream", "cpu-no-queue"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "tensor-carrier": {
+      "capabilities": ["tensor-device-provider"],
+      "effects": ["allocation", "ownership-transfer", "synchronization"],
+      "failures": { "mode": "typed", "types": ["tensor.TensorError"] },
+      "bounds": ["element-count", "device-transfer", "explicit-queue", "layout-contract"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
+    "dlpack-carrier": {
+      "capabilities": ["trusted-dlpack-provider"],
+      "effects": ["allocation", "ownership-transfer", "synchronization", "c-ffi"],
+      "failures": { "mode": "typed", "types": ["dlpack.DLPackError"] },
+      "bounds": ["versioned-capsule", "typed-dtype", "layout-validation", "provider-profile-event", "provenance", "release-once", "generation-scoped-release", "no-untrusted-bytes"],
+      "complexity": { "time": "linear-shape-and-stride", "space": "bounded-by-limits" }
+    },
+    "dlpack-import": {
+      "capabilities": ["trusted-dlpack-provider"],
+      "effects": ["allocation", "ownership-transfer", "synchronization"],
+      "failures": { "mode": "typed", "types": ["dlpack.DLPackError"] },
+      "bounds": ["zero-copy", "producer-copied-reject", "dynamic-bind", "lifecycle-encapsulated", "view-lexical", "queue-happens-before"],
+      "complexity": { "time": "linear-shape-and-stride", "space": "metadata-bounded" }
+    },
+    "dlpack-materialize": {
+      "capabilities": ["trusted-dlpack-provider", "tensor-device-provider"],
+      "effects": ["allocation", "ownership-transfer", "synchronization", "c-ffi"],
+      "failures": { "mode": "typed", "types": ["dlpack.DLPackError", "tensor.TensorError"] },
+      "bounds": ["explicit-copy", "target-device", "queue-happens-before", "copy-receipt", "overflow-before-allocation"],
+      "complexity": { "time": "provider-bounded", "space": "payload-plus-limits" }
+    },
+    "dlpack-export": {
+      "capabilities": ["trusted-dlpack-provider", "tensor-device-provider"],
+      "effects": ["ownership-transfer", "synchronization", "c-ffi"],
+      "failures": { "mode": "typed", "types": ["dlpack.DLPackError"] },
+      "bounds": ["consuming-owner", "writable-baseline", "unique-writable-derived", "release-obligation"],
+      "complexity": { "time": "provider-bounded", "space": "metadata-bounded" }
+    },
+    "dlpack-python-lease": {
+      "capabilities": ["python-interpreter-scope"],
+      "effects": ["gil", "ownership-transfer", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["dlpack.DLPackError"] },
+      "bounds": ["attached-thread-state", "lease-child", "release-job-drain", "drain-before-finalization", "no-callback-after-boundary"],
+      "complexity": { "time": "constant-registration", "space": "fixed-lease" }
     }
   },
   "modules": [
@@ -1936,6 +1992,64 @@
           ]
         }
       ]
+    },
+    {
+      "id": "std.tensor",
+      "tier": "T2",
+      "availability": "tensor-device-provider",
+      "source": "std/tensor/contracts.w",
+      "designAnchors": ["17.1", "18.5", "24.5", "26.3.18"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.tensor@1",
+        "status": "missing",
+        "gates": ["provider-device-identity", "queue-happens-before-receipt", "tensor-layout", "transfer-cancellation", "ownership-release"]
+      },
+      "consumer": {
+        "path": "reference/last-light/tensor_interop.w",
+        "symbols": ["ScientificBatch", "materializeToHost", "scientificRoute"]
+      },
+      "apis": [
+        { "symbol": "DeviceKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "DeviceError", "kind": "enum", "profile": "tensor-device" },
+        { "symbol": "QueueError", "kind": "enum", "profile": "tensor-queue" },
+        { "symbol": "TensorError", "kind": "enum", "profile": "tensor-carrier" },
+        { "symbol": "Device", "kind": "struct", "profile": "tensor-device", "members": [{ "symbol": "kind", "profile": "tensor-device" }, { "symbol": "same", "profile": "tensor-device" }] },
+        { "symbol": "Queue", "kind": "struct", "profile": "tensor-queue", "members": [{ "symbol": "device", "profile": "tensor-queue" }] },
+        { "symbol": "Limits", "kind": "struct", "profile": "value-contract", "members": [{ "symbol": "init", "profile": "value-contract" }] },
+        { "symbol": "deviceOf", "kind": "fn", "profile": "tensor-carrier" },
+        { "symbol": "transfer", "kind": "fn", "profile": "tensor-carrier" }
+      ]
+    },
+    {
+      "id": "std.dlpack",
+      "tier": "T2",
+      "availability": "dlpack-interchange-provider",
+      "source": "std/dlpack/contracts.w",
+      "designAnchors": ["17.1", "18.5", "24.5", "26.3.18"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.dlpack@1",
+        "status": "missing",
+        "gates": ["dlpack-1.3-version", "capsule-once", "dtype-layout", "queue-happens-before", "python-lease", "release-exactly-once"]
+      },
+      "consumer": {
+        "path": "reference/last-light/tensor_interop.w",
+        "symbols": ["importScientific", "scoreScientific", "exportScores"]
+      },
+      "apis": [
+        { "symbol": "Flag", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "DLPackError", "kind": "enum", "profile": "dlpack-carrier" },
+        { "symbol": "ViewError", "kind": "enum", "profile": "dlpack-import" },
+        { "symbol": "Limits", "kind": "struct", "profile": "value-contract", "members": [{ "symbol": "init", "profile": "value-contract" }] },
+        { "symbol": "ManagedTensor", "kind": "struct", "profile": "dlpack-carrier" },
+        { "symbol": "ImportedTensor", "kind": "struct", "profile": "dlpack-import", "members": [{ "symbol": "withView", "profile": "dlpack-import" }, { "symbol": "close", "profile": "dlpack-import" }] },
+        { "symbol": "DynamicImportedTensor", "kind": "struct", "profile": "dlpack-import", "members": [{ "symbol": "bind", "profile": "dlpack-import" }, { "symbol": "close", "profile": "dlpack-import" }] },
+        { "symbol": "open", "kind": "fn", "profile": "dlpack-import" },
+        { "symbol": "openDynamic", "kind": "fn", "profile": "dlpack-import" },
+        { "symbol": "materialize", "kind": "fn", "profile": "dlpack-materialize", "overloads": 2 },
+        { "symbol": "export", "kind": "fn", "profile": "dlpack-export" }
+      ]
     }
   ],
   "carrierRequirements": [
@@ -2023,7 +2137,9 @@
     { "binding": "http", "module": "std.http" },
     { "binding": "parquet", "module": "std.parquet" },
     { "binding": "streaming", "module": "std.stream" },
-    { "binding": "url", "module": "std.url" }
+    { "binding": "url", "module": "std.url" },
+    { "binding": "tensor", "module": "std.tensor" },
+    { "binding": "dlpack", "module": "std.dlpack" }
   ],
   "referenceRequirements": [
     {
@@ -2174,6 +2290,51 @@
       "kind": "symbol",
       "consumer": "reference/last-light/pyn3_oracle.w",
       "profile": "presentation-contract",
+      "status": "draft"
+    },
+    {
+      "id": "pyn4-tensor-device",
+      "module": "std.tensor",
+      "surface": "Device",
+      "kind": "symbol",
+      "consumer": "reference/last-light/tensor_interop.w",
+      "profile": "tensor-device",
+      "status": "draft"
+    },
+    {
+      "id": "pyn4-tensor-queue",
+      "module": "std.tensor",
+      "surface": "Queue",
+      "kind": "symbol",
+      "consumer": "reference/last-light/tensor_interop.w",
+      "profile": "tensor-queue",
+      "status": "draft"
+    },
+    {
+      "id": "pyn4-dlpack-open",
+      "module": "std.dlpack",
+      "surface": "open",
+      "kind": "symbol",
+      "consumer": "reference/last-light/tensor_interop.w",
+      "profile": "dlpack-import",
+      "status": "draft"
+    },
+    {
+      "id": "pyn4-dlpack-materialize",
+      "module": "std.dlpack",
+      "surface": "materialize",
+      "kind": "symbol",
+      "consumer": "reference/last-light/tensor_interop.w",
+      "profile": "dlpack-materialize",
+      "status": "draft"
+    },
+    {
+      "id": "pyn4-dlpack-export",
+      "module": "std.dlpack",
+      "surface": "export",
+      "kind": "symbol",
+      "consumer": "reference/last-light/tensor_interop.w",
+      "profile": "dlpack-export",
       "status": "draft"
     }
   ]
