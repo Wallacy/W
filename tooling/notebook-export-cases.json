@@ -1,0 +1,1816 @@
+{
+  "$schema": "w-notebook-export-cases-1",
+  "status": "design-oracle-input",
+  "machine": "notebook-export-machine-pyn3",
+  "decisions": [
+    "W-1120",
+    "W-1121",
+    "W-1122",
+    "W-1123",
+    "W-1124"
+  ],
+  "references": [
+    {
+      "path": "reference/last-light/pyn3_oracle.w",
+      "symbol": "NotebookCell"
+    },
+    {
+      "path": "reference/last-light/pyn3_oracle.w",
+      "symbol": "ReceiptProof"
+    },
+    {
+      "path": "reference/last-light/pyn3_oracle.w",
+      "symbol": "ExportResult"
+    }
+  ],
+  "facts": {
+    "lock": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "context": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "toolchain": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "bindingMenu": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "bindingTable": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "cases": [
+    {
+      "id": "PYN3-E-single-file-proof",
+      "decisions": [
+        "W-1120",
+        "W-1121",
+        "W-1122",
+        "W-1123",
+        "W-1124"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "trust": true,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1",
+              "outputs": [
+                {
+                  "output_type": "display_data",
+                  "data": {
+                    "text/plain": [
+                      "old output"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "table",
+              "cell_type": "code",
+              "source": [
+                "let table = 2\n"
+              ],
+              "outputs": []
+            },
+            {
+              "id": "notes",
+              "cell_type": "markdown",
+              "source": "Bistromath",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "wasm32-wasi",
+            "plan": {
+              "kind": "single-file",
+              "entry": "menu",
+              "defaultEntry": {
+                "cellId": "menu",
+                "bindingId": "menu",
+                "version": 1,
+                "moduleId": "main"
+              },
+              "roles": [
+                {
+                  "cellId": "menu",
+                  "role": "root"
+                },
+                {
+                  "cellId": "table",
+                  "role": "pure"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "main",
+                  "role": "root",
+                  "sourceCells": [
+                    "menu",
+                    "table"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "menu",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "menu",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              },
+              {
+                "cellId": "table",
+                "sourceDigest": "auto",
+                "ordinal": 2,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g1",
+                "generationAfter": "opaque:g2",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "table",
+                    "version": 1,
+                    "fingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g1"
+                  }
+                ],
+                "hardEdges": [
+                  {
+                    "bindingId": "menu",
+                    "version": 1,
+                    "kind": "compiledLookup",
+                    "cellId": "menu",
+                    "pyn2Kind": "compiledLookup",
+                    "incarnation": 1,
+                    "generationId": "opaque:g0"
+                  }
+                ],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "binding",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "kind": "single-file",
+          "executed": false,
+          "order": [
+            "menu",
+            "table",
+            "notes"
+          ],
+          "companion": true,
+          "trustNotProof": true,
+          "sourceDigestIsRoot": true
+        }
+      }
+    },
+    {
+      "id": "PYN3-E-package-plan",
+      "decisions": [
+        "W-1120",
+        "W-1122",
+        "W-1124"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1",
+              "outputs": []
+            },
+            {
+              "id": "support",
+              "cell_type": "code",
+              "source": "let support = 2",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "package",
+              "entry": "menu",
+              "defaultEntry": {
+                "cellId": "menu",
+                "bindingId": "menu",
+                "version": 1,
+                "moduleId": "main"
+              },
+              "roles": [
+                {
+                  "cellId": "menu",
+                  "role": "root"
+                },
+                {
+                  "cellId": "support",
+                  "role": "support"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "main",
+                  "role": "root",
+                  "sourceCells": [
+                    "menu"
+                  ],
+                  "digest": "auto"
+                },
+                {
+                  "id": "support",
+                  "role": "support",
+                  "sourceCells": [
+                    "support"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "menu",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "menu",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              },
+              {
+                "cellId": "support",
+                "sourceDigest": "auto",
+                "ordinal": 2,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g1",
+                "generationAfter": "opaque:g2",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "support",
+                    "version": 1,
+                    "fingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g1"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "kind": "package",
+          "audit": true,
+          "executed": false,
+          "sourceDigestNull": true
+        }
+      }
+    },
+    {
+      "id": "PYN3-E-markdown-companion",
+      "decisions": [
+        "W-1120",
+        "W-1123"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "trust": true,
+          "cells": [
+            {
+              "id": "text_cell",
+              "cell_type": "markdown",
+              "source": "Bistromath",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": null,
+              "roles": [],
+              "modules": [],
+              "contentDigest": "auto"
+            },
+            "receipts": []
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "kind": "single-file",
+          "outputsExcluded": true,
+          "companion": true,
+          "trustNotProof": true
+        }
+      }
+    },
+    {
+      "id": "PYN3-E-underscore-cell-id",
+      "decisions": [
+        "W-1120"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "cell_1",
+              "cell_type": "code",
+              "source": "let x = 1",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "cell_1",
+              "defaultEntry": {
+                "cellId": "cell_1",
+                "bindingId": "cell_1",
+                "version": 1,
+                "moduleId": "root"
+              },
+              "roles": [
+                {
+                  "cellId": "cell_1",
+                  "role": "root"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "root",
+                  "role": "root",
+                  "sourceCells": [
+                    "cell_1"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "cell_1",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "cell_1",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "kind": "single-file"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-invalid-cell-id",
+      "decisions": [
+        "W-1120"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "bad id",
+              "cell_type": "code",
+              "source": "let x = 1"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0001"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-missing-receipt",
+      "decisions": [
+        "W-1120",
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "menu",
+              "modules": [],
+              "contentDigest": "auto"
+            },
+            "receipts": []
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0002"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-duplicate-receipt",
+      "decisions": [
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "menu",
+              "modules": [],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "menu"
+              },
+              {
+                "cellId": "menu"
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0002"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-source-proof-mismatch",
+      "decisions": [
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "menu",
+              "modules": [],
+              "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "receipts": [
+              {
+                "cellId": "menu",
+                "sourceDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "ordinal": 1
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0003"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-invalidation-redefinition",
+      "decisions": [
+        "W-1121",
+        "W-1122"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "redefine",
+          "bindingId": "menu",
+          "previous": "opaque:g0",
+          "next": "opaque:g1"
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "menu",
+              "modules": [],
+              "contentDigest": "auto"
+            },
+            "receipts": []
+          }
+        },
+        {
+          "op": "invalidate",
+          "cellId": "menu"
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0004"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-structured-effect-block",
+      "decisions": [
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "effect",
+              "cell_type": "code",
+              "source": "effect()"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "effect",
+              "modules": [],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "effect",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "effect",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "io",
+                    "status": "unknown"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0005"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-dependency-version",
+      "decisions": [
+        "W-1122"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "first",
+              "cell_type": "code",
+              "source": "let first = 1"
+            },
+            {
+              "id": "second",
+              "cell_type": "code",
+              "source": "let second = first"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "first",
+              "defaultEntry": {
+                "cellId": "first",
+                "bindingId": "first",
+                "version": 1,
+                "moduleId": "root"
+              },
+              "roles": [
+                {
+                  "cellId": "first",
+                  "role": "root"
+                },
+                {
+                  "cellId": "second",
+                  "role": "pure"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "root",
+                  "role": "root",
+                  "sourceCells": [
+                    "first",
+                    "second"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "first",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "first",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              },
+              {
+                "cellId": "second",
+                "sourceDigest": "auto",
+                "ordinal": 2,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g1",
+                "generationAfter": "opaque:g2",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "second",
+                    "version": 1,
+                    "fingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g1"
+                  }
+                ],
+                "hardEdges": [
+                  {
+                    "bindingId": "first",
+                    "version": 2,
+                    "kind": "compiledLookup",
+                    "pyn2Kind": "hard",
+                    "cellId": "first"
+                  }
+                ],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "binding",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0006"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-selection-duplicate",
+      "decisions": [
+        "W-1122"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "one",
+              "cell_type": "code",
+              "source": "let one = 1"
+            }
+          ]
+        },
+        {
+          "op": "select",
+          "cellIds": [
+            "one",
+            "one"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0001"
+        }
+      }
+    },
+    {
+      "id": "PYN3-P-effect-order",
+      "decisions": [
+        "W-1122",
+        "W-1124"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "first",
+              "cell_type": "code",
+              "source": "let first = 1"
+            },
+            {
+              "id": "effect_one",
+              "cell_type": "code",
+              "source": "effect one()"
+            },
+            {
+              "id": "effect_two",
+              "cell_type": "code",
+              "source": "effect two()"
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "first",
+              "defaultEntry": {
+                "cellId": "first",
+                "bindingId": "first",
+                "version": 1,
+                "moduleId": "root"
+              },
+              "roles": [
+                {
+                  "cellId": "first",
+                  "role": "root"
+                },
+                {
+                  "cellId": "effect_one",
+                  "role": "effect"
+                },
+                {
+                  "cellId": "effect_two",
+                  "role": "effect"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "root",
+                  "role": "root",
+                  "sourceCells": [
+                    "first",
+                    "effect_one",
+                    "effect_two"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "first",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "first",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              },
+              {
+                "cellId": "effect_one",
+                "sourceDigest": "auto",
+                "ordinal": 2,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g1",
+                "generationAfter": "opaque:g2",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "effect_one",
+                    "version": 1,
+                    "fingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g1"
+                  }
+                ],
+                "hardEdges": [
+                  {
+                    "bindingId": "first",
+                    "version": 1,
+                    "kind": "compiledLookup",
+                    "cellId": "first",
+                    "pyn2Kind": "compiledLookup",
+                    "incarnation": 1,
+                    "generationId": "opaque:g0"
+                  }
+                ],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "io",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "binding",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              },
+              {
+                "cellId": "effect_two",
+                "sourceDigest": "auto",
+                "ordinal": 3,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g2",
+                "generationAfter": "opaque:g3",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "effect_two",
+                    "version": 1,
+                    "fingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g2"
+                  }
+                ],
+                "hardEdges": [
+                  {
+                    "bindingId": "effect_one",
+                    "version": 1,
+                    "kind": "compiledLookup",
+                    "cellId": "effect_one",
+                    "pyn2Kind": "compiledLookup",
+                    "incarnation": 1,
+                    "generationId": "opaque:g1"
+                  }
+                ],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "io",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "binding",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "kind": "single-file",
+          "order": [
+            "first",
+            "effect_one",
+            "effect_two"
+          ],
+          "executed": false
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-raw-cell-policy",
+      "decisions": [
+        "W-1120",
+        "W-1123"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "rawPolicy": "reject",
+          "cells": [
+            {
+              "id": "raw_1",
+              "cell_type": "raw",
+              "source": "raw"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0001"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-hidden-replay",
+      "decisions": [
+        "W-1123",
+        "W-1124"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "replay"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0007",
+          "executions": 0
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-explicit-execution",
+      "decisions": [
+        "W-1124"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "menu",
+              "cell_type": "code",
+              "source": "let menu = 1"
+            }
+          ]
+        },
+        {
+          "op": "export",
+          "execute": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0007",
+          "executions": 0
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-bad-default-entry-binding",
+      "decisions": [
+        "W-1120",
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "entry",
+              "cell_type": "code",
+              "source": "let entry = 1",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "entry",
+              "defaultEntry": {
+                "cellId": "entry",
+                "bindingId": "missing",
+                "version": 1,
+                "moduleId": "root"
+              },
+              "roles": [
+                {
+                  "cellId": "entry",
+                  "role": "root"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "root",
+                  "role": "root",
+                  "sourceCells": [
+                    "entry"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "entry",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "entry",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved",
+                    "secret": false
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0003"
+        }
+      }
+    },
+    {
+      "id": "PYN3-N-fixture-missing-security-fact",
+      "decisions": [
+        "W-1121"
+      ],
+      "operations": [
+        {
+          "op": "load",
+          "nbformat": 4,
+          "nbformat_minor": 5,
+          "cells": [
+            {
+              "id": "unsafe",
+              "cell_type": "code",
+              "source": "let unsafe = 1",
+              "outputs": []
+            }
+          ]
+        },
+        {
+          "op": "manifest",
+          "value": {
+            "version": 2,
+            "lock": {
+              "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "context": {
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "target": "native",
+            "plan": {
+              "kind": "single-file",
+              "entry": "unsafe",
+              "defaultEntry": {
+                "cellId": "unsafe",
+                "bindingId": "unsafe",
+                "version": 1,
+                "moduleId": "root"
+              },
+              "roles": [
+                {
+                  "cellId": "unsafe",
+                  "role": "root"
+                }
+              ],
+              "modules": [
+                {
+                  "id": "root",
+                  "role": "root",
+                  "sourceCells": [
+                    "unsafe"
+                  ],
+                  "digest": "auto"
+                }
+              ],
+              "contentDigest": "auto"
+            },
+            "receipts": [
+              {
+                "cellId": "unsafe",
+                "sourceDigest": "auto",
+                "ordinal": 1,
+                "sessionId": "session-1",
+                "incarnation": 1,
+                "generationBefore": "opaque:g0",
+                "generationAfter": "opaque:g1",
+                "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "lockDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "contextDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "effectDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "outcome": "committed",
+                "bindingRecords": [
+                  {
+                    "id": "unsafe",
+                    "version": 1,
+                    "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                    "creationIncarnation": 1,
+                    "creationGenerationId": "opaque:g0"
+                  }
+                ],
+                "hardEdges": [],
+                "providerOutcomes": [
+                  {
+                    "provider": "std.presentation@1",
+                    "status": "ok"
+                  }
+                ],
+                "effectOutcomes": [
+                  {
+                    "kind": "pure",
+                    "status": "known"
+                  }
+                ],
+                "inputs": [
+                  {
+                    "kind": "literal",
+                    "state": "resolved"
+                  }
+                ],
+                "resourceStates": [
+                  {
+                    "kind": "binding",
+                    "state": "stable",
+                    "serializable": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "assertions": {
+          "diagnostic": "W-EXPORT-0005"
+        }
+      }
+    }
+  ]
+}

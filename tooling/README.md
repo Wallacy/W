@@ -40,7 +40,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 285 exports em 18 módulos, 67 superfícies qualificadas, 14/14 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow e `SnapshotByteSource` são drafts, seus 12/12 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 295 exports em 19 módulos, 67 superfícies qualificadas, 15/15 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow/presentation e `SnapshotByteSource` são drafts, seus 13/13 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 ### Workflow single-file PYN1
@@ -99,8 +99,57 @@ stale identity, parser/semantic, quota, cancellation, close/reset e drain.
 
 O fixture parseável é
 [`reference/last-light/repl_session_oracle.w`](../reference/last-light/repl_session_oracle.w).
-Ele é um oracle de design. PYN3/Jupyter/rich output e DLPack permanecem bundles
-separados.
+Ele é um oracle de design. PYN3/Jupyter/rich output agora estão materializados
+como bundles separados; DLPack permanece fora do escopo.
+
+### Apresentação, Jupyter e export PYN3
+
+PYN3 possui três oracles host independentes. Eles usam facts e receipts
+serializados. Nenhum deles compila ou executa W.
+
+[`presentation-machine.mjs`](presentation-machine.mjs) valida media e payload
+typed, `text/plain`, uniqueness, effect mask, limits, fallback e cancellation.
+Também prova que a prévia tabular não coleta stream e que o resumo tensorial não
+faz device copy. O corpus, checker, snapshot e teste host ficam em
+[`presentation-cases.json`](presentation-cases.json),
+[`check-presentation-cases.mjs`](check-presentation-cases.mjs),
+[`presentation-results.snapshot.jsonl`](presentation-results.snapshot.jsonl) e
+[`presentation-reference.test.mjs`](presentation-reference.test.mjs).
+
+[`jupyter-machine.mjs`](jupyter-machine.mjs) valida kernelspec 5.5 determinístico,
+os cinco ports loopback e connection security, HMAC-before-use, Curve Z85,
+heartbeat echo, replay e quotas. Ele deriva FIFO PYN2, lifecycle
+busy/reply/outputs/idle, `ExecutionOrdinal` separado de `GenerationId`, silent,
+expressions, stdin/password, interrupt/shutdown, read-only requests e metadata
+namespaced `w`. O corpus, checker, snapshot e
+teste host ficam em [`jupyter-cases.json`](jupyter-cases.json),
+[`check-jupyter-cases.mjs`](check-jupyter-cases.mjs),
+[`jupyter-results.snapshot.jsonl`](jupyter-results.snapshot.jsonl) e
+[`jupyter-reference.test.mjs`](jupyter-reference.test.mjs).
+
+[`notebook-export-machine.mjs`](notebook-export-machine.mjs) valida nbformat
+cell IDs, source String/Array, bounds, receipt manifest estruturado,
+source/generation/binding/lock/effect proof, invalidation e redefinition
+blockers, ordem determinística e resultados single-file PYN1, package e audit.
+Markdown é companion; raw segue policy. Export não executa cell nem faz hidden
+replay. O corpus, checker, snapshot e teste host ficam em
+[`notebook-export-cases.json`](notebook-export-cases.json),
+[`check-notebook-export-cases.mjs`](check-notebook-export-cases.mjs),
+[`notebook-export-results.snapshot.jsonl`](notebook-export-results.snapshot.jsonl)
+e [`notebook-export-reference.test.mjs`](notebook-export-reference.test.mjs).
+
+Use:
+
+```sh
+bun test tooling/presentation-reference.test.mjs tooling/jupyter-reference.test.mjs tooling/notebook-export-reference.test.mjs
+bun tooling/check-presentation-cases.mjs
+bun tooling/check-jupyter-cases.mjs
+bun tooling/check-notebook-export-cases.mjs
+```
+
+Os nomes `notebook check`, `session receipts` e `notebook export` são labels de
+design. O tooling não fornece CLI, ZeroMQ, kernel process, sanitizer, frontend,
+provider ou runtime.
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses

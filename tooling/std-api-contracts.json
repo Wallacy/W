@@ -588,6 +588,13 @@
       "failures": { "mode": "typed", "types": ["CImportError", "CExportError"] },
       "bounds": ["structural-validation", "release-once", "serial-get-next", "copy-policy", "cpu-baseline"],
       "complexity": { "time": "linear-buffers", "space": "bounded-by-contract" }
+    },
+    "presentation-contract": {
+      "capabilities": [],
+      "effects": ["borrow", "allocation", "writer-write"],
+      "failures": { "mode": "typed", "types": ["presentation.Error", "presentation.MediaTypeError", "json.EncodeError"] },
+      "bounds": ["total-bytes", "representation-count", "text-bytes", "image-bytes", "image-width", "image-height", "image-pixels", "json-depth", "json-nodes"],
+      "complexity": { "time": "linear-bounded-payload", "space": "bounded-by-limits" }
     }
   },
   "modules": [
@@ -1861,6 +1868,74 @@
         { "symbol": "importCStreamDynamic", "kind": "fn", "profile": "arrow-c-bridge" },
         { "symbol": "exportCArray", "kind": "fn", "profile": "arrow-c-bridge" }
       ]
+    },
+    {
+      "id": "std.presentation",
+      "tier": "T2",
+      "availability": "presentation-provider",
+      "source": "std/presentation/contracts.w",
+      "designAnchors": ["24.1.4"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.presentation@1",
+        "status": "missing",
+        "gates": ["effect-mask", "media-validation", "writer-bounds", "cancellation", "ownership", "sanitizer", "differential-rendering"]
+      },
+      "consumer": {
+        "path": "reference/last-light/pyn3_oracle.w",
+        "symbols": ["Presentable", "Writer", "MediaType", "Limits"]
+      },
+      "apis": [
+        { "symbol": "Error", "kind": "enum", "profile": "presentation-contract" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "presentation-contract" },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "profile": "presentation-contract",
+          "members": [
+            { "symbol": "init", "profile": "presentation-contract", "overloads": 2 },
+            { "symbol": "maximumBytes", "profile": "presentation-contract" },
+            { "symbol": "maximumRepresentations", "profile": "presentation-contract" },
+            { "symbol": "maximumTextBytes", "profile": "presentation-contract" },
+            { "symbol": "maximumImageBytes", "profile": "presentation-contract" },
+            { "symbol": "maximumImageWidth", "profile": "presentation-contract" },
+            { "symbol": "maximumImageHeight", "profile": "presentation-contract" },
+            { "symbol": "maximumImagePixels", "profile": "presentation-contract" },
+            { "symbol": "maximumJsonDepth", "profile": "presentation-contract" },
+            { "symbol": "maximumJsonNodes", "profile": "presentation-contract" },
+            { "symbol": "maximumJsonStringBytes", "profile": "presentation-contract" },
+            { "symbol": "maximumWorkUnits", "profile": "presentation-contract" }
+          ]
+        },
+        { "symbol": "MediaKind", "kind": "enum", "profile": "presentation-contract" },
+        {
+          "symbol": "MediaType",
+          "kind": "struct",
+          "profile": "presentation-contract",
+          "members": [
+            { "symbol": "init", "profile": "presentation-contract" },
+            { "symbol": "value", "profile": "presentation-contract" },
+            { "symbol": "kind", "profile": "presentation-contract" },
+            { "symbol": "isPortable", "profile": "presentation-contract" }
+          ]
+        },
+        { "symbol": "MediaTypeError", "kind": "enum", "profile": "presentation-contract" },
+        { "symbol": "Png", "kind": "struct", "profile": "presentation-contract" },
+        { "symbol": "Jpeg", "kind": "struct", "profile": "presentation-contract" },
+        { "symbol": "Presentable", "kind": "protocol", "profile": "presentation-contract" },
+        {
+          "symbol": "Writer",
+          "kind": "struct",
+          "profile": "presentation-contract",
+          "members": [
+            { "symbol": "text", "profile": "presentation-contract" },
+            { "symbol": "png", "profile": "presentation-contract" },
+            { "symbol": "jpeg", "profile": "presentation-contract" },
+            { "symbol": "json", "profile": "presentation-contract" },
+            { "symbol": "vendorJson", "profile": "presentation-contract" }
+          ]
+        }
+      ]
     }
   ],
   "carrierRequirements": [
@@ -2090,6 +2165,15 @@
       "kind": "symbol",
       "consumer": "reference/last-light/data_formats.w",
       "profile": "arrow-ipc",
+      "status": "draft"
+    },
+    {
+      "id": "pyn3-presentation-presentable",
+      "module": "std.presentation",
+      "surface": "Presentable",
+      "kind": "symbol",
+      "consumer": "reference/last-light/pyn3_oracle.w",
+      "profile": "presentation-contract",
       "status": "draft"
     }
   ]

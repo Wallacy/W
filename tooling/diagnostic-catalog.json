@@ -142,7 +142,7 @@
       "fixes": {}
     },
     "session": {
-      "phase": "session",
+      "phase": "interface",
       "defaultSeverity": "error",
       "requiredFacts": {
         "actual": "string",
@@ -153,6 +153,51 @@
       "labelRoles": {
         "session-owner": { "minimum": 0, "maximum": 1 },
         "generation": { "minimum": 0, "maximum": 2 }
+      },
+      "fixes": {}
+    },
+    "presentation": {
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "presentation-owner": { "minimum": 0, "maximum": 1 },
+        "media": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "jupyter": {
+      "phase": "interface",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "request-owner": { "minimum": 0, "maximum": 1 },
+        "channel": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "notebook-export": {
+      "phase": "package",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "cell-owner": { "minimum": 0, "maximum": 1 },
+        "receipt": { "minimum": 0, "maximum": 1 }
       },
       "fixes": {}
     }
@@ -1407,6 +1452,31 @@
     { "code": "W-SESSION-0025", "state": "active", "profile": "session", "meaning": "source bytes exceed the bounded quota" },
     { "code": "W-SESSION-0026", "state": "active", "profile": "session", "meaning": "provider drain facts are missing or a conclusion boolean was supplied" },
     { "code": "W-SESSION-0027", "state": "active", "profile": "session", "meaning": "effects exceed the per-submission bounded quota" },
-    { "code": "W-SESSION-0028", "state": "active", "profile": "session", "meaning": "queued admission tickets exceed the bounded ring" }
+    { "code": "W-SESSION-0028", "state": "active", "profile": "session", "meaning": "queued admission tickets exceed the bounded ring" },
+    { "code": "W-PRESENTATION-0001", "state": "active", "profile": "presentation", "meaning": "a typed presentation media or payload is invalid" },
+    { "code": "W-PRESENTATION-0002", "state": "active", "profile": "presentation", "meaning": "active presentation content is rejected" },
+    { "code": "W-PRESENTATION-0003", "state": "active", "profile": "presentation", "meaning": "a presentation media type is duplicated" },
+    { "code": "W-PRESENTATION-0004", "state": "active", "profile": "presentation", "meaning": "a presentation limit is exceeded" },
+    { "code": "W-PRESENTATION-0005", "state": "active", "profile": "presentation", "meaning": "a presentation call uses an effect outside the closed mask" },
+    { "code": "W-PRESENTATION-0006", "state": "active", "profile": "presentation", "meaning": "a media type requires a missing provider or sanitizer" },
+    { "code": "W-PRESENTATION-0007", "state": "active", "profile": "presentation", "meaning": "a presentation does not provide required text/plain" },
+    { "code": "W-PRESENTATION-0008", "state": "active", "profile": "presentation", "meaning": "a presentation writer is closed, cancelled, or used outside its scope" },
+    { "code": "W-PRESENTATION-0009", "state": "active", "profile": "presentation", "meaning": "presentation would collect a stream or copy device data implicitly" },
+    { "code": "W-PRESENTATION-0010", "state": "active", "profile": "presentation", "meaning": "a presentation fallback would call user code or expose private data" },
+    { "code": "W-JUPYTER-0001", "state": "active", "profile": "jupyter", "meaning": "connection authentication, integrity, or replay validation fails" },
+    { "code": "W-JUPYTER-0002", "state": "active", "profile": "jupyter", "meaning": "a Jupyter frame, metadata, history, or pending request exceeds a quota" },
+    { "code": "W-JUPYTER-0003", "state": "active", "profile": "jupyter", "meaning": "a request lifecycle does not end after its reply and related outputs" },
+    { "code": "W-JUPYTER-0005", "state": "active", "profile": "jupyter", "meaning": "silent or user-expression execution is not read-only and effect-free" },
+    { "code": "W-JUPYTER-0006", "state": "active", "profile": "jupyter", "meaning": "stdin or password handling violates the bounded routing policy" },
+    { "code": "W-JUPYTER-0007", "state": "active", "profile": "jupyter", "meaning": "a kernelspec feature or W metadata field is not implemented or namespaced" },
+    { "code": "W-JUPYTER-0008", "state": "active", "profile": "jupyter", "meaning": "interrupt or shutdown claims a boundary without admission, drain, or safe close" },
+    { "code": "W-JUPYTER-0009", "state": "active", "profile": "jupyter", "meaning": "a read-only Jupyter request reads staging, uses a byte offset, or executes" },
+    { "code": "W-EXPORT-0001", "state": "active", "profile": "notebook-export", "meaning": "a notebook or cell identity is invalid" },
+    { "code": "W-EXPORT-0002", "state": "active", "profile": "notebook-export", "meaning": "a selected notebook cell lacks a receipt manifest record" },
+    { "code": "W-EXPORT-0003", "state": "active", "profile": "notebook-export", "meaning": "a receipt source, generation, binding, lock, context, target, or effect proof mismatches" },
+    { "code": "W-EXPORT-0004", "state": "active", "profile": "notebook-export", "meaning": "invalidation or redefinition prevents a lossless export" },
+    { "code": "W-EXPORT-0005", "state": "active", "profile": "notebook-export", "meaning": "an export contains unknown effects, unresolved input, secret, degraded owner, or live resource" },
+    { "code": "W-EXPORT-0006", "state": "active", "profile": "notebook-export", "meaning": "dependencies and effects have no deterministic lossless order" },
+    { "code": "W-EXPORT-0007", "state": "active", "profile": "notebook-export", "meaning": "notebook export attempted execution or hidden replay" }
   ]
 }

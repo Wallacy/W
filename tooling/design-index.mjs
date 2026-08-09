@@ -261,6 +261,9 @@ const oracleCorpusFiles = [
   "package-release-cases.json",
   "script-workflow-cases.json",
   "repl-session-cases.json",
+  "presentation-cases.json",
+  "jupyter-cases.json",
+  "notebook-export-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
@@ -515,6 +518,39 @@ const replSessionOperations = replSessionCorpus.cases.reduce(
 const acceptedReplSessionCases = replSessionCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const presentationCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "presentation-cases.json"), "utf8"),
+);
+const presentationCases = presentationCorpus.cases.length;
+const presentationOperations = presentationCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedPresentationCases = presentationCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
+const jupyterCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "jupyter-cases.json"), "utf8"),
+);
+const jupyterCases = jupyterCorpus.cases.length;
+const jupyterOperations = jupyterCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedJupyterCases = jupyterCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
+const notebookExportCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "notebook-export-cases.json"), "utf8"),
+);
+const notebookExportCases = notebookExportCorpus.cases.length;
+const notebookExportOperations = notebookExportCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedNotebookExportCases = notebookExportCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const wmetaCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "wmeta-cases.json"), "utf8"),
 );
@@ -677,6 +713,21 @@ output.push(
     `${replSessionCases}/${replSessionOperations} ` +
     `(${acceptedReplSessionCases} aceitos + ` +
     `${replSessionCases - acceptedReplSessionCases} rejeitados) |`,
+);
+output.push(
+  `| casos/operações de apresentação PYN3 | ${presentationCases}/${presentationOperations} ` +
+    `(${acceptedPresentationCases} aceitos + ` +
+    `${presentationCases - acceptedPresentationCases} rejeitados; host oracle não executa W) |`,
+);
+output.push(
+  `| casos/operações do adapter Jupyter PYN3 | ${jupyterCases}/${jupyterOperations} ` +
+    `(${acceptedJupyterCases} aceitos + ` +
+    `${jupyterCases - acceptedJupyterCases} rejeitados; host oracle não executa W) |`,
+);
+output.push(
+  `| casos/operações do export notebook PYN3 | ${notebookExportCases}/${notebookExportOperations} ` +
+    `(${acceptedNotebookExportCases} aceitos + ` +
+    `${notebookExportCases - acceptedNotebookExportCases} rejeitados; host oracle não executa W) |`,
 );
 output.push(
   `| casos do container WMeta1 W0 | ${wmetaCases} ` +

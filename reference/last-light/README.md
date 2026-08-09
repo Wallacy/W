@@ -199,6 +199,7 @@ alvo de execução independente.
 | `workflow.w` | points duráveis, retry, timer, evento e compensação |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
+| `pyn3_oracle.w` | fixture PYN3 para apresentação typed, adapter Jupyter e export comprovado |
 | `gateway.w` | dispatch, routing por URL, body único e oracle de compile surface para clone bounded |
 | `http_documents.w` | adapters direcionais de Command/AppResponse e Problem Details |
 | `http_oracle.w` | constructors, limits, consuming reads, bounded clone, JSON, copied-headers override e net serve signature |
@@ -431,6 +432,59 @@ puros separados para retenção de snapshot, predecessor de edge transitivo,
 states de drain ready/degraded e cancellation antes/depois de publish. Esses
 testes provam somente funções do contrato parseável; não alegam um REPL
 executável.
+
+### 3.1.3 Apresentação, Jupyter e export PYN3
+
+Fixture: [`pyn3_oracle.w`](pyn3_oracle.w). Os três oracles host são
+[`presentation-machine.mjs`](../../tooling/presentation-machine.mjs),
+[`jupyter-machine.mjs`](../../tooling/jupyter-machine.mjs) e
+[`notebook-export-machine.mjs`](../../tooling/notebook-export-machine.mjs).
+Cada máquina tem corpus, checker, snapshot JSONL e teste host com o mesmo
+prefixo. Nenhuma máquina executa W ou implementa um provider.
+
+Aceite:
+
+- `Presentable` escreve em writer opaco com media typed, limits, effect mask e
+  `text/plain` obrigatório;
+- o cardápio e a tabela usam preview bounded sem collect. O sensor do buraco
+  negro e o tensor device expõem somente metadata. O tensor não é copiado;
+- o fallback é determinístico e redacted. Cancellation, timeout ou falha de
+  apresentação deixam um diagnostic bounded, texto compiler fallback e o
+  submission outcome inalterado;
+- Jupyter valida kernelspec 5.5 determinístico, cinco ports loopback user-only,
+  HMAC antes de JSON, Curve Z85 em todos os sockets, replay, quotas, FIFO PYN2,
+  heartbeat echo e lifecycle busy/reply/outputs/idle;
+- `execution_count` é o counter corrente em todo reply; o reserved ordinal é
+  separado e nullable, e `GenerationId` é opaque. Silent e user expressions
+  são read-only. Stdin tem um waiter origin-routed e password não persiste;
+- completion, inspect, completeness e history usam snapshot committed com
+  offsets Unicode code point. Metadata usa namespace `w`;
+- export valida IDs nbformat, source String/Array, receipt manifest estruturado
+  (session, generation, bindings, hard edges, providers, effects, inputs e
+  resources), invalidation closure e ordem determinística;
+- markdown só entra como companion explícito, raw segue policy, e o plan
+  content-addressed deriva single-file/package sem `modules` ou `entries` da
+  operação;
+- export produz single-file PYN1, package ou audit manifest sem executar.
+
+Adversariais:
+
+- media duplicada, media missing, active content, JSON fora do limite,
+  collect/device copy implícitos, effect proibido e fallback que chama user code;
+- HMAC inválido, replay, frames ou metadata acima da quota, Curve ausente,
+  idle prematuro, silent mutation, user expression effectful, password em
+  receipt, interrupt não admitido e shutdown antes de drain;
+- feature advertisement falso, metadata sem namespace, read de staging ou
+  byte offset;
+- cell ID inválido, receipt ausente ou divergente, cell invalidada,
+  redefinition, effect unknown, stdin não resolvido, ciclo, replay oculto e
+  export com execute explícito.
+
+O fixture contém símbolos para `MenuPreview`, `TabularPreview`,
+`BlackHoleSensor`, `DeviceTensorSummary`, `BistromathText`, `JupyterIdentity`,
+`NotebookCell` e `ExportResult`. Esses símbolos são smoke tests de parsing e
+referências do catálogo std. Eles não afirmam um kernel ou um provider
+disponível.
 
 ### 3.2 Comanda de Íon
 
