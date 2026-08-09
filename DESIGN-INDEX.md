@@ -15,18 +15,18 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 28782 |
-| tokens aproximados de `DESIGN.md` | 337800 |
+| linhas de `DESIGN.md` | 29069 |
+| tokens aproximados de `DESIGN.md` | 343200 |
 | seções numeradas | 30 |
 | seções terminais com evidência local | 335/335 |
-| decisões | 970 (W-001–W-970) |
+| decisões | 980 (W-001–W-980) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 55 |
 | casos de substituição estruturados | 55/55 |
-| decisões referenciadas por casos R0 | 93/970 |
-| decisões classificadas para design freeze | 194/970 (93 source + 113 oracle + 8 explícitas; 20 overlaps) |
-| decisões ainda sem classe de freeze | 776 |
+| decisões referenciadas por casos R0 | 93/980 |
+| decisões classificadas para design freeze | 194/980 (93 source + 113 oracle + 8 explícitas; 20 overlaps) |
+| decisões ainda sem classe de freeze | 786 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 124 |
 | surface lexemes das formas vigentes R0 | 1070 total; mediana 16; máximo 50 |
@@ -88,36 +88,36 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 0 | 14–204 | 2300 | Como ler este documento |
-| 1 | 205–228 | 300 | Limite da alegação |
-| 2 | 229–253 | 400 | Invariantes |
-| 3 | 254–3182 | 28500 | Contratos estáticos e orçamento de símbolos |
-| 4 | 3183–3245 | 400 | Superfície integrada |
-| 5 | 3246–3537 | 2500 | Source, nomes e edição |
-| 6 | 3538–3976 | 4100 | Módulos, imports e visibilidade |
-| 7 | 3977–4640 | 6200 | Bindings, funções e closures |
-| 8 | 4641–7066 | 19000 | Tipos e conversões |
-| 9 | 7067–8859 | 20700 | Memória, layout e alocação |
-| 10 | 8860–8903 | 400 | Property behaviors |
-| 11 | 8904–9262 | 3000 | Erros, panic, OOM e cleanup |
-| 12 | 9263–11623 | 24200 | Concorrência, paralelismo e execução |
-| 13 | 11624–14008 | 23000 | Módulos de execução, services e entries |
-| 14 | 14009–17542 | 44000 | Prelude e SDK |
-| 15 | 17543–18256 | 7200 | Números, ranges e unidades |
-| 16 | 18257–19857 | 13600 | Texto, bytes e collections |
-| 17 | 19858–19996 | 1200 | Matrizes, tensors e ML |
-| 18 | 19997–20507 | 4900 | Performance e custo |
-| 19 | 20508–20882 | 4200 | FFI, unsafe e ilhas de linguagem |
-| 20 | 20883–22485 | 17500 | Compilador e bootstrap |
-| 21 | 22486–24561 | 19800 | Packages, builds e releases |
-| 22 | 24562–25034 | 4400 | Tooling e interface para máquinas |
-| 23 | 25035–26463 | 16900 | Protocolos e pesquisas de ecossistema |
-| 24 | 26464–26828 | 9000 | Classificação de viabilidade |
-| 25 | 26829–27039 | 1900 | Produto de referência Última Luz |
-| 26 | 27040–27455 | 4900 | Protocolo de revisão |
-| 27 | 27456–27770 | 3900 | Plano de implementação |
-| 28 | 27771–27801 | 500 | Relação com a consolidação histórica |
-| 29 | 27802–28782 | 50100 | Registro de decisões e alternativas |
+| 0 | 14–211 | 2400 | Como ler este documento |
+| 1 | 212–235 | 300 | Limite da alegação |
+| 2 | 236–260 | 400 | Invariantes |
+| 3 | 261–3189 | 28500 | Contratos estáticos e orçamento de símbolos |
+| 4 | 3190–3252 | 400 | Superfície integrada |
+| 5 | 3253–3544 | 2500 | Source, nomes e edição |
+| 6 | 3545–3983 | 4100 | Módulos, imports e visibilidade |
+| 7 | 3984–4647 | 6200 | Bindings, funções e closures |
+| 8 | 4648–7073 | 19000 | Tipos e conversões |
+| 9 | 7074–8866 | 20700 | Memória, layout e alocação |
+| 10 | 8867–8910 | 400 | Property behaviors |
+| 11 | 8911–9269 | 3000 | Erros, panic, OOM e cleanup |
+| 12 | 9270–11630 | 24200 | Concorrência, paralelismo e execução |
+| 13 | 11631–14015 | 23000 | Módulos de execução, services e entries |
+| 14 | 14016–17552 | 44000 | Prelude e SDK |
+| 15 | 17553–18266 | 7200 | Números, ranges e unidades |
+| 16 | 18267–19867 | 13600 | Texto, bytes e collections |
+| 17 | 19868–20008 | 1200 | Matrizes, tensors e ML |
+| 18 | 20009–20519 | 4900 | Performance e custo |
+| 19 | 20520–20904 | 4400 | FFI, unsafe e ilhas de linguagem |
+| 20 | 20905–22507 | 17500 | Compilador e bootstrap |
+| 21 | 22508–24604 | 20000 | Packages, builds e releases |
+| 22 | 24605–25086 | 4500 | Tooling e interface para máquinas |
+| 23 | 25087–26515 | 16900 | Protocolos e pesquisas de ecossistema |
+| 24 | 26516–27105 | 12600 | Classificação de viabilidade |
+| 25 | 27106–27316 | 1900 | Produto de referência Última Luz |
+| 26 | 27317–27732 | 4900 | Protocolo de revisão |
+| 27 | 27733–28047 | 3900 | Plano de implementação |
+| 28 | 28048–28078 | 500 | Relação com a consolidação histórica |
+| 29 | 28079–29069 | 51400 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -125,11 +125,11 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 
 | Bundle | Seções | Linhas | Tokens aproximados | Foco |
 |---|---:|---:|---:|---|
-| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–7066 | 63700 | promessa, símbolos, source, módulos, funções e tipos |
-| segurança e execução | 9, 10, 11, 12, 13 | 7067–14008 | 71300 | ownership, errors, tasks, domains, services e entries |
-| SDK e performance | 14, 15, 16, 17, 18, 19 | 14009–20882 | 75100 | tiers, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 20883–26463 | 58600 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 26464–28782 | 70300 | viabilidade, Última Luz, gates, roadmap e ledger |
+| orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 14–7073 | 63800 | promessa, símbolos, source, módulos, funções e tipos |
+| segurança e execução | 9, 10, 11, 12, 13 | 7074–14015 | 71300 | ownership, errors, tasks, domains, services e entries |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 14016–20904 | 75300 | tiers, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 20905–26515 | 58900 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 26516–29069 | 75200 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 
