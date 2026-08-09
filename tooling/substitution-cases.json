@@ -297,7 +297,7 @@
     {
       "id": "R0-spawn-domain",
       "reviewItem": "`spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`",
-      "decisions": ["W-039", "W-350", "W-725"],
+      "decisions": ["W-039", "W-350", "W-725", "W-926", "W-927"],
       "task": "Start bounded parallel planning in the product-selected compute domain.",
       "selected": {
         "language": "w",
@@ -681,7 +681,7 @@
     {
       "id": "R0-callable-representations",
       "reviewItem": "ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado",
-      "decisions": ["W-192", "W-193", "W-194"],
+      "decisions": ["W-192", "W-193", "W-194", "W-936"],
       "task": "Choose explicit representations for a thin function, specialized closure and stored erased route.",
       "selected": {
         "language": "w",
@@ -693,6 +693,38 @@
           "language": "alternative-w",
           "source": ["let thin: Callable<ref Arrival, Welcome> = standardWelcome"],
           "expectedDifference": "Thin and specialized calls pay or imply owner, invoke and drop erasure even when it is unnecessary."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-erasure-storage",
+      "reviewItem": "erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos",
+      "decisions": ["W-194", "W-937"],
+      "task": "Store a temporary route normally and store an existing route with recoverable allocation in a selected allocator.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let common: any fn(Arrival): Welcome = (arrival) => standardWelcome(arrival)",
+          "let recoverable: any fn(Arrival): Welcome =",
+          "  try erase(take handler, using: memory)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "always-contextual",
+          "language": "alternative-w",
+          "source": ["let recoverable: any fn(Arrival): Welcome = take handler"],
+          "expectedDifference": "The caller cannot select an allocator or recover from erasure allocation failure."
+        },
+        {
+          "name": "always-explicit",
+          "language": "alternative-w",
+          "source": [
+            "let common: any fn(Arrival): Welcome =",
+            "  try erase(take temporary, using: memory)"
+          ],
+          "expectedDifference": "Every temporary pays source and effect complexity even when inline erasure is statically sufficient."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -725,7 +757,7 @@
     {
       "id": "R0-callable-modes",
       "reviewItem": "`fn`, `mut fn` e `take fn` contra protocols callable separados",
-      "decisions": ["W-102", "W-195"],
+      "decisions": ["W-102", "W-195", "W-936"],
       "task": "State whether invoking a closure borrows, mutates or consumes its environment.",
       "selected": {
         "language": "w",
@@ -908,7 +940,7 @@
     {
       "id": "R0-product-execution-profile",
       "reviewItem": "execution profile por product/unit contra domain default por módulo",
-      "decisions": ["W-350", "W-651", "W-725"],
+      "decisions": ["W-350", "W-651", "W-725", "W-925"],
       "task": "Select bounded task pools for an executable and preserve the selected envelope in each packed unit.",
       "selected": {
         "language": "w-manifest",

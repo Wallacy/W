@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 54/54, R0S mede 121 formas e R1 possui sete bundles contrabalanceados do Última Luz que promovem 14/54 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 55/55, R0S mede 124 formas e R1 possui oito bundles contrabalanceados do Última Luz que promovem 17/55 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -4457,6 +4457,30 @@ Erasure, escape ou capture pode exigir allocation. `w explain cost` mostra essa
 decisão e o owner. O profile mantém a policy normal de allocation failure. A
 otimização não pode mudar o momento observável do drop.
 
+`any fn` usa o contrato geral de erasure da seção 8.7.6. `fn` não possui
+environment owned. `some fn` preserva o concrete callable e não aloca somente
+por ser opaque. Uma construção contextual de `any fn` pode usar inline storage
+ou o allocator default:
+
+```w
+let stored: any fn(Arrival): Welcome =
+  capture(copy gate) (arrival) => welcome(arrival, gate: gate)
+```
+
+Essa forma segue a policy normal de OOM. Recovery ou escolha de allocator usa a
+operação consuming `erase` e um expected type obrigatório:
+
+```w
+let concrete = capture(copy gate) (arrival) => welcome(arrival, gate: gate)
+let stored: any fn(Arrival): Welcome =
+  try erase(take concrete, using: memory)
+```
+
+`erase` mantém o effect `throws AllocationError` mesmo quando a instantiation
+atual cabe inline. Na falha, ela consome e destrói o source uma vez e não publica
+um existential parcial. Uma API de retry usa um outcome que devolve o source;
+ela não restaura o binding implicitamente.
+
 Function types não possuem labels, defaults ou nomes de parâmetros. Esses itens
 pertencem à declaração. Uma call direta usa a forma declarada. Uma call por valor
 usa todos os argumentos em ordem:
@@ -6380,6 +6404,45 @@ let dishes: any Sequence<Dish> = menu
 `any P & Q` guarda witnesses para os dois protocols. A ordem source não altera o
 tipo. Um owned existential pode usar inline storage ou box. `ref any P` é uma
 fat borrow sem alocação.
+
+O product profile fixa o contrato físico de erasure:
+
+```text
+ErasureStoragePolicy = {
+  inlineBytes,
+  inlineAlignment,
+  spill: forbid | allocator(RuntimeContractId),
+}
+```
+
+Os limites e o provider participam da recipe, do runtime contract set e da
+`WAbiKey`. Uma mudança não altera o protocol, mas pode alterar allocation,
+budget e failure e, por isso, não fica ambiental. Um profile sem allocator geral
+aceita contextual erasure somente quando o concrete payload cabe inline. Caso
+contrário, o link falha ou o programa usa `try erase(..., using:)` com uma origem
+permitida.
+
+Inline erasure preserva as allocation origins transitivas do payload e não cria
+outra origem. Spill adiciona a origem do box. Move transfere todas elas. Drop
+chama o witness de destruição uma vez e depois libera o box pela origem correta.
+`AllocationOriginMap` inclui o box quando um `any P` owned escapa por uma
+interface. Nenhuma dessas records ocupa bits reservados do pointer.
+
+Contextual erasure de um rvalue usa a policy normal de OOM. A operação
+`try erase(take value, using: memory)` oferece recovery e allocator explícito.
+Ela exige um expected type `any P` ou `any fn(...)`; W não procura um protocol
+global. Allocation failure segue a regra consuming da seção 9.4. `some P` não
+aloca somente para esconder o nome do concrete type. `ref any P` não cria owner
+nem copia o payload.
+
+O carrier de `any P` não atravessa C, wire ou persistence como layout implícito.
+Essas boundaries usam façade, schema ou adapter explícito. W exact exige a mesma
+`WAbiKey` e a mesma policy de erasure nos dois lados.
+
+O estudo R1 vigente fixa as formas source e a diferença entre failure normal e
+recovery explícito. Ele não prova o layout físico. M1 ainda precisa cobrir
+inline, spill, falha consuming e `AllocationOriginMap` antes do congelamento
+deste contrato.
 
 `any P` não conforma automaticamente a `P`. O design vigente também não abre existentials
 de forma implícita para uma função generic:
@@ -25732,12 +25795,12 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 54 substituições estruturadas. Esse corpus é a origem do Tour
+O corpus R0 contém 55 substituições estruturadas. Esse corpus é a origem do Tour
 comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
-A razão `54/54` cobre os requisitos declarados na seção 26. Ela não prova que
+A razão `55/55` cobre os requisitos declarados na seção 26. Ela não prova que
 o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
 classificar sua alternativa como uma destas categorias:
 
@@ -25749,6 +25812,15 @@ classificar sua alternativa como uma destas categorias:
 A primeira categoria exige um caso R0. O checker final deve falhar quando uma
 decisão dessa categoria não possuir forma recusada, substituição W, diferença
 observável e referência para o Book.
+
+[`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
+auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
+source automaticamente. As outras decisões exigem uma disposition explícita:
+contrato semântico com oracle, escolha de implementação sem diferença
+observável, hipótese com fallback, item histórico, policy do projeto ou waiver
+motivado do maintainer. O checker atual classifica 101/937 decisões: 93 por R0 e
+oito por evidência explícita. As 836 restantes continuam um worklist, não uma
+aprovação implícita. `--require-complete` é o gate do design freeze.
 
 ### 24.4 Gates que ainda precisam de prova
 
@@ -25795,7 +25867,7 @@ evidência de design:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 54/54 requisitos declarados e referencia 88 decisões; R0S mede 121 formas; sete bundles R1 promovem 14/54 casos e cobrem controle, units, imports, fail-fast, contratos, receivers consuming e domains | classificar toda alternativa do ledger; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; o audit classifica 101/937; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos e agora incluem callables | classificar as 836 decisões restantes; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -26076,6 +26148,7 @@ O corpus compara, no mínimo:
 - computed property property-safe contra method com `try` ou `await`;
 - static record/list contra interpretações universais de extension e constraints;
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
+- erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
 - signature invariável contra variance e effect widening implícitos;
@@ -26140,7 +26213,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 54 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 55 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 definida na seção 24.3.
 
@@ -26211,7 +26284,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 121 formas do corpus. O runner junta as linhas com LF e sem newline
+mede as 124 formas do corpus. O runner junta as linhas com LF e sem newline
 final. Para a tarefa e para cada forma, ele registra:
 
 - bytes UTF-8;
@@ -26247,9 +26320,9 @@ Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
 outcome. A variante pode mudar uma observação que pertence ao objeto do estudo,
 como latência de failure ou provenance visível de um nome.
 
-Os sete bundles atuais possuem quatorze variantes e vinte e oito tarefas. Eles
-promovem 14 dos 54 casos R0. Todos fazem parse sem recovery. Quatorze testes de
-oracle host confirmam os outcomes e as diferenças observáveis declaradas.
+Os oito bundles atuais possuem 17 variantes e 32 tarefas. Eles promovem 17 dos
+55 casos R0. Todos fazem parse sem recovery. Dezoito testes de oracle host
+confirmam os outcomes e as diferenças observáveis declaradas.
 
 A promoção conta IDs R0 únicos citados por ao menos um bundle. Ela mede o
 planejamento do corpus. Ela não mede participantes, não ratifica uma forma e
@@ -26402,6 +26475,38 @@ O módulo declara apenas `domains`. O par `S0-POS-module-domain-requirement` e
 `S0-NEG-module-parallel-default` fixa que `parallelDefault` não é slot do
 header. O product seleciona o execution profile que possui default, pools e
 budgets. Assim, importar source não escolhe recursos de runtime.
+
+#### 26.3.8 Representação e ownership de callables
+
+**Exemplo:** uma função estática, uma route com capture, um counter mutável e um
+manifest consuming preservam o mesmo resultado da aplicação, mas não possuem o
+mesmo contrato de custo ou ownership.
+
+[`tooling/studies/r1-callable-model/bundle.json`](tooling/studies/r1-callable-model/bundle.json)
+deriva de `callables.w` do Última Luz. Três variantes calculam as mesmas gates,
+sequência de tickets e contagem do manifest:
+
+- `separated.w` usa `fn`, `some fn`, `any fn`, `mut fn` e `take fn`;
+- `unified.w` usa um único `fn` para pointer e capture e não expressa mutation
+  ou consumption no tipo;
+- `protocols.w` usa `Callable`, `MutableCallable` e `ConsumingCallable` com
+  método `call` e witness nominal.
+
+A forma unified deixa uma segunda call do manifest sintaticamente disponível.
+Ela precisa de runtime state, de uma regra invisível ou de uma restrição global
+para preservar o consumo. A forma protocol preserva o consumo, mas adiciona
+nomes, conformances e `.call`. Ela segue a lattice real de
+[`FnOnce`, `FnMut` e `Fn` do Rust](https://doc.rust-lang.org/reference/types/closure.html#call-traits-and-coercions);
+uma call sobre `some` ainda pode ser especializada e não implica dispatch por
+witness em runtime. A forma vigente separa representação de callable mode e
+mantém a call direta `value(...)`.
+
+Os dois inputs cobrem capture com manifest não vazio e o limite vazio com counter
+zero. O oracle host confirma o mesmo resultado do restaurante e registra
+separadamente representation, dispatch, access mode e recovery de allocation.
+Ele não executa W nem prova que erasure ficará inline. O bundle promove
+`R0-callable-representations`, `R0-callable-modes` e
+`R0-erasure-storage`.
 
 ## 27. Plano de implementação
 
@@ -26949,7 +27054,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-191 | parâmetros rest | `T...` homogêneo e final; `each` expande collection | somente collection; type pack; C varargs |
 | W-192 | function type | source usa `fn(A): B`; labels e defaults ficam na declaração | labels no tipo; somente inference |
 | W-193 | callable concreto | `some fn(A): B` preserva tipo, captures e specialization | generic nomeado; `fn` sempre apagado |
-| W-194 | callable apagado | `any fn(A): B` guarda owner, invoke e drop | `CallbackType`; box manual |
+| W-194 | callable apagado | `any fn(A): B` guarda owner, invoke, drop e allocation origins; contextual erasure usa policy normal e `try erase(..., using:)` cobre recovery | `CallbackType`; box manual; allocation ambiental; operação explícita obrigatória para todo rvalue |
 | W-195 | callable mode | `fn`, `mut fn` e `take fn` descrevem uso do ambiente | `Fn`/`FnMut`/`FnOnce`; inferência sem annotation |
 | W-196 | call por valor | posicional, aridade completa e sem defaults | labels cosméticos; labels significativos |
 | W-197 | capture e escape | HIR registra place, modo, lifetime, owner e drop | capture sempre weak; heap por default |
@@ -27617,9 +27722,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-859 | fechamento do catálogo citado | todos os codes com meaning citado possuem schema; o índice gera a contagem corrente; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem manual; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect/ownership prefix, receiver consuming, spawn domain, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; remover grouping de ownership; reescrever slot nomeado; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
-| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/54`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 54 bullets como 54 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/55`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 55 bullets como 55 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 54/54 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 55/55 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -27641,11 +27746,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | sete bundles, quatorze variantes e vinte e oito tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming e domains com source base, inputs, digests e oracle; 14/54 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | oito bundles, 17 variantes e 32 tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming, domains e callables com source base, inputs, digests e oracle; 17/55 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 54 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 55 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std SDK0 | profiles cobrem 161 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
@@ -27675,7 +27780,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-917 | endurecimento executável M1 | schema M1 fixa 156 casos e 546 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle e alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 14/54 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 17/55 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 | W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
@@ -27690,6 +27795,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | 21 novos casos e quatro testes independentes cobrem budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; snapshots registram 156 casos e 546 operações | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
+| W-935 | auditoria de decisões para freeze | R0 classifica automaticamente decisões com substituição de source; outras exigem contrato semântico com evidência, escolha interna, fallback provável, histórico, policy ou waiver; 101/937 estão classificadas e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; manter planilha manual fora do repository |
+| W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
+| W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
