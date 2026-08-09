@@ -53,6 +53,14 @@ last-light-mobile / LastLightMobile
 last-light-controller / LastLightController
   → sensors, interrupts e satellite telemetry
 
+TAB1 telemetry / data_formats.w
+  → CSV upload typed
+  → Parquet archive por SnapshotByteSource
+  → Arrow IPC service handoff
+  → C Data import trusted
+  → todos os batches no mesmo schema, rows e outcome
+  → `String?` view somente no scope; `copy` materializa owner
+
 last-light-observatory / LastLightObservatory
   → swarm de satélites e sensores do horizonte
   → duas calls concorrentes com join estruturado
@@ -182,6 +190,7 @@ alvo de execução independente.
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
+| `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |

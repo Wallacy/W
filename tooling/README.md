@@ -22,11 +22,13 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 63 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 214/1005 decisões estão classificadas (107 source, 127 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 28 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 252/1045 decisões estão classificadas (107 source, 165 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 28 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 149 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 14 bundles R1, 31 variantes e 56 tarefas; 25/63 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `studies/*/bundle.json` + checker | 15 bundles R1, 34 variantes e 60 tarefas; 25/63 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
+| `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 84 casos e 184 operações (35 aceitos + 49 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
+| `tabular-adapter-reference.test.mjs` | teste host independente para cada caso TAB1 e digest de estado | não executa W, codec binário, C bridge ou device transfer |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
@@ -37,7 +39,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `runtime-liveness-cases.json` + máquina E1 | 41 sequências e 473 operações (19 aceitas + 22 rejeitadas), sete testes host; closure, waits, completion/cancel races, generations, frame/outcome split, blocking foreign e shutdown | oracle host de runtime closure e liveness; não prova scheduler, clock, OS I/O, allocator, verifier ou runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 161 exports em 14 módulos, 42 superfícies qualificadas, nove requisitos adversariais e oito carriers | catálogo e snapshot são projeções; `std.build.Context` é draft, faz read e staging, e `std.build@1` continua missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler; Blob e FormData permanecem missing e os sete providers executáveis catalogados estão missing |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 285 exports em 18 módulos, 67 superfícies qualificadas, 14/14 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow e `SnapshotByteSource` são drafts, seus 12/12 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
@@ -110,6 +112,9 @@ integrações de editor.
    root do repositório.
 8. Para validar o recorte E1 sem executar runtime, execute `bun run check:liveness`
    no root do repositório.
+9. Para validar o recorte TAB1 sem executar W, execute
+   `bun tooling/check-tabular-adapter-cases.mjs --write` e
+   `bun test tooling/tabular-adapter-reference.test.mjs`.
 
 ## Caminho até o browser
 

@@ -261,6 +261,7 @@ const oracleCorpusFiles = [
   "package-release-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
+  "tabular-adapter-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -484,6 +485,17 @@ const tabularCarrierOperations = tabularCarrierCorpus.cases.reduce(
 const acceptedTabularCarrierCases = tabularCarrierCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const tabularAdapterCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "tabular-adapter-cases.json"), "utf8"),
+);
+const tabularAdapterCases = tabularAdapterCorpus.cases.length;
+const tabularAdapterOperations = tabularAdapterCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedTabularAdapterCases = tabularAdapterCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -615,6 +627,12 @@ output.push(
   `| casos/operações do carrier tabular TAB0 | ${tabularCarrierCases}/${tabularCarrierOperations} ` +
     `(${acceptedTabularCarrierCases} aceitos + ` +
     `${tabularCarrierCases - acceptedTabularCarrierCases} rejeitados; ` +
+    `host oracle não executa W) |`,
+);
+output.push(
+  `| casos/operações dos adapters tabulares TAB1 | ${tabularAdapterCases}/${tabularAdapterOperations} ` +
+    `(${acceptedTabularAdapterCases} aceitos + ` +
+    `${tabularAdapterCases - acceptedTabularAdapterCases} rejeitados; ` +
     `host oracle não executa W) |`,
 );
 output.push(

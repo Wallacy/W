@@ -11,7 +11,7 @@ testam se os contratos podem ser escritos em W.
 |---|---|
 | T0 | tipos e operações necessários para compilar W e executar o core |
 | T1 | process, files, network, tasks, services, JSON e integração comum de host |
-| T2 | HTTP, database, SI, tensor, accelerator, crypto e domínios maiores |
+| T2 | HTTP, database, tabular formats, SI, tensor, accelerator, crypto e domínios maiores |
 
 Um tier não define distribuição separada. O SDK pode enviar todas as camadas.
 O product inclui somente o grafo alcançável.
@@ -31,6 +31,14 @@ std/
   http/
     contracts.w
   io/
+    contracts.w
+  data/
+    contracts.w
+  csv/
+    contracts.w
+  parquet/
+    contracts.w
+  arrow/
     contracts.w
   net/
     contracts.w
@@ -169,6 +177,58 @@ Scatter read e transferência zero-copy permanecem em **Pesquisa**.
 
 `StepEffect.atMostOnce` é o default seguro. Retry só ocorre quando o effect
 contract permite. Timer e event wait não mantêm um worker ativo.
+
+`io.SnapshotByteSource` é a fonte finita, posicional e estável durante todo o
+owner. Ela publica `byteCount: u64` e `read(at:appendTo:maximum:)` com offset
+`u64`, sem cursor; short reads e acessos posicionais paralelos são explícitos.
+
+Os módulos `data`, `csv`, `parquet` e `arrow` são o rascunho TAB1 descrito em
+[`DESIGN.md` §14.4.2](../DESIGN.md#1442-adapters-tabulares-tab1). Eles fecham
+declarations, profiles, errors, limits, progress e ownership. Os providers
+intrinsic `std.data@1`, `std.csv@1`, `std.parquet@1` e `std.arrow@1` continuam
+missing. `std.io@1` também permanece missing para a implementação de
+`SnapshotByteSource`; estes arquivos não implementam codec, reader, writer ou
+bridge C.
+
+`data.Batch<Row>` é o carrier columnar owned. `data.Schema` mantém a identidade
+W em `SchemaIdentity` nominal, computada por provider validado. `Batch`,
+`DynamicBatch` e columns são opacos move-only; descriptors carregam o Row owner.
+`LogicalType` e os descritores decimal/extension usam handles nominais
+indiretos com constructors validados e bounds de profundidade; date é calendar,
+time é time-of-day, instant é UTC e localDateTime é civil sem conversão de
+zone. `DynamicValue`
+usa storage indireto para list/map/nested/extension.
+`Column` suporta valor Copy. `batch.column` devolve uma loan `view` de
+`Column`/`StringColumn`/`BytesColumn` ligada ao Batch; não há retain implícito,
+e `copy` materializa explicitamente. Não há `Any`,
+reflection, `view Value`, `XView` ou inferência de schema em runtime.
+Constructors que armazenam LogicalType, SemanticExtension ou nested dynamic
+storage usam `take`; identity e schema apenas observados usam `ref`.
+
+CSV usa `decode` typed, `decodeDynamic` com `data.Schema`, `decodeAll` e dois
+overloads de `encode`. O profile `portable` usa UTF-8, header obrigatório,
+comma, double quote, CRLF/LF, whitespace preservado e null decode/encode
+policies separadas. `DecodeDialect` e `EncodeDialect` validam seus delimiters e
+colisões de tokens antes do
+source. `.rfc4180` é estrito e o writer canonical é separado. Errors carregam
+location e progress. Formula escaping é policy de apresentação separada.
+
+Parquet usa `SnapshotByteSource` e valida footer, offsets, sizes, row groups,
+pages, checksums, compression e logical types antes da publicação. Decode e
+encode profiles são separados; binding default é `.exact`; `.project` exige
+mapping. `KeyResolverCapability` chega por binding explícito de entry/context;
+`KeyResolver.from` a consome sem plaintext fallback. WriterPlan
+fixa codec/provider digests para bytes determinísticos. Dataset multi-file,
+discovery, Hive e ambient directory ficam fora deste módulo.
+
+Arrow separa `decodeIpcStream` e `decodeIpcFile`, além de variantes dynamic,
+sem Profile de container. IPC untrusted valida metadata, buffers, dictionaries,
+compression, schema e alignment; checksum só vem de envelope externo. C Data e
+C Stream usam handles opaque move-only de producer trusted e options com
+`BlockingQuota`/limits finitos; import C dynamic é explícito e export C Stream
+está deferido. `copyPolicy:
+.never` falha quando a cópia é necessária. Device handles não são tratados como
+CPU pointers.
 
 Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
 otimizar transporte, mas não pode mudar statements, results, ownership ou
