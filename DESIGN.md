@@ -27424,10 +27424,10 @@ receipts e fases machine-readable e corrige o transcript para `fn doubled` como
 compiled dependent e `let snapshot = limit * 2` como valor avaliado. O fixture e
 o oracle ficam em [24.1.3](#2413-sessãorepl-transacional-e-geracional-pyn2).
 
-Jupyter kernel é **Direção** de tooling e produto, não linguagem. O kernel
-compartilha o session model, implementa o protocol Jupyter e usa um protocol W
-tipado para rich output. O nome desse protocol permanece **Pesquisa**. MIME e
-data têm limites declarados. `interrupt_request` solicita structured
+Jupyter kernel é **Direção** de tooling e produto, não linguagem. PYN3 fecha o
+adapter sobre o session model, o protocol `presentation.Presentable` e o export
+canônico em [24.1.4](#2414-apresentação-tipada-kernel-jupyter-e-export-pyn3).
+MIME e data têm limites declarados. `interrupt_request` solicita structured
 cancellation. Não finge matar foreign code:
 
 ```text
@@ -27977,6 +27977,318 @@ aceitação e os adversariais.
 O estado desta subseção é **Direção** de design e oracle. PYN2 não implementa
 CLI, compiler, checker, HIR, runtime, provider, resource drain ou Jupyter.
 
+#### 24.1.4 Apresentação tipada, kernel Jupyter e export PYN3
+
+**Exemplo:** uma expressão que devolve uma tabela mostra uma prévia bounded no
+notebook. Ela não coleta o stream inteiro, não copia um tensor do device e não
+cria um binding implícito.
+
+PYN3 é um adapter de tooling sobre a sessão PYN2. Ele não cria outro parser,
+outro checker, outro runtime ou um modo dinâmico da linguagem. O mesmo
+`SessionId`, a mesma `SessionIncarnation`, o mesmo writer FIFO e as mesmas
+regras de publish, cancellation, cleanup e degraded outcome continuam
+autoritativos.
+
+O bloco tem três contratos separados:
+
+1. `std.presentation` produz representações tipadas e bounded;
+2. o kernel adapta o protocolo Jupyter à sessão PYN2;
+3. o export transforma cells comprovadas em source W e audit manifest sem
+   replay oculto.
+
+Separar os contratos evita que MIME, ZeroMQ ou notebook metadata entrem na
+semântica da linguagem. O kernel pode mudar sem mudar o source W. Outro host
+pode consumir `std.presentation` sem implementar Jupyter.
+
+##### Apresentação tipada
+
+`Display` continua o protocol textual barato usado por interpolation. Ele não
+vira MIME bundle. O novo protocol é `presentation.Presentable` no tier T2:
+
+```w
+export protocol Presentable {
+  fn present(to writer: inout presentation.Writer) throws presentation.Error
+}
+```
+
+`presentation.Writer` é um sink opaco. O host cria o writer com `Limits` e o
+entrega somente durante a apresentação de um resultado. O tipo não possui
+initializer público, não escapa da call e não é um object ou singleton. A
+implementação escreve uma representação por media type. O writer rejeita media
+duplicada e exige `text/plain` antes do finish. Somente o host faz o finish;
+user code não pode fechar ou publicar parcialmente o writer.
+
+O draft T2 oferece operações tipadas. Texto recebe `view String`. Imagens usam
+`presentation.Png` ou `presentation.Jpeg`, que consomem `take Bytes` e validam
+encoding e dimensions sem cópia oculta. JSON recebe um callback scoped sobre
+`json.Writer`. Uma operação vendor JSON aceita somente media type validada com
+suffix `+json`. Não existe mapa `String -> Any`, payload untyped ou `Bundle`
+público sem limite.
+
+```w
+extension HorizonReading: presentation.Presentable {
+  fn present(
+    to writer: inout presentation.Writer,
+  ) throws presentation.Error {
+    try writer.text("Horizon reading ${distance}")
+    try writer.vendorJson(
+      media: try presentation.MediaType("application/vnd.w.horizon.v1+json"),
+    ) { json in
+      try json.object { object in
+        try object.member("distance", distance)
+      }
+    }
+  }
+}
+```
+
+O exemplo fixa a direção da API. O draft em `std/presentation/contracts.w` é a
+fonte parseável da declaration. O provider `std.presentation@1` permanece
+**missing** até os gates de bounds, sanitization, cancellation, ownership e
+differential rendering.
+
+A execução de `present` usa uma effect mask fechada. Ela permite borrow do
+valor, allocation bounded e writes no sink. Ela rejeita `await`, `spawn`, I/O,
+network, filesystem, mutation de estado externo e acquisition de capability.
+O checker valida o call graph alcançável. Uma implementação que não satisfaz a
+mask não fica elegível para rich output.
+
+O writer possui limites finitos para bytes totais, representações, bytes de
+texto e imagem, image width/height/pixels, JSON depth/nodes/string bytes e work
+units. Um item de zero bytes ainda conta. Work units são ticks determinísticos
+inseridos no call graph elegível, inclusive em loop backedges e calls de std;
+tempo de parede não muda a mesma representação. Overflow e quota falham antes
+de allocation quando o tamanho é conhecido. O provider interrompe a
+apresentação quando o budget termina. Essa falha não muda generation, effect
+outcome ou resultado da submission. O host registra um diagnostic bounded e
+usa um `text/plain` fallback.
+
+O fallback segue esta ordem:
+
+1. `Presentable` válido com `text/plain`;
+2. `Display` quando seu call graph satisfaz a mesma effect mask;
+3. resumo compiler-owned com type name e shape pública, sem ler fields privados.
+
+Não existe synthesis automática de `Display` ou `Presentable`. Tipos da std
+podem declarar conformances próprias. O fallback compiler-owned nunca chama
+user code e nunca imprime pointer, capability, secret ou bytes privados.
+
+O conjunto portátil inicial é:
+
+| Media type | Payload | Regra |
+|---|---|---|
+| `text/plain` | UTF-8 String | obrigatório; sem ANSI por default |
+| `application/json` | JSON streamed | profile interoperable e bounded |
+| `image/png` e `image/jpeg` | Bytes | dimensions e encoded bytes bounded |
+| `application/vnd.w.*.v1+json` | JSON streamed | schema versionado e media validada |
+
+`text/html` e `image/svg+xml` exigem um sanitizer provider versionado e
+self-contained output. Até esse provider existir, as duas media types são
+**missing**, não pass-through. JavaScript, widget views, remote assets e active
+content são **Rejeitados** no baseline. O frontend ou Jupyter Server mantém a
+autoridade sobre notebook trust. O kernel W nunca marca um notebook como
+trusted.
+
+Uma prévia tabular usa no máximo as linhas, colunas e bytes do profile. Ela não
+faz `collect()` do stream. Um tensor em device mostra shape, dtype, device e
+layout. Ele não faz device-to-host copy implícita. Uma imagem ou tabela completa
+exige snapshot/copy explícito antes da apresentação. A representation não entra
+na identity do valor nem na generation.
+
+Tail expressions usam o profile `summary`. Uma expressão descartada não gera
+output. O baseline não cria `_`, `ans` ou outro binding implícito. Uma API para
+`display_id`, `update_display_data`, `clear_output` ou progress live permanece
+**Pesquisa**. O kernel inicial não emite essas mensagens. Isso evita um handle
+de frontend com lifetime indefinido antes de existir um owner/drain contract.
+
+##### Adapter Jupyter
+
+O protocolo autoritativo é
+[Jupyter messaging 5.5](https://jupyter-client.readthedocs.io/en/latest/messaging.html).
+O kernelspec segue a
+[documentação de kernels](https://jupyter-client.readthedocs.io/en/stable/kernels.html).
+O baseline anuncia somente operações implementadas. Debugger, subshells,
+comms/widgets e startup handshake posterior a 5.5 não são anunciados. Um
+`comm_info_request` compatível pode devolver um conjunto vazio.
+
+O `kernel.json` é determinístico. `argv` contém `{connection_file}`,
+`interrupt_mode` é `message`, `language` é `w` e o protocol baseline é 5.5.
+Environment, caminho físico e connection secret não entram na identity do
+kernel ou de um source artifact.
+
+O connection file é uma capability de startup. O provider valida schema,
+transport, IP, ports, signature scheme, key e permissão user-only antes de
+abrir sockets. Key, Curve secret, connection path e raw frames não entram em
+log, history, diagnostic ou receipt. O kernel limita frame count, frame bytes,
+JSON depth, metadata, buffers e pending requests antes de decode ou allocation.
+
+HMAC é verificado sobre os frames serializados antes de usar o JSON. Ele prova
+autenticidade e integridade, não confidencialidade. O baseline suporta os
+campos CurveZMQ em todos os sockets quando o provider oferece o contrato
+descrito em [Jupyter client security](https://jupyter-client.readthedocs.io/en/latest/security.html).
+Uma policy pode exigir CurveZMQ. Sem provider, o kernel não anuncia nem finge
+encryption. Autenticação HTTP, authorization, TLS e multi-user isolation
+pertencem ao Jupyter Server ou Hub.
+
+Shell, control, stdin, IOPub e heartbeat mantêm suas funções do protocolo. O
+heartbeat apenas ecoa bytes sob quota própria e não consulta a sessão. Cada
+request autenticado recebe uma identidade bounded. `msg_id` duplicado ou replay
+é rejeitado por um cache bounded. `header.session` e `msg_id` identificam
+cliente e request; eles não são `SessionId`, `GenerationId` ou binding identity
+W.
+
+O lifecycle observável de um request é:
+
+```text
+authenticate -> IOPub busy -> process -> reply -> related IOPub -> IOPub idle
+```
+
+`busy` e `idle` carregam o mesmo parent correlation. `idle` ocorre somente
+depois do reply e de todos os outputs associados. Shell execute requests entram
+no writer FIFO de PYN2. Control interrupt e shutdown têm admission prioritária,
+mas só podem solicitar cancellation, reset ou close pelos contratos PYN2. Eles
+não mutam o graph diretamente.
+
+O mapeamento de status é explícito:
+
+| Outcome PYN2 | Reply Jupyter | Estado W |
+|---|---|---|
+| committed e ready | `ok` | generation publicada ou preservada |
+| parse, type ou runtime error antes de publish | `error` | generation preservada |
+| structured cancellation antes de publish | `error` com `WCancelled` | cleanup e drain observados |
+| request queued suprimido por `stop_on_error` | `error` com `WQueueAborted` | não executado |
+| committed e degraded | `error` com `WSessionDegraded` | publish preservado; mutation bloqueada |
+
+O adapter não usa o status `aborted`, que o protocolo depreca. Um traceback
+Jupyter contém somente diagnostic W bounded e redacted. Ele não inventa stack
+Python.
+
+`execution_count` é exatamente o counter corrente de `ExecutionOrdinal` PYN2.
+Ele nunca representa `GenerationId`. Um execute com `store_history: true`
+reserva e incrementa o ordinal antes de executar conforme PYN2. `silent: true`
+força `store_history: false`, suprime `execute_input`, `execute_result`,
+`display_data` e streams, e não incrementa o counter. Todo `execute_reply`,
+inclusive silent, no-history e error, devolve o counter corrente.
+
+O baseline aceita `silent` ou `store_history: false` somente quando o checker
+prova que a submission é read-only, non-suspending, effect-free e não publica
+estado. Uma mutation ou effect silencioso é rejeitado antes de execução. Essa
+regra evita notebook state que não pode ser auditado ou exportado.
+
+`user_expressions` seguem a mesma restrição. Cada expressão é analisada contra
+a generation publicada depois do source principal, não suspende e não publica.
+Cada key possui success ou error independente. A falha de uma expressão não
+muda o status do execute principal.
+
+`allow_stdin: false` torna uma tentativa de input um error antes do request.
+Com `allow_stdin: true`, existe no máximo um input pendente por execute e ele é
+roteado à mesma shell identity. Password input nunca aparece em echo, source,
+history, output, metadata ou receipt. Qualquer input runtime torna o cell não
+exportável até o source receber uma entrada explícita equivalente.
+
+`interrupt_request` confirma que a solicitação de structured cancellation foi
+admitida. O reply não afirma que o body terminou. O `execute_reply` posterior
+informa o outcome após cleanup e drain. `shutdown_reply` com `ok` só ocorre
+depois de safe close. Se o deadline expira, o process manager pode aplicar a
+fault boundary; o kernel não responde success antes disso.
+
+Completion, inspection e completeness usam parser, checker, LSP e generation
+snapshot normais. Cursor offsets seguem Unicode code points do protocolo. Eles
+não observam staging e não executam effects. Inspection devolve MIME bounded e
+sempre inclui `text/plain`. History tail é obrigatório. Range e search ficam
+**Pesquisa** até a policy de raw source, glob bounds e redaction ficar fechada.
+
+`kernel_info_reply` anuncia a versão do W e `language_info` com nome `w`,
+versão, file extension `.w` e media type `text/x-w`. O baseline usa
+`supported_features: []`: esse campo do protocolo não anuncia completion,
+inspection, history, stdin ou completeness. Debugger, kernel subshells, comm
+targets, Pygments e CodeMirror ficam ausentes enquanto não houver contrato e
+implementação próprios. A ausência de uma feature é preferível a uma resposta
+parcial com semântica diferente.
+
+Cada reply e output pode incluir metadata namespaced `w` com schema version,
+request identity, incarnation, generation antes/depois, execution ordinal,
+outcome, diagnostic digest, effect digest e exportability. Metadata nunca
+contém live value, capability, raw secret ou pointer. Timestamps e client clocks
+não participam da ordem ou identity.
+
+##### Notebook e export reproduzível
+
+O formato de input segue
+[nbformat 4](https://nbformat.readthedocs.io/en/5.2.0/format_description.html).
+Cell IDs válidos e únicos identificam cells do documento. Eles não substituem
+request identity, binding identity ou generation. Outputs `stream`,
+`display_data`, `execute_result` e `error` continuam dados do notebook, não
+source W.
+
+O notebook é um artifact de exploração. Ele não é release source e sua trust
+signature não prova reproducibility W. O export exige o notebook e um receipt
+manifest explícito da sessão. O manifest usa content digests, não caminhos,
+timestamps ou frontend state. Um `.ipynb` isolado pode ser inspecionado e
+checado estaticamente, mas não recebe status de export reproduzível sem a
+evidência da sessão.
+
+O export nunca executa cells. Ele valida:
+
+1. source digest e cell ID contra cada receipt selecionado;
+2. uma cadeia committed de incarnation e generation;
+3. BindingId, version, hard edges e invalidation closure exatos;
+4. lock, context, toolchain e target compatíveis;
+5. ausência de silent mutation, unresolved stdin, secret, unknown effect,
+   degraded owner, live resource ou nonserializable capability;
+6. ordem que preserva dependências e effects sem redefinition invisível.
+
+Uma redefinition ou cell invalidada na closure selecionada bloqueia export. O
+tool explica quais cells precisam ser consolidadas e resubmetidas. Ele não
+remove uma declaração antiga, renomeia binding, captura live value ou faz
+replay para esconder o conflito.
+
+Declarations puras usam topological order com `ExecutionOrdinal` como tie
+break determinístico. Cells com effects preservam sua ordem de execução. Uma
+dependência entre os dois grupos adiciona a aresta correspondente. Se não existe
+uma linearização única e lossless para source W, o export falha.
+
+Quando a estrutura é representável, o export produz um destes resultados:
+
+- single-file PYN1 com header e default entry;
+- package W quando mais de um módulo ou entry é necessário;
+- audit manifest com source digests, ordered receipts, lock root, toolchain,
+  target, effects e motivos de exclusão.
+
+Markdown pode virar um companion document explícito. Ele não vira comentário
+de source automaticamente. Notebook outputs não entram no source; o audit pode
+guardar somente seus digests e media metadata bounded. Um check ou run posterior
+é uma ação separada com authority explícita. O export não a dispara.
+
+Os nomes finais dos comandos continuam **Pesquisa**. O contrato abstrato usa
+`notebook check`, `session receipts` e `notebook export` apenas como labels de
+tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
+
+##### Evidência e limite do bundle
+
+O fixture do Última Luz deve cobrir uma prévia bounded do cardápio, leitura do
+sensor do buraco negro, tensor em device sem copy, output textual do Bistromath,
+erro redacted, cancellation e export de cells. Os casos adversariais incluem
+HMAC inválido, replay, media duplicada, JSON fora do limite, active content,
+silent mutation, password persistence, idle prematuro, counter usado como
+generation, cell invalidada e export com effect unknown.
+
+Os modos normativos de falha do bundle usam `W-PRESENTATION-0001`,
+`W-PRESENTATION-0002`, `W-PRESENTATION-0003`, `W-PRESENTATION-0004`,
+`W-PRESENTATION-0005`, `W-PRESENTATION-0006`, `W-PRESENTATION-0007`,
+`W-PRESENTATION-0008`, `W-PRESENTATION-0009`, `W-PRESENTATION-0010`,
+`W-JUPYTER-0001`, `W-JUPYTER-0002`, `W-JUPYTER-0003`, `W-JUPYTER-0005`,
+`W-JUPYTER-0006`, `W-JUPYTER-0007`, `W-JUPYTER-0008`, `W-JUPYTER-0009`,
+`W-EXPORT-0001`, `W-EXPORT-0002`, `W-EXPORT-0003`, `W-EXPORT-0004`,
+`W-EXPORT-0005`, `W-EXPORT-0006` e `W-EXPORT-0007`. Esses códigos descrevem
+somente falhas de media, segurança, lifecycle, bounds, prova ou export. O
+tooling não cria IDs de ledger para bookkeeping.
+
+PYN3 fecha design e oracles. Ele não implementa ZeroMQ, kernel process,
+sanitizer, notebook frontend, compiler, runtime ou provider. DLPack continua um
+bundle T2 separado. Plotting e DataFrame completo continuam packages
+first-party ou third-party sobre `std.presentation`.
+
 ### 24.2 Resultado das pesquisas anteriores
 
 **Exemplo:** `ReadBatch` fica provável. `inout T...` fica rejeitado. Os dois
@@ -28102,7 +28414,7 @@ evidência de design:
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 96/96 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 285 exports em 18 módulos; todos possuem declaration draft-ready; 14/14 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 12/12 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
-| workflow single-file e científico PYN1/PYN0/PYN2 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN0 mantém tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, runtime e drain físico, rich display/Jupyter PYN3, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
+| workflow single-file e científico PYN1/PYN0/PYN2/PYN3 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN0 mantém tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
@@ -29045,9 +29357,10 @@ O host test independente é
 [`tooling/repl-session-reference.test.mjs`](tooling/repl-session-reference.test.mjs).
 O modelo não compila ou executa W e não promete CLI, runtime ou provider.
 
-PYN3 permanece responsável por kernel Jupyter, counters e rich output. DLPack
-permanece um adapter T2 separado. PYN2 registra somente output bounded e
-receipts necessários ao session core.
+PYN3 fecha kernel Jupyter, counters, `presentation.Presentable` e export
+reproduzível em [24.1.4](#2414-apresentação-tipada-kernel-jupyter-e-export-pyn3).
+DLPack permanece um adapter T2 separado. PYN2 registra somente output bounded
+e receipts necessários ao session core.
 
 As fontes comparativas Python/codeop, IPython autoreload, Julia world age, Pluto
 reactivity e Jupyter messaging continuam evidência delimitada, não contratos W
@@ -30381,7 +30694,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party; TAB0 definiu o boundary e TAB1 fechou declarations, contracts, oracles e host evidence de CSV/Parquet/Arrow como design; providers e `w-compile`/`w-run` permanecem missing; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
 | W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e o unnamed/default entry; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
 | W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis, nunca stale ou implicitamente recompilados; resubmission explícita recria e executa effects; redefinição/reset fecha admission, drena children/waits, encerra loans/views e faz drops E1, rejeitando ou escalando se foreign retention permanece | dynamic mode; replay automático de effects; redefinição que mantém dependents silenciosamente; liberar estado vivo; reset que ignora drain; notebook transcript como source de release |
-| W-975 | Jupyter como tooling | kernel Jupyter compartilha o session model, implementa o protocol autoritativo e usa rich output W tipado com MIME/data bounded; interrupt solicita structured cancellation; notebook exporta `.w`/package em ordem canônica sem hidden replay antes de release; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; protocol W sem estado de Pesquisa |
+| W-975 | Jupyter como tooling | PYN3 fecha o adapter Jupyter 5.5 sobre PYN2, `presentation.Presentable`, MIME/data bounded e export `.w`/package sem hidden replay; interrupt solicita structured cancellation; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; segundo session model |
 | W-976 | interop científico | Python Array API standard é checklist T2; DLPack e Arrow C Data são adapters first-party T2; Python buffer pertence à bridge; copy, device, stream, ownership, lifetime e release são explícitos e provados | Array API como semântica normativa W; copy implícito; lifetime ou release ambiental; buffer protocol no core; pandas clone na std |
 | W-977 | dados exploratórios e tabulares | dados usam `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; DataFrame completo é package first-party antes de std estável; TAB0 fecha o carrier mínimo e TAB1 fecha CSV/Parquet/Arrow workflow; sem clone pandas | duck-typed rows; dataframe universal na std agora; object global dinâmico; schema inferido sem limites; tratar ecossistema como syntax |
 | W-978 | ergonomia R1 | R1 compara comprehensions com pipelines/loops, checked broadcasting com broadcast explícito, negative/end-relative indices, unpacking/destructuring, display e labels reordenáveis; labels permanecem em ordem até evidence de ganho | escolher syntax final sem R1; broadcast implícito; labels reordenáveis por default; mudar lookup/reproducibility por conveniência |
@@ -30513,6 +30826,24 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1104 | quotas | source, total bindings, hard edges, HIR/artifacts, history reservation, tasks/resources, output, diagnostics, invalidation e drain deadline possuem limites derivados | quota só em output/declarations novas, limite não observável, executar e expulsar próprio receipt |
 | W-1105 | diagnostics de sessão | arquitetura usa fatos/fases para parser, semantic, context/lock, stale opaque base, invalidated binding, ownership, quota, cancellation/close e post-publish degraded | error genérico, phase falsa, diagnóstico sem fix boundary |
 | W-1106 | transcript canônico | transcript começa em g0, termina g4 após quatro publishes, mostra w[5] unavailable e w[6] type error preservando g4, além de snapshot 6 e closure limit→doubled→menu com edges imediatos | transcript usa somente `w[n]`, function como let, failure avançando generation |
+| W-1107 | fronteira PYN3 | PYN3 separa `std.presentation`, adapter Jupyter e export; todos usam PYN2 como session autoritativa | segundo REPL/runtime, MIME ou ZeroMQ como semântica da linguagem, notebook mode dinâmico |
+| W-1108 | presentation protocol | `presentation.Presentable` escreve em `presentation.Writer` opaco T2 com limits; `Display` continua textual e independente; provider `std.presentation@1` fica missing | `Bundle<String,Any>`, substituir Display, writer público sem bounds, utility object global |
+| W-1109 | effect mask e fallback | presentation permite borrow, allocation bounded e writer writes; rejeita suspend/I/O/state/capability; fallback usa Presentable, Display elegível ou resumo compiler-owned sem user code | renderer effectful, debug dump privado, synthesis de Display/Presentable, presentation alterar outcome |
+| W-1110 | media segura | baseline suporta plain text, bounded JSON, PNG/JPEG e vendor `+json`; HTML/SVG exigem sanitizer provider; JavaScript, widget, remote asset e active content são rejeitados | MIME arbitrary pass-through, confiar HTML do user, kernel marcar notebook trusted, payload untyped |
+| W-1111 | previews sem trabalho oculto | table preview limita rows/columns/bytes e não coleta stream; tensor em device mostra metadata e não copia para host; full snapshot/copy é explícito | collect implícito, device copy implícita, render entrar na value identity, calcular todas as MIME eager |
+| W-1112 | baseline Jupyter | adapter implementa messaging 5.5, kernelspec determinístico e interrupt por message; `language_info` é exato e `supported_features` fica vazio no baseline; debugger/subshell/comms/widget ficam ausentes | protocolo próprio, feature advertisement falso, completion/history em `supported_features`, startup handshake novo como requisito baseline |
+| W-1113 | transporte e secrets | connection file é startup capability user-only; HMAC antecede JSON use, frames/replay são bounded; CurveZMQ é usado em todos sockets quando oferecido e pode ser policy-required | HMAC como encryption, secret em log/receipt, remote auth no kernel, aceitar replay ou frames unlimited |
+| W-1114 | lifecycle de request | request observa authenticate→busy→process→reply→related outputs→idle com parent correlation; execute usa FIFO PYN2 e control só solicita cancel/reset/close | idle prematuro, output após idle, control mutar graph, ordenar por client clock |
+| W-1115 | counter e silent | execution_count é ExecutionOrdinal; silent força no-history/output e só aceita submission read-only/non-suspending/effect-free sem publication; mutation silenciosa falha no preflight | counter como GenerationId, silent mutation, ordinal para completion/inspect, output oculto ainda executado |
+| W-1116 | user expressions e stdin | user expressions são read-only/effect-free por key após success; stdin respeita allow_stdin, um request bounded e routing original; password nunca persiste; input bloqueia export até parametrização | user expression mutar state, input ambiental, password em history, mais de um waiter sem bound |
+| W-1117 | status e cancellation | outcomes PYN2 mapeiam para ok/error, sem status aborted; interrupt confirma admission e execute reply confirma drain; shutdown ok só após safe close | traceback Python falso, interrupt afirmar termination, shutdown success antes de drain, rollback de committed degraded |
+| W-1118 | requests read-only | completion/inspect/is_complete usam snapshot committed e Unicode codepoint offsets; inspect inclui plain text; history tail é baseline, range/search ficam Pesquisa | executar completion, ler staging, byte offset como codepoint, history raw ilimitada |
+| W-1119 | metadata e identidades | metadata `w` versionada liga request/incarnation/generation/ordinal/outcome/digests/exportability; msg_id/cell ID/counter nunca substituem identities W; secrets/live values não entram | identity por frontend/timestamp, capability em metadata, cell ID como BindingId, client clock ordenar sessão |
+| W-1120 | notebook como exploração | nbformat cell IDs são validados; outputs/trust não são source nem prova W; export reproduzível exige notebook mais receipt manifest explícito | `.ipynb` como release source, notebook signature como build proof, output codegen, hidden sidecar ambiental |
+| W-1121 | prova de export | export valida source digest, committed chain, binding versions/edges, lock/context/target, effects e ausência de stdin/secret/degraded/live resource; não executa | replay oculto, export com unknown effect, capturar live value, aceitar cell invalidada ou silent mutation |
+| W-1122 | ordem e resultado do export | pure declarations usam topological order com ordinal como tie break; effects preservam execution order; conflito/redefinition não-lossless falha; resultado é PYN1/package mais audit manifest | renomear/remover binding, reexecutar, inserir value literal, ordem do documento como autoridade, comentário gerado de prose |
+| W-1123 | output transitório | tail expression summary não cria `_`/`ans`; display_id/update/clear/progress live ficam Pesquisa até owner/drain contract | binding implícito, handle frontend string cru, update atravessar reset, lifetime não bounded |
+| W-1124 | status do bundle PYN3 | PYN3 fecha design e oracles; ZeroMQ, sanitizer, kernel process, frontend, compiler/runtime/providers, DLPack e nomes CLI permanecem missing/Pesquisa conforme seção | apresentar oracle como kernel implementado, iniciar provider, misturar DLPack, congelar CLI sem estudo humano |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

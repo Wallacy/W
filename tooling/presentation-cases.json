@@ -1,0 +1,219 @@
+{
+  "$schema": "w-presentation-cases-1",
+  "status": "design-oracle-input",
+  "machine": "presentation-machine-pyn3",
+  "decisions": ["W-1107", "W-1108", "W-1109", "W-1110", "W-1111", "W-1123"],
+  "references": [
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "Presentable" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "MenuPreview" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "TabularPreview" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "imagePreviewIsBounded" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "jsonWorkIsBounded" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "BlackHoleSensor" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "DeviceTensorSummary" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "BistromathText" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "RedactedError" }
+  ],
+  "cases": [
+    {
+      "id": "PYN3-P-media-baseline",
+      "decisions": ["W-1107", "W-1108", "W-1110"],
+      "operations": [
+        { "op": "open", "limits": { "totalBytes": 1024, "representations": 4 } },
+        { "op": "text", "value": "Horizon reading: 42" },
+        { "op": "json", "payload": { "reading": 42, "ok": true } },
+        { "op": "vendorJson", "media": "application/vnd.w.horizon.v1+json", "payload": { "reading": 42 } },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "phase": "finished", "representations": 3, "plainText": true } }
+    },
+    {
+      "id": "PYN3-P-image-typed-and-bounded",
+      "decisions": ["W-1107", "W-1108", "W-1111"],
+      "operations": [
+        { "op": "open", "limits": { "imageWidth": 4, "imageHeight": 4, "imagePixels": 16 } },
+        { "op": "png", "bytes": [137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,2,0,0,0,3] },
+        { "op": "text", "value": "image summary" },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "phase": "finished", "plainText": true } }
+    },
+    {
+      "id": "PYN3-N-image-magic",
+      "decisions": ["W-1107", "W-1111"],
+      "operations": [
+        { "op": "open" },
+        { "op": "png", "bytes": [0,1,2,3,4,5,6,7,8,9] }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0001" } }
+    },
+    {
+      "id": "PYN3-P-jpeg-typed-and-bounded",
+      "decisions": ["W-1107", "W-1111"],
+      "operations": [
+        { "op": "open", "limits": { "imageWidth": 4, "imageHeight": 4, "imagePixels": 16 } },
+        { "op": "jpeg", "bytes": [255,216,255,192,0,11,8,0,2,0,3,0,0,0,0] },
+        { "op": "text", "value": "jpeg summary" },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "phase": "finished", "plainText": true } }
+    },
+    {
+      "id": "PYN3-P-table-preview-bounded",
+      "decisions": ["W-1107", "W-1111"],
+      "operations": [
+        { "op": "open", "limits": { "tableRows": 8, "tableColumns": 4, "totalBytes": 512 } },
+        { "op": "tablePreview", "plan": { "source": { "kind": "boundedView", "rows": 128, "hasMore": true, "bounded": true }, "inspectedRows": 8, "emittedRows": 8, "columns": 4 } },
+        { "op": "text", "value": "menu rows: 8" },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "phase": "finished", "previewCollected": false } }
+    },
+    {
+      "id": "PYN3-N-table-collect-plan",
+      "decisions": ["W-1111"],
+      "operations": [
+        { "op": "open" },
+        { "op": "tablePreview", "plan": { "source": { "kind": "stream", "rows": 2, "hasMore": false, "bounded": false }, "inspectedRows": 2, "emittedRows": 2, "columns": 2 } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0009" } }
+    },
+    {
+      "id": "PYN3-P-tensor-summary-no-copy",
+      "decisions": ["W-1107", "W-1111"],
+      "operations": [
+        { "op": "open" },
+        { "op": "tensorSummary", "plan": { "shape": "1024x1024", "dtype": "f32", "device": "gpu:0", "storage": { "view": "metadata" } } },
+        { "op": "text", "value": "gpu:0 f32 [1024,1024]" },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "tensorCopied": false } }
+    },
+    {
+      "id": "PYN3-N-tensor-copy-plan",
+      "decisions": ["W-1111"],
+      "operations": [
+        { "op": "open" },
+        { "op": "tensorSummary", "plan": { "shape": "2x2", "dtype": "f32", "device": "gpu:0", "storage": { "view": "bytes" } } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0009" } }
+    },
+    {
+      "id": "PYN3-P-black-hole-and-bistromath",
+      "decisions": ["W-1107", "W-1109"],
+      "operations": [
+        { "op": "open" },
+        { "op": "sensorSummary", "plan": { "distance": 42, "watcher": "black-hole", "source": "stableSnapshot" } },
+        { "op": "text", "value": "black-hole distance: 42" },
+        { "op": "fallback", "facts": { "presentable": { "conforms": true, "effects": ["borrow", "writerWrite"], "trace": [{ "event": "attempt" }, { "event": "success" }] }, "display": { "conforms": false, "effects": [], "trace": [] }, "compiler": { "sourceKind": "compilerSummary", "trace": [{ "event": "attempt" }, { "event": "success" }], "text": "compiler summary" } } },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "fallback": "presentable" } }
+    },
+    {
+      "id": "PYN3-N-live-sensor",
+      "decisions": ["W-1109"],
+      "operations": [
+        { "op": "open" },
+        { "op": "sensorSummary", "plan": { "distance": 42, "watcher": "black-hole", "source": "live" } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0005" } }
+    },
+    {
+      "id": "PYN3-N-effect-mask",
+      "decisions": ["W-1109"],
+      "operations": [{ "op": "open" }, { "op": "effect", "effect": "suspend" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0005" } }
+    },
+    {
+      "id": "PYN3-P-media-uniqueness",
+      "decisions": ["W-1108"],
+      "operations": [{ "op": "open" }, { "op": "text", "value": "one" }, { "op": "text", "value": "two" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0003" } }
+    },
+    {
+      "id": "PYN3-N-required-plain-text",
+      "decisions": ["W-1107", "W-1108"],
+      "operations": [{ "op": "open" }, { "op": "json", "payload": { "value": 1 } }, { "op": "finish" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0007" } }
+    },
+    {
+      "id": "PYN3-N-safe-missing-media",
+      "decisions": ["W-1110"],
+      "operations": [{ "op": "open" }, { "op": "media", "media": "text/html" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0006" } }
+    },
+    {
+      "id": "PYN3-N-active-content-rejected",
+      "decisions": ["W-1110"],
+      "operations": [{ "op": "open" }, { "op": "media", "media": "text/javascript" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0002" } }
+    },
+    {
+      "id": "PYN3-N-vendor-syntax",
+      "decisions": ["W-1110"],
+      "operations": [{ "op": "open" }, { "op": "vendorJson", "media": "application/vnd.w.horizon+json", "payload": { "ok": true } }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0006" } }
+    },
+    {
+      "id": "PYN3-N-limit-overflow",
+      "decisions": ["W-1108", "W-1111"],
+      "operations": [{ "op": "open", "limits": { "totalBytes": 4, "textBytes": 4 } }, { "op": "text", "value": "12345" }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0004" } }
+    },
+    {
+      "id": "PYN3-N-cancellation-fallback",
+      "decisions": ["W-1107", "W-1109"],
+      "operations": [{ "op": "open", "submissionOutcome": "committed" }, { "op": "text", "value": "Bistromath" }, { "op": "cancel" }],
+      "expected": { "status": "rejected", "assertions": { "phase": "rejected", "fallback": "compilerSummary", "submissionOutcome": "committed", "diagnostic": "W-PRESENTATION-0008" } }
+    },
+    {
+      "id": "PYN3-P-fallback-redaction",
+      "decisions": ["W-1109", "W-1123"],
+      "operations": [
+        { "op": "open" },
+        { "op": "text", "value": "summary without secret" },
+        { "op": "redactedError", "facts": { "code": "WSessionDegraded", "privateFields": ["token"], "publicMessage": "presentation failed" } },
+        { "op": "fallback", "facts": { "presentable": { "conforms": false, "effects": [], "trace": [{ "event": "failure" }] }, "display": { "conforms": false, "effects": [], "trace": [] }, "compiler": { "sourceKind": "compilerSummary", "trace": [{ "event": "attempt" }, { "event": "success" }], "text": "presentation failed" } } },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "fallback": "compilerSummary", "redacted": true } }
+    },
+    {
+      "id": "PYN3-N-fallback-no-user-code",
+      "decisions": ["W-1109", "W-1123"],
+      "operations": [{ "op": "open" }, { "op": "fallback", "facts": { "presentable": { "conforms": false, "effects": [], "trace": [{ "event": "failure" }] }, "display": { "conforms": false, "effects": [], "trace": [] }, "compiler": { "sourceKind": "compilerSummary", "trace": [{ "event": "failure" }], "text": "" } } }],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0010" } }
+    },
+    {
+      "id": "PYN3-N-timeout-fallback",
+      "decisions": ["W-1109", "W-1123"],
+      "operations": [{ "op": "open", "submissionOutcome": "ready" }, { "op": "timeout" }],
+      "expected": { "status": "rejected", "assertions": { "fallback": "compilerSummary", "submissionOutcome": "ready", "diagnostic": "W-PRESENTATION-0010" } }
+    },
+    {
+      "id": "PYN3-N-failure-fallback",
+      "decisions": ["W-1109", "W-1123"],
+      "operations": [{ "op": "open", "submissionOutcome": "committed" }, { "op": "text", "value": "partial" }, { "op": "failure" }],
+      "expected": { "status": "rejected", "assertions": { "phase": "rejected", "fallback": "compilerSummary", "submissionOutcome": "committed", "diagnostic": "W-PRESENTATION-0010" } }
+    },
+    {
+      "id": "PYN3-N-redaction-nested-case",
+      "decisions": ["W-1123"],
+      "operations": [
+        { "op": "open" },
+        { "op": "redactedError", "facts": { "code": "WSessionDegraded", "privateFields": [{ "path": ["metadata", "PaSsWoRd"], "value": "secret-token" }], "publicMessage": "presentation failed" } }
+      ],
+      "expected": { "status": "accepted", "assertions": { "redacted": true } }
+    },
+    {
+      "id": "PYN3-N-redaction-public-substring",
+      "decisions": ["W-1123"],
+      "operations": [
+        { "op": "open" },
+        { "op": "redactedError", "facts": { "code": "WSessionDegraded", "privateFields": ["token"], "publicMessage": "presentation failed: token=secret" } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0010" } }
+    }
+  ]
+}

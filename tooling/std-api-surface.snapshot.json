@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "0bcbf323d5ffe803917f167609457201ba70234b54e3270f8f20f8e16c20691d",
+  "catalogDigest": "9a0e3abc3c073f86797555dcaac10b2b213896666e327370aa5c6be02daf6f69",
   "summary": {
-    "modules": 18,
-    "catalogedApis": 285,
-    "draftCatalogedApis": 285,
+    "modules": 19,
+    "catalogedApis": 295,
+    "draftCatalogedApis": 295,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 67,
-    "referenceRequirements": 14,
-    "contractedReferenceRequirements": 14,
+    "referenceRequirements": 15,
+    "contractedReferenceRequirements": 15,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 12,
-    "missingImplementationProviders": 12
+    "implementationProviders": 13,
+    "missingImplementationProviders": 13
   },
   "modules": [
     {
@@ -4876,6 +4876,351 @@
       ]
     },
     {
+      "id": "std.presentation",
+      "tier": "T2",
+      "availability": "presentation-provider",
+      "source": "std/presentation/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.presentation@1",
+        "status": "missing",
+        "gates": [
+          "cancellation",
+          "differential-rendering",
+          "effect-mask",
+          "media-validation",
+          "ownership",
+          "sanitizer",
+          "writer-bounds"
+        ]
+      },
+      "catalogedDeclarationsDigest": "512c238606cb43ef78946e76af6621b6c385c46fb90b14fcbb24f04145e3f1af",
+      "apis": [
+        {
+          "symbol": "Error",
+          "kind": "enum",
+          "signature": "export enum Error: Error",
+          "declarationDigest": "eef4992faf30548c53022e68cf517532e87ee940a67130811bbda594b3383ad1",
+          "line": 40,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Jpeg",
+          "kind": "struct",
+          "signature": "export struct Jpeg",
+          "declarationDigest": "0c619c15b5c2f4d80667942109cb2506848d7d2124ad3cf4d52cf2defe207008",
+          "line": 157,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LimitKind",
+          "kind": "enum",
+          "signature": "export enum LimitKind: Copy & Equatable",
+          "declarationDigest": "c2ddb3419190f6b1c4811c450a5ec8c81cf98195308b67ecd2b11957928ec6e7",
+          "line": 19,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "4a7812149134d93e5af32eebd52addd8217b942445913295ce56224399bbe8a3",
+          "line": 49,
+          "profile": "presentation-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init( maximumBytes: usize<(1...)>, maximumRepresentations: usize<(1...)>, maximumTextBytes: usize<(1...)>, maximumImageBytes: usize<(1...)>, maximumImageWidth: u32<(1...)>, maximumImageHeight: u32<(1...)>, maximumImagePixels: u64<(1...)>, maximumJsonDepth: usize<(1...)>, maximumJsonNodes: usize<(1...)>, maximumJsonStringBytes: usize<(1...)>, maximumWorkUnits: usize<(1...)>, )",
+                  "line": 76
+                },
+                {
+                  "signature": "export const init(maximumBytes: usize<(1...)>)",
+                  "line": 102
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumBytes: usize<(1...)> { get => storedMaximumBytes }",
+                  "line": 62
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumRepresentations",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumRepresentations: usize<(1...)>",
+                  "line": 63
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumTextBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumTextBytes: usize<(1...)> { get => storedMaximumTextBytes }",
+                  "line": 66
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumImageBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumImageBytes: usize<(1...)> { get => storedMaximumImageBytes }",
+                  "line": 67
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumImageWidth",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumImageWidth: u32<(1...)> { get => storedMaximumImageWidth }",
+                  "line": 68
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumImageHeight",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumImageHeight: u32<(1...)> { get => storedMaximumImageHeight }",
+                  "line": 69
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumImagePixels",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumImagePixels: u64<(1...)> { get => storedMaximumImagePixels }",
+                  "line": 70
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumJsonDepth",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumJsonDepth: usize<(1...)> { get => storedMaximumJsonDepth }",
+                  "line": 71
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumJsonNodes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumJsonNodes: usize<(1...)> { get => storedMaximumJsonNodes }",
+                  "line": 72
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumJsonStringBytes",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumJsonStringBytes: usize<(1...)> { get => storedMaximumJsonStringBytes }",
+                  "line": 73
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "maximumWorkUnits",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumWorkUnits: usize<(1...)> { get => storedMaximumWorkUnits }",
+                  "line": 74
+                }
+              ],
+              "profile": "presentation-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "MediaKind",
+          "kind": "enum",
+          "signature": "export enum MediaKind: Copy & Equatable",
+          "declarationDigest": "4f3152eb77115fb416466aa0850e9e9adc45c830357ef697174edc565c0b2626",
+          "line": 9,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "MediaType",
+          "kind": "struct",
+          "signature": "export struct MediaType: Equatable",
+          "declarationDigest": "8c6d3dea47f33dc46f10904751adee68fdaac1060a38eafebf8b9c7db86a53bf",
+          "line": 119,
+          "profile": "presentation-contract",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ value: String) throws MediaTypeError",
+                  "line": 122
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "value",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export value: view String { get => storedValue }",
+                  "line": 132
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "kind",
+              "overloads": [
+                {
+                  "signature": "export fn kind(): MediaKind throws MediaTypeError",
+                  "line": 134
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "isPortable",
+              "overloads": [
+                {
+                  "signature": "export fn isPortable(): Bool",
+                  "line": 138
+                }
+              ],
+              "profile": "presentation-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "MediaTypeError",
+          "kind": "enum",
+          "signature": "export enum MediaTypeError: Error",
+          "declarationDigest": "a53dc385c565f6f1194e6d8abc8aa0c8c12adb380045bb7adc2a2cc43b7d95f0",
+          "line": 33,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Png",
+          "kind": "struct",
+          "signature": "export struct Png",
+          "declarationDigest": "261427e6d13efc49edc8b4ed6a3b21262d1ae5e106af8b8fdbc9c28ea68c879d",
+          "line": 145,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Presentable",
+          "kind": "protocol",
+          "signature": "export protocol Presentable",
+          "declarationDigest": "744d0d818fadbb14cc20eab6758fb81158a5530636cffa20a02ebb1af52d58c0",
+          "line": 169,
+          "profile": "presentation-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Writer",
+          "kind": "struct",
+          "signature": "export struct Writer",
+          "declarationDigest": "1ad35ed8208f17460160e04106ab447a108de6c2a0b1acb36043f6dbc624479d",
+          "line": 175,
+          "profile": "presentation-contract",
+          "members": [
+            {
+              "symbol": "text",
+              "overloads": [
+                {
+                  "signature": "export mut fn text(_ value: view String) throws Error",
+                  "line": 182
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "png",
+              "overloads": [
+                {
+                  "signature": "export mut fn png(_ image: ref Png) throws Error",
+                  "line": 188
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "jpeg",
+              "overloads": [
+                {
+                  "signature": "export mut fn jpeg(_ image: ref Jpeg) throws Error",
+                  "line": 197
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "json",
+              "overloads": [
+                {
+                  "signature": "export mut fn json( _ body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
+                  "line": 203
+                }
+              ],
+              "profile": "presentation-contract"
+            },
+            {
+              "symbol": "vendorJson",
+              "overloads": [
+                {
+                  "signature": "export mut fn vendorJson( media: ref MediaType, _ body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
+                  "line": 211
+                }
+              ],
+              "profile": "presentation-contract"
+            }
+          ],
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.runtime.task",
       "tier": "T1",
       "availability": "runtime-profile",
@@ -6501,6 +6846,14 @@
     }
   ],
   "referenceRequirements": [
+    {
+      "id": "pyn3-presentation-presentable",
+      "module": "std.presentation",
+      "surface": "Presentable",
+      "status": "draft",
+      "profile": "presentation-contract",
+      "consumer": "reference/last-light/pyn3_oracle.w"
+    },
     {
       "id": "sdk0-build-context",
       "module": "std.build",

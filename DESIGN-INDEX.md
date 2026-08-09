@@ -15,17 +15,17 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 30519 |
-| tokens aproximados de `DESIGN.md` | 373300 |
+| linhas de `DESIGN.md` | 30850 |
+| tokens aproximados de `DESIGN.md` | 378800 |
 | seções numeradas | 30 |
-| seções terminais com evidência local | 347/347 |
-| decisões | 1106 (W-001–W-1106) |
+| seções terminais com evidência local | 348/348 |
+| decisões | 1124 (W-001–W-1124) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 68 |
 | casos de substituição estruturados | 68/68 |
-| decisões referenciadas por casos R0 | 120/1106 |
-| decisões classificadas para design freeze | 314/1106 (120 source + 227 oracle + 8 explícitas; 41 overlaps) |
+| decisões referenciadas por casos R0 | 120/1124 |
+| decisões classificadas para design freeze | 332/1124 (120 source + 245 oracle + 8 explícitas; 41 overlaps) |
 | decisões ainda sem classe de freeze | 792 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 164 |
@@ -44,6 +44,9 @@
 | casos/operações do kernel de packages e releases P0 | 44/379 (22 aceitos + 22 rejeitados) |
 | casos/operações do workflow single-file PYN1 | 91/533 (22 aceitos + 69 rejeitados) |
 | casos/operações da sessão transacional PYN2 | 67/287 (53 aceitos + 14 rejeitados) |
+| casos/operações de apresentação PYN3 | 24/69 (8 aceitos + 16 rejeitados; host oracle não executa W) |
+| casos/operações do adapter Jupyter PYN3 | 30/98 (16 aceitos + 14 rejeitados; host oracle não executa W) |
+| casos/operações do export notebook PYN3 | 18/49 (5 aceitos + 13 rejeitados; host oracle não executa W) |
 | casos do container WMeta1 W0 | 42 (5 aceitos + 37 rejeitados; 2 readers independentes) |
 | casos/operações do carrier tabular TAB0 | 64/155 (22 aceitos + 42 rejeitados; host oracle não executa W) |
 | casos/operações dos adapters tabulares TAB1 | 84/184 (35 aceitos + 49 rejeitados; host oracle não executa W) |
@@ -51,14 +54,14 @@
 | outcomes SemanticResult S0 | 92 |
 | snapshots de diagnostic D0 | 46 |
 | snapshots F0 no formato D0 | 20 |
-| codes D0 catalogados | 129/129 |
-| sources W no root do Última Luz | 84 |
-| sources W em todo o Última Luz | 92 |
-| sources W no rascunho da std | 18 |
-| módulos/APIs catalogados da std SDK0 | 18/285 |
+| codes D0 catalogados | 154/154 |
+| sources W no root do Última Luz | 85 |
+| sources W em todo o Última Luz | 93 |
+| sources W no rascunho da std | 19 |
+| módulos/APIs catalogados da std SDK0 | 19/295 |
 | superfícies qualificadas da std usadas pelo Última Luz | 67 |
-| requisitos do Última Luz com contrato std SDK0 | 14/14 |
-| requisitos do Última Luz ausentes na std SDK0 | 0/14 |
+| requisitos do Última Luz com contrato std SDK0 | 15/15 |
+| requisitos do Última Luz ausentes na std SDK0 | 0/15 |
 
 A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.
 
@@ -72,17 +75,20 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | CONTRACT | 5 | 5 |
 | DIAGNOSTIC | 1 | 1 |
 | EFFECT | 2 | 2 |
+| EXPORT | 7 | 7 |
 | EXPR | 4 | 4 |
 | FLOW | 2 | 2 |
 | FMT | 2 | 2 |
 | GENERIC | 2 | 2 |
 | INIT | 1 | 1 |
+| JUPYTER | 8 | 8 |
 | LEX | 1 | 1 |
 | MATCH | 3 | 3 |
 | MOVE | 1 | 1 |
 | OWNERSHIP | 2 | 2 |
 | PARSE | 29 | 29 |
 | PATTERN | 6 | 6 |
+| PRESENTATION | 10 | 10 |
 | SCRIPT | 16 | 16 |
 | SEM | 1 | 1 |
 | SESSION | 28 | 28 |
@@ -118,12 +124,12 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 21 | 23041–25150 | 20200 | Packages, builds e releases |
 | 22 | 25151–25636 | 4600 | Tooling e interface para máquinas |
 | 23 | 25637–27065 | 16900 | Protocolos e pesquisas de ecossistema |
-| 24 | 27066–28135 | 20000 | Classificação de viabilidade |
-| 25 | 28136–28346 | 1900 | Produto de referência Última Luz |
-| 26 | 28347–29056 | 9100 | Protocolo de revisão |
-| 27 | 29057–29371 | 3900 | Plano de implementação |
-| 28 | 29372–29402 | 500 | Relação com a consolidação histórica |
-| 29 | 29403–30519 | 61000 | Registro de decisões e alternativas |
+| 24 | 27066–28447 | 24100 | Classificação de viabilidade |
+| 25 | 28448–28658 | 1900 | Produto de referência Última Luz |
+| 26 | 28659–29369 | 9200 | Protocolo de revisão |
+| 27 | 29370–29684 | 3900 | Plano de implementação |
+| 28 | 29685–29715 | 500 | Relação com a consolidação histórica |
+| 29 | 29716–30850 | 62400 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -135,7 +141,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 7246–14187 | 71300 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 14188–21437 | 80900 | tiers, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 21438–27065 | 59200 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 27066–30519 | 96400 | viabilidade, Última Luz, gates, roadmap e ledger |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 27066–30850 | 102000 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

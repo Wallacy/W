@@ -40,6 +40,8 @@ std/
     contracts.w
   arrow/
     contracts.w
+  presentation/
+    contracts.w
   net/
     contracts.w
   json/
@@ -229,6 +231,14 @@ C Stream usam handles opaque move-only de producer trusted e options com
 está deferido. `copyPolicy:
 .never` falha quando a cópia é necessária. Device handles não são tratados como
 CPU pointers.
+
+`presentation/contracts.w` materializa o protocol T2 `Presentable`, o `Writer`
+opaco, `Limits`, `MediaType` validada, `Error` e operações typed/streamed de
+texto, imagem e JSON. O writer exige `text/plain` e rejeita media duplicada,
+active content, collect implícito e device copy implícita. O provider
+`std.presentation@1` continua missing até os gates de effect mask, bounds,
+cancellation, ownership, sanitization e differential rendering. O arquivo não
+cria kernel, frontend, display singleton ou capability ambiental.
 
 Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
 otimizar transporte, mas não pode mudar statements, results, ownership ou

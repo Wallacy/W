@@ -23,6 +23,10 @@ const corpusFiles = [
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "script-workflow-cases.json",
+  "repl-session-cases.json",
+  "presentation-cases.json",
+  "jupyter-cases.json",
+  "notebook-export-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
@@ -78,7 +82,7 @@ for (const file of corpusFiles) {
     knownEvidenceIds.add(testCase.id);
     const decisions =
       testCase.decisions ??
-      (file === "script-workflow-cases.json" ? corpus.decisions : undefined);
+      (["script-workflow-cases.json", "repl-session-cases.json"].includes(file) ? corpus.decisions : undefined);
     if (decisions === undefined) continue;
     if (!Array.isArray(decisions) || decisions.length === 0) {
       errors.push(`${file}.cases[${caseIndex}].decisions must be a non-empty array.`);
