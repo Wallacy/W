@@ -1329,6 +1329,253 @@
       "references": [{ "path": "../reference/last-light/callables.w", "symbol": "standardWelcome" }],
       "operations": [{ "op": "verifyFfi", "form": "languageFn", "retention": "call", "trustedWAdapterProof": true, "adapterLanguage": "C" }],
       "expected": { "status": "rejected", "code": "opaqueLanguageLifetime", "operation": 0 }
+    },
+    {
+      "id": "M1-storage-origin-blocks-region-close",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "staging", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "initialize", "binding": "snapshot", "using": "staging", "bytes": 48 },
+        { "op": "closeAllocator", "allocator": "staging" }
+      ],
+      "expected": { "status": "rejected", "code": "storageOriginStillLive", "operation": 2 }
+    },
+    {
+      "id": "M1-storage-origin-closes-after-drop",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "staging", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "initialize", "binding": "snapshot", "using": "staging", "bytes": 48 },
+        { "op": "drop", "binding": "snapshot" },
+        { "op": "closeAllocator", "allocator": "staging" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-region-budget-is-monotonic",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countEmergencyTokens" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "fixed", "limit": 64 },
+        { "op": "initialize", "binding": "tokens", "using": "scratch", "bytes": 48 },
+        { "op": "initialize", "binding": "overflow", "using": "scratch", "bytes": 32 }
+      ],
+      "expected": { "status": "rejected", "code": "budgetExceeded", "operation": 2 }
+    },
+    {
+      "id": "M1-rehome-enables-cross-domain-transfer",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countStagedMenuInParallel" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "snapshot", "using": "scratch", "bytes": 32 },
+        { "op": "rehome", "from": "snapshot", "to": "portable", "using": "process", "bytes": 32, "result": "rehome" },
+        { "op": "closeAllocator", "allocator": "scratch" },
+        { "op": "escape", "binding": "portable", "target": "structuredChild", "transferable": true, "joinPrecedesOrigins": true },
+        { "op": "drop", "binding": "portable" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-local-storage-rejects-cross-domain-transfer",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countStagedMenuInParallel" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "initialize", "binding": "snapshot", "using": "scratch", "bytes": 32 },
+        { "op": "escape", "binding": "snapshot", "target": "structuredChild", "transferable": true, "joinPrecedesOrigins": true }
+      ],
+      "expected": { "status": "rejected", "code": "allocationOriginNotTransferable", "operation": 2 }
+    },
+    {
+      "id": "M1-rehome-failure-consumes-source",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "snapshot", "using": "scratch", "bytes": 32 },
+        { "op": "rehome", "from": "snapshot", "to": "portable", "using": "process", "outcome": "allocationError", "result": "rehome" },
+        { "op": "closeAllocator", "allocator": "scratch" },
+        { "op": "use", "binding": "snapshot" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 5 }
+    },
+    {
+      "id": "M1-share-rejects-borrow-dependent-payload",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "initialize", "binding": "borrowed", "edges": [{ "ownerBinding": "menu", "origin": "menu", "mode": "shared" }] },
+        { "op": "share", "from": "borrowed", "to": "root", "using": "process", "bytes": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "shareRequiresLifetimeIndependent", "operation": 3 }
+    },
+    {
+      "id": "M1-share-requires-storage-to-outlive-control-block",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "request", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu", "using": "request", "bytes": 32 },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "shareRequiresRehome", "operation": 3 }
+    },
+    {
+      "id": "M1-shared-weak-lifecycle",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "parentTitle" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 1024 },
+        { "op": "initialize", "binding": "menu", "using": "process", "bytes": 32 },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16, "threadSafe": true },
+        { "op": "copyShared", "from": "root", "to": "alias" },
+        { "op": "makeWeak", "from": "root", "to": "observer" },
+        { "op": "drop", "binding": "root" },
+        { "op": "upgradeWeak", "from": "observer", "to": "revived", "result": "beforeLastRelease" },
+        { "op": "drop", "binding": "alias" },
+        { "op": "drop", "binding": "revived" },
+        { "op": "upgradeWeak", "from": "observer", "to": "expired", "result": "afterLastRelease" },
+        { "op": "drop", "binding": "observer" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-last-weak-keeps-control-block-origin-live",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "parentTitle" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 },
+        { "op": "makeWeak", "from": "root", "to": "observer" },
+        { "op": "drop", "binding": "root" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "storageOriginStillLive", "operation": 5 }
+    },
+    {
+      "id": "M1-share-allocation-failure-consumes-source",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "makeMenuRoot" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "outcome": "allocationError", "result": "share" },
+        { "op": "use", "binding": "menu" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 3 }
+    },
+    {
+      "id": "M1-pin-allocation-failure-consumes-source",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
+      "operations": [
+        { "op": "initialize", "binding": "bellState" },
+        { "op": "pin", "from": "bellState", "to": "pinned", "outcome": "allocationError", "result": "pin" },
+        { "op": "use", "binding": "bellState" }
+      ],
+      "expected": { "status": "rejected", "code": "operationRequiresOwner", "operation": 2 }
+    },
+    {
+      "id": "M1-shared-cross-domain-needs-thread-safe-count",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "classifyBell" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "bell", "using": "process", "bytes": 32 },
+        { "op": "share", "from": "bell", "to": "sharedBell", "using": "process", "bytes": 16, "threadSafe": false },
+        { "op": "escape", "binding": "sharedBell", "target": "structuredChild", "shareable": true, "transferable": true, "joinPrecedesOrigins": true }
+      ],
+      "expected": { "status": "rejected", "code": "sharedCounterNotThreadSafe", "operation": 3 }
+    },
+    {
+      "id": "M1-shared-cross-domain-needs-shareable-payload",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "classifyBell" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "bell", "using": "process", "bytes": 32 },
+        { "op": "share", "from": "bell", "to": "sharedBell", "using": "process", "bytes": 16, "threadSafe": true },
+        { "op": "escape", "binding": "sharedBell", "target": "structuredChild", "shareable": false, "transferable": true, "joinPrecedesOrigins": true }
+      ],
+      "expected": { "status": "rejected", "code": "sharedPayloadNotShareable", "operation": 3 }
+    },
+    {
+      "id": "M1-shared-cross-domain-composes-all-proofs",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "classifyBell" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "bell", "using": "process", "bytes": 32 },
+        { "op": "share", "from": "bell", "to": "sharedBell", "using": "process", "bytes": 16, "threadSafe": true },
+        { "op": "escape", "binding": "sharedBell", "target": "structuredChild", "shareable": true, "transferable": true, "joinPrecedesOrigins": true },
+        { "op": "drop", "binding": "sharedBell" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-interface-storage-origin-mapping",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
+      "operations": [{ "op": "verifyInterface", "body": true, "inferredStorageMapping": { "result.$storage": ["parameter:2"] }, "expectedStorageMapping": { "result.$storage": ["parameter:2"] } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-interface-storage-origin-drift",
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
+      "operations": [{ "op": "verifyInterface", "body": true, "inferredStorageMapping": { "result.$storage": ["product.default"] }, "previousStorageMapping": { "result.$storage": ["parameter:2"] } }],
+      "expected": { "status": "rejected", "code": "interfaceStorageMappingChanged", "operation": 0 }
+    },
+    {
+      "id": "M1-shared-borrow-is-tied-to-originating-handle",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "sameMenuSection" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 },
+        { "op": "copyShared", "from": "root", "to": "alias" },
+        { "op": "beginBorrow", "binding": "root", "token": "title", "mode": "shared" },
+        { "op": "drop", "binding": "alias" },
+        { "op": "endBorrow", "token": "title" },
+        { "op": "drop", "binding": "root" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-shared-originating-handle-cannot-drop-under-borrow",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "sameMenuSection" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 },
+        { "op": "copyShared", "from": "root", "to": "alias" },
+        { "op": "beginBorrow", "binding": "root", "token": "title", "mode": "shared" },
+        { "op": "drop", "binding": "root" }
+      ],
+      "expected": { "status": "rejected", "code": "dropWithLoan", "operation": 5 }
+    },
+    {
+      "id": "M1-shared-handle-rejects-exclusive-borrow",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "sameMenuSection" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 },
+        { "op": "beginBorrow", "binding": "root", "token": "writer", "mode": "exclusive" }
+      ],
+      "expected": { "status": "rejected", "code": "exclusiveBorrowRequiresUniqueOwner", "operation": 3 }
+    },
+    {
+      "id": "M1-copied-weak-handles-release-control-block-last",
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "parentTitle" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "process", "lifetime": "product", "mobility": "crossDomain", "adoptionFamily": "general", "limit": 256 },
+        { "op": "initialize", "binding": "menu" },
+        { "op": "share", "from": "menu", "to": "root", "using": "process", "bytes": 16 },
+        { "op": "makeWeak", "from": "root", "to": "observer" },
+        { "op": "copyWeak", "from": "observer", "to": "observerCopy" },
+        { "op": "drop", "binding": "root" },
+        { "op": "drop", "binding": "observer" },
+        { "op": "drop", "binding": "observerCopy" },
+        { "op": "closeAllocator", "allocator": "process" }
+      ],
+      "expected": { "status": "accepted" }
     }
   ]
 }

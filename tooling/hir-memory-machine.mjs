@@ -20,6 +20,9 @@ const ACCESS_MODES = new Set(["read", "write"]);
 const DEPENDENCY_KINDS = new Set(["dynamic", "static", "immortal"]);
 const FFI_FORMS = new Set(["ref", "inout", "languageFn"]);
 const FFI_RETENTIONS = new Set(["none", "call", "persistent"]);
+const ALLOCATOR_LIFETIMES = new Set(["static", "product", "parameter", "scoped"]);
+const ALLOCATOR_MOBILITIES = new Set(["local", "crossDomain"]);
+const ALLOCATION_OUTCOMES = new Set(["success", "allocationError"]);
 const PROJECTION_KINDS = new Set([
   "field",
   "tuple",
@@ -64,6 +67,10 @@ function activeLoansForPayload(state, payload) {
   return Object.values(state.loans).filter((loan) => loan.payload === payload);
 }
 
+function activeLoansForBinding(state, binding) {
+  return Object.values(state.loans).filter((loan) => loan.binding === binding);
+}
+
 function requireBinding(state, name) {
   const binding = state.bindings[name];
   if (!binding || binding.state !== "owned") {
@@ -72,9 +79,85 @@ function requireBinding(state, name) {
   return binding;
 }
 
+function allocatorTable(state) {
+  if (!state.allocators) state.allocators = {};
+  return state.allocators;
+}
+
+function controlBlockTable(state) {
+  if (!state.controlBlocks) state.controlBlocks = {};
+  return state.controlBlocks;
+}
+
+function outcomeTable(state) {
+  if (!state.outcomes) state.outcomes = {};
+  return state.outcomes;
+}
+
+function requireAllocator(state, name) {
+  const allocator = allocatorTable(state)[name];
+  if (!allocator || allocator.state !== "open") {
+    throw new HirMemoryError("allocatorUnavailable");
+  }
+  return allocator;
+}
+
+function chargeAllocator(state, name, bytes = 0) {
+  const allocator = requireAllocator(state, name);
+  const charge = Number.isSafeInteger(bytes) ? bytes : 0;
+  if (allocator.limit !== null && allocator.charged + charge > allocator.limit) {
+    throw new HirMemoryError("budgetExceeded");
+  }
+  allocator.charged += charge;
+  return allocator;
+}
+
+function allocatorOutlives(state, candidateName, dependentName) {
+  if (candidateName === dependentName) return true;
+  const candidate = requireAllocator(state, candidateName);
+  if (candidate.lifetime === "static" || candidate.lifetime === "product") return true;
+  return candidate.outlives.includes(dependentName);
+}
+
+function storageOrigins(payload) {
+  return Array.isArray(payload.storageOrigins) ? payload.storageOrigins : [];
+}
+
+function storageIsTransferable(state, payload) {
+  return storageOrigins(payload).every(
+    (origin) => requireAllocator(state, origin).mobility === "crossDomain",
+  );
+}
+
+function recordOutcome(state, operation, outcome) {
+  if (operation.result) outcomeTable(state)[operation.result] = outcome;
+}
+
+function consumeAfterAllocationFailure(state, source) {
+  const payload = state.payloads[source.payload];
+  releasePayloadEdges(payload);
+  source.state = "dropped";
+  payload.consumedOnFailure = true;
+  payload.dropCount = (payload.dropCount ?? 0) + 1;
+}
+
+function requireUniqueBinding(state, name) {
+  const binding = requireBinding(state, name);
+  if (binding.pinnedHandle || binding.sharedBlock || binding.weakBlock) {
+    throw new HirMemoryError("operationRequiresUniqueOwner");
+  }
+  return binding;
+}
+
 function requireNoLoans(state, payload, code = "loanConflict", allowPinnedHandle = false, binding = null) {
   if (allowPinnedHandle && binding?.pinnedHandle) return;
   if (activeLoansForPayload(state, payload).length > 0) {
+    throw new HirMemoryError(code);
+  }
+}
+
+function requireNoBindingLoans(state, binding, code = "loanConflict") {
+  if (activeLoansForBinding(state, binding).length > 0) {
     throw new HirMemoryError(code);
   }
 }
@@ -597,6 +680,7 @@ function verifyActiveLoansStable(state) {
 }
 
 function requirePayloadForPlace(state, binding, operation) {
+  if (binding.weakBlock) throw new HirMemoryError("weakRequiresUpgrade");
   const payload = state.payloads[binding.payload];
   const place = normalizePlace(operation.place, payload.root);
   if (place.root !== payload.root) throw new HirMemoryError("placeRootMismatch");
@@ -610,6 +694,10 @@ function activeLoansOverlapping(state, payloadId, place, proofFacts = []) {
 function applyBorrow(state, operation, reborrow) {
   const binding = requireBinding(state, operation.binding);
   if (!BORROW_MODES.has(operation.mode)) throw new HirMemoryError("invalidBorrowMode");
+  if (binding.weakBlock) throw new HirMemoryError("weakRequiresUpgrade");
+  if (binding.sharedBlock && operation.mode === "exclusive") {
+    throw new HirMemoryError("exclusiveBorrowRequiresUniqueOwner");
+  }
   const { payload, place } = requirePayloadForPlace(state, binding, operation);
   const loanId = operation.token;
   if (state.loans[loanId]) throw new HirMemoryError("loanIdAlreadyActive");
@@ -663,11 +751,44 @@ function applyBorrow(state, operation, reborrow) {
 
 function applyOperation(state, operation) {
   switch (operation.op) {
+    case "defineAllocator": {
+      const allocators = allocatorTable(state);
+      if (allocators[operation.allocator]) {
+        throw new HirMemoryError("allocatorAlreadyDefined");
+      }
+      allocators[operation.allocator] = {
+        state: "open",
+        lifetime: operation.lifetime,
+        mobility: operation.mobility,
+        adoptionFamily: operation.adoptionFamily,
+        limit: operation.limit ?? null,
+        charged: 0,
+        outlives: [...(operation.outlives ?? [])],
+      };
+      return;
+    }
+    case "closeAllocator": {
+      const allocator = requireAllocator(state, operation.allocator);
+      const livePayload = Object.values(state.bindings).some((binding) => {
+        if (binding.state !== "owned" || binding.weakBlock) return false;
+        const payload = state.payloads[binding.payload];
+        return payload && storageOrigins(payload).includes(operation.allocator);
+      });
+      const liveControlBlock = Object.values(state.controlBlocks ?? {}).some(
+        (block) => block.blockAlive && block.allocator === operation.allocator,
+      );
+      if (livePayload || liveControlBlock) {
+        throw new HirMemoryError("storageOriginStillLive");
+      }
+      allocator.state = "closed";
+      return;
+    }
     case "initialize": {
       if (state.bindings[operation.binding]) {
         throw new HirMemoryError("bindingAlreadyInitialized");
       }
       if (operation.selfReference) throw new HirMemoryError("selfReferentialValue");
+      if (operation.using) chargeAllocator(state, operation.using, operation.bytes ?? 0);
       const payload = `p${state.nextPayload}`;
       state.nextPayload += 1;
       const edgeInputs = Array.isArray(operation.edges) ? operation.edges : [];
@@ -683,6 +804,7 @@ function applyOperation(state, operation) {
         inoutField: operation.inoutField === true,
         pinnedPayload: false,
         edges: [],
+        ...(operation.using ? { storageOrigins: [operation.using] } : {}),
       };
       state.payloads[payload] = payloadState;
       payloadState.edges = edgeInputs.map((edge) => normalizeEdge(edge, state));
@@ -734,6 +856,7 @@ function applyOperation(state, operation) {
     }
     case "write": {
       const binding = requireBinding(state, operation.binding);
+      if (binding.sharedBlock) throw new HirMemoryError("exclusiveBorrowRequiresUniqueOwner");
       const { place } = requirePayloadForPlace(state, binding, operation);
       if (dependencyConflicts(state, place, "write", operation.proofFacts ?? []).length > 0) {
         throw new HirMemoryError("dependencyConflict");
@@ -752,23 +875,58 @@ function applyOperation(state, operation) {
     }
     case "move": {
       const source = requireBinding(state, operation.from);
-      requireNoLoans(state, source.payload, "moveWithLoan", true, source);
-      if (!source.pinnedHandle && ownerHasDynamicEdges(state, source.payload)) {
+      if (source.sharedBlock) {
+        requireNoBindingLoans(state, operation.from, "moveWithLoan");
+      } else if (!source.weakBlock) {
+        requireNoLoans(state, source.payload, "moveWithLoan", true, source);
+      }
+      if (
+        !source.pinnedHandle &&
+        !source.sharedBlock &&
+        !source.weakBlock &&
+        ownerHasDynamicEdges(state, source.payload)
+      ) {
         throw new HirMemoryError("ownerMoveWithDependency");
       }
       if (state.bindings[operation.to]) {
         throw new HirMemoryError("moveTargetAlreadyInitialized");
       }
+      const destination = { ...source, state: "owned" };
       source.state = "moved";
-      state.bindings[operation.to] = {
-        state: "owned",
-        payload: source.payload,
-        pinnedHandle: source.pinnedHandle,
-      };
+      state.bindings[operation.to] = destination;
       return;
     }
     case "drop": {
       const binding = requireBinding(state, operation.binding);
+      if (binding.weakBlock) {
+        const block = controlBlockTable(state)[binding.weakBlock];
+        if (!block || !block.blockAlive || block.weak < 1) {
+          throw new HirMemoryError("weakControlBlockUnavailable");
+        }
+        binding.state = "dropped";
+        block.weak -= 1;
+        if (block.strong === 0 && block.weak === 0) block.blockAlive = false;
+        return;
+      }
+      if (binding.sharedBlock) {
+        const block = controlBlockTable(state)[binding.sharedBlock];
+        if (!block || !block.blockAlive || !block.payloadAlive || block.strong < 1) {
+          throw new HirMemoryError("sharedControlBlockUnavailable");
+        }
+        requireNoBindingLoans(state, operation.binding, "dropWithLoan");
+        binding.state = "dropped";
+        block.strong -= 1;
+        if (block.strong === 0) {
+          const payload = state.payloads[block.payload];
+          releasePayloadEdges(payload);
+          payload.sharedDestroyed = true;
+          payload.dropCount = (payload.dropCount ?? 0) + 1;
+          block.payloadAlive = false;
+          block.deinitCount += 1;
+          if (block.weak === 0) block.blockAlive = false;
+        }
+        return;
+      }
       requireNoLoans(state, binding.payload, "dropWithLoan");
       if (ownerHasDynamicEdges(state, binding.payload)) {
         throw new HirMemoryError("ownerDropWithDependency");
@@ -850,6 +1008,9 @@ function applyOperation(state, operation) {
     case "mutate":
     case "replace": {
       const binding = requireBinding(state, operation.binding);
+      if (binding.sharedBlock || binding.weakBlock) {
+        throw new HirMemoryError("exclusiveBorrowRequiresUniqueOwner");
+      }
       const { payload, place } = requirePayloadForPlace(state, binding, operation);
       if (dependencyConflicts(state, place, "write", operation.proofFacts ?? []).length > 0) {
         throw new HirMemoryError("dependencyConflict");
@@ -868,6 +1029,9 @@ function applyOperation(state, operation) {
     }
     case "copy": {
       const source = requireBinding(state, operation.from);
+      if (source.sharedBlock || source.weakBlock) {
+        throw new HirMemoryError("copyRequiresHandleOperation");
+      }
       const sourcePayload = state.payloads[source.payload];
       const sourcePlace = normalizePlace(undefined, sourcePayload.root);
       if (dependencyConflicts(state, sourcePlace, "read").length > 0) {
@@ -968,6 +1132,9 @@ function applyOperation(state, operation) {
     }
     case "clear": {
       const target = requireBinding(state, operation.binding);
+      if (target.sharedBlock || target.weakBlock) {
+        throw new HirMemoryError("exclusiveBorrowRequiresUniqueOwner");
+      }
       const targetPayload = state.payloads[target.payload];
       if (ownerHasDynamicEdges(state, target.payload)) throw new HirMemoryError("dependencyConflict");
       if (activeLoansForPayload(state, target.payload).length > 0) throw new HirMemoryError("loanOverlap");
@@ -981,6 +1148,29 @@ function applyOperation(state, operation) {
       const binding = requireBinding(state, operation.binding);
       const payload = state.payloads[binding.payload];
       if (!ESCAPE_TARGETS.has(operation.target)) throw new HirMemoryError("unknownEscapeTarget");
+      const crossDomainTargets = new Set([
+        "service",
+        "channel",
+        "detachedTask",
+        "structuredChild",
+        "foreignRetention",
+      ]);
+      const hasStorageOrigin = storageOrigins(payload).length > 0;
+      const derivedMobility = hasStorageOrigin && storageIsTransferable(state, payload);
+      if (crossDomainTargets.has(operation.target) && hasStorageOrigin && !derivedMobility) {
+        throw new HirMemoryError("allocationOriginNotTransferable");
+      }
+      if (binding.sharedBlock && crossDomainTargets.has(operation.target)) {
+        const block = controlBlockTable(state)[binding.sharedBlock];
+        const allocator = requireAllocator(state, block.allocator);
+        if (operation.shareable !== true) {
+          throw new HirMemoryError("sharedPayloadNotShareable");
+        }
+        if (!block.threadSafe) throw new HirMemoryError("sharedCounterNotThreadSafe");
+        if (allocator.mobility !== "crossDomain") {
+          throw new HirMemoryError("allocationOriginNotTransferable");
+        }
+      }
       projectOrigins(payload);
       const dynamic = payload.dynamicOrigins ?? [];
       if (dynamic.length === 0 && !payload.dependent && payload.origins.length === 0) return;
@@ -1025,7 +1215,10 @@ function applyOperation(state, operation) {
         throw new HirMemoryError("dependentEscape");
       }
       if (operation.target === "structuredChild") {
-        if (operation.joinPrecedesOrigins !== true || operation.mobility !== true) {
+        if (
+          operation.joinPrecedesOrigins !== true ||
+          (operation.mobility !== true && !derivedMobility)
+        ) {
           throw new HirMemoryError("structuredChildDependency");
         }
         return;
@@ -1048,8 +1241,167 @@ function applyOperation(state, operation) {
       }
       return;
     }
-    case "pin": {
+    case "rehome": {
+      const source = requireUniqueBinding(state, operation.from);
+      const payload = state.payloads[source.payload];
+      requireNoLoans(state, source.payload, "moveWithLoan");
+      if (ownerHasDynamicEdges(state, source.payload)) {
+        throw new HirMemoryError("ownerMoveWithDependency");
+      }
+      if (state.bindings[operation.to]) {
+        throw new HirMemoryError("moveTargetAlreadyInitialized");
+      }
+      const destinationAllocator = requireAllocator(state, operation.using);
+      if (operation.adopt === true) {
+        const compatible = storageOrigins(payload).every(
+          (origin) => requireAllocator(state, origin).adoptionFamily === destinationAllocator.adoptionFamily,
+        );
+        if (!compatible) throw new HirMemoryError("incompatibleAllocatorAdoption");
+      }
+      const outcome = operation.outcome ?? "success";
+      if (outcome === "allocationError") {
+        consumeAfterAllocationFailure(state, source);
+        recordOutcome(state, operation, outcome);
+        return;
+      }
+      if (operation.adopt !== true) {
+        chargeAllocator(state, operation.using, operation.bytes ?? 0);
+      }
+      source.state = "moved";
+      payload.storageOrigins = [operation.using];
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+      };
+      recordOutcome(state, operation, outcome);
+      return;
+    }
+    case "share": {
+      const source = requireUniqueBinding(state, operation.from);
+      const payload = state.payloads[source.payload];
+      requireNoLoans(state, source.payload, "moveWithLoan");
+      if (ownerHasDynamicEdges(state, source.payload)) {
+        throw new HirMemoryError("ownerMoveWithDependency");
+      }
+      projectOrigins(payload);
+      if (!payload.lifetimeIndependent || payload.dynamicOrigins.length > 0) {
+        throw new HirMemoryError("shareRequiresLifetimeIndependent");
+      }
+      if (state.bindings[operation.to]) {
+        throw new HirMemoryError("moveTargetAlreadyInitialized");
+      }
+      requireAllocator(state, operation.using);
+      if (
+        storageOrigins(payload).some(
+          (origin) => !allocatorOutlives(state, origin, operation.using),
+        )
+      ) {
+        throw new HirMemoryError("shareRequiresRehome");
+      }
+      const outcome = operation.outcome ?? "success";
+      if (outcome === "allocationError") {
+        consumeAfterAllocationFailure(state, source);
+        recordOutcome(state, operation, outcome);
+        return;
+      }
+      chargeAllocator(state, operation.using, operation.bytes ?? 0);
+      const blocks = controlBlockTable(state);
+      const blockId = `c${state.nextControlBlock ?? 0}`;
+      state.nextControlBlock = (state.nextControlBlock ?? 0) + 1;
+      source.state = "moved";
+      blocks[blockId] = {
+        payload: source.payload,
+        allocator: operation.using,
+        strong: 1,
+        weak: 0,
+        payloadAlive: true,
+        blockAlive: true,
+        deinitCount: 0,
+        threadSafe: operation.threadSafe === true,
+      };
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+        sharedBlock: blockId,
+      };
+      recordOutcome(state, operation, outcome);
+      return;
+    }
+    case "copyShared": {
       const source = requireBinding(state, operation.from);
+      if (!source.sharedBlock) throw new HirMemoryError("operationRequiresSharedOwner");
+      if (state.bindings[operation.to]) throw new HirMemoryError("copyTargetAlreadyInitialized");
+      const block = controlBlockTable(state)[source.sharedBlock];
+      if (!block || !block.blockAlive || !block.payloadAlive || block.strong < 1) {
+        throw new HirMemoryError("sharedControlBlockUnavailable");
+      }
+      block.strong += 1;
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+        sharedBlock: source.sharedBlock,
+      };
+      return;
+    }
+    case "copyWeak": {
+      const source = requireBinding(state, operation.from);
+      if (!source.weakBlock) throw new HirMemoryError("operationRequiresWeakOwner");
+      if (state.bindings[operation.to]) throw new HirMemoryError("copyTargetAlreadyInitialized");
+      const block = controlBlockTable(state)[source.weakBlock];
+      if (!block || !block.blockAlive || block.weak < 1) {
+        throw new HirMemoryError("weakControlBlockUnavailable");
+      }
+      block.weak += 1;
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+        weakBlock: source.weakBlock,
+      };
+      return;
+    }
+    case "makeWeak": {
+      const source = requireBinding(state, operation.from);
+      if (!source.sharedBlock) throw new HirMemoryError("operationRequiresSharedOwner");
+      if (state.bindings[operation.to]) throw new HirMemoryError("copyTargetAlreadyInitialized");
+      const block = controlBlockTable(state)[source.sharedBlock];
+      if (!block || !block.blockAlive || !block.payloadAlive) {
+        throw new HirMemoryError("sharedControlBlockUnavailable");
+      }
+      block.weak += 1;
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+        weakBlock: source.sharedBlock,
+      };
+      return;
+    }
+    case "upgradeWeak": {
+      const source = requireBinding(state, operation.from);
+      if (!source.weakBlock) throw new HirMemoryError("operationRequiresWeakOwner");
+      if (state.bindings[operation.to]) throw new HirMemoryError("copyTargetAlreadyInitialized");
+      const block = controlBlockTable(state)[source.weakBlock];
+      if (!block || !block.blockAlive) throw new HirMemoryError("weakControlBlockUnavailable");
+      if (!block.payloadAlive || block.strong === 0) {
+        recordOutcome(state, operation, "none");
+        return;
+      }
+      block.strong += 1;
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+        sharedBlock: source.weakBlock,
+      };
+      recordOutcome(state, operation, "some");
+      return;
+    }
+    case "pin": {
+      const source = requireUniqueBinding(state, operation.from);
       const payload = state.payloads[source.payload];
       requireNoLoans(state, source.payload, "pinWithLoan");
       if (ownerHasDynamicEdges(state, source.payload)) {
@@ -1057,6 +1409,17 @@ function applyOperation(state, operation) {
       }
       if (payload.selfReference || operation.selfReference) throw new HirMemoryError("selfReferentialValue");
       if (state.bindings[operation.to]) throw new HirMemoryError("pinTargetAlreadyInitialized");
+      const outcome = operation.outcome ?? "success";
+      if (operation.using) requireAllocator(state, operation.using);
+      if (outcome === "allocationError") {
+        consumeAfterAllocationFailure(state, source);
+        recordOutcome(state, operation, outcome);
+        return;
+      }
+      if (operation.using && operation.adopt !== true) {
+        chargeAllocator(state, operation.using, operation.bytes ?? 0);
+        payload.storageOrigins = [operation.using];
+      }
       source.state = "moved";
       payload.address = "stable";
       payload.pinnedPayload = true;
@@ -1067,6 +1430,7 @@ function applyOperation(state, operation) {
         payload: source.payload,
         pinnedHandle: true,
       };
+      recordOutcome(state, operation, outcome);
       return;
     }
     case "publishAddress": {
@@ -1118,6 +1482,19 @@ function applyOperation(state, operation) {
       }
       if (operation.lockMapping && JSON.stringify(operation.lockMapping) !== JSON.stringify(mapping)) {
         throw new HirMemoryError("interfaceLockMismatch");
+      }
+      const storageMapping = operation.inferredStorageMapping ?? {};
+      if (
+        operation.expectedStorageMapping &&
+        JSON.stringify(operation.expectedStorageMapping) !== JSON.stringify(storageMapping)
+      ) {
+        throw new HirMemoryError("interfaceStorageOriginMismatch");
+      }
+      if (
+        operation.previousStorageMapping &&
+        JSON.stringify(operation.previousStorageMapping) !== JSON.stringify(storageMapping)
+      ) {
+        throw new HirMemoryError("interfaceStorageMappingChanged");
       }
       return;
     }
@@ -1267,6 +1644,23 @@ export function validateMemoryOperation(operation) {
     validPlace(operation.place);
 
   switch (operation.op) {
+    case "defineAllocator":
+      return (
+        hasString("allocator") &&
+        ALLOCATOR_LIFETIMES.has(operation.lifetime) &&
+        ALLOCATOR_MOBILITIES.has(operation.mobility) &&
+        hasString("adoptionFamily") &&
+        (operation.limit === undefined || (Number.isSafeInteger(operation.limit) && operation.limit >= 0)) &&
+        (
+          operation.outlives === undefined ||
+          (
+            Array.isArray(operation.outlives) &&
+            operation.outlives.every((name) => typeof name === "string" && name.length > 0)
+          )
+        )
+      );
+    case "closeAllocator":
+      return hasString("allocator");
     case "initialize":
       return (
         hasString("binding") &&
@@ -1276,7 +1670,9 @@ export function validateMemoryOperation(operation) {
         (operation.copyable === undefined || typeof operation.copyable === "boolean") &&
         (operation.inoutField === undefined || typeof operation.inoutField === "boolean") &&
         (operation.edges === undefined || (Array.isArray(operation.edges) && operation.edges.every(validEdgeInput))) &&
-        (operation.selfReference === undefined || typeof operation.selfReference === "boolean")
+        (operation.selfReference === undefined || typeof operation.selfReference === "boolean") &&
+        (operation.using === undefined || hasString("using")) &&
+        (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0))
       );
     case "use":
     case "read":
@@ -1287,8 +1683,51 @@ export function validateMemoryOperation(operation) {
       return hasString("binding");
     case "move":
     case "copy":
-    case "pin":
       return hasString("from") && hasString("to") && operation.from !== operation.to;
+    case "pin":
+      return (
+        hasString("from") &&
+        hasString("to") &&
+        operation.from !== operation.to &&
+        (operation.outcome === undefined || ALLOCATION_OUTCOMES.has(operation.outcome)) &&
+        (operation.result === undefined || hasString("result")) &&
+        (operation.using === undefined || hasString("using")) &&
+        (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
+        (operation.adopt === undefined || typeof operation.adopt === "boolean")
+      );
+    case "rehome":
+      return (
+        hasString("from") &&
+        hasString("to") &&
+        operation.from !== operation.to &&
+        hasString("using") &&
+        (operation.outcome === undefined || ALLOCATION_OUTCOMES.has(operation.outcome)) &&
+        (operation.result === undefined || hasString("result")) &&
+        (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
+        (operation.adopt === undefined || typeof operation.adopt === "boolean")
+      );
+    case "share":
+      return (
+        hasString("from") &&
+        hasString("to") &&
+        operation.from !== operation.to &&
+        hasString("using") &&
+        (operation.outcome === undefined || ALLOCATION_OUTCOMES.has(operation.outcome)) &&
+        (operation.result === undefined || hasString("result")) &&
+        (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
+        (operation.threadSafe === undefined || typeof operation.threadSafe === "boolean")
+      );
+    case "copyShared":
+    case "copyWeak":
+    case "makeWeak":
+      return hasString("from") && hasString("to") && operation.from !== operation.to;
+    case "upgradeWeak":
+      return (
+        hasString("from") &&
+        hasString("to") &&
+        operation.from !== operation.to &&
+        hasString("result")
+      );
     case "beginBorrow":
       return (
         hasString("binding") &&
@@ -1400,6 +1839,9 @@ export function validateMemoryOperation(operation) {
           "witnessMapping",
           "witness",
           "lockMapping",
+          "inferredStorageMapping",
+          "expectedStorageMapping",
+          "previousStorageMapping",
         ].every(
           (field) =>
             operation[field] === undefined || validInterfaceMapping(operation[field]),

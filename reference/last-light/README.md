@@ -1037,12 +1037,21 @@ Aceite:
 - `upgrade()` retorna ausência depois do último shared owner;
 - `upgrade()` e o último release possuem uma ordem linearizável;
 - o value morre no strong zero e o control block no weak zero;
+- um borrow fica ligado ao strong handle que o criou; outro alias pode morrer;
+- shared handle não concede `inout` e weak exige `upgrade()` antes do acesso;
+- `OriginSet` de borrow e `AllocationOriginSet` de storage não se substituem;
+- `share(dependent)` falha até o payload ser lifetime-independent;
+- o allocator do control block continua vivo até o último weak handle;
 - mover ownership por `spawn` exige `transferable`;
-- compartilhar um borrow por `spawn` exige `shareable`;
+- enviar um `ref` estruturado por `spawn` exige payload `shareable` e lifetime
+  dentro do task scope;
+- enviar `shared T` por `spawn` exige `T` shareable, contador thread-safe e
+  origins de storage cross-domain;
 - um borrow após `await` só compila com owner e task frame estáveis;
 - mover ou substituir o owner durante esse borrow falha;
 - `Pinned<T>` pode mudar de endereço sem mover o `T`;
 - `try pin take state` separa allocation fallible do move;
+- falha de `pin`, `share` ou `rehome` consome e limpa o source uma vez;
 - não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;
 - unsubscribe ocorre antes de liberar o callback state;
@@ -2055,8 +2064,8 @@ formas resolvem problemas diferentes.
 
 ### 3.44 Kernel M1 de HIR para memória e ABI
 
-Famílias: PlaceId, LoanId, overlap, reborrow, OriginSet, pinning, representação,
-FFI e `WAbiKey`.
+Famílias: PlaceId, LoanId, overlap, reborrow, OriginSet,
+AllocationOriginSet, pinning, shared/weak, representação, FFI e `WAbiKey`.
 
 `hir_memory_oracle.w` é o recorte M1 do verifier. Ele não executa código de
 produção. Ele modela as transições que o HIR deve rejeitar ou aceitar.
@@ -2077,6 +2086,10 @@ Aceite:
 - edges individuais compõem stored fields e `Array<ref T>` sem apagar erasure;
 - edge shared permite read; edge exclusive permite read/write;
 - `.lifetimeIndependent` observa somente ausência de origin dinâmica;
+- storage local continua local mesmo quando o payload é lifetime-independent;
+- rehome reescreve storage origin sem apagar borrow origin;
+- strong zero destrói o payload uma vez e weak zero libera o control block;
+- falha consuming de pin/share/rehome não restaura o source;
 - service, wire, persistence e FFI aplicam gates próprios depois de lifetime;
 - dependent escape, channel, share e await seguem regras de origin e drain;
 - pin exige zero loans e separa root pinned de handle móvel;
@@ -2091,7 +2104,7 @@ Aceite:
 
 O modelo Node em `tooling/hir-memory-reference.test.mjs` repete essas regras
 com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
-possui 135 casos e 442 operações. Ele é uma referência de contrato, não o
+possui 156 casos e 546 operações. Ele é uma referência de contrato, não o
 futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
 

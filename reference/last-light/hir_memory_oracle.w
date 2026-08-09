@@ -11,6 +11,7 @@ enum HirDeclarationKind { instance initializer typeMember free }
 enum HirBoundary { internal wExact foreignC wire persisted capability }
 enum HirRepresentation { explicitTag provenNiche lowBit highBit nativeCarrier }
 enum HirBoundaryOwnership { borrowed owned }
+enum HirAllocatorMobility { local crossDomain }
 
 struct HirProjection {
   kind: HirProjectionKind
@@ -84,6 +85,25 @@ struct HirBoundaryValue {
 struct HirResultMapping {
   resultSlot: String
   sources: Array<String>
+}
+
+// Borrow origins describe referents. Allocation origins describe storage and
+// its deallocator. A value can be borrow-independent and storage-dependent.
+struct HirAllocationOrigin {
+  allocator: String
+  mobility: HirAllocatorMobility
+}
+
+struct HirStorageFacts {
+  origins: Array<HirAllocationOrigin>
+}
+
+struct HirSharedCounts {
+  strong: u32
+  weak: u32
+  payloadAlive: Bool
+  blockAlive: Bool
+  deinitCount: u32
 }
 
 fn newOwner(address: HirAddressState): HirOwner {
@@ -228,6 +248,37 @@ fn movePinnedHandle(handle: HirPinnedHandle, destination: String): HirPinnedHand
     payloadRoot: handle.payloadRoot,
     handleRoot: destination,
   )
+}
+
+const fn storageCanCrossDomain(storage: ref HirStorageFacts): Bool {
+  for origin in storage.origins {
+    if origin.mobility != .crossDomain { return false }
+  }
+  return true
+}
+
+const fn canCreateShared(payload: ref HirDependentPayload): Bool {
+  return payload.lifetimeIndependent
+}
+
+fn releaseStrong(counts: HirSharedCounts): HirSharedCounts? {
+  if counts.strong == 0 || !counts.blockAlive { return .none }
+  var next = counts
+  next.strong -= 1
+  if next.strong == 0 {
+    next.payloadAlive = false
+    next.deinitCount += 1
+    if next.weak == 0 { next.blockAlive = false }
+  }
+  return .some(next)
+}
+
+fn releaseWeak(counts: HirSharedCounts): HirSharedCounts? {
+  if counts.weak == 0 || !counts.blockAlive { return .none }
+  var next = counts
+  next.weak -= 1
+  if next.strong == 0 && next.weak == 0 { next.blockAlive = false }
+  return .some(next)
 }
 
 test "M1 owner moves and drops once" {
@@ -409,4 +460,50 @@ test "M1 await requires stable referent" {
   )
   expect loanCanSuspend(loan, true)
   expect !loanCanSuspend(loan, false)
+}
+
+test "M1 borrow and storage origins remain independent" {
+  let borrowed = HirDependentPayload(
+    edges: [HirDependencyEdge(
+      id: 1,
+      ownerPlace: .none,
+      ownerSlot: .some("menu"),
+      mode: .shared,
+      origin: "menu",
+      dynamic: true,
+    )],
+    lifetimeIndependent: false,
+  )
+  let localStorage = HirStorageFacts(origins: [HirAllocationOrigin(
+    allocator: "request",
+    mobility: .local,
+  )])
+  let processStorage = HirStorageFacts(origins: [HirAllocationOrigin(
+    allocator: "process",
+    mobility: .crossDomain,
+  )])
+
+  expect !canCreateShared(ref borrowed)
+  expect !storageCanCrossDomain(ref localStorage)
+  expect storageCanCrossDomain(ref processStorage)
+}
+
+test "M1 weak handle keeps only the control block alive" {
+  let initial = HirSharedCounts(
+    strong: 1,
+    weak: 1,
+    payloadAlive: true,
+    blockAlive: true,
+    deinitCount: 0,
+  )
+  let releasedStrong = releaseStrong(initial)
+  guard let releasedStrong = releasedStrong else { panic("strong release was rejected") }
+  expect !releasedStrong.payloadAlive
+  expect releasedStrong.blockAlive
+  expect releasedStrong.deinitCount == 1
+
+  let releasedWeak = releaseWeak(releasedStrong)
+  guard let releasedWeak = releasedWeak else { panic("weak release was rejected") }
+  expect !releasedWeak.blockAlive
+  expect releasedWeak.deinitCount == 1
 }

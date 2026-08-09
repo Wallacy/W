@@ -53,6 +53,9 @@ export fn sameMenuSection(left: ref MenuSection, right: ref MenuSection): Bool {
   return left.isSameInstance(as: right)
 }
 
+// The result is borrow-independent. Its control block still records `memory`
+// in AllocationOriginMap, so the allocator instance must outlive every strong
+// and weak handle.
 export fn makeMenuRoot(
   title: String,
   memory: ref Allocator,
@@ -141,6 +144,8 @@ export fn watchClosingBell(
   state: take BellState,
 ): BellLease throws BellError {
   guard let handle = bell.handle else throw .closed
+  // Allocation failure consumes and drops `state`. No callback address has
+  // been published at that point.
   let pinned = try (pin take state)
     .mapError((error) => .allocation(error))
   let registration = unsafe {
