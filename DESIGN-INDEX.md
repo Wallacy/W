@@ -15,24 +15,24 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 29069 |
-| tokens aproximados de `DESIGN.md` | 343200 |
+| linhas de `DESIGN.md` | 29248 |
+| tokens aproximados de `DESIGN.md` | 346600 |
 | seções numeradas | 30 |
-| seções terminais com evidência local | 335/335 |
-| decisões | 980 (W-001–W-980) |
+| seções terminais com evidência local | 340/340 |
+| decisões | 987 (W-001–W-987) |
 | famílias de viabilidade | 178 |
 | slices normativos de grammar | 6 |
-| requisitos de ratificação comparativa | 55 |
-| casos de substituição estruturados | 55/55 |
-| decisões referenciadas por casos R0 | 93/980 |
-| decisões classificadas para design freeze | 194/980 (93 source + 113 oracle + 8 explícitas; 20 overlaps) |
-| decisões ainda sem classe de freeze | 786 |
+| requisitos de ratificação comparativa | 60 |
+| casos de substituição estruturados | 60/60 |
+| decisões referenciadas por casos R0 | 99/987 |
+| decisões classificadas para design freeze | 200/987 (99 source + 113 oracle + 8 explícitas; 20 overlaps) |
+| decisões ainda sem classe de freeze | 787 |
 | decisões com múltiplos eixos obrigatórios | 2 |
-| formas R0 com baseline estática | 124 |
-| surface lexemes das formas vigentes R0 | 1070 total; mediana 16; máximo 50 |
-| bundles executáveis R1 | 8 |
-| variantes/tarefas R1 | 17/32 |
-| casos R0 promovidos a R1 | 17/55 |
+| formas R0 com baseline estática | 140 |
+| surface lexemes das formas vigentes R0 | 1163 total; mediana 15.5; máximo 50 |
+| bundles executáveis R1 | 13 |
+| variantes/tarefas R1 | 28/52 |
+| casos R0 promovidos a R1 | 22/60 |
 | casos do corpus Tree-sitter | 87 |
 | pares canônicos do formatter F0 | 19 |
 | casos/operações do kernel de memória M1 | 165/580 (70 aceitos + 95 rejeitados) |
@@ -112,12 +112,12 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 21 | 22508–24604 | 20000 | Packages, builds e releases |
 | 22 | 24605–25086 | 4500 | Tooling e interface para máquinas |
 | 23 | 25087–26515 | 16900 | Protocolos e pesquisas de ecossistema |
-| 24 | 26516–27105 | 12600 | Classificação de viabilidade |
-| 25 | 27106–27316 | 1900 | Produto de referência Última Luz |
-| 26 | 27317–27732 | 4900 | Protocolo de revisão |
-| 27 | 27733–28047 | 3900 | Plano de implementação |
-| 28 | 28048–28078 | 500 | Relação com a consolidação histórica |
-| 29 | 28079–29069 | 51400 | Registro de decisões e alternativas |
+| 24 | 26516–27122 | 13000 | Classificação de viabilidade |
+| 25 | 27123–27333 | 1900 | Produto de referência Última Luz |
+| 26 | 27334–27904 | 7000 | Protocolo de revisão |
+| 27 | 27905–28219 | 3900 | Plano de implementação |
+| 28 | 28220–28250 | 500 | Relação com a consolidação histórica |
+| 29 | 28251–29248 | 52200 | Registro de decisões e alternativas |
 
 ## Bundles de leitura
 
@@ -129,7 +129,7 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | segurança e execução | 9, 10, 11, 12, 13 | 7074–14015 | 71300 | ownership, errors, tasks, domains, services e entries |
 | SDK e performance | 14, 15, 16, 17, 18, 19 | 14016–20904 | 75300 | tiers, números, texto, tensors, custo, C e unsafe |
 | compiler e distribuição | 20, 21, 22, 23 | 20905–26515 | 58900 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26, 27, 28, 29 | 26516–29069 | 75200 | viabilidade, Última Luz, gates, roadmap e ledger |
+| validação e decisões | 24, 25, 26, 27, 28, 29 | 26516–29248 | 78500 | viabilidade, Última Luz, gates, roadmap e ledger |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

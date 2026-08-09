@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 55/55, R0S mede 124 formas e R1 possui oito bundles contrabalanceados do Última Luz que promovem 17/55 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 60/60, R0S mede a superfície derivada por script e R1 possui 13 bundles contrabalanceados do Última Luz que promovem 22/60 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -26761,6 +26761,16 @@ serve como evidência de uso. O
 [Python Array API standard](https://data-apis.org/array-api/latest/purpose_and_scope.html)
 é checklist de interoperabilidade. Ele não é autoridade semântica de W.
 
+As afirmações de ergonomia usam uma fonte primária por construção. Python
+documenta [list comprehensions](https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions)
+e [negative indexing](https://docs.python.org/3/tutorial/introduction.html#lists).
+NumPy documenta [broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html). Julia documenta
+[array broadcast](https://docs.julialang.org/en/v1/manual/arrays/#Broadcasting).
+C# documenta [from-end indices](https://learn.microsoft.com/en-us/dotnet/csharp/tutorials/ranges-indexes).
+Swift documenta [fixed argument order](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/).
+Essas fontes motivam alternativas documentais. Elas não são autoridade de
+syntax ou semântica W.
+
 A matriz separa linguagem, tooling, standard library, ecossistema e interop.
 “Gap real” significa ausência no design corrente. Não significa que uma
 implementação esteja atrasada.
@@ -26770,7 +26780,7 @@ implementação esteja atrasada.
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
 | Público de dados, web, ML, pesquisa e automação | Tour, tipos estáticos, ownership, effects e SDK em tiers | entrada Python-first e sequência pedagógica para o Tour | linguagem, Tour e documentação | **Direção** |
-| Defaults, keyword arguments, unpacking, comprehensions, generators e collections | defaults, labels, patterns, ranges, collections e closures já têm contratos parciais | não há decisão PYN0 para cada ergonomia de transformação | linguagem e estudo R1 | **Pesquisa** |
+| Defaults, keyword arguments, unpacking, comprehensions, generators e collections | defaults, labels, patterns, ranges, collections e closures já têm contratos parciais | R1 compara pipeline, loop, broadcast, end-relative access, labels e tuple binding; comprehension e starred unpacking continuam sem grammar | linguagem e estudo R1 | **Pesquisa** |
 | Arquivo, stdin, `-c`, `-m` e modo interativo | source file, `entry` e CLI de package existem | fluxo low-ceremony com regras herméticas e sessão | tooling e fronteiras de package | **Direção** |
 | Dados exploratórios sem object model global | `json.Value`, schemas, rows tipadas e reflection opt-in | carrier tabular ainda sem nome, com `TabularData` em **Pesquisa**, e inferência bounded | std, tooling e schemas | **Direção** |
 | Interop com objetos Python sem duck typing | protocols nominais, C façade, adapters e `unsafe` explícito | lifecycle, GIL, interpreter e effects precisam de bridge visível | adapter e fault boundary | **Direção** |
@@ -26781,7 +26791,7 @@ uma forma nova:
 ```text
 Python: total = 0; total = sum(value * value for value in values)
 W pseudocode: var total = 0; for value in values { total += value * value }
-PYN0:         comparar comprehension, pipeline e loop no R1
+PYN0:         comparar comprehension documental, pipeline e loop no R1
 ```
 
 PYN0 não adota duck typing, monkey patching, dynamic global object model, GIL,
@@ -26930,15 +26940,22 @@ interpreter e effects ficam visíveis no adapter.
 
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
-| Transformações curtas e legíveis | loops, pipelines, collections e closures | comparar comprehensions, pipelines e loops | ergonomia R1 | **Pesquisa** |
+| Transformações curtas e legíveis | loops, pipelines, collections e closures | comparar comprehension documental, pipeline e loop | ergonomia R1 | **Pesquisa** |
 | Operações array concisas | shapes estáticos e broadcast explícito | checked broadcasting e forma explícita de broadcast | linguagem R1 e T2 | **Pesquisa** |
-| Indexação e calls de baixo atrito | ranges, labels e patterns | negative/end-relative indices, unpacking e labels reordenáveis | linguagem R1 | **Pesquisa** |
+| Acesso relativo ao fim | ranges, `.last` e arithmetic com guard | `get(fromEnd:)` e `suffix` ficam em **Pesquisa** | linguagem R1 | **Pesquisa** |
+| Indexação negativa | ranges e accessors com bounds explícitos | Python-like `[-1]` é **Rejeitado por enquanto** por signed/unsigned, empty e bounds | linguagem R1 | **Rejeitado por enquanto** |
+| Tuple e calls de baixo atrito | tuple binding, projections `.0`/`.1`, labels em ordem | labels reordenáveis ficam em **Pesquisa** | linguagem R1 | **Pesquisa** |
 | Feedback imediato | HIR e tooling têm custo declarado | gates separados de first-result e steady-state | tooling e evidence | **Direção** |
 
-PYN0 preserva labels em ordem como forma vigente. R1 pode medir labels
-reordenáveis, mas não muda lookup ou reproducibility antes de demonstrar ganho.
-Ergonomias de negative/end-relative indices, unpacking, display de valores,
-comprehensions, pipelines e broadcasting ficam **Pesquisa**.
+PYN0 preserva labels em ordem como forma vigente. R1 mede labels reordenáveis,
+mas não muda lookup ou reproducibility antes de demonstrar ganho. Comprehension,
+checked broadcasting e labels reordenáveis ficam **Pesquisa**. `get(fromEnd:)` e
+`suffix` também ficam **Pesquisa**. Negative indexing é **Rejeitado por
+enquanto**. Pipeline, loop, `.last`, tuple binding e projections `.0`/`.1`
+continuam **Forma vigente** sob suas regras. `.last` retorna um optional seguro;
+arithmetic e subscript exigem guard explícito, e projections exigem `copy` ou
+borrow explícito para componente move-only. Starred unpacking permanece
+**Rejeitado por enquanto**.
 
 Os gates de performance são separados:
 
@@ -27007,12 +27024,12 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 55 substituições estruturadas. Esse corpus é a origem do Tour
+O corpus R0 contém 60 substituições estruturadas. Esse corpus é a origem do Tour
 comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
-A razão `55/55` cobre os requisitos declarados na seção 26. Ela não prova que
+A razão `60/60` cobre os requisitos declarados na seção 26. Ela não prova que
 o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
 classificar sua alternativa como uma destas categorias:
 
@@ -27032,10 +27049,10 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O checker atual classifica 180/956 decisões:
-93 pelo eixo source, 99 pelo eixo oracle e oito explicitamente; 20 decisões
-possuem os dois primeiros eixos. Duas decisões já exigem formalmente ambos. As
-786 restantes continuam um worklist, não uma aprovação implícita.
+declara todos os eixos obrigatórios. O freeze audit atual classifica 200/987
+decisões: 99 pelo eixo source, 113 pelo eixo oracle e oito explicitamente; 20
+decisões possuem os dois primeiros eixos. Duas decisões já exigem formalmente
+ambos. As 787 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -27084,7 +27101,7 @@ evidência de design:
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; os corpora ligam 113 decisões a oracle; o audit classifica 194/980 (93 source, 113 oracle, 8 explícitas, 20 overlaps) e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 786 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 60/60 requisitos declarados; R0S mede a superfície derivada por script; 13 bundles R1 possuem 28 variantes, 52 tarefas e promovem 22/60 casos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -27399,7 +27416,12 @@ O corpus compara, no mínimo:
 - tail expression explícita contra retorno implícito de todo function body;
 - semicolon que preserva discard contra formatter que o remove por aparência;
 - URL e URLSearchParams padrão contra aliases HTTP locais;
-- constructor Web de Response contra família de helpers por body.
+- constructor Web de Response contra família de helpers por body;
+- pipeline lazy contra loop explícito para transformação sem side effect;
+- broadcast explícito contra broadcast implícito checked e Julia dotted broadcast;
+- `.last` contra arithmetic `count - 1`, Python `[-1]` e C# `^1`;
+- labels em ordem fixa contra labels reordenados com default e overload;
+- tuple binding fixo contra projections `.0`/`.1` e unpacking starred.
 
 ### 26.1 Cobertura de substituições
 
@@ -27430,7 +27452,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 55 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 60 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 definida na seção 24.3.
 
@@ -27506,8 +27528,10 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 124 formas do corpus. O runner junta as linhas com LF e sem newline
-final. Para a tarefa e para cada forma, ele registra:
+mede as 140 formas derivadas do corpus pelo runner nesta revisão. O runner
+junta as linhas com LF e sem newline final. A contagem vem do script e muda
+quando alternativas cross-language entram ou saem. Para a tarefa e para cada
+forma, ele registra:
 
 - bytes UTF-8;
 - code points;
@@ -27541,9 +27565,10 @@ pode remover contexto ou testes para parecer menor.
 Cada bundle mantém o mesmo source base, os mesmos inputs e o mesmo application
 outcome. A variante pode mudar uma observação que pertence ao objeto do estudo,
 como latência de failure ou provenance visível de um nome.
+Os cinco bundles R1P0 não alteram os sources canônicos do Última Luz.
 
-Os oito bundles atuais possuem 17 variantes e 32 tarefas. Eles promovem 17 dos
-55 casos R0. Todos fazem parse sem recovery. Dezoito testes de oracle host
+Os 13 bundles atuais possuem 28 variantes e 52 tarefas. Eles promovem 22 dos
+60 casos R0. Todos fazem parse sem recovery. Vinte e oito testes de oracle host
 confirmam os outcomes e as diferenças observáveis declaradas.
 
 A promoção conta IDs R0 únicos citados por ao menos um bundle. Ela mede o
@@ -27729,6 +27754,153 @@ separadamente representation, dispatch, access mode e recovery de allocation.
 Ele não executa W nem prova que erasure ficará inline. O bundle promove
 `R0-callable-representations`, `R0-callable-modes` e
 `R0-erasure-storage`.
+
+#### 26.3.9 Transformação Python sem comprehension W
+
+**Exemplo:** o pipeline seleciona tickets urgentes até um limite e o loop produz
+a mesma lista. Um limite zero e uma lista sem match produzem `[]` nos dois casos.
+
+[`tooling/studies/r1-python-transform/bundle.json`](tooling/studies/r1-python-transform/bundle.json)
+deriva do pipeline `urgent` de `collections.w`. O bundle mantém os tickets, o
+limite e o outcome. As variantes são:
+
+- `pipeline.w` usa o pipeline `.lazy.filter(...).map(...).take(limit).collect()`.
+- `loop.w` usa `for`, `append` e `break` para controlar o limite.
+
+Pipeline é a **Forma vigente** para transformação sem side effect. O pipeline
+fica lazy até `collect()`. Loop é a **Forma vigente** para controle e side
+effects. `limit: 0` termina antes de acessar a collection no loop e `.take(0)`
+produz uma collection vazia no pipeline. Nenhuma variante muda ordem ou
+avaliação de um ticket além do limite. O oracle host modela essa fronteira com
+`inspected`: o caso primário inspeciona um item, limit zero inspeciona zero e
+no-match inspeciona toda a entrada.
+
+A [list comprehension do Python](https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions)
+é uma alternativa documental. Ela motiva a comparação, mas não entra na
+grammar W. Comprehension W continua **Pesquisa** até evidência humana ou de
+modelo mostrar uma lacuna. O task de mudança adiciona auditoria com side effect
+e mantém `for` como a forma correta para esse efeito.
+
+O oracle host usa um loop bounded para representar o pipeline lazy. Ele confirma
+o input primário e os casos adversariais de limite zero e no-match. Parse e
+oracle não ratificam source, não executam W e não substituem `w compile` ou
+`w run`.
+
+#### 26.3.10 Broadcast de tensor com shape observável
+
+**Exemplo:** uma matriz `[samples, 6]` subtrai um vetor `[6]` após declarar o
+shape alvo. Um vetor `[5]` ou um eixo alterado falha como mismatch.
+
+[`tooling/studies/r1-tensor-broadcast/bundle.json`](tooling/studies/r1-tensor-broadcast/bundle.json)
+deriva de `calibrated - means.broadcast(to: [samples, 6])` em `horizon.w`. As
+variantes preservam o cálculo, os shapes e os inputs:
+
+- `explicit.w` usa `means.broadcast(to: [samples, 6])`.
+- `checked-implicit.w` usa `calibrated - means` como alternativa checked.
+
+Scalar expansion continua implícita total. Broadcast entre shapes diferentes
+continua explícito na **Forma vigente**. A alternativa checked fica
+**Pesquisa** até provar diagnostics, memória e legibilidade. NumPy evidencia a
+conveniência do broadcast. Sua documentação também descreve intermediários,
+memória ineficiente e menor legibilidade em dimensões maiores. Essa é a
+evidência primária do risco que R1 mede, não autoridade W.
+
+O broadcast pontuado de
+[Julia](https://docs.julialang.org/en/v1/manual/arrays/#Broadcasting) fica
+**Alternativa** documental. A forma `.broadcast(to:)` é a única forma
+semântica W vigente. `calibrated - means` é uma variante W parseável, porém não
+aceita no design. O task de mudança inclui scalar expansion e preserva falha
+explícita para shape não escalar incompatível.
+R1 mede a troca entre a conveniência da variante parseável e a forma vigente.
+
+O oracle host confirma shape válido, mismatch e o shape resultante da mudança de
+eixo. O eixo não vira provenance no type. Ele não executa tensor W nem escolhe
+uma regra implícita.
+
+#### 26.3.11 Acesso relativo ao fim
+
+**Exemplo:** `.last` retorna `"Horizon cake"` para um menu não vazio e `.none`
+para um menu vazio. O tipo é `ref String?` em todas as variantes.
+
+[`tooling/studies/r1-end-relative-access/bundle.json`](tooling/studies/r1-end-relative-access/bundle.json)
+deriva de `menu.last` em `billing.w`. O bundle compara três formas:
+
+- `last.w` usa `.last`, que absorve empty no optional.
+- `count-minus-one.w` usa `count - 1` e `get` depois de um guard.
+- `negative-index.w` usa `[-1]` depois de um guard e cria `.some(...)`.
+
+`.last` continua **Forma vigente** para o caso comum e retorna um optional
+seguro sem guard no caller. A aritmética é uma **Alternativa** explícita e
+exige guard. Negative indexing fica **Rejeitado por enquanto** e exige guard.
+A forma exige decisões para signed/unsigned, `-0`, empty e bounds, além de
+mudar o contexto de leitura. O índice Python negativo é a evidência primária em
+[Python lists](https://docs.python.org/3/tutorial/introduction.html#lists).
+
+`get(fromEnd:)` e `suffix` ficam **Pesquisa**. O operador `^1` de
+[C# ranges and indices](https://learn.microsoft.com/en-us/dotnet/csharp/tutorials/ranges-indexes)
+fica **Alternativa** documental. W já usa `^` para XOR fora de units, portanto
+`^1` não é uma variante parseada. O task de mudança pede segundo item e tail
+slice sem remover o optional de `.last` ou os guards das outras variantes.
+
+O oracle host confirma inputs empty e nonempty e o mesmo outcome `String?` sem
+um guard explícito na função `.last`. Parse e oracle não tornam negative
+indexing uma forma semântica válida.
+
+#### 26.3.12 Ordem de labels em calls
+
+**Exemplo:** `Money(majorUnits: 42, currency: .cr)` produz 4.200 minor units.
+Uma chamada com labels reordenados produz o mesmo resultado hipotético no
+estudo.
+
+[`tooling/studies/r1-call-label-order/bundle.json`](tooling/studies/r1-call-label-order/bundle.json)
+deriva de `Money` e do call em `billing.w`. As variantes preservam a declaração
+e o outcome:
+
+- `fixed-order.w` usa a ordem declarada `majorUnits:, currency:`.
+- `reordered.w` escreve `currency:, majorUnits:`.
+
+Labels formam uma sequência de call. A seleção de overload usa essa sequência
+antes dos tipos. A ordem de declaração continua **Forma vigente**. Um default
+em `currency` cria `majorUnits:,currency:` e `majorUnits:`. Um overload com
+`currency:,majorUnits:` mantém uma terceira sequência. Uma política unordered ou
+reordered colapsaria as duas sequências completas e produziria diagnostic antes
+do ranking por tipos. Reordering fica **Pesquisa** e **Alternativa** até R1 medir
+ganho sem mudar resolver ou grammar.
+
+A regra é coerente com a ordem fixa de argumentos descrita na
+[documentação de funções de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/).
+Keyword reordering do [Python](https://docs.python.org/3/tutorial/controlflow.html#keyword-arguments)
+é evidência documental, não autoridade W. O estudo não altera `Money`, o
+resolver ou a seleção de initializer.
+
+O oracle host confirma o outcome base, mantém três shapes fixed-order distintos
+e registra a colisão somente na política unordered. Ele não resolve uma call W
+nem declara default implementado.
+
+#### 26.3.13 Destructuring de tuple de shape fixo
+
+**Exemplo:** `let (text, foundLine) = try word()` lê text e line de uma única
+call. A variante por projections lê `.0` e `.1` do tuple salvo.
+
+[`tooling/studies/r1-tuple-unpacking/bundle.json`](tooling/studies/r1-tuple-unpacking/bundle.json)
+deriva de `word()` em `packages/menu-compiler/compiler.w`. As variantes
+preservam parse, result e uma avaliação:
+
+- `binding.w` usa tuple binding de shape fixo.
+- `projections.w` salva o tuple e usa `.0` e `.1`.
+
+Tuple e struct destructuring de shape fixo continuam **Forma vigente**. As
+projections `.0` e `.1` também são **Forma vigente**; elas medem ergonomia e
+exigem `copy` ou borrow explícito para um componente `String` move-only. O task de reparo prova que
+nenhuma variante chama `word()` duas vezes. Unpacking starred de aridade
+variável fica **Rejeitado por enquanto** por ownership, aridade dinâmica e
+partial moves. `each collection` continua expansão de call-rest e não
+destructuring.
+
+O [unpacking documentado pelo Python](https://docs.python.org/3/tutorial/datastructures.html#tuples-and-sequences)
+é evidência de ergonomia. Ele não adiciona starred unpacking à grammar W. O
+oracle host confirma sucesso, empty-input error e `wordCalls: 1`. Parse e oracle
+não executam o compiler W.
 
 ## 27. Plano de implementação
 
@@ -28944,9 +29116,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-859 | fechamento do catálogo citado | todos os codes com meaning citado possuem schema; o índice gera a contagem corrente; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem manual; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect/ownership prefix, receiver consuming, spawn domain, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; remover grouping de ownership; reescrever slot nomeado; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
-| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/55`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 55 bullets como 55 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/60`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 60 bullets como 60 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 55/55 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 60/60 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -28968,11 +29140,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | oito bundles, 17 variantes e 32 tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming, domains e callables com source base, inputs, digests e oracle; 17/55 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | 13 bundles, 28 variantes e 52 tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming, domains, callables e cinco estudos Python→W com source base, inputs, digests e oracle; 22/60 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 55 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 60 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std SDK0 | profiles cobrem 161 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
@@ -29002,7 +29174,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 17/55 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 22/60 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 | W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
@@ -29017,7 +29189,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
-| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
+| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 60 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
 | W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
 | W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 165 casos e 580 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
@@ -29063,6 +29235,13 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-978 | ergonomia R1 | R1 compara comprehensions com pipelines/loops, checked broadcasting com broadcast explícito, negative/end-relative indices, unpacking/destructuring, display e labels reordenáveis; labels permanecem em ordem até evidence de ganho | escolher syntax final sem R1; broadcast implícito; labels reordenáveis por default; mudar lookup/reproducibility por conveniência |
 | W-979 | gates de latency | `time-to-first-result` e `steady-state` são gates separados; first-result cobre hello cold/warm, edit-run e transaction/redefinition/invalidation de 10 cells; steady-state cobre collection transforms, CSV throughput, tensor elementwise/broadcast/matmul CPU e zero-copy DLPack/Arrow overhead; output/semantics precedem tempo e registram compiler version/target/hardware | número fixo de vitória; benchmark isolado; comparar somente tempo; um runtime obrigatório; backend rápido como autoridade semântica |
 | W-980 | Python bridge boundary | W-from-Python e Python-from-W usam stable C/Python APIs e data interchange como bridge; CPython ordinário usa bridge, service ou fault boundary; um adapter AOT resolvido pelo manifest pode expor `fn<Python>` somente com artifact hermético, C façade tipada, runtime/deps fixos e diagnostics, effects e provenance de 19.2; generic adapter permanece sem promessa e sem proibição; lifecycle, GIL e interpreter aparecem no adapter | static lib Python previsível sem adapter; Python runtime embutido no core; lifecycle oculto; foreign code sem fault boundary; proibir todo adapter AOT; converter `fn<Python>` em forma core |
+| W-981 | fronteira de evidência R1P0 | R1P0 marca `design-oracle-input`; `tree-sitter-parse` e `host-oracle` são evidência corrente; `w-compile`, `w-run`, estudo humano e estudo de modelo permanecem missing; parse e oracle host não ratificam source nem executam W | chamar parse de conformance; tratar host oracle como runtime; promover forma por digest; registrar participante inexistente |
+| W-982 | transformação Python em W | pipeline lazy é a Forma vigente para transformação sem side effect; loop explícito é a Forma vigente para controle e side effects; comprehension Python motiva, mas comprehension W continua Pesquisa; limit zero e no-match preservam `[]`; oracle sidecar registra inspeção bounded | adicionar comprehension à grammar; usar pipeline para side effect; remover limit; comparar inputs diferentes; usar oracle eager |
+| W-983 | broadcast de shape | scalar expansion é implícita total; shapes diferentes usam broadcast explícito na Forma vigente; checked implicit é Pesquisa; Julia dotted broadcast é Alternativa documental; NumPy evidencia conveniência, intermediários, memória ineficiente e menor legibilidade em dimensões maiores, mas não é autoridade W; R1 mede a troca | broadcast universal oculto; scalar exige annotation; Julia syntax no parser; ignorar mismatch e axis change |
+| W-984 | acesso relativo ao fim | `.last` é Forma vigente, retorna `ref String?` e absorve empty sem guard; arithmetic `count - 1` é alternativa com guard; negative indexing é Rejeitado por enquanto por signed/unsigned, `-0`, empty, bounds e contexto; `get(fromEnd:)` e `suffix` são Pesquisa; C# `^1` é alternativa documental | index negativo sem guard; usar `^1` como syntax W; underflow unsigned; converter empty em panic |
+| W-985 | ordem de labels de call | a call é sequência ordenada de labels; overload e initializer selecionam essa forma antes de tipos; ordem de declaração é Forma vigente; default em `currency` cria `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` cria terceira sequência; política unordered colapsa as formas completas e diagnostica antes de types; reordering é Pesquisa/Alternativa | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
+| W-986 | tuple destructuring fixo | binding de tuple/struct de shape fixo é Forma vigente; projections `.0`/`.1` preservam uma avaliação e exigem `copy` ou borrow explícito para componente move-only; starred unpacking é Rejeitado por enquanto por ownership, aridade dinâmica e partial moves; `each collection` continua call-rest | reavaliar `word()`; starred na grammar; tratar `each` como destructuring; mover tuple parcial |
+| W-987 | corpus R1, contagens e limites | o corpus tem 60 casos R0, 13 bundles, 28 variantes, 52 tarefas, 22/60 promovidos e 28 testes host; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
