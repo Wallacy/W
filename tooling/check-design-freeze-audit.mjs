@@ -30,6 +30,7 @@ const corpusFiles = [
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
+  "dlpack-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

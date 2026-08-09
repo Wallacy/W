@@ -21,10 +21,10 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 63 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 252/1045 decisões estão classificadas (107 source, 165 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 28 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 149 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 15 bundles R1, 34 variantes e 60 tarefas; 25/63 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 68 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 355/1154 decisões estão classificadas (120 source, 268 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 41 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 165 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
+| `studies/*/bundle.json` + checker | 20 bundles R1, 48 variantes e 80 tarefas; 31/68 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
 | `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `tabular-adapter-cases.json` + máquina/checker/snapshot | TAB1 deriva source kind, u64 snapshot offsets/short reads, nominal schema identity, publication, CSV tokenizer/nulls, Parquet footer/page/mapping/key/commit, Arrow IPC dictionary/buffer, borrowed view, copy materialization, progress/cancel, provenance, C quota/trust/release; 84 casos e 184 operações (35 aceitos + 49 rejeitados) | oracle host independente; símbolos Last Light são cross-linked; não implementa reader CSV/Parquet/Arrow, compiler, runtime ou provider |
@@ -43,6 +43,26 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `std-api-contracts.json` + checker SDK0 | perfis cobrem 315 exports em 21 módulos, 78 superfícies qualificadas, 20/20 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow/presentation/tensor/dlpack e `SnapshotByteSource` são drafts, seus 15/15 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
 | `dlpack-cases.json` + máquina/checker/snapshot | PYN4 fecha DLPack 1.3 versioned, Device/Queue provider-scoped, zero-copy, materialização, bind dynamic, export consuming, capsule one-shot, Python lease, drain/release, dtype/layout/overflow/alignment, provenance, redaction, untrusted rejection e no hidden copy; 74 casos/325 operações (25 aceitos + 49 rejeitados) | oracle host independente; não compila ou executa W, Python, C Exchange, CUDA, ROCm, provider ou runtime |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
+
+### R1E0 — núcleo de expressions
+
+Os bundles de evidência do núcleo usam os sources canônicos de Última Luz sem
+alterá-los:
+
+- [`r1-post-test-loop`](studies/r1-post-test-loop) compara `repeat` com um
+  `while true` válido e mede body, predicate, `continue`, `break` e cleanup.
+- [`r1-conditional-value-block`](studies/r1-conditional-value-block) compara
+  value blocks com returns de branch e cobre Unit, joins, effects e discard.
+- [`r1-assignment-unit`](studies/r1-assignment-unit) cobre place e RHS uma vez,
+  falha preservando o value anterior, Unit, move-only e compound assignment.
+- [`r1-power-precedence`](studies/r1-power-precedence) cobre precedence,
+  right-association, prefix exponent, XOR e a fronteira de unit grammar.
+- [`r1-fluent-self`](studies/r1-fluent-self) compara fallthrough `: self` com
+  `return self` e registra os negativos Unit e `take fn`.
+
+Todos os bundles permanecem `design-oracle-input`. Parse Tree-sitter e host
+oracle são evidência corrente. Compile, run e estudos humano/model permanecem
+missing.
 
 ### Workflow single-file PYN1
 

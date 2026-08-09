@@ -1,0 +1,80 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-post-test-loop",
+  "title": "Post-test counting at the Last Light restaurant",
+  "r0Cases": ["R0-post-test-loop"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/numerics.w",
+    "symbol": "decimalDigitCount",
+    "digest": "sha256:3554d820f44873a48f360c7b14342926ecb67b49dae9823f1998506091ee64be"
+  },
+  "variants": [
+    {
+      "id": "repeat",
+      "role": "selected",
+      "language": "w",
+      "path": "repeat.w",
+      "digest": "sha256:accf7e6b9b35eb4b790f7a3fc437b13e0524d655370c0d08662d9460e087321b",
+      "changedConstructs": ["post-test repeat", "trailing condition after continue", "lexical break"]
+    },
+    {
+      "id": "while-true",
+      "role": "alternative",
+      "language": "w",
+      "path": "while-true.w",
+      "digest": "sha256:4ce8e025b8623ed138a81dde1e960d6ecfd7a9e82f55701ad97558b33c2a7309",
+      "changedConstructs": ["while true loop", "explicit predicate break", "nested break points"]
+    }
+  ],
+  "entry": "countDigits",
+  "inputs": [
+    {
+      "id": "primary-digit-counts",
+      "values": [0, 9, 42424],
+      "expected": { "counts": [1, 1, 5], "bodyRuns": [1, 1, 5], "predicateChecks": [1, 1, 5] }
+    },
+    {
+      "id": "adversarial-control-transfers",
+      "values": [0, 9, 42424],
+      "limit": 3,
+      "expected": { "continueCounts": [0, 0, 4], "alternativeGuardChecks": [1, 1, 5], "breakResult": 3, "breakPredicateChecks": 0, "cleanup": "lexical" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why zero runs the body once and when the trailing predicate is evaluated."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the body, continue, predicate, and break order.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that evaluates the predicate again after a lexical break.",
+      "mutations": {
+        "repeat": "Replace `break` with a predicate update and preserve one trailing condition check.",
+        "while-true": "Add a second condition check after `break` without duplicating the body."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a bounded retry count while preserving one body run and the cleanup boundary."
+    }
+  ],
+  "presentationOrders": [["repeat", "while-true"], ["while-true", "repeat"]],
+  "blinding": {
+    "participantLabels": { "repeat": "A", "while-true": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:3626e56ad69cac88367d6b5299ddb24d36aa61e8917ac256cd45f853905d0167"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

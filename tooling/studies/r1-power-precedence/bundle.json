@@ -1,0 +1,77 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-power-precedence",
+  "title": "Mathematical power precedence at the Last Light restaurant",
+  "r0Cases": ["R0-power-precedence"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/numerics.w",
+    "symbol": "power follows mathematical unary precedence",
+    "digest": "sha256:3554d820f44873a48f360c7b14342926ecb67b49dae9823f1998506091ee64be"
+  },
+  "variants": [
+    {
+      "id": "mathematical",
+      "role": "selected",
+      "language": "w",
+      "path": "mathematical.w",
+      "digest": "sha256:bd4a2f05d1bb2217347e8ca1e5f6579d78d265f91fe6f4c2fcbf1a815febd5e7",
+      "changedConstructs": ["right-associative power", "prefix exponent", "power before unary base", "typed quantity literal"]
+    },
+    {
+      "id": "parenthesized",
+      "role": "alternative",
+      "language": "w",
+      "path": "parenthesized.w",
+      "digest": "sha256:93bde216fbfc727a669faf5fb8aa50381674780ffab71f39b7e7bc6ad3a908df",
+      "changedConstructs": ["parenthesized equivalent primary", "explicit negative-base adversarial", "typed quantity literal"]
+    }
+  ],
+  "entry": "powerSamples",
+  "inputs": [
+    {
+      "id": "primary-negative-base-and-exponent",
+      "expected": { "outcome": [-4, 0.125, 512, 6], "variantsEqual": true }
+    },
+    {
+      "id": "adversarial-unit-and-xor",
+      "expected": { "explicitNegativeBase": 4, "explicitLeftAssociation": 64, "xor": 6, "unitOwner": "unit", "unitCaretIsNotRuntimePower": true }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain the base-side unary rule, the prefix exponent rule, and why caret remains bitwise XOR."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the three power associations and the unit-grammar boundary.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that changes right association, changes a typed quantity, or treats unit caret as runtime power.",
+      "mutations": {
+        "mathematical": "Move `(-2) ** 2` and `(2 ** 3) ** 2` into the primary path and record the adversarial outcomes.",
+        "parenthesized": "Replace the equivalent primary with unary and right-associative power while keeping the adversarial forms separate."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a fractional exponent while preserving runtime power tokens and the separate unit grammar."
+    }
+  ],
+  "presentationOrders": [["mathematical", "parenthesized"], ["parenthesized", "mathematical"]],
+  "blinding": {
+    "participantLabels": { "mathematical": "A", "parenthesized": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:0bcc248a9a42c589ae95cd77ffcc231ab8e1a47ad2e7c34410b5caf3463b04b8"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
