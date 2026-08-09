@@ -23,6 +23,7 @@ const FFI_RETENTIONS = new Set(["none", "call", "persistent"]);
 const ALLOCATOR_LIFETIMES = new Set(["static", "product", "parameter", "scoped"]);
 const ALLOCATOR_MOBILITIES = new Set(["local", "crossDomain"]);
 const ALLOCATION_OUTCOMES = new Set(["success", "allocationError"]);
+const ERASURE_SPILL_POLICIES = new Set(["forbid", "allocator"]);
 const PROJECTION_KINDS = new Set([
   "field",
   "tuple",
@@ -139,6 +140,16 @@ function consumeAfterAllocationFailure(state, source) {
   source.state = "dropped";
   payload.consumedOnFailure = true;
   payload.dropCount = (payload.dropCount ?? 0) + 1;
+}
+
+function consumeErasureAllocationFailure(state, source, payload, operation) {
+  payload.erasureAttempt = {
+    storage: "spill",
+    boxOrigin: operation.using,
+    outcome: "allocationError",
+  };
+  consumeAfterAllocationFailure(state, source);
+  recordOutcome(state, operation, "allocationError");
 }
 
 function requireUniqueBinding(state, name) {
@@ -931,7 +942,12 @@ function applyOperation(state, operation) {
       if (ownerHasDynamicEdges(state, binding.payload)) {
         throw new HirMemoryError("ownerDropWithDependency");
       }
-      releasePayloadEdges(state.payloads[binding.payload]);
+      const payload = state.payloads[binding.payload];
+      releasePayloadEdges(payload);
+      if (payload.erasure && payload.erasure.destroyed !== true) {
+        payload.erasure.destroyed = true;
+        payload.dropCount = (payload.dropCount ?? 0) + 1;
+      }
       binding.state = "dropped";
       return;
     }
@@ -1269,6 +1285,64 @@ function applyOperation(state, operation) {
       }
       source.state = "moved";
       payload.storageOrigins = [operation.using];
+      state.bindings[operation.to] = {
+        state: "owned",
+        payload: source.payload,
+        pinnedHandle: false,
+      };
+      recordOutcome(state, operation, outcome);
+      return;
+    }
+    case "erase": {
+      const source = requireUniqueBinding(state, operation.from);
+      const payload = state.payloads[source.payload];
+      requireNoLoans(state, source.payload, "moveWithLoan");
+      if (ownerHasDynamicEdges(state, source.payload)) {
+        throw new HirMemoryError("ownerMoveWithDependency");
+      }
+      if (state.bindings[operation.to]) {
+        throw new HirMemoryError("moveTargetAlreadyInitialized");
+      }
+
+      const fitsInline =
+        operation.payloadBytes <= operation.inlineBytes &&
+        operation.payloadAlignment <= operation.inlineAlignment;
+      if (operation.using) requireAllocator(state, operation.using);
+      if (!fitsInline && operation.spill === "forbid") {
+        throw new HirMemoryError("erasureSpillForbidden");
+      }
+
+      const outcome = operation.outcome ?? "success";
+      if (fitsInline && outcome === "allocationError") {
+        throw new HirMemoryError("inlineErasureCannotFailAllocation");
+      }
+      if (!fitsInline && outcome === "allocationError") {
+        consumeErasureAllocationFailure(state, source, payload, operation);
+        return;
+      }
+
+      const payloadStorageOrigins = storageOrigins(payload);
+      const storage = fitsInline ? "inline" : "spill";
+      if (!fitsInline) {
+        try {
+          chargeAllocator(state, operation.using, operation.boxBytes);
+        } catch (error) {
+          if (!(error instanceof HirMemoryError) || error.code !== "budgetExceeded") throw error;
+          consumeErasureAllocationFailure(state, source, payload, operation);
+          return;
+        }
+        payload.storageOrigins = origins([...payloadStorageOrigins, operation.using]);
+      }
+      payload.erasure = {
+        storage,
+        inlineBytes: operation.inlineBytes,
+        inlineAlignment: operation.inlineAlignment,
+        payloadBytes: operation.payloadBytes,
+        payloadAlignment: operation.payloadAlignment,
+        boxOrigin: fitsInline ? null : operation.using,
+        destroyed: false,
+      };
+      source.state = "moved";
       state.bindings[operation.to] = {
         state: "owned",
         payload: source.payload,
@@ -1706,6 +1780,28 @@ export function validateMemoryOperation(operation) {
         (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
         (operation.adopt === undefined || typeof operation.adopt === "boolean")
       );
+    case "erase": {
+      const validSize = (value) => Number.isSafeInteger(value) && value >= 0;
+      const validAlignment = (value) =>
+        Number.isSafeInteger(value) && value > 0 && Number.isInteger(Math.log2(value));
+      return (
+        hasString("from") &&
+        hasString("to") &&
+        operation.from !== operation.to &&
+        validSize(operation.payloadBytes) &&
+        validAlignment(operation.payloadAlignment) &&
+        validSize(operation.inlineBytes) &&
+        validAlignment(operation.inlineAlignment) &&
+        ERASURE_SPILL_POLICIES.has(operation.spill) &&
+        (
+          (operation.spill === "allocator" && hasString("using")) ||
+          (operation.spill === "forbid" && operation.using === undefined)
+        ) &&
+        validSize(operation.boxBytes) &&
+        (operation.outcome === undefined || ALLOCATION_OUTCOMES.has(operation.outcome)) &&
+        (operation.result === undefined || hasString("result"))
+      );
+    }
     case "share":
       return (
         hasString("from") &&

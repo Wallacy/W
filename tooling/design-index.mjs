@@ -248,10 +248,33 @@ const designFreezeAudit = JSON.parse(
 const explicitFreezeDecisionIds = new Set(
   designFreezeAudit.entries.map((entry) => entry.decision),
 );
+const multiAxisFreezeRequirements = designFreezeAudit.requirements.length;
+const oracleCorpusFiles = [
+  "semantic-cases.json",
+  "formatter-cases.json",
+  "memory-transition-cases.json",
+  "execution-concurrency-cases.json",
+  "boundary-effect-cases.json",
+  "package-release-cases.json",
+];
+const oracleFreezeDecisionIds = new Set(
+  oracleCorpusFiles.flatMap((file) => {
+    const corpus = JSON.parse(
+      fs.readFileSync(path.join(wDirectory, "tooling", file), "utf8"),
+    );
+    return corpus.cases.flatMap((testCase) => testCase.decisions ?? []);
+  }),
+);
 const classifiedFreezeDecisionIds = new Set([
   ...substitutionDecisionIds,
+  ...oracleFreezeDecisionIds,
   ...explicitFreezeDecisionIds,
 ]);
+const freezeEvidenceOverlaps =
+  substitutionDecisionIds.size +
+  oracleFreezeDecisionIds.size +
+  explicitFreezeDecisionIds.size -
+  classifiedFreezeDecisionIds.size;
 const substitutionSurface = JSON.parse(
   fs.readFileSync(
     path.join(wDirectory, "tooling", "substitution-surface.snapshot.json"),
@@ -475,11 +498,12 @@ output.push(
   `| decisões referenciadas por casos R0 | ${substitutionDecisionIds.size}/${decisions.length} |`,
 );
 output.push(
-  `| decisões classificadas para design freeze | ${classifiedFreezeDecisionIds.size}/${decisions.length} (${substitutionDecisionIds.size} por R0 + ${explicitFreezeDecisionIds.size} explícitas) |`,
+  `| decisões classificadas para design freeze | ${classifiedFreezeDecisionIds.size}/${decisions.length} (${substitutionDecisionIds.size} source + ${oracleFreezeDecisionIds.size} oracle + ${explicitFreezeDecisionIds.size} explícitas; ${freezeEvidenceOverlaps} overlaps) |`,
 );
 output.push(
   `| decisões ainda sem classe de freeze | ${decisions.length - classifiedFreezeDecisionIds.size} |`,
 );
+output.push(`| decisões com múltiplos eixos obrigatórios | ${multiAxisFreezeRequirements} |`);
 output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |`);
 output.push(
   `| surface lexemes das formas vigentes R0 | ${selectedSurfaceLexemeTotal} total; mediana ${selectedSurfaceLexemeMedian}; máximo ${selectedSurfaceLexemeMaximum} |`,

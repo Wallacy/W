@@ -1269,6 +1269,9 @@ Aceite:
 - uma call por function value usa argumentos posicionais;
 - `some fn` preserva o tipo concreto e permite specialization;
 - `any fn` possui owner, invoke e drop observáveis;
+- erasure contextual usa a policy normal de OOM do product;
+- `try erase(take value, using:)` torna allocator e recovery explícitos;
+- inline erasure preserva origins; spill adiciona a origin do box;
 - labels e defaults não entram no function type;
 - `mut fn` exige um callable mutável e acesso exclusivo;
 - `take fn` exige `(take callable)(...)`;
@@ -1281,7 +1284,8 @@ Aceite:
 - `unsafe fn<abi: .c>` não aceita capture, `async` ou `throws`.
 
 O ensaio deve rejeitar labels numa call por valor. Ele também deve rejeitar uma
-segunda call ao `manifest` consumido.
+segunda call ao `manifest` consumido e provar que failure de erasure consome o
+source sem publicar um existential parcial.
 
 ### 3.23 Farol de Falhas Improváveis
 
@@ -2089,7 +2093,8 @@ Aceite:
 - storage local continua local mesmo quando o payload é lifetime-independent;
 - rehome reescreve storage origin sem apagar borrow origin;
 - strong zero destrói o payload uma vez e weak zero libera o control block;
-- falha consuming de pin/share/rehome não restaura o source;
+- erasure inline preserva origins; spill adiciona box origin sem apagar edges;
+- falha consuming de pin/share/rehome/erase não restaura o source;
 - service, wire, persistence e FFI aplicam gates próprios depois de lifetime;
 - dependent escape, channel, share e await seguem regras de origin e drain;
 - pin exige zero loans e separa root pinned de handle móvel;
@@ -2104,7 +2109,7 @@ Aceite:
 
 O modelo Node em `tooling/hir-memory-reference.test.mjs` repete essas regras
 com estados pequenos. O corpus M1 em `tooling/memory-transition-cases.json`
-possui 156 casos e 546 operações. Ele é uma referência de contrato, não o
+possui 164 casos e 579 operações. Ele é uma referência de contrato, não o
 futuro verifier.
 O compiler deve substituir esse modelo por HIR real no gate SH3/SH4.
 
