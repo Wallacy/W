@@ -21,10 +21,10 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 55 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 186/962 decisões estão classificadas, dois contratos exigem múltiplos eixos e overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 124 formas R0 | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | oito bundles R1, 17 variantes e 32 tarefas; o novo cluster de callables promove 17/55 casos R0 | parse e oracle host não equivalem a compilar ou executar W |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 60 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 200/987 decisões estão classificadas (99 source, 113 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 20 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 140 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
+| `studies/*/bundle.json` + checker | 13 bundles R1, 28 variantes e 52 tarefas; 22/60 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |

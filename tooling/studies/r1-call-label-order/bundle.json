@@ -1,0 +1,87 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-call-label-order",
+  "title": "Money initializer label order at the Last Light restaurant",
+  "r0Cases": ["R0-call-label-order"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/billing.w",
+    "symbol": "Money(majorUnits",
+    "digest": "sha256:31ac00382e95cef96f775d4b9f2e7627138da0336d438c74c844aedb8ea75f34"
+  },
+  "variants": [
+    {
+      "id": "fixed-order",
+      "role": "selected",
+      "language": "w",
+      "path": "fixed-order.w",
+      "digest": "sha256:9d65d106643f81b343b8f0281952d191ed804b95cf366518cfa53183cf2af819",
+      "changedConstructs": ["declaration-order labels", "initializer selection", "three distinct call shapes"]
+    },
+    {
+      "id": "reordered",
+      "role": "alternative",
+      "language": "w",
+      "path": "reordered.w",
+      "digest": "sha256:dfaa98b2dea4b38d66df2c9012ca029a8f289fec9986db45351f753144e5ba35",
+      "changedConstructs": ["reordered labels", "same call shape intent"]
+    }
+  ],
+  "entry": "price",
+  "inputs": [
+    {
+      "id": "primary-money-call",
+      "majorUnits": 42,
+      "currency": "cr",
+      "expected": { "minorUnits": 4200, "currency": "cr" }
+    },
+    {
+      "id": "adversarial-default-and-overload",
+      "majorUnits": 42,
+      "currency": "cr",
+      "addedDefault": "currency",
+      "addedOverload": ["currency", "majorUnits"],
+      "expected": {
+        "fixedShapes": ["majorUnits:,currency:", "majorUnits:", "currency:,majorUnits:"],
+        "unorderedCollision": "majorUnits:,currency:",
+        "diagnostic": "ambiguity-before-types"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain how ordered call shapes select the initializer before types and preserve the Money outcome."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct three ordered shapes and the unordered-policy collision without reopening the source.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that collapses distinct ordered shapes before type ranking.",
+      "mutations": {
+        "fixed-order": "Keep `majorUnits:,currency:`, `majorUnits:`, and `currency:,majorUnits:` distinct.",
+        "reordered": "Restore ordered-shape diagnostics before adding the reverse-label overload."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a default for currency and a reverse-label overload, then report policy collision before type ranking."
+    }
+  ],
+  "presentationOrders": [["fixed-order", "reordered"], ["reordered", "fixed-order"]],
+  "blinding": {
+    "participantLabels": { "fixed-order": "A", "reordered": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:4c802c5abc32aab657a247c9d0deee6c735bcc20732ac0a930c29b3e49c51cef"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

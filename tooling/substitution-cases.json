@@ -1159,6 +1159,153 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-python-transform",
+      "reviewItem": "pipeline lazy contra loop explícito para transformação sem side effect",
+      "decisions": ["W-978", "W-982"],
+      "task": "Select urgent order IDs with the same limit, order, no-match result, and zero limit.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let urgent: Array<OrderId> = tickets.lazy",
+          "  .filter((ticket) => ticket.priority == 1)",
+          "  .map((ticket) => ticket.orderId)",
+          "  .take(limit)",
+          "  .collect()"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "explicit-loop",
+          "language": "w",
+          "source": [
+            "var urgent: Array<OrderId> = []",
+            "if limit == 0 { return urgent }",
+            "for ticket in tickets {",
+            "  if ticket.priority != 1 { continue }",
+            "  urgent.append(ticket.orderId)",
+            "  if urgent.count == limit { break }",
+            "}"
+          ],
+          "expectedDifference": "The loop makes the bound and mutable append explicit, while the pipeline stays lazy until collect."
+        },
+        {
+          "name": "python-comprehension",
+          "language": "python",
+          "source": [
+            "urgent = [ticket.order_id for ticket in tickets if ticket.priority == 1][:limit]"
+          ],
+          "expectedDifference": "Python comprehension and slice motivate the study, but W does not add comprehension grammar."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-tensor-broadcast",
+      "reviewItem": "broadcast explícito contra broadcast implícito checked e Julia dotted broadcast",
+      "decisions": ["W-978", "W-983"],
+      "task": "Center a valid tensor shape and reject mismatched or changed-axis non-scalar shapes.",
+      "selected": {
+        "language": "w",
+        "source": ["let centered = calibrated - means.broadcast(to: [samples, 6])"]
+      },
+      "alternatives": [
+        {
+          "name": "checked-implicit",
+          "language": "w-research",
+          "source": ["let centered = calibrated - means"],
+          "expectedDifference": "The implicit form needs a checked shape rule and remains an alternative until its failure and memory costs are measured."
+        },
+        {
+          "name": "julia-dotted-broadcast",
+          "language": "julia",
+          "source": ["centered = calibrated .- means"],
+          "expectedDifference": "Julia dotted broadcast is documentary evidence and does not add a W operator form."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-end-relative-access",
+      "reviewItem": "`.last` contra arithmetic `count - 1`, Python `[-1]` e C# `^1`",
+      "decisions": ["W-978", "W-984"],
+      "task": "Read the last item and preserve the same optional String? outcome for empty and nonempty menus.",
+      "selected": {
+        "language": "w",
+        "source": ["return menu.last"]
+      },
+      "alternatives": [
+        {
+          "name": "count-minus-one",
+          "language": "w",
+          "source": ["guard !menu.isEmpty else return .none", "return menu.get(menu.count - 1)"],
+          "expectedDifference": "Arithmetic exposes unsigned bounds and requires a separate empty guard."
+        },
+        {
+          "name": "python-negative-index",
+          "language": "python",
+          "source": ["return menu[-1] if menu else None"],
+          "expectedDifference": "Python negative indexing is concise, but W must resolve signedness, -0, empty, and bounds explicitly."
+        },
+        {
+          "name": "csharp-from-end",
+          "language": "csharp",
+          "source": ["return menu[^1]"],
+          "expectedDifference": "C# from-end syntax is documentary evidence and is not a parsed W variant because ^ is XOR outside units."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-call-label-order",
+      "reviewItem": "labels em ordem fixa contra labels reordenados com default e overload",
+      "decisions": ["W-978", "W-985"],
+      "task": "Construct Money with the same values and report a collision only for an unordered policy after a default and reverse-label overload.",
+      "selected": {
+        "language": "w",
+        "source": ["let value = Money(majorUnits: 42, currency: .cr)"]
+      },
+      "alternatives": [
+        {
+          "name": "reordered-labels",
+          "language": "w-research",
+          "source": ["let value = Money(currency: .cr, majorUnits: 42)"],
+          "expectedDifference": "Reordering is a research alternative because call shape is an ordered sequence before type ranking."
+        },
+        {
+          "name": "python-keyword-reorder",
+          "language": "python",
+          "source": ["value = Money(currency=\"cr\", major_units=42)"],
+          "expectedDifference": "Python keyword arguments motivate the comparison, but they do not define W overload resolution."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-tuple-unpacking",
+      "reviewItem": "tuple binding fixo contra projections `.0`/`.1` e unpacking starred",
+      "decisions": ["W-978", "W-986"],
+      "task": "Read text and line from one word call, then preserve one failure on empty input.",
+      "selected": {
+        "language": "w",
+        "source": ["let (text, foundLine) = try word()"]
+      },
+      "alternatives": [
+        {
+          "name": "tuple-projections",
+          "language": "w",
+          "source": ["let result = try word()", "let text = copy result.0", "let foundLine = result.1"],
+          "expectedDifference": "Projections keep fixed arity but require an explicit copy or borrow for a move-only component."
+        },
+        {
+          "name": "python-starred-unpacking",
+          "language": "python",
+          "source": ["text, *middle, found_line = word()"],
+          "expectedDifference": "Python starred unpacking accepts variable arity, while W rejects it until ownership and partial-move rules exist."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

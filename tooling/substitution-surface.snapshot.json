@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:a5c4aae901e7405adfec39692e2227ff470f7d0040f6adc59a28842afcc3564e",
+  "corpusDigest": "sha256:9c9cd24be92c7109cfbc8ab2f654c2d96d63350beb8d3d869be0b42ace4f728e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2148,6 +2148,258 @@
             "nonWhitespaceCodePoints": 68,
             "lines": 2,
             "surfaceLexemes": 22
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-python-transform",
+      "task": {
+        "utf8Bytes": 84,
+        "codePoints": 84,
+        "nonWhitespaceCodePoints": 71,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:3f8d3245f605bfe27118b90a500271d7e81d215cb4cdffa43bbdf50d602e986e",
+        "metrics": {
+          "utf8Bytes": 148,
+          "codePoints": 148,
+          "nonWhitespaceCodePoints": 126,
+          "lines": 5,
+          "surfaceLexemes": 47
+        }
+      },
+      "alternatives": [
+        {
+          "name": "explicit-loop",
+          "language": "w",
+          "sourceDigest": "sha256:eb219fe09d7245ad76ecb75e9ada55b5eca9c641da3687111a53b4bd515ee4bb",
+          "metrics": {
+            "utf8Bytes": 197,
+            "codePoints": 197,
+            "nonWhitespaceCodePoints": 158,
+            "lines": 7,
+            "surfaceLexemes": 53
+          }
+        },
+        {
+          "name": "python-comprehension",
+          "language": "python",
+          "sourceDigest": "sha256:c61cef9886d99262900eead953c6ecf86d1732c506b31ca26424d7dcc1f909bd",
+          "metrics": {
+            "utf8Bytes": 80,
+            "codePoints": 80,
+            "nonWhitespaceCodePoints": 70,
+            "lines": 1,
+            "surfaceLexemes": 22
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-tensor-broadcast",
+      "task": {
+        "utf8Bytes": 84,
+        "codePoints": 84,
+        "nonWhitespaceCodePoints": 73,
+        "lines": 1,
+        "surfaceLexemes": 17
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:54c4f8852dee56ef9c8e4285411f295676511c62ee6ea1cc988ab4a42bbf6b38",
+        "metrics": {
+          "utf8Bytes": 61,
+          "codePoints": 61,
+          "nonWhitespaceCodePoints": 54,
+          "lines": 1,
+          "surfaceLexemes": 17
+        }
+      },
+      "alternatives": [
+        {
+          "name": "checked-implicit",
+          "language": "w-research",
+          "sourceDigest": "sha256:48870abe878b654043d2927580803cb604ed3c618a8668866ce3d1956052fdd6",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "julia-dotted-broadcast",
+          "language": "julia",
+          "sourceDigest": "sha256:428bd306ae287c00b388eaa75d73a324f5965c10de5603cc01168de9d2c01691",
+          "metrics": {
+            "utf8Bytes": 30,
+            "codePoints": 30,
+            "nonWhitespaceCodePoints": 26,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-end-relative-access",
+      "task": {
+        "utf8Bytes": 95,
+        "codePoints": 95,
+        "nonWhitespaceCodePoints": 80,
+        "lines": 1,
+        "surfaceLexemes": 18
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:3818f8e01576eeceffd83f93ab66ed27665006ccfe434426213f43d9006d8c88",
+        "metrics": {
+          "utf8Bytes": 16,
+          "codePoints": 16,
+          "nonWhitespaceCodePoints": 15,
+          "lines": 1,
+          "surfaceLexemes": 4
+        }
+      },
+      "alternatives": [
+        {
+          "name": "count-minus-one",
+          "language": "w",
+          "sourceDigest": "sha256:c7417e7fea38680f0f29ae56a41aa50d7e3ed22112858f1ac745de544246ab0b",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 2,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "python-negative-index",
+          "language": "python",
+          "sourceDigest": "sha256:ed1c1b8ef47a6dda60895ca43e5521b7571c25215a9d5fd3eaa2fc0602955ef5",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "csharp-from-end",
+          "language": "csharp",
+          "sourceDigest": "sha256:095d9312acbb3073b671b4033b6aec2a98baece5096338ea79a6b355201034f4",
+          "metrics": {
+            "utf8Bytes": 15,
+            "codePoints": 15,
+            "nonWhitespaceCodePoints": 14,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-call-label-order",
+      "task": {
+        "utf8Bytes": 132,
+        "codePoints": 132,
+        "nonWhitespaceCodePoints": 112,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:2de3ee695eee83b3224903ee1f9ab367332d332dcec6bbaff585f70925af8977",
+        "metrics": {
+          "utf8Bytes": 48,
+          "codePoints": 48,
+          "nonWhitespaceCodePoints": 42,
+          "lines": 1,
+          "surfaceLexemes": 14
+        }
+      },
+      "alternatives": [
+        {
+          "name": "reordered-labels",
+          "language": "w-research",
+          "sourceDigest": "sha256:e58c905908d8525328e8e0f7abda58087a93ebebb5459d0a92fdaa51524cf182",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "python-keyword-reorder",
+          "language": "python",
+          "sourceDigest": "sha256:401cac3860e242e17b516b135e22bfc259ec4d32607137f46c7f270f6f6705fc",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-tuple-unpacking",
+      "task": {
+        "utf8Bytes": 80,
+        "codePoints": 80,
+        "nonWhitespaceCodePoints": 66,
+        "lines": 1,
+        "surfaceLexemes": 17
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:ce9a17c7d4c25c608053607e13e06c28fd766b7a33cfa302a14d414f5d870da6",
+        "metrics": {
+          "utf8Bytes": 34,
+          "codePoints": 34,
+          "nonWhitespaceCodePoints": 29,
+          "lines": 1,
+          "surfaceLexemes": 11
+        }
+      },
+      "alternatives": [
+        {
+          "name": "tuple-projections",
+          "language": "w",
+          "sourceDigest": "sha256:ad3a893b0f3a946593506bc503b315492dd55573c279ca2e67ad42c82195c0c3",
+          "metrics": {
+            "utf8Bytes": 73,
+            "codePoints": 73,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 3,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "python-starred-unpacking",
+          "language": "python",
+          "sourceDigest": "sha256:1442c5462d2a04ebbffc0dff767cdbb067f770389e9c2992ced0bee54c347e83",
+          "metrics": {
+            "utf8Bytes": 34,
+            "codePoints": 34,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

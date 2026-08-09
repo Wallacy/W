@@ -1,0 +1,92 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-end-relative-access",
+  "title": "Menu tail access at the Last Light restaurant",
+  "r0Cases": ["R0-end-relative-access"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/billing.w",
+    "symbol": "menu.last",
+    "digest": "sha256:31ac00382e95cef96f775d4b9f2e7627138da0336d438c74c844aedb8ea75f34"
+  },
+  "variants": [
+    {
+      "id": "last",
+      "role": "selected",
+      "language": "w",
+      "path": "last.w",
+      "digest": "sha256:bc47bbed953814bacfb4ee67d66210a789ea467b7a5d07bde1fdaf7f9faab74a",
+      "changedConstructs": ["Array.last optional", "implicit empty handling"]
+    },
+    {
+      "id": "count-minus-one",
+      "role": "alternative",
+      "language": "w",
+      "path": "count-minus-one.w",
+      "digest": "sha256:37adbb4b73f1857e8e095d48c0fe5e9ee1bf7a9599751cf9c08bb868b3a9f4ec",
+      "changedConstructs": ["count arithmetic", "explicit empty guard", "checked get"]
+    },
+    {
+      "id": "negative-index",
+      "role": "alternative",
+      "language": "w",
+      "path": "negative-index.w",
+      "digest": "sha256:d72d6b117fb345d59ae3c9cf3797b01e17f14355b8cb247cc7a85bda06618fdd",
+      "changedConstructs": ["negative index", "explicit empty guard", "optional some"]
+    }
+  ],
+  "entry": "lastLabel",
+  "inputs": [
+    {
+      "id": "primary-nonempty-menu",
+      "items": ["nebula broth", "horizon cake"],
+      "expected": { "last": "horizon cake", "type": "ref String?" }
+    },
+    {
+      "id": "adversarial-empty-menu",
+      "items": [],
+      "expected": { "last": null, "type": "ref String?", "status": "empty" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain why `.last` absorbs empty input and why arithmetic and negative access need a guard."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the nonempty and empty outcomes without reopening the source.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that reads an empty menu before checking its bounds.",
+      "mutations": {
+        "last": "Replace `.last` with `items[items.count - 1]` without an empty guard.",
+        "count-minus-one": "Move `items.count - 1` before the empty guard.",
+        "negative-index": "Remove the empty guard before `items[-1]`."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add second-last access and a tail slice while preserving `.last` optional handling and the other guards."
+    }
+  ],
+  "presentationOrders": [
+    ["last", "count-minus-one", "negative-index"],
+    ["negative-index", "last", "count-minus-one"],
+    ["count-minus-one", "negative-index", "last"]
+  ],
+  "blinding": {
+    "participantLabels": { "last": "A", "count-minus-one": "B", "negative-index": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:051373f7c28991cd7f7d97ffe2d4d81de7e719d83d1ddb63e46f044d13c93082"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

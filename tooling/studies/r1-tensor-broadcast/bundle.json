@@ -1,0 +1,90 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-tensor-broadcast",
+  "title": "Horizon calibration broadcast at the Last Light restaurant",
+  "r0Cases": ["R0-tensor-broadcast"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/horizon.w",
+    "symbol": "broadcast",
+    "digest": "sha256:b3516957ecf1e9f62c6b0b4864af47a2e73a2fe2a983e94c277811049279aecd"
+  },
+  "variants": [
+    {
+      "id": "explicit",
+      "role": "selected",
+      "language": "w",
+      "path": "explicit.w",
+      "digest": "sha256:f914ba3e22d05c67e19786913cc9ab6de7336ffecd56c166287f3f936f88b320",
+      "changedConstructs": ["explicit broadcast target", "shape declaration"]
+    },
+    {
+      "id": "checked-implicit",
+      "role": "alternative",
+      "language": "w",
+      "path": "checked-implicit.w",
+      "digest": "sha256:a8671df9bf99db16b89eb904e08bcd3911d35f185b0aa41c8626064931304a98",
+      "changedConstructs": ["checked implicit shape", "broadcast omission"]
+    }
+  ],
+  "entry": "centerSamples",
+  "inputs": [
+    {
+      "id": "primary-valid-shape",
+      "calibratedShape": [3, 6],
+      "meansShape": [6],
+      "axis": 0,
+      "expected": { "shape": [3, 6], "status": "centered" }
+    },
+    {
+      "id": "adversarial-mismatched-shape",
+      "calibratedShape": [3, 6],
+      "meansShape": [5],
+      "axis": 0,
+      "expected": { "shape": [3, 6], "status": "shapeMismatch" }
+    },
+    {
+      "id": "adversarial-axis-change",
+      "calibratedShape": [3, 6],
+      "meansShape": [3],
+      "axis": 1,
+      "expected": { "shape": [3, 6], "status": "shapeMismatch" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which shape is declared, which shape is checked, and how axis change produces a shape result."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the valid shape and the axis-change shape failure without reopening the source.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that broadcasts a means vector with the wrong axis.",
+      "mutations": {
+        "explicit": "Replace the target shape with `[samples, 5]`.",
+        "checked-implicit": "Remove the shape check before subtraction."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add scalar expansion and a mismatched non-scalar shape while keeping shape errors explicit."
+    }
+  ],
+  "presentationOrders": [["explicit", "checked-implicit"], ["checked-implicit", "explicit"]],
+  "blinding": {
+    "participantLabels": { "explicit": "A", "checked-implicit": "B" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:c265d6d8c5bb13d5a6f31635fcc5649163065e371a49f9be28ccaf17b731e8f4"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
