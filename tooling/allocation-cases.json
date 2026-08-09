@@ -1,0 +1,612 @@
+{
+  "$schema": "w-physical-allocation-cases-a0",
+  "status": "design-oracle-input-a0",
+  "machine": "allocation-machine-a0",
+  "references": {
+    "layout": {
+      "path": "../reference/last-light/allocator_oracle.w",
+      "symbol": "AllocationLayout"
+    },
+    "profile": {
+      "path": "../reference/last-light/allocator_oracle.w",
+      "symbol": "AllocatorProviderProfile"
+    },
+    "resize": {
+      "path": "../reference/last-light/allocator_oracle.w",
+      "symbol": "ResizeResult"
+    },
+    "reclamation": {
+      "path": "../reference/last-light/allocator_oracle.w",
+      "symbol": "ReclamationGate"
+    }
+  },
+  "fixtures": {
+    "providers": {
+      "system": {
+        "maximumBytes": 4096,
+        "maximumAlignment": 4096,
+        "failureMode": "return",
+        "resize": "remap",
+        "movesOnResize": true,
+        "sizeClass": 16,
+        "allocateDomain": "any",
+        "deallocateDomain": "any",
+        "mobility": "crossDomain",
+        "progress": {
+          "allocate": "general",
+          "resize": "general",
+          "deallocate": "general"
+        },
+        "deferredReuse": true,
+        "bulkRelease": false,
+        "homeDomain": "process"
+      },
+      "local": {
+        "maximumBytes": 512,
+        "maximumAlignment": 64,
+        "failureMode": "return",
+        "resize": "inPlace",
+        "movesOnResize": false,
+        "sizeClass": 8,
+        "allocateDomain": "home",
+        "deallocateDomain": "home",
+        "mobility": "local",
+        "progress": {
+          "allocate": "bounded",
+          "resize": "bounded",
+          "deallocate": "bounded"
+        },
+        "deferredReuse": false,
+        "bulkRelease": false,
+        "homeDomain": "kitchen"
+      },
+      "fixed": {
+        "maximumBytes": 128,
+        "maximumAlignment": 16,
+        "failureMode": "return",
+        "resize": "none",
+        "movesOnResize": false,
+        "sizeClass": 1,
+        "allocateDomain": "home",
+        "deallocateDomain": "home",
+        "mobility": "local",
+        "progress": {
+          "allocate": "waitFree",
+          "resize": "waitFree",
+          "deallocate": "waitFree"
+        },
+        "deferredReuse": false,
+        "bulkRelease": true,
+        "homeDomain": "audio"
+      },
+      "aborter": {
+        "maximumBytes": 4096,
+        "maximumAlignment": 64,
+        "failureMode": "abort",
+        "resize": "none",
+        "movesOnResize": false,
+        "sizeClass": 16,
+        "allocateDomain": "any",
+        "deallocateDomain": "any",
+        "mobility": "crossDomain",
+        "progress": {
+          "allocate": "general",
+          "resize": "general",
+          "deallocate": "general"
+        },
+        "deferredReuse": false,
+        "bulkRelease": false,
+        "homeDomain": "process"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "A0-zero-size-skips-provider",
+      "references": ["layout"],
+      "decisions": ["W-957"],
+      "operations": [
+        { "op": "allocate", "block": "empty", "provider": "system", "size": 0, "alignment": 8, "domain": "process" },
+        { "op": "deallocate", "block": "empty", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-aligned-allocation-and-free",
+      "references": ["layout", "profile"],
+      "decisions": ["W-957", "W-959"],
+      "operations": [
+        { "op": "bind", "provider": "system", "requirement": { "fallible": true, "mobility": "crossDomain" } },
+        { "op": "allocate", "block": "menu", "provider": "system", "size": 17, "alignment": 64, "domain": "process" },
+        { "op": "write", "block": "menu", "index": 16, "value": 42 },
+        { "op": "deallocate", "block": "menu", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-zeroed-requested-bytes",
+      "references": ["layout"],
+      "decisions": ["W-957"],
+      "operations": [
+        { "op": "allocate", "block": "tickets", "provider": "local", "size": 5, "alignment": 8, "domain": "kitchen", "initialization": "zeroed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-in-place-resize-preserves-origin",
+      "references": ["resize"],
+      "decisions": ["W-958"],
+      "operations": [
+        { "op": "allocate", "block": "orders", "provider": "local", "size": 4, "alignment": 8, "domain": "kitchen" },
+        { "op": "write", "block": "orders", "index": 0, "value": 77 },
+        { "op": "resize", "block": "orders", "size": 12, "tailInitialization": "zeroed" },
+        { "op": "deallocate", "block": "orders", "provider": "local", "domain": "kitchen" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-remap-preserves-prefix",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-962"],
+      "operations": [
+        { "op": "allocate", "block": "dishes", "provider": "system", "size": 4, "alignment": 8, "domain": "process" },
+        { "op": "write", "block": "dishes", "index": 0, "value": 42 },
+        { "op": "resize", "block": "dishes", "size": 20, "tailInitialization": "zeroed" },
+        { "op": "deallocate", "block": "dishes", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-resize-to-zero-retires-storage",
+      "references": ["resize", "reclamation"],
+      "decisions": ["W-958", "W-960"],
+      "operations": [
+        { "op": "allocate", "block": "buffer", "provider": "system", "size": 16, "alignment": 8, "domain": "process" },
+        { "op": "resize", "block": "buffer", "size": 0 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-caller-fallback-resizes-fixed-provider",
+      "references": ["resize"],
+      "decisions": ["W-958"],
+      "operations": [
+        { "op": "allocate", "block": "samples", "provider": "fixed", "size": 4, "alignment": 4, "domain": "audio" },
+        { "op": "write", "block": "samples", "index": 1, "value": 9 },
+        { "op": "resize", "block": "samples", "size": 8, "fallback": true, "tailInitialization": "zeroed" },
+        { "op": "deallocate", "block": "samples", "provider": "fixed", "domain": "audio" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-cross-domain-origin-transfer",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "allocate", "block": "packet", "provider": "system", "size": 16, "alignment": 8, "domain": "process" },
+        { "op": "moveDomain", "block": "packet", "domain": "network" },
+        { "op": "deallocate", "block": "packet", "provider": "system", "domain": "network" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-consuming-rehome-changes-provider",
+      "references": ["profile", "reclamation"],
+      "decisions": ["W-959", "W-960"],
+      "operations": [
+        { "op": "allocate", "block": "draft", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "write", "block": "draft", "index": 0, "value": 88 },
+        { "op": "rehome", "source": "draft", "destination": "snapshot", "provider": "system", "domain": "process" },
+        { "op": "deallocate", "block": "snapshot", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-deferred-reuse-needs-reclaim",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "node", "provider": "system", "size": 16, "alignment": 8, "domain": "process" },
+        { "op": "deallocate", "block": "node", "provider": "system", "domain": "process" },
+        { "op": "reclaim", "block": "node" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-bulk-close-after-drop-drain",
+      "references": ["profile", "reclamation"],
+      "decisions": ["W-959", "W-960"],
+      "operations": [
+        { "op": "allocate", "block": "left", "provider": "fixed", "size": 16, "alignment": 8, "domain": "audio" },
+        { "op": "allocate", "block": "right", "provider": "fixed", "size": 16, "alignment": 8, "domain": "audio" },
+        { "op": "bulkClose", "provider": "fixed", "dropsDrained": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-general-progress-normal-domain",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "requireProgress", "provider": "system", "operation": "allocate", "accepted": ["general"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-bounded-progress-realtime-domain",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "requireProgress", "provider": "local", "operation": "allocate", "accepted": ["bounded", "waitFree"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-address-lease-closes-before-drop",
+      "references": ["profile", "reclamation"],
+      "decisions": ["W-960", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 32, "alignment": 16, "domain": "process" },
+        { "op": "pin", "block": "callback" },
+        { "op": "beginAddressLease", "block": "callback" },
+        { "op": "endAddressLease", "block": "callback" },
+        { "op": "deallocate", "block": "callback", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-zero-storage-can-grow",
+      "references": ["layout", "resize"],
+      "decisions": ["W-957", "W-958"],
+      "operations": [
+        { "op": "allocate", "block": "frames", "provider": "fixed", "size": 0, "alignment": 8, "domain": "audio" },
+        { "op": "resize", "block": "frames", "size": 8, "tailInitialization": "zeroed" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "A0-resize-failure-preserves-receipt",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-962"],
+      "operations": [
+        { "op": "allocate", "block": "menu", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "write", "block": "menu", "index": 0, "value": 91 },
+        { "op": "faultNext", "provider": "system", "operation": "resize", "code": "allocationExhausted" },
+        { "op": "resize", "block": "menu", "size": 32, "tailInitialization": "zeroed" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationExhausted", "operation": 3 }
+    },
+    {
+      "id": "A0-fallback-failure-preserves-receipt",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-962"],
+      "operations": [
+        { "op": "allocate", "block": "samples", "provider": "fixed", "size": 8, "alignment": 8, "domain": "audio" },
+        { "op": "write", "block": "samples", "index": 0, "value": 31 },
+        { "op": "faultNext", "provider": "fixed", "operation": "allocate", "code": "allocationExhausted" },
+        { "op": "resize", "block": "samples", "size": 16, "fallback": true, "tailInitialization": "zeroed" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationExhausted", "operation": 3 }
+    },
+    {
+      "id": "A0-consuming-rehome-failure-retires-source",
+      "references": ["resize", "reclamation"],
+      "decisions": ["W-958", "W-960", "W-962"],
+      "operations": [
+        { "op": "allocate", "block": "draft", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "faultNext", "provider": "system", "operation": "allocate", "code": "allocationExhausted" },
+        { "op": "rehome", "source": "draft", "destination": "snapshot", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationExhausted", "operation": 2 }
+    },
+    {
+      "id": "A0-abort-provider-cannot-satisfy-fallible-api",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "bind", "provider": "aborter", "requirement": { "fallible": true } }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorProfileRequirementUnsatisfied", "operation": 0 }
+    },
+    {
+      "id": "A0-non-power-two-alignment-rejected",
+      "references": ["layout"],
+      "decisions": ["W-957"],
+      "operations": [
+        { "op": "allocate", "block": "bad", "provider": "system", "size": 8, "alignment": 3, "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAllocationLayout", "operation": 0 }
+    },
+    {
+      "id": "A0-unsupported-alignment-rejected",
+      "references": ["layout", "profile"],
+      "decisions": ["W-957", "W-959"],
+      "operations": [
+        { "op": "allocate", "block": "bad", "provider": "local", "size": 8, "alignment": 128, "domain": "kitchen" }
+      ],
+      "expected": { "status": "rejected", "code": "unsupportedAllocationAlignment", "operation": 0 }
+    },
+    {
+      "id": "A0-provider-size-limit-rejected",
+      "references": ["layout", "profile"],
+      "decisions": ["W-957", "W-959"],
+      "operations": [
+        { "op": "allocate", "block": "bad", "provider": "fixed", "size": 129, "alignment": 8, "domain": "audio" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationSizeExceeded", "operation": 0 }
+    },
+    {
+      "id": "A0-allocation-domain-violation-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "allocate", "block": "bad", "provider": "local", "size": 8, "alignment": 8, "domain": "network" }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorAllocationDomainViolation", "operation": 0 }
+    },
+    {
+      "id": "A0-origin-mismatch-rejected",
+      "references": ["profile", "reclamation"],
+      "decisions": ["W-957", "W-960"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "deallocate", "block": "dish", "provider": "local", "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationOriginMismatch", "operation": 1 }
+    },
+    {
+      "id": "A0-zero-storage-origin-mismatch-rejected",
+      "references": ["layout", "profile"],
+      "decisions": ["W-957"],
+      "operations": [
+        { "op": "allocate", "block": "empty", "provider": "system", "size": 0, "alignment": 8, "domain": "process" },
+        { "op": "deallocate", "block": "empty", "provider": "local", "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationOriginMismatch", "operation": 1 }
+    },
+    {
+      "id": "A0-double-deallocation-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "deallocate", "block": "dish", "provider": "local", "domain": "kitchen" },
+        { "op": "deallocate", "block": "dish", "provider": "local", "domain": "kitchen" }
+      ],
+      "expected": { "status": "rejected", "code": "rawBlockNotLive", "operation": 2 }
+    },
+    {
+      "id": "A0-deallocation-domain-violation-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "deallocate", "block": "dish", "provider": "local", "domain": "network" }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorDeallocationDomainViolation", "operation": 1 }
+    },
+    {
+      "id": "A0-resize-with-loan-rejected",
+      "references": ["resize"],
+      "decisions": ["W-958"],
+      "operations": [
+        { "op": "allocate", "block": "menu", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "beginLoan", "block": "menu" },
+        { "op": "resize", "block": "menu", "size": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "relocationWithActiveLoan", "operation": 2 }
+    },
+    {
+      "id": "A0-pin-with-loan-rejected",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "beginLoan", "block": "callback" },
+        { "op": "pin", "block": "callback" }
+      ],
+      "expected": { "status": "rejected", "code": "pinWithActiveLoan", "operation": 2 }
+    },
+    {
+      "id": "A0-resize-pinned-storage-rejected",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "pin", "block": "callback" },
+        { "op": "resize", "block": "callback", "size": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "relocationOfPinnedStorage", "operation": 2 }
+    },
+    {
+      "id": "A0-resize-with-address-lease-rejected",
+      "references": ["resize"],
+      "decisions": ["W-958", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "pin", "block": "callback" },
+        { "op": "beginAddressLease", "block": "callback" },
+        { "op": "resize", "block": "callback", "size": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "relocationWithAddressLease", "operation": 3 }
+    },
+    {
+      "id": "A0-local-origin-transfer-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "moveDomain", "block": "dish", "domain": "network" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationOriginNotTransferable", "operation": 1 }
+    },
+    {
+      "id": "A0-domain-transfer-with-loan-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "allocate", "block": "packet", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "beginLoan", "block": "packet" },
+        { "op": "moveDomain", "block": "packet", "domain": "network" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationDomainMoveWithActiveLoan", "operation": 2 }
+    },
+    {
+      "id": "A0-domain-transfer-with-address-lease-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "pin", "block": "callback" },
+        { "op": "beginAddressLease", "block": "callback" },
+        { "op": "moveDomain", "block": "callback", "domain": "network" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationDomainMoveWithAddressLease", "operation": 3 }
+    },
+    {
+      "id": "A0-resize-without-fallback-rejected",
+      "references": ["resize"],
+      "decisions": ["W-958"],
+      "operations": [
+        { "op": "allocate", "block": "samples", "provider": "fixed", "size": 8, "alignment": 8, "domain": "audio" },
+        { "op": "resize", "block": "samples", "size": 16 }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorResizeUnsupported", "operation": 1 }
+    },
+    {
+      "id": "A0-zero-storage-growth-failure-preserves-state",
+      "references": ["layout", "resize"],
+      "decisions": ["W-957", "W-958", "W-962"],
+      "operations": [
+        { "op": "allocate", "block": "frames", "provider": "fixed", "size": 0, "alignment": 8, "domain": "audio" },
+        { "op": "faultNext", "provider": "fixed", "operation": "allocate", "code": "allocationExhausted" },
+        { "op": "resize", "block": "frames", "size": 8, "tailInitialization": "zeroed" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationExhausted", "operation": 2 }
+    },
+    {
+      "id": "A0-allocation-failure-creates-no-block",
+      "references": ["profile"],
+      "decisions": ["W-957", "W-962"],
+      "operations": [
+        { "op": "faultNext", "provider": "system", "operation": "allocate", "code": "allocationExhausted" },
+        { "op": "allocate", "block": "menu", "provider": "system", "size": 8, "alignment": 8, "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "allocationExhausted", "operation": 1 }
+    },
+    {
+      "id": "A0-bulk-close-with-loan-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "frame", "provider": "fixed", "size": 16, "alignment": 8, "domain": "audio" },
+        { "op": "beginLoan", "block": "frame" },
+        { "op": "bulkClose", "provider": "fixed", "dropsDrained": true }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorBulkCloseNotDrained", "operation": 2 }
+    },
+    {
+      "id": "A0-bulk-close-before-drop-drain-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "frame", "provider": "fixed", "size": 16, "alignment": 8, "domain": "audio" },
+        { "op": "bulkClose", "provider": "fixed" }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorBulkCloseNotDrained", "operation": 1 }
+    },
+    {
+      "id": "A0-bulk-close-unsupported-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "bulkClose", "provider": "system", "dropsDrained": true }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorBulkReleaseUnsupported", "operation": 0 }
+    },
+    {
+      "id": "A0-progress-requirement-rejected",
+      "references": ["profile"],
+      "decisions": ["W-959"],
+      "operations": [
+        { "op": "requireProgress", "provider": "system", "operation": "allocate", "accepted": ["bounded", "waitFree"] }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorProgressRequirementUnsatisfied", "operation": 0 }
+    },
+    {
+      "id": "A0-write-after-retirement-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "local", "size": 8, "alignment": 8, "domain": "kitchen" },
+        { "op": "deallocate", "block": "dish", "provider": "local", "domain": "kitchen" },
+        { "op": "write", "block": "dish", "index": 0, "value": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "rawBlockNotLive", "operation": 2 }
+    },
+    {
+      "id": "A0-address-lease-without-pin-rejected",
+      "references": ["profile"],
+      "decisions": ["W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "beginAddressLease", "block": "callback" }
+      ],
+      "expected": { "status": "rejected", "code": "addressLeaseRequiresPinnedStorage", "operation": 1 }
+    },
+    {
+      "id": "A0-deallocate-with-address-lease-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960", "W-961"],
+      "operations": [
+        { "op": "allocate", "block": "callback", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "pin", "block": "callback" },
+        { "op": "beginAddressLease", "block": "callback" },
+        { "op": "deallocate", "block": "callback", "provider": "system", "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "deallocateWithAddressLease", "operation": 3 }
+    },
+    {
+      "id": "A0-duplicate-receipt-name-rejected",
+      "references": ["layout"],
+      "decisions": ["W-957"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "allocate", "block": "dish", "provider": "system", "size": 8, "alignment": 8, "domain": "process" }
+      ],
+      "expected": { "status": "rejected", "code": "duplicateRawBlock", "operation": 1 }
+    },
+    {
+      "id": "A0-resize-invalid-layout-preserves-block",
+      "references": ["layout", "resize"],
+      "decisions": ["W-957", "W-958"],
+      "operations": [
+        { "op": "allocate", "block": "dish", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "write", "block": "dish", "index": 0, "value": 12 },
+        { "op": "resize", "block": "dish", "size": 16, "alignment": 3 }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAllocationLayout", "operation": 2 }
+    },
+    {
+      "id": "A0-reclaim-live-block-rejected",
+      "references": ["reclamation"],
+      "decisions": ["W-960"],
+      "operations": [
+        { "op": "allocate", "block": "node", "provider": "system", "size": 8, "alignment": 8, "domain": "process" },
+        { "op": "reclaim", "block": "node" }
+      ],
+      "expected": { "status": "rejected", "code": "reclaimRequiresRetiredBlock", "operation": 1 }
+    },
+    {
+      "id": "A0-closed-provider-rejects-new-allocation",
+      "references": ["profile", "reclamation"],
+      "decisions": ["W-959", "W-960"],
+      "operations": [
+        { "op": "allocate", "block": "left", "provider": "fixed", "size": 8, "alignment": 8, "domain": "audio" },
+        { "op": "bulkClose", "provider": "fixed", "dropsDrained": true },
+        { "op": "allocate", "block": "right", "provider": "fixed", "size": 8, "alignment": 8, "domain": "audio" }
+      ],
+      "expected": { "status": "rejected", "code": "allocatorProviderClosed", "operation": 2 }
+    }
+  ]
+}

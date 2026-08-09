@@ -12,6 +12,7 @@
     "tooling:install": "bun ci --cwd tooling/tree-sitter-w",
     "check": "bun run --cwd tooling/tree-sitter-w check",
     "check:abi": "bun tooling/check-layout-abi-cases.mjs",
+    "check:allocation": "bun test tooling/allocation-reference.test.mjs && bun tooling/check-allocation-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",

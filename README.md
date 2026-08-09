@@ -67,6 +67,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Forma integrada da linguagem | **Forma vigente** para avaliação |
 | Alternativas | preservadas por decisão em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
+| Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
 | Formatter, frontend, HIR e MLIR | planejados, não implementados |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

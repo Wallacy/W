@@ -25,6 +25,7 @@
     "check:wire:c": "bun test ../wire-reference-c.test.mjs",
     "check:hir": "bun test ../hir-memory-reference.test.mjs",
     "check:memory-transitions": "bun ../check-memory-transition-cases.mjs",
+    "check:allocation": "bun test ../allocation-reference.test.mjs && bun ../check-allocation-cases.mjs",
     "check:layout-abi-model": "bun test ../layout-abi-reference.test.mjs",
     "check:layout-abi": "bun ../check-layout-abi-cases.mjs",
     "check:execution-model": "bun test ../execution-concurrency-reference.test.mjs",
@@ -45,8 +46,8 @@
     "check:reader": "bun -e \"const source = await Bun.file('../design-slice.mjs').text(); new Bun.Transpiler({ loader: 'js' }).transformSync(source);\"",
     "check:links": "bun ../check-markdown-links.mjs",
     "check:design": "bun ../check-design-examples.mjs",
-    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:memory-transitions && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:boundary-effects && bun run check:package-releases && bun run check:std-api && bun run check:wmeta && bun run check:substitutions && bun run check:freeze-audit && bun run check:substitution-surface && bun run check:study-bundles && bun run check:index",
-    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:memory-transitions && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:boundary-effects && bun run check:package-releases && bun run check:std-api && bun run check:wmeta && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:freeze-audit && bun run check:substitution-surface && bun run check:study-bundles && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index"
+    "check:docs": "bun run check:reader && bun run check:links && bun run check:design && bun run check:memory-transitions && bun run check:allocation && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:boundary-effects && bun run check:package-releases && bun run check:std-api && bun run check:wmeta && bun run check:substitutions && bun run check:freeze-audit && bun run check:substitution-surface && bun run check:study-bundles && bun run check:index",
+    "check": "bun run generate && bun run check:wire && bun run check:wire:c && bun run check:hir && bun run check:memory-transitions && bun run check:allocation && bun run check:layout-abi-model && bun run check:layout-abi && bun run check:execution-model && bun run check:execution-concurrency && bun run check:boundary-effects && bun run check:package-releases && bun run check:std-api && bun run check:wmeta && bun run check:semantic-cases && bun run check:formatter-cases && bun run check:substitutions && bun run check:freeze-audit && bun run check:substitution-surface && bun run check:study-bundles && bun run check:study-oracles && bun run test && bun run parse:reference && bun run parse:platforms && bun run parse:packages && bun run parse:deployments && bun run parse:std && bun run parse:fixture && bun run parse:studies && bun run check:links && bun run check:design && bun run check:index"
   },
   "devDependencies": {
     "tree-sitter-cli": "0.26.11"
