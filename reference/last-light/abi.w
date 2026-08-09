@@ -22,6 +22,37 @@ export foreign c {
     kind: c.uint
     score: c.float
   }
+
+  // This is a call-scoped input view. `data` is valid for `length` bytes only
+  // during the call. The callee cannot retain it.
+  struct ll_horizon_bytes_v1 {
+    data: c.ptr<c.uchar>
+    length: c.size
+  }
+
+  // Any API that returns this carrier must also publish its matching destroy
+  // symbol. A C caller never sends `data` to its ambient `free`.
+  struct ll_horizon_owned_bytes_v1 {
+    context: c.ptr<c.void>
+    data: c.ptr<c.uchar>
+    length: c.size
+    capacity: c.size
+  }
+}
+
+// `data` is borrowed for this call. The façade exports no hidden owner or
+// runtime context, and the C island cannot retain the pointer.
+export unsafe fn<abi: .c> ll_horizon_checksum_v1(
+  data: c.ptr<c.uchar>,
+  size: c.size,
+): c.uint {
+  var hash: c.uint = 2_166_136_261
+  var index: c.size = 0
+  while index < size {
+    hash = (hash ^ data[index]) * 16_777_619
+    index += 1
+  }
+  return hash
 }
 
 export unsafe fn<abi: .c> ll_horizon_classify_v1(

@@ -1,0 +1,893 @@
+{
+  "$schema": "w-layout-abi-cases-l0",
+  "status": "design-oracle-input-l0",
+  "machine": "layout-abi-machine-l0",
+  "fixtures": {
+    "artifacts": {
+      "consumer": {
+        "schema": "w-abi-logical-note-l0-v1",
+        "requiredFeatures": ["exact-link-v1", "representation-map-v1", "semantic-import-key-v1"],
+        "wAbi": {
+          "abiRevision": "w-abi-1",
+          "producer": "w-abi-producer-1",
+          "target": "x86_64-unknown-linux-gnu",
+          "dataLayout": "e-p:64:64-i64:64-n8:16:32:64-S128",
+          "callingConventionRevision": "w-call-1",
+          "representationPolicyRevision": "portable-1",
+          "runtimeAbiRevisions": { "drop": "1", "witness": "1" },
+          "panicModel": "abort-process",
+          "cleanupModel": "w-cleanup-1",
+          "hardeningAbiFacts": []
+        },
+        "semanticInterfaceKey": "if:observatory-consumer-v7",
+        "recipeDigest": "recipe:consumer-v3",
+        "representations": [],
+        "symbols": [],
+        "imports": [
+          {
+            "id": "horizon.classify",
+            "symbol": "restaurant.horizon::classify",
+            "providerInterfaceKey": "if:horizon-provider-v1",
+            "semanticSignature": "semantic:classify-v1",
+            "physicalSignature": "physical:classify-sret-v1",
+            "representations": {
+              "restaurant.horizon.HorizonStatus": "rep:horizon-status-v1"
+            }
+          }
+        ]
+      },
+      "provider": {
+        "schema": "w-abi-logical-note-l0-v1",
+        "requiredFeatures": ["exact-link-v1", "representation-map-v1", "semantic-import-key-v1"],
+        "wAbi": {
+          "abiRevision": "w-abi-1",
+          "producer": "w-abi-producer-1",
+          "target": "x86_64-unknown-linux-gnu",
+          "dataLayout": "e-p:64:64-i64:64-n8:16:32:64-S128",
+          "callingConventionRevision": "w-call-1",
+          "representationPolicyRevision": "portable-1",
+          "runtimeAbiRevisions": { "drop": "1", "witness": "1" },
+          "panicModel": "abort-process",
+          "cleanupModel": "w-cleanup-1",
+          "hardeningAbiFacts": []
+        },
+        "semanticInterfaceKey": "if:horizon-provider-v1",
+        "recipeDigest": "recipe:provider-v2",
+        "representations": [
+          {
+            "id": "restaurant.horizon.HorizonStatus",
+            "fingerprint": "rep:horizon-status-v1",
+            "fields": []
+          }
+        ],
+        "symbols": [
+          {
+            "name": "restaurant.horizon::classify",
+            "boundary": "wExact",
+            "semanticSignature": "semantic:classify-v1",
+            "physicalSignature": "physical:classify-sret-v1",
+            "representations": ["restaurant.horizon.HorizonStatus"]
+          }
+        ],
+        "imports": []
+      },
+      "missingNote": null
+    },
+    "callShapes": {
+      "floatDirect": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "zero" },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32 }],
+        "hidden": []
+      },
+      "floatDirectSame": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "zero" },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32 }],
+        "hidden": []
+      },
+      "integerDirect": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "zero" },
+        "parameters": [{ "mode": "direct", "class": "integer", "bits": 32 }],
+        "hidden": []
+      },
+      "signExtended": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "sign" },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32 }],
+        "hidden": []
+      },
+      "indirectResult": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "sret", "class": "memory", "bits": 32, "alignment": 4 },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32 }],
+        "hidden": [{ "kind": "sret", "addressSpace": "default" }]
+      },
+      "foreignAddressSpace": {
+        "callingConvention": "w-v1",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "zero" },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32, "addressSpace": "device.global" }],
+        "hidden": []
+      },
+      "cConvention": {
+        "callingConvention": "c",
+        "result": { "mode": "direct", "class": "integer", "bits": 32, "extension": "zero" },
+        "parameters": [{ "mode": "direct", "class": "float", "bits": 32 }],
+        "hidden": []
+      }
+    },
+    "cFacades": {
+      "checksum": {
+        "unsafe": true,
+        "abi": "c",
+        "generic": false,
+        "capture": false,
+        "async": false,
+        "throws": false,
+        "panic": "forbid",
+        "panicFree": true,
+        "runtime": "none",
+        "hiddenRuntimeContext": false,
+        "parameters": [
+          {
+            "kind": "pointer",
+            "pointee": "c.uchar",
+            "ownership": "borrowed",
+            "retention": "call",
+            "sequence": true,
+            "extentParameter": "size"
+          },
+          { "kind": "scalar", "type": "c.size" }
+        ],
+        "result": { "kind": "scalar", "type": "c.uint" }
+      },
+      "ownedSnapshot": {
+        "unsafe": true,
+        "abi": "c",
+        "generic": false,
+        "capture": false,
+        "async": false,
+        "throws": false,
+        "panic": "abortProcess",
+        "panicFree": false,
+        "runtime": "none",
+        "hiddenRuntimeContext": false,
+        "parameters": [],
+        "result": {
+          "kind": "pointer",
+          "pointee": "ll_snapshot",
+          "ownership": "owned",
+          "callerFree": false,
+          "destroySymbol": "ll_snapshot_destroy_v1"
+        }
+      },
+      "persistentCallback": {
+        "unsafe": true,
+        "abi": "c",
+        "generic": false,
+        "capture": false,
+        "async": false,
+        "throws": false,
+        "panic": "forbid",
+        "panicFree": true,
+        "runtime": "none",
+        "hiddenRuntimeContext": false,
+        "parameters": [
+          {
+            "kind": "callback",
+            "retention": "persistent",
+            "context": true,
+            "pinnedLease": true,
+            "destroy": true,
+            "unregister": true
+          }
+        ],
+        "result": { "kind": "void" }
+      },
+      "explicitContext": {
+        "unsafe": true,
+        "abi": "c",
+        "generic": false,
+        "capture": false,
+        "async": false,
+        "throws": false,
+        "panic": "forbid",
+        "panicFree": true,
+        "runtime": "explicitContext",
+        "createContext": "ll_context_create_v1",
+        "destroyContext": "ll_context_destroy_v1",
+        "contextual": true,
+        "hiddenRuntimeContext": false,
+        "parameters": [
+          { "kind": "pointer", "pointee": "ll_context", "role": "runtimeContext" }
+        ],
+        "result": { "kind": "scalar", "type": "c.int" }
+      },
+      "validatedEnum": {
+        "unsafe": true,
+        "abi": "c",
+        "generic": false,
+        "capture": false,
+        "async": false,
+        "throws": false,
+        "panic": "forbid",
+        "panicFree": true,
+        "runtime": "none",
+        "hiddenRuntimeContext": false,
+        "parameters": [{ "kind": "validatedInteger", "type": "c.uint", "validated": true }],
+        "result": { "kind": "void" }
+      }
+    },
+    "cRecords": {
+      "naturalResult": {
+        "kind": "struct",
+        "origin": "generatedFacade",
+        "target": "x86_64-unknown-linux-gnu",
+        "layoutDigest": "layout:ll-horizon-result-v1",
+        "size": 12,
+        "alignment": 4,
+        "fields": [
+          { "name": "error", "offset": 0, "size": 4, "alignment": 4, "borrowable": true },
+          { "name": "kind", "offset": 4, "size": 4, "alignment": 4, "borrowable": true },
+          { "name": "score", "offset": 8, "size": 4, "alignment": 4, "borrowable": true }
+        ]
+      },
+      "packedHeader": {
+        "kind": "struct",
+        "origin": "headerImport",
+        "target": "x86_64-unknown-linux-gnu",
+        "layoutDigest": "layout:packed-probe-v1",
+        "size": 5,
+        "alignment": 1,
+        "fields": [
+          { "name": "tag", "offset": 0, "size": 1, "alignment": 1, "borrowable": true },
+          { "name": "value", "offset": 1, "size": 4, "alignment": 4, "borrowable": false }
+        ]
+      },
+      "foreignUnion": {
+        "kind": "union",
+        "origin": "headerImport",
+        "target": "x86_64-unknown-linux-gnu",
+        "layoutDigest": "layout:union-v1",
+        "size": 8,
+        "alignment": 8,
+        "fields": []
+      }
+    },
+    "boundaryValues": {
+      "internalNiche": { "boundary": "internal", "carrier": "wNiche" },
+      "wExactFingerprint": { "boundary": "wExact", "representationFingerprint": "rep:horizon-status-v1" },
+      "cRecord": { "boundary": "foreignC", "carrier": "cRecord" },
+      "wireSchema": { "boundary": "wire", "schemaDigest": "wire:horizon-v1", "containsPointer": false },
+      "componentSchema": { "boundary": "component", "schemaDigest": "component:horizon-v1", "containsPointer": false }
+    },
+    "foreignRecoveries": {
+      "rawPointer": { "source": "cPointer", "target": "rawPointer" },
+      "safeBorrow": {
+        "source": "cPointer",
+        "target": "safeBorrow",
+        "ownerProof": true,
+        "lifetimeProof": true,
+        "boundsProof": true,
+        "alignmentProof": true,
+        "noEscape": true
+      },
+      "closedEnum": { "source": "cInteger", "target": "closedEnum", "validated": true },
+      "refinement": { "source": "cInteger", "target": "refinement", "validated": true }
+    },
+    "headerPairs": {
+      "horizon": {
+        "headerTarget": "x86_64-unknown-linux-gnu",
+        "libraryTarget": "x86_64-unknown-linux-gnu",
+        "headerDigest": "header:horizon-v1",
+        "indexedHeaderDigest": "header:horizon-v1",
+        "libraryDigest": "library:horizon-v1",
+        "indexedLibraryDigest": "library:horizon-v1",
+        "headerHasTimestamp": false,
+        "headerHasLocalPath": false
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "L0-w-exact-import-expectation",
+      "decisions": ["W-607", "W-941"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "importMatchesProvider" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider" },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-consumer-own-interface-can-differ",
+      "decisions": ["W-172", "W-941"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiImportExpectation" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer", "patch": { "semanticInterfaceKey": "if:consumer-unrelated-v99" } },
+        { "op": "registerArtifact", "fixture": "provider" },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-provider-interface-mismatch",
+      "decisions": ["W-172", "W-941"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "providerInterfaceKey" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider", "patch": { "semanticInterfaceKey": "if:horizon-provider-v2" } },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "rejected", "code": "providerInterfaceMismatch", "operation": 2 }
+    },
+    {
+      "id": "L0-target-mismatch",
+      "decisions": ["W-607", "W-611", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wExact" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider", "patch": { "wAbi": { "target": "x86_64-pc-windows-msvc" } } },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "rejected", "code": "abiKeyMismatch", "operation": 2 }
+    },
+    {
+      "id": "L0-data-layout-mismatch",
+      "decisions": ["W-029", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wFingerprint" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider", "patch": { "wAbi": { "dataLayout": "E-p:64:64-i64:64-n32:64-S128" } } },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "rejected", "code": "abiKeyMismatch", "operation": 2 }
+    },
+    {
+      "id": "L0-hardening-abi-mismatch",
+      "decisions": ["W-344", "W-942"],
+      "references": [{ "path": "../reference/last-light/representation_oracle.w", "symbol": "baselineAllows" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider", "patch": { "wAbi": { "hardeningAbiFacts": ["shadow-call-stack-v1"] } } },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "rejected", "code": "abiKeyMismatch", "operation": 2 }
+    },
+    {
+      "id": "L0-recipe-and-runtime-provider-differ",
+      "decisions": ["W-344", "W-616", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "importMatchesProvider" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        { "op": "registerArtifact", "fixture": "provider", "patch": { "recipeDigest": "recipe:mimalloc-provider-v9", "runtimeRequirements": ["allocator.mimalloc@2"] } },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-private-representation-difference",
+      "decisions": ["W-343", "W-344", "W-942"],
+      "references": [{ "path": "../reference/last-light/representation_oracle.w", "symbol": "RepresentationChoice" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        {
+          "op": "registerArtifact",
+          "fixture": "provider",
+          "patch": {
+            "representations": [
+              { "id": "restaurant.horizon.HorizonStatus", "fingerprint": "rep:horizon-status-v1", "fields": [] },
+              { "id": "restaurant.horizon.PrivateCache", "fingerprint": "rep:private-cache-v9", "fields": [] }
+            ]
+          }
+        },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-shared-representation-mismatch",
+      "decisions": ["W-343", "W-344", "W-942"],
+      "references": [{ "path": "../reference/last-light/representation_oracle.w", "symbol": "wExact" }],
+      "operations": [
+        { "op": "registerArtifact", "fixture": "consumer" },
+        {
+          "op": "registerArtifact",
+          "fixture": "provider",
+          "patch": {
+            "representations": [
+              { "id": "restaurant.horizon.HorizonStatus", "fingerprint": "rep:horizon-status-v2", "fields": [] }
+            ]
+          }
+        },
+        { "op": "linkWExact", "consumer": "consumer", "provider": "provider", "importId": "horizon.classify" }
+      ],
+      "expected": { "status": "rejected", "code": "representationMismatch", "operation": 2 }
+    },
+    {
+      "id": "L0-missing-note",
+      "decisions": ["W-630", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiArtifactChoice" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "missingNote" }],
+      "expected": { "status": "rejected", "code": "missingAbiNote", "operation": 0 }
+    },
+    {
+      "id": "L0-unknown-note-schema",
+      "decisions": ["W-630", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiArtifactChoice" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "consumer", "patch": { "schema": "w-abi-logical-note-l0-v2" } }],
+      "expected": { "status": "rejected", "code": "unsupportedAbiNoteSchema", "operation": 0 }
+    },
+    {
+      "id": "L0-unknown-required-feature",
+      "decisions": ["W-630", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiArtifactChoice" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "consumer", "patch": { "requiredFeatures": ["exact-link-v1", "future-layout-magic-v9"] } }],
+      "expected": { "status": "rejected", "code": "unknownRequiredAbiFeature", "operation": 0 }
+    },
+    {
+      "id": "L0-duplicate-required-feature",
+      "decisions": ["W-630", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiArtifactChoice" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "consumer", "patch": { "requiredFeatures": ["exact-link-v1", "exact-link-v1", "representation-map-v1", "semantic-import-key-v1"] } }],
+      "expected": { "status": "rejected", "code": "duplicateRequiredAbiFeature", "operation": 0 }
+    },
+    {
+      "id": "L0-malformed-import-contract",
+      "decisions": ["W-941", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiImportExpectation" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "consumer", "patch": { "imports": [{ "id": "horizon.classify", "symbol": "restaurant.horizon::classify", "providerInterfaceKey": "if:horizon-provider-v1", "semanticSignature": "semantic:classify-v1", "representations": {} }] } }],
+      "expected": { "status": "rejected", "code": "malformedAbiNote", "operation": 0 }
+    },
+    {
+      "id": "L0-note-reader-budget",
+      "decisions": ["W-630", "W-946"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "AbiImportExpectation" }],
+      "operations": [{ "op": "registerArtifact", "fixture": "consumer", "limits": { "noteBytes": 64 } }],
+      "expected": { "status": "rejected", "code": "abiReaderLimitExceeded", "operation": 0 }
+    },
+    {
+      "id": "L0-physical-call-exact",
+      "decisions": ["W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "physicalSignature" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "floatDirectSame" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-same-size-different-register-class",
+      "decisions": ["W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "physicalSignature" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "integerDirect" }],
+      "expected": { "status": "rejected", "code": "physicalCallMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-integer-extension-mismatch",
+      "decisions": ["W-942"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "signExtended" }],
+      "expected": { "status": "rejected", "code": "physicalCallMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-direct-versus-sret",
+      "decisions": ["W-942"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "indirectResult" }],
+      "expected": { "status": "rejected", "code": "physicalCallMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-address-space-call-mismatch",
+      "decisions": ["W-107", "W-942"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "foreignBellAddress" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "foreignAddressSpace" }],
+      "expected": { "status": "rejected", "code": "physicalCallMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-calling-convention-mismatch",
+      "decisions": ["W-071", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "comparePhysicalCalls", "caller": "floatDirect", "callee": "cConvention" }],
+      "expected": { "status": "rejected", "code": "physicalCallMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-recovery-prefers-exact",
+      "decisions": ["W-611", "W-947"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "chooseAbiArtifact" }],
+      "operations": [{ "op": "chooseArtifact", "exactArtifact": true, "sourceAvailable": true, "declaredBoundary": true, "boundaryArtifact": true }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-recovery-rebuilds-source",
+      "decisions": ["W-611", "W-947"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "rebuildSource" }],
+      "operations": [{ "op": "chooseArtifact", "exactArtifact": false, "sourceAvailable": true, "declaredBoundary": true, "boundaryArtifact": true }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-recovery-uses-declared-boundary",
+      "decisions": ["W-607", "W-611", "W-947"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "canonicalBoundary" }],
+      "operations": [{ "op": "chooseArtifact", "exactArtifact": false, "sourceAvailable": false, "declaredBoundary": true, "boundaryArtifact": true }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-recovery-rejects-implicit-boundary",
+      "decisions": ["W-611", "W-947"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "reject" }],
+      "operations": [{ "op": "chooseArtifact", "exactArtifact": false, "sourceAvailable": false, "declaredBoundary": false, "boundaryArtifact": true }],
+      "expected": { "status": "rejected", "code": "implicitBoundaryFallback", "operation": 0 }
+    },
+    {
+      "id": "L0-recovery-has-no-compatible-artifact",
+      "decisions": ["W-611", "W-947"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "reject" }],
+      "operations": [{ "op": "chooseArtifact", "exactArtifact": false, "sourceAvailable": false, "declaredBoundary": true, "boundaryArtifact": false }],
+      "expected": { "status": "rejected", "code": "noCompatibleAbiArtifact", "operation": 0 }
+    },
+    {
+      "id": "L0-c-facade-call-scoped-view",
+      "decisions": ["W-071", "W-421", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_checksum_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-c-facade-requires-unsafe",
+      "decisions": ["W-071", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_checksum_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "unsafe": false } }],
+      "expected": { "status": "rejected", "code": "cFacadeRequiresUnsafe", "operation": 0 }
+    },
+    {
+      "id": "L0-c-facade-rejects-async",
+      "decisions": ["W-071", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "async": true } }],
+      "expected": { "status": "rejected", "code": "cFacadeQualifierUnsupported", "operation": 0 }
+    },
+    {
+      "id": "L0-c-facade-rejects-throws",
+      "decisions": ["W-071", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "throws": true } }],
+      "expected": { "status": "rejected", "code": "cFacadeQualifierUnsupported", "operation": 0 }
+    },
+    {
+      "id": "L0-c-facade-rejects-w-string-carrier",
+      "decisions": ["W-421", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "parameters": [{ "kind": "wValue", "type": "String" }] } }],
+      "expected": { "status": "rejected", "code": "cCarrierRequired", "operation": 0 }
+    },
+    {
+      "id": "L0-borrowed-c-carrier-cannot-persist",
+      "decisions": ["W-421", "W-915", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "parameters": [{ "kind": "pointer", "pointee": "c.uchar", "ownership": "borrowed", "retention": "persistent", "sequence": true, "extentParameter": "size" }] } }],
+      "expected": { "status": "rejected", "code": "borrowedCarrierMayEscape", "operation": 0 }
+    },
+    {
+      "id": "L0-borrowed-sequence-needs-extent",
+      "decisions": ["W-421", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "parameters": [{ "kind": "pointer", "pointee": "c.uchar", "ownership": "borrowed", "retention": "call", "sequence": true }] } }],
+      "expected": { "status": "rejected", "code": "borrowedCarrierNeedsExtent", "operation": 0 }
+    },
+    {
+      "id": "L0-returned-borrow-stays-raw",
+      "decisions": ["W-421", "W-915", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "parameters": [], "result": { "kind": "pointer", "pointee": "c.uchar", "ownership": "borrowed", "retention": "call" } } }],
+      "expected": { "status": "rejected", "code": "borrowedCarrierMayEscape", "operation": 0 }
+    },
+    {
+      "id": "L0-owned-c-carrier-has-destroy",
+      "decisions": ["W-108", "W-411", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_owned_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-owned-c-carrier-needs-destroy",
+      "decisions": ["W-108", "W-411", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_owned_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot", "patch": { "result": { "destroySymbol": "" } } }],
+      "expected": { "status": "rejected", "code": "ownedCarrierNeedsDestroy", "operation": 0 }
+    },
+    {
+      "id": "L0-owned-c-carrier-rejects-caller-free",
+      "decisions": ["W-108", "W-411", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_owned_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot", "patch": { "result": { "callerFree": true } } }],
+      "expected": { "status": "rejected", "code": "callerFreeForbidden", "operation": 0 }
+    },
+    {
+      "id": "L0-owned-c-carrier-context-drop-pair",
+      "decisions": ["W-108", "W-411", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_owned_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot", "patch": { "result": { "destroySymbol": "", "dropCallback": true, "dropContext": true } } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-owned-c-carrier-drop-needs-context",
+      "decisions": ["W-108", "W-411", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_owned_bytes_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot", "patch": { "result": { "destroySymbol": "", "dropCallback": true, "dropContext": false } } }],
+      "expected": { "status": "rejected", "code": "ownedCarrierNeedsDestroy", "operation": 0 }
+    },
+    {
+      "id": "L0-persistent-callback-lease",
+      "decisions": ["W-105", "W-915", "W-943"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchClosingBell" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "persistentCallback" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-persistent-callback-needs-unregister",
+      "decisions": ["W-105", "W-915", "W-943"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "ll_bell_unsubscribe" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "persistentCallback", "patch": { "parameters": [{ "kind": "callback", "retention": "persistent", "context": true, "pinnedLease": true, "destroy": true, "unregister": false }] } }],
+      "expected": { "status": "rejected", "code": "callbackLeaseIncomplete", "operation": 0 }
+    },
+    {
+      "id": "L0-explicit-runtime-context",
+      "decisions": ["W-617", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "explicitContext" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-explicit-runtime-context-needs-parameter",
+      "decisions": ["W-617", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "explicitContext", "patch": { "parameters": [] } }],
+      "expected": { "status": "rejected", "code": "cFacadeRuntimeContextInvalid", "operation": 0 }
+    },
+    {
+      "id": "L0-runtime-none-rejects-context-parameter",
+      "decisions": ["W-617", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "parameters": [{ "kind": "pointer", "pointee": "ll_context", "role": "runtimeContext" }] } }],
+      "expected": { "status": "rejected", "code": "cFacadeRuntimeContextInvalid", "operation": 0 }
+    },
+    {
+      "id": "L0-forbid-panic-needs-proof",
+      "decisions": ["W-252", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "checksum", "patch": { "panicFree": false } }],
+      "expected": { "status": "rejected", "code": "cFacadePanicPolicyInvalid", "operation": 0 }
+    },
+    {
+      "id": "L0-abort-panic-policy",
+      "decisions": ["W-252", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "ownedSnapshot" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-c-enum-carrier-is-validated-integer",
+      "decisions": ["W-242", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "LL_HORIZON_STABLE_V1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "validatedEnum" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-c-enum-cannot-skip-validation",
+      "decisions": ["W-242", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "LL_HORIZON_STABLE_V1" }],
+      "operations": [{ "op": "validateCFacade", "fixture": "validatedEnum", "patch": { "parameters": [{ "kind": "validatedInteger", "type": "c.uint", "validated": false }] } }],
+      "expected": { "status": "rejected", "code": "foreignValueNeedsValidation", "operation": 0 }
+    },
+    {
+      "id": "L0-natural-c-record",
+      "decisions": ["W-029", "W-631", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "naturalResult" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-imported-packed-record-by-value",
+      "decisions": ["W-029", "W-944"],
+      "references": [{ "path": "../reference/last-light/hardware.w", "symbol": "ll_sample" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "packedHeader" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-unaligned-field-cannot-borrow",
+      "decisions": ["W-029", "W-915", "W-944"],
+      "references": [{ "path": "../reference/last-light/hardware.w", "symbol": "ll_sample" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "packedHeader", "patch": { "fields": [{ "name": "tag", "offset": 0, "size": 1, "alignment": 1, "borrowable": true }, { "name": "value", "offset": 1, "size": 4, "alignment": 4, "borrowable": true }] } }],
+      "expected": { "status": "rejected", "code": "unalignedBorrowForbidden", "operation": 0 }
+    },
+    {
+      "id": "L0-generated-c-record-must-be-natural",
+      "decisions": ["W-029", "W-631", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "packedHeader", "patch": { "origin": "generatedFacade" } }],
+      "expected": { "status": "rejected", "code": "generatedCRecordMustBeNatural", "operation": 0 }
+    },
+    {
+      "id": "L0-c-record-rejects-invalid-field-alignment",
+      "decisions": ["W-029", "W-944"],
+      "references": [{ "path": "../reference/last-light/hardware.w", "symbol": "ll_sample" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "packedHeader", "patch": { "fields": [{ "name": "tag", "offset": 0, "size": 1, "alignment": 1, "borrowable": true }, { "name": "value", "offset": 1, "size": 4, "alignment": 0, "borrowable": false }] } }],
+      "expected": { "status": "rejected", "code": "malformedCRecord", "operation": 0 }
+    },
+    {
+      "id": "L0-c-flexible-array-needs-wrapper",
+      "decisions": ["W-029", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "foreignC" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "naturalResult", "patch": { "fields": [{ "name": "payload", "offset": 0, "size": 1, "alignment": 1, "borrowable": false, "flexibleArray": true }] } }],
+      "expected": { "status": "rejected", "code": "foreignCFieldNeedsWrapper", "operation": 0 }
+    },
+    {
+      "id": "L0-common-w-manual-packed-rejected",
+      "decisions": ["W-029", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wOpaque" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "packedHeader", "patch": { "origin": "wCommon", "manualPacked": true } }],
+      "expected": { "status": "rejected", "code": "manualPackedLayoutUnsupported", "operation": 0 }
+    },
+    {
+      "id": "L0-overlapping-c-struct-rejected",
+      "decisions": ["W-029", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "naturalResult", "patch": { "fields": [{ "name": "error", "offset": 0, "size": 4, "alignment": 4, "borrowable": true }, { "name": "kind", "offset": 2, "size": 4, "alignment": 2, "borrowable": true }] } }],
+      "expected": { "status": "rejected", "code": "cRecordOverlap", "operation": 0 }
+    },
+    {
+      "id": "L0-foreign-union-needs-wrapper",
+      "decisions": ["W-029", "W-321", "W-944"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "foreignC" }],
+      "operations": [{ "op": "validateCRecord", "fixture": "foreignUnion" }],
+      "expected": { "status": "rejected", "code": "foreignUnionNeedsWrapper", "operation": 0 }
+    },
+    {
+      "id": "L0-internal-niche",
+      "decisions": ["W-109", "W-343"],
+      "references": [{ "path": "../reference/last-light/representation_oracle.w", "symbol": "provenNiche" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "internalNiche" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-w-exact-needs-fingerprint",
+      "decisions": ["W-343", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wFingerprint" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "wExactFingerprint" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-w-exact-missing-fingerprint",
+      "decisions": ["W-343", "W-942"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wFingerprint" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "wExactFingerprint", "patch": { "representationFingerprint": "" } }],
+      "expected": { "status": "rejected", "code": "missingRepresentation", "operation": 0 }
+    },
+    {
+      "id": "L0-c-boundary-needs-c-carrier",
+      "decisions": ["W-071", "W-343", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "cRecord" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "cRecord" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-c-boundary-rejects-niche",
+      "decisions": ["W-109", "W-343", "W-943"],
+      "references": [{ "path": "../reference/last-light/representation_oracle.w", "symbol": "foreignC" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "cRecord", "patch": { "carrier": "wNiche" } }],
+      "expected": { "status": "rejected", "code": "cCarrierRequired", "operation": 0 }
+    },
+    {
+      "id": "L0-wire-uses-schema",
+      "decisions": ["W-172", "W-343"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "wire" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "wireSchema" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-wire-rejects-pointer",
+      "decisions": ["W-107", "W-172", "W-343"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "cPointer" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "wireSchema", "patch": { "containsPointer": true } }],
+      "expected": { "status": "rejected", "code": "schemaBoundaryRequired", "operation": 0 }
+    },
+    {
+      "id": "L0-component-uses-schema",
+      "decisions": ["W-607", "W-711"],
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "component" }],
+      "operations": [{ "op": "validateBoundaryValue", "fixture": "componentSchema" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-raw-c-pointer-stays-raw",
+      "decisions": ["W-107", "W-915"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "foreignBellAddress" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "rawPointer" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-integer-does-not-forge-pointer",
+      "decisions": ["W-107", "W-915"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "Address.toPointer" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "rawPointer", "patch": { "source": "integer" } }],
+      "expected": { "status": "rejected", "code": "foreignPointerProvenanceMissing", "operation": 0 }
+    },
+    {
+      "id": "L0-safe-foreign-borrow-has-proof",
+      "decisions": ["W-429", "W-915"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellLease" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "safeBorrow" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-safe-foreign-borrow-needs-noescape",
+      "decisions": ["W-429", "W-915"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellLease" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "safeBorrow", "patch": { "noEscape": false } }],
+      "expected": { "status": "rejected", "code": "foreignBorrowNeedsProof", "operation": 0 }
+    },
+    {
+      "id": "L0-safe-foreign-borrow-needs-alignment-proof",
+      "decisions": ["W-429", "W-915"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellLease" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "safeBorrow", "patch": { "alignmentProof": false } }],
+      "expected": { "status": "rejected", "code": "foreignBorrowNeedsProof", "operation": 0 }
+    },
+    {
+      "id": "L0-closed-enum-validates-c-integer",
+      "decisions": ["W-242", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "LL_HORIZON_WARNING_V1" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "closedEnum" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-closed-enum-rejects-unknown-integer",
+      "decisions": ["W-242", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "LL_HORIZON_WARNING_V1" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "closedEnum", "patch": { "validated": false } }],
+      "expected": { "status": "rejected", "code": "foreignValueNeedsValidation", "operation": 0 }
+    },
+    {
+      "id": "L0-refinement-validates-foreign-result",
+      "decisions": ["W-343", "W-943"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "score" }],
+      "operations": [{ "op": "validateForeignRecovery", "fixture": "refinement" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-header-matches-target-slice",
+      "decisions": ["W-631", "W-945"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "export foreign c" }],
+      "operations": [{ "op": "validateHeaderPair", "fixture": "horizon" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "L0-header-target-mismatch",
+      "decisions": ["W-631", "W-945"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "validateHeaderPair", "fixture": "horizon", "patch": { "headerTarget": "aarch64-apple-darwin" } }],
+      "expected": { "status": "rejected", "code": "headerSliceMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-header-identities-cannot-be-empty",
+      "decisions": ["W-631", "W-945"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "export foreign c" }],
+      "operations": [{ "op": "validateHeaderPair", "fixture": "horizon", "patch": { "headerTarget": "", "libraryTarget": "" } }],
+      "expected": { "status": "rejected", "code": "headerSliceMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-header-digest-mismatch",
+      "decisions": ["W-631", "W-945"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_result_v1" }],
+      "operations": [{ "op": "validateHeaderPair", "fixture": "horizon", "patch": { "headerDigest": "header:other-v1" } }],
+      "expected": { "status": "rejected", "code": "headerSliceMismatch", "operation": 0 }
+    },
+    {
+      "id": "L0-header-is-reproducible",
+      "decisions": ["W-631", "W-945"],
+      "references": [{ "path": "../reference/last-light/abi.w", "symbol": "export foreign c" }],
+      "operations": [{ "op": "validateHeaderPair", "fixture": "horizon", "patch": { "headerHasTimestamp": true } }],
+      "expected": { "status": "rejected", "code": "nonReproducibleCHeader", "operation": 0 }
+    }
+  ]
+}
