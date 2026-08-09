@@ -84,7 +84,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia ratificada | 65–72% | R0 cobre 60/60, R0S mede a superfície derivada por script e R1 possui 13 bundles contrabalanceados do Última Luz que promovem 22/60 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia ratificada | 65–72% | R0 cobre 63/63, R0S mede a superfície derivada por script e R1 possui 14 bundles contrabalanceados do Última Luz que promovem 25/63 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -6896,6 +6896,11 @@ Síntese de `Display`, `Ordering`, codecs e schemas fica **Rejeitado**. Essas
 families exigem escolhas humanas sobre formato, ordem e compatibilidade.
 User-defined synthesis fica **Rejeitado por enquanto**. Ele exigiria macro,
 reflection compile-time aberta ou outro gerador de declarations.
+
+`data.Row` é uma segunda síntese fechada e opt-in. Ela é struct-only, all-or-none
+e usa stored instance fields em declaration order. O carrier, schema identity e limites
+estão fechados em [14.4.1](#1441-carrier-tabular-tab0). Ela não amplia synthesis
+genérica nem cria codecs ou schemas de boundary.
 
 #### 8.9.5 Parâmetros rest homogêneos
 
@@ -17310,6 +17315,116 @@ Não entram na std estável sem corpus e dois consumers: UI toolkit, web
 framework, dataframe, symbolic algebra, package de vendor e protocol de rápida
 evolução. Eles podem começar como packages first-party sem promessa permanente.
 
+#### 14.4.1 Carrier tabular TAB0
+
+**Exemplo:** o restaurante publica `sequence`, `hawkingFlux` e `warning` em um
+`data.Batch<HorizonReading>`. O caller seleciona `batch.column(.hawkingFlux)` e
+lê um `f64` Copy com acesso checked.
+
+TAB0 fecha o modelo lógico do carrier tabular. A forma permanece **Direção** e
+estudo até TAB1 definir adapters e workflows executáveis. O bundle
+[`tooling/studies/r1-tabular-carrier/`](tooling/studies/r1-tabular-carrier/) usa
+o mesmo resumo do telemetry do Última Luz em três variantes. A máquina host
+[`tooling/tabular-carrier-machine.mjs`](tooling/tabular-carrier-machine.mjs) não
+é compiler, runtime, provider ou reader de produção.
+
+**Direção:** `data.Batch<Row>` é finito, owned, imutável depois da
+publicação, columnar e ligado a um schema lógico fechado. Todas as colunas têm
+o mesmo row count. Um schema sem campos exige row count explícito. Batch vazio é
+válido. `data.DynamicBatch` pode estar publicado com schema de runtime; o
+binding tipado valida tudo antes de publicar o `data.Batch<Row>`. `Table<Row>` e
+DataFrame completo ficam em package first-party. `Array<Row>` continua válido para algoritmo
+centrado em row e não é carrier tabular universal.
+
+O opt-in estático usa `struct X: data.Row`. O compiler pode sintetizar witness e
+schema sem annotation. A síntese é somente para struct, exige todos os stored
+instance fields em declaration order e usa identidade do protocol. Nome, ordem, tipo
+lógico, nullability, refinement e semantic extension entram na schema identity.
+Member não suportado rejeita a síntese. Witness manual e DTO row dedicado
+continuam disponíveis. Conformance `data.Row` não cria JSON, wWire, ABI, CSV,
+Parquet ou Arrow schema automaticamente.
+
+`Option` define nullability. NaN é valor float e nunca null. O carrier não cria
+row index especial. Field names são UTF-8, não vazios e únicos. Nome duplicado
+ou vazio de fonte externa exige mapping explícito ou rejeição. O carrier não
+renomeia silenciosamente.
+
+Row sintetizado rejeita `Any`, identity de service/object, task, channel, lock,
+pointer, ref, view, function, closure e foreign handle sem limite. Nominal
+values, refinements e `Quantity` podem participar quando o adapter prova o
+semantic type. O row top-level não é nullable.
+
+A seleção estática usa descriptor de field gerado: `batch.column(.hawkingFlux)`.
+Ela não usa lookup por String ou reflection no hot path. A seleção dynamic usa
+nome e binding tipado explícito. No estudo, o acesso checked `column[index]`
+devolve um `f64` Copy. Fields non-Copy, como `String`, `Bytes` e nested values,
+permanecem TAB1/**Pesquisa**: qualquer forma borrowed deve respeitar W-420,
+usando core view, callback scoped ou borrow nominal. Não existe `XView`
+automático. Essas formas são **Direção** até promoção.
+
+Typed Batch valida tudo antes de publicar e oferece acesso random O(1). Run-end
+é materializado antes da publicação e fica `plain` com provenance do encoding
+de origem; um Batch não publica `runEnd` como acesso O(1). Encoding incompatível
+com O(1) materializa antes da publicação ou falha.
+Seleção de field é O(1). Scan é O(rows). Nenhum caminho materializa em silêncio.
+Layout físico é opaco e não define ABI.
+
+`CopyPolicy` possui `.never`, `.ifNeeded` e `.always`. A policy governa somente
+payload copy. O target device é argumento explícito quando há transferência;
+`.ifNeeded` e `.always` não escolhem device. Um pedido sem target permanece no
+device atual e não transfere. `.never` não copia payload e falha quando um
+target explícito exige transferência. Descriptor e schema allocation podem
+ocorrer se forem bounded e charged. Lossy conversion, narrowing, unit/timezone
+assumption, missing, extra, reorder ou type change exige mapping ou conversion
+explícita. Binding default é exact schema.
+
+Na superfície source, `copy` é keyword de ownership e não é label vigente;
+quando o bind expõe essa policy, use `copyPolicy: .never`. `CopyPolicy` é o nome
+do contrato lógico, não uma nova syntax de keyword.
+
+`Stream<Batch<Row>, E>` mantém uma schema identity em todos os chunks. Mudança
+de schema no meio do stream produz typed error. O sistema não faz union ou
+promotion silenciosa.
+
+Payload importado possui um owner. A release ocorre exatamente uma vez depois
+de views, waits e children drenarem conforme E1. Export owned transfere a
+responsabilidade e torna o owner local `transferred`; o local não pode liberar,
+emprestar ou exportar novamente. O novo owner deve completar a release. Export
+borrowed é scoped. Arrow C Data só aceita producer trusted in-process e valida a
+estrutura. Input untrusted de IPC ou serialização valida counts, offsets,
+lengths e nesting antes da publicação; valida UTF-8 somente quando a column
+declara essa codificação. Null physical slots exigem validity e bytes zero ou
+initialized antes da trust ou persistence boundary.
+
+Limits cobrem rows, columns, fields, buffers, total bytes, allocation bytes,
+nesting, metadata bytes, string bytes e chunks. Overflow aritmético e count
+reificado falham antes de allocation ou publicação.
+
+`data.Schema` separa semantic identity de metadata não semântica. Identity
+contém fields ordenados, nomes, tipo, nullability, refinement e extensions
+semânticas. Cada extension nominal possui ID estável, versão e parâmetros
+canônicos bounded; não existe registry ambiental. Metadata é bounded e não
+altera identity, e physical layout não entra. External extension sem adapter
+fica opaque/dynamic e não pode bind para Row nominal.
+
+Arrow [columnar](https://arrow.apache.org/docs/format/Columnar.html),
+[C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
+[C Data security](https://arrow.apache.org/docs/format/Security.html) e
+[C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html), além dos
+requisitos e da [API do Python dataframe interchange](https://data-apis.org/dataframe-protocol/latest/design_requirements.html)
+e sua [API de columns/dataframe](https://data-apis.org/dataframe-protocol/latest/API.html),
+fornecem evidência dos contratos de columns, chunks, buffers, device, copy e
+lifetime. Eles não definem a semântica de W. CSV, Parquet e Arrow são adapters
+posteriores. DLPack continua adapter de tensor e terá um bundle próprio de
+interchange tensorial. TAB1 deve fechar somente os nomes, signatures e
+workflows exatos de CSV, Parquet e Arrow.
+
+**Alternativa:** um `Table<Row>` estável ou um DataFrame completo poderia
+combinar batches e operações. Fica em package first-party para manter o core
+pequeno. **Rejeitado por enquanto:** `Any` universal, duck typing, reflection
+unchecked, union silencioso de schema, carrier row-array universal, copy
+implícito, release duplicada e ABI física derivada do layout.
+
 ### 14.5 Catálogo verificável SDK0
 
 **Exemplo:** o build transform recebe `build.Context`. A declaration existe,
@@ -18388,6 +18503,9 @@ type CompactGlyph =
 ```
 
 ### 16.2 Views, índices e slices
+
+Views borrowed de fields tabulares não inventam uma família `XView`; o contrato
+do carrier e a forma checked para valores Copy estão em [14.4.1](#1441-carrier-tabular-tab0).
 
 W separa quatro conceitos que outras APIs chamam de “imutável”:
 
@@ -20006,6 +20124,10 @@ StableHLO e ONNX são adapters. Eles não definem a semântica completa de W. O
 Python Array API standard, DLPack e Arrow C Data estão na
 [auditoria PYN0](#2411-auditoria-pythonw-pyn0).
 
+DLPack continua adapter de tensor e fica em um bundle próprio, separado de
+TAB1. O carrier tabular `data.Batch<Row>` e os contratos de columns, chunks e
+ownership estão em [14.4.1](#1441-carrier-tabular-tab0).
+
 ## 18. Performance e custo
 
 ### 18.1 Contrato
@@ -20305,6 +20427,10 @@ accumulator, vector width e device.
 
 Transferência de device permanece explícita. Fusion pode eliminar um
 intermediate lógico, mas não pode inserir uma transferência oculta.
+
+O mesmo contrato de device e copy vale para o carrier tabular fechado em
+[14.4.1](#1441-carrier-tabular-tab0). Um target diferente exige argumento
+explícito e transferência autorizada; `.never` falha nesse caso.
 
 ```w
 let deviceWeights = try weights.to(device)
@@ -26775,6 +26901,9 @@ A matriz separa linguagem, tooling, standard library, ecossistema e interop.
 “Gap real” significa ausência no design corrente. Não significa que uma
 implementação esteja atrasada.
 
+O carrier tabular e a regra de binding typed ficam em [14.4.1](#1441-carrier-tabular-tab0);
+PYN0 não promove DataFrame ou duck typing a surface W.
+
 ##### Linguagem
 
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
@@ -26782,7 +26911,7 @@ implementação esteja atrasada.
 | Público de dados, web, ML, pesquisa e automação | Tour, tipos estáticos, ownership, effects e SDK em tiers | entrada Python-first e sequência pedagógica para o Tour | linguagem, Tour e documentação | **Direção** |
 | Defaults, keyword arguments, unpacking, comprehensions, generators e collections | defaults, labels, patterns, ranges, collections e closures já têm contratos parciais | R1 compara pipeline, loop, broadcast, end-relative access, labels e tuple binding; comprehension e starred unpacking continuam sem grammar | linguagem e estudo R1 | **Pesquisa** |
 | Arquivo, stdin, `-c`, `-m` e modo interativo | source file, `entry` e CLI de package existem | fluxo low-ceremony com regras herméticas e sessão | tooling e fronteiras de package | **Direção** |
-| Dados exploratórios sem object model global | `json.Value`, schemas, rows tipadas e reflection opt-in | carrier tabular ainda sem nome, com `TabularData` em **Pesquisa**, e inferência bounded | std, tooling e schemas | **Direção** |
+| Dados exploratórios sem object model global | `json.Value`, `data.Batch<Row>`, `data.DynamicBatch`, schemas e reflection opt-in | adapters de CSV, Parquet e Arrow, além de inferência bounded no tooling | std, tooling e schemas | **Direção** |
 | Interop com objetos Python sem duck typing | protocols nominais, C façade, adapters e `unsafe` explícito | lifecycle, GIL, interpreter e effects precisam de bridge visível | adapter e fault boundary | **Direção** |
 
 O exemplo de ergonomia é uma comparação textual e pseudocódigo. Ele não fixa
@@ -26884,15 +27013,15 @@ hidden replay de effects. Nomes de comandos para check/export continuam
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
 | NumPy e ciência numérica | `matrix`, `tensor`, shapes, `@` e device transfer em T2 | adapters Python e corpus de interoperabilidade | T2 e adapter first-party | **Direção** |
-| DataFrames e dados colunares | `std.json`, schemas e database rows tipadas | design freeze exige fechar carrier tabular mínimo e CSV/Parquet/Arrow workflow; nome e semântica seguem **Pesquisa** | T2 minimal, package first-party e codecs | **Direção** |
+| DataFrames e dados colunares | `data.Batch<Row>`, `data.DynamicBatch`, schemas e database rows tipadas | CSV, Parquet e Arrow workflow seguem TAB1; DataFrame completo fica package first-party | T2 minimal, package first-party e codecs | **Direção** |
 | Plotting e rich display | protocols de display e tooling estruturado | renderer, limits e backends de plot | first-party package ou third-party | **Pesquisa** |
 | Package registry e descoberta | resolver, lock, registry e provenance de package | descoberta para workflow de arquivo único | tooling e ecossistema | **Pesquisa** |
 | Amplitude de otimização e ciência | `std.science`, matrix e tensor como T2 | breadth de solvers, optimization e providers | packages first-party e third-party | **Pesquisa** |
 
 Dataframe completo fica em package first-party antes de entrar na std estável.
-O design freeze exige decidir um carrier tabular mínimo, seu schema e o workflow
-CSV, Parquet e Arrow. O nome e a semântica continuam abertos. `TabularData` é
-candidato **Pesquisa**. W não promete um clone de pandas.
+TAB0 fecha `data.Batch<Row>`, `data.DynamicBatch`, schema identity, chunks,
+copy/device policy e release. TAB1 deve fechar o workflow de CSV, Parquet e
+Arrow. W não promete um clone de pandas.
 
 Gaps de std e ecossistema permanecem separados:
 
@@ -26908,7 +27037,7 @@ Gaps de std e ecossistema permanecem separados:
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
 | Tensor interchange sem cópia oculta | tensor T2 e device transfer explícita | DLPack precisa de adapter com copy, device, stream, ownership, lifetime e release provados | adapter first-party T2 | **Direção** |
-| Dados colunares entre runtimes | rows tipadas, schemas e C façade | Arrow C Data precisa de adapter com schema e release explícitos | adapter first-party T2 | **Direção** |
+| Dados colunares entre runtimes | `data.Batch<Row>`, `data.DynamicBatch`, schemas e C façade | Arrow C Data precisa de adapter com schema e release explícitos; CSV e Parquet ficam para TAB1 | adapter first-party T2 | **Direção** |
 | Buffer protocol do Python | C pointers e ownership de FFI | buffer pertence à bridge Python e não ao core W | bridge Python | **Direção** |
 | W-from-Python e Python-from-W | C ABI e data interchange já são boundaries | stable C/Python APIs, lifecycle e fault policy | bridge, service ou fault boundary | **Direção** |
 
@@ -26918,6 +27047,9 @@ e o [Python buffer protocol](https://docs.python.org/3/c-api/buffer.html)
 fornecem os contratos de lifetime e release que o adapter deve provar. O
 [Python Array API standard](https://data-apis.org/array-api/latest/purpose_and_scope.html)
 não substitui esses contratos.
+
+TAB0 fecha o carrier W em [14.4.1](#1441-carrier-tabular-tab0). O contrato não
+promove Arrow, Python dataframe interchange, CSV ou Parquet a autoridade W.
 
 Um contrato de adapter deve tornar os recursos observáveis. `DLPackLease` e
 `ArrowArrayLease` são nomes lógicos candidatos, não API ou syntax vigente. O
@@ -27024,12 +27156,12 @@ Cada ausência deliberada precisa de quatro itens na documentação final:
 3. a diferença observável em custo, controle, cleanup ou error;
 4. um link para a decisão e para o caso comparativo.
 
-O corpus R0 contém 60 substituições estruturadas. Esse corpus é a origem do Tour
+O corpus R0 contém 63 substituições estruturadas. Esse corpus é a origem do Tour
 comparativo e do Book. Uma nova ausência de superfície não fecha com texto no
 ledger. Ela precisa de um caso R0 ou de uma justificativa que prove que não
 existe source comparável.
 
-A razão `60/60` cobre os requisitos declarados na seção 26. Ela não prova que
+A razão `63/63` cobre os requisitos declarados na seção 26. Ela não prova que
 o ledger inteiro já foi auditado. Antes do design freeze, cada decisão precisa
 classificar sua alternativa como uma destas categorias:
 
@@ -27049,10 +27181,10 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit atual classifica 200/987
-decisões: 99 pelo eixo source, 113 pelo eixo oracle e oito explicitamente; 20
-decisões possuem os dois primeiros eixos. Duas decisões já exigem formalmente
-ambos. As 787 restantes continuam um worklist, não uma aprovação implícita.
+declara todos os eixos obrigatórios. O freeze audit atual classifica 214/1005
+decisões: 107 pelo eixo source, 127 pelo eixo oracle e oito explicitamente; 28
+decisões possuem eixos sobrepostos. Duas decisões já exigem formalmente
+ambos. As 791 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -27094,19 +27226,23 @@ evidência de design:
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
-| workflow interativo e científico PYN0 | `w run <product>`, locks, HIR, tensors T2, C façade e schemas existem como contratos separados | fechar dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, carrier tabular e adapters DLPack/Arrow, e evidence dos gates de latency; implementações de CLI, REPL, kernel e providers ficam pós-freeze |
+| workflow interativo e científico PYN0 | `w run <product>`, locks, HIR, tensors T2, C façade, schemas e carrier `data.Batch<Row>` TAB0 existem como contratos separados | fechar dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, adapters CSV/Parquet/Arrow de TAB1, bundle próprio de DLPack tensorial, e evidence dos gates de latency; implementações de CLI, REPL, kernel e providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 60/60 requisitos declarados; R0S mede a superfície derivada por script; 13 bundles R1 possuem 28 variantes, 52 tarefas e promovem 22/60 casos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 63/63 requisitos declarados; R0S mede a superfície derivada por script; 14 bundles R1 possuem 31 variantes, 56 tarefas e promovem 25/63 casos; participantes e modelos ainda não foram executados | classificar as decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
 seção 27. Um contrato pode fechar antes de existir backend, mas não pode declarar
 comportamento que seus modelos ou oracles contradizem.
+
+TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular-tab0). O bloqueio
+restante é TAB1, que deve fechar adapters e workflows de formatos sem alterar a
+schema identity ou as regras de ownership.
 
 A ordem recomendada de fechamento é:
 
@@ -27421,7 +27557,10 @@ O corpus compara, no mínimo:
 - broadcast explícito contra broadcast implícito checked e Julia dotted broadcast;
 - `.last` contra arithmetic `count - 1`, Python `[-1]` e C# `^1`;
 - labels em ordem fixa contra labels reordenados com default e overload;
-- tuple binding fixo contra projections `.0`/`.1` e unpacking starred.
+- tuple binding fixo contra projections `.0`/`.1` e unpacking starred;
+- `data.Batch<Row>` columnar contra `Array<Row>` universal e DataFrame completo;
+- `data.Row` synthesis fechada contra `Any`, duck typing e schema implícito;
+- binding dynamic, copy/device e release scoped contra coerção e lifetime ocultos.
 
 ### 26.1 Cobertura de substituições
 
@@ -27452,7 +27591,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 60 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 63 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 definida na seção 24.3.
 
@@ -27528,7 +27667,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 140 formas derivadas do corpus pelo runner nesta revisão. O runner
+mede as 149 formas derivadas do corpus pelo runner nesta revisão. O runner
 junta as linhas com LF e sem newline final. A contagem vem do script e muda
 quando alternativas cross-language entram ou saem. Para a tarefa e para cada
 forma, ele registra:
@@ -27567,8 +27706,8 @@ outcome. A variante pode mudar uma observação que pertence ao objeto do estudo
 como latência de failure ou provenance visível de um nome.
 Os cinco bundles R1P0 não alteram os sources canônicos do Última Luz.
 
-Os 13 bundles atuais possuem 28 variantes e 52 tarefas. Eles promovem 22 dos
-60 casos R0. Todos fazem parse sem recovery. Vinte e oito testes de oracle host
+Os 14 bundles atuais possuem 31 variantes e 56 tarefas. Eles promovem 25 dos
+63 casos R0. Todos fazem parse sem recovery. Trinta e seis testes de oracle host
 confirmam os outcomes e as diferenças observáveis declaradas.
 
 A promoção conta IDs R0 únicos citados por ao menos um bundle. Ela mede o
@@ -27901,6 +28040,32 @@ O [unpacking documentado pelo Python](https://docs.python.org/3/tutorial/datastr
 é evidência de ergonomia. Ele não adiciona starred unpacking à grammar W. O
 oracle host confirma sucesso, empty-input error e `wordCalls: 1`. Parse e oracle
 não executam o compiler W.
+
+#### 26.3.14 Carrier tabular TAB0
+
+**Exemplo:** o estudo compara `data.Batch<HorizonReading>`, `data.DynamicBatch`
+com binding explícito e `Array<HorizonReading>` para o mesmo telemetry do
+buraco negro e do restaurante.
+
+O contrato canônico de `Batch`, `DynamicBatch`, schema identity e ownership está
+em [14.4.1](#1441-carrier-tabular-tab0). Esta seção mede apenas a evidência do
+estudo e não promove a forma para **Forma vigente**.
+
+[`tooling/studies/r1-tabular-carrier/bundle.json`](tooling/studies/r1-tabular-carrier/bundle.json)
+fixa `sequence`, `hawkingFlux` e `warning` opcional. As três variantes
+preservam o mesmo resumo e output. A variante `typed-batch` é a **Direção** do
+carrier mínimo. `dynamic-batch` é complementar quando o schema só existe em
+runtime. `row-array` é uma baseline **Direção** válida para algoritmo centrado
+em row, mas é rejeitada como carrier tabular universal. Nenhuma dessas fontes
+promove a forma para **Forma vigente**.
+
+O bundle inclui casos de null contra NaN, nome duplicado, column length desigual,
+mudança de schema entre satellite chunks, copy `.never` com device incompatível,
+UTF-8 e offset inválidos, e release exatamente uma vez. A máquina e o oracle
+host modelam publicação, schema identity, selection, O(1) access, scan, copy,
+device, chunks, owner, views, waits, children, trust, sanitização e limits.
+Eles não compilam nem executam W. A evidência corrente é `design-oracle-input`.
+`w compile`, `w run`, estudo humano e estudo de modelo permanecem missing.
 
 ## 27. Plano de implementação
 
@@ -28568,7 +28733,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-311 | reflection visibility | somente interface exportada e properties lógicas | fields privados; backing storage; getter por string |
 | W-312 | reflection reachability | witness alcançável mantém descriptor; sem registry global | todos os conformers como roots |
 | W-313 | synthesis trigger | conformance no type head; protocol reconhecido por identidade | `@derive`; macro; nome textual |
-| W-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object; somente a synthesis JSON fechada de W-900 | qualquer protocol; Display e codecs automáticos fora do JSON |
+| W-314 | synthesis scope | Equatable, Hashable, Duplicable e Reflectable em struct/enum; Reflectable em object; synthesis JSON fechada de W-900 e synthesis `data.Row` fechada de TAB0, ambas protocol-identity-triggered e all-or-none | qualquer protocol; synthesis genérica; Display e codecs automáticos fora de JSON e Row |
 | W-315 | synthesis witness | all-or-none por protocol; constraints explícitas | completar witness parcial; inferir constraints |
 | W-316 | rest syntax | último `T...`; zero ou mais; um label inicial | `params`; `*args`; overloads por aridade |
 | W-317 | rest shape | conjunto infinito deve ser disjunto de todo overload | fixed vence rest; ranking por tipos |
@@ -29116,9 +29281,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-859 | fechamento do catálogo citado | todos os codes com meaning citado possuem schema; o índice gera a contagem corrente; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem manual; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect/ownership prefix, receiver consuming, spawn domain, parâmetro const, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; remover grouping de ownership; reescrever slot nomeado; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 26 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
-| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/60`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 60 bullets como 60 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/63`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 63 bullets como 63 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 60/60 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 63/63 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -29140,11 +29305,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | 13 bundles, 28 variantes e 52 tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming, domains, callables e cinco estudos Python→W com source base, inputs, digests e oracle; 22/60 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | 14 bundles, 31 variantes e 56 tarefas cobrem controle, units, imports, fail-fast, contratos, receivers consuming, domains, callables, estudos Python→W e carrier tabular com source base, inputs, digests e oracle; 25/63 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 60 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 63 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std SDK0 | profiles cobrem 161 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
@@ -29174,7 +29339,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 22/60 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 25/63 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 | W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
@@ -29189,7 +29354,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
-| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 60 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
+| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0/TAB0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 63 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
 | W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
 | W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 165 casos e 580 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
@@ -29226,12 +29391,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-969 | escalada de shutdown e generation E1 | ready→admissionClosed→cancellationRequested→draining→quiescent→stopped; graceExpired→terminating→terminated; forced termination é boundary failure; registry do host e trace encerram roots; generations isoladas e completion velha não muta nova | shutdown como cancelamento normal; aceitar starts depois de admission close; cleanup interrompido virar success; completar slot na generation nova; restart sem incarnation |
 | W-970 | oracle E1 e limites | `runtime-liveness-machine.mjs` é host-puro, adversarial e ligado a Última Luz; corpus cobre closure, completion/cancel races, generation, reclaim e shutdown; não prova scheduler/clock/OS I/O, fairness absoluta, advanced reclamation, device, recovery distribuído ou terminação de user code | snapshot manual; máquina runtime; declarar allocator/verifier implementado; ampliar E0/B0/A0; timing real; corpus sem símbolos ou decisões |
 | W-971 | público Python inicial | Python é público inicial nas seções 0.1 e 0.4; scripts, automação, ciência, dados e AI entram no público; pessoa com Python realiza o Tour, workflow single-file e workflow científico básico antes de ownership baixo nível; ownership e effects continuam explícitos nas boundaries | adiar Python até depois de 1.0; tratar Python somente como documentação; prometer compatibilidade dinâmica; copiar o modelo baixo nível para o onboarding |
-| W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema ou `TabularData` explícitos, com `TabularData` em **Pesquisa**; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
+| W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party e adapters seguem TAB1; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
 | W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e o unnamed/default entry; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
 | W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis, nunca stale ou implicitamente recompilados; resubmission explícita recria e executa effects; redefinição/reset fecha admission, drena children/waits, encerra loans/views e faz drops E1, rejeitando ou escalando se foreign retention permanece | dynamic mode; replay automático de effects; redefinição que mantém dependents silenciosamente; liberar estado vivo; reset que ignora drain; notebook transcript como source de release |
 | W-975 | Jupyter como tooling | kernel Jupyter compartilha o session model, implementa o protocol autoritativo e usa rich output W tipado com MIME/data bounded; interrupt solicita structured cancellation; notebook exporta `.w`/package em ordem canônica sem hidden replay antes de release; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; protocol W sem estado de Pesquisa |
 | W-976 | interop científico | Python Array API standard é checklist T2; DLPack e Arrow C Data são adapters first-party T2; Python buffer pertence à bridge; copy, device, stream, ownership, lifetime e release são explícitos e provados | Array API como semântica normativa W; copy implícito; lifetime ou release ambiental; buffer protocol no core; pandas clone na std |
-| W-977 | dados exploratórios e tabulares | dados usam `json.Value`, schema ou `TabularData` explícito em **Pesquisa**; dataframe completo é package first-party antes de std estável; o design freeze exige fechar carrier mínimo e CSV/Parquet/Arrow workflow, enquanto nome e semântica permanecem abertos em **Pesquisa**; sem clone pandas | duck-typed rows; dataframe universal na std agora; object global dinâmico; schema inferido sem limites; tratar ecossistema como syntax |
+| W-977 | dados exploratórios e tabulares | dados usam `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; DataFrame completo é package first-party antes de std estável; TAB0 fecha o carrier mínimo e TAB1 fecha CSV/Parquet/Arrow workflow; sem clone pandas | duck-typed rows; dataframe universal na std agora; object global dinâmico; schema inferido sem limites; tratar ecossistema como syntax |
 | W-978 | ergonomia R1 | R1 compara comprehensions com pipelines/loops, checked broadcasting com broadcast explícito, negative/end-relative indices, unpacking/destructuring, display e labels reordenáveis; labels permanecem em ordem até evidence de ganho | escolher syntax final sem R1; broadcast implícito; labels reordenáveis por default; mudar lookup/reproducibility por conveniência |
 | W-979 | gates de latency | `time-to-first-result` e `steady-state` são gates separados; first-result cobre hello cold/warm, edit-run e transaction/redefinition/invalidation de 10 cells; steady-state cobre collection transforms, CSV throughput, tensor elementwise/broadcast/matmul CPU e zero-copy DLPack/Arrow overhead; output/semantics precedem tempo e registram compiler version/target/hardware | número fixo de vitória; benchmark isolado; comparar somente tempo; um runtime obrigatório; backend rápido como autoridade semântica |
 | W-980 | Python bridge boundary | W-from-Python e Python-from-W usam stable C/Python APIs e data interchange como bridge; CPython ordinário usa bridge, service ou fault boundary; um adapter AOT resolvido pelo manifest pode expor `fn<Python>` somente com artifact hermético, C façade tipada, runtime/deps fixos e diagnostics, effects e provenance de 19.2; generic adapter permanece sem promessa e sem proibição; lifecycle, GIL e interpreter aparecem no adapter | static lib Python previsível sem adapter; Python runtime embutido no core; lifecycle oculto; foreign code sem fault boundary; proibir todo adapter AOT; converter `fn<Python>` em forma core |
@@ -29241,7 +29406,25 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-984 | acesso relativo ao fim | `.last` é Forma vigente, retorna `ref String?` e absorve empty sem guard; arithmetic `count - 1` é alternativa com guard; negative indexing é Rejeitado por enquanto por signed/unsigned, `-0`, empty, bounds e contexto; `get(fromEnd:)` e `suffix` são Pesquisa; C# `^1` é alternativa documental | index negativo sem guard; usar `^1` como syntax W; underflow unsigned; converter empty em panic |
 | W-985 | ordem de labels de call | a call é sequência ordenada de labels; overload e initializer selecionam essa forma antes de tipos; ordem de declaração é Forma vigente; default em `currency` cria `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` cria terceira sequência; política unordered colapsa as formas completas e diagnostica antes de types; reordering é Pesquisa/Alternativa | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
 | W-986 | tuple destructuring fixo | binding de tuple/struct de shape fixo é Forma vigente; projections `.0`/`.1` preservam uma avaliação e exigem `copy` ou borrow explícito para componente move-only; starred unpacking é Rejeitado por enquanto por ownership, aridade dinâmica e partial moves; `each collection` continua call-rest | reavaliar `word()`; starred na grammar; tratar `each` como destructuring; mover tuple parcial |
-| W-987 | corpus R1, contagens e limites | o corpus tem 60 casos R0, 13 bundles, 28 variantes, 52 tarefas, 22/60 promovidos e 28 testes host; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
+| W-987 | corpus R1, contagens e limites | o corpus tem 63 casos R0, 14 bundles, 31 variantes, 56 tarefas, 25/63 promovidos e 36 testes host; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
+| W-988 | carrier Batch mínimo | `data.Batch<Row>` é finito, owned, columnar, imutável após publicação, schema fechado, row count comum e vazio válido; schema sem fields exige row count explícito; payload publica somente depois da validação | `Table<Row>` estável; DataFrame no core; colunas com counts diferentes; batch vazio como erro; mutação depois da publicação |
+| W-989 | DynamicBatch e Array<Row> | `data.DynamicBatch` pode publicar schema runtime; binding tipado explícito valida antes de publicar o `data.Batch<Row>`; `Array<Row>` continua válido para algoritmos row-centric e é rejeitado como carrier universal; DataFrame completo é package first-party | duck typing; `Any` carrier; Array como coluna universal; DataFrame estável na std |
+| W-990 | trigger de data.Row | `struct X: data.Row` ativa synthesis por identidade do protocol, struct-only, all-or-none e stored instance fields em declaration order; witness manual e DTO dedicado continuam | annotation genérica; macro; nome textual; synthesis parcial; reflection como trigger |
+| W-991 | limites da synthesis Row | schema identity inclui field name, order, logical type, nullability, refinement e semantic extension; unsupported resources e top-level nullable rejeitam; conformance não cria codecs ou ABI schema | aceitar `Any`, service/object identity, task/channel/lock, pointer/ref/view, closure ou foreign handle ilimitado; JSON/CSV/Arrow automáticos |
+| W-992 | nullability e names do carrier | `Option` define null; NaN é valor; row index não é especial; field names são UTF-8, nonempty e unique; duplicate/empty externo exige mapping ou rejeição | sentinel row; NaN como null; last-wins; rename silencioso; lookup por nome duplicado |
+| W-993 | seleção typed de fields | descriptor gerado e enum-like shorthand selecionam field estático em O(1); dynamic usa nome e binding explícito; read checked de `f64` Copy devolve valor; fields non-Copy ficam em TAB1/**Pesquisa** sob W-420; reflection e String lookup não entram no hot path | reflection unchecked; String lookup estático; acesso sem bounds; `XView` automático; materialização oculta |
+| W-994 | acesso e encoding | typed Batch valida upfront, oferece random value O(1), selection O(1) e scan O(rows); run-end é materializado para `plain` com provenance antes da publicação ou falha; layout físico é opaco | scan para cada access; publicar run-end como O(1); ABI derivada do layout; copy silencioso |
+| W-995 | copy, device e conversion | `.never`, `.ifNeeded` e `.always` governam payload copy; target device é explícito quando há transferência; sem target fica no device atual; `.never` falha quando target exige transferência; source usa `copyPolicy:` porque `copy` é keyword; `CopyPolicy` é o contrato lógico; conversion lossy, narrowing, unit/timezone, missing/extra/reorder/type change exige mapping explícita; default é exact schema | policy escolher device; transfer implícita; narrowing silencioso; reorder automático; converter por heurística; device mismatch aceito em `.never`; `copy:` como label |
+| W-996 | schema estável em stream | `Stream<Batch<Row>, E>` mantém schema identity em todos os chunks; schema change é typed error e nunca union ou promotion silenciosa | union midstream; promotion de nullable/type; schema por chunk sem identidade |
+| W-997 | owner e release foreign | import possui um owner; release ocorre exatamente uma vez após views, waits e children drenarem; owned export transfere responsabilidade e torna o owner local `transferred`; borrowed export é scoped; novo owner completa release; C Data exige trusted producer e validação estrutural | release duplicada; release local após transfer; view após release; owner global; borrowed export escapante; raw pointer sem owner |
+| W-998 | trust boundary e sanitização | untrusted input valida counts, buffers, offsets, lengths e nesting/bounds antes da publicação; UTF-8 é validado quando a column declara essa codificação; validity + physical values exigem bytes zero/initialized nos nulls antes de boundary | decode ilimitado; publicação parcial; UTF-8 obrigatório em numeric/binary; null físico não inicializado atravessando boundary; confiança por endereço |
+| W-999 | limits e arithmetic | limits cobrem rows, columns, fields, buffers, total bytes, allocation bytes, nesting, metadata bytes, string bytes e chunks; overflow e counts reificados falham antes de allocation/publicação | limits somente de rows; overflow depois de allocation; quota implícita; chunks ilimitados |
+| W-1000 | Schema identity e extensions | `data.Schema` separa identity semântica de metadata bounded; names/order, type/nullability/refinement/extensions formam identity; cada extension nominal possui ID estável, versão e parâmetros canônicos bounded sem registry ambiental; extension sem adapter é opaque/dynamic e não bind nominal; physical layout não entra | metadata alterar identity; registry ambiental; extension universal; adapter implícito |
+| W-1001 | fronteira TAB1 de adapters | CSV, Parquet e Arrow são os adapters posteriores de TAB1; DLPack é adapter tensorial em bundle próprio, com classificação tensor vs tabular explícita e nunca carrier tabular; TAB1 deve fechar nomes, signatures, workflows e copy/device/ownership exatos sem mover semântica para formats | CSV/Parquet/Arrow definir Row; DataFrame como carrier; DLPack tabular; signature final neste bundle |
+| W-1002 | máquina host TAB0 | `tabular-carrier-machine.mjs`, 64 cases, 155 operations, 22 accepted e 42 rejected, snapshot e host tests modelam invariantes de publication, binding, chunks, owner, trust, sanitização e limits sem executar W; casos positivos e negativos evitam tautologia | chamar host oracle de compiler/runtime; snapshot manual; modelo sem adversariais; testar somente happy path |
+| W-1003 | estudo R1 tabular | bundle fixa source base, três variantes, mesmos telemetry summary/output, adversariais, quatro tasks, orders, blinding, digests e evidence missing; `typed-batch` é Direção | study de snippet; input implícito; variante caricata; declarar participante/modelo inexistente |
+| W-1004 | corpus e superfície TAB0 | três casos R0 ligam carrier, synthesis e copy aos novos requisitos; surface snapshot e índices são derivados por script; promoção mede planejamento e não ratificação | editar snapshot manual; contar forma por texto; duplicar caso; chamar digest de evidência humana |
+| W-1005 | fechamento do bundle TAB0 | checks scoped incluem machine/cases/host, study bundle/oracle/parse, substitutions/surface, examples, links, freeze audit, index e diff-check; evidência durável mantém `w-compile`, `w-run`, estudo humano, estudo de modelo e adapters TAB1 como missing; sem compiler, runtime, provider, CSV, Parquet, Arrow ou DataFrame de produção | promover host/parse a execução W; alterar grammar gerada; criar std/data/contracts.w; prometer Forma antes de promoção |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

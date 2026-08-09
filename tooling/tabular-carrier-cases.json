@@ -1,0 +1,2995 @@
+{
+  "$schema": "w-tabular-carrier-cases-1",
+  "status": "design-oracle-input",
+  "machine": "tabular-carrier-machine-tab0",
+  "cases": [
+    {
+      "id": "TAB0-batch-publication-owned-columns",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-988",
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              },
+              {
+                "name": "warning",
+                "type": "String",
+                "nullable": true
+              }
+            ],
+            "metadata": {
+              "source": "restaurant"
+            }
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "batch",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  41,
+                  42
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "hawkingFlux",
+                "values": [
+                  3.5,
+                  4
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "warning",
+                "values": [
+                  null,
+                  "late"
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "readValue",
+          "batchId": "batch",
+          "column": "hawkingFlux",
+          "row": 1
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-batch-unequal-column-length-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-988"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "bad",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  41
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "hawkingFlux",
+                "values": [
+                  3.5,
+                  4
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unequalColumnLength",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-empty-schema-explicit-row-count",
+      "references": [
+        {
+          "path": "../reference/last-light/restaurant.w",
+          "symbol": "RestaurantSnapshot"
+        }
+      ],
+      "decisions": [
+        "W-988"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "empty",
+          "schema": {
+            "fields": []
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "empty-batch",
+          "schemaId": "empty",
+          "batch": {
+            "rows": 3,
+            "columns": [],
+            "explicitRows": true,
+            "totalBytes": 0,
+            "allocationBytes": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-empty-schema-without-row-count-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/restaurant.w",
+          "symbol": "RestaurantSnapshot"
+        }
+      ],
+      "decisions": [
+        "W-988"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "empty",
+          "schema": {
+            "fields": []
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "missing-count",
+          "schemaId": "empty",
+          "batch": {
+            "rows": 3,
+            "columns": [],
+            "totalBytes": 0,
+            "allocationBytes": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "emptySchemaNeedsExplicitRows",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-null-is-not-nan",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-992"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "numbers",
+          "schema": {
+            "fields": [
+              {
+                "name": "nullableFlux",
+                "type": "f64",
+                "nullable": true
+              },
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "numbers",
+          "schemaId": "numbers",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "nullableFlux",
+                "values": [
+                  null,
+                  1
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "flux",
+                "values": [
+                  {
+                    "$value": "NaN"
+                  },
+                  2
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "checkNullSemantics",
+          "batchId": "numbers",
+          "column": "nullableFlux",
+          "row": 0,
+          "expected": "null"
+        },
+        {
+          "op": "checkNullSemantics",
+          "batchId": "numbers",
+          "column": "flux",
+          "row": 0,
+          "expected": "nan"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-nonnullable-null-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-992"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "numbers",
+          "schema": {
+            "fields": [
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "bad-null",
+          "schemaId": "numbers",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "flux",
+                "values": [
+                  null
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "nullInNonNullableField",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-duplicate-field-name-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-992"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "duplicate",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateFieldName",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-duplicate-column-name-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-992"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "duplicate",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "sequence",
+                "values": [
+                  2
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "columnFieldMismatch",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-static-row-bind-preserves-field-order",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-990",
+        "W-991"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              },
+              {
+                "name": "warning",
+                "type": "String",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "horizon",
+          "schemaId": "telemetry",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              },
+              {
+                "name": "warning",
+                "type": "String",
+                "nullable": true
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-static-row-type-mismatch-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-990"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "wrong",
+          "schemaId": "telemetry",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u32",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "staticSchemaMismatch",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-dynamic-bind-explicit-check",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-989",
+        "W-990"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "runtime",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindDynamic",
+          "bindingId": "runtime-row",
+          "schemaId": "runtime",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "binding": "explicit",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-dynamic-bind-without-explicit-binding-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "runtime",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindDynamic",
+          "bindingId": "runtime-row",
+          "schemaId": "runtime",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "dynamicBindingRequired",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-dynamic-reorder-without-mapping-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-989",
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "runtime",
+          "schema": {
+            "fields": [
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              },
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindDynamic",
+          "bindingId": "runtime-row",
+          "schemaId": "runtime",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "binding": "explicit",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "dynamicSchemaMismatch",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-row-array-remains-row-algorithm",
+      "references": [
+        {
+          "path": "../reference/last-light/collections.w",
+          "symbol": "ArrivalTicket"
+        }
+      ],
+      "decisions": [
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "classifyAdapter",
+          "format": "dlpack",
+          "domain": "tensor"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-row-array-universal-carrier-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/collections.w",
+          "symbol": "ArrivalTicket"
+        }
+      ],
+      "decisions": [
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "bindArrayCarrier",
+          "use": "universalCarrier"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "arrayRowNotTabularCarrier",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-dataframe-first-party-direction",
+      "references": [
+        {
+          "path": "../reference/last-light/collections.w",
+          "symbol": "ArrivalTicket"
+        }
+      ],
+      "decisions": [
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "bindTableCarrier",
+          "layer": "firstPartyPackage"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-dataframe-stable-std-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/collections.w",
+          "symbol": "ArrivalTicket"
+        }
+      ],
+      "decisions": [
+        "W-989"
+      ],
+      "operations": [
+        {
+          "op": "bindTableCarrier",
+          "layer": "stableStd"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "dataframeNotStable",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-row-synthesis-rejects-any",
+      "references": [
+        {
+          "path": "../reference/last-light/restaurant.w",
+          "symbol": "RestaurantSnapshot"
+        }
+      ],
+      "decisions": [
+        "W-991"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "bad",
+          "schema": {
+            "fields": [
+              {
+                "name": "payload",
+                "type": "Any",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "bad",
+          "schemaId": "bad",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "payload",
+                "type": "Any",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unsupportedRowMember",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-row-synthesis-rejects-nullable-top-level",
+      "references": [
+        {
+          "path": "../reference/last-light/restaurant.w",
+          "symbol": "RestaurantSnapshot"
+        }
+      ],
+      "decisions": [
+        "W-991"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "row",
+          "schema": {
+            "fields": []
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "nullable-row",
+          "schemaId": "row",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": true,
+            "fields": []
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "nullableTopLevelRow",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-static-descriptor-and-dynamic-name-select",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-993"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "batch",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "hawkingFlux",
+                "values": [
+                  3.5
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "selectColumn",
+          "batchId": "batch",
+          "mode": "static",
+          "descriptor": "hawkingFlux"
+        },
+        {
+          "op": "selectColumn",
+          "batchId": "batch",
+          "mode": "dynamic",
+          "name": "hawkingFlux",
+          "binding": "typed"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-reflection-string-selection-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-993"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "hawkingFlux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "batch",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "hawkingFlux",
+                "values": [
+                  3.5
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "selectColumn",
+          "batchId": "batch",
+          "mode": "dynamic",
+          "name": "hawkingFlux",
+          "binding": "reflection"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "dynamicBindingRequired",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-run-end-materialized-for-random-access",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-994"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "encoded",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "materialized",
+          "schemaId": "encoded",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1,
+                  2
+                ],
+                "encoding": "plain",
+                "sourceEncoding": "runEnd",
+                "materialized": true,
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "selectColumn",
+          "batchId": "materialized",
+          "mode": "static",
+          "descriptor": "sequence"
+        },
+        {
+          "op": "scan",
+          "batchId": "materialized",
+          "column": "sequence"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-run-end-without-materialization-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-994"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "encoded",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "run-end",
+          "schemaId": "encoded",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1,
+                  2
+                ],
+                "encoding": "runEnd",
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "encodingNeedsMaterialization",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-copy-policy-if-needed-device-transfer",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "device",
+          "schema": {
+            "fields": [
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "gpu-batch",
+          "schemaId": "device",
+          "batch": {
+            "rows": 1,
+            "device": "gpu",
+            "columns": [
+              {
+                "name": "flux",
+                "values": [
+                  3.5
+                ],
+                "device": "gpu",
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "copy",
+          "batchId": "gpu-batch",
+          "policy": "ifNeeded",
+          "targetDevice": "cpu"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-copy-without-target-stays-on-device",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "device",
+          "schema": {
+            "fields": [
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "gpu-batch",
+          "schemaId": "device",
+          "batch": {
+            "rows": 1,
+            "device": "gpu",
+            "columns": [
+              {
+                "name": "flux",
+                "values": [
+                  3.5
+                ],
+                "device": "gpu",
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "copy",
+          "batchId": "gpu-batch",
+          "policy": "ifNeeded"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-copy-never-device-mismatch-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "device",
+          "schema": {
+            "fields": [
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "gpu-batch",
+          "schemaId": "device",
+          "batch": {
+            "rows": 1,
+            "device": "gpu",
+            "columns": [
+              {
+                "name": "flux",
+                "values": [
+                  3.5
+                ],
+                "device": "gpu",
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "copy",
+          "batchId": "gpu-batch",
+          "policy": "never",
+          "targetDevice": "cpu"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "copyNeverDeviceMismatch",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-lossy-conversion-requires-mapping",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "device",
+          "schema": {
+            "fields": [
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "batch",
+          "schemaId": "device",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "flux",
+                "values": [
+                  3.5
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "copy",
+          "batchId": "batch",
+          "policy": "ifNeeded",
+          "conversion": "narrow"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "explicitConversionRequired",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-schema-reorder-requires-explicit-mapping",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "convertSchema",
+          "mapping": "implicit",
+          "fields": [
+            "hawkingFlux",
+            "sequence"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "explicitMappingRequired",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-schema-reorder-explicit-mapping-accepted",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-995"
+      ],
+      "operations": [
+        {
+          "op": "convertSchema",
+          "mapping": "explicit",
+          "fields": [
+            "hawkingFlux",
+            "sequence"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-stream-keeps-schema-identity",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-996"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "telemetry",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "first",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "second",
+          "schemaId": "telemetry",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  2
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "openStream",
+          "streamId": "satellites",
+          "schemaId": "telemetry"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "satellites",
+          "batchId": "first"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "satellites",
+          "batchId": "second"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-stream-schema-change-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-996"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "one",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "two",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "warning",
+                "type": "String",
+                "nullable": true
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "first",
+          "schemaId": "one",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "changed",
+          "schemaId": "two",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  2
+                ],
+                "bufferCount": 1
+              },
+              {
+                "name": "warning",
+                "values": [
+                  null
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "openStream",
+          "streamId": "satellites",
+          "schemaId": "one"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "satellites",
+          "batchId": "first"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "satellites",
+          "batchId": "changed"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "streamSchemaChange",
+        "operation": 6
+      }
+    },
+    {
+      "id": "TAB0-foreign-owner-releases-after-drain",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "arrow",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "createView",
+          "ownerId": "arrow",
+          "scope": "local"
+        },
+        {
+          "op": "retainWait",
+          "ownerId": "arrow"
+        },
+        {
+          "op": "retainChild",
+          "ownerId": "arrow"
+        },
+        {
+          "op": "drainView",
+          "viewIndex": 0
+        },
+        {
+          "op": "drainWait",
+          "ownerId": "arrow"
+        },
+        {
+          "op": "drainChild",
+          "ownerId": "arrow"
+        },
+        {
+          "op": "borrowedExport",
+          "ownerId": "arrow",
+          "scope": "local"
+        },
+        {
+          "op": "drainBorrowedExport",
+          "exportIndex": 0
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "arrow"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-foreign-release-before-view-drain-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "arrow",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "createView",
+          "ownerId": "arrow",
+          "scope": "local"
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "arrow"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownerStillInUse",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-trusted-foreign-structure-still-validated",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997",
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "malformed",
+          "trust": "trustedInProcess",
+          "payload": {
+            "bufferCount": 1
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidForeignPayload",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-release-exactly-once-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "arrow",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "arrow"
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "arrow"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "releaseExactlyOnce",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-owned-export-consumes-owner",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "owned",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "consumeOwnedExport",
+          "ownerId": "owned"
+        },
+        {
+          "op": "consumeOwnedExport",
+          "ownerId": "owned"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownedExportUnavailable",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-borrowed-export-is-scoped",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "borrowed",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "borrowedExport",
+          "ownerId": "borrowed",
+          "scope": "local"
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "borrowed"
+        },
+        {
+          "op": "drainBorrowedExport",
+          "exportIndex": 0
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "borrowed"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownerStillInUse",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-owned-export-blocks-local-release",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "owned-release",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "consumeOwnedExport",
+          "ownerId": "owned-release"
+        },
+        {
+          "op": "releaseOwner",
+          "ownerId": "owned-release"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownerTransferred",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-owned-export-blocks-local-borrow",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-997"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "owned-borrow",
+          "trust": "trustedInProcess",
+          "payload": {
+            "schema": "trusted"
+          }
+        },
+        {
+          "op": "consumeOwnedExport",
+          "ownerId": "owned-borrow"
+        },
+        {
+          "op": "borrowedExport",
+          "ownerId": "owned-borrow",
+          "scope": "local"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ownerTransferred",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-untrusted-input-validates-bounds",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "importForeign",
+          "ownerId": "ipc",
+          "trust": "untrusted",
+          "payload": {
+            "bufferCount": 1,
+            "offsets": [
+              0
+            ],
+            "lengths": [
+              4
+            ],
+            "byteLength": 4,
+            "nesting": 1,
+            "bytes": 4
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-untrusted-invalid-utf8-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "validateExternal",
+          "payload": {
+            "bufferCount": 1,
+            "offsets": [
+              0
+            ],
+            "lengths": [
+              4
+            ],
+            "byteLength": 4,
+            "utf8": "bad",
+            "utf8Declared": true,
+            "validUtf8": false,
+            "nesting": 1,
+            "bytes": 4
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidUtf8",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-untrusted-invalid-offset-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "validateExternal",
+          "payload": {
+            "bufferCount": 1,
+            "offsets": [
+              3
+            ],
+            "lengths": [
+              4
+            ],
+            "byteLength": 4,
+            "nesting": 1,
+            "bytes": 4
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "offsetOutOfBounds",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-null-slots-sanitized-before-boundary",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "sanitizeNulls",
+          "validity": [false, true, false],
+          "physicalValues": [0, 7, 0]
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-null-slot-initialized-marker-accepted",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "sanitizeNulls",
+          "validity": [false, true],
+          "physicalValues": [{"initialized": true}, 7]
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-null-slots-nonzero-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "sanitizeNulls",
+          "validity": [false, true],
+          "physicalValues": [9, 2]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "nullPhysicalSlotNotSanitized",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-null-slot-uninitialized-marker-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/orbit.w",
+          "symbol": "SatelliteTelemetry"
+        }
+      ],
+      "decisions": [
+        "W-998"
+      ],
+      "operations": [
+        {
+          "op": "sanitizeNulls",
+          "validity": [false],
+          "physicalValues": [{"initialized": false}]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "nullPhysicalSlotNotSanitized",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-limits-cover-all-counts",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 2,
+            "columns": 2,
+            "fields": 2,
+            "buffers": 2,
+            "totalBytes": 2000,
+            "allocationBytes": 2000,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 32,
+            "chunks": 1
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "small",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "small",
+          "schemaId": "small",
+          "batch": {
+            "rows": 2,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1,
+                  2
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "openStream",
+          "streamId": "s",
+          "schemaId": "small"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "s",
+          "batchId": "small"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "s",
+          "batchId": "small"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitChunks",
+        "operation": 5
+      }
+    },
+    {
+      "id": "TAB0-aggregate-buffer-limit-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 1,
+            "columns": 2,
+            "fields": 2,
+            "buffers": 1,
+            "totalBytes": 128,
+            "allocationBytes": 128,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 32,
+            "chunks": 2
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "aggregate",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              },
+              {
+                "name": "flux",
+                "type": "f64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "aggregate",
+          "schemaId": "aggregate",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [1],
+                "bufferCount": 1
+              },
+              {
+                "name": "flux",
+                "values": [0.8],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitBuffers",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-total-bytes-limit-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 1,
+            "columns": 1,
+            "fields": 1,
+            "buffers": 1,
+            "totalBytes": 8,
+            "allocationBytes": 128,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 32,
+            "chunks": 2
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "bytes",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "bytes",
+          "schemaId": "bytes",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [1],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 9,
+            "allocationBytes": 8
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitTotalBytes",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-allocation-bytes-limit-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 1,
+            "columns": 1,
+            "fields": 1,
+            "buffers": 1,
+            "totalBytes": 128,
+            "allocationBytes": 8,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 32,
+            "chunks": 2
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "allocation",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "allocation",
+          "schemaId": "allocation",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [1],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 8,
+            "allocationBytes": 9
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitAllocationBytes",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-string-bytes-limit-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 1,
+            "columns": 1,
+            "fields": 1,
+            "buffers": 1,
+            "totalBytes": 128,
+            "allocationBytes": 128,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 4,
+            "chunks": 2
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "strings",
+          "schema": {
+            "fields": [
+              {
+                "name": "text",
+                "type": "String",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "strings",
+          "schemaId": "strings",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "text",
+                "values": ["hello"],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitStringBytes",
+        "operation": 2
+      }
+    },
+    {
+      "id": "TAB0-batch-byte-facts-required",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "facts",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ]
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "facts",
+          "schemaId": "facts",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [1],
+                "bufferCount": 1
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidBatchBytes",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-overflow-fails-before-publication",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "setLimits",
+          "limits": {
+            "rows": 2,
+            "columns": 2,
+            "fields": 2,
+            "buffers": 2,
+            "totalBytes": 2000,
+            "allocationBytes": 2000,
+            "nesting": 4,
+            "metadataBytes": 100,
+            "stringBytes": 32,
+            "chunks": 2
+          }
+        },
+        {
+          "op": "publicationOverflow",
+          "rows": 3,
+          "totalBytes": 100
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "limitBeforePublication",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-arithmetic-overflow-fails-before-publication",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-999"
+      ],
+      "operations": [
+        {
+          "op": "publicationOverflow",
+          "rows": 9007199254740992,
+          "totalBytes": 0
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "arithmeticOverflow",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-schema-metadata-does-not-change-identity",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1000"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "first",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ],
+            "metadata": {
+              "display": "A"
+            }
+          }
+        },
+        {
+          "op": "publishSchema",
+          "schemaId": "second",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "u64",
+                "nullable": false
+              }
+            ],
+            "metadata": {
+              "display": "B"
+            }
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "first-batch",
+          "schemaId": "first",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  1
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "publishBatch",
+          "batchId": "second-batch",
+          "schemaId": "second",
+          "batch": {
+            "rows": 1,
+            "columns": [
+              {
+                "name": "sequence",
+                "values": [
+                  2
+                ],
+                "bufferCount": 1
+              }
+            ],
+            "totalBytes": 64,
+            "allocationBytes": 64
+          }
+        },
+        {
+          "op": "openStream",
+          "streamId": "s",
+          "schemaId": "first"
+        },
+        {
+          "op": "emitChunk",
+          "streamId": "s",
+          "batchId": "second-batch"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-extension-without-adapter-stays-opaque",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1000"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "extension",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "vendor.Sequence",
+                "nullable": false
+              }
+            ],
+            "extensions": [
+              {
+                "id": "vendor.sequence",
+                "version": 1,
+                "parameters": {
+                  "unit": "sequence"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "registerExtension",
+          "schemaId": "extension",
+          "adapter": false
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-extension-nominal-bind-needs-adapter",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1000"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "extension",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "vendor.Sequence",
+                "nullable": false
+              }
+            ],
+            "extensions": [
+              {
+                "id": "vendor.sequence",
+                "version": 1,
+                "parameters": {
+                  "unit": "sequence"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "extension-row",
+          "schemaId": "extension",
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "vendor.Sequence",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "extensionAdapterRequired",
+        "operation": 1
+      }
+    },
+    {
+      "id": "TAB0-extension-static-bind-with-adapter",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1000"
+      ],
+      "operations": [
+        {
+          "op": "publishSchema",
+          "schemaId": "extension",
+          "schema": {
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "vendor.Sequence",
+                "nullable": false
+              }
+            ],
+            "extensions": [
+              {
+                "id": "vendor.sequence",
+                "version": 1,
+                "parameters": {
+                  "unit": "sequence"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "op": "bindStatic",
+          "bindingId": "extension-row",
+          "schemaId": "extension",
+          "extensionAdapter": true,
+          "rowType": {
+            "kind": "struct",
+            "protocol": "data.Row",
+            "synthesis": "stored-fields-order",
+            "nullable": false,
+            "fields": [
+              {
+                "name": "sequence",
+                "type": "vendor.Sequence",
+                "nullable": false
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-dlpacks-remain-tensor-direction",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "classifyAdapter",
+          "format": "dlpack",
+          "domain": "tensor"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-adapter-signatures-deferred-to-tab1",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "deferAdapterSignatures",
+          "formats": [
+            "csv",
+            "parquet",
+            "arrow"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "TAB0-adapter-deferral-requires-formats",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "deferAdapterSignatures",
+          "formats": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidAdapterDeferral",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-dlpacks-tabular-carrier-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "classifyAdapter",
+          "format": "dlpack",
+          "domain": "tabular"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "dlpackTabularCarrier",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-adapter-deferral-rejects-dlpack",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "deferAdapterSignatures",
+          "formats": [
+            "csv",
+            "parquet",
+            "arrow",
+            "dlpack"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidAdapterDeferral",
+        "operation": 0
+      }
+    },
+    {
+      "id": "TAB0-adapter-deferral-rejects-order",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon.w",
+          "symbol": "HorizonStatus"
+        }
+      ],
+      "decisions": [
+        "W-1001"
+      ],
+      "operations": [
+        {
+          "op": "deferAdapterSignatures",
+          "formats": [
+            "parquet",
+            "csv",
+            "arrow"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "invalidAdapterDeferral",
+        "operation": 0
+      }
+    }
+  ]
+}

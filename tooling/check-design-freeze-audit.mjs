@@ -23,6 +23,7 @@ const corpusFiles = [
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "wmeta-cases.json",
+  "tabular-carrier-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

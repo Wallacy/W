@@ -113,7 +113,7 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
     const localDecisions = new Set();
 
     for (const decision of testCase.decisions) {
-      if (!/^W-\d{3}$/.test(decision)) {
+      if (!/^W-\d{3,}$/.test(decision)) {
         errors.push(`${location}.decisions contains invalid ID ${decision}.`);
       } else if (!designText.includes(`| ${decision} |`)) {
         errors.push(`${location}.decisions references missing ledger entry ${decision}.`);

@@ -1,0 +1,169 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-tabular-carrier",
+  "title": "Black-hole telemetry carrier at the Last Light restaurant",
+  "r0Cases": ["R0-tabular-carrier", "R0-data-row-synthesis", "R0-copy-release-boundary"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/horizon.w",
+    "symbol": "HorizonSample",
+    "digest": "sha256:b3516957ecf1e9f62c6b0b4864af47a2e73a2fe2a983e94c277811049279aecd"
+  },
+  "variants": [
+    {
+      "id": "typed-batch",
+      "role": "selected",
+      "language": "w",
+      "path": "typed-batch.w",
+      "digest": "sha256:f5a7390eb384cda49348abdd5d9e4574e7b5102f9a3a5d7d247a1fb483d74faf",
+      "changedConstructs": ["data.Row synthesis", "typed data.Batch", "generated field descriptor"]
+    },
+    {
+      "id": "dynamic-batch",
+      "role": "alternative",
+      "language": "w",
+      "path": "dynamic-batch.w",
+      "digest": "sha256:2eee80e91d7983b64c77efa7147f82505b95a47e44a5b79f28ff5c00dab80a45",
+      "changedConstructs": ["runtime schema", "explicit typed bind", "typed descriptor after bind"]
+    },
+    {
+      "id": "row-array",
+      "role": "alternative",
+      "language": "w",
+      "path": "row-array.w",
+      "digest": "sha256:702b227ceb73f49e5ac23568b88a56bf0aedce9a339c70de7e0c18f246001747",
+      "changedConstructs": ["Array<Row> baseline", "row-centric map", "non-universal carrier"]
+    }
+  ],
+  "entry": "summarizeHorizon",
+  "inputs": [
+    {
+      "id": "primary-restaurant-telemetry",
+      "rows": [
+        { "sequence": 7, "hawkingFlux": 0.2, "warning": null },
+        { "sequence": 8, "hawkingFlux": 0.8, "warning": "evacuate" }
+      ],
+      "expected": {
+        "count": 2,
+        "lastSequence": 8,
+        "maxHawkingFlux": 0.8,
+        "warnings": 1,
+        "nullWarning": true,
+        "nanIsValue": false,
+        "fields": ["sequence", "hawkingFlux", "warning"],
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "adversarial-null-versus-nan",
+      "rows": [{ "sequence": 9, "hawkingFlux": "NaN", "warning": null }],
+      "expected": { "count": 1, "nullWarning": true, "nanIsValue": true, "status": "accepted" }
+    },
+    {
+      "id": "adversarial-empty-batch",
+      "rows": [],
+      "expected": {
+        "count": 0,
+        "lastSequence": null,
+        "maxHawkingFlux": null,
+        "warnings": 0,
+        "nullWarning": false,
+        "nanIsValue": false,
+        "fields": ["sequence", "hawkingFlux", "warning"],
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "adversarial-finite-negative-flux",
+      "rows": [
+        { "sequence": 10, "hawkingFlux": -4, "warning": null },
+        { "sequence": 11, "hawkingFlux": "NaN", "warning": null },
+        { "sequence": 12, "hawkingFlux": -1, "warning": "late" }
+      ],
+      "expected": {
+        "count": 3,
+        "lastSequence": 12,
+        "maxHawkingFlux": -1,
+        "warnings": 1,
+        "nullWarning": true,
+        "nanIsValue": true,
+        "fields": ["sequence", "hawkingFlux", "warning"],
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "adversarial-duplicate-name",
+      "schema": { "fields": ["sequence", "sequence", "hawkingFlux"] },
+      "expected": { "status": "rejected", "code": "duplicateFieldName" }
+    },
+    {
+      "id": "adversarial-unequal-column-length",
+      "columns": { "sequence": [10, 11], "hawkingFlux": [0.5], "warning": [null, null] },
+      "expected": { "status": "rejected", "code": "unequalColumnLength" }
+    },
+    {
+      "id": "adversarial-schema-change-between-satellite-chunks",
+      "chunks": [
+        { "schema": ["sequence", "hawkingFlux", "warning"] },
+        { "schema": ["sequence", "hawkingFlux", "warning", "satelliteId"] }
+      ],
+      "expected": { "status": "rejected", "code": "streamSchemaChange" }
+    },
+    {
+      "id": "adversarial-copy-never-device-mismatch",
+      "device": { "source": "gpu", "target": "cpu", "copy": "never" },
+      "expected": { "status": "rejected", "code": "copyNeverDeviceMismatch" }
+    },
+    {
+      "id": "adversarial-invalid-utf8-and-offset",
+      "foreign": { "utf8Declared": true, "validUtf8": false, "offset": 8, "length": 4, "byteLength": 8 },
+      "expected": { "status": "rejected", "code": "invalidUtf8" }
+    },
+    {
+      "id": "adversarial-release-exactly-once",
+      "owner": { "views": 0, "releaseAttempts": 2 },
+      "expected": { "status": "rejected", "code": "releaseExactlyOnce" }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Explain which fields form schema identity and why all variants produce the same optional finite-maximum telemetry summary."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the empty, negative, null, NaN, chunk, device, trust, and release failures.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect in each variant without changing the telemetry outcome.",
+      "mutations": {
+        "typed-batch": "Change the descriptor from `hawkingFlux` to an unknown field.",
+        "dynamic-batch": "Remove the generic row type or the explicit `copyPolicy: .never` policy from the bind.",
+        "row-array": "Use the array as a universal columnar carrier instead of a row algorithm."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a second satellite chunk and preserve one schema identity, an optional finite maximum, explicit copy policy, checked `f64` reads, and scoped foreign ownership."
+    }
+  ],
+  "presentationOrders": [
+    ["typed-batch", "dynamic-batch", "row-array"],
+    ["row-array", "typed-batch", "dynamic-batch"],
+    ["dynamic-batch", "row-array", "typed-batch"]
+  ],
+  "blinding": {
+    "participantLabels": { "typed-batch": "A", "dynamic-batch": "B", "row-array": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:77295cf1361d6cbb46014e54f673685d452c308336c58a1e7523d22643057e64"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

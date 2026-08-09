@@ -21,10 +21,12 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 60 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 200/987 decisões estão classificadas (99 source, 113 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 20 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 140 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | 13 bundles R1, 28 variantes e 52 tarefas; 22/60 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 63 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 214/1005 decisões estão classificadas (107 source, 127 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 28 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 149 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
+| `studies/*/bundle.json` + checker | 14 bundles R1, 31 variantes e 56 tarefas; 25/63 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
+| `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
+| `tabular-carrier-reference.test.mjs` | testes host independentes para o carrier tabular e a fronteira explícita de evidência | teste não prova compiler, runtime, CSV, Parquet, Arrow ou DataFrame de produção |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
