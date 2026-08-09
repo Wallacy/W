@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "559c62be09041a2afce72dff4e0f6c3d88d0bddbefdafd994e19247a16f078af",
+  "catalogDigest": "0bcbf323d5ffe803917f167609457201ba70234b54e3270f8f20f8e16c20691d",
   "summary": {
-    "modules": 14,
-    "catalogedApis": 161,
-    "draftCatalogedApis": 161,
+    "modules": 18,
+    "catalogedApis": 285,
+    "draftCatalogedApis": 285,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 42,
-    "referenceRequirements": 9,
-    "contractedReferenceRequirements": 9,
+    "qualifiedReferenceSurfaces": 67,
+    "referenceRequirements": 14,
+    "contractedReferenceRequirements": 14,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 7,
-    "missingImplementationProviders": 7
+    "implementationProviders": 12,
+    "missingImplementationProviders": 12
   },
   "modules": [
     {
@@ -216,6 +216,316 @@
       ]
     },
     {
+      "id": "std.arrow",
+      "tier": "T2",
+      "availability": "arrow-adapter-provider",
+      "source": "std/arrow/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.arrow@1",
+        "status": "missing",
+        "gates": [
+          "c-release-once",
+          "copy-never",
+          "device-classification",
+          "dictionary-order",
+          "ipc-flatbuffers-validation",
+          "schema-footer-identity"
+        ]
+      },
+      "catalogedDeclarationsDigest": "2f5080cd06324e2d01396e1f3c9974f1c886ab07fc2117075ccc0a5d3d957940",
+      "apis": [
+        {
+          "symbol": "BlockingQuota",
+          "kind": "struct",
+          "signature": "export struct BlockingQuota: Copy & Equatable",
+          "declarationDigest": "db3dd5256a822e14c28f80a52e67a76e0f9dd3b757ccbf5b674d2613559aa920",
+          "line": 111,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "BlockingStrategy",
+          "kind": "enum",
+          "signature": "export enum BlockingStrategy: Copy & Equatable",
+          "declarationDigest": "4996e02e0c3ff515019441fe4aa9aefaef7a8f419cb26b362bf07b8b3a40518c",
+          "line": 103,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CArrayHandle",
+          "kind": "struct",
+          "signature": "export struct CArrayHandle",
+          "declarationDigest": "d8283dd26b02d69d156e31387acaca0059b0c3af1172cd81a78d62a32042df3d",
+          "line": 306,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CExportError",
+          "kind": "enum",
+          "signature": "export enum CExportError: Error",
+          "declarationDigest": "258858668c7355bbe7f2821076ae56894d071099d8557e92088fa6fd0b561628",
+          "line": 405,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CExportOptions",
+          "kind": "struct",
+          "signature": "export struct CExportOptions: Copy & Equatable",
+          "declarationDigest": "d8e50d194f6e4c1e11ea63a94272c7e2110d2bd2800285bd1261e9ea1305223c",
+          "line": 189,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CImportError",
+          "kind": "enum",
+          "signature": "export enum CImportError: Error",
+          "declarationDigest": "b71445217ac8d220a1fcfb175cbbf6f241c0a28f1fa2452b220ceb2664237354",
+          "line": 389,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CImportLimits",
+          "kind": "struct",
+          "signature": "export struct CImportLimits: Copy & Equatable",
+          "declarationDigest": "c7027f5d5aeb085d7bb52841090300791f964268092a258f93f352c3e2d328a6",
+          "line": 75,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CImportOptions",
+          "kind": "struct",
+          "signature": "export struct CImportOptions: Copy & Equatable",
+          "declarationDigest": "02b3eec4fa7a1d78d274c3432e7703eab0adf997ae78b0b2ac69f744cccba7ca",
+          "line": 140,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CStreamHandle",
+          "kind": "struct",
+          "signature": "export struct CStreamHandle",
+          "declarationDigest": "4a9fd06858e05958d3ec37807025bbaeaa14760adc9c6a8d1db950667e7d52d9",
+          "line": 318,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "CStreamImportOptions",
+          "kind": "struct",
+          "signature": "export struct CStreamImportOptions: Copy & Equatable",
+          "declarationDigest": "f71caeace2d94f3eea071960428c1a04c937f41ce771663353b7885af2278ef5",
+          "line": 157,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeError",
+          "kind": "enum",
+          "signature": "export enum DecodeError<SourceFailure: Error>: Error",
+          "declarationDigest": "40ce023224d1331be93021853ea62e193ce31fb9446f7a5e439ce9bd116359fa",
+          "line": 370,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcFile",
+          "kind": "fn",
+          "signature": "export fn decodeIpcFile<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "ce85ae45d072dcdd5a965e2f058999a1623b56b9b146b9b34cfc1703e7e19f2d",
+          "line": 437,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcFileAll",
+          "kind": "fn",
+          "signature": "export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "419dc174aa72d9a67f21a7d5f1df9e70d88f40af5e9720597276027eec8a6978",
+          "line": 455,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcFileDynamic",
+          "kind": "fn",
+          "signature": "export fn decodeIpcFileDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "6122ef55dfc5663d99eaf956305e14b9cd69d4d60e6199312db15fa38a32571b",
+          "line": 473,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcStream",
+          "kind": "fn",
+          "signature": "export fn decodeIpcStream<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "17d514c311a7fa7c4ffd525e5a3ceeac0bee54db590c00c012e72f939a657db5",
+          "line": 429,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcStreamAll",
+          "kind": "fn",
+          "signature": "export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "af55cd7df2c9e98f95af44a234e96b85969b7355c25b6a30753f5c145a940838",
+          "line": 445,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeIpcStreamDynamic",
+          "kind": "fn",
+          "signature": "export fn decodeIpcStreamDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "0ca42f82fb01b6d439607b5bfd8e993e9be7b9661e18a31ef68494c0e8d65a1e",
+          "line": 465,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeOptions",
+          "kind": "struct",
+          "signature": "export struct DecodeOptions: Copy & Equatable",
+          "declarationDigest": "75f939292d16b61203c5da6e53607a2efd2a7fffb74090a6145b42f6c29e16fc",
+          "line": 330,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "DeviceKind",
+          "kind": "enum",
+          "signature": "export enum DeviceKind: Copy & Equatable",
+          "declarationDigest": "8d7e650e57a9b43c33cfccb56e203da8187a2aeedc4d833762d6952a0b6bbead",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "DrainPolicy",
+          "kind": "enum",
+          "signature": "export enum DrainPolicy: Copy & Equatable",
+          "declarationDigest": "cc4ce81f9c2a863e37d3597e33bb08b9f7c9a493e4900da5d0f44f19d5af5749",
+          "line": 135,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeError",
+          "kind": "enum",
+          "signature": "export enum EncodeError<SinkFailure: Error>: Error",
+          "declarationDigest": "83e776a9aa1b3e74c5cad297e17f15a4bc01e98173772bf284e3068aa48ed4c9",
+          "line": 414,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "encodeIpcFile",
+          "kind": "fn",
+          "signature": "export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "586e4dd9238a1da5d5a43e2c58def2bd6293551d8a337ebce92afe2a57f64f6b",
+          "line": 518,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "encodeIpcStream",
+          "kind": "fn",
+          "signature": "export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "4e5d12f7fbb95c827f73af56b30e41cc24d65faaa6441f9a7a294b5850f0b102",
+          "line": 492,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeOptions",
+          "kind": "struct",
+          "signature": "export struct EncodeOptions: Copy & Equatable",
+          "declarationDigest": "e4af9e20d89201203c9ba3e12716b0ec84d0033c3d03f800c6a9d0a22d8f181c",
+          "line": 358,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeStreamError",
+          "kind": "enum",
+          "signature": "export enum EncodeStreamError<BatchFailure: Error, SinkFailure: Error>: Error",
+          "declarationDigest": "25eba984ddfa883fb67183ca85c0d58f9334d75a8d2a376c46cfda428c89cdb1",
+          "line": 421,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        },
+        {
+          "symbol": "exportCArray",
+          "kind": "fn",
+          "signature": "export fn exportCArray<Row: data.Row>( batch: ref data.Batch<Row>, options: CExportOptions = CExportOptions.standard(), ): CArrayHandle throws CExportError",
+          "declarationDigest": "33a343d7764d6100d755e7ecf90f6306e6e5004d886f2307914bb021249d167c",
+          "line": 572,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "importCArray",
+          "kind": "fn",
+          "signature": "export fn importCArray<Row: data.Row>( handle: take CArrayHandle, options: CImportOptions = CImportOptions.standard(), ): data.Batch<Row> throws CImportError",
+          "declarationDigest": "7c831d78d03f9aaa1f1a5be7cb2a191a2a4f6ffde50258e40b257602b92f4f14",
+          "line": 533,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "importCArrayDynamic",
+          "kind": "fn",
+          "signature": "export fn importCArrayDynamic( handle: take CArrayHandle, options: CImportOptions = CImportOptions.standard(), ): data.DynamicBatch throws CImportError",
+          "declarationDigest": "40944a5381aa0b3111cd3f813643234f75cfbfe6e048a847a2ea30bfc3854b4e",
+          "line": 545,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "importCStream",
+          "kind": "fn",
+          "signature": "export fn importCStream<Row: data.Row>( handle: take CStreamHandle, options: CStreamImportOptions = CStreamImportOptions.standard(), ): some Stream<data.Batch<Row>, CImportError>",
+          "declarationDigest": "607f2ee959dbe481b0296c8b4618535df16ebd8ee74d0f806c56dc327c31c4eb",
+          "line": 554,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "importCStreamDynamic",
+          "kind": "fn",
+          "signature": "export fn importCStreamDynamic( handle: take CStreamHandle, options: CStreamImportOptions = CStreamImportOptions.standard(), ): some Stream<data.DynamicBatch, CImportError>",
+          "declarationDigest": "152ed0d64969c8dfbd48b385122f134e2ccd2af203bb7696ccae6cea27f51a28",
+          "line": 563,
+          "profile": "arrow-c-bridge",
+          "status": "draft"
+        },
+        {
+          "symbol": "LimitKind",
+          "kind": "enum",
+          "signature": "export enum LimitKind: Copy & Equatable",
+          "declarationDigest": "c1480ced9809ecb140e068689b76a272b990b3a47d3704451947a970fef3573c",
+          "line": 15,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "c21d9b7ca3dcd3e0e9ec6c9f8ae33ec683cae29853bf9d001c0e1f57eac7a36e",
+          "line": 27,
+          "profile": "arrow-ipc",
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.build",
       "tier": "T1",
       "availability": "build-host",
@@ -359,6 +669,653 @@
           "declarationDigest": "bd1e91eb098d9dc256fd2551ea40ab4182920aa89965c3fcf5b30cb46db17919",
           "line": 45,
           "profile": "cache-provider",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.csv",
+      "tier": "T2",
+      "availability": "csv-adapter-provider",
+      "source": "std/csv/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.csv@1",
+        "status": "missing",
+        "gates": [
+          "limits",
+          "partial-progress",
+          "rfc4180-vectors",
+          "streaming-quoted-records",
+          "typed-binding",
+          "utf8-errors"
+        ]
+      },
+      "catalogedDeclarationsDigest": "785a245986bcfd6ba2fb15097d6dcf9c62933656898c283f2eae09d321ff5cbb",
+      "apis": [
+        {
+          "symbol": "BoolTokenPolicy",
+          "kind": "enum",
+          "signature": "export enum BoolTokenPolicy",
+          "declarationDigest": "dbe8f9ed1ce651f8de3add8c1037107f501b52a3514658af5aa6ffb76c04490c",
+          "line": 21,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ConfigError",
+          "kind": "enum",
+          "signature": "export enum ConfigError: Error",
+          "declarationDigest": "f5129c629cb177d85e58c7aa525530542b4ddb7d20711b2130ad72364955f40c",
+          "line": 135,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "decode",
+          "kind": "fn",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "cd953a596ccd949a3b96dcf09225fb6a8ad233310ffab461589482a0b36fe21f",
+          "line": 353,
+          "profile": "csv-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeAll",
+          "kind": "fn",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "79379ffd726265300cd77db409c47af5f1ba8ae9f8ffd4a7af1dc382aa3b4e12",
+          "line": 370,
+          "profile": "csv-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeDialect",
+          "kind": "struct",
+          "signature": "export struct DecodeDialect",
+          "declarationDigest": "f640a2cf2d964dbf083aa15f8356e68d3fbc39eef6e70b56810d4a05cb383e90",
+          "line": 148,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeDynamic",
+          "kind": "fn",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, schema: take data.Schema, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "b63bc515f5c745117d18d1ecb46e5c0720482fb670730b4e973a0b16b23caf05",
+          "line": 360,
+          "profile": "csv-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeError",
+          "kind": "enum",
+          "signature": "export enum DecodeError<SourceFailure: Error>: Error",
+          "declarationDigest": "0d40957b79841235ae26fa0b7fdcdb58cd6b86cace19414e59d4a34427db1a53",
+          "line": 286,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeOptions",
+          "kind": "struct",
+          "signature": "export struct DecodeOptions",
+          "declarationDigest": "72a7e3da70726bcddee4732fbed5be5c05ce54c75489fc8f8bc8c9653ba3ea57",
+          "line": 258,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "encode",
+          "kind": "fn",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "d3bdaabedabdd2fb7f3e7ea87a1108ef39de7ddbaa21dbcfc328fa0d162fbacc",
+          "line": 387,
+          "profile": "csv-encode",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeDialect",
+          "kind": "struct",
+          "signature": "export struct EncodeDialect",
+          "declarationDigest": "cc4b6161ead7818b798c5a0f791e0af67a4fd8e1c1ff462002833110a889d84c",
+          "line": 194,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeError",
+          "kind": "enum",
+          "signature": "export enum EncodeError<SinkFailure: Error>: Error",
+          "declarationDigest": "d190626eb60dac8642a4daf690658a48acdb21af7801445aa2e74619187a4e4e",
+          "line": 301,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeOptions",
+          "kind": "struct",
+          "signature": "export struct EncodeOptions",
+          "declarationDigest": "b59baf0c085f9424c5e9d6da4057472cd5ed4f7bb42119b366942ef0a1539012",
+          "line": 272,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeStreamError",
+          "kind": "enum",
+          "signature": "export enum EncodeStreamError<BatchFailure: Error, SinkFailure: Error>: Error",
+          "declarationDigest": "4e0e8316d2bac2e5b07e9dd3699f9c4ce0ba8a62d39c5df89d390225d175b89e",
+          "line": 311,
+          "profile": "csv-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "FloatTokenPolicy",
+          "kind": "enum",
+          "signature": "export enum FloatTokenPolicy",
+          "declarationDigest": "43c98a6a9ab08e0a44548e1827b2168b6c1273dac31452131a65bda358e97bdf",
+          "line": 26,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FormulaPolicy",
+          "kind": "enum",
+          "signature": "export enum FormulaPolicy: Copy & Equatable",
+          "declarationDigest": "e6bc803b54e295de35ab67f0de57c61ad7af995d27f3f52759e4620b7ed238af",
+          "line": 37,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "HeaderPolicy",
+          "kind": "enum",
+          "signature": "export enum HeaderPolicy: Copy & Equatable",
+          "declarationDigest": "cfbaafbc50d630939bda7dc6d0ddc6c035ecb9305e9c372cfc6976ea508ca296",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LimitKind",
+          "kind": "enum",
+          "signature": "export enum LimitKind: Copy & Equatable",
+          "declarationDigest": "af2f245ee19e19d5f2b24c86e2f7067dde86ed229383a70d839ad62fdba1bcb7",
+          "line": 85,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "8e17e1d00a6594253f58f1da3dd6d251503350e134ceb71d5f10ee108d9317b0",
+          "line": 95,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Location",
+          "kind": "struct",
+          "signature": "export struct Location: Copy & Equatable",
+          "declarationDigest": "5debc3eb0d4729629abbdff0857f0d38d75cc525f8232e261ab084078b71edc3",
+          "line": 75,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LocationKind",
+          "kind": "enum",
+          "signature": "export enum LocationKind: Copy & Equatable",
+          "declarationDigest": "5d436f4b1151b699edd49c3941298b9222aacc040f0ff3185169c8020e697b5f",
+          "line": 68,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "NullDecodePolicy",
+          "kind": "enum",
+          "signature": "export enum NullDecodePolicy",
+          "declarationDigest": "828c66b6e33f07b9597a41e69d1c40c9a2e3e535b0730be6771432eb51d65ff5",
+          "line": 45,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "NullEncodePolicy",
+          "kind": "enum",
+          "signature": "export enum NullEncodePolicy",
+          "declarationDigest": "9199ee1b6ceb776555cf02d7dda055a7d0becab33c678c681c873711538146b0",
+          "line": 51,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Profile",
+          "kind": "enum",
+          "signature": "export enum Profile",
+          "declarationDigest": "87f367e020c99a820ec50f962ce771c96469d0c08368ba7a4083e0ae5500dca0",
+          "line": 57,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "WhitespacePolicy",
+          "kind": "enum",
+          "signature": "export enum WhitespacePolicy: Copy & Equatable",
+          "declarationDigest": "a2f35b243acccf5d39052c021f3177c676ddf14ec5ef069eb99e4848acf6003c",
+          "line": 15,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "WriterFloatPolicy",
+          "kind": "enum",
+          "signature": "export enum WriterFloatPolicy: Copy & Equatable",
+          "declarationDigest": "6909f9a5732d052b15557020d35f8187787ee7f3ce12e275b3f4a1b56bd383e3",
+          "line": 32,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "WriterProfile",
+          "kind": "enum",
+          "signature": "export enum WriterProfile",
+          "declarationDigest": "ec3cbea0118a17eb1fb86b1a7bda268e332cc468063c79cc7caf2d275451ec66",
+          "line": 63,
+          "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.data",
+      "tier": "T2",
+      "availability": "tabular-carrier-provider",
+      "source": "std/data/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.data@1",
+        "status": "missing",
+        "gates": [
+          "batch-publication",
+          "column-borrow",
+          "copy-policy",
+          "limits",
+          "ownership-release",
+          "schema-identity"
+        ]
+      },
+      "catalogedDeclarationsDigest": "7919dd961c403ae24fe947ba87c933edc8c6e7dc5c52f1f3c310e27c013bc8f8",
+      "apis": [
+        {
+          "symbol": "Batch",
+          "kind": "struct",
+          "signature": "export struct Batch<Element: Row>",
+          "declarationDigest": "7eb839200bc2d7d7f0d1ed6ba3bc5b4ee83e2fe59ef783e73dadec0255cbde30",
+          "line": 793,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "bind",
+          "kind": "fn",
+          "signature": "export fn bind<Element: Row>( batch: take DynamicBatch, to schema: ref Schema, policy: BindingPolicy = .exact, limits: ref Limits, ): Batch<Element> throws BindError",
+          "declarationDigest": "85bddc30c9cf5a2a1f8f48e2079525d2dd6d6ae9484e5c09ca481dde73930990",
+          "line": 915,
+          "profile": "data-binding",
+          "status": "draft"
+        },
+        {
+          "symbol": "BindError",
+          "kind": "enum",
+          "signature": "export enum BindError: Error",
+          "declarationDigest": "9dffd26921a09aa272e68921991442d305cdbf0c07152c42fe7ef107dbd7fc07",
+          "line": 859,
+          "profile": "data-binding",
+          "status": "draft"
+        },
+        {
+          "symbol": "BindingPolicy",
+          "kind": "enum",
+          "signature": "export enum BindingPolicy: Copy & Equatable",
+          "declarationDigest": "0fc32d25418ee0dc6a7a2a97049a24c8b6fc501d3fc47c3fa52c4f1e79a40486",
+          "line": 15,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "BytesColumn",
+          "kind": "struct",
+          "signature": "export struct BytesColumn<Owner: Row>",
+          "declarationDigest": "b4a0d01f6d47888c2f44ab50763b7d0dfd412e689af63342e1b6105e794bb001",
+          "line": 757,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "Column",
+          "kind": "struct",
+          "signature": "export struct Column<Owner: Row, Value>",
+          "declarationDigest": "4ea03fc570d7c42beb13a91e79c91a19d5910daf2f5851136750a699f90ba72a",
+          "line": 715,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "CopyPolicy",
+          "kind": "enum",
+          "signature": "export enum CopyPolicy: Copy & Equatable",
+          "declarationDigest": "d07d9cb66f8a3f068e3d8ae615ce52e0aff51b35cc21549e3f5d913c8e536fbb",
+          "line": 9,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "DateValue",
+          "kind": "struct",
+          "signature": "export struct DateValue",
+          "declarationDigest": "797a93216034f9716dad9694c2c8a0a54abe74f9cacd9ad59cf63583209c5fb0",
+          "line": 245,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecimalValue",
+          "kind": "struct",
+          "signature": "export struct DecimalValue",
+          "declarationDigest": "32879cd6962a750553461fa9bcf619f1c2b62a361f8852f35ec8c9ea24facb29",
+          "line": 216,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicBatch",
+          "kind": "struct",
+          "signature": "export struct DynamicBatch",
+          "declarationDigest": "43806270fadabbaff14cd261e97308f6e61a528ebe6f94f6ba9d9575f851aa35",
+          "line": 835,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicColumn",
+          "kind": "struct",
+          "signature": "export struct DynamicColumn",
+          "declarationDigest": "019b755d34ef0a01c995a11aeaa805551ade59163f1b7ae619493a66355a3f09",
+          "line": 777,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicEntry",
+          "kind": "struct",
+          "signature": "export struct DynamicEntry",
+          "declarationDigest": "3f89a98e9174d2e25b5bf558515e2f9b48dc4eb704bfa75a50b3d86642e97125",
+          "line": 697,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicExtensionValue",
+          "kind": "struct",
+          "signature": "export struct DynamicExtensionValue",
+          "declarationDigest": "966dd48ecd4b4da24a5e2b36e6a2d0f08bd90bd711ce0e02f2a45c68da655e41",
+          "line": 596,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicListValue",
+          "kind": "struct",
+          "signature": "export struct DynamicListValue",
+          "declarationDigest": "82ceeb775a8bdc5edfbeb3e09f3691db207c7d02156cb607cd13985dacc5fa8e",
+          "line": 622,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicMapValue",
+          "kind": "struct",
+          "signature": "export struct DynamicMapValue",
+          "declarationDigest": "114dcbaad86fae06e9593896d8f687fa4987709f47557679ac6600d48b2c33c7",
+          "line": 639,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicNestedValue",
+          "kind": "struct",
+          "signature": "export struct DynamicNestedValue",
+          "declarationDigest": "f3fe8ab1dbd26f81fe2853ff25ba14858675038bbbf055a5bf3b9799fa6970d8",
+          "line": 656,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "DynamicValue",
+          "kind": "enum",
+          "signature": "export enum DynamicValue",
+          "declarationDigest": "514861fd130f3a03050221ca9a02698ab34c55435ff0437ae1edf26cd8b1a2f9",
+          "line": 675,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeProgress",
+          "kind": "struct",
+          "signature": "export struct EncodeProgress: Copy & Equatable",
+          "declarationDigest": "7b68aacfe27505245fc7a1f9e10ee8409a354779e42dc6036f9a2167c2d58c01",
+          "line": 873,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FieldDescriptor",
+          "kind": "struct",
+          "signature": "export struct FieldDescriptor<Owner: Row, Value>",
+          "declarationDigest": "81bd48e3e51ef3f7e2dc2df4994cc1970e76e9b27b9baeee45acb9316222d80d",
+          "line": 707,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "FixedDecimalType",
+          "kind": "struct",
+          "signature": "export struct FixedDecimalType",
+          "declarationDigest": "a6a61ccccec7db26e49b50677498c8571a95303117887352f56abeddcdf19fca",
+          "line": 57,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "FloatWidth",
+          "kind": "enum",
+          "signature": "export enum FloatWidth: Copy & Equatable",
+          "declarationDigest": "b078e70d991f9917106ab74d04fbc0f40efebd19cc0725817a0af3dc9592272c",
+          "line": 40,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "InstantValue",
+          "kind": "struct",
+          "signature": "export struct InstantValue",
+          "declarationDigest": "aad0eece9059795af7ff9c6a3e96300e6a8cb477e091fed16bcaa63c3767cb9f",
+          "line": 273,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "IntegerSign",
+          "kind": "enum",
+          "signature": "export enum IntegerSign: Copy & Equatable",
+          "declarationDigest": "5cce79b77a17509dc886f2189105df62ebd2a36a25802037e9dfa065f3123f08",
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "IntegerWidth",
+          "kind": "enum",
+          "signature": "export enum IntegerWidth: Copy & Equatable",
+          "declarationDigest": "134d4831892e2a6cfbefdf2b22fe6917fd4f3f1a6193b14596c58e6a8beb80cc",
+          "line": 32,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LimitKind",
+          "kind": "enum",
+          "signature": "export enum LimitKind: Copy & Equatable",
+          "declarationDigest": "1ecd41628232a83961546969bd2601ba9a4a0b93378bcc7da544e021f703d7c9",
+          "line": 303,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "4ed806ae729aa33eb7797cdfb85db5d6bc9abe1f8ff9a51c2218ba87957e884f",
+          "line": 317,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "LocalDateTimeValue",
+          "kind": "struct",
+          "signature": "export struct LocalDateTimeValue",
+          "declarationDigest": "946adb19147be9d16eadde65f93d85cac3883e143a7c07220a3663b20253cc84",
+          "line": 287,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "LogicalType",
+          "kind": "struct",
+          "signature": "export struct LogicalType",
+          "declarationDigest": "51e6222c89256e0dd4d727f47ec2cdcd7e83a35fd2e11929a1a147f57a4c3242",
+          "line": 71,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "MappingPolicy",
+          "kind": "enum",
+          "signature": "export enum MappingPolicy: Copy & Equatable",
+          "declarationDigest": "ead1ebc4f2f6156008832467b991b26dbba27608992a0e5c00ee5b4efc6c08c2",
+          "line": 22,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "ProgressError",
+          "kind": "enum",
+          "signature": "export enum ProgressError: Error",
+          "declarationDigest": "6233678ca300aa3b8071918af5463010d3103b49933019dee5c978769abf8ef9",
+          "line": 869,
+          "profile": "data-binding",
+          "status": "draft"
+        },
+        {
+          "symbol": "Row",
+          "kind": "protocol",
+          "signature": "export protocol Row {}",
+          "declarationDigest": "91b79cc4c7784d2603844203f08041a6b5c8571ce9e8872f06cee3975d399580",
+          "line": 7,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "schema",
+          "kind": "fn",
+          "signature": "export fn schema<Element: Row>(): Schema",
+          "declarationDigest": "ef097b67f25d2afeb190326b7481079a212ece3c7cf2645d367b4e558059e863",
+          "line": 931,
+          "profile": "data-binding",
+          "status": "draft"
+        },
+        {
+          "symbol": "Schema",
+          "kind": "struct",
+          "signature": "export struct Schema",
+          "declarationDigest": "9b19dee0842095bd77a78dabff4bd557de494047d0d0d6b74b98d0c38cd2ac32",
+          "line": 564,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "SchemaError",
+          "kind": "enum",
+          "signature": "export enum SchemaError: Error",
+          "declarationDigest": "01977dcfce334b99a623b6da6c7c4c4782d5be485f35dd8ac1256d1a1d664709",
+          "line": 376,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "SchemaField",
+          "kind": "struct",
+          "signature": "export struct SchemaField",
+          "declarationDigest": "093c5dd46bd7d6d81a8af978c294a8d7f050a40b9a12916717d79db74e7646a2",
+          "line": 539,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "SchemaIdentity",
+          "kind": "struct",
+          "signature": "export struct SchemaIdentity: Copy & Equatable",
+          "declarationDigest": "7e1599f77ca4574a804213fde22470182ea41f82a0eb5bb150c53cca9243288f",
+          "line": 531,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "SemanticExtension",
+          "kind": "struct",
+          "signature": "export struct SemanticExtension",
+          "declarationDigest": "99ac4f82f41f3f95693e2567a03be779025d0867ae2099fd75ce2ee4e2f85053",
+          "line": 187,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "StringColumn",
+          "kind": "struct",
+          "signature": "export struct StringColumn<Owner: Row>",
+          "declarationDigest": "3879f971cda3eb58f0710c0c37a0d2a1329fbbde517d7a92b74a05313e422a68",
+          "line": 735,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "TemporalPrecision",
+          "kind": "enum",
+          "signature": "export enum TemporalPrecision: Copy & Equatable",
+          "declarationDigest": "5a963b186b3cf1ee6a4b109e8b007287219f4a350fd6f5e5be7494031a1810fb",
+          "line": 46,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "TimeValue",
+          "kind": "struct",
+          "signature": "export struct TimeValue",
+          "declarationDigest": "83b47ee76e1c16ae59346b8ddd91c9489cae82514e451972234402f284b39d0a",
+          "line": 259,
+          "profile": "data-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "UUIDValue",
+          "kind": "struct",
+          "signature": "export struct UUIDValue",
+          "declarationDigest": "45f639c5a04b0757190d4de9c59f16410119feacab07b4d5949a42937cf6741e",
+          "line": 233,
+          "profile": "data-carrier",
           "status": "draft"
         }
       ]
@@ -1652,14 +2609,26 @@
       "tier": "T1",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
-      "catalogedDeclarationsDigest": "bb3b1cb012c074fe7ad26208538c64d335a6dfd429f2c25225a466002c659744",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.io@1",
+        "status": "missing",
+        "gates": [
+          "byte-sink",
+          "byte-source",
+          "limits",
+          "parallel-short-read",
+          "snapshot-positional-read"
+        ]
+      },
+      "catalogedDeclarationsDigest": "efcb483ce9c826131bb298c6f18e58b9a8b2abc4523bd783719264355c283e27",
       "apis": [
         {
           "symbol": "ByteSink",
           "kind": "protocol",
           "signature": "export protocol ByteSink<Failure: Error>",
           "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
-          "line": 25,
+          "line": 47,
           "profile": "byte-sink",
           "status": "draft"
         },
@@ -1668,7 +2637,7 @@
           "kind": "protocol",
           "signature": "export protocol ByteSource<Failure: Error>",
           "declarationDigest": "ca1ad9ae6b8ed908b62adae664342385b559cc1f53ba9f78c184a2f4e0e91fb9",
-          "line": 18,
+          "line": 25,
           "profile": "byte-source",
           "status": "draft"
         },
@@ -1682,11 +2651,29 @@
           "status": "draft"
         },
         {
+          "symbol": "SnapshotByteSource",
+          "kind": "protocol",
+          "signature": "export protocol SnapshotByteSource<Failure: Error>",
+          "declarationDigest": "835cfba298fc24d2e8d3778d18ffebc31aecedf0bd21617ad9185584bef14b31",
+          "line": 37,
+          "profile": "snapshot-byte-source",
+          "status": "draft"
+        },
+        {
+          "symbol": "SnapshotReadStep",
+          "kind": "enum",
+          "signature": "export enum SnapshotReadStep",
+          "declarationDigest": "e7eaf14d8acb23095c6f86c79a9a615d2b87480cb4b8c4ff9100d78bd8fcb25c",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
           "symbol": "WriteAllError",
           "kind": "struct",
           "signature": "export struct WriteAllError<Cause: Error>: Error",
           "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
-          "line": 13,
+          "line": 20,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -1695,7 +2682,7 @@
           "kind": "enum",
           "signature": "export enum WriteStep",
           "declarationDigest": "d566289714bc5cf2aa28cdef36f3606fc74d3c30558e65587a8a92304f2a3e3d",
-          "line": 8,
+          "line": 15,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -3660,6 +4647,235 @@
       ]
     },
     {
+      "id": "std.parquet",
+      "tier": "T2",
+      "availability": "parquet-adapter-provider",
+      "source": "std/parquet/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.parquet@1",
+        "status": "missing",
+        "gates": [
+          "compression-limits",
+          "footer-commit",
+          "footer-preflight",
+          "legacy-list-profile",
+          "logical-type-matrix",
+          "page-checksum"
+        ]
+      },
+      "catalogedDeclarationsDigest": "8a130f88a35796ff490ce1f3abb86601dbfe8d3292f6892bf60ed53ad334e130",
+      "apis": [
+        {
+          "symbol": "ChecksumPolicy",
+          "kind": "enum",
+          "signature": "export enum ChecksumPolicy: Copy & Equatable",
+          "declarationDigest": "fe53c9713861ad8a441944676f8d502f324e8ae027b5793de9bf7977663ab3bb",
+          "line": 21,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Compression",
+          "kind": "enum",
+          "signature": "export enum Compression: Copy & Equatable",
+          "declarationDigest": "657186b967cd98389b9ae032b4c773f374874fb31262a618c81ef24dff188ef5",
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "decode",
+          "kind": "fn",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "cfc3717a54f113aa9fe002136c217885527ef99a95694d000cbb71b4fd076ec4",
+          "line": 400,
+          "profile": "parquet-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeAll",
+          "kind": "fn",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "9e5fd3e78407fcd63d7ac455d6d351f5c298da12b5af926ca1307b61ae2475dc",
+          "line": 416,
+          "profile": "parquet-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "decodeDynamic",
+          "kind": "fn",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "f57303e1241a9e8363d86c2d0c25308a2d42c3f11175d4bed406ba893c2debd0",
+          "line": 408,
+          "profile": "parquet-decode",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeError",
+          "kind": "enum",
+          "signature": "export enum DecodeError<SourceFailure: Error>: Error",
+          "declarationDigest": "f074112185b588d14ed7349db48140d12c53024650df7878fa784113c731cf4d",
+          "line": 307,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeOptions",
+          "kind": "struct",
+          "signature": "export struct DecodeOptions",
+          "declarationDigest": "352d0e1e8c19cbdb35fbe6887a1ed938111df3dbe0d9443b6740a1dba38e3a33",
+          "line": 243,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "DecodeProfile",
+          "kind": "enum",
+          "signature": "export enum DecodeProfile: Copy & Equatable",
+          "declarationDigest": "5ba7fa31c63ac4cf6c3f3f0f84d3c3a0fd0a6b29cd0b8bdae999c5bbc7ce5f4f",
+          "line": 11,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "DictionaryPolicy",
+          "kind": "enum",
+          "signature": "export enum DictionaryPolicy: Copy & Equatable",
+          "declarationDigest": "3bcf3d496dfce06db49764a1a796573427cc993c015ec348026309f23459d244",
+          "line": 36,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "encode",
+          "kind": "fn",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "09a258a5fbe3c8cf084137fe7a2b7207301be2197129ae31cdf1778c8c091384",
+          "line": 434,
+          "profile": "parquet-encode",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeError",
+          "kind": "enum",
+          "signature": "export enum EncodeError<SinkFailure: Error>: Error",
+          "declarationDigest": "7a110ccbef1fd24ee27f8dc0f5041a8906c797d144b1e492ab1cf9b8829015fa",
+          "line": 331,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeOptions",
+          "kind": "struct",
+          "signature": "export struct EncodeOptions",
+          "declarationDigest": "15a7ba01d55b580d9f72b32a65b64e84537886d25aa1eaf7b75fd11a92171787",
+          "line": 279,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeProfile",
+          "kind": "enum",
+          "signature": "export enum EncodeProfile: Copy & Equatable",
+          "declarationDigest": "587a256a993ea8c0aa3156f1ae9f201660e8b6832d17fb17d048d4dbf72f64fe",
+          "line": 16,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncodeStreamError",
+          "kind": "enum",
+          "signature": "export enum EncodeStreamError<BatchFailure: Error, SinkFailure: Error>: Error",
+          "declarationDigest": "48a254b381cd9eec2e6c68b04615b0b787bc92a25478b25227338e6a92fc213d",
+          "line": 343,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "EncryptionPolicy",
+          "kind": "enum",
+          "signature": "export enum EncryptionPolicy",
+          "declarationDigest": "b4c45988c93884c8ae0ff75ba2d695b66a0183169b836e6ea92070c3212231ed",
+          "line": 49,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "KeyResolver",
+          "kind": "struct",
+          "signature": "export struct KeyResolver",
+          "declarationDigest": "0c58b229eac578e00fb75391706870504ea8cf5745f5dae7c9e07ee079011e8e",
+          "line": 170,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "KeyResolverCapability",
+          "kind": "struct",
+          "signature": "export struct KeyResolverCapability",
+          "declarationDigest": "86670012203ae74647cde80bc0317bb816df56082b65cbbc9ceaa694d5f2ce39",
+          "line": 159,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "KeyResolverError",
+          "kind": "enum",
+          "signature": "export enum KeyResolverError: Error",
+          "declarationDigest": "897bbc9124ae58a3c2ffea199bf20e624a415972a2d06990d9884544051dbb96",
+          "line": 144,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "KeyScope",
+          "kind": "enum",
+          "signature": "export enum KeyScope: Copy & Equatable",
+          "declarationDigest": "a1810340bcefda26b6b16640854f2258f4707a298496f720e13b234de865efac",
+          "line": 151,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "LimitKind",
+          "kind": "enum",
+          "signature": "export enum LimitKind: Copy & Equatable",
+          "declarationDigest": "f3e8ae14cca0d4c94d655161aa9dbefcc3cd6660bc9445ce5e0bbf8d57518514",
+          "line": 54,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Limits",
+          "kind": "struct",
+          "signature": "export struct Limits: Copy & Equatable",
+          "declarationDigest": "8f186c9a1c319b5ea22174c4023c7813da0cd8b819846cbecd7cecd36db327e1",
+          "line": 72,
+          "profile": "parquet-codec",
+          "status": "draft"
+        },
+        {
+          "symbol": "StatisticsPolicy",
+          "kind": "enum",
+          "signature": "export enum StatisticsPolicy: Copy & Equatable",
+          "declarationDigest": "48592719974182d96fbb3f73faa691db4f9f25fdacffad335ee183d4f81bbcde",
+          "line": 41,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "WriterPlan",
+          "kind": "struct",
+          "signature": "export struct WriterPlan",
+          "declarationDigest": "66f35a15281b7505d6c51e8255328aae49d18809f51a6ad9df489c0e6e2ef9af",
+          "line": 195,
+          "profile": "parquet-encode",
+          "status": "draft"
+        }
+      ]
+    },
+    {
       "id": "std.runtime.task",
       "tier": "T1",
       "availability": "runtime-profile",
@@ -4627,6 +5843,62 @@
       ]
     },
     {
+      "module": "std.arrow",
+      "surface": "CArrayHandle",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "CImportError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "CImportOptions",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "DecodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "decodeIpcStreamAll",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "DecodeOptions",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.arrow",
+      "surface": "importCArray",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
       "module": "std.build",
       "surface": "Context",
       "status": "draft",
@@ -4680,6 +5952,118 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "decodeAll",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "DecodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "DecodeOptions",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "encode",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "EncodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "EncodeOptions",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.csv",
+      "surface": "Profile",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "Batch",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "EncodeProgress",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "Row",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "schema",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "Schema",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "SchemaIdentity",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.data",
+      "surface": "StringColumn",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
       ]
     },
     {
@@ -4924,6 +6308,38 @@
       "status": "draft",
       "consumers": [
         "reference/last-light/benchmark_app.w"
+      ]
+    },
+    {
+      "module": "std.parquet",
+      "surface": "decodeAll",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.parquet",
+      "surface": "DecodeError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.parquet",
+      "surface": "DecodeOptions",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
+      ]
+    },
+    {
+      "module": "std.parquet",
+      "surface": "DecodeProfile",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/data_formats.w"
       ]
     },
     {
@@ -5175,6 +6591,46 @@
       "status": "draft",
       "profile": "value-contract",
       "consumer": "reference/last-light/app.w"
+    },
+    {
+      "id": "sdk0-snapshot-byte-source",
+      "module": "std.io",
+      "surface": "SnapshotByteSource",
+      "status": "draft",
+      "profile": "snapshot-byte-source",
+      "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "tab1-arrow-ipc-stream",
+      "module": "std.arrow",
+      "surface": "decodeIpcStream",
+      "status": "draft",
+      "profile": "arrow-ipc",
+      "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "tab1-csv-decode",
+      "module": "std.csv",
+      "surface": "decode",
+      "status": "draft",
+      "profile": "csv-decode",
+      "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "tab1-data-batch",
+      "module": "std.data",
+      "surface": "Batch",
+      "status": "draft",
+      "profile": "data-carrier",
+      "consumer": "reference/last-light/data_formats.w"
+    },
+    {
+      "id": "tab1-parquet-decode",
+      "module": "std.parquet",
+      "surface": "decode",
+      "status": "draft",
+      "profile": "parquet-decode",
+      "consumer": "reference/last-light/data_formats.w"
     }
   ]
 }

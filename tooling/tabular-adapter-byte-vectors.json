@@ -1,0 +1,49 @@
+{
+  "$schema": "w-tabular-adapter-byte-vectors-1",
+  "status": "design-oracle-input",
+  "vectors": [
+    {
+      "id": "csv-portable-header-crlf",
+      "profile": "portable",
+      "valid": true,
+      "text": "sequence,warning\r\n7,late\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a372c6c6174650d0a"
+    },
+    {
+      "id": "csv-rfc4180-dquote-escape",
+      "profile": "rfc4180",
+      "valid": true,
+      "text": "sequence,warning\r\n8,\"a\"\"b\"\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a382c2261222262220d0a"
+    },
+    {
+      "id": "csv-portable-empty-string",
+      "profile": "portable",
+      "valid": true,
+      "text": "sequence,warning\r\n9,\"\"\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a392c22220d0a"
+    },
+    {
+      "id": "csv-rfc4180-multiline-record",
+      "profile": "rfc4180",
+      "valid": true,
+      "text": "sequence,warning\r\n10,\"line 1\r\nline 2\"\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a31302c226c696e6520310d0a6c696e652032220d0a"
+    },
+    {
+      "id": "csv-portable-bare-cr-negative",
+      "profile": "portable",
+      "valid": false,
+      "reason": "bare-cr",
+      "text": "sequence,warning\r\n11,a\rb\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a31312c610d620d0a"
+    },
+    {
+      "id": "csv-portable-empty-vs-null",
+      "profile": "portable",
+      "valid": true,
+      "text": "sequence,warning\r\n12,\r\n13,NULL\r\n",
+      "hex": "73657175656e63652c7761726e696e670d0a31322c0d0a31332c4e554c4c0d0a"
+    }
+  ]
+}

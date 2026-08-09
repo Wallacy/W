@@ -511,6 +511,83 @@
       "failures": { "mode": "typed", "types": ["CacheError", "LoadFailure"] },
       "bounds": ["cache-entry-limit", "active-load-limit", "queued-load-limit"],
       "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
+    },
+    "snapshot-byte-source": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "allocation"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["fixed-byte-count", "u64-offset", "positional-parallel-read", "short-read-step", "logical-content-stability", "maximum-argument", "allocation-budget"],
+      "complexity": { "time": "linear-progress", "space": "destination-growth-bounded-by-maximum" }
+    },
+    "data-carrier": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["data.BindError"] },
+      "bounds": ["rows", "columns", "fields", "buffers", "total-bytes", "allocation-bytes", "nesting", "metadata-bytes", "string-bytes", "chunks"],
+      "complexity": { "time": "bounded-by-contract", "space": "owned-batch" }
+    },
+    "data-binding": {
+      "capabilities": [],
+      "effects": ["allocation"],
+      "failures": { "mode": "typed", "types": ["data.BindError"] },
+      "bounds": ["schema-identity", "explicit-mapping", "preflight-before-publication"],
+      "complexity": { "time": "linear-schema-and-batch", "space": "bounded-by-contract" }
+    },
+    "csv-codec": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["DecodeError", "EncodeError"] },
+      "bounds": ["finite-limits", "header", "record", "field", "allocation", "progress"],
+      "complexity": { "time": "linear-encoded-bytes", "space": "bounded-by-limits" }
+    },
+    "csv-decode": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["DecodeError", "SourceFailure"] },
+      "bounds": ["finite-limits", "publication-after-validation", "schema-binding", "location"],
+      "complexity": { "time": "linear-encoded-bytes", "space": "bounded-by-limits" }
+    },
+    "csv-encode": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["EncodeError", "SinkFailure"] },
+      "bounds": ["finite-limits", "partial-progress", "non-transactional-output"],
+      "complexity": { "time": "linear-records-and-bytes", "space": "bounded-by-limits" }
+    },
+    "parquet-codec": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["DecodeError", "EncodeError"] },
+      "bounds": ["footer", "row-groups", "column-chunks", "pages", "dictionaries", "indexes", "bloom-filters", "compression-ratio"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
+    "parquet-decode": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["DecodeError", "SourceFailure"] },
+      "bounds": ["snapshot-byte-count", "preflight-footer", "encoded-decoded-bytes", "logical-type-matrix"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
+    "parquet-encode": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["EncodeError", "SinkFailure"] },
+      "bounds": ["finite-limits", "footer-commit", "partial-progress", "non-transactional-output"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
+    "arrow-ipc": {
+      "capabilities": ["byte-io-provider"],
+      "effects": ["suspension", "byte-io", "codec", "allocation", "cancellation-drain"],
+      "failures": { "mode": "generic", "types": ["DecodeError", "EncodeError"] },
+      "bounds": ["flatbuffers", "messages", "buffers", "body-bytes", "dictionaries", "compression-ratio", "alignment"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
+    "arrow-c-bridge": {
+      "capabilities": ["trusted-in-process-c"],
+      "effects": ["allocation", "c-ffi", "ownership-transfer"],
+      "failures": { "mode": "typed", "types": ["CImportError", "CExportError"] },
+      "bounds": ["structural-validation", "release-once", "serial-get-next", "copy-policy", "cpu-baseline"],
+      "complexity": { "time": "linear-buffers", "space": "bounded-by-contract" }
     }
   },
   "modules": [
@@ -638,17 +715,31 @@
       "tier": "T1",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
-      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4"],
+      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4", "14.4.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.io@1",
+        "status": "missing",
+        "gates": [
+          "byte-source",
+          "byte-sink",
+          "snapshot-positional-read",
+          "parallel-short-read",
+          "limits"
+        ]
+      },
       "consumer": {
         "path": "reference/last-light/io.w",
         "symbols": ["ReadStep", "WriteStep", "WriteAllError", "ByteSource", "ByteSink"]
       },
       "apis": [
         { "symbol": "ReadStep", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "SnapshotReadStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "WriteStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "WriteAllError", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ByteSource", "kind": "protocol", "profile": "byte-source" },
-        { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" }
+        { "symbol": "ByteSink", "kind": "protocol", "profile": "byte-sink" },
+        { "symbol": "SnapshotByteSource", "kind": "protocol", "profile": "snapshot-byte-source" }
       ]
     },
     {
@@ -1572,6 +1663,204 @@
         { "symbol": "LoadFailure", "kind": "enum", "profile": "value-contract" },
         { "symbol": "LocalCache", "kind": "protocol", "profile": "cache-provider" }
       ]
+    },
+    {
+      "id": "std.data",
+      "tier": "T2",
+      "availability": "tabular-carrier-provider",
+      "source": "std/data/contracts.w",
+      "designAnchors": ["14.4.1", "14.4.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.data@1",
+        "status": "missing",
+        "gates": ["schema-identity", "batch-publication", "column-borrow", "copy-policy", "limits", "ownership-release"]
+      },
+      "consumer": {
+        "path": "reference/last-light/data_formats.w",
+        "symbols": ["Row", "Schema", "SchemaIdentity", "Batch", "StringColumn", "FieldDescriptor", "CopyPolicy", "BindingPolicy", "MappingPolicy", "Limits", "EncodeProgress", "schema"]
+      },
+      "apis": [
+        { "symbol": "Row", "kind": "protocol", "profile": "data-carrier" },
+        { "symbol": "CopyPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "BindingPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "MappingPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "IntegerSign", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "IntegerWidth", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FloatWidth", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TemporalPrecision", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FixedDecimalType", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "LogicalType", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "SemanticExtension", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicExtensionValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicListValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicMapValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicNestedValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DecimalValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "UUIDValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DateValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "TimeValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "InstantValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "LocalDateTimeValue", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Limits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "SchemaError", "kind": "enum", "profile": "data-carrier" },
+        { "symbol": "SchemaField", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "FieldDescriptor", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "SchemaIdentity", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "Schema", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicValue", "kind": "enum", "profile": "data-carrier" },
+        { "symbol": "DynamicEntry", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "Column", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "StringColumn", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "BytesColumn", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicColumn", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "Batch", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "DynamicBatch", "kind": "struct", "profile": "data-carrier" },
+        { "symbol": "BindError", "kind": "enum", "profile": "data-binding" },
+        { "symbol": "EncodeProgress", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "ProgressError", "kind": "enum", "profile": "data-binding" },
+        { "symbol": "schema", "kind": "fn", "profile": "data-binding" },
+        { "symbol": "bind", "kind": "fn", "profile": "data-binding" }
+      ]
+    },
+    {
+      "id": "std.csv",
+      "tier": "T2",
+      "availability": "csv-adapter-provider",
+      "source": "std/csv/contracts.w",
+      "designAnchors": ["14.4.2", "24.1.1"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.csv@1",
+        "status": "missing",
+        "gates": ["rfc4180-vectors", "streaming-quoted-records", "utf8-errors", "typed-binding", "partial-progress", "limits"]
+      },
+      "consumer": {
+        "path": "reference/last-light/data_formats.w",
+        "symbols": ["DecodeOptions", "EncodeOptions", "DecodeError", "EncodeError", "decodeAll", "encode"]
+      },
+      "apis": [
+        { "symbol": "HeaderPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WhitespacePolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "BoolTokenPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FloatTokenPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WriterFloatPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FormulaPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "NullDecodePolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "NullEncodePolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Profile", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "WriterProfile", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LocationKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Location", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Limits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "ConfigError", "kind": "enum", "profile": "csv-codec" },
+        { "symbol": "DecodeDialect", "kind": "struct", "profile": "csv-codec" },
+        { "symbol": "EncodeDialect", "kind": "struct", "profile": "csv-codec" },
+        { "symbol": "DecodeOptions", "kind": "struct", "profile": "csv-codec" },
+        { "symbol": "EncodeOptions", "kind": "struct", "profile": "csv-codec" },
+        { "symbol": "DecodeError", "kind": "enum", "profile": "csv-codec" },
+        { "symbol": "EncodeError", "kind": "enum", "profile": "csv-codec" },
+        { "symbol": "EncodeStreamError", "kind": "enum", "profile": "csv-codec" },
+        { "symbol": "decode", "kind": "fn", "profile": "csv-decode" },
+        { "symbol": "decodeDynamic", "kind": "fn", "profile": "csv-decode" },
+        { "symbol": "decodeAll", "kind": "fn", "profile": "csv-decode" },
+        { "symbol": "encode", "kind": "fn", "profile": "csv-encode" }
+      ]
+    },
+    {
+      "id": "std.parquet",
+      "tier": "T2",
+      "availability": "parquet-adapter-provider",
+      "source": "std/parquet/contracts.w",
+      "designAnchors": ["14.4.2", "18.3"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.parquet@1",
+        "status": "missing",
+        "gates": ["footer-preflight", "logical-type-matrix", "page-checksum", "compression-limits", "legacy-list-profile", "footer-commit"]
+      },
+      "consumer": {
+        "path": "reference/last-light/data_formats.w",
+        "symbols": ["DecodeOptions", "DecodeError", "decodeAll"]
+      },
+      "apis": [
+        { "symbol": "DecodeProfile", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "EncodeProfile", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ChecksumPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Compression", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "DictionaryPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "StatisticsPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "EncryptionPolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Limits", "kind": "struct", "profile": "parquet-codec" },
+        { "symbol": "KeyResolverError", "kind": "enum", "profile": "parquet-codec" },
+        { "symbol": "KeyScope", "kind": "enum", "profile": "parquet-codec" },
+        { "symbol": "KeyResolverCapability", "kind": "struct", "profile": "parquet-codec" },
+        { "symbol": "KeyResolver", "kind": "struct", "profile": "parquet-codec" },
+        { "symbol": "WriterPlan", "kind": "struct", "profile": "parquet-encode" },
+        { "symbol": "DecodeOptions", "kind": "struct", "profile": "parquet-codec" },
+        { "symbol": "EncodeOptions", "kind": "struct", "profile": "parquet-codec" },
+        { "symbol": "DecodeError", "kind": "enum", "profile": "parquet-codec" },
+        { "symbol": "EncodeError", "kind": "enum", "profile": "parquet-codec" },
+        { "symbol": "EncodeStreamError", "kind": "enum", "profile": "parquet-codec" },
+        { "symbol": "decode", "kind": "fn", "profile": "parquet-decode" },
+        { "symbol": "decodeDynamic", "kind": "fn", "profile": "parquet-decode" },
+        { "symbol": "decodeAll", "kind": "fn", "profile": "parquet-decode" },
+        { "symbol": "encode", "kind": "fn", "profile": "parquet-encode" }
+      ]
+    },
+    {
+      "id": "std.arrow",
+      "tier": "T2",
+      "availability": "arrow-adapter-provider",
+      "source": "std/arrow/contracts.w",
+      "designAnchors": ["14.4.2", "19.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.arrow@1",
+        "status": "missing",
+        "gates": ["ipc-flatbuffers-validation", "dictionary-order", "schema-footer-identity", "copy-never", "c-release-once", "device-classification"]
+      },
+      "consumer": {
+        "path": "reference/last-light/data_formats.w",
+        "symbols": ["CArrayHandle", "DecodeOptions", "CImportOptions", "decodeIpcStream", "importCArray"]
+      },
+      "apis": [
+        { "symbol": "DeviceKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "LimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Limits", "kind": "struct", "profile": "arrow-ipc" },
+        { "symbol": "CImportLimits", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "BlockingStrategy", "kind": "enum", "profile": "arrow-c-bridge" },
+        { "symbol": "BlockingQuota", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "DrainPolicy", "kind": "enum", "profile": "arrow-c-bridge" },
+        { "symbol": "CImportOptions", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "CStreamImportOptions", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "CExportOptions", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "DecodeOptions", "kind": "struct", "profile": "arrow-ipc" },
+        { "symbol": "EncodeOptions", "kind": "struct", "profile": "arrow-ipc" },
+        { "symbol": "CArrayHandle", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "CStreamHandle", "kind": "struct", "profile": "arrow-c-bridge" },
+        { "symbol": "DecodeError", "kind": "enum", "profile": "arrow-ipc" },
+        { "symbol": "CImportError", "kind": "enum", "profile": "arrow-c-bridge" },
+        { "symbol": "CExportError", "kind": "enum", "profile": "arrow-c-bridge" },
+        { "symbol": "EncodeError", "kind": "enum", "profile": "arrow-ipc" },
+        { "symbol": "EncodeStreamError", "kind": "enum", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcStream", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcFile", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcStreamAll", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcFileAll", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcStreamDynamic", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "decodeIpcFileDynamic", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "encodeIpcStream", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "encodeIpcFile", "kind": "fn", "profile": "arrow-ipc" },
+        { "symbol": "importCArray", "kind": "fn", "profile": "arrow-c-bridge" },
+        { "symbol": "importCArrayDynamic", "kind": "fn", "profile": "arrow-c-bridge" },
+        { "symbol": "importCStream", "kind": "fn", "profile": "arrow-c-bridge" },
+        { "symbol": "importCStreamDynamic", "kind": "fn", "profile": "arrow-c-bridge" },
+        { "symbol": "exportCArray", "kind": "fn", "profile": "arrow-c-bridge" }
+      ]
     }
   ],
   "carrierRequirements": [
@@ -1650,10 +1939,14 @@
   ],
   "referenceScans": [
     { "binding": "webAbort", "module": "std.abort" },
+    { "binding": "arrow", "module": "std.arrow" },
     { "binding": "build", "module": "std.build" },
     { "binding": "cache", "module": "std.cache" },
+    { "binding": "csv", "module": "std.csv" },
+    { "binding": "data", "module": "std.data" },
     { "binding": "database", "module": "std.database" },
     { "binding": "http", "module": "std.http" },
+    { "binding": "parquet", "module": "std.parquet" },
     { "binding": "streaming", "module": "std.stream" },
     { "binding": "url", "module": "std.url" }
   ],
@@ -1752,6 +2045,51 @@
       "consumer": "reference/last-light/gateway.w",
       "profile": "value-contract",
       "requires": ["sdk0-json-codec"],
+      "status": "draft"
+    },
+    {
+      "id": "sdk0-snapshot-byte-source",
+      "module": "std.io",
+      "surface": "SnapshotByteSource",
+      "kind": "symbol",
+      "consumer": "reference/last-light/data_formats.w",
+      "profile": "snapshot-byte-source",
+      "status": "draft"
+    },
+    {
+      "id": "tab1-data-batch",
+      "module": "std.data",
+      "surface": "Batch",
+      "kind": "symbol",
+      "consumer": "reference/last-light/data_formats.w",
+      "profile": "data-carrier",
+      "status": "draft"
+    },
+    {
+      "id": "tab1-csv-decode",
+      "module": "std.csv",
+      "surface": "decode",
+      "kind": "symbol",
+      "consumer": "reference/last-light/data_formats.w",
+      "profile": "csv-decode",
+      "status": "draft"
+    },
+    {
+      "id": "tab1-parquet-decode",
+      "module": "std.parquet",
+      "surface": "decode",
+      "kind": "symbol",
+      "consumer": "reference/last-light/data_formats.w",
+      "profile": "parquet-decode",
+      "status": "draft"
+    },
+    {
+      "id": "tab1-arrow-ipc-stream",
+      "module": "std.arrow",
+      "surface": "decodeIpcStream",
+      "kind": "symbol",
+      "consumer": "reference/last-light/data_formats.w",
+      "profile": "arrow-ipc",
       "status": "draft"
     }
   ]

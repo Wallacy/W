@@ -1,0 +1,598 @@
+{
+  "$schema": "w-tabular-adapter-cases-1",
+  "status": "design-oracle-input",
+  "decisionIds": [
+    "W-1006", "W-1007", "W-1008", "W-1009", "W-1010", "W-1011", "W-1012", "W-1013", "W-1014",
+    "W-1015", "W-1016", "W-1017", "W-1018", "W-1019", "W-1020", "W-1021", "W-1022", "W-1023",
+    "W-1024", "W-1025", "W-1026", "W-1027", "W-1028", "W-1029", "W-1030", "W-1031", "W-1032",
+    "W-1033", "W-1034", "W-1035", "W-1036", "W-1037", "W-1038", "W-1039", "W-1040", "W-1041",
+    "W-1042", "W-1043", "W-1044", "W-1045"
+  ],
+  "schema": {
+    "fields": [
+      { "name": "sequence", "logicalType": { "kind": "integer", "width": 64 }, "nullable": false },
+      { "name": "hawkingFlux", "logicalType": { "kind": "float", "width": 64 }, "nullable": false },
+      { "name": "warning", "logicalType": { "kind": "string" }, "nullable": true }
+    ]
+  },
+  "cases": [
+    {
+      "id": "TAB1-data-publish-and-identity", "symbol": "uploadCsv", "decisions": ["W-1007", "W-1011", "W-1015"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "owner": "TabularTelemetryRow", "schema": { "fields": [
+          { "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } },
+          { "name": "hawkingFlux", "logicalType": { "kind": "float", "width": 64 } },
+          { "name": "warning", "logicalType": { "kind": "string" }, "nullable": true }
+        ] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 96 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 2 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-data-duplicate-schema-rejected", "symbol": "telemetrySchema", "decisions": ["W-1007"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } }
+      ],
+      "expected": { "status": "rejected", "code": "duplicateSchema" }
+    },
+    {
+      "id": "TAB1-data-schema-duplicate-field", "symbol": "telemetrySchema", "decisions": ["W-1007", "W-1008"],
+      "operations": [{ "op": "registerSchema", "schemaId": "bad", "schema": { "fields": [
+        { "name": "warning", "logicalType": { "kind": "string" } },
+        { "name": "warning", "logicalType": { "kind": "string" } }
+      ] } }],
+      "expected": { "status": "rejected", "code": "duplicateFieldName" }
+    },
+    {
+      "id": "TAB1-data-invalid-limit", "symbol": "telemetrySchema", "decisions": ["W-1007", "W-1013"],
+      "operations": [{ "op": "setLimits", "limits": { "bytes": 0, "rows": 4 } }],
+      "expected": { "status": "rejected", "code": "invalidLimit:bytes" }
+    },
+    {
+      "id": "TAB1-snapshot-positional-short-read", "symbol": "archiveParquet", "decisions": ["W-1006", "W-1040"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 64, "stable": true, "digest": "snapshot-a" },
+        { "op": "readSnapshot", "sourceId": "archive", "offset": 0, "maximum": 128 },
+        { "op": "readSnapshot", "sourceId": "archive", "offset": 32, "maximum": 16 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-snapshot-unstable-at-open", "symbol": "archiveParquet", "decisions": ["W-1006", "W-1024"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 64, "stable": false }],
+      "expected": { "status": "rejected", "code": "sourceNotStable" }
+    },
+    {
+      "id": "TAB1-snapshot-offset-out-of-bounds", "symbol": "archiveParquet", "decisions": ["W-1006"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 64, "stable": true },
+        { "op": "readSnapshot", "sourceId": "archive", "offset": 65, "maximum": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "offsetOutOfBounds" }
+    },
+    {
+      "id": "TAB1-source-instability-rejected", "symbol": "archiveParquet", "decisions": ["W-1006", "W-1040"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 64, "stable": true },
+        { "op": "readSnapshot", "sourceId": "archive", "offset": 0, "maximum": 8 },
+        { "op": "mutateSource", "sourceId": "archive", "newDigest": "snapshot-b" },
+        { "op": "readSnapshot", "sourceId": "archive", "offset": 8, "maximum": 8 }
+      ],
+      "expected": { "status": "rejected", "code": "sourceNotStable" }
+    },
+    {
+      "id": "TAB1-data-borrow-view-copy-owner", "symbol": "summarize", "decisions": ["W-1008", "W-1009", "W-1010"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "warning", "logicalType": { "kind": "string" }, "nullable": true }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 32 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "borrowView", "batchId": "batch-1", "field": "warning", "type": "String?" },
+        { "op": "copyColumn", "batchId": "batch-1", "field": "warning" },
+        { "op": "drainView", "index": 0 },
+        { "op": "releaseBatch", "batchId": "batch-1" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-data-borrow-rejects-f64", "symbol": "summarize", "decisions": ["W-1009"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "hawkingFlux", "logicalType": { "kind": "float", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "borrowView", "batchId": "batch-1", "field": "hawkingFlux", "type": "f64" }
+      ],
+      "expected": { "status": "rejected", "code": "viewOnlyForBorrowedType" }
+    },
+    {
+      "id": "TAB1-data-borrow-release-blocked", "symbol": "summarize", "decisions": ["W-1010"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "warning", "logicalType": { "kind": "string" }, "nullable": true }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "borrowView", "batchId": "batch-1", "field": "warning", "type": "String?" },
+        { "op": "releaseBatch", "batchId": "batch-1" }
+      ],
+      "expected": { "status": "rejected", "code": "borrowedViewEscapes" }
+    },
+    {
+      "id": "TAB1-decode-error-after-publication", "symbol": "uploadCsv", "decisions": ["W-1012", "W-1015"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "errorAfterPublish" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-decode-validation-before-publish", "symbol": "uploadCsv", "decisions": ["W-1012", "W-1015"],
+      "operations": [{ "op": "decodeReject", "reason": "fieldConversion" }],
+      "expected": { "status": "rejected", "code": "fieldConversion" }
+    },
+    {
+      "id": "TAB1-stream-same-schema", "symbol": "handoffArrow", "decisions": ["W-1011", "W-1015"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "ipc", "kind": "byte", "byteCount": 32 },
+        { "op": "decode", "format": "arrowStream", "sourceId": "ipc", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "openStream", "streamId": "service", "schemaId": "telemetry", "format": "arrow" },
+        { "op": "emitBatch", "streamId": "service", "batchId": "batch-1" },
+        { "op": "closeStream", "streamId": "service" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-stream-schema-change", "symbol": "handoffArrow", "decisions": ["W-1011"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "one", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "registerSchema", "schemaId": "two", "schema": { "fields": [{ "name": "warning", "logicalType": { "kind": "string" } }] } },
+        { "op": "openSource", "sourceId": "ipc", "kind": "byte", "byteCount": 32 },
+        { "op": "decode", "format": "arrowStream", "sourceId": "ipc", "schemaId": "one", "batchId": "batch-1", "rows": 1 },
+        { "op": "decode", "format": "arrowStream", "sourceId": "ipc", "schemaId": "two", "batchId": "batch-2", "rows": 1 },
+        { "op": "openStream", "streamId": "service", "schemaId": "one" },
+        { "op": "emitBatch", "streamId": "service", "batchId": "batch-1" },
+        { "op": "emitBatch", "streamId": "service", "batchId": "batch-2" }
+      ],
+      "expected": { "status": "rejected", "code": "streamSchemaChange" }
+    },
+    {
+      "id": "TAB1-encode-partial-progress", "symbol": "encodeCsv", "decisions": ["W-1014"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 2 },
+        { "op": "encodeProgress", "format": "csv", "batchId": "batch-1", "mode": "batch", "batchMode": "ref", "bytes": 12, "records": 1, "partialRecord": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-encode-stream-consumes-source", "symbol": "encodeCsv", "decisions": ["W-1014", "W-1042"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 2 },
+        { "op": "encodeProgress", "format": "csv", "batchId": "batch-1", "mode": "stream", "batchMode": "take", "bytes": 20, "records": 2, "partialRecord": false }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-encode-batch-borrow-required", "symbol": "encodeCsv", "decisions": ["W-1014"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "encodeProgress", "format": "csv", "batchId": "batch-1", "mode": "batch", "batchMode": "take", "bytes": 4, "records": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "batchEncodeMustBorrow" }
+    },
+    {
+      "id": "TAB1-encode-not-transaction", "symbol": "encodeCsv", "decisions": ["W-1014"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "encodeProgress", "format": "csv", "batchId": "batch-1", "mode": "batch", "batchMode": "ref", "bytes": 4, "records": 1, "transaction": true }
+      ],
+      "expected": { "status": "rejected", "code": "encoderNotTransaction" }
+    },
+    {
+      "id": "TAB1-stream-failure-keeps-progress", "symbol": "encodeCsv", "decisions": ["W-1014", "W-1042"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 2 },
+        { "op": "encodeProgress", "format": "csv", "batchId": "batch-1", "mode": "stream", "batchMode": "take", "bytes": 8, "records": 1, "partialRecord": true },
+        { "op": "streamFailure", "failure": "sink" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-cancel-drains-waits", "symbol": "handoffArrow", "decisions": ["W-1016"],
+      "operations": [{ "op": "cancel", "waits": 2, "drain": "drained" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-cancel-without-drain-rejected", "symbol": "handoffArrow", "decisions": ["W-1016"],
+      "operations": [{ "op": "cancel", "waits": 1, "drain": "pending" }],
+      "expected": { "status": "rejected", "code": "cancelDrainRequired" }
+    },
+    {
+      "id": "TAB1-csv-portable-canonical", "symbol": "uploadCsv", "decisions": ["W-1017", "W-1018", "W-1020", "W-1022"],
+      "operations": [{ "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-rfc4180-crlf", "symbol": "uploadCsv", "decisions": ["W-1019"],
+      "operations": [{ "op": "csvConfig", "configId": "rfc", "profile": "rfc4180", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "terminator": "CRLF" } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-custom-delimiter-quote-collision", "symbol": "uploadCsv", "decisions": ["W-1017", "W-1023"],
+      "operations": [{ "op": "csvConfig", "configId": "bad", "profile": "custom", "dialect": { "delimiter": ";", "quote": ";", "header": "required" } }],
+      "expected": { "status": "rejected", "code": "csvDelimiterQuoteCollision" }
+    },
+    {
+      "id": "TAB1-csv-null-policy-required", "symbol": "uploadCsv", "decisions": ["W-1020"],
+      "operations": [{ "op": "csvConfig", "configId": "bad", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } }],
+      "expected": { "status": "rejected", "code": "csvPortableTokens" }
+    },
+    {
+      "id": "TAB1-csv-duplicate-header", "symbol": "uploadCsv", "decisions": ["W-1021"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvHeader", "configId": "portable", "fields": ["sequence", "sequence"] }
+      ],
+      "expected": { "status": "rejected", "code": "csvDuplicateHeader" }
+    },
+    {
+      "id": "TAB1-csv-empty-header", "symbol": "uploadCsv", "decisions": ["W-1021"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvHeader", "configId": "portable", "fields": ["sequence", ""] }
+      ],
+      "expected": { "status": "rejected", "code": "csvEmptyHeader" }
+    },
+    {
+      "id": "TAB1-csv-multiline-quoted-split", "symbol": "uploadCsv", "decisions": ["W-1018", "W-1021"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvChunk", "configId": "portable", "record": 1, "text": "\"line 1" },
+        { "op": "csvChunk", "configId": "portable", "record": 1, "text": "\nline 2\"", "final": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-bare-cr", "symbol": "uploadCsv", "decisions": ["W-1018", "W-1021"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvChunk", "configId": "portable", "record": 1, "text": "a\rb", "final": true }
+      ],
+      "expected": { "status": "rejected", "code": "csvBareCr" }
+    },
+    {
+      "id": "TAB1-csv-empty-is-string", "symbol": "uploadCsv", "decisions": ["W-1020"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvNull", "configId": "portable", "value": "" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-empty-is-null", "symbol": "uploadCsv", "decisions": ["W-1020"],
+      "operations": [
+        { "op": "csvConfig", "configId": "empty", "profile": "custom", "dialect": { "delimiter": ",", "quote": "\"", "nullDecode": "empty", "nullEncode": "empty" } },
+        { "op": "csvNull", "configId": "empty", "value": "" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-token-collision", "symbol": "uploadCsv", "decisions": ["W-1020", "W-1023"],
+      "operations": [{ "op": "csvConfig", "configId": "collision", "profile": "custom", "dialect": { "delimiter": ",", "quote": "\"", "nullDecode": "tokens", "nullToken": "true", "boolTrue": "true" } }],
+      "expected": { "status": "rejected", "code": "csvTokenCollision" }
+    },
+    {
+      "id": "TAB1-csv-row-width", "symbol": "uploadCsv", "decisions": ["W-1021"],
+      "operations": [{ "op": "csvWidth", "expected": 3, "found": 2 }],
+      "expected": { "status": "rejected", "code": "csvRowWidth" }
+    },
+    {
+      "id": "TAB1-csv-nonfinite-rejected", "symbol": "uploadCsv", "decisions": ["W-1022"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvScalar", "configId": "portable", "kind": "float", "finite": false }
+      ],
+      "expected": { "status": "rejected", "code": "csvNonfiniteDisabled" }
+    },
+    {
+      "id": "TAB1-csv-canonical-encode", "symbol": "encodeCsv", "decisions": ["W-1022", "W-1023"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "nullEncode": "token", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvEncode", "configId": "portable", "nullValue": false, "formula": "lossless", "lossless": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-partial-encode", "symbol": "encodeCsv", "decisions": ["W-1014", "W-1022"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "nullEncode": "empty", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvEncode", "configId": "portable", "nullValue": true, "formula": "lossless", "lossless": true }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-csv-formula-policy-lossy", "symbol": "encodeCsv", "decisions": ["W-1023"],
+      "operations": [
+        { "op": "csvConfig", "configId": "portable", "profile": "portable", "dialect": { "header": "required", "delimiter": ",", "quote": "\"", "whitespace": "preserve", "nullDecode": "none", "nullEncode": "empty", "boolTrue": "true", "boolFalse": "false", "nonfinite": "reject" } },
+        { "op": "csvEncode", "configId": "portable", "nullValue": false, "formula": "escapeForSpreadsheet", "lossless": true }
+      ],
+      "expected": { "status": "rejected", "code": "csvFormulaChangesData" }
+    },
+    {
+      "id": "TAB1-parquet-snapshot-preflight", "symbol": "archiveParquet", "decisions": ["W-1024", "W-1026", "W-1027"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 4096, "stable": true },
+        { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 128, "offsets": "bounded", "sizes": "bounded" },
+        { "op": "parquetPage", "planId": "plan-1", "encodedBytes": 128, "decodedBytes": 1024 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-cursor-rejected", "symbol": "archiveParquet", "decisions": ["W-1024"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "byte", "byteCount": 64 }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-cursor-preflight-rejected", "symbol": "archiveParquet", "decisions": ["W-1024"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "byte", "byteCount": 64 }, { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }],
+      "expected": { "status": "rejected", "code": "parquetSnapshotRequired" }
+    },
+    {
+      "id": "TAB1-parquet-corrupt-footer", "symbol": "archiveParquet", "decisions": ["W-1026"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 128, "stable": true },
+        { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "BAD!", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }
+      ],
+      "expected": { "status": "rejected", "code": "parquetPreflight" }
+    },
+    {
+      "id": "TAB1-parquet-offset-size-rejected", "symbol": "archiveParquet", "decisions": ["W-1026"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 128, "stable": true },
+        { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "unbounded", "sizes": "bounded" }
+      ],
+      "expected": { "status": "rejected", "code": "parquetOffsetSize" }
+    },
+    {
+      "id": "TAB1-parquet-decompression-bomb", "symbol": "archiveParquet", "decisions": ["W-1027"],
+      "operations": [
+        { "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 4096, "stable": true },
+        { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" },
+        { "op": "parquetPage", "planId": "plan-1", "encodedBytes": 1, "decodedBytes": 1000 }
+      ],
+      "expected": { "status": "rejected", "code": "parquetDecompressionRatio" }
+    },
+    {
+      "id": "TAB1-parquet-logical-matrix", "symbol": "archiveParquet", "decisions": ["W-1028", "W-1039"],
+      "operations": [{ "op": "registerSchema", "schemaId": "logical-matrix", "schema": { "fields": [
+        { "name": "signed32", "logicalType": { "kind": "integer", "width": 32, "sign": "signed" } },
+        { "name": "unsigned64", "logicalType": { "kind": "integer", "width": 64, "sign": "unsigned" } },
+        { "name": "half", "logicalType": { "kind": "float", "width": 16 } },
+        { "name": "decimal", "logicalType": { "kind": "fixedDecimal", "precision": 18, "scale": 4 } },
+        { "name": "text", "logicalType": { "kind": "string", "encoding": "utf8" } },
+        { "name": "uuid", "logicalType": { "kind": "uuid" } },
+        { "name": "date", "logicalType": { "kind": "date" } },
+        { "name": "time", "logicalType": { "kind": "time", "precision": "nanoseconds" } },
+        { "name": "instant", "logicalType": { "kind": "instant", "precision": "nanoseconds" } },
+        { "name": "local", "logicalType": { "kind": "localDateTime", "precision": "microseconds" } },
+        { "name": "list", "logicalType": { "kind": "list", "element": { "kind": "string" } } },
+        { "name": "map", "logicalType": { "kind": "map", "key": { "kind": "string" }, "value": { "kind": "integer", "width": 64 } } },
+        { "name": "nested", "logicalType": { "kind": "nested", "identity": "nested-1" } },
+        { "name": "extension", "logicalType": { "kind": "extension", "id": "quantity.mass", "version": 1, "parameters": ["kg"] } }
+      ] } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-data-zoned-temporal-rejected", "symbol": "telemetrySchema", "decisions": ["W-1000", "W-1028", "W-1039"],
+      "operations": [{ "op": "registerSchema", "schemaId": "zoned-date", "schema": { "fields": [{ "name": "day", "logicalType": { "kind": "date", "timezone": "utc" } }] } }],
+      "expected": { "status": "rejected", "code": "invalidLogicalBounds" }
+    },
+    {
+      "id": "TAB1-data-extension-invalid", "symbol": "telemetrySchema", "decisions": ["W-1000", "W-1028"],
+      "operations": [{ "op": "registerSchema", "schemaId": "bad-extension", "schema": { "fields": [{ "name": "mass", "logicalType": { "kind": "extension", "id": "", "version": 0, "parameters": [] } }] } }],
+      "expected": { "status": "rejected", "code": "invalidExtension" }
+    },
+    {
+      "id": "TAB1-parquet-logical-mismatch", "symbol": "archiveParquet", "decisions": ["W-1028", "W-1039"],
+      "operations": [{ "op": "parquetMapping", "mode": "exact", "logicalMismatch": true }],
+      "expected": { "status": "rejected", "code": "parquetLogicalMismatch" }
+    },
+    {
+      "id": "TAB1-parquet-explicit-mapping", "symbol": "archiveParquet", "decisions": ["W-1025", "W-1039"],
+      "operations": [{ "op": "parquetMapping", "mode": "project", "mapping": "explicit", "logicalMismatch": false }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-non-total-mapping-rejected", "symbol": "archiveParquet", "decisions": ["W-1025", "W-1039"],
+      "operations": [{ "op": "parquetMapping", "mode": "project", "mapping": "heuristic" }],
+      "expected": { "status": "rejected", "code": "explicitMappingRequired" }
+    },
+    {
+      "id": "TAB1-parquet-key-resolver-scoped", "symbol": "archiveParquet", "decisions": ["W-1029", "W-1030"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 512, "stable": true }, { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }, { "op": "parquetKey", "planId": "plan-1", "encrypted": true, "scope": "parquetPage", "resolver": "scoped" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-encrypted-key-required", "symbol": "archiveParquet", "decisions": ["W-1029"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 512, "stable": true }, { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }, { "op": "parquetKey", "planId": "plan-1", "encrypted": true, "scope": "parquetPage", "resolver": "missing" }],
+      "expected": { "status": "rejected", "code": "parquetKeyRequired" }
+    },
+    {
+      "id": "TAB1-parquet-checksum-malformed", "symbol": "archiveParquet", "decisions": ["W-1029"],
+      "operations": [{ "op": "parquetStatistics", "ordering": "malformed", "policy": "error" }],
+      "expected": { "status": "rejected", "code": "parquetStatisticsMalformed" }
+    },
+    {
+      "id": "TAB1-parquet-statistics-hint", "symbol": "archiveParquet", "decisions": ["W-1030"],
+      "operations": [{ "op": "parquetStatistics", "ordering": "nan", "policy": "ignore" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-writer-plan-pinned", "symbol": "archiveParquet", "decisions": ["W-1031"],
+      "operations": [{ "op": "parquetPlan", "rowGroupBytes": 1024, "pageBytes": 128, "deterministic": true, "codecDigest": "codec-a", "providerDigest": "provider-a" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-missing-deterministic-digest", "symbol": "archiveParquet", "decisions": ["W-1031"],
+      "operations": [{ "op": "parquetPlan", "rowGroupBytes": 1024, "pageBytes": 128, "deterministic": true, "codecDigest": "codec-a" }],
+      "expected": { "status": "rejected", "code": "parquetMissingDeterministicDigest" }
+    },
+    {
+      "id": "TAB1-parquet-footer-commit", "symbol": "archiveParquet", "decisions": ["W-1031", "W-1032"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 512, "stable": true }, { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }, { "op": "parquetCommit", "planId": "plan-1", "status": "complete" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-parquet-incomplete-footer-discard", "symbol": "archiveParquet", "decisions": ["W-1032"],
+      "operations": [{ "op": "openSource", "sourceId": "archive", "kind": "snapshot", "byteCount": 512, "stable": true }, { "op": "parquetPreflight", "planId": "plan-1", "sourceId": "archive", "magic": "PAR1", "footerBytes": 32, "offsets": "bounded", "sizes": "bounded" }, { "op": "parquetCommit", "planId": "plan-1", "status": "failure" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-ipc-preflight", "symbol": "handoffArrow", "decisions": ["W-1032", "W-1033"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowMessage", "sessionId": "ipc", "kind": "schema", "identity": "schema-1" }, { "op": "arrowMessage", "sessionId": "ipc", "kind": "recordBatch", "identity": "schema-1" }, { "op": "arrowBuffer", "sessionId": "ipc", "bytes": 64, "endian": "native", "aligned": true, "copyPolicy": "ifNeeded", "copyRequired": false }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-file-session", "symbol": "archiveParquet", "decisions": ["W-1032"],
+      "operations": [{ "op": "arrowSession", "sessionId": "file", "container": "file" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-schema-divergence", "symbol": "handoffArrow", "decisions": ["W-1033"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowMessage", "sessionId": "ipc", "kind": "schema", "identity": "schema-1" }, { "op": "arrowMessage", "sessionId": "ipc", "kind": "recordBatch", "identity": "schema-2" }],
+      "expected": { "status": "rejected", "code": "arrowSchemaDivergence" }
+    },
+    {
+      "id": "TAB1-arrow-dictionary-order", "symbol": "handoffArrow", "decisions": ["W-1034"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowDictionary", "sessionId": "ipc", "event": "definition", "id": 4 }, { "op": "arrowDictionary", "sessionId": "ipc", "event": "use", "id": 4 }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-dictionary-before-definition", "symbol": "handoffArrow", "decisions": ["W-1034"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowDictionary", "sessionId": "ipc", "event": "use", "id": 4 }],
+      "expected": { "status": "rejected", "code": "arrowDictionaryBeforeDefinition" }
+    },
+    {
+      "id": "TAB1-arrow-file-dictionary-replacement", "symbol": "archiveParquet", "decisions": ["W-1034"],
+      "operations": [{ "op": "arrowSession", "sessionId": "file", "container": "file" }, { "op": "arrowDictionary", "sessionId": "file", "event": "replacement", "id": 4 }],
+      "expected": { "status": "rejected", "code": "arrowFileDictionaryReplacement" }
+    },
+    {
+      "id": "TAB1-arrow-copy-never", "symbol": "handoffArrow", "decisions": ["W-1035"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowBuffer", "sessionId": "ipc", "bytes": 64, "endian": "native", "aligned": true, "copyPolicy": "never", "copyRequired": true }],
+      "expected": { "status": "rejected", "code": "copyNever" }
+    },
+    {
+      "id": "TAB1-arrow-non-native-endian", "symbol": "handoffArrow", "decisions": ["W-1035"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowBuffer", "sessionId": "ipc", "bytes": 64, "endian": "big", "aligned": true, "copyPolicy": "ifNeeded", "copyRequired": false }],
+      "expected": { "status": "rejected", "code": "arrowNonNativeEndian" }
+    },
+    {
+      "id": "TAB1-arrow-alignment", "symbol": "handoffArrow", "decisions": ["W-1035"],
+      "operations": [{ "op": "arrowSession", "sessionId": "ipc", "container": "stream" }, { "op": "arrowBuffer", "sessionId": "ipc", "bytes": 64, "endian": "native", "aligned": false, "copyPolicy": "ifNeeded", "copyRequired": false }],
+      "expected": { "status": "rejected", "code": "arrowAlignmentRequired" }
+    },
+    {
+      "id": "TAB1-arrow-trusted-c-array", "symbol": "importTrustedCArray", "decisions": ["W-1036"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "trusted", "schemaMatch": true, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4 }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-untrusted-c-rejected", "symbol": "importTrustedCArray", "decisions": ["W-1036"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "untrusted", "schemaMatch": true, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4 }],
+      "expected": { "status": "rejected", "code": "untrustedCBridge" }
+    },
+    {
+      "id": "TAB1-arrow-c-schema-rejected", "symbol": "importTrustedCArray", "decisions": ["W-1036", "W-1039"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "trusted", "schemaMatch": false, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4 }],
+      "expected": { "status": "rejected", "code": "cSchemaMismatch" }
+    },
+    {
+      "id": "TAB1-arrow-device-as-cpu", "symbol": "importTrustedCArray", "decisions": ["W-1038"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "trusted", "schemaMatch": true, "device": "foreign", "maxBytes": 1024, "maxCallbacks": 4 }],
+      "expected": { "status": "rejected", "code": "cDeviceNotCpu" }
+    },
+    {
+      "id": "TAB1-arrow-c-limits", "symbol": "importTrustedCArray", "decisions": ["W-1038"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "trusted", "schemaMatch": true, "device": "cpu", "maxBytes": 0, "maxCallbacks": 4 }],
+      "expected": { "status": "rejected", "code": "cImportLimit" }
+    },
+    {
+      "id": "TAB1-arrow-c-stream-bounded", "symbol": "handoffArrow", "decisions": ["W-1037", "W-1042"],
+      "operations": [{ "op": "arrowSession", "sessionId": "cstream", "container": "stream" }, { "op": "arrowCImport", "kind": "stream", "trust": "trusted", "schemaMatch": true, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4, "maxConcurrent": 1, "maxQueued": 8, "maxJobs": 16 }, { "op": "arrowCNext", "sessionId": "cstream", "quota": 2 }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-c-stream-no-admission", "symbol": "handoffArrow", "decisions": ["W-1037", "W-1042"],
+      "operations": [{ "op": "arrowCImport", "kind": "stream", "trust": "trusted", "schemaMatch": true, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4, "maxConcurrent": 0, "maxQueued": 8, "maxJobs": 16 }],
+      "expected": { "status": "rejected", "code": "cImportQuota" }
+    },
+    {
+      "id": "TAB1-arrow-c-stream-file-rejected", "symbol": "handoffArrow", "decisions": ["W-1037"],
+      "operations": [{ "op": "arrowSession", "sessionId": "file", "container": "file" }, { "op": "arrowCNext", "sessionId": "file", "quota": 2 }],
+      "expected": { "status": "rejected", "code": "cStreamRequired" }
+    },
+    {
+      "id": "TAB1-arrow-export-stream-deferred", "symbol": "handoffArrow", "decisions": ["W-1037", "W-1042"],
+      "operations": [{ "op": "deferCExportStream", "reason": "blocking-bridge-not-bounded" }],
+      "expected": { "status": "rejected", "code": "cStreamExportDeferred" }
+    },
+    {
+      "id": "TAB1-arrow-trusted-c-release-once", "symbol": "importTrustedCArray", "decisions": ["W-1036", "W-1037"],
+      "operations": [{ "op": "arrowCImport", "kind": "array", "trust": "trusted", "schemaMatch": true, "device": "cpu", "maxBytes": 1024, "maxCallbacks": 4 }, { "op": "releaseC", "handleId": "array-1" }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-arrow-double-release", "symbol": "importTrustedCArray", "decisions": ["W-1037"],
+      "operations": [{ "op": "releaseC", "handleId": "array-1" }, { "op": "releaseC", "handleId": "array-1" }],
+      "expected": { "status": "rejected", "code": "releaseExactlyOnce" }
+    },
+    {
+      "id": "TAB1-mapping-explicit", "symbol": "summarize", "decisions": ["W-1039"],
+      "operations": [{ "op": "mapping", "mode": "explicit", "total": true }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-mapping-heuristic-rejected", "symbol": "summarize", "decisions": ["W-1039"],
+      "operations": [{ "op": "mapping", "mode": "heuristic", "total": true }],
+      "expected": { "status": "rejected", "code": "explicitMappingRequired" }
+    },
+    {
+      "id": "TAB1-provenance-complete", "symbol": "summarize", "decisions": ["W-1040"],
+      "operations": [{ "op": "recordProvenance", "format": "csv", "profile": "portable", "providerVersion": "std.csv@1", "providerDigest": "provider-a", "schemaIdentity": "schema-a", "copyPolicy": "ifNeeded", "materialization": "borrowed-warning-copy", "options": { "header": "required", "nullDecode": "none" } }],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-provenance-incomplete", "symbol": "summarize", "decisions": ["W-1040"],
+      "operations": [{ "op": "recordProvenance", "format": "parquet", "profile": "portable", "providerVersion": "std.parquet@1", "schemaIdentity": "schema-a", "copyPolicy": "never", "materialization": "copy", "options": { "binding": "exact" } }],
+      "expected": { "status": "rejected", "code": "provenanceIncomplete" }
+    },
+    {
+      "id": "TAB1-arrow-cancel-after-progress", "symbol": "handoffArrow", "decisions": ["W-1014", "W-1016", "W-1042"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "sequence", "logicalType": { "kind": "integer", "width": 64 } }] } },
+        { "op": "openSource", "sourceId": "ipc", "kind": "byte", "byteCount": 64 },
+        { "op": "decode", "format": "arrowStream", "sourceId": "ipc", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "encodeProgress", "format": "arrowStream", "batchId": "batch-1", "mode": "stream", "batchMode": "take", "bytes": 8, "records": 1, "partialRecord": true },
+        { "op": "cancel", "waits": 1, "drain": "drained" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-tabular-adversary-symbols", "symbol": "tabularAdversaries", "decisions": ["W-1041", "W-1043"],
+      "operations": [{ "op": "mapping", "mode": "explicit", "total": true }],
+      "expected": { "status": "accepted" }
+    }
+  ]
+}

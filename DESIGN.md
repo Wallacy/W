@@ -17425,13 +17425,250 @@ pequeno. **Rejeitado por enquanto:** `Any` universal, duck typing, reflection
 unchecked, union silencioso de schema, carrier row-array universal, copy
 implícito, release duplicada e ABI física derivada do layout.
 
+#### 14.4.2 Adapters tabulares TAB1
+
+**Exemplo:** a mesma leitura do horizonte passa por CSV typed, arquivo Parquet
+posicional, stream IPC Arrow e import C trusted. Cada rota publica o mesmo
+`data.Batch<HorizonReading>`, `data.Schema` e resumo. O source é um oracle de
+design. Ele não alega codec, provider ou execução W.
+
+TAB1 usa quatro modules T2 separados: `std.data`, `std.csv`, `std.parquet` e
+`std.arrow`. Os declarations em [`std/`](std/) são parseáveis e permanecem
+**Direção** até os providers missing e os gates correspondentes serem fechados;
+`std.io@1` também permanece missing para a implementação de
+`SnapshotByteSource`.
+Um adapter não redefine `Row`, `Schema` ou identity. `data.Schema` é a autoridade
+W para names, order, closed logical type, nullability, bounded constraints e
+semantic extension.
+
+**Direção:** `io.SnapshotByteSource<Failure>` é uma fonte finita e posicional.
+O owner mantém `byteCount: u64` e o conteúdo logicamente estáveis até a
+release. `read(at:appendTo:maximum:)` recebe `offset: u64`, não muta um cursor,
+e informa `SnapshotReadStep` com short progress ou `.end`. Reads posicionais
+podem ocorrer em paralelo. O decoder consome o source e o provider rejeita
+instabilidade ou offsets fora do snapshot. `ByteSource` continua sendo o
+protocol sequencial com cursor. Parquet e Arrow IPC file aceitam somente
+`SnapshotByteSource`.
+
+Todos os quatro adapters usam limits finitos. Não existe uma opção segura
+`.unlimited`. O provider verifica overflow, counts, offsets e sizes antes de
+allocation ou publicação. Um batch só fica visível depois de validar schema,
+rows, nulls, offsets, nesting e limites. Um error posterior não revoga batches
+já publicados.
+
+O retorno de `decode` é `some Stream<data.Batch<Row>, DecodeError<SourceFailure>>`.
+`decodeAll` é `async`, consome o source e materializa um batch único com limits
+explícitos. `encode` possui overload para um batch e para um stream de batches.
+O overload de batch recebe `ref data.Batch<Row>` e `inout ByteSink`; o overload
+de stream consome o stream e usa um `EncodeStreamError<BatchFailure,
+SinkFailure>` fechado. `data.EncodeProgress` usa contadores `u64` com adição
+checked, bytes committed, complete records e o fato `partialRecord`. Encoding
+não é transaction. Error ou cancellation pode deixar bytes ou records parciais.
+Não existe retry automático. Cancellation é control outcome; a progressão fica
+no trace/snapshot e errors de aplicação carregam o último progress. Cancellation
+drena waits e owners conforme E1.
+
+`data` fecha o mínimo TAB0 necessário para TAB1:
+
+- `Row`, `Schema`, nominal `SchemaIdentity`, opacos move-only `Batch<Row>`,
+  `DynamicBatch`, `Column` e `FieldDescriptor<Owner,Value>`;
+- descritores fechados para integer width/sign, f16/f32/f64, FixedDecimal,
+  String/Bytes/UUID, calendar date e time/instant/localDateTime com precision,
+  option/list/map/nested e
+  bounded semantic extension id/version/parameters;
+- `CopyPolicy` com `.never`, `.ifNeeded` e `.always`, `BindingPolicy` com
+  `.exact` e `.project`, e `MappingPolicy` com `.none` e `.explicit`;
+- `Limits`, `SchemaError`, `BindError`, `DynamicValue` fechado e
+  `EncodeProgress` com contadores `u64`.
+
+`DynamicValue` mantém list/map/nested/extension storage em handles indiretos
+bounded. Nenhum caso carrega um `DynamicValue` ou `DynamicEntry` recursivo por
+valor.
+
+`SchemaField.make` consome o `LogicalType` que armazena; `Schema.make` consome
+os fields. Ambos só retornam valores após validação de nomes, bounds, extensions,
+duplicatas e identity normalizada. `Schema.identity()` não
+retorna literal; o token nominal é computado/armazenado somente pelo intrinsic.
+`FieldDescriptor` não possui initializer exportado e carrega o `Owner: Row`; o
+provider rejeita uso cross-row. `Batch`, `DynamicBatch` e columns são structs
+opacas com handles privados validados, não protocols implementáveis por usuário.
+`LogicalType`, `FixedDecimalType` e `SemanticExtension` são
+handles nominais indiretos: constructors `integer`, `option`, `list`, `map`,
+`nested` e `extension` validam depth, bounds e parâmetros antes de criar o
+handle. A representação não contém enum recursivo por valor; decimal usa
+coeficiente, UUID bytes, e temporals usam counts calendar/clock/UTC/civil
+bounded, nunca String livre.
+`batch.column(.field)` usa descriptor gerado. A coluna devolvida é uma `view`
+loan ligada ao Batch; ela não retém, libera ou cria um owner. Para valores Copy, `column[index]`
+é o lowering checked de `Column.copy(at:)` e devolve valor owner;
+somente `String?` e `Bytes?` usam `StringColumn.view(at:)`/
+`BytesColumn.view(at:)` concreto, ligado ao Batch, e `copy(at:)` materializa um
+owner explícito. Não há `view Value` genérico nem `XView`. Nested ou custom sem
+projeção core exige field projection, adapter semântico ou materialização
+explícita. A grammar atual não representa uma declaration genérica condicional;
+os declarations e oracles separados registram as duas regras sem alterá-la.
+`Any`, reflection e synthesis heuristic ficam rejeitados por W-404, W-419 e
+W-420.
+
+##### CSV
+
+`std.csv.decode` é o overload typed e exige `Row: data.Row`. O overload dynamic
+tem o nome `decodeDynamic` e exige `data.Schema` explícito. `data.Row` sozinho
+não cria codec. O adapter deriva um plano somente para mapping lógico total
+fechado. Nominal, enum, `Quantity` e custom exigem extension adapter, mapping
+explícito ou DTO.
+
+O profile default `portable` fixa UTF-8, header required, comma, double quote,
+CRLF ou LF, rejeita CR nu, preserva whitespace, não cria null token, exige
+fields exact, usa `true` e `false` case-sensitive, numbers locale-free e
+nonfinite disabled. Empty String nunca é null. Decode usa `NullDecodePolicy`
+`.none`, `.empty` ou tokens bounded; encode usa `NullEncodePolicy`
+`.unavailable`, `.empty` ou token. A validação rejeita delimiter==quote e
+colisões entre null, bool e float tokens antes de consumir o source.
+`DecodeDialect` e `EncodeDialect` são nominais e separados; `HeaderPolicy`,
+whitespace, bool/float tokens e `FormulaPolicy` não são bool bags. Encoding com
+null sem representação falha.
+`DecodeOptions` e `EncodeOptions` consomem os profiles nominais com `take`; não
+há cópia implícita de dialect, token policy ou formula policy.
+Quoted records podem cruzar chunks. Quote escaping duplica DQUOTE. Header
+duplicate ou vazio, bare CR, row width, invalid UTF-8, conversion, limits e
+location (`byte`, `record`, `field`, `header`) são errors typed.
+
+`.rfc4180` é profile estrito de decode. Ele usa CRLF e as regras do RFC 4180.
+Header nunca é inferido. O `WriterProfile.canonical` emite header e CRLF, quote
+mínimo, shortest-roundtrip e numbers sem locale. Nonfinite e tipos sem mapping
+falham. Spreadsheet formula escaping não é default lossless. Uma policy de
+apresentação que altera dados deve ser explícita, ou a mistura deve ser
+rejeitada. `Limits.standard()` é finito; não há `.unlimited`.
+
+O tooling candidato usa exatamente:
+
+```text
+w data inspect <path> --format csv --sample-rows <N>
+w data schema <path> --format csv --emit <file>
+```
+
+Esses comandos produzem candidate/report bounded. Eles nunca alteram a
+compilação silenciosamente e não fazem schema inference no runtime.
+
+##### Parquet
+
+`std.parquet.decode` recebe `take Source: SnapshotByteSource`. O
+`DecodeProfile` default é `.portable` e o default de binding é `.exact`;
+`EncodeProfile` é separado e o writer modern não pode ser escolhido por uma
+opção de decode. `.project` é explícito, e o DTO target define as colunas.
+Rename, reorder, narrow, unit, timezone e missing exigem mapping explícito.
+Parsing, decompression e materialização são efeitos de `decode`, não
+`CopyPolicy`. O output baseline é CPU. O target device não é escolhido pelo
+adapter.
+
+Limits cobrem encoded e decoded bytes, allocations, footer, Thrift strings,
+containers, nesting, row groups, column chunks, pages, dictionaries, indexes,
+bloom filters e compression ratio. O provider valida magic, footer, offsets e
+sizes antes de reads ou allocations. Page checksum `.whenPresent` é o default.
+`KeyResolverCapability` chega somente por binding explícito de entry/context,
+move-only e scoped para footer/page; `KeyResolver.from` a consome sem expor
+plaintext.
+Unsupported ou encrypted sem resolver explícito gera error typed. Nunca há
+fallback plaintext.
+
+Writer modern emite `LogicalType` e `ConvertedType` legacy quando a spec exige.
+LIST e MAP usam três níveis. Legacy reader compatibility é profile explícito.
+Width e sign de integer, f16/f32/f64, decimal precision e scale, UTF-8, date,
+time-of-day, instant UTC e localDateTime civil, UUID, list, map, nested e null
+formam uma matrix. Zoned/named timezone fica em semantic extension T2 explícita.
+Semantic mismatch rejeita. Statistics, index e bloom são hints. Malformed,
+undefined ordering ou NaN não mudam resultado. A policy pode ignorar ou gerar
+error. Dataset multi-file, discovery e ambient Hive directory ficam em um
+bundle DATASET posterior com manifest bounded.
+
+`WriterPlan` fixa compression, row-group/page sizes, dictionary, statistics,
+checksum, encryption e digests de provider/codec. Footer só faz commit de
+arquivo válido ao final com sucesso. Failure deixa um artifact incompleto para
+discard ou staging transactional. Deterministic bytes exige profile, codec e
+provider digests pinned; sem esses digests o writer retorna error. `EncodeOptions`
+consome `WriterPlan` e `KeyResolver` com `take`; não copia capability. Não é
+promessa default.
+
+##### Arrow
+
+As APIs IPC têm nomes explícitos: `decodeIpcStream` e `decodeIpcStreamDynamic`
+aceitam `ByteSource`; `decodeIpcFile` e `decodeIpcFileDynamic` aceitam
+`SnapshotByteSource`. `decodeIpcStreamAll` e `decodeIpcFileAll` são as
+conveniências async bounded para um Batch único. `DecodeOptions` usa binding
+exact/project, mapping explícito e CopyPolicy; não há `Profile` que possa
+escolher um container inválido. `encodeIpcStream` e `encodeIpcFile` mantêm
+overloads para Batch e stream. C Data e C Stream usam handles opaque move-only
+de producer trusted. `importCArray`, `importCArrayDynamic` e `importCStream`
+validam o raw schema carregado no handle, limits e ownership; o caller não
+passa uma segunda `data.Schema`. `exportCArray` aceita options e
+transfere ownership; `exportCStream` fica deferido porque Stream async não pode
+virar `get_next` blocking sem bridge bounded.
+
+IPC untrusted valida FlatBuffers metadata, messages, buffers, offsets, nesting,
+body sizes, dictionaries, deltas, replacements, compression ratio, schema e
+footer identity, endian e alignment antes da publicação. Checksum não é um
+campo core do IPC; somente um envelope externo pode fornecer checksum typed.
+File footer e embedded stream devem ter a mesma schema e metadata.
+File não aceita dictionary replacement. Stream exige dictionary antes do uso,
+salvo o caso all-null permitido pela spec. `.never` falha se alignment,
+compression, endian, layout, target ou lifetime exigem copy.
+
+Release ocorre exatamente uma vez. `get_next` de C Stream é serializado por um
+adapter bounded com `BlockingQuota` (concorrência, fila e jobs finitos),
+cancellation e drain explícitos. Cada result é
+independente do stream. `last_error` é copiado antes do callback seguinte.
+Export C é owned transfer com release callback; Safe W não publica raw pointer.
+Todo import C recebe `CImportOptions`/`CStreamImportOptions` finitos. TAB1 C
+baseline é CPU. Device C, DLPack e tensor handoff ficam no bundle tensorial.
+Um device handle não é dereferenced como CPU nem transferido implicitamente.
+
+##### Mapping, provenance e evidência
+
+A matrix W↔CSV↔Parquet↔Arrow cobre Bool, signed e unsigned widths,
+f16/f32/f64 com policy de NaN e signed zero, FixedDecimal precision/scale,
+String UTF-8, Bytes, UUID, Date, Time, Instant e LocalDateTime civil,
+Option/null, Array/list, Map, nested Row, enum, Quantity e custom extension.
+Mapping não total exige DTO, mapping ou extension. `data.Schema` e seu
+`SchemaIdentity` nominal continuam autoridade W; nenhum format redefine a
+identity.
+
+Provenance registra format, profile, provider version e digest, options, schema
+identity, copy e materialization. Filename extension, charset, locale,
+environment lookup, path recursion e compression não são inferidos. Null
+physical slots são saneados antes de persistence ou untrusted boundary.
+
+[`reference/last-light/data_formats.w`](reference/last-light/data_formats.w)
+liga as quatro rotas ao mesmo telemetry. O schema é gerado da Row, o identity
+é nominal, e `String?` borrowed view só vive no scope de `summarize`; somente a
+materialização `copy` deixa o owner. O arquivo lista adversariais de chunks CSV,
+headers, UTF-8, bare CR, null tokens, NaN, footer, offsets, bombs, logical
+mismatch, legacy LIST, checksum, encryption, source instability, Arrow
+dictionary/schema, endian, alignment, C trust, double release, device,
+blocking quota e cancellation after progress. Os casos host ligam cada
+adversarial a símbolos reais; a lista textual não é evidência de execução.
+
+Fontes de contrato são [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180),
+[Parquet file format](https://parquet.apache.org/docs/file-format/),
+[Parquet logical types](https://parquet.apache.org/docs/file-format/types/logicaltypes/),
+[Parquet page index](https://parquet.apache.org/docs/file-format/pageindex/),
+[Parquet encryption](https://parquet.apache.org/docs/file-format/encryption/),
+[Arrow Columnar](https://arrow.apache.org/docs/format/Columnar.html),
+[Arrow IPC](https://arrow.apache.org/docs/format/IPC.html),
+[Arrow C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
+[Arrow C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html),
+[Arrow C Device](https://arrow.apache.org/docs/format/CDeviceDataInterface.html)
+e [Arrow Security](https://arrow.apache.org/docs/format/Security.html). Python,
+PyArrow e Polars são apenas evidência ergonômica. Eles não definem a semântica
+W.
+
 ### 14.5 Catálogo verificável SDK0
 
 **Exemplo:** o build transform recebe `build.Context`. A declaration existe,
 mas o provider `std.build@1` continua **missing**.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos 14 módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos 18 módulos W atuais. Cada export usa um profile que
 declara:
 
 - tier e availability;
@@ -17447,16 +17684,18 @@ permanece igual.
 
 O catálogo é uma projeção verificável. Ele não cria semântica fora deste
 documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 159 declarations exportadas em 14 módulos: todas possuem declaration
-draft-ready. Ele também registra 42 superfícies
+registra 285 declarations exportadas em 18 módulos: todas possuem declaration
+draft-ready. Ele também registra 67 superfícies
 qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
 qualificado desconhecido, profile
 incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
 declaration mede somente a interface W. Quando uma interface depende de um
 provider intrinsic, o catálogo registra separadamente o ID, os gates e o estado
-executável. Uma declaration `draft` não torna um provider `available`.
+executável. O checker confirma 14/14 requisitos contratados, 2/8 carriers
+missing (Blob e FormData) e 12/12 providers de implementação missing. Uma
+declaration `draft` não torna um provider `available`.
 
-Os nove requisitos adversariais possuem profile. `ByteSink.writeAll`,
+Os 14 requisitos contratados possuem profile. `ByteSink.writeAll`,
 `http.ServerError` e `http.Headers` possuem draft pronto. O catálogo registra
 separadamente cada operação pública de Headers.
 
@@ -20126,7 +20365,8 @@ Python Array API standard, DLPack e Arrow C Data estão na
 
 DLPack continua adapter de tensor e fica em um bundle próprio, separado de
 TAB1. O carrier tabular `data.Batch<Row>` e os contratos de columns, chunks e
-ownership estão em [14.4.1](#1441-carrier-tabular-tab0).
+ownership estão em [14.4.1](#1441-carrier-tabular-tab0). Os adapters de formato
+e `SnapshotByteSource` estão em [14.4.2](#1442-adapters-tabulares-tab1).
 
 ## 18. Performance e custo
 
@@ -26901,7 +27141,8 @@ A matriz separa linguagem, tooling, standard library, ecossistema e interop.
 “Gap real” significa ausência no design corrente. Não significa que uma
 implementação esteja atrasada.
 
-O carrier tabular e a regra de binding typed ficam em [14.4.1](#1441-carrier-tabular-tab0);
+O carrier tabular e a regra de binding typed ficam em [14.4.1](#1441-carrier-tabular-tab0).
+Os adapters CSV, Parquet e Arrow ficam em [14.4.2](#1442-adapters-tabulares-tab1).
 PYN0 não promove DataFrame ou duck typing a surface W.
 
 ##### Linguagem
@@ -27013,15 +27254,16 @@ hidden replay de effects. Nomes de comandos para check/export continuam
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
 | NumPy e ciência numérica | `matrix`, `tensor`, shapes, `@` e device transfer em T2 | adapters Python e corpus de interoperabilidade | T2 e adapter first-party | **Direção** |
-| DataFrames e dados colunares | `data.Batch<Row>`, `data.DynamicBatch`, schemas e database rows tipadas | CSV, Parquet e Arrow workflow seguem TAB1; DataFrame completo fica package first-party | T2 minimal, package first-party e codecs | **Direção** |
+| DataFrames e dados colunares | `data.Batch<Row>`, `data.DynamicBatch`, schemas e database rows tipadas; TAB0 e TAB1 fecham adapters, contracts e host evidence como design | DataFrame completo fica package first-party; seguem dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; providers ficam pós-freeze | T2 minimal, package first-party e codecs | **Direção** |
 | Plotting e rich display | protocols de display e tooling estruturado | renderer, limits e backends de plot | first-party package ou third-party | **Pesquisa** |
 | Package registry e descoberta | resolver, lock, registry e provenance de package | descoberta para workflow de arquivo único | tooling e ecossistema | **Pesquisa** |
 | Amplitude de otimização e ciência | `std.science`, matrix e tensor como T2 | breadth de solvers, optimization e providers | packages first-party e third-party | **Pesquisa** |
 
 Dataframe completo fica em package first-party antes de entrar na std estável.
 TAB0 fecha `data.Batch<Row>`, `data.DynamicBatch`, schema identity, chunks,
-copy/device policy e release. TAB1 deve fechar o workflow de CSV, Parquet e
-Arrow. W não promete um clone de pandas.
+copy/device policy e release. TAB1 fecha declarations, contracts, oracles e
+host evidence para o workflow de CSV, Parquet e Arrow como design. W não promete
+um clone de pandas.
 
 Gaps de std e ecossistema permanecem separados:
 
@@ -27225,8 +27467,8 @@ evidência de design:
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 19 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
-| std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
-| workflow interativo e científico PYN0 | `w run <product>`, locks, HIR, tensors T2, C façade, schemas e carrier `data.Batch<Row>` TAB0 existem como contratos separados | fechar dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, adapters CSV/Parquet/Arrow de TAB1, bundle próprio de DLPack tensorial, e evidence dos gates de latency; implementações de CLI, REPL, kernel e providers ficam pós-freeze |
+| std | SDK0 cataloga 285 exports em 18 módulos; todos possuem declaration draft-ready; 14/14 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 12/12 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
+| workflow interativo e científico PYN0 | `w run <product>`, locks, HIR, tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters/contracts/host evidence TAB1 estão fechados como design | fechar dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; implementações de CLI, REPL, kernel e providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
@@ -27240,9 +27482,10 @@ compiler ou runtime. Provas sobre componentes reais continuam nos gates da
 seção 27. Um contrato pode fechar antes de existir backend, mas não pode declarar
 comportamento que seus modelos ou oracles contradizem.
 
-TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular-tab0). O bloqueio
-restante é TAB1, que deve fechar adapters e workflows de formatos sem alterar a
-schema identity ou as regras de ownership.
+TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular-tab0). TAB1 fecha
+declarations, profiles, errors, limits e workflows em [14.4.2](#1442-adapters-tabulares-tab1).
+O bloqueio restante é provider, corpus adversarial e evidence dos gates, sem
+alterar a schema identity ou as regras de ownership.
 
 A ordem recomendada de fechamento é:
 
@@ -28066,6 +28309,32 @@ host modelam publicação, schema identity, selection, O(1) access, scan, copy,
 device, chunks, owner, views, waits, children, trust, sanitização e limits.
 Eles não compilam nem executam W. A evidência corrente é `design-oracle-input`.
 `w compile`, `w run`, estudo humano e estudo de modelo permanecem missing.
+
+#### 26.3.15 Adapters tabulares TAB1
+
+**Exemplo:** o mesmo resumo do horizonte passa por três variantes de W: upload
+CSV typed, archive Parquet snapshot e handoff Arrow IPC stream. A variante
+`typed` é a **Direção**. C import trusted é uma quarta rota de boundary, não uma
+variante de formato.
+
+[`tooling/studies/r1-tabular-adapters/bundle.json`](tooling/studies/r1-tabular-adapters/bundle.json)
+fixa rows, schema identity, outcome, digests, quatro tasks, orders, blinding,
+primary e adversarial inputs, e o host oracle. O estudo mede clareza do
+workflow, preservação semântica e reconhecimento de ownership. Ele não trata
+CSV, Parquet e Arrow como substitutos universais.
+
+Os adversariais cobrem quoted CSV dividido entre chunks, header duplicate,
+empty-vs-null, invalid UTF-8, row width, negative finite/NaN, footer e offset
+Parquet, decompression bomb, logical mismatch, legacy LIST, checksum,
+encrypted sem key, source instability, Arrow schema divergence, dictionary
+before definition, replacement em file, endian, `copyPolicy: .never`,
+alignment, C untrusted, double release, device-as-CPU e cancellation depois de
+progress. O oracle modela metadata, events, ownership e progress. Ele não finge
+reader binário Parquet ou Arrow.
+
+`tree-sitter` parse, host oracle e cases são evidência corrente. `w compile`,
+`w run`, estudo humano e estudo de modelo permanecem missing. A superfície
+derivada liga os símbolos de `data_formats.w` aos requisitos TAB1 e ao ledger.
 
 ## 27. Plano de implementação
 
@@ -29310,7 +29579,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 63 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std SDK0 | profiles cobrem 161 exports em 14 módulos, nove requisitos e oito carriers; todas as declarations estão draft-ready; scan compara 42 usos; `std.build.Context` é draft e `std.build@1` continua missing; Blob e FormData continuam missing, e sete providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
+| W-891 | catálogo std SDK0 | profiles cobrem 285 exports em 18 módulos, 14/14 requisitos contratados e oito carriers (2/8 missing: Blob e FormData); todas as declarations estão draft-ready; scan compara 67 superfícies qualificadas; `std.build.Context` é draft e `std.build@1` continua missing; 12/12 providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em quatro cases, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions, com serve usando carrier `std.net`; provider único `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal com `T??`; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html`; Blob/FormData parcial |
@@ -29391,7 +29660,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-969 | escalada de shutdown e generation E1 | ready→admissionClosed→cancellationRequested→draining→quiescent→stopped; graceExpired→terminating→terminated; forced termination é boundary failure; registry do host e trace encerram roots; generations isoladas e completion velha não muta nova | shutdown como cancelamento normal; aceitar starts depois de admission close; cleanup interrompido virar success; completar slot na generation nova; restart sem incarnation |
 | W-970 | oracle E1 e limites | `runtime-liveness-machine.mjs` é host-puro, adversarial e ligado a Última Luz; corpus cobre closure, completion/cancel races, generation, reclaim e shutdown; não prova scheduler/clock/OS I/O, fairness absoluta, advanced reclamation, device, recovery distribuído ou terminação de user code | snapshot manual; máquina runtime; declarar allocator/verifier implementado; ampliar E0/B0/A0; timing real; corpus sem símbolos ou decisões |
 | W-971 | público Python inicial | Python é público inicial nas seções 0.1 e 0.4; scripts, automação, ciência, dados e AI entram no público; pessoa com Python realiza o Tour, workflow single-file e workflow científico básico antes de ownership baixo nível; ownership e effects continuam explícitos nas boundaries | adiar Python até depois de 1.0; tratar Python somente como documentação; prometer compatibilidade dinâmica; copiar o modelo baixo nível para o onboarding |
-| W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party e adapters seguem TAB1; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
+| W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party; TAB0 definiu o boundary e TAB1 fechou declarations, contracts, oracles e host evidence de CSV/Parquet/Arrow como design; providers e `w-compile`/`w-run` permanecem missing; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
 | W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e o unnamed/default entry; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
 | W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis, nunca stale ou implicitamente recompilados; resubmission explícita recria e executa effects; redefinição/reset fecha admission, drena children/waits, encerra loans/views e faz drops E1, rejeitando ou escalando se foreign retention permanece | dynamic mode; replay automático de effects; redefinição que mantém dependents silenciosamente; liberar estado vivo; reset que ignora drain; notebook transcript como source de release |
 | W-975 | Jupyter como tooling | kernel Jupyter compartilha o session model, implementa o protocol autoritativo e usa rich output W tipado com MIME/data bounded; interrupt solicita structured cancellation; notebook exporta `.w`/package em ordem canônica sem hidden replay antes de release; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; protocol W sem estado de Pesquisa |
@@ -29420,11 +29689,51 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-998 | trust boundary e sanitização | untrusted input valida counts, buffers, offsets, lengths e nesting/bounds antes da publicação; UTF-8 é validado quando a column declara essa codificação; validity + physical values exigem bytes zero/initialized nos nulls antes de boundary | decode ilimitado; publicação parcial; UTF-8 obrigatório em numeric/binary; null físico não inicializado atravessando boundary; confiança por endereço |
 | W-999 | limits e arithmetic | limits cobrem rows, columns, fields, buffers, total bytes, allocation bytes, nesting, metadata bytes, string bytes e chunks; overflow e counts reificados falham antes de allocation/publicação | limits somente de rows; overflow depois de allocation; quota implícita; chunks ilimitados |
 | W-1000 | Schema identity e extensions | `data.Schema` separa identity semântica de metadata bounded; names/order, type/nullability/refinement/extensions formam identity; cada extension nominal possui ID estável, versão e parâmetros canônicos bounded sem registry ambiental; extension sem adapter é opaque/dynamic e não bind nominal; physical layout não entra | metadata alterar identity; registry ambiental; extension universal; adapter implícito |
-| W-1001 | fronteira TAB1 de adapters | CSV, Parquet e Arrow são os adapters posteriores de TAB1; DLPack é adapter tensorial em bundle próprio, com classificação tensor vs tabular explícita e nunca carrier tabular; TAB1 deve fechar nomes, signatures, workflows e copy/device/ownership exatos sem mover semântica para formats | CSV/Parquet/Arrow definir Row; DataFrame como carrier; DLPack tabular; signature final neste bundle |
+| W-1001 | fronteira TAB1 de adapters | TAB0 definiu o boundary; TAB1 fechou declarations, contracts, oracles e host evidence para CSV, Parquet e Arrow como design; DLPack é adapter tensorial em bundle próprio, com classificação tensor vs tabular explícita e nunca carrier tabular; providers e `w-compile`/`w-run` seguem missing sem mover semântica para formats | CSV/Parquet/Arrow definir Row; DataFrame como carrier; DLPack tabular; signature final neste bundle |
 | W-1002 | máquina host TAB0 | `tabular-carrier-machine.mjs`, 64 cases, 155 operations, 22 accepted e 42 rejected, snapshot e host tests modelam invariantes de publication, binding, chunks, owner, trust, sanitização e limits sem executar W; casos positivos e negativos evitam tautologia | chamar host oracle de compiler/runtime; snapshot manual; modelo sem adversariais; testar somente happy path |
 | W-1003 | estudo R1 tabular | bundle fixa source base, três variantes, mesmos telemetry summary/output, adversariais, quatro tasks, orders, blinding, digests e evidence missing; `typed-batch` é Direção | study de snippet; input implícito; variante caricata; declarar participante/modelo inexistente |
 | W-1004 | corpus e superfície TAB0 | três casos R0 ligam carrier, synthesis e copy aos novos requisitos; surface snapshot e índices são derivados por script; promoção mede planejamento e não ratificação | editar snapshot manual; contar forma por texto; duplicar caso; chamar digest de evidência humana |
-| W-1005 | fechamento do bundle TAB0 | checks scoped incluem machine/cases/host, study bundle/oracle/parse, substitutions/surface, examples, links, freeze audit, index e diff-check; evidência durável mantém `w-compile`, `w-run`, estudo humano, estudo de modelo e adapters TAB1 como missing; sem compiler, runtime, provider, CSV, Parquet, Arrow ou DataFrame de produção | promover host/parse a execução W; alterar grammar gerada; criar std/data/contracts.w; prometer Forma antes de promoção |
+| W-1005 | fechamento do bundle TAB0 | checks scoped incluem machine/cases/host, study bundle/oracle/parse, substitutions/surface, examples, links, freeze audit, index e diff-check; evidência durável mantém `w-compile`, `w-run`, estudo humano e estudo de modelo como missing; declarations, oracles e host evidence dos adapters TAB1 estão fechados somente como design, enquanto providers e execução W continuam missing; sem compiler, runtime, provider ou DataFrame de produção | promover host/parse a execução W; alterar grammar gerada; criar std/data/contracts.w; prometer Forma antes de promoção |
+| W-1006 | SnapshotByteSource | fonte finite, positional e content-stable com `byteCount: u64`, offset `u64`, `SnapshotReadStep`, short reads e acesso paralelo; não possui cursor; Parquet e Arrow file exigem este owner | usar ByteSource cursor, reread de path ou content stability ambiental |
+| W-1007 | surface data TAB1 | `std.data` declara Row, Schema, nominal SchemaIdentity, opacos Batch/DynamicBatch/Column, FieldDescriptor com Owner, LogicalType indireto e descriptors fechados, constructors `take` para storage consumido, CopyPolicy, BindingPolicy, MappingPolicy, Limits, BindError e EncodeProgress; provider `std.data@1` é missing | Any, reflection, DataFrame universal, stringly logical type ou provider implementado no draft |
+| W-1008 | descriptors e selection | `batch.column(.field)` usa descriptor gerado; dynamic selection recebe nome e binding explícito; selection é O(1) e não usa String lookup no hot path | reflection unchecked, String lookup estático ou field rename silencioso |
+| W-1009 | borrowed e copy column | Copy fields devolvem valor; `batch.column` devolve uma loan `view StringColumn`/`BytesColumn` ligada ao Batch; `copy` materializa owner; não existe `view Value` ou XView; nested/custom exigem projection ou materialização | view universal, copy implícito ou escape de borrow |
+| W-1010 | generic conditional limitation | grammar atual não representa declaration genérica condicional; declarations/oracles separados modelam Copy e non-Copy sem alterar grammar | grammar ad hoc, macro ou syntax condicional nova neste bundle |
+| W-1011 | binding e schema policy | `.exact` é default; `.project` é explícito e exige mapping; rename, reorder, narrow, unit, timezone, missing e extra não são heurísticos | union/promotion silenciosa, cast implícito ou schema inference runtime |
+| W-1012 | decode common surface | typed `decode` retorna `some Stream<data.Batch<Row>, DecodeError<SourceFailure>>`; source é consumido/owned; batch publica depois da validação | devolver rows soltas, source borrowed escapante ou publicar antes de preflight |
+| W-1013 | decodeAll | `decodeAll` é async, tem limits finitos explícitos e materializa um único Batch; não é caminho ilimitado ou cache implícito | unbounded collect, sync-only convenience ou materialização oculta |
+| W-1014 | encode progress | overload batch recebe ref Batch e inout Sink; stream consome source e usa error fechado com BatchFailure/SinkFailure; progress u64 é checked e informa bytes committed, complete records e partial-record fact | transaction implícita, retry automático, progresso booleano somente ou source failure perdido |
+| W-1015 | publication and error | cada batch só publica após schema, offsets, nulls, nesting e limits; error após publicação não revoga batches anteriores | rollback de batches já publicados ou publication parcial |
+| W-1016 | cancellation TAB1 | cancellation é control outcome, drena waits/source/sink/owners conforme E1, e trace/snapshot retém progress; não há detach ou retry | cancelar sem drain, liberar borrow cedo ou transformar progress em zero |
+| W-1017 | CSV names | typed overload é `decode`; dynamic overload é `decodeDynamic` e exige `data.Schema`; `decodeAll` e dois encode overloads completam a surface | `decode` dynamic ambíguo, schema opcional ou codec de Row universal |
+| W-1018 | CSV portable profile | UTF-8, header required, comma, DQUOTE, CRLF/LF, no CR nu, whitespace preserved, no null token, exact fields, case-sensitive Bool, locale-free numbers e nonfinite disabled | ambient charset/locale, header inferido ou whitespace trim oculto |
+| W-1019 | CSV RFC profile | `.rfc4180` usa CRLF e regras do RFC 4180; header nunca é inferido; profile é opção explícita | tratar RFC como default parcial ou inferir header |
+| W-1020 | CSV null policy | decode usa `.none`, `.empty` ou bounded tokens; encode separa `.unavailable`, `.empty` e token; empty String não é null e colisões são rejeitadas antes do source | sentinel universal, null token ambiental ou empty/null conflados |
+| W-1021 | CSV errors | duplicate/empty header, row width, invalid UTF-8, field conversion, limits e byte/record/field/header location são typed errors | string error, location perdida ou error sem bound |
+| W-1022 | CSV writer | `WriterProfile.canonical` emite header e CRLF, quote mínimo, DQUOTE duplicado, shortest-roundtrip e numbers locale-free; formula escaping é policy de apresentação separada; encode parcial preserva progress | spreadsheet escaping lossless default, locale output ou quote indiscriminado |
+| W-1023 | CSV tooling | `w data inspect <path> --format csv --sample-rows <N>` e `w data schema ... --emit <file>` produzem candidate/report bounded sem alterar compilação | schema inference runtime, mutation silenciosa ou extensão magic |
+| W-1024 | Parquet source | decode recebe `take Source: SnapshotByteSource`; positional footer/row-groups/column-chunks/page access não usa cursor | ByteSource, ambient file seek ou dataset directory discovery |
+| W-1025 | Parquet binding | default `.exact`; `.project` nomeia target DTO e mapping; semantic mismatch rejeita | reorder/rename/narrow/unit/timezone/missing heurístico |
+| W-1026 | Parquet limits | limits finitos cobrem encoded/decoded bytes, allocations, footer, Thrift strings/containers/nesting, row groups, chunks, pages, dictionaries, indexes, bloom e compression ratio | `.unlimited`, row-only limits ou overflow pós-allocation |
+| W-1027 | Parquet preflight | magic, footer, offsets e sizes validam antes de read/allocation; malformed stats/index/bloom não muda results | trust por offset, parse tardio ou hint alterando dados |
+| W-1028 | Parquet logical matrix | integer widths/sign, f16/f32/f64, decimal precision/scale, UTF-8, calendar date, time-of-day, instant UTC, civil localDateTime, UUID, list/map/nested/null têm matrix; zoned/named timezone só por extension nominal e mismatch é typed | physical type redefine semantic type ou conversion implícita |
+| W-1029 | Parquet checksum and encryption | page checksum `.whenPresent` é default; `KeyResolverCapability` só chega por binding explícito de entry/context e `KeyResolver.from` a consome, scoped e bounded para footer/page; unsupported/encrypted sem resolver gera error typed; não há plaintext fallback | capability ambient ou decrypt ambiental |
+| W-1030 | Parquet writer profile | modern writer emite LogicalType e ConvertedType legacy quando exigido; LIST/MAP usa três níveis; legacy reader compatibility é profile | writer legacy universal ou schema W definido por ConvertedType |
+| W-1031 | Parquet writer plan and commit | `WriterPlan` fixa compression, row-group/page, dictionary/statistics/checksum/encryption e digests; writer só commits footer/file válido ao sucesso; failure deixa artifact incompleto; deterministic bytes sem digests falham | partial artifact apresentado como válido ou determinism default |
+| W-1032 | Arrow API split | IPC stream/file têm nomes distintos e source contracts; dynamic variants usam `decodeIpcStreamDynamic` e `decodeIpcFileDynamic` | um decode universal, cursor para file ou overload ambíguo |
+| W-1033 | Arrow IPC validation | untrusted IPC valida FlatBuffers, messages, buffers, offsets, nesting, body sizes, compression ratio, schema/footer identity, endian e alignment antes de publish; checksum só pertence a envelope externo | confiar metadata, body size tardio, checksum core inventado ou untrusted C bridge |
+| W-1034 | Arrow dictionaries | stream exige dictionary before use salvo all-null permitido; file não aceita replacement; deltas/replacements seguem profile e error typed | aceitar replacement em file ou dictionary forward reference |
+| W-1035 | Arrow copy policy | CopyPolicy só governa zero-copy/copy quando escolha real; `.never` falha em alignment, compression, endian, layout, target ou lifetime incompatível; baseline CPU | policy escolher device, copy silencioso ou transfer implícito |
+| W-1036 | trusted C handles | C Data/C Stream usam opaque move-only handles de producer trusted; input serialized untrusted nunca usa bridge; structural validation continua | raw pointer safe, handle fabricado ou C bridge para bytes hostis |
+| W-1037 | C lifecycle | release exatamente uma vez; get_next serializado por bridge bounded com `BlockingQuota` de concorrência/fila/jobs, cancel/drain; results independentes; last_error copiado antes do callback seguinte; export C Stream é deferido e export array transfere release callback | double release, callback concorrente, worker ilimitado oculto ou owner local após transfer |
+| W-1038 | device classification | C Device/DLPack ficam bundle tensorial; foreign device handle é classificado/rejeitado e nunca dereferenced como CPU ou transferido implicitamente | tratar device pointer como CPU ou escolher transfer implicitamente |
+| W-1039 | cross-format mapping | matrix cobre Bool, widths, floats/NaN/signed zero, FixedDecimal, UTF-8, Bytes, UUID, Date/Time, Instant UTC, civil LocalDateTime, Option, list/map, nested, enum, Quantity e custom; timezone exige extension nominal | format redefine Schema identity ou mapping não total heurístico |
+| W-1040 | provenance and security | provenance registra format/profile/provider version+digest/options/schema identity/copy/materialization; no extension magic, ambient charset/locale/env/path recursion/compression inference; null physical slots sanitizados | metadata incompleta, ambient lookup ou null bytes não inicializados |
+| W-1041 | Last Light TAB1 route | `reference/last-light/data_formats.w` liga CSV typed upload, Parquet snapshot archive, Arrow IPC handoff de todos os batches e C trusted import ao mesmo rows/schema/outcome; schema é gerado, identity é nominal, view fica scoped e copy é explícito | UI nova, descriptors manuais, rows divergentes, primeiro-batch truncado, view escapante ou execução W alegada |
+| W-1042 | TAB1 adversarial ledger | adversariais incluem CSV chunk quote/bare CR/token/partial encode, duplicate header, empty/null, invalid UTF-8, width, negative/NaN, Parquet footer/offset/size/bomb/Thrift/logical/legacy/checksum/encryption/source/footer commit/digest, Arrow schema/dictionary/endian/copy/alignment/C/quota/double-release/device/cancel | happy path only, parser binário fingido ou adversarial sem ID |
+| W-1043 | host evidence TAB1 | `tooling/tabular-adapter-machine.mjs`, 84 cases/184 operations (35 accepted, 49 rejected), checker, JSONL snapshot e host tests derivam state/identity/progress/provenance/tokenizer/footer/page/IPC/ownership/quota; cada case liga símbolo real do Last Light; não compilam ou executam W | expected echo, snapshot manual, boolean rule echo, provider/reader de produção |
+| W-1044 | R1 adapter study | `r1-tabular-adapters` fixa três variantes W assíncronas que iteram todos os batches/rows e preservam primary 0.8, empty/negative/NaN/multiline, adversariais, digests, quatro tasks, orders, blinding e host oracle; mede clareza e preservação, não substituição universal | comparar formatos como equivalentes, input implícito, `expect true` ou participante/modelo inventado |
+| W-1045 | SDK0/TAB1 projections | std-api contracts e snapshot catalogam std.data/csv/parquet/arrow e SnapshotByteSource como draft; providers permanecem missing; design-index, profiles, requirements e surface são derivados por scripts | alegar provider disponível, editar snapshot manual ou alterar generated tree-sitter src |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

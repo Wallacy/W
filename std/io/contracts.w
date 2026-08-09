@@ -5,6 +5,13 @@ export enum ReadStep {
   end
 }
 
+// Positional reads use a separate step so a provider can report a short read
+// without exposing a cursor.  A positive count is progress; .end is EOF.
+export enum SnapshotReadStep {
+  data(usize<(1...)>)
+  end
+}
+
 export enum WriteStep {
   complete
   partial(usize<(1...)>)
@@ -20,6 +27,21 @@ export protocol ByteSource<Failure: Error> {
     appendTo destination: inout Bytes,
     maximum: usize<(1...)>,
   ): ReadStep throws Failure
+}
+
+// SnapshotByteSource is a finite positional source. It has no cursor.
+// The owner keeps byteCount and the logical content stable until release.
+// Positional reads are safe to run in parallel; a provider may return a short
+// positive read and the caller must issue another offset read. A decoder must
+// consume the source and must not infer a path, provider, or ambient file.
+export protocol SnapshotByteSource<Failure: Error> {
+  fn byteCount(): u64
+
+  async fn read(
+    at offset: u64,
+    appendTo destination: inout Bytes,
+    maximum: usize<(1...)>,
+  ): SnapshotReadStep throws Failure
 }
 
 export protocol ByteSink<Failure: Error> {
@@ -75,6 +97,13 @@ export protocol ByteSink<Failure: Error> {
 
     return .complete
   }
+}
+
+// The provider is intentionally missing.  This marker keeps the intrinsic
+// carrier visible in the SDK catalog without inventing a production runtime
+// implementation or a public handle.
+foreign intrinsic from "std.io@1" {
+  type SnapshotByteSourceProviderMarker
 }
 
 test "write progress is distinct from completion" {
