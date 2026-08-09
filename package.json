@@ -16,6 +16,7 @@
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
+    "check:liveness": "bun test tooling/runtime-liveness-reference.test.mjs && bun tooling/check-runtime-liveness-cases.mjs",
     "check:links": "bun tooling/check-markdown-links.mjs",
     "check:memory": "bun tooling/check-memory-transition-cases.mjs",
     "check:packages": "bun tooling/check-package-release-cases.mjs",

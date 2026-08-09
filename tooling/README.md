@@ -32,6 +32,7 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `memory-transition-cases.json` + máquina M1 | 165 sequências do Última Luz com 580 operações (70 aceitas + 95 rejeitadas), estados e traces byte-exact | oracle host tabelado de PlaceId, dependency/allocation origins, region/rehome, erasure, shared/weak, pinning, FFI e ABI; não é HIR emitida pelo frontend nem allocator/runtime real |
 | `allocation-cases.json` + máquina A0 | 48 sequências com 123 operações (15 aceitas + 33 rejeitadas) e 13 testes independentes | oracle host de layout, receipt, resize, provider, progress, domain e reclamation; não é allocator, verifier nem runtime W |
 | `execution-concurrency-cases.json` + máquina E0 | 50 sequências e 451 operações (28 aceitas + 22 rejeitadas) cobrem lifecycle, cancelamento, oito origens happens-before e races | oracle host de eventos; não é scheduler, checker nem runtime W |
+| `runtime-liveness-cases.json` + máquina E1 | 41 sequências e 473 operações (19 aceitas + 22 rejeitadas), sete testes host; closure, waits, completion/cancel races, generations, frame/outcome split, blocking foreign e shutdown | oracle host de runtime closure e liveness; não prova scheduler, clock, OS I/O, allocator, verifier ou runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `std-api-contracts.json` + checker SDK0 | perfis cobrem 161 exports em 14 módulos, 42 superfícies qualificadas, nove requisitos adversariais e oito carriers | catálogo e snapshot são projeções; `std.build.Context` é draft, faz read e staging, e `std.build@1` continua missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler; Blob e FormData permanecem missing e os sete providers executáveis catalogados estão missing |
@@ -105,6 +106,8 @@ integrações de editor.
    `bun tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
 7. Para validar documentação, links e índice, execute `bun run check:docs` no
    root do repositório.
+8. Para validar o recorte E1 sem executar runtime, execute `bun run check:liveness`
+   no root do repositório.
 
 ## Caminho até o browser
 

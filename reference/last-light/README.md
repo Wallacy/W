@@ -202,6 +202,7 @@ alvo de execução independente.
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
+| `liveness_oracle.w` | runtime closure E1, waits, completion/cancel races, frame/outcome reclamation e shutdown |
 | `domain_oracle.w` | seleção de domain, admission e redução bounded de capacity |
 | `remote_stream_oracle.w` | eligibility, créditos, lifecycle, fault points e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
@@ -1529,6 +1530,50 @@ impede que o deployment aumente a capacity do artifact. Declarar ou importar
 um domain continua sendo somente uma requirement. Não cria queue, thread ou
 executor. Somente o execution profile selecionado pelo product fornece
 `parallelDefault`; o header do módulo não possui esse slot.
+
+### 3.30.1 Closure e liveness E1
+
+Famílias: runtime closure, cleanup, provider completion, frame reclamation,
+blocking foreign e shutdown.
+
+`liveness_oracle.w` é uma máquina host-pura para E1. Ela usa
+`TaskClosurePhase`, `RuntimeWaitPhase`, `BoundaryShutdownPhase`,
+`ProviderOutcome`, `CompletionDisposition`, `CancelDisposition`, `CommitGate` e
+`FrameReclaimGate`. O corpus também liga
+`execution.w`, `supervision.w`, `lifecycle_oracle.w` e `scheduler_oracle.w`; não
+duplica suas transições. São 41 casos, 473 operações e sete testes host.
+
+Aceite:
+
+- body settled fecha admission antes de child/wait drain, cleanup, typed drop,
+  runtime quiescence e outcome cell;
+- `defer` instala em body active/open; `finishCleanup` fecha stack vazia,
+  inclusive scope sem valores, e typed drop inverso ocorre exatamente uma vez;
+- um cleanup node `defer async` mantém child estruturado até o child committed,
+  registra cancellation recebida sem abortar o node e permite cancel local do child;
+- um wait criado pelo cleanup termina antes do typed drop e não registra trabalho
+  no parent closing;
+- registration, queue, timer ou waker criado pelo cleanup exige node `defer async`
+  ativo e pode drenar somente no runtime drain;
+- cancel request é distinto de provider completion em ambas as ordens; cancel
+  antes de submit pode drenar localmente, cancel tardio é idempotente e cancel
+  depois de outcome committed não altera o resultado;
+- `(OperationId, generation)` suprime callback de completion tardia ou stale e
+  ainda drena a registration antiga;
+- frame bytes reclamam depois da closure quiescent sem exigir join do handle;
+- TCB/outcome cell continua viva por join, observer ou retention;
+- children, registrations, queue tickets, timers, wakers e runtime refs impedem
+  reclaim prematuro;
+- blocking foreign unbounded é rejeitado fora de boundary killable; kill físico
+  produz boundary failure;
+- shutdown fecha admission, solicita cancelamento, drena, para ou escala para
+  termination forced sem converter o resultado em `.canceled`;
+- geração nova permanece isolada de completion velha e o host cleanup registry
+  é a última autoridade de recursos próprios.
+
+O corpus E1 não é runtime W. Ele não prova scheduler, clock, OS I/O, fairness
+absoluta, hazard/epoch/RCU, device scopes, recovery distribuído ou terminação de
+user code.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 

@@ -256,6 +256,7 @@ const oracleCorpusFiles = [
   "allocation-cases.json",
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
+  "runtime-liveness-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "wmeta-cases.json",
@@ -394,6 +395,17 @@ const executionConcurrencyOperations = executionConcurrencyCorpus.cases.reduce(
   0,
 );
 const acceptedExecutionConcurrencyCases = executionConcurrencyCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
+const runtimeLivenessCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "runtime-liveness-cases.json"), "utf8"),
+);
+const runtimeLivenessCases = runtimeLivenessCorpus.cases.length;
+const runtimeLivenessOperations = runtimeLivenessCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedRuntimeLivenessCases = runtimeLivenessCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
 const executionConcurrencySnapshots = fs
@@ -562,6 +574,13 @@ output.push(
     `(${acceptedExecutionConcurrencyCases} aceitos + ` +
     `${executionConcurrencyCases - acceptedExecutionConcurrencyCases} rejeitados; ` +
     `${synchronizationEdgeKinds.size}/8 origens happens-before) |`,
+);
+output.push(
+  `| casos/operações do kernel de runtime closure E1 | ` +
+    `${runtimeLivenessCases}/${runtimeLivenessOperations} ` +
+    `(${acceptedRuntimeLivenessCases} aceitos + ` +
+    `${runtimeLivenessCases - acceptedRuntimeLivenessCases} rejeitados; ` +
+    `sete testes host) |`,
 );
 output.push(
   `| casos/operações do kernel de boundary effects B0 | ` +
