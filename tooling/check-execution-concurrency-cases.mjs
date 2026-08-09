@@ -14,6 +14,10 @@ const snapshotPath = path.join(
   "execution-concurrency-results.snapshot.jsonl",
 );
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
+const designDecisionIds = new Set(
+  [...fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8").matchAll(/^\| (W-\d{3,}) \|/gm)]
+    .map((match) => match[1]),
+);
 const errors = [];
 const caseIds = new Set();
 const results = [];
@@ -62,6 +66,16 @@ function compactState(state) {
     tasks: state.tasks,
     events: state.events,
     edges: state.edges,
+    ...(Object.keys(state.storageLifetimes).length > 0
+      ? { storageLifetimes: state.storageLifetimes }
+      : {}),
+    ...(Object.keys(state.atomicModificationOrder).length > 0
+      ? { atomicModificationOrder: state.atomicModificationOrder }
+      : {}),
+    ...(state.sequentialOrder.length > 0 ? { sequentialOrder: state.sequentialOrder } : {}),
+    ...(Object.keys(state.atomicExclusive).length > 0
+      ? { atomicExclusive: state.atomicExclusive }
+      : {}),
     lastFailFastTrigger: state.lastFailFastTrigger,
     lastArbitration: state.lastArbitration,
     lastRace: state.lastRace,
@@ -96,6 +110,25 @@ for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
     testCase.references.forEach((reference, referenceIndex) =>
       resolveReference(reference, `${location}.references[${referenceIndex}]`),
     );
+  }
+
+  if (testCase.decisions !== undefined) {
+    if (!Array.isArray(testCase.decisions) || testCase.decisions.length === 0) {
+      errors.push(`${location}.decisions must be a non-empty array when present.`);
+    } else {
+      const localDecisions = new Set();
+      for (const [decisionIndex, decision] of testCase.decisions.entries()) {
+        const decisionLocation = `${location}.decisions[${decisionIndex}]`;
+        if (!requireString(decision, decisionLocation)) continue;
+        if (!designDecisionIds.has(decision)) {
+          errors.push(`${decisionLocation} references missing ledger entry ${decision}.`);
+        }
+        if (localDecisions.has(decision)) {
+          errors.push(`${decisionLocation} repeats ${decision}.`);
+        }
+        localDecisions.add(decision);
+      }
+    }
   }
 
   if (!Array.isArray(testCase.operations) || testCase.operations.length === 0) {

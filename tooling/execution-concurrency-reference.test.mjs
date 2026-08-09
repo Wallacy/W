@@ -1,0 +1,240 @@
+import { expect, test } from "bun:test";
+import { runExecutionProgram } from "./execution-concurrency-machine.mjs";
+
+function rootOperations() {
+  return [
+    { op: "reserveTask", task: "root" },
+    { op: "publishTask", task: "root", id: "root-start" },
+  ];
+}
+
+test("a relaxed RMW continues a release sequence", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "atomicStore", task: "root", id: "release", storage: "epoch", order: "release" },
+    {
+      op: "atomicRmw",
+      task: "root",
+      id: "relay",
+      storage: "epoch",
+      order: "relaxed",
+      observes: "release",
+    },
+    {
+      op: "atomicLoad",
+      task: "root",
+      id: "acquire",
+      storage: "epoch",
+      order: "acquire",
+      observes: "relay",
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.atomicModificationOrder["epoch@0:all"]).toEqual([
+    "release",
+    "relay",
+  ]);
+  expect(result.state.edges).toContainEqual({
+    from: "release",
+    to: "acquire",
+    kind: "atomicReleaseAcquire",
+  });
+});
+
+test("a relaxed store cuts the preceding release sequence", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "atomicStore", task: "root", id: "release", storage: "epoch", order: "release" },
+    { op: "atomicStore", task: "root", id: "overwrite", storage: "epoch", order: "relaxed" },
+    {
+      op: "atomicLoad",
+      task: "root",
+      id: "acquire",
+      storage: "epoch",
+      order: "acquire",
+      observes: "overwrite",
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.edges).not.toContainEqual({
+    from: "release",
+    to: "acquire",
+    kind: "atomicReleaseAcquire",
+  });
+});
+
+test("a failed compare-exchange is a load and validates its failure order", () => {
+  const failed = runExecutionProgram([
+    ...rootOperations(),
+    { op: "atomicStore", task: "root", id: "initial", storage: "state", order: "release" },
+    {
+      op: "atomicCompareExchange",
+      task: "root",
+      id: "mismatch",
+      storage: "state",
+      successOrder: "acquireRelease",
+      failureOrder: "acquire",
+      result: "mismatch",
+      observes: "initial",
+    },
+  ]);
+  expect(failed.status).toBe("accepted");
+  expect(failed.state.atomicModificationOrder["state@0:all"]).toEqual(["initial"]);
+
+  const invalid = runExecutionProgram([
+    ...rootOperations(),
+    { op: "atomicStore", task: "root", id: "initial", storage: "state", order: "relaxed" },
+    {
+      op: "atomicCompareExchange",
+      task: "root",
+      id: "invalid",
+      storage: "state",
+      successOrder: "release",
+      failureOrder: "acquire",
+      result: "mismatch",
+      observes: "initial",
+    },
+  ]);
+  expect(invalid).toMatchObject({
+    status: "rejected",
+    code: "invalidAtomicFailureOrder",
+    operation: 3,
+  });
+});
+
+test("the compare-exchange matrix rejects every stronger failure order", () => {
+  const allowed = {
+    relaxed: ["relaxed"],
+    acquire: ["relaxed", "acquire"],
+    release: ["relaxed"],
+    acquireRelease: ["relaxed", "acquire"],
+    sequential: ["relaxed", "acquire", "sequential"],
+  };
+  const orders = ["relaxed", "acquire", "release", "acquireRelease", "sequential"];
+
+  for (const successOrder of orders) {
+    for (const failureOrder of orders) {
+      const result = runExecutionProgram([
+        ...rootOperations(),
+        { op: "atomicStore", task: "root", id: "initial", storage: "state", order: "relaxed" },
+        {
+          op: "atomicCompareExchange",
+          task: "root",
+          id: "compare",
+          storage: "state",
+          successOrder,
+          failureOrder,
+          result: "mismatch",
+          observes: "initial",
+        },
+      ]);
+      expect(result.status).toBe(
+        allowed[successOrder].includes(failureOrder) ? "accepted" : "rejected",
+      );
+    }
+  }
+});
+
+test("load, store and fence accept only their static order subsets", () => {
+  const orders = ["relaxed", "acquire", "release", "acquireRelease", "sequential"];
+  const accepted = {
+    atomicLoad: ["relaxed", "acquire", "sequential"],
+    atomicStore: ["relaxed", "release", "sequential"],
+    atomicFence: ["acquire", "release", "acquireRelease", "sequential"],
+  };
+
+  for (const [operation, acceptedOrders] of Object.entries(accepted)) {
+    for (const order of orders) {
+      const result = runExecutionProgram([
+        ...rootOperations(),
+        {
+          op: operation,
+          task: "root",
+          id: `${operation}-${order}`,
+          ...(operation === "atomicFence" ? {} : { storage: "state" }),
+          order,
+        },
+      ]);
+      expect(result.status).toBe(acceptedOrders.includes(order) ? "accepted" : "rejected");
+    }
+  }
+});
+
+test("a fence pair needs an atomic reads-from witness", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "reserveTask", task: "writer", parent: "root" },
+    { op: "publishTask", task: "writer", id: "writer-start", after: "root-start" },
+    { op: "reserveTask", task: "reader", parent: "root" },
+    { op: "publishTask", task: "reader", id: "reader-start", after: "root-start" },
+    { op: "atomicFence", task: "writer", id: "release-fence", order: "release" },
+    { op: "atomicStore", task: "writer", id: "publish", storage: "ready", order: "relaxed" },
+    {
+      op: "atomicLoad",
+      task: "reader",
+      id: "observe",
+      storage: "ready",
+      order: "relaxed",
+      observes: "publish",
+    },
+    {
+      op: "atomicFence",
+      task: "reader",
+      id: "acquire-fence",
+      order: "acquire",
+      observes: "observe",
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.edges).toContainEqual({
+    from: "release-fence",
+    to: "acquire-fence",
+    kind: "atomicReleaseAcquire",
+  });
+});
+
+test("only exclusive authority opens an atomic payload", () => {
+  const accepted = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "counter", mode: "atomic" },
+    {
+      op: "beginAtomicExclusive",
+      task: "root",
+      id: "begin",
+      storage: "counter",
+      token: "token",
+      authority: "inout",
+    },
+    {
+      op: "atomicPayloadAccess",
+      task: "root",
+      id: "reset",
+      storage: "counter",
+      token: "token",
+      access: "write",
+    },
+    { op: "endAtomicExclusive", task: "root", id: "end", storage: "counter", token: "token" },
+  ]);
+  expect(accepted.status).toBe("accepted");
+
+  const rejected = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "counter", mode: "atomic" },
+    {
+      op: "beginAtomicExclusive",
+      task: "root",
+      id: "begin",
+      storage: "counter",
+      token: "token",
+      authority: "ref",
+    },
+  ]);
+  expect(rejected).toMatchObject({
+    status: "rejected",
+    code: "atomicExclusiveRequiresInout",
+    operation: 3,
+  });
+});

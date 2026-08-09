@@ -247,6 +247,7 @@
     {
       "id": "E0-parent-capture-precedes-child",
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixPair" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -266,6 +267,7 @@
     {
       "id": "E0-sibling-writes-race",
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "mixAcrossTwoKitchens" }],
+      "decisions": ["W-126", "W-440"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -282,6 +284,7 @@
     {
       "id": "E0-join-publishes-child-state",
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (leftResult, rightResult)" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -301,6 +304,7 @@
     {
       "id": "E0-cancel-does-not-publish-state",
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch.cancel(reason: .shutdown)" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -316,6 +320,7 @@
     {
       "id": "E0-channel-send-publishes-item",
       "references": [{ "path": "../reference/last-light/streams.w", "symbol": "runBoundedOrderWindow" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -334,6 +339,7 @@
     {
       "id": "E0-channel-close-publishes-none",
       "references": [{ "path": "../reference/last-light/streams.w", "symbol": "acceptOrders" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -352,6 +358,7 @@
     {
       "id": "E0-channel-capacity-orders-next-send",
       "references": [{ "path": "../reference/last-light/streams.w", "symbol": "capacity: 1" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -373,6 +380,7 @@
     {
       "id": "E0-service-call-precedes-turn",
       "references": [{ "path": "../reference/last-light/restaurant.w", "symbol": "service lastLight" }],
+      "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -391,6 +399,7 @@
     {
       "id": "E0-lock-release-acquire",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "ThreadApologyLedger" }],
+      "decisions": ["W-441", "W-450"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -409,6 +418,7 @@
     {
       "id": "E0-release-acquire-publishes-data",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "state.load<.acquire>()" }],
+      "decisions": ["W-441", "W-442", "W-444"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -427,6 +437,7 @@
     {
       "id": "E0-relaxed-flag-does-not-publish-data",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "announcements.load<.relaxed>()" }],
+      "decisions": ["W-441", "W-444"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -445,6 +456,7 @@
     {
       "id": "E0-acquire-without-observed-release",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "EndOfUniverseSign" }],
+      "decisions": ["W-441", "W-444"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -463,6 +475,7 @@
     {
       "id": "E0-sequential-atomic-publishes-data",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic state" }],
+      "decisions": ["W-442", "W-444"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -477,6 +490,353 @@
         { "op": "verifyRaceFreedom" }
       ],
       "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-relaxed-counter-remains-race-free",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "saturatingAdd<.relaxed>(1)" }],
+      "decisions": ["W-442", "W-446"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "counter-init", "storage": "announcements", "order": "sequential" },
+        { "op": "reserveTask", "task": "left", "parent": "root" },
+        { "op": "publishTask", "task": "left", "id": "left-start", "after": "counter-init" },
+        { "op": "reserveTask", "task": "right", "parent": "root" },
+        { "op": "publishTask", "task": "right", "id": "right-start", "after": "counter-init" },
+        { "op": "atomicRmw", "task": "left", "id": "left-add", "storage": "announcements", "order": "relaxed", "observes": "counter-init" },
+        { "op": "atomicRmw", "task": "right", "id": "right-add", "storage": "announcements", "order": "relaxed", "observes": "left-add" },
+        { "op": "verifyModificationOrder", "storage": "announcements", "events": ["counter-init", "left-add", "right-add"] },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-load-rejects-release-order",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "state.load<.release>()" }],
+      "decisions": ["W-444"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-init", "storage": "state", "order": "sequential" },
+        { "op": "atomicLoad", "task": "root", "id": "state-invalid-load", "storage": "state", "order": "release", "observes": "state-init" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAtomicOrder", "operation": 3 }
+    },
+    {
+      "id": "E0-store-rejects-acquire-order",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "state.store<.acquire>(.closed)" }],
+      "decisions": ["W-444"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-invalid-store", "storage": "state", "order": "acquire" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAtomicOrder", "operation": 2 }
+    },
+    {
+      "id": "E0-relaxed-rmw-extends-release-sequence",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "fetchWrappingAdd<.relaxed>(1)" }],
+      "decisions": ["W-126", "W-441", "W-444", "W-446", "W-939"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-init", "storage": "epoch", "order": "sequential" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "epoch-init" },
+        { "op": "reserveTask", "task": "relay", "parent": "root" },
+        { "op": "publishTask", "task": "relay", "id": "relay-start", "after": "epoch-init" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "epoch-init" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "epoch-release", "storage": "epoch", "order": "release" },
+        { "op": "atomicRmw", "task": "relay", "id": "epoch-relay", "storage": "epoch", "order": "relaxed", "observes": "epoch-release" },
+        { "op": "atomicLoad", "task": "reader", "id": "epoch-acquire", "storage": "epoch", "order": "acquire", "observes": "epoch-relay" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" },
+        { "op": "verifyModificationOrder", "storage": "epoch", "events": ["epoch-init", "epoch-release", "epoch-relay"] },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-relaxed-store-breaks-release-sequence",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "publishFirst" }],
+      "decisions": ["W-126", "W-441", "W-444"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-init", "storage": "epoch", "order": "sequential" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "epoch-init" },
+        { "op": "reserveTask", "task": "relay", "parent": "root" },
+        { "op": "publishTask", "task": "relay", "id": "relay-start", "after": "epoch-init" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "epoch-init" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "epoch-release", "storage": "epoch", "order": "release" },
+        { "op": "atomicStore", "task": "relay", "id": "epoch-overwrite", "storage": "epoch", "order": "relaxed" },
+        { "op": "atomicLoad", "task": "reader", "id": "epoch-acquire", "storage": "epoch", "order": "acquire", "observes": "epoch-overwrite" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 14 }
+    },
+    {
+      "id": "E0-successful-cas-extends-release-sequence",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "compareExchange<" }],
+      "decisions": ["W-441", "W-445"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-init", "storage": "state", "order": "sequential" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "state-init" },
+        { "op": "reserveTask", "task": "closer", "parent": "root" },
+        { "op": "publishTask", "task": "closer", "id": "closer-start", "after": "state-init" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "state-init" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "state-release", "storage": "state", "order": "release" },
+        { "op": "atomicCompareExchange", "task": "closer", "id": "state-cas", "storage": "state", "successOrder": "relaxed", "failureOrder": "relaxed", "result": "exchanged", "observes": "state-release" },
+        { "op": "atomicLoad", "task": "reader", "id": "state-acquire", "storage": "state", "order": "acquire", "observes": "state-cas" },
+        { "op": "access", "task": "reader", "id": "menu-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-failed-cas-does-not-modify",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "case .mismatch(_)" }],
+      "decisions": ["W-445"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-release", "storage": "state", "order": "release" },
+        { "op": "atomicCompareExchange", "task": "root", "id": "state-mismatch", "storage": "state", "successOrder": "acquireRelease", "failureOrder": "acquire", "result": "mismatch", "observes": "state-release" },
+        { "op": "verifyModificationOrder", "storage": "state", "events": ["state-release"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-weak-cas-may-fail-spuriously",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "weakCompareExchange<" }],
+      "decisions": ["W-445"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "release" },
+        { "op": "atomicCompareExchange", "task": "root", "id": "epoch-spurious", "storage": "epoch", "successOrder": "acquireRelease", "failureOrder": "acquire", "result": "mismatch", "weak": true, "observes": "epoch-initial" },
+        { "op": "verifyModificationOrder", "storage": "epoch", "events": ["epoch-initial"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-cas-rejects-stronger-failure-order",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "success: .release, failure: .acquire" }],
+      "decisions": ["W-445"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-init", "storage": "state", "order": "relaxed" },
+        { "op": "atomicCompareExchange", "task": "root", "id": "state-invalid-cas", "storage": "state", "successOrder": "release", "failureOrder": "acquire", "result": "mismatch", "observes": "state-init" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAtomicFailureOrder", "operation": 3 }
+    },
+    {
+      "id": "E0-cas-sequential-failure-enters-total-order",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "AtomicExchange<SignState>" }],
+      "decisions": ["W-444", "W-445"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-init", "storage": "state", "order": "sequential" },
+        { "op": "atomicCompareExchange", "task": "root", "id": "state-mismatch", "storage": "state", "successOrder": "sequential", "failureOrder": "sequential", "result": "mismatch", "observes": "state-init" },
+        { "op": "verifySequentialOrder", "events": ["state-init", "state-mismatch"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-sequential-order-crosses-atomic-locations",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic state" }],
+      "decisions": ["W-444"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-store", "storage": "state", "order": "sequential" },
+        { "op": "atomicStore", "task": "root", "id": "count-store", "storage": "count", "order": "sequential" },
+        { "op": "atomicLoad", "task": "root", "id": "state-load", "storage": "state", "order": "sequential", "observes": "state-store" },
+        { "op": "verifySequentialOrder", "events": ["state-store", "count-store", "state-load"] }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-mixed-atomic-view-is-rejected",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic state" }],
+      "decisions": ["W-442", "W-447", "W-449"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "state-store", "storage": "state", "order": "sequential", "offset": 0, "bytes": 4 },
+        { "op": "access", "task": "root", "id": "state-ordinary-read", "storage": "state", "access": "read", "offset": 0, "bytes": 4 }
+      ],
+      "expected": { "status": "rejected", "code": "mixedAtomicOrdinaryAccess", "operation": 3 }
+    },
+    {
+      "id": "E0-partial-atomic-overlap-is-rejected",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic announcements: u64" }],
+      "decisions": ["W-449"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "wide-store", "storage": "word", "order": "sequential", "offset": 0, "bytes": 8 },
+        { "op": "atomicLoad", "task": "root", "id": "narrow-load", "storage": "word", "order": "sequential", "offset": 4, "bytes": 4 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWidthMismatch", "operation": 3 }
+    },
+    {
+      "id": "E0-disjoint-fields-may-use-distinct-access-modes",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "ApologyLedgerState" }],
+      "decisions": ["W-440", "W-449"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "revision-store", "storage": "ledger", "order": "sequential", "offset": 0, "bytes": 8 },
+        { "op": "access", "task": "root", "id": "message-write", "storage": "ledger", "access": "write", "offset": 8, "bytes": 8 },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-exclusive-atomic-payload-access",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "withExclusive" }],
+      "decisions": ["W-447"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "counter-create", "storage": "counter", "mode": "atomic" },
+        { "op": "beginAtomicExclusive", "task": "root", "id": "counter-exclusive", "storage": "counter", "token": "counter-token", "authority": "inout" },
+        { "op": "atomicPayloadAccess", "task": "root", "id": "counter-reset", "storage": "counter", "token": "counter-token", "access": "write" },
+        { "op": "endAtomicExclusive", "task": "root", "id": "counter-exclusive-end", "storage": "counter", "token": "counter-token" },
+        { "op": "atomicLoad", "task": "root", "id": "counter-load", "storage": "counter", "order": "sequential" },
+        { "op": "destroyStorage", "task": "root", "id": "counter-destroy", "storage": "counter" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-ref-cannot-open-atomic-payload",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "(ref state).withExclusive" }],
+      "decisions": ["W-447"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "counter-create", "storage": "counter", "mode": "atomic" },
+        { "op": "beginAtomicExclusive", "task": "root", "id": "counter-invalid-exclusive", "storage": "counter", "token": "counter-token", "authority": "ref" }
+      ],
+      "expected": { "status": "rejected", "code": "atomicExclusiveRequiresInout", "operation": 3 }
+    },
+    {
+      "id": "E0-atomic-operation-pauses-during-exclusive-payload",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "resetBeforePublication" }],
+      "decisions": ["W-447"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "counter-create", "storage": "counter", "mode": "atomic" },
+        { "op": "beginAtomicExclusive", "task": "root", "id": "counter-exclusive", "storage": "counter", "token": "counter-token", "authority": "inout" },
+        { "op": "atomicStore", "task": "root", "id": "counter-store", "storage": "counter", "order": "sequential" }
+      ],
+      "expected": { "status": "rejected", "code": "atomicAccessDuringExclusivePayload", "operation": 4 }
+    },
+    {
+      "id": "E0-release-acquire-does-not-extend-lifetime",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "HorizonTelemetryEpoch" }],
+      "decisions": ["W-441", "W-447", "W-939"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "createStorage", "task": "writer", "id": "telemetry-create", "storage": "telemetry", "mode": "ordinary" },
+        { "op": "atomicStore", "task": "writer", "id": "epoch-init", "storage": "epoch", "order": "sequential" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "epoch-init" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicStore", "task": "writer", "id": "epoch-release", "storage": "epoch", "order": "release" },
+        { "op": "destroyStorage", "task": "writer", "id": "telemetry-destroy", "storage": "telemetry" },
+        { "op": "atomicLoad", "task": "reader", "id": "epoch-acquire", "storage": "epoch", "order": "acquire", "observes": "epoch-release" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" }
+      ],
+      "expected": { "status": "rejected", "code": "storageNotLive", "operation": 12 }
+    },
+    {
+      "id": "E0-release-fence-publishes-through-relaxed-store",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "atomic.fence<.release>()" }],
+      "decisions": ["W-441", "W-939", "W-940"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicFence", "task": "writer", "id": "telemetry-release-fence", "order": "release" },
+        { "op": "atomicStore", "task": "writer", "id": "ready-store", "storage": "ready", "order": "relaxed" },
+        { "op": "atomicLoad", "task": "reader", "id": "ready-load", "storage": "ready", "order": "acquire", "observes": "ready-store" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-fence-pair-requires-atomic-reads-from",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "atomic.fence<.acquire>()" }],
+      "decisions": ["W-441", "W-940"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicFence", "task": "writer", "id": "telemetry-release-fence", "order": "release" },
+        { "op": "atomicStore", "task": "writer", "id": "ready-store", "storage": "ready", "order": "relaxed" },
+        { "op": "atomicLoad", "task": "reader", "id": "ready-load", "storage": "ready", "order": "relaxed", "observes": "ready-store" },
+        { "op": "atomicFence", "task": "reader", "id": "telemetry-acquire-fence", "order": "acquire", "observes": "ready-load" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-fences-without-atomic-witness-do-not-publish",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "acquireTelemetryFence" }],
+      "decisions": ["W-441", "W-939", "W-940"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "publishTask", "task": "writer", "id": "writer-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "publishTask", "task": "reader", "id": "reader-start", "after": "root-start" },
+        { "op": "access", "task": "writer", "id": "telemetry-write", "storage": "telemetry", "access": "write" },
+        { "op": "atomicFence", "task": "writer", "id": "telemetry-release-fence", "order": "release" },
+        { "op": "atomicFence", "task": "reader", "id": "telemetry-acquire-fence", "order": "acquire" },
+        { "op": "access", "task": "reader", "id": "telemetry-read", "storage": "telemetry", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "rejected", "code": "dataRace", "operation": 10 }
+    },
+    {
+      "id": "E0-relaxed-fence-is-rejected",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "releaseTelemetryFence" }],
+      "decisions": ["W-940"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicFence", "task": "root", "id": "invalid-fence", "order": "relaxed" }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAtomicFenceOrder", "operation": 2 }
     }
   ]
 }
