@@ -42,6 +42,10 @@ std/
     contracts.w
   presentation/
     contracts.w
+  tensor/
+    contracts.w
+  dlpack/
+    contracts.w
   net/
     contracts.w
   json/
@@ -239,6 +243,15 @@ active content, collect implícito e device copy implícita. O provider
 `std.presentation@1` continua missing até os gates de effect mask, bounds,
 cancellation, ownership, sanitization e differential rendering. O arquivo não
 cria kernel, frontend, display singleton ou capability ambiental.
+
+`tensor/contracts.w` materializa Device provider-scoped, Queue capability opaca,
+adapters ao Tensor core, transferência explícita e limites bounded. O provider
+`std.tensor@1` continua missing. `dlpack/contracts.w` materializa DLPack 1.3
+versioned, ManagedTensor move-only com drop síncrono somente para capsule
+unconsumed comprovado, open/openDynamic, bind, materialize, export writable,
+release exact-once e lifecycle de capsule. O provider `std.dlpack@1` continua
+missing. Os dois arquivos não expõem raw pointer, não desserializam DLPack e não
+afirmam execução de compiler, runtime, Python, CUDA ou ROCm.
 
 Um cache remoto usa um `ServiceRef` async. Um adapter database ou HTTP pode
 otimizar transporte, mas não pode mudar statements, results, ownership ou

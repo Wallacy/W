@@ -1,0 +1,4651 @@
+{
+  "$schema": "w-dlpack-cases-1",
+  "status": "design-oracle-input",
+  "machine": "dlpack-machine-pyn4",
+  "decisions": [
+    "W-1125",
+    "W-1126",
+    "W-1127",
+    "W-1128",
+    "W-1129",
+    "W-1130",
+    "W-1131",
+    "W-1132",
+    "W-1133",
+    "W-1134",
+    "W-1135",
+    "W-1136",
+    "W-1137",
+    "W-1138",
+    "W-1139",
+    "W-1140",
+    "W-1141",
+    "W-1142",
+    "W-1143",
+    "W-1144",
+    "W-1145",
+    "W-1146",
+    "W-1147"
+  ],
+  "references": [
+    {
+      "path": "reference/last-light/tensor_interop.w",
+      "symbol": "ScientificBatch"
+    },
+    {
+      "path": "reference/last-light/tensor_interop.w",
+      "symbol": "BlackHoleSensor"
+    },
+    {
+      "path": "reference/last-light/tensor_interop.w",
+      "symbol": "scoreScientific"
+    },
+    {
+      "path": "reference/last-light/tensor_interop.w",
+      "symbol": "materializeToHost"
+    },
+    {
+      "path": "reference/last-light/tensor_interop.w",
+      "symbol": "exportScores"
+    },
+    {
+      "path": "std/tensor/contracts.w",
+      "symbol": "Device"
+    },
+    {
+      "path": "std/tensor/contracts.w",
+      "symbol": "Queue"
+    },
+    {
+      "path": "std/dlpack/contracts.w",
+      "symbol": "ManagedTensor"
+    },
+    {
+      "path": "std/dlpack/contracts.w",
+      "symbol": "ImportedTensor"
+    },
+    {
+      "path": "std/dlpack/contracts.w",
+      "symbol": "openDynamic"
+    }
+  ],
+  "cases": [
+    {
+      "id": "PYN4-P-versioned-zero-copy",
+      "decisions": [
+        "W-1125",
+        "W-1126",
+        "W-1127",
+        "W-1130",
+        "W-1131",
+        "W-1134",
+        "W-1135",
+        "W-1138",
+        "W-1140",
+        "W-1146",
+        "W-1147"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 96,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              4,
+              6
+            ],
+            "strides": [
+              6,
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [
+              "readOnly"
+            ],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule",
+          "name": "dltensor_versioned"
+        },
+        {
+          "op": "consume",
+          "name": "dltensor_versioned"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "open",
+          "element": "f32",
+          "shape": [
+            4,
+            6
+          ],
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "view",
+          "callback": {
+            "scope": "lexical",
+            "escapes": false,
+            "inout": false,
+            "drained": true
+          }
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1,
+          "deleterCalls": 1,
+          "dereferencedFields": [
+            "version.minor",
+            "flags",
+            "dtype",
+            "ndim",
+            "shape",
+            "strides",
+            "byteOffset",
+            "data",
+            "device"
+          ]
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-legacy-managed-tensor",
+      "decisions": [
+        "W-1125",
+        "W-1130",
+        "W-1146"
+      ],
+      "operations": [
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": null,
+            "ndim": null,
+            "shape": null,
+            "strides": null,
+            "byteOffset": null,
+            "dataPresent": null,
+            "device": null,
+            "flags": [],
+            "carrierKind": "legacy"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0002",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1,
+          "dereferencedFields": []
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-legacy-capsule-name-release",
+      "decisions": [
+        "W-1125",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule",
+          "name": "dltensor"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0002",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1,
+          "dereferencedFields": [
+            "version.minor",
+            "flags",
+            "dtype",
+            "ndim",
+            "shape",
+            "strides",
+            "byteOffset",
+            "data",
+            "device"
+          ]
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-major-mismatch-release-before-deref",
+      "decisions": [
+        "W-1126",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 2,
+              "minor": 0
+            },
+            "dtype": null,
+            "ndim": null,
+            "shape": null,
+            "strides": null,
+            "byteOffset": null,
+            "dataPresent": null,
+            "device": null,
+            "poisoned": true,
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0003",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1,
+          "dereferencedFields": []
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-missing-version-prefix",
+      "decisions": [
+        "W-1126"
+      ],
+      "operations": [
+        {
+          "op": "create",
+          "tensor": {
+            "version": null,
+            "dtype": null,
+            "ndim": null,
+            "shape": null,
+            "strides": null,
+            "device": null,
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0003",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1,
+          "dereferencedFields": []
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-unknown-minor-field",
+      "decisions": [
+        "W-1126"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 4
+            },
+            "unknownFields": [
+              "future_field"
+            ],
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": [],
+            "strides": [],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0004"
+      }
+    },
+    {
+      "id": "PYN4-N-unknown-flag",
+      "decisions": [
+        "W-1127"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": [],
+            "strides": [],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [
+              "futureFlag"
+            ],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0005"
+      }
+    },
+    {
+      "id": "PYN4-P-device-provider-identity",
+      "decisions": [
+        "W-1128",
+        "W-1129",
+        "W-1139"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "open",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released"
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-queue-device-mismatch",
+      "decisions": [
+        "W-1128",
+        "W-1129"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cuda-b",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "open",
+          "queue": {
+            "device": {
+              "provider": "cuda-b",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0021"
+      }
+    },
+    {
+      "id": "PYN4-N-unknown-device-kind",
+      "decisions": [
+        "W-1128"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "mystery",
+            "kind": "unknown",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 8,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "mystery",
+              "kind": "unknown",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0011"
+      }
+    },
+    {
+      "id": "PYN4-N-caller-ready-conclusion",
+      "decisions": [
+        "W-1139"
+      ],
+      "operations": [
+        {
+          "op": "open",
+          "ready": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0017"
+      }
+    },
+    {
+      "id": "PYN4-P-cpu-no-queue",
+      "decisions": [
+        "W-1129",
+        "W-1139"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 8,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "i32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-cpu-extra-queue",
+      "decisions": [
+        "W-1129"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 8,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "i32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "open",
+          "queue": {
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0020"
+      }
+    },
+    {
+      "id": "PYN4-P-open-public-lifecycle",
+      "decisions": [
+        "W-1131",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 8,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "open",
+          "element": "f32",
+          "shape": [
+            2
+          ]
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1,
+          "capsuleDestructor": "no-op"
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-untrusted-bytes",
+      "decisions": [
+        "W-1130",
+        "W-1138",
+        "W-1146"
+      ],
+      "operations": [
+        {
+          "op": "untrusted",
+          "bytes": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0013"
+      }
+    },
+    {
+      "id": "PYN4-N-producer-copied-open",
+      "decisions": [
+        "W-1127",
+        "W-1131"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [
+              "producerCopied"
+            ],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0018",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-subbyte-padded-typed-open",
+      "decisions": [
+        "W-1127",
+        "W-1131",
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 1
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "u8",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [
+              "subbytePadded"
+            ],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0006"
+      }
+    },
+    {
+      "id": "PYN4-P-dynamic-exact-bind",
+      "decisions": [
+        "W-1132"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 96,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              4,
+              6
+            ],
+            "strides": [
+              6,
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "bind",
+          "element": "f32",
+          "shape": [
+            4,
+            6
+          ],
+          "strides": [
+            6,
+            1
+          ]
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-dynamic-bind-producer-copied",
+      "decisions": [
+        "W-1131",
+        "W-1132"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [
+              "producerCopied"
+            ],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "bind",
+          "element": "f32",
+          "shape": [
+            4
+          ],
+          "strides": [
+            1
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0018",
+        "assertions": {
+          "releaseCount": 1,
+          "deleterCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-dynamic-bind-mismatch",
+      "decisions": [
+        "W-1132",
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 96,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              4,
+              6
+            ],
+            "strides": [
+              6,
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "bind",
+          "element": "i32",
+          "shape": [
+            4,
+            6
+          ],
+          "strides": [
+            6,
+            1
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0019"
+      }
+    },
+    {
+      "id": "PYN4-N-dynamic-bind-layout-mismatch",
+      "decisions": [
+        "W-1132"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 96,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              4,
+              6
+            ],
+            "strides": [
+              6,
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "bind",
+          "element": "f32",
+          "shape": [
+            4,
+            6
+          ],
+          "strides": [
+            1,
+            4
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0019"
+      }
+    },
+    {
+      "id": "PYN4-P-dynamic-close-without-bind",
+      "decisions": [
+        "W-1132",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-P-explicit-materialize-and-copy-host",
+      "decisions": [
+        "W-1133",
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "rank": 4,
+            "dimension": 1024,
+            "elements": 1024,
+            "spanBytes": 65536,
+            "metadataBytes": 1024,
+            "controlBytes": 1024,
+            "leases": 4,
+            "releaseJobs": 8,
+            "wait": 100,
+            "deadline": 100
+          }
+        },
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [
+              "producerCopied"
+            ],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        },
+        {
+          "op": "deviceResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        },
+        {
+          "op": "copyToHost",
+          "target": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "copyCount": 2,
+          "copies": [
+            {
+              "payloadCopyCount": 1,
+              "producerCopied": true,
+              "wMaterialized": true,
+              "transfer": false,
+              "metadataAllocation": 1
+            },
+            {
+              "payloadCopyCount": 1,
+              "producerCopied": false,
+              "wMaterialized": true,
+              "transfer": true,
+              "metadataAllocation": 1
+            }
+          ],
+          "receiptCount": 2,
+          "receipts": [
+            {
+              "copy": "materialize",
+              "payloadCopyCount": 1,
+              "producerCopied": true,
+              "wMaterialized": true,
+              "transfer": false,
+              "metadataAllocation": 1,
+              "releaseState": "released"
+            },
+            {
+              "copy": "copyToHost",
+              "payloadCopyCount": 1,
+              "producerCopied": false,
+              "wMaterialized": true,
+              "transfer": true,
+              "metadataAllocation": 1,
+              "releaseState": "not-applicable"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-hidden-materialize",
+      "decisions": [
+        "W-1131",
+        "W-1133"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "hiddenCopy"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0028"
+      }
+    },
+    {
+      "id": "PYN4-P-scoped-view",
+      "decisions": [
+        "W-1134"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "view",
+          "callback": {
+            "scope": "lexical",
+            "escapes": false,
+            "inout": false,
+            "drained": true
+          }
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-view-escape",
+      "decisions": [
+        "W-1134",
+        "W-1144"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "view",
+          "callback": {
+            "scope": "lexical",
+            "escapes": true,
+            "inout": false,
+            "drained": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0025"
+      }
+    },
+    {
+      "id": "PYN4-N-close-quarantine",
+      "decisions": [
+        "W-1135",
+        "W-1144"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "close",
+          "fail": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0027"
+      }
+    },
+    {
+      "id": "PYN4-N-layout-rank-stride",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 0,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              4,
+              6
+            ],
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0010"
+      }
+    },
+    {
+      "id": "PYN4-N-negative-stride",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 0,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              -1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0010"
+      }
+    },
+    {
+      "id": "PYN4-P-padded-element-stride",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 24,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              2,
+              2
+            ],
+            "strides": [
+              4,
+              1
+            ],
+            "strideUnit": "elements",
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "spanBytes": 24,
+          "providerExtent": 24
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-overlapping-layout-without-proof",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 12,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              2,
+              2
+            ],
+            "strides": [
+              1,
+              1
+            ],
+            "strideUnit": "elements",
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0010"
+      }
+    },
+    {
+      "id": "PYN4-N-overlapping-padded-stride-without-proof",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 20,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              2,
+              2
+            ],
+            "strides": [
+              2,
+              2
+            ],
+            "strideUnit": "elements",
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0010"
+      }
+    },
+    {
+      "id": "PYN4-P-readonly-overlap-provider-proof",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {
+              "overlap": "readOnly"
+            }
+          },
+          "allocationExtent": 12,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              2,
+              2
+            ],
+            "strides": [
+              1,
+              1
+            ],
+            "strideUnit": "elements",
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [
+              "readOnly"
+            ],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-byte-offset-alignment",
+      "decisions": [
+        "W-1136",
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 10,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 2,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0012"
+      }
+    },
+    {
+      "id": "PYN4-N-byte-stride-unit",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 20,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              4
+            ],
+            "strideUnit": "bytes",
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0010"
+      }
+    },
+    {
+      "id": "PYN4-P-zero-size-null-data",
+      "decisions": [
+        "W-1136"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 0,
+          "baseAlignment": 1
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              0
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": false,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-P-dtype-complex-storage-proof",
+      "decisions": [
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {
+              "complex64": "proved"
+            },
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 8
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "complex64",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-P-dtype-bool8-storage-proof",
+      "decisions": [
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {
+              "bool8": "proved"
+            },
+            "layout": {}
+          },
+          "allocationExtent": 2,
+          "baseAlignment": 1
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "bool8",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-dtype-endian-bool-proof",
+      "decisions": [
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": false,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 2,
+          "baseAlignment": 1
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "bool8",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0007"
+      }
+    },
+    {
+      "id": "PYN4-N-unsupported-dtype",
+      "decisions": [
+        "W-1137"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 0,
+          "baseAlignment": 1
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "float8"
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0006"
+      }
+    },
+    {
+      "id": "PYN4-N-provenance-missing",
+      "decisions": [
+        "W-1138"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": false,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0013"
+      }
+    },
+    {
+      "id": "PYN4-N-queue-no-happens-before-receipt",
+      "decisions": [
+        "W-1139"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0022"
+      }
+    },
+    {
+      "id": "PYN4-P-capsule-abandon-release-once",
+      "decisions": [
+        "W-1140",
+        "W-1144"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule",
+          "name": "dltensor_versioned"
+        },
+        {
+          "op": "cancel",
+          "drained": true
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1,
+          "deleterCalls": 1,
+          "capsuleDestructor": "fired"
+        }
+      }
+    },
+    {
+      "id": "PYN4-P-static-capsule-name",
+      "decisions": [
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule",
+          "name": "dltensor_versioned",
+          "static": true
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-double-release",
+      "decisions": [
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "release"
+        },
+        {
+          "op": "release"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0024"
+      }
+    },
+    {
+      "id": "PYN4-P-python-lease-drain",
+      "decisions": [
+        "W-1141"
+      ],
+      "operations": [
+        {
+          "op": "python",
+          "action": "attach"
+        },
+        {
+          "op": "python",
+          "action": "gil"
+        },
+        {
+          "op": "python",
+          "action": "lease"
+        },
+        {
+          "op": "python",
+          "action": "releaseLease"
+        },
+        {
+          "op": "python",
+          "action": "drain"
+        },
+        {
+          "op": "python",
+          "action": "release"
+        },
+        {
+          "op": "python",
+          "action": "finalize"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-python-finalize-before-drain",
+      "decisions": [
+        "W-1141"
+      ],
+      "operations": [
+        {
+          "op": "python",
+          "action": "attach"
+        },
+        {
+          "op": "python",
+          "action": "gil"
+        },
+        {
+          "op": "python",
+          "action": "lease"
+        },
+        {
+          "op": "python",
+          "action": "finalize"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0030"
+      }
+    },
+    {
+      "id": "PYN4-N-python-callback-after-finalize",
+      "decisions": [
+        "W-1141"
+      ],
+      "operations": [
+        {
+          "op": "python",
+          "action": "attach"
+        },
+        {
+          "op": "python",
+          "action": "gil"
+        },
+        {
+          "op": "python",
+          "action": "lease"
+        },
+        {
+          "op": "python",
+          "action": "releaseLease"
+        },
+        {
+          "op": "python",
+          "action": "drain"
+        },
+        {
+          "op": "python",
+          "action": "release"
+        },
+        {
+          "op": "python",
+          "action": "finalize"
+        },
+        {
+          "op": "python",
+          "action": "callback"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0030",
+        "assertions": {
+          "eventsInclude": [
+            "python-late-callback-quarantine"
+          ],
+          "eventsExclude": [
+            "python-callback"
+          ]
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-python-gil-without-thread",
+      "decisions": [
+        "W-1141"
+      ],
+      "operations": [
+        {
+          "op": "python",
+          "action": "gil"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0030"
+      }
+    },
+    {
+      "id": "PYN4-N-overflow-before-publication",
+      "decisions": [
+        "W-1136",
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "elements": 4,
+            "spanBytes": 16
+          }
+        },
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 72,
+          "baseAlignment": 8
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f64",
+              "lanes": 1
+            },
+            "ndim": 2,
+            "shape": [
+              3,
+              3
+            ],
+            "strides": [
+              3,
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0009"
+      }
+    },
+    {
+      "id": "PYN4-N-invalid-limits",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "rank": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0014"
+      }
+    },
+    {
+      "id": "PYN4-P-bounded-control-and-wait",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "leases": 2,
+            "releaseJobs": 2,
+            "metadataBytes": 64,
+            "controlBytes": 64,
+            "wait": 50,
+            "deadline": 50
+          }
+        },
+        {
+          "op": "leaseReserve"
+        },
+        {
+          "op": "releaseJob"
+        },
+        {
+          "op": "allocation",
+          "metadataBytes": 32,
+          "controlBytes": 16
+        },
+        {
+          "op": "wait",
+          "units": 20,
+          "deadline": 30
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-lease-limit",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "leases": 1
+          }
+        },
+        {
+          "op": "leaseReserve"
+        },
+        {
+          "op": "leaseReserve"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0014"
+      }
+    },
+    {
+      "id": "PYN4-N-release-job-limit",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "releaseJobs": 1
+          }
+        },
+        {
+          "op": "releaseJob"
+        },
+        {
+          "op": "releaseJob"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0014"
+      }
+    },
+    {
+      "id": "PYN4-N-metadata-wait-deadline-limits",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "metadataBytes": 8,
+            "controlBytes": 8,
+            "wait": 8,
+            "deadline": 8
+          }
+        },
+        {
+          "op": "allocation",
+          "metadataBytes": 9,
+          "controlBytes": 1
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0016"
+      }
+    },
+    {
+      "id": "PYN4-N-wait-deadline-limit",
+      "decisions": [
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "limits",
+          "values": {
+            "wait": 8,
+            "deadline": 8
+          }
+        },
+        {
+          "op": "wait",
+          "units": 9,
+          "deadline": 9
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0014"
+      }
+    },
+    {
+      "id": "PYN4-N-alignment-insufficient",
+      "decisions": [
+        "W-1136",
+        "W-1142"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f64",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              2
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0012"
+      }
+    },
+    {
+      "id": "PYN4-P-consuming-export-readonly",
+      "decisions": [
+        "W-1143"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        },
+        {
+          "op": "export"
+        },
+        {
+          "op": "release"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "receiptCount": 2,
+          "receipts": [
+            {
+              "copy": "materialize",
+              "payloadCopyCount": 1,
+              "producerCopied": false,
+              "wMaterialized": true,
+              "transfer": false,
+              "metadataAllocation": 1,
+              "releaseState": "released"
+            },
+            {
+              "copy": "export",
+              "payloadCopyCount": 0,
+              "producerCopied": false,
+              "wMaterialized": false,
+              "transfer": false,
+              "metadataAllocation": 1,
+              "writable": true,
+              "releaseState": "pending"
+            }
+          ],
+          "releaseRecords": [
+            {
+              "generation": 1,
+              "kind": "release",
+              "event": "materialize-source-release"
+            },
+            {
+              "generation": 2,
+              "kind": "release",
+              "event": "exported-owner-release"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-borrowed-export",
+      "decisions": [
+        "W-1143"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        },
+        {
+          "op": "borrow"
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0029"
+      }
+    },
+    {
+      "id": "PYN4-N-writable-export-without-uniqueness",
+      "decisions": [
+        "W-1143"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        },
+        {
+          "op": "alias"
+        },
+        {
+          "op": "export"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0029"
+      }
+    },
+    {
+      "id": "PYN4-P-cancel-drains-owner",
+      "decisions": [
+        "W-1144"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "cancel",
+          "drained": true
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-cancel-skips-drain",
+      "decisions": [
+        "W-1144"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "cancel",
+          "drained": false
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0026"
+      }
+    },
+    {
+      "id": "PYN4-P-redacted-receipt",
+      "decisions": [
+        "W-1145"
+      ],
+      "operations": [
+        {
+          "op": "receipt",
+          "value": {
+            "device": "cuda-a:cuda:0",
+            "queue": "provider-receipt",
+            "release": "pending",
+            "providerDigest": "sha256:provider-profile"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-raw-pointer-receipt",
+      "decisions": [
+        "W-1145",
+        "W-1130"
+      ],
+      "operations": [
+        {
+          "op": "receipt",
+          "value": {
+            "device": "cpu-a:cpu:0",
+            "pointer": "0xdeadbeef"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0031"
+      }
+    },
+    {
+      "id": "PYN4-N-raw-stream-integer",
+      "decisions": [
+        "W-1129",
+        "W-1146"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cuda-a",
+            "kind": "cuda",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "bindQueue",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "stream": 7
+          }
+        },
+        {
+          "op": "producerWait"
+        },
+        {
+          "op": "open",
+          "queue": {
+            "device": {
+              "provider": "cuda-a",
+              "kind": "cuda",
+              "id": 0
+            },
+            "stream": 7
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0020"
+      }
+    },
+    {
+      "id": "PYN4-N-unproven-inout-alias",
+      "decisions": [
+        "W-1134",
+        "W-1147"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": [],
+            "carrierKind": "versioned"
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "consume"
+        },
+        {
+          "op": "lease"
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "view",
+          "callback": {
+            "scope": "lexical",
+            "escapes": false,
+            "inout": true,
+            "drained": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0025"
+      }
+    },
+    {
+      "id": "PYN4-N-c-exchange-non-owning-suspend",
+      "decisions": [
+        "W-1147"
+      ],
+      "operations": [
+        {
+          "op": "cExchange",
+          "ownership": "borrowed",
+          "escapes": true,
+          "suspends": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0032"
+      }
+    },
+    {
+      "id": "PYN4-P-drop-unconsumed-managed-wrapper",
+      "decisions": [
+        "W-1125",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        },
+        {
+          "op": "capsule"
+        },
+        {
+          "op": "dropUnconsumed"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCount": 1,
+          "deleterCalls": 1,
+          "capsuleDestructor": "fired"
+        }
+      }
+    },
+    {
+      "id": "PYN4-P-consumed-wrapper-drop-no-op",
+      "decisions": [
+        "W-1125",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 4,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 0,
+            "shape": null,
+            "strides": null,
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        },
+        {
+          "op": "open"
+        },
+        {
+          "op": "close"
+        },
+        {
+          "op": "capsuleDestructor"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCount": 1,
+          "deleterCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-P-open-dynamic-public-lifecycle",
+      "decisions": [
+        "W-1131",
+        "W-1132",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        },
+        {
+          "op": "openDynamic"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "released",
+          "releaseCalls": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-P-materialize-managed-public-lifecycle",
+      "decisions": [
+        "W-1133",
+        "W-1140"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted",
+        "assertions": {
+          "phase": "tensor",
+          "releaseCalls": 1,
+          "receiptCount": 1
+        }
+      }
+    },
+    {
+      "id": "PYN4-N-provider-extent-short",
+      "decisions": [
+        "W-1138"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 3,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0013"
+      }
+    },
+    {
+      "id": "PYN4-P-python-drain-leases-and-jobs",
+      "decisions": [
+        "W-1141"
+      ],
+      "operations": [
+        {
+          "op": "python",
+          "action": "attach"
+        },
+        {
+          "op": "python",
+          "action": "gil"
+        },
+        {
+          "op": "python",
+          "action": "lease"
+        },
+        {
+          "op": "python",
+          "action": "job"
+        },
+        {
+          "op": "python",
+          "action": "releaseLease"
+        },
+        {
+          "op": "python",
+          "action": "releaseJob"
+        },
+        {
+          "op": "python",
+          "action": "drain"
+        },
+        {
+          "op": "python",
+          "action": "release"
+        },
+        {
+          "op": "python",
+          "action": "finalize"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN4-N-unresolved-target-device",
+      "decisions": [
+        "W-1128",
+        "W-1133"
+      ],
+      "operations": [
+        {
+          "op": "providerResolve",
+          "device": {
+            "provider": "cpu-a",
+            "kind": "cpu",
+            "id": 0
+          },
+          "profile": {
+            "trusted": true,
+            "nativeEndian": true,
+            "storage": {},
+            "layout": {}
+          },
+          "allocationExtent": 16,
+          "baseAlignment": 4
+        },
+        {
+          "op": "create",
+          "tensor": {
+            "carrierKind": "versioned",
+            "version": {
+              "major": 1,
+              "minor": 3
+            },
+            "dtype": {
+              "name": "f32",
+              "lanes": 1
+            },
+            "ndim": 1,
+            "shape": [
+              4
+            ],
+            "strides": [
+              1
+            ],
+            "byteOffset": 0,
+            "dataPresent": true,
+            "device": {
+              "provider": "cpu-a",
+              "kind": "cpu",
+              "id": 0
+            },
+            "flags": []
+          }
+        },
+        {
+          "op": "materialize",
+          "target": {
+            "provider": "cpu-b",
+            "kind": "cpu",
+            "id": 0
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "diagnostic": "W-DLPACK-0011",
+        "assertions": {
+          "releaseCount": 1
+        }
+      }
+    }
+  ]
+}

@@ -40,7 +40,8 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 295 exports em 19 módulos, 67 superfícies qualificadas, 15/15 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow/presentation e `SnapshotByteSource` são drafts, seus 13/13 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 315 exports em 21 módulos, 78 superfícies qualificadas, 20/20 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow/presentation/tensor/dlpack e `SnapshotByteSource` são drafts, seus 15/15 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
+| `dlpack-cases.json` + máquina/checker/snapshot | PYN4 fecha DLPack 1.3 versioned, Device/Queue provider-scoped, zero-copy, materialização, bind dynamic, export consuming, capsule one-shot, Python lease, drain/release, dtype/layout/overflow/alignment, provenance, redaction, untrusted rejection e no hidden copy; 74 casos/325 operações (25 aceitos + 49 rejeitados) | oracle host independente; não compila ou executa W, Python, C Exchange, CUDA, ROCm, provider ou runtime |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
 ### Workflow single-file PYN1
@@ -150,6 +151,33 @@ bun tooling/check-notebook-export-cases.mjs
 Os nomes `notebook check`, `session receipts` e `notebook export` são labels de
 design. O tooling não fornece CLI, ZeroMQ, kernel process, sanitizer, frontend,
 provider ou runtime.
+
+### Carrier tensorial e DLPack PYN4
+
+[`dlpack-machine.mjs`](dlpack-machine.mjs) é uma máquina host determinística
+para o carrier tensorial. Ela valida DLPack 1.3 versioned, flags conhecidas,
+dtype/layout, shape/stride, alignment, overflow, provenance, Device/Queue
+provider-scoped, provider/profile/target resolution events, receipts derivados
+de `bindQueue`/`producerWait`, open zero-copy, dynamic bind, materialização,
+export consuming, capsule one-shot,
+release exact-once por generation, Python GIL/interpreter lease, drain de
+leases/jobs, cancellation, close/quarantine e receipt redaction. Ela rejeita
+raw stream, raw pointer, untrusted bytes, hidden copy e callbacks fora do scope.
+
+O corpus, checker, snapshot e teste host ficam em
+[`dlpack-cases.json`](dlpack-cases.json),
+[`check-dlpack-cases.mjs`](check-dlpack-cases.mjs),
+[`dlpack-results.snapshot.jsonl`](dlpack-results.snapshot.jsonl) e
+[`dlpack-reference.test.mjs`](dlpack-reference.test.mjs). Use:
+
+```sh
+bun test tooling/dlpack-reference.test.mjs
+bun tooling/check-dlpack-cases.mjs
+```
+
+O fixture é [`reference/last-light/tensor_interop.w`](../reference/last-light/tensor_interop.w).
+Ele não executa W e não fornece provider DLPack, Python, CUDA, ROCm ou C
+Exchange. `std.tensor@1` e `std.dlpack@1` permanecem missing.
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses

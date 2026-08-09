@@ -77,6 +77,13 @@ last-light-ai-lab / LastLightAiLab
   → treino linear no host
   → o mesmo kernel possui lowering de device
 
+last-light-dlpack / tensor_interop.w
+  → import DLPack 1.3 versioned trusted
+  → zero-copy tensor [samples, 6]
+  → queue/device explícitos e callback scoped
+  → scores e export consuming
+  → copy-to-host explícita e adversariais host
+
 compile-final-menu / menu-compiler
   → build.transform
   → input e output tipados
@@ -233,6 +240,7 @@ alvo de execução independente.
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
 | `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e entry default |
+| `tensor_interop.w` | fixture PYN4 de carrier tensorial DLPack 1.3, device/queue, zero-copy, callback scoped, materialização e export consuming |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
 | `audio.w` | render de áudio com buffers fixos e sem allocation |
 | `audio_app.w` | callback do audio device |
@@ -2389,6 +2397,49 @@ Aceite:
 O corpus A0 em `tooling/allocation-cases.json` possui 48 casos e 123 operações.
 Treze testes host repetem propriedades críticas sem ler o snapshot. O futuro
 allocator e o verifier precisam substituir o modelo antes de alegar execução.
+
+### 3.46 Carrier tensorial PYN4
+
+Famílias: DLPack 1.3 versioned, tensor Device/Queue, layout, dtype, ownership,
+capsule one-shot, Python lease, synchronization, cancellation e release.
+
+`tensor_interop.w` é um fixture parseável. Ele importa um tensor científico
+trusted com shape `[samples, 6]`, mantém Device e Queue explícitos, executa um
+callback scoped async, produz scores e expõe export consuming. A rota separa
+materialização e copy-to-host explícitos. O Tensor é o core head; `std.tensor`
+somente fornece Device/Queue e adapters. Ela não executa provider nem Python.
+
+Aceite:
+
+- `std.tensor@1` resolve Device provider-scoped e Queue capability opaca;
+- provider registration resolve o device kind, dtype mapping, base alignment e
+  allocation extent; cada target de transferência tem resolução própria e o
+  descriptor raw não concede esses facts;
+- CPU rejeita queue extra e device stream exige receipt provider de bindQueue/
+  producerWait com happens-before;
+- `dlpack.open` publica somente zero-copy e rejeita producer-copied;
+- `openDynamic` valida bind exato de dtype, rank, shape e layout;
+- `materialize` registra producer copy e W materialization separadamente;
+- `ImportedTensor` é owner move-only read-only foreign zero-copy e view não
+  escapa do callback;
+- `close` drena views, jobs e queue e chama release uma vez;
+- `dlpack.export` é writable por baseline, consome owner W e transfere a
+  obrigação de release; alias ou borrow event rejeita o export;
+- copy-to-host aparece como operação separada;
+- DLPack flags, overflow, alignment, provenance, untrusted bytes e mismatch
+  de queue/device produzem diagnostics `W-DLPACK-*`;
+- major/minor mismatch e capsule destructor seguem release exact-once; records
+  de release são separados por carrier generation;
+- GIL, attached thread state e interpreter finalization mantêm o lease child em
+  open → draining → finalized; drain consome leases e release jobs explícitos e
+  late callback vai para quarantine/reject;
+- receipt redige raw pointer, capsule address, secret e interpreter pointer.
+
+O host oracle independente está em
+[`tooling/dlpack-machine.mjs`](../../tooling/dlpack-machine.mjs), com corpus,
+checker, snapshot e testes próprios. Os testes W são puros (shape, score e
+provider identity); lifecycle, receipt, limits e device mismatch ficam no host
+corpus. Ele não compila ou executa W.
 
 ## 4. Alternativas visuais obrigatórias
 
