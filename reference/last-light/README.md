@@ -358,6 +358,80 @@ O host oracle [`tooling/script-workflow-machine.mjs`](../../tooling/script-workf
 deriva esses estados. Ele não executa W nem fornece compiler, runtime, resolver,
 provider ou CLI.
 
+### 3.1.2 Sessão/REPL transacional PYN2
+
+Fixture: [`repl_session_oracle.w`](repl_session_oracle.w). Máquina:
+[`tooling/repl-session-machine.mjs`](../../tooling/repl-session-machine.mjs).
+Corpus e checker: [`tooling/repl-session-cases.json`](../../tooling/repl-session-cases.json)
+e [`tooling/check-repl-session-cases.mjs`](../../tooling/check-repl-session-cases.mjs).
+
+Aceite:
+
+- `SessionId`, `SessionIncarnation`, `ExecutionOrdinal` e `GenerationId` são
+  distintos. A incarnation começa em `g0`, cada publish avança o grafo e o
+  prompt usa `w[n]`; `gN` não é aceito como identidade.
+- `:reset`, `:restart` e `:quit` são boundary submissions mutating: produzem
+  receipt/history e consomem ordinal. Commands read-only e cancellation queued
+  não consomem ordinal; cancellation active usa o ordinal da submission.
+- O wrapper aceita expressions, declarations, statements, loops, calls, tail
+  display/discard, owner async/structured `await` sem annotation, local `spawn`
+  e `defer`. Parser facts e
+  checker facts produzem diagnostics separados; isso não legaliza module
+  top-level execution.
+- `snapshot = limit * 2` conserva `6` após rebind de `limit`. `fn doubled` é
+  dependente compilado com `BindingId`/version e hard-edge kind; fica unavailable
+  com reason e closure. O transcript termina em g4 com w[5] unavailable e w[6]
+  type error sem nova generation.
+- O black-hole watcher conserva owner scope através de gerações independentes.
+  Drain preflight deriva closure/replaceability de provider events e exige
+  `allowDrain` estruturado. Falha pós-publication produz `degraded`.
+- `var broken: i32 = "x"` conserva a generation anterior e registra receipt de
+  erro. Falha runtime preserva effects externos já observados.
+- Provider transactions recordam `attempted`, `committed`, `rolledBack` ou
+  `unknown`; um generic external effect não recebe rollback inferido.
+- Completion e inspect usam snapshot committed mesmo durante uma request staged
+  ou draining; staged visibility não aparece.
+- Uma resource/task persistent tem owner por binding, child da sessão, e não
+  drena siblings sem dependência. Drain preflight pode rejeitar replacement
+  antes de executing/effects. Falha após publish produz `degraded` sem rollback.
+- Reset/restart cria nova incarnation. `force` aparece no histórico. Uma
+  rejeição de reset no preflight preserva incarnation, generation, phase e
+  scopes `owned`; não executa effects. Falha somente depois de publish cria
+  `degraded`/`faulted`.
+- Close bloqueado fecha admission e entra `closing`, mantendo o owner registry
+  observável; force boundary registra scopes sem user cleanup.
+- O history é bounded por count e bytes, reserva o receipt antes de effects e
+  pode redigir raw source em memory. Requests de vários frontends usam tickets
+  FIFO e um único writer serial; cancellation queued não ganha ordinal.
+- Output policy preserva bytes entregues: partial é `truncated`, item sem budget
+  é `dropped`, e output de tamanho zero ainda consome a quota de count.
+
+Adversariais:
+
+- scan de cwd/PATH/environment, resolver/network e mudança de lock/capability;
+- command contextual fora do primeiro token não espaço de uma entrada nova ou
+  em buffer com source acumulado;
+- parse/semantic error, append/complete/clear de buffer incompleto, stale base
+  opaco e cross-generation take/inout/escaping ref/borrow/view;
+- Copy staging automático (`counter += 1`), snapshot, adapter transaction,
+  deferred no-fail e borrow lexical não escapante;
+- foreign retention, known unreplaceable, confirmation ausente, quota e deadline
+  no drain;
+- cancel queued, cancel active antes de publish, cancel depois de publish,
+  foreign non-cooperative e `:quit` com force boundary;
+- output staged após falha, completion que tenta ler staged e history acima do
+  limite; output reserve/truncation e cada família de quota.
+
+O host deriva state, trace, graph fingerprint, receipt, invalidation, effects e
+cleanup. Ele não compila, executa W, drena resource físico ou fornece CLI.
+Jupyter/rich output é PYN3. DLPack permanece adapter T2 separado.
+
+O fixture [`repl_session_oracle.w`](repl_session_oracle.w) também contém testes
+puros separados para retenção de snapshot, predecessor de edge transitivo,
+states de drain ready/degraded e cancellation antes/depois de publish. Esses
+testes provam somente funções do contrato parseável; não alegam um REPL
+executável.
+
 ### 3.2 Comanda de Íon
 
 Famílias: String, parsing streaming, spans e typed errors.

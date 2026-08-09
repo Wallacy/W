@@ -70,6 +70,38 @@ Os nomes `w script add`, `w script remove`, `w script resolve` e
 `w script promote` são contratos de design. Este tooling não implementa esses
 comandos.
 
+### Sessão/REPL transacional PYN2
+
+[`repl-session-machine.mjs`](repl-session-machine.mjs) é uma máquina host
+determinística para a sessão efêmera de `w repl`. Ela deriva `SessionId`,
+`SessionIncarnation`, `ExecutionOrdinal`, `GenerationId` opaca começando em g0,
+parser/checker facts, snapshots committed, receipts, phases transacionais
+(incluindo preflight antes de effects), graph invalidation por BindingId/version,
+cross-generation ownership, Copy staging, provider outcomes, drain
+preflight/degraded, structured lifetime, output reserve/truncation, FIFO writer,
+active/queued cancellation e bounded history. A máquina não compila, executa,
+resolve dependency, acessa network ou implementa resource drain.
+
+O corpus, checker, snapshot e teste host ficam em
+[`repl-session-cases.json`](repl-session-cases.json),
+[`check-repl-session-cases.mjs`](check-repl-session-cases.mjs),
+[`repl-session-results.snapshot.jsonl`](repl-session-results.snapshot.jsonl) e
+[`repl-session-reference.test.mjs`](repl-session-reference.test.mjs). Use:
+
+```sh
+bun test tooling/repl-session-reference.test.mjs
+bun tooling/check-repl-session-cases.mjs
+```
+
+O corpus atual possui 67 casos e 287 operações (53 programas aceitos e 14
+rejeitados), com casos negativos separados para cada operação de ownership,
+stale identity, parser/semantic, quota, cancellation, close/reset e drain.
+
+O fixture parseável é
+[`reference/last-light/repl_session_oracle.w`](../reference/last-light/repl_session_oracle.w).
+Ele é um oracle de design. PYN3/Jupyter/rich output e DLPack permanecem bundles
+separados.
+
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses
 artefatos; TextMate e o scanner temporário do portal são projeções lexicais, não

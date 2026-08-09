@@ -1,0 +1,774 @@
+{
+  "$schema": "w-repl-session-cases-1",
+  "status": "design-oracle-input",
+  "machine": "repl-session-machine-pyn2",
+  "decisions": [
+    "W-974",
+    "W-1076", "W-1077", "W-1078", "W-1079", "W-1080", "W-1081", "W-1082", "W-1083", "W-1084", "W-1085", "W-1086",
+    "W-1087", "W-1088", "W-1089", "W-1090", "W-1091", "W-1092", "W-1093", "W-1094", "W-1095", "W-1096", "W-1097", "W-1098",
+    "W-1099", "W-1100", "W-1101", "W-1102", "W-1103", "W-1104", "W-1105", "W-1106"
+  ],
+  "references": [
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "doubled" }
+  ],
+  "cases": [
+    {
+      "id": "PYN2-identities-g0-transcript",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "doubled" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-identities" },
+        { "op": "submit", "requestId": "r1", "source": "let limit = 3", "declarations": [{ "name": "limit", "value": 3 }] },
+        { "op": "submit", "requestId": "r2", "source": "fn doubled(): i32 { limit * 2 }", "declarations": [{ "name": "doubled", "kind": "compiled", "body": "limit * 2", "hardDependencies": [{ "name": "limit", "kind": "compiledLookup" }] }] },
+        { "op": "submit", "requestId": "r3", "source": "let snapshot = limit * 2; fn menu() { doubled() }", "declarations": [{ "name": "snapshot", "kind": "snapshot", "expression": "limit * 2" }, { "name": "menu", "kind": "compiled", "body": "doubled()", "hardDependencies": [{ "name": "doubled", "kind": "compiledLookup" }] }] },
+        { "op": "submit", "requestId": "r4", "source": "let limit = 4", "declarations": [{ "name": "limit", "value": 4 }] },
+        { "op": "submit", "requestId": "r5", "source": "doubled()", "hirLookup": { "name": "doubled", "availability": "invalidated", "bindingId": "doubled-v1" } },
+        { "op": "submit", "requestId": "r6", "source": "var broken: i32 = \"x\"", "checkerFacts": { "status": "invalid", "code": "W-SESSION-0003", "reason": "type mismatch" } },
+        { "op": "inspect", "name": "snapshot" },
+        { "op": "why", "name": "doubled" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 6, "generationDisplay": "g4", "prompt": "w[6]", "receiptOutcomes": ["committed", "committed", "committed", "committed", "rejected", "rejected"], "bindingValues": { "snapshot": 6, "limit": 4 }, "unavailable": ["doubled", "menu"], "invalidation": { "name": "doubled", "reason": "redefined-hard-dependency" }, "invalidationEdges": [{ "name": "doubled", "kind": "compiledLookup", "dependencyName": "limit" }, { "name": "menu", "kind": "compiledLookup", "dependencyName": "doubled" }], "lastReadSource": "committed-snapshot", "generationIdentityOpaque": true, "newBindingGenerationMatchesReceipt": true } }
+    },
+    {
+      "id": "PYN2-interactive-forms-tail-discard",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionPhase" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-forms" },
+        { "op": "submit", "requestId": "expr", "source": "1 + 2", "form": "expression", "outputs": [{ "kind": "display", "data": 3 }] },
+        { "op": "submit", "requestId": "discard", "source": "1 + 2;", "form": "statement", "tailExpression": false },
+        { "op": "submit", "requestId": "decl", "source": "let value = 3", "form": "declaration", "declarations": [{ "name": "value", "value": 3 }] },
+        { "op": "submit", "requestId": "loop", "source": "for item in items { print(item) }", "form": "loop", "effects": [{ "provider": "stdio", "kind": "print", "payload": "item" }] },
+        { "op": "submit", "requestId": "call", "source": "call()", "form": "call" },
+        { "op": "submit", "requestId": "await", "source": "await fetch()", "form": "await", "structuredEvents": [{ "kind": "child", "state": "settled" }, { "kind": "join", "outcome": "joined" }] },
+        { "op": "submit", "requestId": "spawn", "source": "spawn local()", "form": "spawn", "structuredEvents": [{ "kind": "child", "state": "settled" }, { "kind": "join", "outcome": "joined" }] },
+        { "op": "submit", "requestId": "defer", "source": "defer { cleanup() }", "form": "defer", "structuredEvents": [{ "kind": "cleanup", "outcome": "committed" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 8, "generationDisplay": "g1", "lastOutcome": "committed", "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-buffer-append-complete-clear",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-buffer" },
+        { "op": "appendBuffer", "source": "fn pending() {" },
+        { "op": "classify" },
+        { "op": "appendBuffer", "source": " return 1 }" },
+        { "op": "classify" },
+        { "op": "submit", "requestId": "buffered", "declarations": [{ "name": "pending", "kind": "compiled" }] },
+        { "op": "clearBuffer" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "lastOutcome": "committed" } }
+    },
+    {
+      "id": "PYN2-parser-semantic-facts",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ReplOutcome" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-facts" },
+        { "op": "classify", "source": "fn broken(", "parserFacts": { "status": "invalid", "code": "W-SESSION-0002", "reason": "missing close" } },
+        { "op": "classify", "source": "var broken: i32 = \"x\"", "parserFacts": { "status": "complete" }, "checkerFacts": { "status": "invalid", "code": "W-SESSION-0003", "reason": "type mismatch" } },
+        { "op": "submit", "requestId": "semantic", "source": "var broken: i32 = \"x\"", "checkerFacts": { "status": "invalid", "code": "W-SESSION-0003", "reason": "type mismatch" } },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "classification": "invalid", "committedBindingNames": [] } }
+    },
+    {
+      "id": "PYN2-effects-observed-and-provider-outcomes",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-effects" },
+        { "op": "submit", "requestId": "external-fail", "source": "call()", "declarations": [{ "name": "bad", "value": 99 }], "execution": { "outcome": "failure", "events": ["invocation-observed", "runtime-failure"] }, "effects": [{ "provider": "stdio", "kind": "print", "payload": "observed" }], "outputs": [{ "kind": "print", "text": "observed", "external": true }] },
+        { "op": "submit", "requestId": "tx-rollback", "source": "transaction()", "execution": { "outcome": "failure", "events": ["invocation-observed", "runtime-failure"] }, "effects": [{ "provider": "db", "kind": "write", "transaction": { "capability": "transaction", "events": ["attempted", "rolledBack"] } }] },
+        { "op": "submit", "requestId": "tx-unknown", "source": "transaction()", "execution": { "outcome": "failure", "events": ["invocation-observed", "runtime-failure"] }, "effects": [{ "provider": "db", "kind": "write", "transaction": { "capability": "transaction", "events": ["attempted", "unknown"] } }] },
+        { "op": "inspect", "name": "missing" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g0", "receiptOutcomes": ["runtime-error", "runtime-error", "runtime-error"], "committedBindingNames": [], "lastReadSource": "committed-snapshot", "externalOutputs": 1 } }
+    },
+    {
+      "id": "PYN2-preflight-derived-reject",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-preflight" },
+        { "op": "submit", "requestId": "watcher", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "black-hole-watcher" }] },
+        { "op": "submit", "requestId": "independent", "source": "let limit = 4", "declarations": [{ "name": "limit", "value": 4 }] },
+        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "black-hole-watcher-2" }], "resourceEvents": [{ "resource": "black-hole-watcher", "active": true, "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }], "effects": [{ "provider": "foreign", "kind": "write", "payload": "must-not-run" }] },
+        { "op": "inspect", "name": "watcher" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g2", "lastOutcome": "rejected", "lastCleanupDrain": "rejected-preflight", "bindingValues": { "watcher": null, "limit": 4 }, "ownerScopeCount": 1, "effectsCount": 0 } }
+    },
+    {
+      "id": "PYN2-publish-degraded-reset-g0",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-degraded" },
+        { "op": "submit", "requestId": "v1", "source": "let limit = 3", "declarations": [{ "name": "limit", "value": 3 }] },
+        { "op": "submit", "requestId": "v2", "source": "let limit = 4", "declarations": [{ "name": "limit", "value": 4 }], "drainEvents": [{ "phase": "post-publish", "outcome": "deadline" }] },
+        { "op": "reset", "requestId": "forced-reset", "force": true },
+        { "op": "inspect", "name": "limit" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "incarnation": 2, "generationDisplay": "g0", "receiptOutcomes": ["committed", "degraded", "committed"], "lastReceiptForceBoundary": true, "committedBindingNames": [], "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-independent-owner-scope",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-scopes" },
+        { "op": "submit", "requestId": "resource", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "submit", "requestId": "sibling", "source": "let value = 7", "declarations": [{ "name": "value", "value": 7 }] },
+        { "op": "inspect", "name": "watcher" },
+        { "op": "inspect", "name": "value" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "ownerScopeCount": 1, "bindingValues": { "watcher": null, "value": 7 }, "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-resource-rebind-confirmed-drain",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-resource-rebind" },
+        { "op": "submit", "requestId": "one", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "submit", "requestId": "two", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true, "targets": ["watcher"] }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
+        { "op": "inspect", "name": "watcher" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "lastOutcome": "committed", "lastCleanupDrain": "ready", "ownerScopeCount": 1 } }
+    },
+    {
+      "id": "PYN2-copy-staging-and-snapshot",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-copy" },
+        { "op": "submit", "requestId": "counter", "source": "var counter = 0", "declarations": [{ "name": "counter", "value": 0, "copyable": true }] },
+        { "op": "submit", "requestId": "copy-update", "source": "counter += 1", "mutations": [{ "name": "counter", "mode": "inout", "operation": "add", "delta": 1 }] },
+        { "op": "submit", "requestId": "snapshot", "source": "let saved = counter", "declarations": [{ "name": "saved", "value": 0 }], "mutations": [{ "name": "counter", "mode": "view", "operation": "snapshot" }] },
+        { "op": "inspect", "name": "saved" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g3", "receiptOutcomes": ["committed", "committed", "committed"], "bindingValues": { "counter": 1, "saved": 0 }, "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-adapter-and-deferred-positive",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-proofs" },
+        { "op": "submit", "requestId": "owner", "source": "let resource = make()", "declarations": [{ "name": "resource", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "adapter", "source": "let adapterValue = tx(resource)", "declarations": [{ "name": "adapterValue", "value": 1 }], "mutations": [{ "name": "resource", "mode": "inout", "adapter": { "capability": "transaction" } }] },
+        { "op": "submit", "requestId": "deferred", "source": "let deferredValue = move(resource)", "declarations": [{ "name": "deferredValue", "value": 2 }], "mutations": [{ "name": "resource", "mode": "take", "deferred": { "proof": "no-fail-transfer" } }] },
+        { "op": "submit", "requestId": "lexical", "source": "borrow resource", "declarations": [{ "name": "lexical", "value": 3 }], "mutations": [{ "name": "resource", "mode": "borrow", "escape": false }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 4, "generationDisplay": "g4", "receiptOutcomes": ["committed", "committed", "committed", "committed"], "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-take-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-take" },
+        { "op": "submit", "requestId": "owner", "source": "let owner = make()", "declarations": [{ "name": "owner", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "take", "source": "let x = take owner", "declarations": [{ "name": "x", "value": 1 }], "mutations": [{ "name": "owner", "mode": "take", "operation": "consume", "typeFacts": { "copyable": false, "moveOnly": true } }] },
+        { "op": "inspect", "name": "owner" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0007", "bindingValues": { "owner": "opaque" } } }
+    },
+    {
+      "id": "PYN2-inout-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-inout" },
+        { "op": "submit", "requestId": "owner", "source": "let owner = make()", "declarations": [{ "name": "owner", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "inout", "source": "inout owner", "declarations": [{ "name": "x", "value": 1 }], "mutations": [{ "name": "owner", "mode": "inout", "operation": "consume", "typeFacts": { "copyable": false, "moveOnly": true } }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0008" } }
+    },
+    {
+      "id": "PYN2-escaping-ref-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-ref" },
+        { "op": "submit", "requestId": "owner", "source": "let owner = make()", "declarations": [{ "name": "owner", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "ref", "source": "let ref = &owner", "declarations": [{ "name": "ref", "value": 1 }], "mutations": [{ "name": "owner", "mode": "ref", "escape": true, "operation": "escape", "typeFacts": { "copyable": false, "moveOnly": true } }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0009" } }
+    },
+    {
+      "id": "PYN2-view-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-view" },
+        { "op": "submit", "requestId": "owner", "source": "let owner = make()", "declarations": [{ "name": "owner", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "view", "source": "let view = owner.view()", "declarations": [{ "name": "view", "value": 1 }], "mutations": [{ "name": "owner", "mode": "view", "operation": "escape", "typeFacts": { "copyable": false, "moveOnly": true } }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0011" } }
+    },
+    {
+      "id": "PYN2-escaping-borrow-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "HardEdge" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-borrow" },
+        { "op": "submit", "requestId": "owner", "source": "let owner = make()", "declarations": [{ "name": "owner", "value": "opaque", "copyable": false, "moveOnly": true }] },
+        { "op": "submit", "requestId": "borrow", "source": "let borrow = &owner", "declarations": [{ "name": "borrow", "value": 1 }], "mutations": [{ "name": "owner", "mode": "borrow", "escape": true, "operation": "escape", "typeFacts": { "copyable": false, "moveOnly": true } }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0010" } }
+    },
+    {
+      "id": "PYN2-stale-opaque-reanalysis",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "GenerationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-stale" },
+        { "op": "submit", "requestId": "one", "source": "let one = 1", "declarations": [{ "name": "one", "value": 1 }] },
+        { "op": "submit", "requestId": "display-stale", "baseGeneration": "g1", "source": "let two = 2", "declarations": [{ "name": "two", "value": 2 }] },
+        { "op": "submit", "requestId": "opaque-stale", "baseGeneration": { "id": "gen:missing", "incarnation": 1 }, "source": "let three = 3", "declarations": [{ "name": "three", "value": 3 }] },
+        { "op": "submit", "requestId": "reanalyzed", "baseGeneration": { "id": "gen:missing", "incarnation": 1 }, "reanalyse": true, "source": "let fresh = 4", "declarations": [{ "name": "fresh", "value": 4 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 4, "generationDisplay": "g2", "receiptOutcomes": ["committed", "rejected", "rejected", "committed"], "lastReceiptReanalysed": true } }
+    },
+    {
+      "id": "PYN2-fifo-reader-active-cancel",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "CancellationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-fifo" },
+        { "op": "enqueue", "request": { "requestId": "a", "clientId": "alpha", "source": "let a = 1", "declarations": [{ "name": "a", "value": 1 }] } },
+        { "op": "enqueue", "request": { "requestId": "b", "clientId": "beta", "source": "let b = 2", "declarations": [{ "name": "b", "value": 2 }] } },
+        { "op": "admitNext", "stepwise": true },
+        { "op": "complete", "prefix": "a" },
+        { "op": "status" },
+        { "op": "cancel", "requestId": "a" },
+        { "op": "finishSubmission", "requestId": "a" },
+        { "op": "admitNext" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "receiptOutcomes": ["cancelled", "committed"], "queueLength": 0, "reads": 3, "lastReadSource": "committed-snapshot", "lastCancellationOrdinal": 1 } }
+    },
+    {
+      "id": "PYN2-queued-cancel-no-ordinal",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "CancellationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-queued-cancel" },
+        { "op": "enqueue", "request": { "requestId": "queued", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }] } },
+        { "op": "cancel", "requestId": "queued" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 0, "generationDisplay": "g0", "queueLength": 0, "lastReadSource": "committed-snapshot", "lastCancellationOrdinal": null } }
+    },
+    {
+      "id": "PYN2-cancel-after-publish-degraded",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "CancellationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-active-cancel" },
+        { "op": "beginSubmission", "requestId": "active", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }], "drainEvents": [{ "phase": "post-publish", "outcome": "foreign-non-cooperative" }] },
+        { "op": "advanceSubmission", "requestId": "active" },
+        { "op": "advanceSubmission", "requestId": "active" },
+        { "op": "advanceSubmission", "requestId": "active" },
+        { "op": "cancel", "requestId": "active" },
+        { "op": "advanceSubmission", "requestId": "active" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "lastOutcome": "degraded", "mutationBlocked": true, "lastCancellationOrdinal": 1 } }
+    },
+    {
+      "id": "PYN2-history-redaction-bounds",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-history", "historyPolicy": { "rawSource": "redact" }, "limits": { "historyCount": 2, "historyBytes": 2400 } },
+        { "op": "submit", "requestId": "one", "source": "let secret_one = 1", "declarations": [{ "name": "one", "value": 1 }] },
+        { "op": "submit", "requestId": "two", "source": "let secret_two = 2", "declarations": [{ "name": "two", "value": 2 }] },
+        { "op": "submit", "requestId": "three", "source": "let secret_three = 3", "declarations": [{ "name": "three", "value": 3 }] },
+        { "op": "history" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "historyCountAtMost": 2, "historyBytesAtMost": 2400, "historyEvictedAtLeast": 1, "historyRawSource": null } }
+    },
+    {
+      "id": "PYN2-output-truncate-reserve",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-output", "limits": { "outputBytes": 5000 } },
+        { "op": "submit", "requestId": "output", "source": "1 + 2", "outputs": [{ "kind": "display", "bytes": 20000, "data": "large" }], "outputPolicy": "truncate" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "committed", "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-import-exact-version",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "BindingVersion" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-import" },
+        { "op": "submit", "requestId": "symbol", "source": "let symbol = 1", "declarations": [{ "name": "symbol", "value": 1 }] },
+        { "op": "submit", "requestId": "import", "source": "import symbol", "imports": [{ "name": "symbol", "version": 1 }], "declarations": [{ "name": "copy", "value": 1 }] },
+        { "op": "submit", "requestId": "missing", "source": "import absent", "imports": [{ "name": "absent", "version": 1 }], "declarations": [{ "name": "bad", "value": 1 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g2", "receiptOutcomes": ["committed", "committed", "rejected"], "lastReceiptDiagnostic": "W-SESSION-0006" } }
+    },
+    {
+      "id": "PYN2-type-layout-invalidation",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "HardEdge" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-layout" },
+        { "op": "submit", "requestId": "type", "source": "type Reading = i32", "declarations": [{ "name": "Reading", "value": 1, "kind": "type" }] },
+        { "op": "submit", "requestId": "value", "source": "let reading = Reading", "declarations": [{ "name": "reading", "value": 1, "hardDependencies": [{ "name": "Reading", "kind": "typeLayout" }] }] },
+        { "op": "submit", "requestId": "retype", "source": "type Reading = f64", "declarations": [{ "name": "Reading", "value": 2, "kind": "type" }] },
+        { "op": "why", "name": "reading" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g3", "unavailable": ["reading"], "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-async-structured-settle",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionPhase" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-async" },
+        { "op": "submit", "requestId": "async", "source": "await task()", "form": "await", "structuredEvents": [{ "kind": "child", "state": "settled" }, { "kind": "join", "outcome": "joined" }, { "kind": "cleanup", "outcome": "committed" }] },
+        { "op": "submit", "requestId": "runtime", "source": "spawn local()", "form": "spawn", "structuredEvents": [{ "kind": "child", "state": "settled" }, { "kind": "join", "outcome": "joined" }], "execution": { "outcome": "failure", "events": ["invocation-observed", "runtime-failure"] }, "effects": [{ "provider": "stdio", "kind": "print", "payload": "before failure" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g0", "receiptOutcomes": ["committed", "runtime-error"], "lastOutcome": "runtime-error" } }
+    },
+    {
+      "id": "PYN2-detached-child-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionPhase" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-await-owner" },
+        { "op": "submit", "requestId": "await", "source": "await task()", "form": "await", "structuredEvents": [{ "kind": "child", "state": "detached" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0017" } }
+    },
+    {
+      "id": "PYN2-locked-context-explicit",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-context", "lockDigest": "sha256:lock", "capabilities": ["stdio"], "context": { "mode": "external", "explicit": true, "resolver": "fixed" } },
+        { "op": "submit", "requestId": "ok", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-quit-drains-owner",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-quit" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "command", "text": ":quit", "force": true },
+        { "op": "verify", "checks": { "phase": "closed" } }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1" } }
+    },
+    {
+      "id": "PYN2-verify-phase-trace",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-phases" },
+        { "op": "submit", "requestId": "phase", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }] },
+        { "op": "verify", "checks": { "ordinal": 1, "prompt": "w[1]", "generation": { "id": "not-display", "incarnation": 1, "display": "g1", "number": 1 } } }
+      ],
+      "expected": { "status": "rejected", "code": "verificationMismatch", "at": "last" }
+    },
+    {
+      "id": "PYN2-bounds-binding-total",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-binding-cap", "limits": { "bindings": 1 } },
+        { "op": "submit", "requestId": "one", "source": "let one = 1", "declarations": [{ "name": "one", "value": 1 }] },
+        { "op": "submit", "requestId": "two", "source": "let two = 2", "declarations": [{ "name": "two", "value": 2 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0019" } }
+    },
+    {
+      "id": "PYN2-bounds-hard-edges",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "HardEdge" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-edge-cap", "limits": { "edges": 0 } },
+        { "op": "submit", "requestId": "base", "source": "let base = 1", "declarations": [{ "name": "base", "value": 1 }] },
+        { "op": "submit", "requestId": "dependent", "source": "fn dependent() { base }", "declarations": [{ "name": "dependent", "kind": "compiled", "body": "base", "hardDependencies": ["base"] }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0020" } }
+    },
+    {
+      "id": "PYN2-bounds-source",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-source-cap", "limits": { "sourceBytes": 8 } },
+        { "op": "submit", "requestId": "large", "source": "let value = 123", "declarations": [{ "name": "value", "value": 123 }] }
+      ],
+      "expected": { "status": "rejected", "code": "sourceQuota", "at": "last" }
+    },
+    {
+      "id": "PYN2-history-single-reservation",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-history-cap", "limits": { "historyBytes": 100 } },
+        { "op": "submit", "requestId": "too-large", "source": "let secret = 12345678901234567890", "declarations": [{ "name": "secret", "value": 1 }], "effects": [{ "provider": "stdio", "kind": "print", "payload": "must not run" }] }
+      ],
+      "expected": { "status": "rejected", "code": "historyQuota", "at": "last" }
+    },
+    {
+      "id": "PYN2-output-quota-before-effects",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-output-cap", "limits": { "outputBytes": 300 } },
+        { "op": "submit", "requestId": "too-output", "source": "print()", "effects": [{ "provider": "stdio", "kind": "print", "payload": "not observed" }], "outputs": [{ "kind": "display", "bytes": 1000, "data": "large" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0016" } }
+    },
+    {
+      "id": "PYN2-command-status-history-why",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-commands" },
+        { "op": "submit", "requestId": "x", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }] },
+        { "op": "command", "text": ":status" },
+        { "op": "command", "text": ":history" },
+        { "op": "command", "text": ":why x" },
+        { "op": "complete", "prefix": "x" },
+        { "op": "inspect", "name": "x" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "reads": 5, "lastReadSource": "committed-snapshot", "historyCount": 1 } }
+    },
+    {
+      "id": "PYN2-dependency-no-resolver",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-no-resolver" },
+        { "op": "submit", "requestId": "network", "source": "import package", "resolveDependency": true, "declarations": [{ "name": "x", "value": 1 }] }
+      ],
+      "expected": { "status": "rejected", "code": "sessionContextForbidden", "at": "last" }
+    },
+    {
+      "id": "PYN2-restart-incarnation",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionIncarnation" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-restart" },
+        { "op": "submit", "requestId": "one", "source": "let one = 1", "declarations": [{ "name": "one", "value": 1 }] },
+        { "op": "restart", "requestId": "restart", "force": true },
+        { "op": "submit", "requestId": "two", "source": "let two = 2", "declarations": [{ "name": "two", "value": 2 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "incarnation": 2, "generationDisplay": "g1", "generationHistoryLength": 2, "bindingValues": { "two": 2 } } }
+    },
+    {
+      "id": "PYN2-staged-readonly-snapshot",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-read-stage" },
+        { "op": "submit", "requestId": "old", "source": "let old = 1", "declarations": [{ "name": "old", "value": 1 }] },
+        { "op": "beginSubmission", "requestId": "staged", "source": "let staged = 2", "declarations": [{ "name": "staged", "value": 2 }] },
+        { "op": "complete", "prefix": "staged" },
+        { "op": "inspect", "name": "staged" },
+        { "op": "advanceSubmission", "requestId": "staged" },
+        { "op": "advanceSubmission", "requestId": "staged" },
+        { "op": "advanceSubmission", "requestId": "staged" },
+        { "op": "complete", "prefix": "staged" },
+        { "op": "inspect", "name": "staged" },
+        { "op": "advanceSubmission", "requestId": "staged" },
+        { "op": "inspect", "name": "staged" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "reads": 5, "lastReadSource": "committed-snapshot", "bindingValues": { "staged": 2 } } }
+    },
+    {
+      "id": "PYN2-close-force-boundary",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-close" },
+        { "op": "submit", "requestId": "resource", "source": "let resource = watch()", "declarations": [{ "name": "resource", "persistentResource": true, "resource": "foreign" }] },
+        { "op": "quit", "force": true, "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "foreign", "active": true, "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "committed", "lastReceiptForceBoundary": true } }
+    },
+    {
+      "id": "PYN2-writer-busy-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-busy" },
+        { "op": "beginSubmission", "requestId": "active", "source": "let active = 1", "declarations": [{ "name": "active", "value": 1 }] },
+        { "op": "submit", "requestId": "other", "source": "let other = 2", "declarations": [{ "name": "other", "value": 2 }] }
+      ],
+      "expected": { "status": "rejected", "code": "writerBusy", "at": "last" }
+    },
+    {
+      "id": "PYN2-quit-context-position-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-command-position" },
+        { "op": "classify", "source": "let value = 1" },
+        { "op": "command", "text": ":status" }
+      ],
+      "expected": { "status": "rejected", "code": "contextCommandPosition", "at": "last" }
+    },
+    {
+      "id": "PYN2-context-discovery-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" }],
+      "operations": [{ "op": "open", "sessionId": "pyn2-forbidden", "scanCwd": true }],
+      "expected": { "status": "rejected", "code": "contextDiscoveryForbidden", "at": "last" }
+    },
+    {
+      "id": "PYN2-lock-fixed-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-lock", "lockDigest": "sha256:fixed" },
+        { "op": "submit", "requestId": "lock", "lockDigest": "sha256:other", "source": "let x = 1", "declarations": [{ "name": "x", "value": 1 }] }
+      ],
+      "expected": { "status": "rejected", "code": "sessionLockFixed", "at": "last" }
+    },
+    {
+      "id": "PYN2-command-argument-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-command-arg" },
+        { "op": "command", "text": ":why" }
+      ],
+      "expected": { "status": "rejected", "code": "commandArgumentRequired", "at": "last" }
+    },
+    {
+      "id": "PYN2-staged-visibility-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-staged-visibility" },
+        { "op": "beginSubmission", "requestId": "active", "source": "let staged = 1", "declarations": [{ "name": "staged", "value": 1 }] },
+        { "op": "inspect", "name": "staged", "includeStaged": true }
+      ],
+      "expected": { "status": "rejected", "code": "stagedVisibilityForbidden", "at": "last" }
+    },
+    {
+      "id": "PYN2-reset-writer-busy-rejection",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-reset-busy" },
+        { "op": "beginSubmission", "requestId": "active", "source": "let active = 1", "declarations": [{ "name": "active", "value": 1 }] },
+        { "op": "reset", "requestId": "reset" }
+      ],
+      "expected": { "status": "rejected", "code": "writerBusy", "at": "last" }
+    },
+    {
+      "id": "PYN2-cancel-command-optional-target",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "CancellationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-cancel-command" },
+        { "op": "beginSubmission", "requestId": "active", "source": "let active = 1", "declarations": [{ "name": "active", "value": 1 }] },
+        { "op": "command", "text": ":cancel" },
+        { "op": "finishSubmission", "requestId": "active" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "cancelled", "lastCancellationOrdinal": 1 } }
+    },
+    {
+      "id": "PYN2-false-rollback-claim",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-false-rollback" },
+        { "op": "submit", "requestId": "false", "source": "print()", "execution": { "outcome": "failure", "events": ["invocation-observed", "runtime-failure"] }, "effects": [{ "provider": "foreign", "kind": "print", "rollbackClaim": "rolledBack" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0018" } }
+    },
+    {
+      "id": "PYN2-diagnostic-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-diagnostic-cap", "limits": { "diagnosticBytes": 8 } },
+        { "op": "submit", "requestId": "diag", "source": "broken", "checkerFacts": { "status": "invalid", "code": "W-SESSION-0003", "reason": "a semantic diagnostic larger than the cap" } }
+      ],
+      "expected": { "status": "rejected", "code": "diagnosticQuota", "at": "last" }
+    },
+    {
+      "id": "PYN2-artifact-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "BindingVersion" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-artifact-cap", "limits": { "artifacts": 0 } },
+        { "op": "submit", "requestId": "artifact", "source": "let value = 1", "declarations": [{ "name": "value", "value": 1 }] }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0021" } }
+    },
+    {
+      "id": "PYN2-resource-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-resource-cap", "limits": { "resources": 0 } },
+        { "op": "submit", "requestId": "resource", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0022" } }
+    },
+    {
+      "id": "PYN2-invalidation-closure-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "HardEdge" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-invalidation-cap", "limits": { "invalidationClosure": 0 } },
+        { "op": "submit", "requestId": "base", "source": "let base = 1", "declarations": [{ "name": "base", "value": 1 }] },
+        { "op": "submit", "requestId": "dependent", "source": "fn dependent() { base }", "declarations": [{ "name": "dependent", "kind": "compiled", "body": "base", "hardDependencies": ["base"] }] },
+        { "op": "submit", "requestId": "rebind", "source": "let base = 2", "declarations": [{ "name": "base", "value": 2 }] }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g2", "lastOutcome": "rejected", "lastReceiptDiagnostic": "W-SESSION-0023" } }
+    },
+    {
+      "id": "PYN2-drain-deadline-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-drain-deadline", "limits": { "drainTimeMs": 10 } },
+        { "op": "submit", "requestId": "resource", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }], "deadlineMs": 1000 }] }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "rejected", "lastCleanupDrain": "rejected-preflight", "lastReceiptDiagnostic": "W-SESSION-0024" } }
+    },
+    {
+      "id": "PYN2-multiple-declaration-hard-edge",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "HardEdge" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-multi" },
+        { "op": "submit", "requestId": "multi", "source": "let seed = 1; fn doubled() { seed * 2 }", "declarations": [{ "name": "seed", "value": 1 }, { "name": "doubled", "kind": "compiled", "body": "seed * 2", "hardDependencies": [{ "name": "seed", "kind": "compiledLookup" }] }] },
+        { "op": "inspect", "name": "doubled" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "hardDependency": { "name": "doubled", "dependency": "seed", "kind": "compiledLookup" }, "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-snapshot-read-no-publication",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SoftProvenance" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-snapshot-read" },
+        { "op": "submit", "requestId": "counter", "source": "let counter = 1", "declarations": [{ "name": "counter", "value": 1 }] },
+        { "op": "submit", "requestId": "view", "source": "counter", "mutations": [{ "name": "counter", "mode": "view", "operation": "snapshot" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "receiptOutcomes": ["committed", "committed"], "lastReadSource": "committed-snapshot" } }
+    },
+    {
+      "id": "PYN2-persistent-task-owner",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "OwnerState" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-task-owner" },
+        { "op": "submit", "requestId": "task", "source": "let task = spawn()", "declarations": [{ "name": "task", "persistentTask": true, "resource": "task" }], "structuredEvents": [{ "kind": "child", "state": "settled" }, { "kind": "join", "outcome": "joined" }] },
+        { "op": "submit", "requestId": "sibling", "source": "let value = 1", "declarations": [{ "name": "value", "value": 1 }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "ownerScopeCount": 1, "ownerScopeStates": ["owned"] } }
+    },
+    {
+      "id": "PYN2-owner-drain-post-publish-degraded",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "DrainOutcome" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-owner-degraded" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "deadline" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "lastOutcome": "degraded", "mutationBlocked": true, "ownerScopeCount": 2, "ownerScopeStates": ["faulted", "owned"] } }
+    },
+    {
+      "id": "PYN2-reset-provider-facts-required",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-reset-facts" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true }, "resourceEvents": [] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "incarnation": 1, "generationDisplay": "g1", "lastOutcome": "rejected", "mutationBlocked": false, "ownerScopeCount": 1, "ownerScopeStates": ["owned"], "effectsCount": 0, "lastReceiptDiagnostic": "W-SESSION-0012" } }
+    },
+    {
+      "id": "PYN2-reset-drain-failure-retains-owner",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-reset-degraded" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "failure" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "incarnation": 2, "generationDisplay": "g0", "lastOutcome": "degraded", "mutationBlocked": true, "ownerScopeCount": 1, "ownerScopeStates": ["faulted"] } }
+    },
+    {
+      "id": "PYN2-close-blocked-registry",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-close-blocked" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "foreign" }] },
+        { "op": "quit", "requestId": "quit", "allowDrain": { "confirmed": true }, "resourceEvents": [] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "degraded", "ownerScopeCount": 1, "ownerScopeStates": ["closing"] } }
+    },
+    {
+      "id": "PYN2-close-force-registry",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-close-force-registry" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "foreign" }] },
+        { "op": "quit", "requestId": "quit", "force": true, "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "foreign", "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] },
+        { "op": "verify", "checks": { "phase": "closed" } }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "committed", "lastReceiptForceBoundary": true, "ownerScopeCount": 1, "ownerScopeStates": ["force-boundary"] } }
+    },
+    {
+      "id": "PYN2-output-partial-and-zero-count",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-output-bounds", "limits": { "outputBytes": 100, "outputCount": 1 } },
+        { "op": "submit", "requestId": "partial", "source": "print()", "outputs": [{ "kind": "display", "bytes": 100, "data": "exact" }, { "kind": "display", "bytes": 30, "data": "dropped" }], "outputPolicy": "truncate" },
+        { "op": "submit", "requestId": "zero", "source": "print()", "outputs": [{ "kind": "display", "bytes": 0, "data": "zero" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g0", "outputDelivery": { "deliveredBytes": 0, "budget": "reserved" }, "outputCountAtMost": 1, "outputEvictedAtLeast": 2 } }
+    },
+    {
+      "id": "PYN2-bounded-effects-and-tickets",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-rings", "limits": { "effectCount": 1, "ticketCount": 1, "cancellationCount": 1 } },
+        { "op": "submit", "requestId": "one", "source": "print()", "effects": [{ "provider": "stdio", "kind": "print", "payload": "one" }] },
+        { "op": "enqueue", "request": { "requestId": "queued-a", "source": "let a = 1", "declarations": [{ "name": "a", "value": 1 }] } },
+        { "op": "admitNext", "stepwise": true },
+        { "op": "finishSubmission", "requestId": "queued-a" },
+        { "op": "enqueue", "request": { "requestId": "queued-b", "source": "let b = 2", "declarations": [{ "name": "b", "value": 2 }] } },
+        { "op": "cancel", "requestId": "queued-b" },
+        { "op": "submit", "requestId": "two", "source": "print()", "effects": [{ "provider": "stdio", "kind": "print", "payload": "two" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 3, "generationDisplay": "g1", "lastOutcome": "committed", "effectsCount": 1, "effectsEvictedAtLeast": 1, "ticketCountAtMost": 1 } }
+    },
+    {
+      "id": "PYN2-output-partial-delivery",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-output-partial", "limits": { "outputBytes": 100 } },
+        { "op": "submit", "requestId": "partial", "source": "print()", "outputs": [{ "kind": "display", "bytes": 150, "data": "partial" }], "outputPolicy": "truncate" },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "outputDelivery": { "deliveredBytes": 100, "budget": "truncated" } } }
+    },
+    {
+      "id": "PYN2-legacy-fact-rejected",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-legacy" },
+        { "op": "submit", "requestId": "legacy", "source": "print()", "runtimeError": true }
+      ],
+      "expected": { "status": "rejected", "code": "legacyFactUnsupported", "at": "last" }
+    },
+    {
+      "id": "PYN2-defer-cleanup-failure",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionPhase" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-defer-failure" },
+        { "op": "submit", "requestId": "defer", "source": "defer { cleanup() }", "form": "defer", "structuredEvents": [{ "kind": "cleanup", "outcome": "failure" }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g0", "lastOutcome": "runtime-error" } }
+    },
+    {
+      "id": "PYN2-ticket-quota",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "CancellationReceipt" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-ticket-quota", "limits": { "ticketCount": 1 } },
+        { "op": "enqueue", "request": { "requestId": "a", "source": "let a = 1" } },
+        { "op": "enqueue", "request": { "requestId": "b", "source": "let b = 2" } }
+      ],
+      "expected": { "status": "rejected", "code": "ticketQuota", "at": "last" }
+    }
+  ]
+}
