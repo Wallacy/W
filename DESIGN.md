@@ -468,11 +468,13 @@ As operações abaixo permanecem distintas:
 | adicionar methods ou conformance | `extension X { ... }` | não |
 | adicionar fields | `struct X { value: T ... }` | sim |
 | representar um de vários cases | `enum X { a(A) b(B) }` | conforme layout do enum |
-| sobrepor storage C | `foreign c union` ou wrapper `unsafe` | sim e explícito |
+| sobrepor storage C | tipo opaque + wrapper C `unsafe` | sim e explícito |
 
 Uma extension nunca adiciona storage. Herança de implementação não entra na
-design vigente. Um safe sum usa `enum`. Uma C union sobrepõe bytes e pertence à fronteira
-de layout. Essas operações não usam `<{...}>`.
+design vigente. Um safe sum usa `enum`. Uma C union sobrepõe bytes e pertence à
+fronteira de layout. Na v0, ela entra como tipo opaque com accessors num wrapper
+C. W não publica uma `foreign c union` safe. Essas operações não usam
+`<{...}>`.
 
 `A | B` como anonymous sum fica **Rejeitado por enquanto**. Um `enum` nomeia
 cases, payloads e evolução. `A & B` permanece somente composição nominal de
@@ -7321,8 +7323,9 @@ rejeitada. O oracle deriva esse default de `kind`, `inputSlots` e `resultSlots`.
 Ele ignora `inferredMapping` bodyless. Witness e lock rejeitam divergência.
 
 A interface serializa esse mapping em `WInterface` e
-`SemanticInterfaceKey`. Presença, ausência e bytes da key precisam coincidir nos
-dois lados do link. Mudar o mapping é mudança relevante de API e
+`SemanticInterfaceKey`. A expectativa gravada no import precisa coincidir com a
+key do provider que publica a interface. As keys próprias de consumer e provider
+não são comparadas entre si. Mudar o mapping é mudança relevante de API e
 source-compatibility. `interface.lock` detecta a mudança. W não aceita lifetime
 annotation no source. `ref<sources: ...>` permanece alternativa futura
 rejeitada.
@@ -7376,7 +7379,7 @@ O corpus M1 mantém uma forma aceita e uma inversão para cada regra crítica:
 | pin | `M1-pinned-handle-move-with-active-loan` | `M1-pinned-handle-drop-with-active-loan` |
 | interface | `M1-bodyless-result-slots-remain-distinct` | `M1-interface-witness-divergence` |
 | body result mapping | `M1-interface-body-maps-origins` | `M1-interface-body-missing-result-slot` |
-| interface key | `M1-abi-exact` | `M1-interface-key-presence-asymmetric` |
+| import interface key | `M1-abi-exact` | `M1-interface-key-presence-asymmetric` e `M1-interface-keys-both-absent` |
 | FFI inline | `M1-language-function-explicit-proof` | `M1-language-function-needs-proof` |
 
 [`borrowed_values.w`](reference/last-light/borrowed_values.w) mostra as formas W
@@ -8113,8 +8116,29 @@ Wire e persistência usam schema. FFI usa layout e address space declarados. Iss
 preserva targets nos quais um pointer possui non-address bits, bounds ou estado
 externo que não cabe nos bytes comuns.
 
-`packed` e `aligned` são modifiers de layout seguros e restritos. Eles não são
-annotations genéricas. Unaligned access nunca produz uma referência W normal.
+W v0 não possui modifiers comuns `packed` ou `aligned`. Um struct W comum
+continua opaco, e alignment de storage é pedido ao allocator, ao Tensor, ao
+register adapter ou ao product placement que precisa desse fato. Isso evita que
+uma palavra curta congele layout, endian, call ABI e comportamento de borrow.
+
+`foreign c from "x.h"` pode importar um record packed ou over-aligned. O layout
+vem do header, target C ABI, flags fixadas e digest do importer; ele não vem de
+uma presunção do parser W. Um field unaligned pode ser lido ou escrito por cópia
+tipada do adapter. Ele nunca produz `ref`, `inout` ou pointer alinhado W.
+`export foreign c` gera somente records C naturais na baseline. Um carrier
+packed, bitfield, flexible array ou union usa tipo opaque e wrapper C tipado.
+
+```w
+foreign c from "packed_probe.h" {
+  type PackedProbeRecord
+  fn packed_probe_value(record: c.ptr<PackedProbeRecord>): c.uint
+}
+```
+
+`struct<layout: .c, packing: 1>` e modifiers `packed`/`aligned` permanecem
+**Alternativas**. Eles não ficam reservados na v0. Uma proposta futura precisa
+provar grammar, generic interaction, field access, atomics, ABI por target e
+diagnostics de unaligned access antes de ganhar source próprio.
 
 ### 9.9 Seleção de representação
 
@@ -20104,12 +20128,44 @@ fn read(sensor: ref SensorHandle): Sample throws SensorError {
 }
 ```
 
+Com `from`, as declarations formam uma projeção verificada do header. Nome,
+kind, qualifiers, field order, offsets, size, alignment, calling convention e
+target flags precisam coincidir com o importer hermético. O source W não
+sobrescreve um offset que o header produz. Sem `from`, somente
+`export foreign c` declara uma façade gerada por W.
+
+Um record C natural pode passar por valor. Packed records, bitfields, flexible
+arrays e unions permanecem opaque e usam accessors do wrapper. O adapter pode
+copiar um field unaligned para um local alinhado; ele não cria um borrow W para
+esse field. Padding não é valor, não participa de equality ou hash e não vira
+wire ou persistence por cast.
+
+Um `enum` C entra como seu carrier integer C e é validado antes de virar enum
+fechado ou refinement W. C pode produzir um integer sem case nomeado. Tratar o
+layout como enum W criaria um valor inválido:
+
+```w
+fn horizonKind(raw: c.uint): HorizonKind throws HorizonError {
+  return switch raw {
+    case LL_HORIZON_STABLE_V1: .stable
+    case LL_HORIZON_WARNING_V1: .warning
+    case LL_HORIZON_EVACUATION_V1: .evacuation
+    case _: throw .unknownKind(raw)
+  }
+}
+```
+
+`c.char`, `c.schar`, `c.uchar`, `c.long` e `c.ulong` permanecem tipos distintos.
+O target C ABI decide width e signedness. Mesmo quando dois carriers possuem o
+mesmo size, eles não se tornam call-compatible por inferência.
+
 `unsafe fn` move essa obrigação para o caller. Uma prova manual de
 `transferable` ou `shareable` também exige `unsafe`.
 
-O importer v0 aceita funções, enums, structs simples, opaque types, pointers,
-arrays e callbacks com context. Varargs, bitfields e unions exigem wrapper ou
-override explícito. Cada allocation mantém o deallocator de origem.
+O importer v0 aceita funções, enums como integer validado, structs simples,
+opaque types, pointers, arrays e callbacks com context. Varargs, bitfields,
+flexible arrays, packed records e unions exigem wrapper ou override data-only
+do importer. Cada allocation mantém o deallocator de origem.
 
 O importer não declara uma interface segura só porque conseguiu ler o header.
 Uma wrapper W restabelece os contratos ausentes:
@@ -20506,7 +20562,8 @@ O verifier aplica estas regras:
    move o handle, não o endereço do payload;
 9. `lowBit` fica interno; `provenNiche` não cruza C, wire ou persistence;
 10. um owner que cruza uma boundary carrega allocator origin conhecido;
-11. mismatch de `WAbiKey` ou `SemanticInterfaceKey` rejeita o link antes de LTO;
+11. mismatch de `WAbiKey` ou da key esperada pelo import com o
+    `SemanticInterfaceKey` do provider rejeita o link antes de LTO;
 12. `share` exige payload lifetime-independent e origens que sobrevivem ao
     control block;
 13. uma fronteira paralela verifica payload, contador e mobility de todas as
@@ -20534,7 +20591,7 @@ estável uma vez.
 
 [`tooling/memory-transition-cases.json`](tooling/memory-transition-cases.json)
 mantém 164 sequências ligadas a symbols do Última Luz. A
-[`máquina M1`](tooling/hir-memory-machine.mjs) executa 579 operações sobre:
+[`máquina M1`](tooling/hir-memory-machine.mjs) executa 580 operações sobre:
 
 - bindings `owned`, `moved` e `dropped`;
 - payload identity preservada por move;
@@ -20572,6 +20629,99 @@ failure, mas não executa um allocator real. Ele também não prova interleaving
 atômico de strong/weak, overflow do contador, destruição física de arena, drop em
 panic, branch graph completo, happens-before ou cancellation física. Esses itens
 permanecem gates antes do freeze de memória e execução.
+
+#### 20.2.2 Oracle de layout, ABI e C L0
+
+**Exemplo:** `last-light-observatory` e `restaurant.horizon` possuem interfaces
+próprias diferentes. O import do observatory registra a interface esperada do
+provider de `classify`; somente essa expectativa precisa coincidir com a nota do
+provider.
+
+[`layout-abi-cases.json`](tooling/layout-abi-cases.json) separa a fronteira
+física do kernel de ownership M1. A
+[`máquina L0`](tooling/layout-abi-machine.mjs) valida uma nota lógica data-only
+antes de native lowering ou link. Ela fixa esta ordem para `.wExact`:
+
+1. valide schema, required features e limites do reader;
+2. compare todos os campos de `WAbiKey`;
+3. compare a expectativa do import com o `SemanticInterfaceKey` do provider;
+4. encontre o symbol e compare signatures semântica e física;
+5. compare somente as `RepresentationMap` entries alcançadas pela signature;
+6. una runtime requirements separadamente;
+7. aceite, ou escolha artifact exato, rebuild de source, boundary já declarada
+   ou erro, nessa ordem.
+
+O `SemanticInterfaceKey` próprio do consumer não é comparado com o key próprio
+do provider. Eles descrevem módulos diferentes. Cada import carrega
+`providerInterfaceKey`, semantic signature, physical signature e fingerprints
+esperados. Isso corrige o modelo reduzido antigo que tratava os dois lados como
+se publicassem a mesma interface.
+
+Diferenças privadas de representação não bloqueiam o link. Uma diferença num
+tipo que cruza a call bloqueia. Recipe, optimization level, compiler patch,
+allocator provider e runtime requirements ficam fora da igualdade quando não
+mudam os campos ABI. Hardening, address space, panic, cleanup ou carrier que
+mudam bytes ou call entram na key ou na physical signature.
+
+Uma physical signature registra, no mínimo:
+
+```text
+calling convention
+result: direct | sret, register class, width, extension, alignment, address space
+parameters: direct | byval | byref | inalloca, class, width, extension, alignment
+hidden: context, metadata, witnesses, error channel and sret parameters
+```
+
+Size e alignment iguais não provam call compatibility. `f32` e `u32` podem usar
+register classes diferentes. `signext`, `zeroext`, `sret`, `byval`,
+`inalloca`, hidden parameters e address spaces precisam coincidir. O
+[LLVM LangRef](https://llvm.org/docs/LangRef.html#parameter-attributes) separa
+ABI attributes de optimization attributes e exige os primeiros nos dois lados
+da call. A
+[Rust Reference](https://doc.rust-lang.org/stable/reference/type-layout.html)
+também separa layout de call ABI e não estabiliza o layout default entre
+compilações.
+
+L0 valida também a façade C:
+
+- `unsafe fn<abi: .c>` não aceita generic, capture, `async` ou `throws`;
+- cada value usa scalar, record, pointer ou function carrier C;
+- pointer borrowed de parâmetro é call-scoped e sequence possui extent
+  explícito; pointer retornado permanece raw;
+- owner retorna destroy symbol ou `{context, drop}` e nunca pede o `free`
+  ambiental do caller;
+- callback persistente possui context, lease pinned, destroy e unregister;
+- enum C entra como integer validado;
+- runtime `.none` rejeita context; runtime contextual usa exatamente um handle,
+  create e destroy explícitos por operação contextual;
+- `panic: .forbid` exige prova do call graph; `.abortProcess` é a única outra
+  baseline nativa.
+
+O record C oracle aceita layout natural gerado e layout importado do header. Ele
+rejeita overlap de struct, alignment inválido, field desalinhado num record
+gerado, borrow de field unaligned, bitfield, flexible array, manual packed W e
+union direta. Os quatro últimos usam wrapper C e tipo opaque. Header e library
+precisam ter identities não vazias e vir da mesma target slice e dos digests que
+o artifact index fixa. Timestamp e local path não entram no header.
+
+A nota lógica L0 usa schema exato, required features fechadas, fields opcionais
+ignoráveis e estes hard ceilings no oracle: 64 MiB por nota, 1 MiB por string,
+1.048.576 representations, 1.048.576 symbols, 65.535 fields por record e depth
+64. Um tool pode aplicar budgets menores. Length e nesting são verificados antes
+de criar as tables. Required features, imports, requirements, symbols e
+representations rejeitam duplicatas ou shapes malformados. Referências ausentes
+falham antes do link.
+
+O JSON do corpus é uma projeção legível, não bytes ABI. O envelope físico e os
+bytes CBOR determinísticos continuam no gate `WMeta1`; L0 não congela um object
+section por acidente. Esse isolamento permite corrigir o container sem mudar o
+contrato de link lógico.
+
+O corpus L0 possui 78 casos e 96 operações: 27 aceitos e 51 rejeitados. Dez
+testes host independentes refazem os invariants sem ler o snapshot. Todo caso
+aponta para `abi.w`, `abi_oracle.w`, `memory.w`, `hardware.w` ou
+`representation_oracle.w` do Última Luz. L0 é um design oracle. Ele não é o
+linker, o C importer, o header generator ou o backend W.
 
 ### 20.3 Dialeto W/MLIR
 
@@ -20796,7 +20946,9 @@ muda e o link exato falha.
 Um object W contém uma nota mínima com:
 
 - `WAbiKey`;
-- `SemanticInterfaceKey`;
+- seu próprio `SemanticInterfaceKey`;
+- imports com `providerInterfaceKey`, signatures e representation fingerprints
+  esperados;
 - representation-map digest;
 - runtime requirements;
 - symbol-manifest digest;
@@ -20805,8 +20957,11 @@ Um object W contém uma nota mínima com:
 - object role.
 
 O linker valida todas as notas antes de executar LTO ou emitir o artifact final.
-Uma nota ausente não recebe compatibilidade por heurística. Object format,
-filename, mtime ou symbol prefix não substituem a key.
+Para cada import, ele compara a expectativa com a interface do provider que
+publica o symbol. Ele não compara o key próprio do consumer com o key próprio do
+provider. Uma nota ausente, schema desconhecido, required feature desconhecida,
+duplicate identity ou referência fora dos limites falha antes de LTO. Object
+format, filename, mtime ou symbol prefix não substituem a key.
 
 O resolver fixa a representação antes do build. Se um candidate divergir, o
 builder aplica esta ordem:
@@ -20877,9 +21032,12 @@ O lowering físico recebe a ABI semântica e a `WAbiKey`. Ele escolhe:
 - direct ou indirect parameters;
 - direct ou indirect results;
 - register e stack classes;
+- integer extension e floating register class;
+- `sret`, `byval`, `byref`, `inalloca` e alignment ABI;
 - hidden context, metadata e witness parameters;
 - error result channel;
 - closure environment;
+- address space de cada pointer carrier;
 - calling convention do target.
 
 Known-layout values podem ser expandidos em scalars. Opaque, resilient,
@@ -20889,6 +21047,11 @@ na interface de codegen exata. Ela não aparece no source.
 Uma call indireta exige a mesma ABI física do callable. O compiler cria um thunk
 quando a ABI semântica permite adaptação. O thunk participa da recipe e do
 symbol manifest. Uma adaptação não pode mudar ownership, effects ou panic.
+
+Dois tipos com o mesmo size e alignment podem usar register classes diferentes.
+Também podem divergir em extension, indirectness ou hidden parameters. O linker
+compara a physical signature completa. Ele não aceita um cast de function
+pointer ou um thunk inferido somente porque os bytes de memória parecem iguais.
 
 O [LLVM LangRef](https://llvm.org/docs/LangRef.html#calling-conventions) exige
 calling conventions compatíveis entre caller e callee. A
@@ -21110,6 +21273,17 @@ Uma declaração `fn<abi: .c>`:
 - não permite panic ou exception atravessar a call;
 - usa a ABI C selecionada pelo target.
 
+Carrier compatibility é nominal e target-bound. `c.char` não vira `i8` por
+width observada. Um enum C entra como integer e exige narrowing antes de virar
+enum W. Pointer + length é um borrow somente quando a signature o marca
+call-scoped e o adapter impede retention. Um pointer retornado permanece raw até
+que um owner, lifetime e noescape proof permitam uma façade safe.
+
+Converter esse raw pointer em `ref` ou `inout` exige, em conjunto, provas de
+owner vivo, lifetime, bounds, alignment e noescape. Uma prova ausente mantém o
+valor como `c.ptr<T>` em `unsafe`; width ou endereço plausível não recupera a
+provenance.
+
 Uma C library também declara uma destas formas:
 
 ```w
@@ -21127,9 +21301,11 @@ operação contextual receba um handle C validado. Os exports `create` e
 `destroy` controlam o runtime island. Não existe runtime global, lazy init ou
 TLS implícita.
 
-`export foreign c` sem `from` declara carriers e constants para a façade. O
-gerador de header preserva layout, names e version. `foreign c from "x.h"`
-continua uma importação.
+`export foreign c` sem `from` declara carriers naturais e constants para a
+façade. O gerador de header preserva layout, names e version. `foreign c from
+"x.h"` continua uma projeção verificada do header. Packed record, bitfield,
+flexible array e union não ganham layout manual W na v0; usam opaque type e
+wrapper C.
 
 Na v0, um `const` desse bloco usa um carrier C inteiro e um `ConstValue`
 representável no header. O gerador emite uma constante nomeada, sem storage
@@ -21164,6 +21340,11 @@ conversão automática de panic para status são rejeitados.
 Memory allocated em W não recebe `free` do caller. Um owned C carrier inclui um
 destroy symbol ou `{context, drop}`. Um borrowed carrier inclui pointer, count e
 lifetime limitado à call.
+
+Uma callback persistente inclui function pointer, context, lease pinned,
+destroy e unregister. Cancelar a registration não encerra o lifetime antes que
+callbacks em voo drenem. Uma callback call-scoped não precisa de pinning quando
+o foreign contract prova noescape.
 
 A
 [documentação do Microsoft CRT](https://learn.microsoft.com/en-us/cpp/c-runtime-library/potential-errors-passing-crt-objects-across-dll-boundaries)
@@ -25960,15 +26141,15 @@ observável e referência para o Book.
 
 [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
 auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. Um caso F0, S0, M1, E0, B0 ou P0 pode ligar seus
+source automaticamente. Um caso F0, S0, M1, L0, E0, B0 ou P0 pode ligar seus
 oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O checker atual classifica 142/940 decisões:
-93 pelo eixo source, 63 pelo eixo oracle e seis explicitamente; 20 decisões
+declara todos os eixos obrigatórios. O checker atual classifica 171/947 decisões:
+93 pelo eixo source, 92 pelo eixo oracle e seis explicitamente; 20 decisões
 possuem os dois primeiros eixos. Duas decisões já exigem formalmente ambos. As
-798 restantes continuam um worklist, não uma aprovação implícita.
+776 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -26011,12 +26192,12 @@ evidência de design:
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
-| ABI e formats | layouts e candidates selecionados | fixar vectors, readers host independentes, limites e regras de versão sem depender de backend W |
-| memória e execução | M1 fixa 164 casos/579 operações; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar allocator físico, liveness, device scopes, reclamation e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
+| ABI e formats | L0 fixa 78 casos/96 operações e dez testes host para W exact, import expectation, physical call, representation reachability, C carriers, foreign layout, header pairing, limits e fallback | congelar o envelope físico `WMeta1`, bytes CBOR, vectors de corrupção e segundo reader antes de alegar ABI note publicável; o contrato lógico L0 já não depende de backend W |
+| memória e execução | M1 fixa 165 casos/580 operações; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar allocator físico, liveness, device scopes, reclamation e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1/E0 ligam 63 decisões a oracle; o audit classifica 142/940 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 798 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1/L0/E0/B0/P0 ligam 92 decisões a oracle; o audit classifica 171/947 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 776 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -26372,12 +26553,17 @@ substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
 alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
-O kernel executável de memória usa a baseline M1. O corpus possui 164 casos e
-579 operações, com 70 outcomes aceitos e 94 rejeitados. Cada caso liga
+O kernel executável de memória usa a baseline M1. O corpus possui 165 casos e
+580 operações, com 70 outcomes aceitos e 95 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
 runtime.
+
+O kernel lógico de layout e ABI usa a baseline L0. Seus 78 casos e 96 operações
+separam W exact, import expectation, physical call shape, C carrier, foreign
+layout, header pairing e recovery de artifact. O snapshot não é uma ABI note
+binária. Ele prova as relações que o reader físico `WMeta1` precisa preservar.
 
 **Caso W-732 — sair de loops aninhados.** As formas processam o mesmo input. Um
 carrier inválido encerra a busca. Um zero avança a linha externa.
@@ -27923,10 +28109,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-911 | containers de refs | Array<ref T> possui owner de descriptor/storage e edges para cada referent; insert/join adiciona edges; join lê source distinto e self-join exige snapshot; remove só reduz quando nenhuma duplicata resta; clear libera edges; o grafo simbólico não limita quantidade por proof budget | join sob loan exclusive, self-join implícito, contador fixo de origins, invalidar por budget, tratar descriptor como único owner |
 | W-912 | escapes e await | `.lifetimeIndependent` é ausência de origin dinâmica; static/immortal passam somente esse gate; external escape rejeita edge dinâmica; channel/task exigem transferability, service exige WireValue + transferability mesmo local, persistence exige schema e foreign retention exige FFI; await resolve cada referent vivo e estável, com no-conflict e cleanup/cancel drain | origin immortal como authority de boundary, cópia implícita para escapar, task detached com borrow, usar estabilidade do aggregate para referent, annotation de lifetime como correção |
 | W-913 | pin e self-reference | pin exige zero LoanId e zero dependency edge dirigida ao payload; payload pinned tem root estável distinto do handle; mover handle é permitido com obrigação ativa, drop de handle/payload falha, mover payload não; initializer self-referential safe é rejeitado; construção pinned dedicada é alternativa futura | self-reference por initializer comum, unpin implícito, pin que apenas marca pointer |
-| W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; presença e bytes de SemanticInterfaceKey coincidem nos dois lados; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
+| W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 164 casos e 579 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 17/55 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -27944,12 +28130,19 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
-| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; 142/940 estão classificadas, duas exigem source + oracle e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
+| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
 | W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
-| W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 164 casos e 579 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
+| W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 165 casos e 580 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
 | W-939 | publicação atômica executável | release sequence inclui RMW contígua e termina em store; CAS success modifica e failure somente lê; fence exige reads-from; atomic order não concede borrow ou lifetime; E0 fixa modification order, seq-cst order, extent e exclusividade | release/acquire prolonga owner; CAS failure modifica; store relaxed continua sequence; duas fences publicam sem atomic; misturar width ou view |
 | W-940 | fences atômicas | `std.atomic.fence` e `compilerFence` são T0, unsafe, estáticas e sem relaxed; default scope é system, compiler fence exige sameProcessor e scopes de device ficam T2 | fence T1 dependente do host; fence safe; argumento runtime; relaxed fence; compiler fence entre processadores |
+| W-941 | interface esperada no link W exact | cada import registra providerInterfaceKey, semantic/physical signatures e fingerprints; compara essa expectativa com o provider, nunca o SemanticInterfaceKey próprio de módulos consumer/provider distintos | igualar keys próprios dos dois objects; confiar só no symbol name; usar API source como ABI |
+| W-942 | igualdade física W exact | WAbiKey inteira coincide; call shape inclui convention, direct/indirect, register class, extension, sret/byval/byref/inalloca, alignment, hidden parameters e address spaces; somente representations alcançadas pela signature coincidem e diferenças privadas são livres | size/alignment como call ABI; comparar todo tipo privado; thunk por heurística; omitir hardening ABI |
+| W-943 | carriers da façade C | `unsafe fn<abi: .c>` usa somente carriers C; borrow de parâmetro é call-scoped com extent, retorno pointer fica raw, owner leva destroy/context-drop, callback persistente leva context/pin/destroy/unregister, enum/refinement valida integer, safe borrow prova owner/lifetime/bounds/alignment/noescape e runtime context é explícito | String/owner W direto; caller free; pointer retornado ou retido como ref; C enum como enum W; hidden runtime; panic convertido implicitamente |
+| W-944 | layout foreign v0 | W comum não possui `packed`, `aligned` ou union source; header import pode descrever packed/over-aligned, mas field unaligned só usa cópia; export C gera layout natural e casos especiais usam opaque + wrapper C | `struct<layout: .c, packing: 1>` vigente; borrow unaligned; offset manuscrito; foreign union safe; layout C universal |
+| W-945 | pareamento de header C | header, library, target slice, digests e conformance assertions ficam ligados no artifact index; timestamp e local path não entram | header universal por filename; combinar slices; confiar em include guard; header não reproduzível |
+| W-946 | reader lógico ABI L0 | schema e required features são fechados; fields opcionais podem ser ignorados; reader bounded rejeita missing/unknown required, duplicate, dangling reference, excess bytes/strings/count/depth; JSON é projeção, não bytes ABI | nota ausente compatível; feature desconhecida ignorada; decode ilimitado; snapshot JSON virar object ABI; WMeta1 declarado pronto |
+| W-947 | recuperação de artifact ABI | ordem fixa é artifact exato, rebuild do source fixado, boundary canônica já declarada e erro; disponibilidade local não cria boundary | C/component fallback implícito; adaptar layout; escolher dynamic por filename; preferir boundary ao source |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

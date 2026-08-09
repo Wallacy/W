@@ -591,7 +591,7 @@ test("M1 keeps dependency edges individual and checks referents at await", () =>
   assert.equal(unstableReferent.code, "unstableReferentSuspension");
 });
 
-test("M1 requires exact interface keys and every dependent result mapping", () => {
+test("M1 requires an import expectation key and every dependent result mapping", () => {
   const baseAbi = {
     target: "linux-x64",
     callingConvention: "w-v1",
@@ -601,11 +601,20 @@ test("M1 requires exact interface keys and every dependent result mapping", () =
   const asymmetricKey = runMemoryProgram([
     {
       op: "verifyAbi",
-      consumer: baseAbi,
+      expectation: baseAbi,
       provider: { ...baseAbi, semanticInterfaceKey: "if-v1" },
     },
   ]);
   assert.equal(asymmetricKey.code, "interfaceLockMismatch");
+
+  const absentKeys = runMemoryProgram([
+    {
+      op: "verifyAbi",
+      expectation: baseAbi,
+      provider: baseAbi,
+    },
+  ]);
+  assert.equal(absentKeys.code, "interfaceLockMismatch");
 
   const missingResult = runMemoryProgram([
     {

@@ -1534,10 +1534,16 @@ function applyOperation(state, operation) {
     }
     case "verifyAbi": {
       const fields = ["target", "callingConvention", "representationPolicy", "runtimeAbi"];
-      if (fields.some((field) => operation.consumer[field] !== operation.provider[field])) {
+      if (fields.some((field) => operation.expectation[field] !== operation.provider[field])) {
         throw new HirMemoryError("abiMismatch");
       }
-      if (operation.consumer.semanticInterfaceKey !== operation.provider.semanticInterfaceKey) {
+      if (
+        typeof operation.expectation.providerInterfaceKey !== "string" ||
+        operation.expectation.providerInterfaceKey.length === 0 ||
+        typeof operation.provider.semanticInterfaceKey !== "string" ||
+        operation.provider.semanticInterfaceKey.length === 0 ||
+        operation.expectation.providerInterfaceKey !== operation.provider.semanticInterfaceKey
+      ) {
         throw new HirMemoryError("interfaceLockMismatch");
       }
       return;
@@ -1914,15 +1920,30 @@ export function validateMemoryOperation(operation) {
       );
     case "verifyAbi": {
       const fields = ["target", "callingConvention", "representationPolicy", "runtimeAbi"];
-      return [operation.consumer, operation.provider].every(
-        (key) =>
-          key &&
-          typeof key === "object" &&
-          fields.every((field) => typeof key[field] === "string" && key[field].length > 0) &&
-          (
-            key.semanticInterfaceKey === undefined ||
-            (typeof key.semanticInterfaceKey === "string" && key.semanticInterfaceKey.length > 0)
-          ),
+      const expectation = operation.expectation;
+      const provider = operation.provider;
+      return (
+        expectation &&
+        typeof expectation === "object" &&
+        provider &&
+        typeof provider === "object" &&
+        fields.every(
+          (field) =>
+            typeof expectation[field] === "string" &&
+            expectation[field].length > 0 &&
+            typeof provider[field] === "string" &&
+            provider[field].length > 0,
+        ) &&
+        (
+          expectation.providerInterfaceKey === undefined ||
+          (typeof expectation.providerInterfaceKey === "string" &&
+            expectation.providerInterfaceKey.length > 0)
+        ) &&
+        (
+          provider.semanticInterfaceKey === undefined ||
+          (typeof provider.semanticInterfaceKey === "string" &&
+            provider.semanticInterfaceKey.length > 0)
+        )
       );
     }
     case "verifyInterface":

@@ -183,7 +183,7 @@
       "id": "M1-abi-exact",
       "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
       "operations": [
-        { "op": "verifyAbi", "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }
+        { "op": "verifyAbi", "expectation": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "providerInterfaceKey": "if-v1" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }
       ],
       "expected": { "status": "accepted" }
     },
@@ -191,7 +191,7 @@
       "id": "M1-abi-mismatch",
       "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
       "operations": [
-        { "op": "verifyAbi", "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }, "provider": { "target": "windows-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" } }
+        { "op": "verifyAbi", "expectation": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }, "provider": { "target": "windows-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" } }
       ],
       "expected": { "status": "rejected", "code": "abiMismatch", "operation": 0 }
     },
@@ -199,7 +199,15 @@
       "id": "M1-interface-key-presence-asymmetric",
       "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
       "operations": [
-        { "op": "verifyAbi", "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }
+        { "op": "verifyAbi", "expectation": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }
+      ],
+      "expected": { "status": "rejected", "code": "interfaceLockMismatch", "operation": 0 }
+    },
+    {
+      "id": "M1-interface-keys-both-absent",
+      "references": [{ "path": "../reference/last-light/abi_oracle.w", "symbol": "providerInterfaceKey" }],
+      "operations": [
+        { "op": "verifyAbi", "expectation": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1" } }
       ],
       "expected": { "status": "rejected", "code": "interfaceLockMismatch", "operation": 0 }
     },
@@ -498,7 +506,7 @@
     {
       "id": "M1-interface-key-lock-mismatch",
       "references": [{ "path": "../reference/last-light/abi.w", "symbol": "ll_horizon_classify_v1" }],
-      "operations": [{ "op": "verifyAbi", "consumer": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v2" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }],
+      "operations": [{ "op": "verifyAbi", "expectation": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "providerInterfaceKey": "if-v2" }, "provider": { "target": "linux-x64", "callingConvention": "w-v1", "representationPolicy": "portable-v1", "runtimeAbi": "core-v1", "semanticInterfaceKey": "if-v1" } }],
       "expected": { "status": "rejected", "code": "interfaceLockMismatch", "operation": 0 }
     },
     {
