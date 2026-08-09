@@ -197,6 +197,7 @@ alvo de execução independente.
 | `capability_security_oracle.w` | root grants, attenuation, delegation e revocation |
 | `release_oracle.w` | digest, evidência de recipe, threshold de reprodução, mirrors e revogação |
 | `metadata_oracle.w` | separação entre CBOR, WMeta1 e wWire; inputs da recipe |
+| `wmeta_oracle.w` | envelope, profiles, offsets e open modes do WMeta1 físico |
 | `bootstrap_oracle.w` | cadeia de stages, fechamento W0 e convergência do bootstrap |
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
@@ -786,9 +787,11 @@ não formam independência. O oracle também liga recipe, toolchain, artifact e
 platform envelope. Uma assinatura de platform não prova a segurança do source.
 
 `metadata_oracle.w` mantém três fronteiras: CBOR determinístico para records de
-build e distribuição, `WMeta1` como candidato para interface/cache e wWire para
-payloads de service. A recipe aceita somente inputs declarados; output digest é
-evidence posterior e path do executor ou wall clock são proibidos.
+build e distribuição, `WMeta1` para interface e ABI públicas e wWire para
+payloads de service. Cache AST/HIR continua interno ao toolchain. A recipe
+aceita somente inputs declarados; output digest é evidence posterior e path do
+executor ou wall clock são proibidos. `wmeta_oracle.w` fixa as provas locais do
+container físico sem se tornar um reader de produção.
 
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 

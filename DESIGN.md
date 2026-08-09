@@ -98,8 +98,8 @@ Os ciclos restantes para o design freeze são:
 1. ratificar syntax, formatter e diagnostics com o corpus da seção 26;
 2. provar memória, ownership, ABI e FFI com modelos pequenos e independentes;
 3. provar tasks, services, transaction e wWire com modelos de fault injection;
-4. fechar schemas e oracles de metadata, resolver, rebuild, reprodução e
-   `bootstrap.w0`;
+4. fechar wrappers de metadata, resolver, rebuild, reprodução e
+   `bootstrap.w0`; o container WMeta1 já possui baseline byte-exact;
 5. limitar T0/T1/T2, revisar targets e fechar o contrato público.
 
 Pesquisas que possuem fallback não bloqueiam o freeze. Elas permanecem T2 ou
@@ -20712,10 +20712,10 @@ de criar as tables. Required features, imports, requirements, symbols e
 representations rejeitam duplicatas ou shapes malformados. Referências ausentes
 falham antes do link.
 
-O JSON do corpus é uma projeção legível, não bytes ABI. O envelope físico e os
-bytes CBOR determinísticos continuam no gate `WMeta1`; L0 não congela um object
-section por acidente. Esse isolamento permite corrigir o container sem mudar o
-contrato de link lógico.
+O JSON do corpus é uma projeção legível, não bytes ABI. O container físico
+`WMeta1` fecha os bytes publicáveis em separado. L0 não congela um object
+section por acidente. Esse isolamento permite revisar o container antes do 1.0
+sem mudar o contrato de link lógico.
 
 O corpus L0 possui 78 casos e 96 operações: 27 aceitos e 51 rejeitados. Dez
 testes host independentes refazem os invariants sem ler o snapshot. Todo caso
@@ -20843,30 +20843,30 @@ code do package. Truncation, duplicate identity, digest divergente e ciclo numa
 relation acíclica produzem diagnostics antes do type-check. Types recursivos
 usam identity references.
 
-O encoding publicável é **Provável** como `WMeta1`: header fixo, directory de
-chunks e payloads em um subset de
+O encoding publicável usa a **Forma vigente** `WMeta1`: header fixo, directory
+de chunks e payloads em um subset de
 [CBOR determinístico](https://www.rfc-editor.org/rfc/rfc8949.html#name-deterministically-encoded-cbor).
 O container fornece random access. CBOR fornece field IDs e records sem outro
 value codec.
 
-O gate exige implementação em `bootstrap.w0`, canonical round-trip, skip de
-fields desconhecidos, fuzzing de corruption, peak memory e decode incremental.
-JSON serve somente para inspection. Antes desse gate, o encoding permanece
-toolchain-internal e recipe-exact.
+W0 fixa os bytes, os limites e dois readers de referência. O gate de produto
+exige implementação em `bootstrap.w0`, fuzzing contínuo, peak memory e decode
+incremental. JSON serve somente para inspection. A especificação está fechada.
+Nenhum compiler ou linker de produção está implementado por essa decisão.
 
 **Separação de domínios.** A v0 usa CBOR determinístico para records data-only de
 `package.w`, `package.lock`, workspace, recipe, toolchain plan e release
-metadata. `WMeta1` é um candidato separado para chunks de `WInterface` e cache
-semântico do compiler. Ele não é o codec desses records e não é um payload de
-runtime. O payload de service continua usando wWire. Os três domínios possuem
+metadata. `WMeta1` contém chunks publicáveis de `WInterface` e ABI. Ele não
+serializa AST, HIR ou outro cache interno do compiler. Ele também não é o codec
+desses records e não é um payload de runtime. O payload de service continua
+usando wWire. Os três domínios possuem
 schemas, versionamento e gates próprios; nenhum reader pode inferir um domínio
 somente pelo primeiro byte.
 
-Assim, um build pode ser reproduzível hoje com CBOR sem prometer que uma futura
-distribuição aceitará bytes de `WMeta1`. A promoção de `WMeta1` exige schema
-publicado, reader bounded, corpus de corrupção e compatibilidade explícita. Até
-lá, `WInterface` binário e cache são artifacts da toolchain selecionada, não uma
-ABI pública eterna.
+Assim, um build pode ser reproduzível hoje com CBOR sem presumir que uma
+distribuição já possui um reader de produção. O schema W0, os readers de
+referência e o corpus de corrupção fixam a conformance. Até o gate de produto,
+uma distribuição publica source ou informa que ainda não oferece `WMeta1`.
 
 Uma distribuição declara quais schemas de `WInterface` consegue ler. Um
 upconverter preserva significado e diagnostic origin. Um schema desconhecido
@@ -20890,6 +20890,213 @@ consegue ler a API. A
 [documentação de módulos do Clang](https://clang.llvm.org/docs/Modules.html)
 trata a representação binária do módulo como cache sensível à configuração. W
 mantém o record semântico separado desse cache.
+
+##### 20.4.2.1 Container físico `WMeta1`
+
+**Exemplo:** todo container começa com este header de 32 bytes. Os integers usam
+big-endian. O directory começa no byte 32:
+
+```text
+57 4d 65 74 61 31 0d 0a  00 20 00 01 00 00 00 00
+<directoryBytes:u64>      <payloadBytes:u64>
+```
+
+Os oito primeiros bytes representam `WMeta1\r\n`. O header possui esta forma:
+
+| Offset | Bytes | Field | Regra W0 |
+|---:|---:|---|---|
+| 0 | 8 | magic | `57 4d 65 74 61 31 0d 0a` |
+| 8 | 2 | `headerBytes` | `32` |
+| 10 | 2 | `directorySchema` | `1` |
+| 12 | 4 | `flags` | `0`; outro valor falha |
+| 16 | 8 | `directoryBytes` | length exato do item CBOR seguinte |
+| 24 | 8 | `payloadBytes` | soma exata dos chunks |
+
+O reader calcula `32 + directoryBytes + payloadBytes` com arithmetic checked.
+O resultado deve ser igual ao span fornecido pelo container externo. Um sidecar
+não aceita trailing bytes. Um section com vários containers fornece uma
+sequência de spans exatos.
+
+O directory é um map CBOR com keys unsigned:
+
+```text
+Directory = {
+  0: 1,                     // directory schema
+  1: Profile,               // 1 interface; 2 objectAbi
+  2: [FeatureId...],        // ascending, unique
+  3: [ChunkEntry...],       // sorted by kind and identity
+}
+
+ChunkEntry = {
+  0: Kind,
+  1: bytes(32),             // logical identity
+  2: [schemaMajor, schemaMinor],
+  3: critical,
+  4: length,
+  5: [1, bytes(32)],        // tagged SHA-256 of exact chunk bytes
+}
+```
+
+O directory não guarda offsets. Os chunks seguem a mesma ordem das entries.
+Cada offset é a soma dos lengths anteriores. Essa regra elimina gap, overlap,
+alias e padding interno. Um scan bounded do directory produz o index de random
+access.
+
+`identity` é a key lógica definida pelo schema do kind. Ela não substitui o
+digest dos bytes. Por exemplo, `semanticInterface` usa
+`SemanticInterfaceKey`. `abiNote` usa a key da nota lógica. O entry digest usa
+sempre os bytes físicos do chunk.
+
+Os profiles W0 usam este registro:
+
+| Profile | Core crítico, uma vez cada | Opcional conhecido |
+|---|---|---|
+| `1 interface` | `1 interfaceIndex`, `2 semanticInterface` | `3 documentation`, `4 diagnosticMap`, `5 genericBody` |
+| `2 objectAbi` | `16 abiNote`, `17 representationMap`, `18 symbolManifest`, `19 runtimeRequirements` | nenhum |
+
+Kind `0` é inválido. Kinds `1...1023` formam o registro core append-only.
+Kinds `1024...32767` exigem registro e feature. Kinds `32768...65535` são
+toolchain-private e não entram num artifact público. Um kind desconhecido e
+crítico falha. Um kind desconhecido e opcional pode ser ignorado.
+
+O profile `objectAbi` reconstrói a nota lógica L0. `abiNote` guarda `WAbiKey`,
+interface própria e import expectations. Os outros três chunks guardam as maps
+referenciadas. Todos precisam validar antes de o linker publicar a nota L0.
+
+`FeatureId` registra uma semântica obrigatória que um reader antigo não pode
+ignorar. A lista W0 está vazia. Um feature futuro recebe ID append-only. O
+reader primeiro valida ordem e duplicatas. Depois ele rejeita todo ID que não
+suporta.
+
+Cada chunk possui `schemaMajor` e `schemaMinor`. Um major desconhecido em chunk
+crítico falha. Um minor maior pode ser lido quando todas as features obrigatórias
+são conhecidas. Um field ID nunca recebe outro significado. Um field removido
+fica reservado.
+
+Fields desconhecidos são opcionais por default. Uma mudança que exige o field
+também exige um `FeatureId`. Um validator pode pular o value sem materializá-lo.
+Um semantic reader não deve reserializar fields ignorados e alegar byte identity.
+
+###### Subset CBOR
+
+WMeta1 segue os core deterministic encoding requirements do
+[RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html#section-4.2.1). Ele aplica
+estas restrições adicionais:
+
+- todo length e integer usa a menor forma;
+- todo item possui length definido;
+- maps usam somente keys unsigned em ordem lexicográfica dos bytes codificados;
+- duplicate key falha;
+- tags, floats, `undefined`, simple values livres e indefinite items falham;
+- somente unsigned, signed, byte string, text, array, map, `false`, `true` e
+  `null` permanecem;
+- text precisa ser UTF-8 válido;
+- cada chunk contém exatamente um item, sem trailing bytes.
+
+Um schema não usa o numeric model do CBOR para representar um float W. Ele usa
+type, width e bytes IEEE exatos. Essa forma preserva signed zero, NaN payload e
+target-independent identity. Big integers também usam um record tipado e bytes
+canônicos. O codec não decide a semântica numérica.
+
+O draft dCBOR permanece uma **Alternativa**. Ele ainda é um Internet-Draft.
+WMeta1 usa o RFC publicado e declara seu subset completo. Uma atualização pode
+reavaliar dCBOR sem mudar bytes WMeta1 válidos.
+
+###### Limites e fases do reader
+
+W0 fixa estes hard ceilings:
+
+| Recurso | Limite W0 |
+|---|---:|
+| directory | 64 MiB |
+| payload total | 16 GiB |
+| um chunk | 1 GiB |
+| entries | 1.048.576 |
+| members por array ou map | 1.048.576 |
+| items decodificados | 4.194.304 |
+| text string | 1 MiB |
+| nesting | 64 |
+
+Um host profile pode reduzir esses valores. Ele não pode ampliá-los sem outro
+container revision. O limite lógico de `abiNote` L0 continua em 64 MiB.
+
+O reader executa estas fases:
+
+1. valida magic, header, flags, lengths e overflow;
+2. valida CBOR, profile, features, ordem, identities e soma dos chunks;
+3. calcula SHA-256 por streaming para cada chunk solicitado;
+4. valida schema, CBOR e references dos chunks críticos;
+5. publica uma view immutable somente após fechar todo o core.
+
+WMeta1 oferece três open modes:
+
+| Mode | Trabalho | Autoridade resultante |
+|---|---|---|
+| `directory` | header e directory | locations; nenhuma interface semântica |
+| `core` | todos os chunks críticos | interface ou ABI utilizável |
+| `full` | todos os chunks | verificação completa do container |
+
+`core` pode ignorar corruption num chunk opcional não solicitado. `full` não
+pode. O release verifier usa `full`. Type-check e link usam `core` após o
+artifact record autenticar o container completo.
+
+O SHA-256 por entry detecta corruption. Ele não concede confiança. O artifact
+record autentica o digest tagged do container completo. Assinatura, policy e
+provenance permanecem camadas separadas.
+
+WMeta1 W0 não possui compression, encryption, relocation ou external reference.
+O artifact externo pode comprimir o sidecar. Essa regra evita decompression bomb
+e mantém o mesmo chunk digest em todo object format.
+
+###### Embedding por target
+
+O adapter preserva os bytes completos de cada container:
+
+| Container | Placement W0 |
+|---|---|
+| sidecar | arquivo `.wmeta` |
+| ELF | [`SHT_NOTE`](https://refspecs.linuxfoundation.org/elf/gabi4+/ch5.pheader.html) em `.note.wmeta`, owner `W`, type `1` |
+| Mach-O | section regular `__W,__wmeta`, dentro dos limites de nome do [`loader.h`](https://github.com/apple-oss-distributions/xnu/blob/main/EXTERNAL_HEADERS/mach-o/loader.h) |
+| COFF/PE | contribution `.wmeta$M`; output `.wmeta`, conforme o formato de [section name do PE/COFF](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) |
+| Wasm | [custom section](https://webassembly.github.io/spec/core/binary/modules.html#binary-customsec) `w.meta` |
+
+O wrapper, seu alignment e seu padding não entram nos bytes WMeta1. ELF usa o
+descriptor da note. Mach-O e COFF podem concatenar containers completos. Wasm
+pode repetir a custom section.
+
+A especificação WebAssembly ignora custom sections na semântica do módulo. Um
+erro WMeta1 não torna o Wasm malformado. Ele torna o artifact incompatível para
+uma operação W que exige a metadata.
+
+Todo object W relocatable possui profile `objectAbi`. Uma library `.wExact`
+retém esse profile. Uma distribuição source/interface publica o sidecar
+`interface`. Um executable fechado retém metadata por default. Um strip
+explícito só pode removê-la quando não existe load W dinâmico ou inspection
+exigida pelo product. O artifact record ainda referencia o sidecar separado.
+
+###### Performance e alternativas
+
+Directory-first permite uma allocation bounded e um scan linear. Integer keys
+reduzem bytes e branches. Prefix sums substituem offsets. Chunks opcionais ficam
+lazy. Hashing e decode podem usar streaming. Um mmap reader nunca usa load
+desalinhado ou cast para struct nativa.
+
+**Alternativa:** CBOR único sem directory reduz o header. Ele exige scan completo
+para achar um body e não separa digests ou failure locality.
+
+**Rejeitado por enquanto:** Protobuf possui evolução ampla, mas seus próprios
+[documentos](https://protobuf.dev/programming-guides/serialization-not-canonical/)
+não prometem bytes canônicos entre builds e linguagens.
+
+**Rejeitado por enquanto:** Cap'n Proto fornece acesso direto e canonicalization.
+O [encoding oficial](https://capnproto.org/encoding.html#canonicalization) diz
+que writers comuns não produzem a forma canônica por default. Pointer trees,
+alignment e traversal accounting também aumentam o bootstrap reader. Cap'n
+Proto continua uma referência para RPC. Ele não define metadata W.
+
+O corpus W0 contém os bytes seed e mutations de corruption. Um reader Bun e um
+reader C sem library compartilhada validam o mesmo corpus. Eles são design
+oracles. Eles não são o reader do compiler.
 
 #### 20.4.3 `WAbiKey` e validação de link
 
@@ -22868,8 +23075,8 @@ payloads. O resultado inclui um index que aponta para cada digest.
 - recipe fixa quotas e evaluator version de compile-time;
 - CBOR determinístico é a representação canônica inicial dos records de package,
   lock, recipe, toolchain plan e release;
-- `WMeta1` permanece separado como candidato de interface/cache, sem misturar
-  seus bytes com manifests ou payloads wWire;
+- `WMeta1` permanece separado para interface e ABI públicas, sem misturar seus
+  bytes com manifests, caches AST/HIR ou payloads wWire;
 - SHA-256 tagged é o digest inicial e possui algorithm agility.
 
 `w build --locked` falha se manifest, source inventory, resolution context ou
@@ -25949,7 +26156,7 @@ Uma pesquisa só avança quando possui:
 | source snapshot por allowlist | **Possível agora** | module expansion, PackagePath e digest produzem uma árvore fechada |
 | build transform tipada | **Provável** | host profile e CAS são diretos; sandbox cross-platform exige protótipo |
 | `WInterface` semântica versionada | **Possível agora** | schema data-only separa API, facts e chunks do cache interno |
-| encoding publicável de metadata | **Provável** | `WMeta1` usa directory fixa e chunks CBOR determinísticos; W0 e fuzzing são gates |
+| encoding publicável de metadata | **Possível agora** | `WMeta1` fixa envelope, profiles, subset CBOR, limits, corpus W0 e dois readers independentes |
 | `WAbiKey` exata | **Possível agora** | target, call ABI e policies globais formam uma key; layouts compartilhados usam `RepresentationMap` |
 | runtime contract set reachability-linked | **Possível agora** | requirements e offers usam o mesmo modelo tipado da toolchain |
 | C façade com body W | **Possível agora** | `fn<abi: .c>` usa carriers explícitos e calling convention do target |
@@ -26146,8 +26353,8 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O checker atual classifica 171/947 decisões:
-93 pelo eixo source, 92 pelo eixo oracle e seis explicitamente; 20 decisões
+declara todos os eixos obrigatórios. O checker atual classifica 180/956 decisões:
+93 pelo eixo source, 99 pelo eixo oracle e oito explicitamente; 20 decisões
 possuem os dois primeiros eixos. Duas decisões já exigem formalmente ambos. As
 776 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
@@ -26192,12 +26399,12 @@ evidência de design:
 | diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
-| ABI e formats | L0 fixa 78 casos/96 operações e dez testes host para W exact, import expectation, physical call, representation reachability, C carriers, foreign layout, header pairing, limits e fallback | congelar o envelope físico `WMeta1`, bytes CBOR, vectors de corrupção e segundo reader antes de alegar ABI note publicável; o contrato lógico L0 já não depende de backend W |
+| ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar allocator físico, liveness, device scopes, reclamation e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1/L0/E0/B0/P0 ligam 92 decisões a oracle; o audit classifica 171/947 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 776 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; os corpora ligam 99 decisões a oracle; o audit classifica 180/956 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 776 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -27828,7 +28035,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-630 | metadata binária não confiável | readers de interface, ABI note e manifests são data-only, bounded e fuzzed | confiar em assinatura; deserialização sem limites; plugin durante decode |
 | W-631 | header C por target | sidecar determinístico inclui calling convention, export macros e layout assertions; index liga header à slice | header universal por nome; path e timestamp; confiar só no linker |
 | W-632 | resolução de symbol dinâmico | loader W usa handle + manifest e visibilidade local; calls não dependem de interposition | lookup process-global; primeiro symbol carregado; override por environment |
-| W-633 | encoding de metadata | records de package/lock/recipe usam CBOR determinístico; `WMeta1` permanece candidato separado para `WInterface` e cache até reader, schema e fuzzer | JSON como autoridade; misturar manifest com WMeta1; cache interno como contrato eterno; escolher sem fuzzer W0 |
+| W-633 | encoding de metadata | records de package/lock/recipe usam CBOR determinístico; `WMeta1` fica separado para `WInterface` e ABI pública; cache interno permanece recipe-exact | JSON como autoridade; misturar manifest com WMeta1; cache interno como contrato eterno; codec universal |
 | W-634 | `Address` | `Copy` opaco por address space, equality local, hash local, hex e `Bits`; não é pointer, identity ou ordem | alias de `usize`; integer com dereference; object ID |
 | W-635 | reconstrução de pointer | `withAddress` usa a provenance e o address space do receiver; v0 não possui exposed provenance ou `Address.toPointer` | round-trip integer; provenance global implícita; pointer forge safe |
 | W-636 | cópia de pointer | cópia tipada preserva non-address bits e estado externo; Bytes não faz round-trip | mesmo size implica bitwise; serializar pointer; integer load/store equivalente |
@@ -27909,7 +28116,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-711 | evolução da ABI W | v0 recompila consumers W; C, component, service schema e source rebuild atendem evolução independente | ABI resiliente implícita; layout congelado por default; runtime permanente sem protótipo |
 | W-712 | registro de wire kinds v0 | IDs `1–25` são um registro core append-only; `0` é inválido; extensões exigem registro/negociação e kind local não é portátil | inferir ID pela ordem do enum; usar kind como semântica da aplicação; aceitar extensão desconhecida sem registry |
 | W-713 | seed vectors wWire | `MenuKey` fixa quatro vetores hex para `exact` e `compatible`; os vetores orientam conformance sem prometer layout de memória | esperar o decoder para definir bytes; snapshots de implementação; usar JSON como wire nativo |
-| W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre somente a pesquisa de interface/cache; wWire cobre payloads de service | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; WMeta1 virar ABI implícita |
+| W-714 | domínios de metadata | CBOR determinístico cobre records de build/distribuição; WMeta1 cobre interface e ABI públicas; wWire cobre payloads de service; AST/HIR permanece interno | um codec universal; inferir domínio pelo magic; payload usar bytes de recipe; cache interno virar ABI implícita |
 | W-715 | lifecycle cross-boundary | oracle comum exige cleanup antes de outcome/join e commit terminal único; `unknownOutcome` não volta a confirmed | task outcome antecipado; service turn reentrante por default; commit uncertainty tratada como abort |
 | W-716 | replay do scheduler | `scheduleId`, decisões lógicas, trace, outcome e owners fechados são comparados; packing físico diferente vira sidecar | comparar worker IDs; aceitar timing como semântica; esconder fault injection em logs; tratar panic como error recuperável |
 | W-717 | schema do replay | eventos de task, service, commit e owner pertencem ao logical trace; worker, thread, queue e transport ficam no sidecar físico | trace bruto como contrato; worker ID como identidade W; ignorar owner closure; comparar somente payload final |
@@ -27938,7 +28145,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-740 | assembly | `unsafe fn<Asm>` T2 declara target, operands, clobbers, memory, unwind e volatility; adapter gera provenance | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
 | W-741 | primitives de execução T1 | dynamic domain, topology types, wait/notify, advanced atomics, scoped synchronization e SnapshotCell possuem contracts distintos | um Channel muda topologia por mode; safe RCU geral; QoS na syntax de spawn; uma API universal para toda topologia |
 | W-742 | evolução de workflow | child workflows, fan-out e continue-as-new T2 usam IDs determinísticos; race durável e absolute core sleep ficam rejeitados | persistir async frame; wall clock implícito; compaction definida pelo usuário |
-| W-743 | metadata publicável | WMeta1 usa header/directory e chunks em CBOR determinístico; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
+| W-743 | metadata publicável | WMeta1 usa header/directory e chunks em subset CBOR determinístico; profiles separam interface e object ABI; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
 | W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
 | W-745 | ilhas externas posteriores | source units e adapters Rust/Swift/Zig/C++/Fortran são prováveis após C e sempre usam façade tipada | runtime externo implícito; staticlib por função; ABI W rica atravessa a ilha |
 | W-746 | loop pós-condicional | `repeat { body } while condition` executa body ao menos uma vez; `continue` avalia a condição final | rejeitar post-test loop; `do ... while`; exigir `while true` e `break` negado |
@@ -28141,8 +28348,17 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-943 | carriers da façade C | `unsafe fn<abi: .c>` usa somente carriers C; borrow de parâmetro é call-scoped com extent, retorno pointer fica raw, owner leva destroy/context-drop, callback persistente leva context/pin/destroy/unregister, enum/refinement valida integer, safe borrow prova owner/lifetime/bounds/alignment/noescape e runtime context é explícito | String/owner W direto; caller free; pointer retornado ou retido como ref; C enum como enum W; hidden runtime; panic convertido implicitamente |
 | W-944 | layout foreign v0 | W comum não possui `packed`, `aligned` ou union source; header import pode descrever packed/over-aligned, mas field unaligned só usa cópia; export C gera layout natural e casos especiais usam opaque + wrapper C | `struct<layout: .c, packing: 1>` vigente; borrow unaligned; offset manuscrito; foreign union safe; layout C universal |
 | W-945 | pareamento de header C | header, library, target slice, digests e conformance assertions ficam ligados no artifact index; timestamp e local path não entram | header universal por filename; combinar slices; confiar em include guard; header não reproduzível |
-| W-946 | reader lógico ABI L0 | schema e required features são fechados; fields opcionais podem ser ignorados; reader bounded rejeita missing/unknown required, duplicate, dangling reference, excess bytes/strings/count/depth; JSON é projeção, não bytes ABI | nota ausente compatível; feature desconhecida ignorada; decode ilimitado; snapshot JSON virar object ABI; WMeta1 declarado pronto |
+| W-946 | reader lógico ABI L0 | schema e required features são fechados; fields opcionais podem ser ignorados; reader bounded rejeita missing/unknown required, duplicate, dangling reference, excess bytes/strings/count/depth; JSON é projeção, não bytes ABI | nota ausente compatível; feature desconhecida ignorada; decode ilimitado; snapshot JSON virar object ABI; confundir o reader lógico com o container físico |
 | W-947 | recuperação de artifact ABI | ordem fixa é artifact exato, rebuild do source fixado, boundary canônica já declarada e erro; disponibilidade local não cria boundary | C/component fallback implícito; adaptar layout; escolher dynamic por filename; preferir boundary ao source |
+| W-948 | envelope físico WMeta1 | header big-endian de 32 bytes, tamanho total exato, directory antes do payload, offsets por prefix sum e nenhum padding interno | offsets armazenados; gap ou overlap; trailing bytes; cast para struct nativa; alinhamento do object format entrar no container |
+| W-949 | subset CBOR WMeta1 | core deterministic RFC 8949, lengths definidos, keys unsigned em ordem de bytes, uma raiz exata e representação numérica W por bytes tipados | float ou tag CBOR; duplicate key; indefinite item; map key textual; canonicalização dependente da library |
+| W-950 | profiles e registro de chunks WMeta1 | profiles `interface` e `objectAbi` fecham os chunks críticos; kinds core são append-only; extensão opcional desconhecida pode ser pulada e crítica desconhecida falha | profile aberto; core opcional; kind privado em artifact público; extensão crítica silenciosa |
+| W-951 | limites e publicação WMeta1 | ceilings W0 são validados antes de allocation; reader usa fases bounded e só publica uma view core immutable depois de validar todo o core | decode ilimitado; publicação parcial; overflow de soma; chunk vazio; ampliar limite por profile |
+| W-952 | evolução WMeta1 | feature IDs são sorted, unique e append-only; a lista W0 é vazia; schema major incompatível falha e minor novo exige features para toda semântica obrigatória | reinterpretar field ID; feature desconhecida ignorada; minor novo tornar field obrigatório sem feature |
+| W-953 | embedding e strip WMeta1 | sidecar, ELF note, Mach-O section, COFF section e Wasm custom section preservam bytes completos; wrapper e padding ficam fora; metadata fica retida por default | bytes específicos por target; depender do padding externo; strip silencioso; custom section definir validade Wasm |
+| W-954 | integridade e open modes WMeta1 | digest SHA-256 tagged por chunk detecta corrupção; artifact record autentica o container; `directory`, `core` e `full` concedem autoridades distintas | digest conceder confiança; directory conceder interface; release ignorar chunk opcional; algoritmo crítico desconhecido |
+| W-955 | corpus e readers WMeta1 | 42 casos byte-exact cobrem seed e mutations; readers Bun e C independentes precisam concordar; ambos são design oracles, não produto | fixture só positiva; dois wrappers sobre a mesma library; snapshot manual; chamar oracle de compiler |
+| W-956 | domínios de metadata | WMeta1 contém interface e ABI públicas; build record CBOR, wWire runtime e cache AST/HIR continuam formatos separados | container universal; publicar HIR como compatibilidade; usar wire RPC para object metadata; colocar provenance mutável na interface |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

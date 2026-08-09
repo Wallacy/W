@@ -45,6 +45,16 @@
       "decision": "W-935",
       "category": "project-policy",
       "reason": "This decision defines the repository audit that measures design-freeze evidence."
+    },
+    {
+      "decision": "W-953",
+      "category": "implementation-choice",
+      "reason": "Target embedding preserves the same WMeta1 bytes through standard object-format extension points."
+    },
+    {
+      "decision": "W-956",
+      "category": "project-policy",
+      "reason": "Separate metadata domains prevent public compatibility from depending on compiler-internal caches."
     }
   ]
 }
