@@ -1306,6 +1306,92 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-tabular-carrier",
+      "reviewItem": "`data.Batch<Row>` columnar contra `Array<Row>` universal e DataFrame completo",
+      "decisions": ["W-988", "W-989", "W-1001"],
+      "task": "Summarize the same sequence, Hawking flux, and optional warning telemetry with a closed columnar carrier.",
+      "selected": {
+        "language": "w-direction",
+        "source": [
+          "struct HorizonReading: data.Row { sequence: u64; hawkingFlux: f64; warning: String? }",
+          "let batch: data.Batch<HorizonReading> = readings",
+          "let flux = batch.column(.hawkingFlux)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "array-row-universal",
+          "language": "w-rejected",
+          "source": ["let rows: Array<HorizonReading> = readings", "let flux = rows.map((row) => row.hawkingFlux)"],
+          "expectedDifference": "Array<Row> is convenient for row algorithms but does not publish a closed columnar schema or equal column lengths."
+        },
+        {
+          "name": "dataframe-core",
+          "language": "documentary",
+          "source": ["let table: DataFrame = readings", "let flux = table[\"hawkingFlux\"]"],
+          "expectedDifference": "A complete DataFrame remains a first-party package direction and does not define the stable carrier in TAB0."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-data-row-synthesis",
+      "reviewItem": "`data.Row` synthesis fechada contra `Any`, duck typing e schema implícito",
+      "decisions": ["W-990", "W-991"],
+      "task": "Bind stored fields in declaration order and reject an unsupported dynamic member before publication.",
+      "selected": {
+        "language": "w-direction",
+        "source": [
+          "struct HorizonReading: data.Row { sequence: u64; hawkingFlux: f64; warning: String? }",
+          "let typed = try runtime.bind<HorizonReading>(copyPolicy: .never)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "any-row",
+          "language": "w-rejected",
+          "source": ["struct HorizonReading: data.Row { payload: Any }"],
+          "expectedDifference": "Any and object identity remove the closed witness and prevent a predictable schema identity."
+        },
+        {
+          "name": "duck-typed-row",
+          "language": "python",
+          "source": ["row.hawkingFlux", "row.warning"],
+          "expectedDifference": "Duck typing delays missing, extra, and type errors until a dynamic access instead of validating before publication."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-copy-release-boundary",
+      "reviewItem": "binding dynamic, copy/device e release scoped contra coerção e lifetime ocultos",
+      "decisions": ["W-995", "W-997", "W-998"],
+      "task": "Move telemetry between devices only with an explicit policy and keep borrowed foreign access scoped while owned export consumes responsibility.",
+      "selected": {
+        "language": "w-direction",
+        "source": [
+          "let host = try batch.copy(policy: .ifNeeded, device: .cpu)",
+          "let result = try foreign.withBorrowedExport(scope: .local) { view => summarize(view) }",
+          "let owned = try (take foreign).exportOwned()"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "implicit-device-copy",
+          "language": "w-rejected",
+          "source": ["let host = batch.on(.cpu)"],
+          "expectedDifference": "A device change without policy can copy payload or transfer device without an observable cost contract."
+        },
+        {
+          "name": "raw-foreign-pointer",
+          "language": "c",
+          "source": ["void *view = foreign->data;", "foreign_release(foreign);"],
+          "expectedDifference": "A raw pointer has no scoped view, wait, child, or exactly-once release evidence across the trust boundary."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

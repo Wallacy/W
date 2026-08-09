@@ -260,6 +260,7 @@ const oracleCorpusFiles = [
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "wmeta-cases.json",
+  "tabular-carrier-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -472,6 +473,17 @@ const wmetaCases = wmetaCorpus.cases.length;
 const acceptedWmetaCases = wmetaCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const tabularCarrierCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "tabular-carrier-cases.json"), "utf8"),
+);
+const tabularCarrierCases = tabularCarrierCorpus.cases.length;
+const tabularCarrierOperations = tabularCarrierCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedTabularCarrierCases = tabularCarrierCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -598,6 +610,12 @@ output.push(
   `| casos do container WMeta1 W0 | ${wmetaCases} ` +
     `(${acceptedWmetaCases} aceitos + ${wmetaCases - acceptedWmetaCases} rejeitados; ` +
     `2 readers independentes) |`,
+);
+output.push(
+  `| casos/operações do carrier tabular TAB0 | ${tabularCarrierCases}/${tabularCarrierOperations} ` +
+    `(${acceptedTabularCarrierCases} aceitos + ` +
+    `${tabularCarrierCases - acceptedTabularCarrierCases} rejeitados; ` +
+    `host oracle não executa W) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,
