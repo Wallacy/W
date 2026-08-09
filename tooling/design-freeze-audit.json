@@ -1,0 +1,68 @@
+{
+  "$schema": "w-design-freeze-audit-1",
+  "status": "design-oracle-input",
+  "entries": [
+    {
+      "decision": "W-928",
+      "category": "semantic-contract",
+      "reason": "Borrow provenance and allocation provenance have distinct observable escape and cleanup rules.",
+      "evidence": [
+        "M1-rehome-enables-cross-domain-transfer",
+        "M1-local-storage-rejects-cross-domain-transfer"
+      ]
+    },
+    {
+      "decision": "W-929",
+      "category": "semantic-contract",
+      "reason": "Shared ownership must not extend a dynamic borrow or lose allocator lifetime.",
+      "evidence": [
+        "M1-share-rejects-borrow-dependent-payload",
+        "M1-share-requires-storage-to-outlive-control-block"
+      ]
+    },
+    {
+      "decision": "W-930",
+      "category": "semantic-contract",
+      "reason": "A consuming allocation failure changes owner state and cleanup exactly once.",
+      "evidence": [
+        "M1-rehome-failure-consumes-source",
+        "M1-share-allocation-failure-consumes-source",
+        "M1-pin-allocation-failure-consumes-source"
+      ]
+    },
+    {
+      "decision": "W-931",
+      "category": "semantic-contract",
+      "reason": "Strong, weak, alias-borrow, and cross-domain transitions are observable ownership rules.",
+      "evidence": [
+        "M1-shared-weak-lifecycle",
+        "M1-shared-cross-domain-composes-all-proofs",
+        "M1-shared-borrow-is-tied-to-originating-handle"
+      ]
+    },
+    {
+      "decision": "W-932",
+      "category": "semantic-contract",
+      "reason": "Owned result storage provenance is part of exact W interface compatibility.",
+      "evidence": [
+        "M1-interface-storage-origin-mapping",
+        "M1-interface-storage-origin-drift"
+      ]
+    },
+    {
+      "decision": "W-933",
+      "category": "project-policy",
+      "reason": "This decision records the evidence expansion of M1 and does not add a W source form."
+    },
+    {
+      "decision": "W-934",
+      "category": "project-policy",
+      "reason": "This decision defines the project gate between design evidence and production implementation."
+    },
+    {
+      "decision": "W-935",
+      "category": "project-policy",
+      "reason": "This decision defines the repository audit that measures design-freeze evidence."
+    }
+  ]
+}

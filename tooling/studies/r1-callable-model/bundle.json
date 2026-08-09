@@ -1,0 +1,129 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-callable-model-last-light",
+  "title": "Callable representation and ownership at the Last Light restaurant",
+  "r0Cases": [
+    "R0-callable-representations",
+    "R0-callable-modes",
+    "R0-erasure-storage"
+  ],
+  "sourceBase": {
+    "path": "../../../reference/last-light/callables.w",
+    "symbol": "ticketSequence",
+    "digest": "sha256:4e9f3fc96eb16f7dbc53c8d5f18ba2529e31c9be70ca3abd1eee0b4877f1bb88"
+  },
+  "variants": [
+    {
+      "id": "separated",
+      "role": "selected",
+      "language": "w",
+      "path": "separated.w",
+      "digest": "sha256:d79623a7c27f01c532f88863b41bdc84a4ff02ba1d7a3786223b107abaa1d05c",
+      "changedConstructs": [
+        "fn, some fn, and any fn expose representation",
+        "fn, mut fn, and take fn expose environment access",
+        "try erase exposes allocator choice and recoverable allocation failure"
+      ]
+    },
+    {
+      "id": "unified",
+      "role": "alternative",
+      "language": "w-rejected",
+      "path": "unified.w",
+      "digest": "sha256:28fe7f92ceab075e38d664348b6bfa1875da0dc9c73d0ec31120b244dcd5586f",
+      "changedConstructs": [
+        "one fn spelling accepts thin and capturing callables",
+        "mutation and consumption are absent from the callable type",
+        "erasure allocation and failure are absent from the source contract"
+      ]
+    },
+    {
+      "id": "protocols",
+      "role": "alternative",
+      "language": "w-alternative",
+      "path": "protocols.w",
+      "digest": "sha256:296f451c2bb6675ff5fe03fd798ec7f9e997026335195146c3fca0de99a6493a",
+      "changedConstructs": [
+        "Callable, MutableCallable, and ConsumingCallable are nominal protocols",
+        "call uses a protocol method and nominal conformance",
+        "try erase exposes allocator choice and recoverable allocation failure"
+      ]
+    }
+  ],
+  "entry": "observeCallableModel",
+  "inputs": [
+    {
+      "id": "capturing-route-and-manifest",
+      "gate": 2,
+      "initial": 40,
+      "orderIds": [7, 8, 9],
+      "expected": {
+        "firstGate": 1,
+        "routedGate": 2,
+        "tickets": [41, 42],
+        "manifestCount": 3
+      }
+    },
+    {
+      "id": "empty-manifest-and-zero-counter",
+      "gate": 0,
+      "initial": 0,
+      "orderIds": [],
+      "expected": {
+        "firstGate": 1,
+        "routedGate": 0,
+        "tickets": [1, 2],
+        "manifestCount": 0
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "For each callable, identify capture, representation, dispatch, repeated access, exclusive access, consumption, and possible allocation."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the four callable declarations and their call sites.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that invokes the manifest callable a second time.",
+      "mutations": {
+        "separated": "Insert `let duplicate = (take manifest)()` after the first consuming call.",
+        "unified": "Insert `let duplicate = manifest()` after the first call.",
+        "protocols": "Insert `let duplicate = (take manifest).call(())` after the first consuming call."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Choose a route at runtime and add a retryable manifest operation while keeping allocation, dispatch, and ownership visible."
+    }
+  ],
+  "presentationOrders": [
+    ["separated", "unified", "protocols"],
+    ["unified", "protocols", "separated"],
+    ["protocols", "separated", "unified"],
+    ["separated", "protocols", "unified"],
+    ["protocols", "unified", "separated"],
+    ["unified", "separated", "protocols"]
+  ],
+  "blinding": {
+    "participantLabels": {
+      "separated": "A",
+      "unified": "B",
+      "protocols": "C"
+    },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:7095067bee7f425b6c2346b9ae9ea1556de4c625bf66c1b2b624d72a581284fc"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}

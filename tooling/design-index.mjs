@@ -242,6 +242,16 @@ const structuredSubstitutionCases = new Set(
 const substitutionDecisionIds = new Set(
   substitutionCorpus.cases.flatMap((testCase) => testCase.decisions),
 );
+const designFreezeAudit = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "design-freeze-audit.json"), "utf8"),
+);
+const explicitFreezeDecisionIds = new Set(
+  designFreezeAudit.entries.map((entry) => entry.decision),
+);
+const classifiedFreezeDecisionIds = new Set([
+  ...substitutionDecisionIds,
+  ...explicitFreezeDecisionIds,
+]);
 const substitutionSurface = JSON.parse(
   fs.readFileSync(
     path.join(wDirectory, "tooling", "substitution-surface.snapshot.json"),
@@ -259,10 +269,13 @@ const selectedSurfaceLexemeTotal = selectedSurfaceLexemes.reduce(
   (total, count) => total + count,
   0,
 );
+const selectedSurfaceMiddle = Math.floor(selectedSurfaceLexemes.length / 2);
 const selectedSurfaceLexemeMedian =
-  (selectedSurfaceLexemes[selectedSurfaceLexemes.length / 2 - 1] +
-    selectedSurfaceLexemes[selectedSurfaceLexemes.length / 2]) /
-  2;
+  selectedSurfaceLexemes.length % 2 === 1
+    ? selectedSurfaceLexemes[selectedSurfaceMiddle]
+    : (selectedSurfaceLexemes[selectedSurfaceMiddle - 1] +
+        selectedSurfaceLexemes[selectedSurfaceMiddle]) /
+      2;
 const selectedSurfaceLexemeMaximum = selectedSurfaceLexemes.at(-1);
 const studyBundleFiles = recursiveFiles(
   path.join(wDirectory, "tooling", "studies"),
@@ -460,6 +473,12 @@ output.push(
 );
 output.push(
   `| decisões referenciadas por casos R0 | ${substitutionDecisionIds.size}/${decisions.length} |`,
+);
+output.push(
+  `| decisões classificadas para design freeze | ${classifiedFreezeDecisionIds.size}/${decisions.length} (${substitutionDecisionIds.size} por R0 + ${explicitFreezeDecisionIds.size} explícitas) |`,
+);
+output.push(
+  `| decisões ainda sem classe de freeze | ${decisions.length - classifiedFreezeDecisionIds.size} |`,
 );
 output.push(`| formas R0 com baseline estática | ${measuredSubstitutionForms} |`);
 output.push(

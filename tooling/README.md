@@ -21,9 +21,10 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 54 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 121 formas R0 | não mede compreensão, correção nem tokens de um modelo |
-| `studies/*/bundle.json` + checker | sete bundles R1, quatorze variantes e vinte e oito tarefas; controle, units, imports, fail-fast, contratos, ownership e domains promovem 14/54 casos R0 | parse e oracle host não equivalem a compilar ou executar W |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 55 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | classifica decisões por evidência R0 ou classificação explícita; 101/937 estão classificadas | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 124 formas R0 | não mede compreensão, correção nem tokens de um modelo |
+| `studies/*/bundle.json` + checker | oito bundles R1, 17 variantes e 32 tarefas; o novo cluster de callables promove 17/55 casos R0 | parse e oracle host não equivalem a compilar ou executar W |
 | `wire-reference.test.mjs` | codec host mínimo para os vetores `MenuKey` e falhas estritas | primeiro protótipo; não é o encoder do compiler |
 | `wire-diagnostic-cases.json` | par portátil/local para `W-WIRE-0001`, com facts e spans esperados | oracle de design; não é output do checker de interface |
 | `wire-reference.c` + `wire-reference-c.test.mjs` | segunda implementação independente dos vetores e erros básicos | gate opcional; exige um GCC compatível |
