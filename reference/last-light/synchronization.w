@@ -1,5 +1,7 @@
 // Atomic publication and scoped locks at the Last Light restaurant.
 
+import atomic from std
+
 export enum SignState {
   dark
   announcing
@@ -48,6 +50,46 @@ export object EndOfUniverseSign {
   fn announcementCount(): u64 {
     return announcements.load<.relaxed>()
   }
+}
+
+export object HorizonTelemetryEpoch {
+  var atomic revision: u64 = 0
+
+  export init() {}
+
+  fn publishFirst(): () {
+    revision.store<.release>(1)
+  }
+
+  fn relay(): u64 {
+    return revision.fetchWrappingAdd<.relaxed>(1)
+  }
+
+  fn observe(): u64 {
+    return revision.load<.acquire>()
+  }
+
+  fn tryRelay(from expected: u64, to desired: u64): AtomicExchange<u64> {
+    return revision.weakCompareExchange<
+      success: .acquireRelease,
+      failure: .acquire,
+    >(
+      expected: expected,
+      desired: desired,
+    )
+  }
+
+  fn resetBeforePublication(): () {
+    revision.withExclusive((value: inout u64) => value = 0)
+  }
+}
+
+export unsafe fn releaseTelemetryFence(): () {
+  atomic.fence<.release>()
+}
+
+export unsafe fn acquireTelemetryFence(): () {
+  atomic.fence<.acquire>()
 }
 
 export struct ApologyLedgerState {
@@ -108,6 +150,14 @@ test "atomic enum transitions preserve the observed state" {
   expect sign.announcementCount() == 1
 }
 
+test "a relay updates the published telemetry epoch" {
+  let epoch = HorizonTelemetryEpoch()
+  epoch.resetBeforePublication()
+  epoch.publishFirst()
+  expect epoch.relay() == 1
+  expect epoch.observe() == 2
+}
+
 test "a scoped synchronous lock returns an owned snapshot" {
   let ledger = ThreadApologyLedger()
   expect ledger.record("We regret the scheduling inconvenience") == 1
@@ -120,6 +170,8 @@ test "a scoped synchronous lock returns an owned snapshot" {
 // Compile-fail assays:
 // state.load<.release>()                  // LoadOrder rejects release.
 // state.store<.acquire>(.closed)          // StoreOrder rejects acquire.
+// state.compareExchange<success: .release, failure: .acquire>(...)
 // announcements = announcements + 1      // Split load and store.
+// (ref state).withExclusive((value: inout SignState) => value = .dark)
 // state.withLock((value: inout State) => await suspend(value))
 // state.withLock((value: ref State) => ref value)

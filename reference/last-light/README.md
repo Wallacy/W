@@ -514,20 +514,28 @@ Aceite:
 - `value = value + 1` é rejeitado como load e store separados;
 - `Bool`, integers e enums sem payload podem usar storage atomic;
 - compare-exchange devolve `.exchanged` ou `.mismatch`;
+- success/failure seguem a matriz estática de `MemoryOrder`;
+- success de compare-exchange é RMW; failure é somente load;
+- uma RMW contígua continua a release sequence;
+- uma store posterior encerra a release sequence;
 - weak compare-exchange permite falha espúria somente quando o nome informa;
 - CAS não prova reclamation nem elimina ABA;
 - `Atomic<T>` não promete lock-freedom;
 - `lockFree: true` falha no build quando o target não oferece a garantia;
 - `ref atomicValue` obtém `ref Atomic<T>`, nunca `ref T`;
+- `withExclusive` exige `inout Atomic<T>` ou consumo;
+- release/acquire não concede borrow nem prolonga lifetime;
+- operações atômicas concorrentes usam endereço e extent idênticos;
+- `atomic.fence` exige reads-from atômica e rejeita `.relaxed`;
 - `Mutex.withLock` não deixa borrow ou guard escapar;
 - `AsyncMutex.withLock` suspende na aquisição, não dentro da closure;
 - cancellation durante a espera não executa a closure;
 - state de um closed turn não recebe atomic ou lock sem outra razão;
 - RCU e cache isolation continuam tipos ou contratos especializados.
 
-O oracle executa litmus tests de publication, store buffering e
-compare-exchange. Ele repete os testes com uma, duas e quatro threads. O profile
-também força o fallback não lock-free e executa TSan.
+E0 executa traces lógicos de publication, release sequence, fences e
+compare-exchange. O gate de runtime repetirá litmus tests com uma, duas e quatro
+threads. Esse gate também forçará o fallback não lock-free e executará TSan.
 
 Failure injection cobre cancellation antes e depois da aquisição async. O trace
 confirma que cada critical section libera o lock uma vez. Benchmarks separam

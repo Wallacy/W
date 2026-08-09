@@ -10395,6 +10395,23 @@ continuam mecanismos explícitos.
 
 #### 12.10.1 Data race e happens-before
 
+O modelo usa cinco relações distintas:
+
+| Relação | Escopo |
+|---|---|
+| sequenced-before | ordem semântica dentro de uma task ou thread |
+| reads-from | modificação atômica observada por uma leitura ou read-modify-write |
+| modification order | ordem total das modificações de uma localização atômica |
+| synchronizes-with | edge criado por uma operação de sincronização compatível |
+| happens-before | fechamento transitivo de sequenced-before e synchronizes-with |
+
+Cada localização atômica possui sua própria modification order. Operações
+`.sequential` também participam de uma ordem total no scope correspondente.
+Uma relação reads-from não cria synchronizes-with por si só.
+
+Toda leitura atômica observa uma modificação ou a inicialização. E0 omite o ID
+somente quando o witness usa a inicialização e não cria um edge entre tasks.
+
 Duas operações formam uma data race quando estas condições são verdadeiras:
 
 1. elas acessam bytes sobrepostos;
@@ -10403,9 +10420,11 @@ Duas operações formam uma data race quando estas condições são verdadeiras:
 4. nenhum edge de happens-before ordena as operações;
 5. o storage não usa uma operação atômica compatível.
 
-Um programa safe com data-race freedom observa sequential consistency para
-acessos comuns. Uma order atômica mais fraca reduz somente as garantias
-declaradas nessa operação. Race conditions de domínio ainda podem existir.
+Um programa safe sem orders atômicas fracas observa sequential consistency.
+Esse resultado inclui atomics `.sequential`, tasks, channels, services e locks.
+Uma order explícita mais fraca permite os resultados adicionais dessa order.
+Ela não permite uma data race comum. Race conditions de domínio ainda podem
+existir.
 
 ```w
 var served: u64 = 0
@@ -10425,7 +10444,15 @@ W cria edges de happens-before nestas operações:
 | commit de `Channel.close` | `receive` que observa `.none` |
 | envio de call por `ServiceRef` | início do turn que recebe o payload |
 | unlock | próxima aquisição do mesmo lock |
-| atomic release | atomic acquire que observa essa release |
+| atomic release ou sua release sequence | atomic acquire que observa essa sequence |
+
+Um edge ordena acessos. Ele não concede ownership, não cria um borrow e não
+estende lifetime. O checker de memória precisa aceitar a autoridade de acesso
+separadamente.
+
+**Exemplo:** uma acquire load pode observar que um payload foi publicado. Ela
+não mantém esse payload vivo. O owner precisa sobreviver ao reader ou transferir
+um owner por channel, service, join ou outro contrato.
 
 Mover um valor pelo channel não exige atomic dentro do valor. O sender perde
 ownership, e o receiver recebe o owner depois do edge.
@@ -10439,9 +10466,9 @@ let ownedOrder = await ordersIn.receive()
 Cancelamento não publica user state por si só. Um programa usa join, channel,
 service, lock ou atomic quando precisa publicar state.
 
-Uma data race dentro de `unsafe` viola o contrato de safety. O optimizer não
-preserva resultado para esse source. Um sanitizer profile deve detectar a race
-quando o target oferece suporte.
+Uma data race dentro de `unsafe` viola o contrato da boundary. O resultado não
+é definido. Um sanitizer profile deve detectar a race quando o target oferece
+suporte.
 
 W usa o modelo C++20 adotado pelo
 [guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) como base de
@@ -10455,8 +10482,8 @@ paralelo. Os resultados ficam visíveis ao parent somente depois do join. Pedir
 cancelamento de uma cozinha não publica seu estado parcial.
 
 [`tooling/execution-concurrency-cases.json`](tooling/execution-concurrency-cases.json)
-mantém 28 sequências ligadas a symbols do Última Luz. A
-[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 280 operações
+mantém 50 sequências ligadas a symbols do Última Luz. A
+[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 451 operações
 sobre:
 
 - lifecycle `reserved` até `joined`, com outcome posterior ao cleanup;
@@ -10465,18 +10492,26 @@ sobre:
 - arbitragem fail-fast por ordem lexical;
 - eventos sequenced-before e as oito origens happens-before desta seção;
 - races entre acessos ordinários sem path de publicação;
-- atomic release/acquire, relaxed e sequential com relação observada explícita.
+- modification order por localização e reads-from explícita;
+- ordem total `.sequential`, release sequences e fences;
+- subsets de order, matriz de compare-exchange e RMW;
+- extent atômico, view mista, payload exclusivo e lifetime.
 
-O runner aceita 17 sequências e rejeita 11. O snapshot guarda o estado final,
+O runner aceita 28 sequências e rejeita 22.
+[`Sete testes host`](tooling/execution-concurrency-reference.test.mjs)
+verificam as transições atômicas independentes do corpus. O snapshot guarda o estado final,
 os edges e um trace compacto de cada operação. Todo caso aponta para source do
 Última Luz. O gate exige cobertura 8/8 das origens happens-before. M1 continua
 como oracle separado para owner, place loan, pin, origins e boundary.
 
-E0 não é scheduler, checker ou runtime W. Ele recebe task, storage identity e
-relação atomic observada já resolvidos. Ele não prova liveness, fairness,
-preemption, oversubscription, task-frame allocation, partial projections,
-reentrância de service, memory scope de device, ABA ou execução distribuída.
-Esses itens permanecem gates antes do freeze de execução.
+E0 não é scheduler, checker ou runtime W. Ele recebe task, storage, extent,
+lifetime e reads-from já resolvidos. Ele valida um witness. Ele não executa
+valores nem enumera todas as execuções permitidas pelo modelo C++20.
+
+E0 também não prova liveness, fairness, preemption, oversubscription,
+task-frame allocation, partial projections, reentrância de service, device
+scope, reclamation, ABA ou execução distribuída. Esses itens permanecem gates
+separados antes do freeze de execução.
 
 #### 12.10.2 Storage `atomic`
 
@@ -10489,6 +10524,20 @@ let before = completed // load sequential
 completed = 1          // store sequential
 completed += 1         // read-modify-write sequential e checked
 ```
+
+O modifier muda somente as operações sobre o binding. Estas regras evitam uma
+segunda interpretação do mesmo token:
+
+| Forma | Operação |
+|---|---|
+| `let value = completed` | load do payload |
+| `completed = value` | store do payload |
+| `completed += value` | read-modify-write do payload |
+| `completed.load<...>()` | operação nomeada no wrapper |
+| `ref completed` | borrow de `Atomic<T>` |
+| `inout completed` | borrow exclusivo de `Atomic<T>` |
+| `take completed` | move de `Atomic<T>`; não faz load |
+| `copy completed` | erro; o wrapper não é `Duplicable` |
 
 `atomic` é um storage modifier contextual. Ele não é um property behavior.
 Somente `var` aceita esse modifier. `var atomic Lazy value` e outras composições
@@ -10517,6 +10566,13 @@ fn resetBeforePublication(counter: inout Atomic<u64>) {
 
 A closure não pode devolver `ref` ou `view` do payload. `(take counter).intoValue()`
 consome o wrapper e devolve o payload. `Atomic<T>` não é `Copy` nem `Duplicable`.
+
+`withExclusive` não executa uma operação atômica. Ele abre uma view comum do
+payload depois da prova de exclusividade. Nenhuma operação atômica pode ocorrer
+até a closure terminar. Um `ref Atomic<T>` não fornece essa prova.
+
+Mover ou destruir o wrapper exige a mesma exclusividade. Um edge de
+happens-before não mantém o wrapper nem outro payload vivo.
 
 O compiler possui um fato intrínseco `atomicValue`. Ele não é um protocol que
 user code pode implementar. A baseline aceita:
@@ -10582,9 +10638,56 @@ O uso de argumentos constantes segue o precedente das
 `consume` não entra no design vigente. Memory scopes de GPU e device também não entram no
 core. Eles pertencem aos contratos T2 de device.
 
-Fences soltas são **Provável T1** somente em `unsafe` e adapters de runtime. O
-programa comum deve preferir uma order na operação que publica ou consome o
-valor. Isso mantém o edge visível no source.
+Uma [release sequence no LLVM](https://llvm.org/docs/LangRef.html#cmpxchg-instruction)
+começa numa modificação release. Ela contém as
+read-modify-write contíguas que seguem essa modificação na modification order.
+Uma store posterior encerra a sequence. A store encerra a sequence mesmo
+quando usa `.relaxed`.
+
+```w
+epoch.store<.release>(1)
+epoch.fetchWrappingAdd<.relaxed>(1) // Continua a release sequence.
+let observed = epoch.load<.acquire>()
+```
+
+Se a load observa o resultado do `fetchWrappingAdd`, ela sincroniza com a store
+release. Uma compare-exchange bem-sucedida também é read-modify-write. Uma
+compare-exchange que falha é somente uma load e não entra na modification order.
+
+As [regras de fence do Rust](https://doc.rust-lang.org/std/sync/atomic/fn.fence.html)
+expõem os três pares que W precisa baixar. As fences básicas pertencem ao T0.
+A forma vigente usa o módulo `std.atomic`:
+
+```w
+import atomic from std
+
+unsafe {
+  atomic.fence<.release>()
+  ready.store<.relaxed>(true)
+}
+```
+
+`FenceOrder` aceita `.acquire`, `.release`, `.acquireRelease` e `.sequential`.
+Não existe fence `.relaxed`. Uma fence precisa de uma reads-from atômica para
+sincronizar duas threads. Duas fences sem essa operação não publicam memória.
+
+[`atomic.compilerFence<...>()`](https://doc.rust-lang.org/std/sync/atomic/fn.compiler_fence.html)
+também pertence ao T0. Ela serve a signal handlers, interrupts e runtimes no
+mesmo processador. Ela não emite uma hardware fence.
+Ela não sincroniza threads em processadores diferentes. O host precisa provar
+`sameProcessor`. Uma task que pode migrar entre workers não possui esse fato.
+
+As duas fences exigem `unsafe` porque o checker não deriva ownership ou
+lifetime da sequência. Código comum deve usar uma order na operação, um lock,
+um channel ou um tipo de snapshot. Essa regra mantém o edge visível no source.
+
+O scope default dos atomics e fences T0 é `.system`. Scopes `device`,
+`workgroup` e `subgroup` pertencem ao contrato T2 do kernel. Um lowering não
+pode trocar o scope sem prova do target.
+
+`.system` cobre os agentes que compartilham a localização no target. Ele não
+cruza process, component, service ou network boundary. Essas boundaries usam
+seus próprios protocolos de publicação.
 
 #### 12.10.4 Exchange, comparação e aritmética
 
@@ -10609,6 +10712,19 @@ let result = sign.compareExchange<
 A failure order aceita somente `LoadOrder`. Ela não pode ser mais forte que a
 success order. O compiler verifica a relação porque ambas são argumentos
 estáticos.
+
+Esta matriz fecha a relação parcial entre as orders:
+
+| Success | Failure permitidas |
+|---|---|
+| `.relaxed` | `.relaxed` |
+| `.acquire` | `.relaxed`, `.acquire` |
+| `.release` | `.relaxed` |
+| `.acquireRelease` | `.relaxed`, `.acquire` |
+| `.sequential` | `.relaxed`, `.acquire`, `.sequential` |
+
+Uma success `.release` não permite failure `.acquire`. A failure executa uma
+load, portanto não pode adquirir uma garantia ausente na success declarada.
 
 `weakCompareExchange` pode devolver `.mismatch(actual: expected)` sem uma
 mudança concorrente. Ele serve a loops que já repetem a operação.
@@ -10664,6 +10780,10 @@ let sequence = Atomic<u64, lockFree: true>(0)
 rejeita o build quando a garantia não existe. Signal handlers e outros contexts
 que não podem bloquear exigem esse contrato.
 
+Um fallback precisa preservar a mesma modification order e os mesmos edges.
+Operações `.sequential` nativas e em fallback participam da mesma ordem total.
+Um conjunto de locks independentes não satisfaz esse contrato sozinho.
+
 O layout de `Atomic<T>` é opaco. Ele não é ABI-compatible com `_Atomic(T)` de C.
 Uma fronteira C usa um wrapper gerado e a metadata de atomic width, alignment e
 lock-freedom.
@@ -10671,6 +10791,15 @@ lock-freedom.
 Atomicidade cobre a palavra inteira escolhida. O programa não pode acessar os
 mesmos bytes por uma view atômica e outra não atômica. Uma palavra maior também
 não herda lock-freedom das partes.
+
+Duas operações atômicas concorrentes precisam usar o mesmo endereço e o mesmo
+extent. Operações parcialmente sobrepostas são inválidas. Fields disjuntos do
+mesmo owner podem usar estratégias diferentes quando o layout prova que seus
+bytes não se sobrepõem.
+
+O lifetime da localização cobre todas as operações. Destruir um `Atomic<T>` ou
+o owner de um payload publicado exige que nenhuma operação futura possa usar
+esse storage. Release/acquire não substitui essa prova.
 
 #### 12.10.6 Locks síncronos e assíncronos
 
@@ -10742,9 +10871,12 @@ O compiler rejeita:
 - borrow comum do payload atômico;
 - order incompatível com a operação;
 - failure order mais forte que success;
+- fence `.relaxed` ou fence sem scope compatível;
 - `await` numa closure protegida;
 - retorno de borrow protegido;
-- acesso atômico e não atômico ao mesmo storage.
+- acesso atômico e não atômico aos mesmos bytes;
+- operações atômicas com extent parcialmente sobreposto;
+- operação durante `withExclusive` ou depois do fim do lifetime.
 
 `w explain synchronization` informa storage, order, happens-before edges,
 lock-freedom, fallback e suspension. TSan profiles verificam o programa depois
@@ -13481,7 +13613,7 @@ T0 contém:
 - protocols de igualdade, hash e iteração;
 - `Arguments<T>`, `reflect.TypeId` e reflection opt-in;
 - intrinsics de ownership e dos predicates `transferable`/`shareable`;
-- `Atomic<T>`, `MemoryOrder` e operações atômicas sem espera;
+- `Atomic<T>`, `MemoryOrder`, `FenceOrder` e operações atômicas sem espera;
 - operações puras de texto, collection e matemática básica;
 - intrinsics necessários para memória segura e compile time.
 
@@ -19820,6 +19952,11 @@ sharing:  one writer group, four worker threads
 warning:  measured cache-line contention at 16 workers
 ```
 
+Whole-program optimization pode remover uma operação atômica quando prova que
+a localização não escapa e não possui observador concorrente. A prova não cruza
+ABI, FFI, shared memory ou dynamic loading sem metadata equivalente. O
+explanation record informa essa transformação.
+
 Uma order mais fraca não elimina contenção na cache line. Um contador global
 pode escalar menos que counters locais combinados no join. O compiler não faz
 essa transformação sozinho, pois overflow e snapshots observáveis podem mudar.
@@ -25828,10 +25965,10 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O checker atual classifica 129/938 decisões:
-93 pelo eixo source, 51 pelo eixo oracle e cinco explicitamente; 20 decisões
+declara todos os eixos obrigatórios. O checker atual classifica 142/940 decisões:
+93 pelo eixo source, 63 pelo eixo oracle e seis explicitamente; 20 decisões
 possuem os dois primeiros eixos. Duas decisões já exigem formalmente ambos. As
-809 restantes continuam um worklist, não uma aprovação implícita.
+798 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -25875,11 +26012,11 @@ evidência de design:
 | std | SDK0 cataloga 161 exports em 14 módulos; todos possuem declaration draft-ready; nove requisitos e oito carriers têm profile; Blob e FormData continuam missing; sete providers intrinsics estão missing | decidir Blob/FormData, fechar signatures, errors, capabilities e complexity bounds, e validar a superfície com outro consumer além do Última Luz; providers ficam pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | layouts e candidates selecionados | fixar vectors, readers host independentes, limites e regras de versão sem depender de backend W |
-| memória e execução | M1 fixa 164 casos/579 operações, 70 aceitos e 94 rejeitados; erasure inline/spill possui oito casos próprios; E0 fixa 28 casos/280 operações e 8/8 origens happens-before | fechar allocator, atomics, liveness e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
+| memória e execução | M1 fixa 164 casos/579 operações; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before | fechar allocator físico, liveness, device scopes, reclamation e cleanup com modelos adversariais; HIR e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |
-| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1 ligam 51 decisões a oracle; o audit classifica 129/938 e já exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 809 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
+| documentação comparativa | R0 cobre 55/55 requisitos declarados e referencia 93 decisões; corpora F0/M1/E0 ligam 63 decisões a oracle; o audit classifica 142/940 e exige dois contratos multi-axis; R0S mede 124 formas; oito bundles R1 promovem 17/55 casos | classificar as 798 decisões restantes; declarar e satisfazer cada requisito multi-axis; promover e ratificar cada forma que ainda pode mudar source ou registrar waiver motivado pelo maintainer |
 
 Esses itens bloqueiam o freeze documental. Eles não autorizam produção do
 compiler ou runtime. Provas sobre componentes reais continuam nos gates da
@@ -26998,7 +27135,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-123 | resolução de domain | isolation/affinity vencem preference | contrato do caller substitui isolation |
 | W-124 | grupos dinâmicos | concurrent/parallel map bounded e ordering explícito | queue ilimitada; intent oculto |
 | W-125 | stream/channel | pull single-pass e MPSC bounded; detalhes em W-454–472 | generator unbounded; channel bidirecional universal |
-| W-126 | memory model | safe W data-race-free; edges fechados e DRF-SC salvo orders explícitas | race definida em safe code; somente “thread-safe” nominal |
+| W-126 | memory model | safe W é data-race-free e SC sem orders fracas; orders explícitas seguem outcomes C++20 fechados pela superfície W | race definida em safe code; somente “thread-safe” nominal; chamar toda execução race-free de SC |
 | W-127 | FFI concorrente | metadata conservadora e callback em executor conhecido | assumir non-blocking |
 | W-128 | async lowering | invariantes W antes de MLIR Async/LLVM coroutine | backend define semantics |
 | W-129 | lifecycle de instance | identity + generation; restart invalida state anterior | reuse de pointers/frames |
@@ -27312,20 +27449,20 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
 | W-438 | ponteiro textual | somente borrow scoped; persistência usa CString ou buffer pinned sem relocation; pin do descriptor não basta | pointer estável de String; NUL obrigatório; raw pointer safe |
 | W-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
-| W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; safe W rejeita | race com resultado definido; check somente em runtime |
-| W-441 | happens-before | task start/join, channel em W-467, service turn, unlock/lock e release/acquire | thread start/join somente; cancel publica user state |
+| W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; atomics concorrentes precisam de extent idêntico; safe W rejeita | race com resultado definido; check somente em runtime; atomic parcial sobreposto |
+| W-441 | happens-before | task start/join, channel em W-467, service turn, unlock/lock, release sequence e fence com reads-from atômica | thread start/join somente; cancel publica user state; duas fences sem atomic publicam |
 | W-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
 | W-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
-| W-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential` | argumento runtime; suffix por método; relaxed default |
-| W-445 | compare-exchange | result enum; success/failure estáticas e válidas; weak é explícita | Boolean; expected inout; combinação inválida em runtime |
+| W-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential`; sequential participa de ordem total do scope | argumento runtime; suffix por método; relaxed default |
+| W-445 | compare-exchange | result enum; success/failure usam matriz estática; success é RMW e failure é load; weak é explícita | Boolean; expected inout; combinação inválida em runtime; failure entra na modification order |
 | W-446 | aritmética atômica | policy checked normal; wrapping/saturating/fetch nomeados | wrap do hardware implícito; closure update com retries ocultos |
-| W-447 | borrow atômico | `ref` obtém Atomic; acesso ao payload somente com exclusividade ou consumo | `ref T` comum; misturar views atômicas e não atômicas |
+| W-447 | borrow atômico | `ref` obtém Atomic; payload comum abre somente por `inout`/consumo exclusivo; edge não concede authority nem lifetime | `ref T` comum; misturar views atômicas e não atômicas; release prolonga owner |
 | W-448 | lock-free | não é implícito; const `isLockFree` e contrato `lockFree: true` | garantir toda largura; runtime query sem target fixo |
-| W-449 | ABI atômica | layout W opaco; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal |
+| W-449 | ABI atômica | layout W opaco; operações concorrentes usam endereço + extent idênticos; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal; larguras parcialmente sobrepostas |
 | W-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
 | W-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
 | W-452 | RwLock e RCU | RwLock, condition, once, barrier, wait/notify e SnapshotCell são prováveis T1; safe RCU é rejeitado | policy automática por property; RCU default universal |
-| W-453 | contenção | explanation record mostra lowering, lock-free e waits; cache isolation é provável com target contract | prometer performance por `atomic`; padding universal |
+| W-453 | contenção | explanation record mostra lowering, lock-free, waits e de-atomicization provada; cache isolation é provável com target contract | prometer performance por `atomic`; padding universal; enfraquecer order sem prova |
 | W-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
 | W-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
 | W-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
@@ -27613,7 +27750,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-738 | volatile e MMIO | platform SDK cria `MmioRegister<T, access>` por capability; volatile não sincroniza e não é modifier geral | `var volatile`; integer cria pointer; MMIO safe sem host authority |
 | W-739 | linker placement | product/target variant liga symbol a section/address/retain com overlap e alignment verificados | annotation em source comum; import muda section; linker flag livre |
 | W-740 | assembly | `unsafe fn<Asm>` T2 declara target, operands, clobbers, memory, unwind e volatility; adapter gera provenance | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
-| W-741 | primitives de execução T1 | dynamic domain, topology types, advanced atomics, scoped synchronization e SnapshotCell possuem contracts distintos | um Channel muda topologia por mode; safe RCU geral; QoS na syntax de spawn |
+| W-741 | primitives de execução T1 | dynamic domain, topology types, wait/notify, advanced atomics, scoped synchronization e SnapshotCell possuem contracts distintos | um Channel muda topologia por mode; safe RCU geral; QoS na syntax de spawn; uma API universal para toda topologia |
 | W-742 | evolução de workflow | child workflows, fan-out e continue-as-new T2 usam IDs determinísticos; race durável e absolute core sleep ficam rejeitados | persistir async frame; wall clock implícito; compaction definida pelo usuário |
 | W-743 | metadata publicável | WMeta1 usa header/directory e chunks em CBOR determinístico; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
 | W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
@@ -27746,8 +27883,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-871 | forma do corpus M1 | casos ligam owner, overlap, reborrow, origins, escapes, await, pin, FFI, representation, ABI e join ao Última Luz; snapshot guarda traces byte-exact; W-917 e W-918 fixam a revisão corrente | exemplos isolados sem state; caso sem source; apenas success; resultado sem trace |
 | W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; modelam outcomes de allocation, shared/weak e region sem executar allocator, atomics, destructor graph, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; chamar outcome lógico de allocator real; apagar segundo oracle por duplicação aparente |
 | W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
-| W-874 | corpus E0 | 28 sequências e 280 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
-| W-875 | limite de E0 | oracle host recebe task, storage identity e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
+| W-874 | corpus E0 | 50 sequências e 451 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races, modification/seq-cst order, RMW, CAS, fences, extent, exclusividade, lifetime e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
+| W-875 | limite de E0 | oracle host recebe task, storage/extent, lifetime e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device scope, reclamation ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
 | W-876 | máquina de boundary effects B0 | service call, transaction e pipeline mantêm lifecycles separados; todos carregam effect identity e distinguem confirmação, falha conhecida e incerteza | um Boolean committed; cancel como rollback; transaction usada como pipeline; pipeline com rollback fictício |
 | W-877 | corpus B0 | 39 sequências e 320 operações ligadas ao Última Luz cobrem 17 transições críticas, closed/output gates, commit, abort, retry policy, DAG, drain e capabilities | somente happy path; unknown sem effect ID; retry com call ID novo e effect ID novo; node sem cleanup |
 | W-878 | limite de B0 | oracle host recebe admission e evidence resolvidos; não prova adapter, transport, queue, storage, codec, clock, deduplication, crash recovery ou distribuição | declarar exactly-once; chamar snapshot de fault injection real; inferir durabilidade de transição em memória |
@@ -27807,10 +27944,12 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
 | W-934 | fronteira do design freeze | contratos, alternativas, exemplos, modelos host, vetores e spikes descartáveis fecham design; formatter, checker, HIR, scheduler, runtime, providers e compiler de produção começam depois e podem reabrir uma decisão por evidência | exigir implementação ampla para definir a linguagem; chamar oracle de produto; congelar sem modelo adversarial; impedir revisão após evidência real |
-| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; 129/938 estão classificadas, duas exigem source + oracle e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
+| W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/E0/B0/P0 podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; 142/940 estão classificadas, duas exigem source + oracle e `--require-complete` permanece desligado até o gate | tratar 55 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
 | W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
 | W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 164 casos e 579 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
+| W-939 | publicação atômica executável | release sequence inclui RMW contígua e termina em store; CAS success modifica e failure somente lê; fence exige reads-from; atomic order não concede borrow ou lifetime; E0 fixa modification order, seq-cst order, extent e exclusividade | release/acquire prolonga owner; CAS failure modifica; store relaxed continua sequence; duas fences publicam sem atomic; misturar width ou view |
+| W-940 | fences atômicas | `std.atomic.fence` e `compilerFence` são T0, unsafe, estáticas e sem relaxed; default scope é system, compiler fence exige sameProcessor e scopes de device ficam T2 | fence T1 dependente do host; fence safe; argumento runtime; relaxed fence; compiler fence entre processadores |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

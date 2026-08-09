@@ -20,6 +20,13 @@
       "reason": "The separation of language semantics, lowering, representation, and host policy is an architectural boundary."
     },
     {
+      "decision": "W-741",
+      "category": "probable-with-fallback",
+      "reason": "Each advanced execution primitive needs its own bounded semantics and liveness evidence.",
+      "fallback": "Use static domains, bounded MPSC channels, basic atomics, scoped locks, and Mutex<shared T> snapshots.",
+      "gate": "Add a separate oracle for topology, cancellation, liveness, target support, and failure before promotion."
+    },
+    {
       "decision": "W-870",
       "category": "project-policy",
       "reason": "This decision defines the structure of the M1 design oracle, not a W source form."
