@@ -53,11 +53,11 @@ enum Fault: Error {
 
 alias RecoverableFault = Fault<[.delayed]>
 
-struct StagePath<const _ stages: StaticList<Stage>> {
+struct StagePath<_ stages: StaticList<Stage>> {
   id: usize
 }
 
-struct Tile<const rows: usize, const columns: usize> {
+struct Tile<rows: usize, columns: usize> {
   pixels: [u8; rows * columns]
 }
 
@@ -111,9 +111,9 @@ fn reserve(): WorkStage throws RecoverableFault {
     (protocol_body))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
     (type_body
       (field_declaration
         (identifier)
@@ -126,9 +126,9 @@ fn reserve(): WorkStage throws RecoverableFault {
                 (type_name
                   (type_identifier)))))))))
   (extension_declaration
-    (type_parameters
-      (type_parameter
-        (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
         (type
           (type_name
             (type_identifier))
@@ -201,9 +201,9 @@ fn reserve(): WorkStage throws RecoverableFault {
                 (identifier))))))))
   (enum_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
     (enum_body
       (enum_case
         (identifier)
@@ -221,9 +221,9 @@ fn reserve(): WorkStage throws RecoverableFault {
         (identifier))))
   (alias_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
     (type
       (type_name
         (type_identifier))
@@ -243,9 +243,9 @@ fn reserve(): WorkStage throws RecoverableFault {
                 (identifier))))))))
   (alias_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)))
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
     (type
       (type_name
         (type_identifier))
@@ -287,8 +287,8 @@ fn reserve(): WorkStage throws RecoverableFault {
                 (identifier))))))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -306,13 +306,13 @@ fn reserve(): WorkStage throws RecoverableFault {
             (type_identifier))))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name
             (type_identifier))))
-      (type_parameter
+      (generic_parameter
         (identifier)
         (type
           (type_name
@@ -330,16 +330,16 @@ fn reserve(): WorkStage throws RecoverableFault {
               (identifier)))))))
   (function_declaration
     (identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
         (type
           (type_name
             (type_identifier))
           (type_name
             (type_identifier))))
-      (type_parameter
-        (type_identifier)
+      (generic_parameter
+        (identifier)
         (type
           (type_name
             (type_identifier))
@@ -391,6 +391,70 @@ fn reserve(): WorkStage throws RecoverableFault {
           (identifier))))))
 
 ==================
+Generic envelope rejects declaration modifiers
+==================
+
+struct Legacy<const rows: usize> {}
+struct Local<let rows: usize> {}
+struct Mutable<var rows: usize> {}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
+        (ERROR
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body))
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (ERROR
+        (identifier))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body))
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (ERROR
+        (identifier))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body)))
+
+==================
+Generic domain remains unresolved for semantic checking
+==================
+
+struct Unknown<rows: UnknownName> {}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body)))
+
+==================
 Comma does not compose conformances
 ==================
 
@@ -440,7 +504,7 @@ enum Mode {
   ready
 }
 
-struct Session<const _ state: Mode> {
+struct Session<_ state: Mode> {
   id: u16
 }
 
@@ -466,8 +530,8 @@ extension Session<.idle> {
         (identifier))))
   (struct_declaration
     (type_identifier)
-    (type_parameters
-      (type_parameter
+    (generic_parameters
+      (generic_parameter
         (identifier)
         (type
           (type_name

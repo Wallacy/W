@@ -2,9 +2,9 @@ import { createHash } from "node:crypto"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { resolve } from "node:path"
+import { ledgerIdSet } from "./design-ledger.mjs"
 
 const root = resolve(import.meta.dir, "..")
-const design = await Bun.file(resolve(root, "DESIGN.md")).text()
 const corpus = await Bun.file(resolve(import.meta.dir, "formatter-cases.json")).json()
 const catalog = await Bun.file(resolve(import.meta.dir, "diagnostic-catalog.json")).json()
 const snapshotPath = resolve(import.meta.dir, "formatter-diagnostics.snapshot.jsonl")
@@ -102,7 +102,7 @@ for (const [index, testCase] of corpus.cases.entries()) {
     fail(`${testCase.id} has no decision links`)
   }
   for (const decision of testCase.decisions) {
-    if (!/^W-[0-9]{3,}$/.test(decision) || !design.includes(`| ${decision} |`)) {
+    if (!/^W-[0-9]{3,}$/.test(decision) || !ledgerIdSet.has(decision)) {
       fail(`${testCase.id} references unknown decision ${decision}`)
     }
   }

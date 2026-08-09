@@ -16,7 +16,7 @@ export struct Shelf<T> {
   values: Array<T>
 }
 
-export struct StaticValue<T, const _ value: T> {
+export struct StaticValue<T, _ value: T> {
   export const expected = value
 }
 

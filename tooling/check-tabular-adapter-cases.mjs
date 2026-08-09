@@ -8,6 +8,7 @@ import {
   validateTabularAdapterOperation,
   lastLightSymbols,
 } from "./tabular-adapter-machine.mjs";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(toolingDirectory, "..");
@@ -15,7 +16,6 @@ const casesPath = path.join(toolingDirectory, "tabular-adapter-cases.json");
 const snapshotPath = path.join(toolingDirectory, "tabular-adapter-results.snapshot.jsonl");
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
 const vectors = JSON.parse(fs.readFileSync(path.join(toolingDirectory, "tabular-adapter-byte-vectors.json"), "utf8"));
-const design = fs.readFileSync(path.join(rootDirectory, "DESIGN.md"), "utf8");
 const lastLight = fs.readFileSync(path.join(rootDirectory, "reference/last-light/data_formats.w"), "utf8");
 const errors = [];
 
@@ -38,12 +38,9 @@ for (const vector of vectors.vectors ?? []) {
 if (!(vectors.vectors ?? []).some((vector) => vector.valid === false)) errors.push("byte vectors need a negative boundary");
 if (!(vectors.vectors ?? []).some((vector) => vector.valid === true)) errors.push("byte vectors need a positive canonical boundary");
 
-const decisionIds = new Set(
-  [...design.matchAll(/^\| (W-\d{4,}) \|/gm)].map((match) => match[1]),
-);
 for (let number = 1006; number <= 1045; number += 1) {
   const id = `W-${number}`;
-  if (!decisionIds.has(id)) errors.push(`missing reserved decision ${id}`);
+  if (!ledgerIdSet.has(id)) errors.push(`missing reserved decision ${id}`);
   if (!corpus.decisionIds?.includes(id)) errors.push(`cases do not cover ${id}`);
 }
 
@@ -94,7 +91,7 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
     errors.push(`${testCase.id}: expected ${testCase.expected.code}, got ${actual.code ?? "none"}`);
   }
   for (const decision of testCase.decisions ?? []) {
-    if (!decisionIds.has(decision)) errors.push(`${testCase.id}: unknown decision ${decision}`);
+    if (!ledgerIdSet.has(decision)) errors.push(`${testCase.id}: unknown decision ${decision}`);
   }
   results.push({
     id: testCase.id,

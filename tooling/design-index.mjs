@@ -1,13 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ledgerIds } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
 const designPath = path.join(wDirectory, "DESIGN.md");
+const rationalePath = path.join(wDirectory, "RATIONALE.md");
 const indexPath = path.join(wDirectory, "DESIGN-INDEX.md");
 const designText = fs.readFileSync(designPath, "utf8");
 const lines = designText.split(/\r?\n/);
+const rationaleText = fs.readFileSync(rationalePath, "utf8");
+const rationaleLines = rationaleText.split(/\r?\n/);
 
 function recursiveFiles(directory, predicate) {
   const result = [];
@@ -33,6 +37,20 @@ function tableCell(value) {
   return value.replaceAll("|", "\\|");
 }
 
+function topLevelSections(sourceLines) {
+  const sections = [];
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    const match = /^## (\d+)\. (.+)$/.exec(sourceLines[index]);
+    if (match) sections.push({ number: Number(match[1]), title: match[2], start: index + 1 });
+  }
+  for (let index = 0; index < sections.length; index += 1) {
+    const section = sections[index];
+    section.end = sections[index + 1]?.start - 1 || sourceLines.length;
+    section.tokens = approximateTokens(sourceLines.slice(section.start - 1, section.end).join("\n"));
+  }
+  return sections;
+}
+
 const numberedSections = [];
 
 for (let index = 0; index < lines.length; index += 1) {
@@ -52,6 +70,8 @@ for (let index = 0; index < numberedSections.length; index += 1) {
   section.end = numberedSections[index + 1]?.start - 1 || lines.length;
   section.tokens = approximateTokens(lines.slice(section.start - 1, section.end).join("\n"));
 }
+
+const rationaleSections = topLevelSections(rationaleLines);
 
 const readingBundles = [
   {
@@ -76,8 +96,8 @@ const readingBundles = [
   },
   {
     name: "validação e decisões",
-    sections: [24, 25, 26, 27, 28, 29],
-    purpose: "viabilidade, Última Luz, gates, roadmap e ledger",
+    sections: [24, 25, 26],
+    purpose: "viabilidade, Última Luz, gates e roadmap",
   },
 ];
 
@@ -137,15 +157,7 @@ for (let index = 0; index < headings.length; index += 1) {
   }
 }
 
-const decisions = [];
-
-for (const line of lines) {
-  const match = /^\| W-(\d{3,}) \|/.exec(line);
-
-  if (match) {
-    decisions.push(Number(match[1]));
-  }
-}
+const decisions = ledgerIds.map((id) => Number(id.slice(2)));
 
 const structuralErrors = [];
 
@@ -207,13 +219,13 @@ for (const row of viabilityRows) {
   );
 }
 
-const reviewStart = lines.findIndex((line) => line === "O corpus compara, no mínimo:");
-const reviewCoverageStart = lines.findIndex(
-  (line) => line === "### 26.1 Cobertura de substituições",
+const reviewStart = rationaleLines.findIndex((line) => line === "O corpus compara, no mínimo:");
+const reviewCoverageStart = rationaleLines.findIndex(
+  (line) => line === "### 1.1 Cobertura de substituições",
 );
 
 if (reviewStart < 0 || reviewCoverageStart <= reviewStart) {
-  structuralErrors.push("The section 26 comparison list and coverage heading are required.");
+  structuralErrors.push("RATIONALE.md section 1 comparison list and coverage heading are required.");
 }
 
 const malformedDiagnosticCodes = [
@@ -230,7 +242,7 @@ if (structuralErrors.length > 0) {
   process.exit(1);
 }
 
-const comparisonCount = lines
+const comparisonCount = rationaleLines
   .slice(reviewStart + 1, reviewCoverageStart)
   .filter((line) => line.startsWith("- ")).length;
 const substitutionCorpus = JSON.parse(
@@ -631,15 +643,16 @@ const output = [];
 output.push("# Índice gerado do design W");
 output.push("");
 output.push("> Gerado por `tooling/design-index.mjs`. Não edite este arquivo.");
-output.push("> `DESIGN.md` continua sendo a única fonte de verdade.");
+output.push("> `DESIGN.md` continua sendo a única fonte normativa. `RATIONALE.md` é complementar e não normativo.");
 output.push("");
 output.push("## Contexto mínimo");
 output.push("");
 output.push("1. Leia este índice para localizar a seção necessária.");
 output.push("2. Leia somente o intervalo correspondente em `DESIGN.md`.");
-output.push("3. Busque o ID W quando a tarefa alterar uma decisão.");
-output.push("4. Abra o produto Última Luz somente para o exemplo afetado.");
-output.push("5. Não leia `tooling/tree-sitter-w/src/` como source. Essa pasta é gerada.");
+output.push("3. Use `RATIONALE.md` somente para IDs, evidência, alternativas e proveniência.");
+output.push("4. Busque o ID W quando a tarefa alterar uma decisão.");
+output.push("5. Abra o produto Última Luz somente para o exemplo afetado.");
+output.push("6. Não leia `tooling/tree-sitter-w/src/` como source. Essa pasta é gerada.");
 output.push("");
 output.push("## Snapshot calculado");
 output.push("");
@@ -647,6 +660,8 @@ output.push("| Métrica | Valor |");
 output.push("|---|---:|");
 output.push(`| linhas de \`DESIGN.md\` | ${lines.length} |`);
 output.push(`| tokens aproximados de \`DESIGN.md\` | ${approximateTokens(designText)} |`);
+output.push(`| linhas de \`RATIONALE.md\` | ${rationaleLines.length} |`);
+output.push(`| tokens aproximados de \`RATIONALE.md\` | ${approximateTokens(rationaleText)} |`);
 output.push(`| seções numeradas | ${numberedSections.length} |`);
 output.push(`| seções terminais com evidência local | ${evidencedLeafCount}/${leafCount} |`);
 output.push(
@@ -806,6 +821,17 @@ for (const section of numberedSections) {
 }
 
 output.push("");
+output.push("## Navegação compacta de RATIONALE");
+output.push("");
+output.push("| Seção | Linhas | Tokens aproximados | Tema |");
+output.push("|---:|---:|---:|---|");
+for (const section of rationaleSections) {
+  output.push(
+    `| ${section.number} | ${section.start}–${section.end} | ${section.tokens} | ${tableCell(section.title)} |`,
+  );
+}
+
+output.push("");
 output.push("## Bundles de leitura");
 output.push("");
 output.push(
@@ -855,6 +881,7 @@ output.push("```powershell");
 output.push("bun tooling/design-slice.mjs --section 12");
 output.push("bun tooling/design-slice.mjs --heading 12.13");
 output.push("bun tooling/design-slice.mjs --id W-711 --context 2");
+output.push("bun tooling/design-slice.mjs --rationale-heading 1.3");
 output.push("rg -n -C 4 'transaction' DESIGN.md");
 output.push("bun tooling/design-index.mjs --check");
 output.push("```");

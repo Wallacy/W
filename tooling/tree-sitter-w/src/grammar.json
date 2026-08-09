@@ -996,7 +996,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -1405,7 +1405,7 @@
       "type": "STRING",
       "value": "..."
     },
-    "type_parameters": {
+    "generic_parameters": {
       "type": "SEQ",
       "members": [
         {
@@ -1420,7 +1420,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameter"
+              "name": "generic_parameter"
             },
             {
               "type": "REPEAT",
@@ -1433,7 +1433,7 @@
                   },
                   {
                     "type": "SYMBOL",
-                    "name": "type_parameter"
+                    "name": "generic_parameter"
                   }
                 ]
               }
@@ -1458,31 +1458,19 @@
         }
       ]
     },
-    "type_parameter": {
+    "generic_parameter": {
       "type": "CHOICE",
       "members": [
         {
           "type": "SEQ",
           "members": [
             {
-              "type": "STRING",
-              "value": "const"
-            },
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "FIELD",
-                  "name": "external_label",
-                  "content": {
-                    "type": "STRING",
-                    "value": "_"
-                  }
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
+              "type": "FIELD",
+              "name": "primary_marker",
+              "content": {
+                "type": "STRING",
+                "value": "_"
+              }
             },
             {
               "type": "FIELD",
@@ -1498,7 +1486,7 @@
             },
             {
               "type": "FIELD",
-              "name": "value_type",
+              "name": "domain",
               "content": {
                 "type": "SYMBOL",
                 "name": "type"
@@ -1514,7 +1502,7 @@
               "name": "name",
               "content": {
                 "type": "SYMBOL",
-                "name": "_type_identifier"
+                "name": "identifier"
               }
             },
             {
@@ -1529,7 +1517,7 @@
                     },
                     {
                       "type": "FIELD",
-                      "name": "constraint",
+                      "name": "domain",
                       "content": {
                         "type": "SYMBOL",
                         "name": "type"
@@ -1578,7 +1566,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -1635,7 +1623,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -1806,7 +1794,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -2868,7 +2856,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -2933,7 +2921,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -3099,7 +3087,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"
@@ -3164,7 +3152,7 @@
           "members": [
             {
               "type": "SYMBOL",
-              "name": "type_parameters"
+              "name": "generic_parameters"
             },
             {
               "type": "BLANK"

@@ -37,6 +37,7 @@ código que ainda não possui contrato válido.
 |---|---|
 | editorial | links locais, escrita controlada e `git diff --check` |
 | `DESIGN.md` | exemplo por seção, índice regenerado e `check:docs` |
+| `RATIONALE.md` | links locais, ledger/evidence checks e índice regenerado |
 | grammar ou source `.w` | corpus, parse dos produtos e check integrado |
 | tooling ou oracle | teste positivo, falha preparada e check integrado |
 | CI ou dependência | versão imutável, menor permissão e execução verde |
@@ -63,7 +64,8 @@ Quando o resultado puder mudar source, ABI ou runtime, exija um spike.
 
 ## Artefatos derivados
 
-- `DESIGN-INDEX.md` sai de `tooling/design-index.mjs`.
+- `DESIGN-INDEX.md` sai de `tooling/design-index.mjs` e separa métricas e
+  navegação de `DESIGN.md` e `RATIONALE.md`.
 - `tooling/tree-sitter-w/src/` sai de `tree-sitter generate`.
 - O portal permanece congelado até o design freeze.
 - `history/` recebe provenance, não correções da decisão vigente.

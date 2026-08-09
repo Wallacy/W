@@ -1,10 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  ledgerIds,
+  ledgerIdSet,
+  ledgerRows,
+  ledgerThemeById,
+} from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
-const designText = fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8");
 const audit = JSON.parse(
   fs.readFileSync(path.join(toolingDirectory, "design-freeze-audit.json"), "utf8"),
 );
@@ -50,13 +55,6 @@ function requireString(value, location) {
   }
   return true;
 }
-
-const ledgerRows = [...designText.matchAll(/^\| (W-\d{3,}) \| ([^|]+) \|/gm)].map(
-  (match) => ({ id: match[1], theme: match[2].trim() }),
-);
-const ledgerIds = ledgerRows.map((row) => row.id);
-const ledgerIdSet = new Set(ledgerIds);
-const ledgerThemeById = new Map(ledgerRows.map((row) => [row.id, row.theme]));
 
 for (const [index, decision] of ledgerIds.entries()) {
   const expected = `W-${String(index + 1).padStart(3, "0")}`;

@@ -6,7 +6,7 @@
 import tensor from std
 import dlpack from std
 
-export type ScientificBatch<const samples: usize> =
+export type ScientificBatch<samples: usize> =
   Tensor<f32, shape: [samples, 6]>
 
 export struct BlackHoleSensor {
@@ -33,7 +33,7 @@ export struct InteropLimits {
   tensor: tensor.Limits
 }
 
-export async fn importScientific<const samples: usize>(
+export async fn importScientific<samples: usize>(
   take managed: dlpack.ManagedTensor,
   on queue: ref tensor.Queue,
   limits: ref dlpack.Limits,
@@ -65,7 +65,7 @@ export fn sameProviderIdentity(
   return leftProvider == rightProvider && leftId == rightId
 }
 
-export mut async fn scoreView<const samples: usize>(
+export mut async fn scoreView<samples: usize>(
   view: view Tensor<f32, shape: [samples, 6]>,
   sensor: ref BlackHoleSensor,
 ): Scores throws ScoreError {
@@ -73,7 +73,7 @@ export mut async fn scoreView<const samples: usize>(
   return scoreSamples(sensor: ref sensor, samples: samples)
 }
 
-export mut async fn scoreScientific<const samples: usize>(
+export mut async fn scoreScientific<samples: usize>(
   imported: inout dlpack.ImportedTensor<f32, shape: [samples, 6]>,
   sensor: ref BlackHoleSensor,
 ): Scores throws dlpack.ViewError<ScoreError> {
@@ -82,7 +82,7 @@ export mut async fn scoreScientific<const samples: usize>(
   )
 }
 
-export async fn materializeToHost<const samples: usize>(
+export async fn materializeToHost<samples: usize>(
   take managed: dlpack.ManagedTensor,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
@@ -96,7 +96,7 @@ export async fn materializeToHost<const samples: usize>(
   )
 }
 
-export async fn exportScores<const samples: usize>(
+export async fn exportScores<samples: usize>(
   take scores: Tensor<f32, shape: [samples, 6]>,
   on queue: ref tensor.Queue?,
   limits: ref dlpack.Limits,
@@ -108,7 +108,7 @@ export async fn exportScores<const samples: usize>(
   )
 }
 
-export async fn scientificRoute<const samples: usize>(
+export async fn scientificRoute<samples: usize>(
   take managed: dlpack.ManagedTensor,
   device: ref tensor.Device,
   queue: ref tensor.Queue,

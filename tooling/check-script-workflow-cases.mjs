@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ledgerIdSet } from "./design-ledger.mjs";
 import {
   runScriptWorkflowProgram,
   validateScriptWorkflowOperation,
@@ -11,7 +12,6 @@ const wDirectory = path.resolve(toolingDirectory, "..");
 const casesPath = path.join(toolingDirectory, "script-workflow-cases.json");
 const snapshotPath = path.join(toolingDirectory, "script-workflow-results.snapshot.jsonl");
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
-const designText = fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8");
 const errors = [];
 const caseIds = new Set();
 const coveredOperations = new Set();
@@ -116,7 +116,7 @@ if (!Array.isArray(corpus.decisions) || corpus.decisions.length === 0) {
   errors.push("script workflow corpus must declare ledger IDs");
 } else {
   for (const decision of corpus.decisions) {
-    if (!/^W-10(4[6-9]|[5-6][0-9]|7[0-5])$/.test(decision) || !designText.includes(`| ${decision} |`)) {
+    if (!/^W-10(4[6-9]|[5-6][0-9]|7[0-5])$/.test(decision) || !ledgerIdSet.has(decision)) {
       errors.push(`unknown PYN1 ledger decision ${decision}`);
     }
   }

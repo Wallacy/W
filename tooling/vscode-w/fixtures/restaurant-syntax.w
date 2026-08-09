@@ -17,7 +17,7 @@ export type GuestCount = u16<(1...4096)>
 export type ShortMessage = String<(.graphemes.count <= 120)>
 
 struct StagePath<
-  const _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+  _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
 > {
   orderId: OrderId
 }
@@ -47,7 +47,7 @@ enum OvenSessionState {
   ready
 }
 
-struct OvenSession<const _ state: OvenSessionState> {
+struct OvenSession<_ state: OvenSessionState> {
   id: u16
 }
 

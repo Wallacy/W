@@ -752,6 +752,22 @@
       "meaning": "an equality, relation, or range expression attempts to chain"
     },
     {
+      "code": "W-GENERIC-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a generic parameter domain does not resolve to a protocol constraint or const-representable type",
+      "requiredFacts": {
+        "domain": "string",
+        "parameter": "string",
+        "resolutionReason": "string"
+      },
+      "labelRoles": {
+        "generic-parameter": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-GENERIC-0002",
       "state": "active",
       "phase": "semantic.type",

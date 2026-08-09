@@ -12,7 +12,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "StagePath<",
-    "digest": "sha256:afc998c9481040659387602c13b7a53b630b0f6f193981cc6c2cf6d2bea45305"
+    "digest": "sha256:d870d4ca6242097a8122da1afef4c6bc28dddeed1fd1b2b1b0f4fd9f414221e3"
   },
   "variants": [
     {
@@ -20,7 +20,7 @@
       "role": "selected",
       "language": "w",
       "path": "sequential.w",
-      "digest": "sha256:a90d56bc1b642c3d6f0f05fc5ec8c49bd81ac82b908bc4e8706694977c29deb3",
+      "digest": "sha256:a56a1655dccb6b5450a7e35ec0a147527a3fe2deabe5fa88d8e168f704e1daf7",
       "changedConstructs": [
         "element type in the primary contract envelope",
         "complete-list refinement in a second contract envelope"
@@ -31,7 +31,7 @@
       "role": "alternative",
       "language": "w-rejected",
       "path": "fused.w",
-      "digest": "sha256:de908271da5f81c8cf5469ac3dc9935d29df976efa6def44450a05e454f231ee",
+      "digest": "sha256:d6ac74947b48fa614782cca2edaa4a77ba00f6244159b68b47c472cfdce4fb7f",
       "changedConstructs": [
         "element type and predicate fused into one static-list payload",
         "ambiguous refinement subject inside the primary contract envelope"

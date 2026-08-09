@@ -1,6 +1,6 @@
 // R1 Last Light tensor-broadcast study variant.
 
-fn centerSamples<const samples: usize>(
+fn centerSamples<samples: usize>(
   calibrated: ref Tensor<f32, shape: [samples, 6]>,
   means: ref Tensor<f32, shape: [6]>,
 ): Tensor<f32, shape: [samples, 6]> {

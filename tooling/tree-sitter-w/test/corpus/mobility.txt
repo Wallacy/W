@@ -21,9 +21,9 @@ async fn consumeElsewhere<T: Consumable>(
 (source_file
   (function_declaration
     (identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
         (type
           (type_name
             (type_identifier)))))
@@ -58,9 +58,9 @@ async fn consumeElsewhere<T: Consumable>(
           (identifier)))))
   (function_declaration
     (identifier)
-    (type_parameters
-      (type_parameter
-        (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
         (type
           (type_name
             (type_identifier)))))

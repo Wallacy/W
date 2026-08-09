@@ -5,8 +5,10 @@
 > existem.
 
 Este diretório antecipa a experiência de escrever W sem transformar cores em
-semântica. A autoridade continua em [DESIGN.md](../DESIGN.md); nenhum
-highlighter aceita ou rejeita um programa em nome da linguagem.
+semântica. A autoridade normativa continua em [DESIGN.md](../DESIGN.md).
+[RATIONALE.md](../RATIONALE.md) fornece evidência e ledger sem definir
+comportamento; nenhum highlighter aceita ou rejeita um programa em nome da
+linguagem.
 
 ## Duas camadas, uma só gramática sintática
 
@@ -17,12 +19,13 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | Corpus Tree-sitter | positivos e snapshots de CST em `tree-sitter-w/test/corpus/` | execução W ainda não existe |
 | `check-design-examples.mjs` | confirma exemplo local em cada seção normativa terminal | inspeção estrutural; não valida a semântica do exemplo |
 | `check-markdown-links.mjs` | valida targets e anchors locais fora do histórico | não consulta links externos |
-| `design-index.mjs` | gera intervalos e métricas de `DESIGN.md` | projeção navegável; não define decisões |
-| `design-slice.mjs` | recorta seção, heading ou decisão com contexto | leitura somente; não cria autoridade paralela |
+| `design-index.mjs` | gera intervalos e métricas separadas de `DESIGN.md` e `RATIONALE.md` | projeção navegável; não define decisões |
+| `design-ledger.mjs` | lê, valida e exporta as linhas ordenadas do ledger em `RATIONALE.md` para os checkers | helper de uma fonte; não define contratos |
+| `design-slice.mjs` | recorta seção/heading de DESIGN ou heading/ledger de RATIONALE com contexto | leitura somente; não cria autoridade paralela |
 | `formatter-cases.json` + checker | pares input/output CST-equivalentes e snapshots de `w fmt --check` | oracle de design; formatter ainda não existe |
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
-| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 68 requisitos da seção 26 | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 355/1154 decisões estão classificadas (120 source, 268 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 41 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 68 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 355/1155 decisões estão classificadas (120 source, 268 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 41 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 165 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 20 bundles R1, 48 variantes e 80 tarefas; 31/68 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
@@ -264,7 +267,8 @@ integrações de editor.
 5. Para atualizar o índice, execute
    `bun tooling/design-index.mjs --write` na pasta `W`.
 6. Para ler somente um recorte do design, execute
-   `bun tooling/design-slice.mjs --heading 12.13` ou `--id W-711`.
+   `bun tooling/design-slice.mjs --heading 12.13`,
+   `--rationale-heading 1.1` ou `--id W-711`.
 7. Para validar documentação, links e índice, execute `bun run check:docs` no
    root do repositório.
 8. Para validar o recorte E1 sem executar runtime, execute `bun run check:liveness`

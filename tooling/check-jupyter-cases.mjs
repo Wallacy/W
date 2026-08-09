@@ -2,14 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { compactJupyterState, jupyterDigest, runJupyterProgram } from "./jupyter-machine.mjs";
+import { ledgerIdSet } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const rootDirectory = path.resolve(toolingDirectory, "..");
 const corpusPath = path.join(toolingDirectory, "jupyter-cases.json");
 const snapshotPath = path.join(toolingDirectory, "jupyter-results.snapshot.jsonl");
-const designPath = path.join(rootDirectory, "DESIGN.md");
 const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
-const design = fs.readFileSync(designPath, "utf8");
 const errors = [];
 const results = [];
 const covered = new Map();
@@ -75,7 +74,7 @@ if (corpus.status !== "design-oracle-input") errors.push("Jupyter corpus must be
 if (corpus.machine !== "jupyter-machine-pyn3") errors.push("Jupyter corpus machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
   if (!/^W-11(?:1[2-9]|23)$/.test(decision)) errors.push(`unexpected Jupyter decision ${decision}.`);
-  if (!design.includes(decision)) errors.push(`Jupyter decision ${decision} is absent from DESIGN.md.`);
+  if (!ledgerIdSet.has(decision)) errors.push(`Jupyter decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }
 for (const [index, reference] of (corpus.references ?? []).entries()) checkReference(reference, `references[${index}]`);

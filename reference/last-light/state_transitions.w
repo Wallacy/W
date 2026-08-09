@@ -19,7 +19,7 @@ export enum OvenSessionFault: Error {
   sensorUnavailable
 }
 
-export struct OvenSession<const _ state: OvenSessionState> {
+export struct OvenSession<_ state: OvenSessionState> {
   id: OvenId
 
   init(id: OvenId) {

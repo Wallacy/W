@@ -5,17 +5,13 @@ import {
   runRuntimeLivenessProgram,
   validateRuntimeLivenessOperation,
 } from "./runtime-liveness-machine.mjs";
+import { ledgerIdSet as designDecisionIds } from "./design-ledger.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
 const casesPath = path.join(toolingDirectory, "runtime-liveness-cases.json");
 const snapshotPath = path.join(toolingDirectory, "runtime-liveness-results.snapshot.jsonl");
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"));
-const designDecisionIds = new Set(
-  [...fs.readFileSync(path.join(wDirectory, "DESIGN.md"), "utf8").matchAll(/^\| (W-\d{3,}) \|/gm)].map(
-    (match) => match[1],
-  ),
-);
 const errors = [];
 const caseIds = new Set();
 const results = [];
