@@ -1,0 +1,5743 @@
+{
+  "$schema": "w-script-workflow-cases-1",
+  "status": "design-oracle-input",
+  "machine": "script-workflow-machine-pyn1",
+  "decisions": [
+    "W-1046",
+    "W-1047",
+    "W-1048",
+    "W-1049",
+    "W-1050",
+    "W-1051",
+    "W-1052",
+    "W-1053",
+    "W-1054",
+    "W-1055",
+    "W-1056",
+    "W-1057",
+    "W-1058",
+    "W-1059",
+    "W-1060",
+    "W-1061",
+    "W-1062",
+    "W-1063",
+    "W-1064",
+    "W-1065",
+    "W-1066",
+    "W-1067",
+    "W-1068",
+    "W-1069",
+    "W-1070",
+    "W-1071",
+    "W-1072",
+    "W-1073",
+    "W-1074",
+    "W-1075"
+  ],
+  "fixtures": {
+    "no-header-root": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/hello.w",
+          "sourceText": "fn hello() {}",
+          "header": null,
+          "entry": "default",
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:568727844ed0d0981cbc43b8d30833669b0d2b5a182df57abd45ac1429ee97fb",
+            "headerFacts": null,
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": false
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        }
+      ]
+    },
+    "no-header-built": {
+      "includes": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ]
+    },
+    "package-root": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "packages/demo/src/main.w",
+          "sourceText": "fn main() {}",
+          "header": null,
+          "entry": "default",
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:0ef8bba75e1b9e0f03e4bbcb72aa947ba02f90f67dfb11fa0a26d5e5675be02f",
+            "headerFacts": null,
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": false
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": true,
+          "packageRoot": "packages/demo"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        }
+      ]
+    },
+    "header-ready": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "transitive-ready": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:fb9cc75c22e55c43fc014ef041d1b769b14ea730a7523db11a17ab73af97a0f5",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:fb9cc75c22e55c43fc014ef041d1b769b14ea730a7523db11a17ab73af97a0f5",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                  "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ],
+            "requiredHandles": [
+              {
+                "name": "chart-clock",
+                "owner": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "capability": ".clock",
+                "contract": "chart/1",
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "recordDigest": "sha256:a5b1e95933e64c8da72e863c9dde9023bddfe7c8c47c870cd3740a3db3b94298"
+              }
+            ],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "header-built": {
+      "includes": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ]
+    },
+    "empty-header": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/empty.w",
+          "sourceText": "script { edition: 2026 }",
+          "header": {
+            "edition": "2026",
+            "requires": []
+          },
+          "entry": "default",
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:bc099acafdc5f34b51ce166e320ec287add926265ee88ad89069827ad390a1e0",
+            "headerFacts": {
+              "edition": "2026",
+              "requires": []
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": true,
+          "packageRoot": "workspace"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        },
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ]
+    },
+    "graph-dangling": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:88da2992132cd2aac23ab424ee7688daf77b67761cddd5405cc0766ddf661822",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:88da2992132cd2aac23ab424ee7688daf77b67761cddd5405cc0766ddf661822",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ca193ad9b75ba73eafb6c0ffb91bcb5c4a41e5fb424bce23d034170c6830827b"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ca193ad9b75ba73eafb6c0ffb91bcb5c4a41e5fb424bce23d034170c6830827b"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ca193ad9b75ba73eafb6c0ffb91bcb5c4a41e5fb424bce23d034170c6830827b",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ],
+            "requiredHandles": [
+              {
+                "name": "chart-clock",
+                "owner": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "capability": ".clock",
+                "contract": "chart/1"
+              }
+            ],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "graph-unreachable-extra": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:3795bd9674c22495dabe9ed54aba6b39f885f1571eb75aae812de8bc61585786",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:3795bd9674c22495dabe9ed54aba6b39f885f1571eb75aae812de8bc61585786",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                  "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              },
+              {
+                "name": "fiction/unused",
+                "version": "0.1.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "contentDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "dependencies": [],
+                "id": "sha256:dc8740cc52670924aa4b4a57cc6de608f79d0fe3c0b07db07abb5740833d5284"
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+            ],
+            "requiredHandles": [
+              {
+                "name": "chart-clock",
+                "owner": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "capability": ".clock",
+                "contract": "chart/1",
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "recordDigest": "sha256:2cd9a956496bdb264633bf857cd4d4ef6f16524bdf7278876ee6b14d2b9ac701"
+              }
+            ],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "graph-missing-closure": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:3594dee0c6b1306a7b6d1afe7963e180ac578aa709844375a95eb1d63af0a5ed",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:3594dee0c6b1306a7b6d1afe7963e180ac578aa709844375a95eb1d63af0a5ed",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ],
+            "requiredHandles": [
+              {
+                "name": "chart-clock",
+                "owner": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "capability": ".clock",
+                "contract": "chart/1",
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "recordDigest": "sha256:72fe83448e0817d2976ff271d8fada0c44545fec49222e6fb3a7413cec5e09c1"
+              }
+            ],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "graph-alias-collision": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:221fb77c702b1acf729918564599fab01bf098ddf5456df70f46bde60cae4582",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:221fb77c702b1acf729918564599fab01bf098ddf5456df70f46bde60cae4582",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:980c1bef34e4efc1b4e94b97ec7f428de7b866ecf62033c8d8dd39d3edb74922",
+                  "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:980c1bef34e4efc1b4e94b97ec7f428de7b866ecf62033c8d8dd39d3edb74922"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:980c1bef34e4efc1b4e94b97ec7f428de7b866ecf62033c8d8dd39d3edb74922",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  },
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ],
+            "requiredHandles": [
+              {
+                "name": "chart-clock",
+                "owner": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "capability": ".clock",
+                "contract": "chart/1"
+              }
+            ],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "online-lock-candidate": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "requires": [
+              ".clock"
+            ]
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        },
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [],
+          "lockCandidate": {
+            "bytes": {
+              "schema": "w.package-lock/1",
+              "resolver": "w.resolver/1",
+              "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+              "manifestDigests": {
+                "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+              },
+              "contexts": [
+                {
+                  "root": ".product(\"script\")",
+                  "use": "product",
+                  "targetRole": "target",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "features": [],
+                  "targetVariants": [],
+                  "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "nodes": [
+                    "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  ],
+                  "rootEdges": [
+                    {
+                      "alias": "chart",
+                      "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                    }
+                  ]
+                }
+              ],
+              "packages": [
+                {
+                  "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "name": "fiction/chart",
+                  "version": "1.2.3",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  },
+                  "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                  "dependencies": []
+                }
+              ],
+              "artifacts": [
+                {
+                  "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "authority": "w",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "use": "product",
+                  "signatureRequired": false,
+                  "signatureEvidence": null
+                }
+              ],
+              "cas": [
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              ],
+              "requiredHandles": [],
+              "actionOutputs": []
+            }
+          },
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ]
+        }
+      ]
+    },
+    "multi-target-ready": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:387b0f6885cb0851cc0558968a86615d7d06841c58083133cfe7e416863495b0",
+            "requires": []
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:387b0f6885cb0851cc0558968a86615d7d06841c58083133cfe7e416863495b0",
+              "requires": []
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              },
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "aarch64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                "authority": "w",
+                "target": "aarch64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        }
+      ]
+    },
+    "multi-target-duplicate": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/horizon_script.w",
+          "sourceText": "script horizon menu",
+          "entry": "default",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ],
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:3011fc3c21838f9eb73654625dba246305c81e2be1c1ed3e1b83f5bfee663faa",
+            "requires": []
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:3011fc3c21838f9eb73654625dba246305c81e2be1c1ed3e1b83f5bfee663faa",
+              "requires": []
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        },
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              },
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "aarch64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              },
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                "authority": "w",
+                "target": "aarch64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "PYN1-no-header-std-hello",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "no-header-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "entry": "default",
+          "args": [
+            "hello"
+          ]
+        },
+        {
+          "op": "cleanup"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-header-locked-dependency",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "entry": "default",
+          "args": [
+            "horizon"
+          ]
+        },
+        {
+          "op": "cleanup"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-header-standalone-in-workspace",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "fixtures": [
+        "empty-header"
+      ],
+      "operations": [
+        {
+          "op": "contextExplanation",
+          "expectedMode": "standalone"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-no-header-package-context",
+      "references": [
+        {
+          "path": "../reference/last-light/package.w",
+          "symbol": "package"
+        }
+      ],
+      "fixtures": [
+        "package-root"
+      ],
+      "operations": [
+        {
+          "op": "contextExplanation",
+          "expectedMode": "package"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-missing-lock",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "missingLock",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-lock-without-dependencies",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2"
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "lockWithoutDependencies",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-lock-root-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "lockObject": {
+            "edition": "2026",
+            "target": "x86_64-unknown-linux-gnu",
+            "use": "product",
+            "selectionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "dependencies": [],
+            "nodes": [
+              {
+                "alias": "wrong",
+                "package": "fiction/wrong",
+                "version": "1.0.0"
+              }
+            ],
+            "edges": [
+              {
+                "from": "root",
+                "alias": "wrong",
+                "to": "wrong@1.0.0"
+              }
+            ],
+            "closure": [
+              "wrong@1.0.0"
+            ],
+            "artifacts": [],
+            "cas": [],
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "lockPayloadIncomplete",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-lock-declared-digest-ignored",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": [],
+            "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-duplicate-alias",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "dependencies"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              },
+              {
+                "alias": "chart",
+                "package": "fiction/other",
+                "version": "^1.0.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateDependencyAlias",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-duplicate-field",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "edition"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "fields": [
+              {
+                "name": "edition",
+                "value": "2026"
+              },
+              {
+                "name": "edition",
+                "value": "2026"
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateScriptField",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-duplicate-header",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "script"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "secondHeader": true,
+          "header": {
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateScriptHeader",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-unknown-schema-field",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "script"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "schema": "w.script/1",
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownScriptField",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-unknown-field",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "requires"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "tool": {}
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownScriptField",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-header-not-first",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "script"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "first": false,
+          "header": {
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptHeaderNotFirst",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-imported-script",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "examples/horizon_script.w",
+              "kind": "script"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptImportForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-external-import-not-locked",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "sourceText": "script import",
+          "header": {
+            "edition": "2026"
+          },
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:2ca9f60b8d487e1ef9b0043e68e17cf1324399c9528b4ffdc77fcfb18850a474",
+            "headerFacts": {
+              "edition": "2026"
+            },
+            "entry": null,
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "chart.science",
+              "external": true,
+              "alias": "chart"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "externalImportNotLocked",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-import-digest-required",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "imports"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "validateImports",
+          "imports": [
+            {
+              "path": "local/module.w"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "importDigestMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-root-source-digest-required",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "roots"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/no-bytes.w",
+          "header": null,
+          "entry": "default",
+          "imports": []
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        },
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "rootDigestMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-path-dependency-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": ".path"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "local",
+                "package": "fiction/local",
+                "version": "1.0.0",
+                "path": "../local",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "pathDependencyForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-mutable-dependency-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "branch"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "local",
+                "package": "fiction/local",
+                "version": "1.0.0",
+                "branch": "main",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "mutableDependencyForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-local-override-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "override"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "local",
+                "package": "fiction/local",
+                "version": "1.0.0",
+                "localOverride": true,
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "localOverrideForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-ambient-dependency-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "ambient"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "ambient",
+                "package": "fiction/ambient",
+                "version": "1.0.0",
+                "use": "product",
+                "source": {
+                  "kind": "ambient"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "ambientDependencyForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-root-traversal",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "traversal"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "traversal",
+          "provider": {
+            "withinRoot": false,
+            "rootOwner": "logical:root",
+            "candidateOwner": "logical:root"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "canonicalRootEscape",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-symlink-escape",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "symlink"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "symlink",
+          "provider": {
+            "withinRoot": false,
+            "symlinkEscape": true,
+            "rootOwner": "drive:C",
+            "candidateOwner": "drive:C"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "canonicalRootEscape",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-windows-case-boundary",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "case"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "case",
+          "provider": {
+            "withinRoot": true,
+            "rootOwner": "drive:C",
+            "candidateOwner": "drive:D"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "canonicalRootEscape",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-windows-drive-boundary",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "drive"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "drive",
+          "provider": {
+            "withinRoot": true,
+            "rootOwner": "drive:C",
+            "candidateOwner": "drive:D"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "canonicalRootEscape",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-windows-unc-boundary",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "UNC"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "unc",
+          "provider": {
+            "withinRoot": true,
+            "rootOwner": "unc:server/share-a",
+            "candidateOwner": "unc:server/share-b"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "canonicalRootEscape",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-recursive-scan-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "recursive"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "scan": "recursive"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "discoveryForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-cwd-path-env-scan-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "PATH"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "validateImports",
+          "imports": [],
+          "cwdScan": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "discoveryForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-path-scan-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "imports"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "validateImports",
+          "imports": [],
+          "pathScan": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "discoveryForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-environment-scan-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "environment"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "validateImports",
+          "imports": [],
+          "environmentScan": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "discoveryForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-fetch-before-resolution",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w"
+                }
+              }
+            ],
+            "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "requires": []
+          },
+          "imports": []
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "resolutionNotValidated",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-offline-cache-hit",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "CAS"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "offline": true,
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-offline-closure-cache-miss",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "closure"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "offline": true,
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "offlineCacheMiss",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-offline-cache-miss",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "offline"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "offline": true,
+          "cache": [
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "offlineCacheMiss",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-fetch-digest-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "digest"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ],
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "fetchDigestMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-artifact-authority-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "authority"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        },
+        {
+          "op": "verifyArtifact",
+          "artifacts": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "evil",
+              "signatureEvidence": null
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "artifactAuthorityMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-artifact-signature-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "signature"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "w",
+              "signatureEvidence": false
+            }
+          ],
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "fetchSignatureMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-action-output-missing",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "action output"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "requiredActionOutput": "chart-generated"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "actionOutputMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-action-output-policy-admitted",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "action output"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "requiredActionOutput": "chart-generated",
+          "policy": {
+            "actionOutputs": [
+              {
+                "name": "chart-generated",
+                "owner": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "policy": "explicit",
+                "actionDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "provenanceDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "recordDigest": "sha256:f80979e6f22e5331c8616b1d2d518ef65485cf197a324fbf40b428702f431bdc"
+              }
+            ]
+          },
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-capability-requirement-missing",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "requires"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "offline",
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "capabilityMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-source-capability-grant-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "requires"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "requires": [
+              ".clock",
+              {
+                "name": ".network",
+                "grant": true
+              }
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownRequirement",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-source-capability-secret-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "secrets"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "requires": [
+              {
+                "name": ".clock",
+                "secret": true
+              }
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownRequirement",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-process-args-is-baseline",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "process args"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "requires": [
+              "process.args"
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownRequirement",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-duplicate-requirement",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "requires"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/a.w",
+          "header": {
+            "edition": "2026",
+            "requires": [
+              ".clock",
+              ".clock"
+            ]
+          },
+          "imports": []
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "duplicateRequirement",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-transitive-handle-missing",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "handles"
+        }
+      ],
+      "fixtures": [
+        "transitive-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:fb9cc75c22e55c43fc014ef041d1b769b14ea730a7523db11a17ab73af97a0f5",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "transitiveHandleMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-default-entry-required",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "entry": "named"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "defaultEntryMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-entry-missing",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/no-entry.w",
+          "sourceText": "fn helper() {}",
+          "header": null,
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:a25e7930f6839c468f8c2d9dc00f710ade1a0e2211918e918801c1c90f3756f9",
+            "headerFacts": null,
+            "entry": null,
+            "topLevelExecution": false,
+            "hasHeader": false
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        },
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        },
+        {
+          "op": "runEntry"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "defaultEntryMissing",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-top-level-execution-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "fixtures": [
+        "no-header-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "topLevelExecution": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "topLevelExecutionForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-failure-cleanup",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "cleanup"
+        }
+      ],
+      "fixtures": [
+        "no-header-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "entry": "default",
+          "outcome": "failure",
+          "hiddenArtifacts": true
+        },
+        {
+          "op": "cleanup"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-context-explanation",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "w context"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "contextExplanation",
+          "expectedMode": "standalone"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-context-explanation-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "standalone"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "contextExplanation",
+          "expectedMode": "package"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "contextExplanationMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-atomic-add",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "w script add"
+        }
+      ],
+      "fixtures": [
+        "empty-header"
+      ],
+      "operations": [
+        {
+          "op": "scriptAdd",
+          "dependency": {
+            "alias": "chart",
+            "package": "fiction/chart",
+            "version": "^1.2.0",
+            "use": "product",
+            "source": {
+              "kind": "registry",
+              "authority": "w",
+              "immutable": true
+            }
+          },
+          "lockDigest": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          },
+          "resultSourceText": "script { edition: \"2026\" dependencies: [chart] lock: \"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2\" }",
+          "resultParseEvidence": {
+            "sourceDigest": "sha256:bafe6efeeb114b94ed1844964fbdfc7863fe2d38e0b8826f6dbc5e21d81e027c",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "requires": []
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-atomic-remove",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "w script remove"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "scriptRemove",
+          "alias": "chart",
+          "resultSourceText": "script horizon menu",
+          "resultParseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [],
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-atomic-resolve",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "w script resolve"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "scriptResolve",
+          "lockDigest": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          },
+          "resultSourceText": "script { edition: \"2026\" dependencies: [chart] lock: \"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2\" }",
+          "resultParseEvidence": {
+            "sourceDigest": "sha256:bafe6efeeb114b94ed1844964fbdfc7863fe2d38e0b8826f6dbc5e21d81e027c",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-atomic-add-failure-preserves-source",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "atomic"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "scriptAdd",
+          "dependency": {
+            "alias": "new",
+            "package": "fiction/new",
+            "version": "1.0.0",
+            "use": "product",
+            "source": {
+              "kind": "registry",
+              "authority": "w",
+              "immutable": true
+            }
+          },
+          "lockDigest": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          },
+          "resultSourceText": "script { edition: \"2026\" dependencies: [chart] lock: \"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2\" }"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "selectionDigestMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-atomic-remove-missing-alias",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "dependencies"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "scriptRemove",
+          "alias": "missing",
+          "resultSourceText": "script horizon menu"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unknownDependencyAlias",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-equivalence",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "provenance"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "default",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {
+              "schema": "w.package-lock/1",
+              "resolver": "w.resolver/1",
+              "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+              "manifestDigests": {
+                "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+              },
+              "contexts": [
+                {
+                  "root": ".product(\"package\")",
+                  "use": "product",
+                  "targetRole": "target",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "features": [],
+                  "targetVariants": [],
+                  "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "nodes": [
+                    "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  ]
+                }
+              ],
+              "packages": [
+                {
+                  "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "name": "fiction/chart",
+                  "version": "1.2.3",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  },
+                  "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                  "dependencies": []
+                }
+              ],
+              "artifacts": [
+                {
+                  "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "authority": "w",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "use": "product",
+                  "signatureRequired": false,
+                  "signatureEvidence": null
+                }
+              ],
+              "cas": [
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              ],
+              "requiredHandles": [],
+              "actionOutputs": []
+            },
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+              "scriptLockDigest": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "packageManifestDigest": "sha256:48470312231a54a588c5afc5f053af4e1c28e2e4988804f51f798384f7a4fa5f",
+              "packageLockDigest": "sha256:6f9e267419ab63efbeb915f2f062ad8c656e6d159390fd0dad5df88fdc01f8b6"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-promotion-lock-graph-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "nodes/edges"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "default",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {
+              "root": "package",
+              "selectionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+              "nodes": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/other",
+                  "version": "1.0.0"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "root",
+                  "alias": "chart",
+                  "to": "chart@1.0.0"
+                }
+              ],
+              "closure": [
+                "chart@1.0.0"
+              ],
+              "schema": "w.package-lock/1",
+              "resolver": "w.resolver/1"
+            },
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionLockMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-dependency-graph-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "graph"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "other",
+                  "package": "fiction/other",
+                  "version": "1.0.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "default",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {},
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionDependencyMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-local-graph-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "local graph"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [
+                {
+                  "path": "local.w",
+                  "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                }
+              ],
+              "entry": "default",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {},
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionLocalGraphMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-entry-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "entry"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "named",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {},
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionEntryMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-requirements-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "requirements"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "default",
+              "requires": []
+            },
+            "lock": {},
+            "provenance": {
+              "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionRequirementsMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-promotion-provenance-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "provenance"
+        }
+      ],
+      "fixtures": [
+        "header-built"
+      ],
+      "operations": [
+        {
+          "op": "promote",
+          "outputDir": "packages/horizon",
+          "package": {
+            "manifest": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "localModules": [],
+              "entry": "default",
+              "requires": [
+                ".clock"
+              ]
+            },
+            "lock": {
+              "schema": "w.package-lock/1",
+              "resolver": "w.resolver/1",
+              "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+              "manifestDigests": {
+                "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+              },
+              "contexts": [
+                {
+                  "root": ".product(\"package\")",
+                  "use": "product",
+                  "targetRole": "target",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "features": [],
+                  "targetVariants": [],
+                  "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                  "nodes": [
+                    "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  ]
+                }
+              ],
+              "packages": [
+                {
+                  "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "name": "fiction/chart",
+                  "version": "1.2.3",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  },
+                  "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                  "dependencies": []
+                }
+              ],
+              "artifacts": [
+                {
+                  "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                  "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "authority": "w",
+                  "target": "x86_64-unknown-linux-gnu",
+                  "use": "product",
+                  "signatureRequired": false,
+                  "signatureEvidence": null
+                }
+              ],
+              "cas": [
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+              ],
+              "requiredHandles": [],
+              "actionOutputs": []
+            },
+            "provenance": {
+              "sourceDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "scriptLockDigest": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+              "packageManifestDigest": "sha256:48470312231a54a588c5afc5f053af4e1c28e2e4988804f51f798384f7a4fa5f",
+              "packageLockDigest": "sha256:6f9e267419ab63efbeb915f2f062ad8c656e6d159390fd0dad5df88fdc01f8b6"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "promotionProvenanceMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-edition-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "edition"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "edition": "2025",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "edition": "2026",
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "editionMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-target-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "target"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "aarch64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "targetMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-url-source-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "URL"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "sourceKind": "url",
+          "path": "https://example.invalid/horizon.w",
+          "header": {
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptSourceKindRejected",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-stdin-source-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "stdin"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "sourceKind": "stdin",
+          "path": "stdin",
+          "header": {
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptSourceKindRejected",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-shebang-source-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "shebang"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "sourceKind": "shebang",
+          "path": "examples/horizon.w",
+          "header": {
+            "edition": "2026"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptSourceKindRejected",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-script-identifier-without-header",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "script"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/identifier.w",
+          "sourceText": "fn script(script: String): String { return script }",
+          "header": null,
+          "entry": "default",
+          "parseEvidence": {
+            "sourceDigest": "sha256:47bc4f03cecac6077ea86ae775b62072dd24c99958a03ca01f3b4fa89b842d24",
+            "headerFacts": null,
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": false
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-hidden-state-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "hidden"
+        }
+      ],
+      "fixtures": [
+        "no-header-built"
+      ],
+      "operations": [
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "hiddenManifest": true,
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "hiddenStateForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-network-policy-denied",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "network"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "admitFetch",
+          "networkPolicy": "deny"
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "networkPolicyDenied",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-graph-transitive-positive",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "transitive-ready"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-graph-dangling-edge",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "graph-dangling"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "rejected",
+        "code": "danglingPackageEdge",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-graph-unreachable-package",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "graph-unreachable-extra"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "rejected",
+        "code": "unreachablePackage",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-graph-missing-closure",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "graph-missing-closure"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "rejected",
+        "code": "lockClosureMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-graph-alias-collision-local",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "graph-alias-collision"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "rejected",
+        "code": "packageAliasCollision",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-absolute-physical-input",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "C:\\Work\\horizon.w",
+          "sourceText": "fn main() {}",
+          "header": null,
+          "entry": "default",
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:0ef8bba75e1b9e0f03e4bbcb72aa947ba02f90f67dfb11fa0a26d5e5675be02f",
+            "headerFacts": null,
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": false
+          }
+        },
+        {
+          "op": "selectContext"
+        },
+        {
+          "op": "resolveRoots",
+          "provider": {
+            "canonicalRootToken": "drive:C:work",
+            "physicalDisplayPath": "C:\\Work",
+            "rootOwner": "drive:C",
+            "candidateOwner": "drive:C",
+            "withinRoot": true
+          }
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        },
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        },
+        {
+          "op": "runEntry",
+          "entry": "default"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-same-drive-case-boundary-accepted",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "case",
+          "provider": {
+            "canonicalRootToken": "drive:C:examples",
+            "rootOwner": "drive:C",
+            "candidateOwner": "drive:C",
+            "withinRoot": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-same-unc-share-boundary-accepted",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "unc",
+          "provider": {
+            "canonicalRootToken": "unc:server/share",
+            "rootOwner": "unc:server/share",
+            "candidateOwner": "unc:server/share",
+            "withinRoot": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-unicode-canonical-boundary-accepted",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "menuFor"
+        }
+      ],
+      "fixtures": [
+        "no-header-root"
+      ],
+      "operations": [
+        {
+          "op": "resolveRoots",
+          "pathBoundary": "unicode",
+          "provider": {
+            "canonicalRootToken": "unicode:root",
+            "rootOwner": "unicode:root",
+            "candidateOwner": "unicode:root",
+            "withinRoot": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-online-lock-candidate-required",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "lock"
+        }
+      ],
+      "fixtures": [
+        "online-lock-candidate"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-multi-target-selects-context",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "target"
+        }
+      ],
+      "fixtures": [
+        "multi-target-ready"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-multi-target-duplicate-context",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "target"
+        }
+      ],
+      "fixtures": [
+        "multi-target-duplicate"
+      ],
+      "operations": [],
+      "expected": {
+        "status": "rejected",
+        "code": "lockContextTargetAmbiguous",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-multi-target-missing-context",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "target"
+        }
+      ],
+      "fixtures": [
+        "multi-target-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "wasm32-wasi",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              },
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "aarch64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                "authority": "w",
+                "target": "aarch64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "targetMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-sidecar-artifact-record-bound",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "artifact evidence"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null,
+                "recordDigest": "sha256:0e868c982bdd468f5ed2e5ef5c8d2bb1f15c000ec9ca9a9e960d5cf5fbcaceea"
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        },
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+          ],
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "artifactRecordDigestMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-sidecar-signature-policy-bound",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "signature"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null,
+                "recordDigest": "sha256:ddd05212793d56c2232392f806ae8313999ce6caf7913ed7ad6e667620c6e1b9"
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        },
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          ],
+          "fetches": [
+            {
+              "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "artifactRecordDigestMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-sidecar-action-output-bound",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "action output"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+              "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": [
+              {
+                "name": "chart-generated",
+                "owner": "sha256:ac9f98b1d18f719df7b37833dce7fb0619626d378a106fb08ceb3f0bdd74563a",
+                "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+                "policy": "explicit",
+                "actionDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "provenanceDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                "recordDigest": "sha256:a968a6e26c99adf3c637516eacdb3b62e844cfac1ae56c8d8980a3e0f6b1a4d8"
+              }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "actionOutputRecordDigestMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-sidecar-handle-removal-rekeys-recipe",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "handles"
+        }
+      ],
+      "fixtures": [
+        "transitive-ready"
+      ],
+      "operations": [
+        {
+          "op": "validateResolution",
+          "target": "x86_64-unknown-linux-gnu",
+          "lockObject": {
+            "schema": "w.package-lock/1",
+            "resolver": "w.resolver/1",
+            "workspaceDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+            "manifestDigests": {
+              "virtual-script": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943"
+            },
+            "contexts": [
+              {
+                "root": ".product(\"script\")",
+                "use": "product",
+                "targetRole": "target",
+                "target": "x86_64-unknown-linux-gnu",
+                "features": [],
+                "targetVariants": [],
+                "activeSourceSet": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "resolutionDigest": "sha256:b90c5dd4c89e687a909977bcce580e2c8a20ac7049b3192610a13643ed6e4943",
+                "nodes": [
+                  "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                  "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                ],
+                "rootEdges": [
+                  {
+                    "alias": "chart",
+                    "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60"
+                  }
+                ]
+              }
+            ],
+            "packages": [
+              {
+                "id": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "name": "fiction/chart",
+                "version": "1.2.3",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "contentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                "dependencies": [
+                  {
+                    "alias": "science",
+                    "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df"
+                  }
+                ]
+              },
+              {
+                "id": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "name": "fiction/science",
+                "version": "0.4.0",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                },
+                "metadataDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "contentDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "dependencies": []
+              }
+            ],
+            "artifacts": [
+              {
+                "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+                "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              },
+              {
+                "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+                "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "authority": "w",
+                "target": "x86_64-unknown-linux-gnu",
+                "use": "product",
+                "signatureRequired": false,
+                "signatureEvidence": null
+              }
+            ],
+            "cas": [
+              "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+            ],
+            "requiredHandles": [],
+            "actionOutputs": []
+          }
+        },
+        {
+          "op": "admitFetch",
+          "networkPolicy": "allow-pinned",
+          "cache": [
+            "sha256:fb9cc75c22e55c43fc014ef041d1b769b14ea730a7523db11a17ab73af97a0f5",
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          ],
+          "fetches": [
+            {
+              "nodeId": "sha256:f8e2070dd4d4a445a35d768a95ada18a3c53263bf99b53b73e193e4413e7cc60",
+              "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "authority": "w",
+              "signatureEvidence": null
+            },
+            {
+              "nodeId": "sha256:cad50bbaf73176d3060c72fe62982143990d4e4d846ffeed72d3aa01b29bf8df",
+              "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "authority": "w",
+              "signatureEvidence": null
+            }
+          ]
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities",
+          "deployment": {
+            "grants": [
+              ".clock"
+            ]
+          }
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-parse-evidence-source-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "parseEvidence"
+        }
+      ],
+      "fixtures": [],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/evidence.w",
+          "sourceText": "script import",
+          "header": {
+            "edition": "2026",
+            "dependencies": [
+              {
+                "alias": "chart",
+                "package": "fiction/chart",
+                "version": "^1.2.0",
+                "use": "product",
+                "source": {
+                  "kind": "registry",
+                  "authority": "w",
+                  "immutable": true
+                }
+              }
+            ],
+            "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2"
+          },
+          "parseEvidence": {
+            "sourceDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [
+                {
+                  "alias": "chart",
+                  "package": "fiction/chart",
+                  "version": "^1.2.0",
+                  "use": "product",
+                  "source": {
+                    "kind": "registry",
+                    "authority": "w",
+                    "immutable": true
+                  }
+                }
+              ],
+              "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2"
+            },
+            "entry": null,
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "parseEvidenceSourceMismatch",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-result-parse-evidence-mismatch",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "resultParseEvidence"
+        }
+      ],
+      "fixtures": [
+        "header-ready"
+      ],
+      "operations": [
+        {
+          "op": "scriptRemove",
+          "alias": "chart",
+          "resultSourceText": "script horizon menu",
+          "resultParseEvidence": {
+            "sourceDigest": "sha256:14d676f213ff1d8968f1ec24fbf5646bcd3eb875d83481a913702a03d3745434",
+            "headerFacts": {
+              "edition": "2026",
+              "dependencies": [],
+              "requires": [
+                ".network"
+              ]
+            },
+            "entry": "default",
+            "topLevelExecution": false,
+            "hasHeader": true
+          }
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "resultParseEvidenceHeaderMismatch",
+        "at": "last"
+      }
+    }
+  ]
+}

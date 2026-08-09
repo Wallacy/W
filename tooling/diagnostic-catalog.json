@@ -14,6 +14,132 @@
         "owner": { "minimum": 0, "maximum": 1 }
       },
       "fixes": {}
+    },
+    "script-validation": {
+      "phase": "source.validate",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-evidence": {
+      "phase": "source.validate",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-context": {
+      "phase": "source.context",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-entry": {
+      "phase": "source.entry",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-resolution": {
+      "phase": "source.resolution",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-roots": {
+      "phase": "source.roots",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-capability": {
+      "phase": "source.capability",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-fetch": {
+      "phase": "source.fetch",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "script-provenance": {
+      "phase": "source.provenance",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "script-owner": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
     }
   },
   "codes": [
@@ -344,6 +470,114 @@
       "state": "active",
       "profile": "parse-syntax",
       "meaning": "a manifest contains an executable token or a source declaration"
+    },
+    {
+      "code": "W-PARSE-0031",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a script header is not the first source item"
+    },
+    {
+      "code": "W-PARSE-0032",
+      "state": "active",
+      "profile": "parse-syntax",
+      "meaning": "a source contains more than one script header"
+    },
+    {
+      "code": "W-SCRIPT-0001",
+      "state": "active",
+      "profile": "script-validation",
+      "meaning": "a script edition is missing or invalid"
+    },
+    {
+      "code": "W-SCRIPT-0002",
+      "state": "active",
+      "profile": "script-validation",
+      "meaning": "a script field is unknown or duplicated"
+    },
+    {
+      "code": "W-SCRIPT-0003",
+      "state": "active",
+      "profile": "script-validation",
+      "meaning": "a script dependency alias or record is invalid"
+    },
+    {
+      "code": "W-SCRIPT-0004",
+      "state": "active",
+      "profile": "script-context",
+      "meaning": "a script root is imported or contexts are merged ambiguously"
+    },
+    {
+      "code": "W-SCRIPT-0005",
+      "state": "active",
+      "profile": "script-entry",
+      "meaning": "a standalone source lacks a default entry or has top-level execution"
+    },
+    {
+      "code": "W-SCRIPT-0006",
+      "state": "active",
+      "profile": "script-resolution",
+      "meaning": "a script lock is missing, invalid, or not content-addressed"
+    },
+    {
+      "code": "W-SCRIPT-0007",
+      "state": "active",
+      "profile": "script-resolution",
+      "meaning": "a script lock selection, target, edition, node, edge, or alias diverges"
+    },
+    {
+      "code": "W-SCRIPT-0008",
+      "state": "active",
+      "profile": "script-roots",
+      "meaning": "a canonical root or import containment check fails"
+    },
+    {
+      "code": "W-SCRIPT-0009",
+      "state": "active",
+      "profile": "script-capability",
+      "meaning": "a requirement, source grant, secret, or deployment admission fails"
+    },
+    {
+      "code": "W-SCRIPT-0010",
+      "state": "active",
+      "profile": "script-fetch",
+      "meaning": "network policy, CAS closure, artifact integrity, or action output admission fails"
+    },
+    {
+      "code": "W-SCRIPT-0011",
+      "state": "active",
+      "profile": "script-provenance",
+      "meaning": "identity, recipe, provenance, or promotion equivalence inputs diverge"
+    },
+    {
+      "code": "W-SCRIPT-0012",
+      "state": "active",
+      "profile": "script-resolution",
+      "meaning": "a reachable package graph has a dangling, unreachable, missing, cyclic, or colliding edge"
+    },
+    {
+      "code": "W-SCRIPT-0013",
+      "state": "active",
+      "profile": "script-roots",
+      "meaning": "a provider canonical root does not contain the physical candidate"
+    },
+    {
+      "code": "W-SCRIPT-0014",
+      "state": "active",
+      "profile": "script-evidence",
+      "meaning": "parser evidence does not match source bytes or normalized header facts"
+    },
+    {
+      "code": "W-SCRIPT-0015",
+      "state": "active",
+      "profile": "script-resolution",
+      "meaning": "a requested target has zero or multiple selected lock contexts"
+    },
+    {
+      "code": "W-SCRIPT-0016",
+      "state": "active",
+      "profile": "script-provenance",
+      "meaning": "an artifact, handle, or action-output record is not bound to its lock and recipe facts"
     },
     {
       "code": "W-PARSE-0013",

@@ -231,6 +231,7 @@ alvo de execução independente.
 | `deployments/benchmark.w` | PostgreSQL, cache local, admission e limites do benchmark |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
+| `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e entry default |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
 | `audio.w` | render de áudio com buffers fixos e sem allocation |
 | `audio_app.w` | callback do audio device |
@@ -305,6 +306,57 @@ Aceite:
 - callbacks ABI estáticos, como `device.tick`, usam `hostBindings`;
 - importar `app` não executa um handler;
 - Context não concede filesystem ou network ausentes.
+
+### 3.1.1 Horizonte de Script PYN1
+
+Famílias: workflow single-file, header contextual, roots, imports, virtual
+selection, package-lock root, CAS, requirements, provenance e promotion.
+
+Aceite:
+
+- `horizon_script.w` começa com `script { edition, dependencies, lock }`.
+- A dependency `chart` usa o record P0 e o lock root canônico `w.package-lock/1`; o
+  digest real é `sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2`,
+  recomputado pelo fixture `header-ready` em `tooling/script-workflow-cases.json`;
+  artifact evidence, CAS e action outputs são sidecars separados do payload do
+  lock.
+- O fixture fecha `contexts`/`packages`, IDs content-derived, root edge `chart`,
+  closure e metadata/content/artifact CAS digests; `transitive-ready` prova a
+  edge local `chart -> science`, `multi-target-ready` prova a seleção de um
+  context e os cases `PYN1-sidecar-*` cobrem evidence separada do lock.
+- O source usa `std.data.Batch<HorizonReading>` e um unnamed/default `entry`.
+- O menu deriva `steady`, `warning` ou `evacuation` do score do horizonte.
+- Header transforma o source em root standalone, mesmo dentro de workspace.
+- `w context` mostra root diagnóstico, lock digest, fetches, authorities,
+  selected context, source/content digests, selected artifact/record/recipe
+  digests and consumed action-output records,
+  offered/matched/effective requirements e recipe.
+- Falha, offline miss, mismatch, action output ausente e requirement denial
+  ocorrem antes do entry. `print` usa o `.stdio` baseline; não há requirement
+  de clock no source.
+- Promotion preserva graph e entry, escreve package equivalentes e emite provenance.
+- `parseEvidence`/`resultParseEvidence` ligam a projection parser aos bytes
+  normalizados; Tree-sitter prova a projection e o host apenas valida a evidence.
+
+Adversariais:
+
+- header ausente, duplicado, desconhecido ou fora da primeira posição;
+- schema redundante, edition inválida e lock ausente, divergente ou não assinado;
+- alias duplicado, dependency `.path`, branch, ref, registry ambiental ou traversal;
+- import de outro script, scan recursivo, cwd, `PATH` ou environment;
+- fetch fora de lock, CAS offline (root, metadata, content, artifacts e action
+  outputs) ausente,
+  digest, authority, signature ou artifact-record mismatch;
+- lock com múltiplos targets seleciona somente o context pedido; target ausente
+  ou duplicado falha;
+- requirement desconhecido, source grant/secret, deployment grant ausente,
+  handle transitivo sem metadata/record ou action output sem provenance;
+- entry ausente, execução top-level, estado oculto e promotion com graph alterado;
+- URL, stdin e shebang, que permanecem rejeitados na baseline.
+
+O host oracle [`tooling/script-workflow-machine.mjs`](../../tooling/script-workflow-machine.mjs)
+deriva esses estados. Ele não executa W nem fornece compiler, runtime, resolver,
+provider ou CLI.
 
 ### 3.2 Comanda de Íon
 

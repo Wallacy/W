@@ -39,8 +39,36 @@ highlighter aceita ou rejeita um programa em nome da linguagem.
 | `runtime-liveness-cases.json` + máquina E1 | 41 sequências e 473 operações (19 aceitas + 22 rejeitadas), sete testes host; closure, waits, completion/cancel races, generations, frame/outcome split, blocking foreign e shutdown | oracle host de runtime closure e liveness; não prova scheduler, clock, OS I/O, allocator, verifier ou runtime W |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
+| `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
 | `std-api-contracts.json` + checker SDK0 | perfis cobrem 285 exports em 18 módulos, 67 superfícies qualificadas, 14/14 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow e `SnapshotByteSource` são drafts, seus 12/12 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
+
+### Workflow single-file PYN1
+
+[`script-workflow-machine.mjs`](script-workflow-machine.mjs) é uma máquina host
+determinística para a direção PYN1. Ela deriva context, roots, imports,
+virtual selection, payload P0 `package.lock` (`contexts`/`packages`), closure
+transitiva, selected target context, fetch pinned com candidate real, cache CAS
+offline por content digest, parser evidence ligada a bytes, artifact/handle/
+action-output records ligados ao lock e recipe (somente outputs consumidos entram
+na recipe), offered/matched/effective
+requirements, identity efêmera sem path físico, entry, cleanup e promotion. Ela
+não compila, consulta um registry, executa W ou fornece um CLI.
+
+O corpus e o snapshot ficam em
+[`script-workflow-cases.json`](script-workflow-cases.json) e
+[`script-workflow-results.snapshot.jsonl`](script-workflow-results.snapshot.jsonl).
+O checker exige casos positivos e negativos e liga cada caso ao produto Última
+Luz:
+
+```sh
+bun test tooling/script-workflow-reference.test.mjs
+bun tooling/check-script-workflow-cases.mjs
+```
+
+Os nomes `w script add`, `w script remove`, `w script resolve` e
+`w script promote` são contratos de design. Este tooling não implementa esses
+comandos.
 
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses

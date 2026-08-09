@@ -1392,6 +1392,150 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-pyn1-script-header",
+      "reviewItem": "header `script` data-only contextual contra comment metadata PEP 723 e dependency inference",
+      "decisions": ["W-1046", "W-1047", "W-1064"],
+      "task": "Declare one locked dependency in a first-item script header without executing metadata.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "script {",
+          "  edition: \"2026\"",
+          "  dependencies: [{ alias: \"chart\", package: \"fiction/chart\", version: \"^1.2.0\", use: .product, source: .registry(\"w\") }]",
+          "  lock: \"sha256:...\"",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "pep723-comments",
+          "language": "python",
+          "source": ["# /// script", "# dependencies = [\"fiction-chart\"]", "# ///"],
+          "expectedDifference": "Comment metadata is not a W source root and cannot define W dependency semantics."
+        },
+        {
+          "name": "import-inference",
+          "language": "w-rejected",
+          "source": ["import chart.science", "// resolver infers the dependency"],
+          "expectedDifference": "An import does not create a lock selection or an authority."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-pyn1-standalone-lock",
+      "reviewItem": "root standalone com lock por digest contra package context, ambient registry e `--with`",
+      "decisions": ["W-1048", "W-1052", "W-1053", "W-1062"],
+      "task": "Run a script as a standalone root with the exact lock selected by its header.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "script { edition: \"2026\" lock: \"sha256:...\" }",
+          "entry { print(\"ready\") }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "ambient-package-context",
+          "language": "w-rejected",
+          "source": ["w run file.w", "// use the workspace lock and registry"],
+          "expectedDifference": "A script header selects standalone context. It does not merge package or ambient registry state."
+        },
+        {
+          "name": "cli-with-dependency",
+          "language": "shell",
+          "source": ["w run file.w --with fiction/chart@^1.2.0"],
+          "expectedDifference": "The final workflow stores dependency selection in the header and lock, not in an ad hoc CLI flag."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-pyn1-explicit-roots",
+      "reviewItem": "imports explícitos e root canônica contra scan recursivo, cwd, `PATH`, environment e symlink escape",
+      "decisions": ["W-1050"],
+      "task": "Use only explicit logical imports below a provider-confirmed canonical root.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import chart.science",
+          "import local.metrics"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "recursive-discovery",
+          "language": "shell",
+          "source": ["find . -name '*.w'", "PATH=./plugins:$PATH w run file.w"],
+          "expectedDifference": "Recursive and environment scans make the graph and authority depend on ambient state."
+        },
+        {
+          "name": "symlink-escape",
+          "language": "w-rejected",
+          "source": ["import ../outside.metrics"],
+          "expectedDifference": "A logical import cannot escape the provider-confirmed canonical root."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-pyn1-capability-admission",
+      "reviewItem": "capability requirements com deployment grant contra source grants e escalation transitiva",
+      "decisions": ["W-1057", "W-1058", "W-1059"],
+      "task": "Declare a clock requirement and receive a matching deployment grant and explicit handle.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "script { edition: \"2026\" requires: [.clock] }",
+          "entry { print(\"ready\") }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "source-grant",
+          "language": "w-rejected",
+          "source": ["script { edition: \"2026\" grants: [.clock] }"],
+          "expectedDifference": "A source declares requirements. It does not grant authority or carry secrets."
+        },
+        {
+          "name": "ambient-transitive-authority",
+          "language": "w-rejected",
+          "source": ["import chart.science", "chart.science.readClock()"],
+          "expectedDifference": "A transitive dependency needs an explicit owner, handle, and contract."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-pyn1-entry-cleanup",
+      "reviewItem": "entry unnamed/default e cleanup explícito contra top-level execution e estado oculto",
+      "decisions": ["W-1049", "W-1061"],
+      "task": "Run the unnamed entry and remove transient state after the result.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "entry {",
+          "  print(\"ready\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "top-level-execution",
+          "language": "w-rejected",
+          "source": ["print(\"runs while importing\")"],
+          "expectedDifference": "Top-level execution removes the explicit entry gate and is rejected."
+        },
+        {
+          "name": "hidden-lock-cache",
+          "language": "w-rejected",
+          "source": ["w run file.w", "// leave a lock in the temporary cwd"],
+          "expectedDifference": "Cleanup must remove transient state and leave observable provenance, not a hidden manifest or lock."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

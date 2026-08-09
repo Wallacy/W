@@ -37,6 +37,8 @@
   "unit"
 ] @keyword.type
 
+(script_header "script" @keyword.type)
+
 [
   "break"
   "case"

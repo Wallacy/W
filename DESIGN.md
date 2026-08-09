@@ -803,8 +803,8 @@ diagnostics, formatter preview e edição incremental.
 
 #### 3.5.3 Grammar normativa G1: declarations e raízes de source
 
-**Exemplo:** um arquivo contém source de módulo ou um manifest. Ele não contém
-os dois:
+**Exemplo:** um arquivo contém source de módulo, um script root ou um manifest.
+Ele não contém um manifest junto de source:
 
 ```w
 module kitchen<domains: [.serial(.thermal)]>
@@ -823,6 +823,10 @@ package {
 }
 ```
 
+Um header `script` é um item contextual opcional. Ele só pode aparecer como o
+primeiro item de `module_source`. Ele contém dados do script. Ele não é uma
+declaration top-level, annotation, comment ou código executável.
+
 O schema v0 do header de módulo publica somente o slot nomeado `domains`. Ele
 declara requirements estáticos. `parallelDefault`, pools, capacity, queues e
 fallbacks pertencem ao execution profile do package e não são slots de módulo.
@@ -834,7 +838,9 @@ Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
 ```ebnf
 document = module_source | manifest_document ;
 
-module_source = module_header? import_declaration* top_level_declaration* EOF ;
+module_source = script_header? module_header? import_declaration*
+                top_level_declaration* EOF ;
+script_header = "script" manifest_record ;
 module_header = "module" identifier contract_arguments? ";"? ;
 contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
 
@@ -861,6 +867,109 @@ Um manifest ocupa o documento inteiro. Ele não usa a grammar geral de
 expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
 são erros. Braces representam o record completo. Angle brackets modificam um
 contrato local já nomeado.
+
+O header `script` reutiliza somente a forma data-only de `manifest_record`. A
+baseline exige `edition`. Os únicos fields são `edition`, `dependencies`,
+`lock` e `requires`; `schema` é redundante porque `script` mais a edition já
+tipam a superfície. Unknown e duplicate fields são erros. Dependencies não
+vazias exigem `lock`; sem dependency, `lock` deve estar ausente. `requires`
+usa a lista de enum values contextual, por exemplo `requires: [.clock]`. Ela
+declara requirements, nunca grants, secrets ou `process.args`.
+`script` continua um identifier quando não ocupa essa posição contextual.
+
+Um source com header é root executável standalone. Ele pode conter `module`,
+imports, declarations e um unnamed/default `entry`. Ele não pode ser importado
+como módulo. `w run file.w` mantém esse contexto standalone mesmo quando o
+arquivo está dentro de workspace. Sem header, um arquivo dentro de package usa
+o package context e seu lock. Fora de package, ele usa um contexto efêmero com
+std e módulos locais explícitos. `w context file.w` explica a seleção. A
+ferramenta não faz merge silencioso de contexts.
+
+O source graph contém somente imports explícitos. A root local é o diretório
+físico canônico do script para discovery e diagnóstico. O host/provider aplica
+sua regra de canonical containment, inclusive symlink, e rejeita traversal e
+escape. Não há scan recursivo, scan de cwd, scan de `PATH` ou scan de
+environment. URL, stdin e shebang permanecem rejeitados na baseline.
+
+Cada dependency do header usa o record normal de package com `alias`, package
+identity, version constraint, `use` e source authority. Aliases são únicos.
+`.path`, branch ou ref mutable, registry ambiental e local override são
+rejeitados para script shareable. Registry immutable é a baseline; Git/content
+source immutable continua Pesquisa quando P0 não o fecha. A resolução deriva
+um virtual-script selection/manifest digest de edition e dependencies
+normalizadas. O `lock` aponta para o payload P0 content-addressed
+`w.package-lock/1`: `schema`, `resolver`, `workspaceDigest`,
+`manifestDigests["virtual-script"]`, `contexts[]` e `packages[]`. O contexto
+virtual fecha root `.product("script")`, target/use, `activeSourceSet`,
+`resolutionDigest`, selected node IDs e root edges; packages possuem IDs
+content-derived e dependency edges locais `{alias,id}`. O host recompõe o root
+digest canônico e `lock.digest` declarado não é autoridade. Closure, dangling,
+unreachable, missing node, cycle e alias collision são verificações obrigatórias;
+artifacts e action outputs são sidecars pós-lock. O CAS é uma lista ambiental de
+objetos content-addressed (root do lock, metadata/content, artifacts e outputs),
+não parte do payload do lock. O digest sozinho não concede authority.
+
+`w run` pode compilar o source normal, mas não resolve constraint, atualiza lock,
+instala package ou executa install/build action oculto. O lock fixa o package
+source/content graph; artifact records, recipes e action outputs são evidências
+de provider selecionadas depois do lock e ligadas por digests de record. A
+operação pode buscar essas evidências conforme network policy explícita; se o
+objeto não está no CAS, um candidate real é obrigatório. Action output exigido
+que não esteja no lock/CAS/policy falha e pede operação explícita. `--offline`
+exige root do lock e digests de metadata, content, artifacts e action outputs
+completos no CAS. Cache CAS é explícito. Mismatch de digest, signature ou
+authority falha antes da publicação no CAS, build e entry; bytes divergentes
+são retired.
+
+O header declara capability requirements. Ele não concede grants ou secrets.
+O default ephemeral native-script oferece o channel de process arguments e a
+authority `.stdio` em contratos separados; arguments não é capability. Filesystem, network, clock,
+random e storage usam values `.filesystem`, `.network`, `.clock`, `.random` e
+`.storage`, e exigem grant explícito de deployment. `w run file.w
+--deployment <plan> -- <args>` satisfaz requirements quando o plan confere.
+Grants extras do deployment não são propagados ao script. Mismatch falha antes
+do build e entry. Dependency transitiva não herda authority do root: effects
+exigem handles/bindings explícitos e seu próprio contrato. O source nunca
+amplia authority.
+
+A identity do product efêmero deriva do digest dos bytes do root source,
+ordered logical local-module graph (`{path, digest}`), selected context,
+reachable package content digests, selected artifact/handle and consumed
+action-output record digests, edition, target, host profile, lock digest, full
+requirement set, recipe owner e toolchain digest. O caminho físico
+canônico serve somente discovery, diagnóstico e provenance; não entra na
+recipe key ou identity. Imports locais exigem digest associado ao path lógico.
+Baseline channels/authority são inputs separados; host profile cobre a
+baseline na identity e `requires` inclui somente requirements explícitos.
+Canonical containment é target/provider-specific; a máquina não alega resolver
+symlink, drive, UNC, case ou Unicode por substituição textual. Trace e `w
+context` mostram roots, lock digest, fetches, authorities, capabilities e
+recipe. Product temporário ou failed run não deixa manifest ou lock oculto.
+
+Os commands fechados são:
+
+```text
+w script add <file.w> <package>@<constraint> --as <alias>
+w script remove <file.w> <alias>
+w script resolve <file.w>
+w script promote <file.w> --output <dir>
+```
+
+Add, remove e resolve validam uma nova virtual selection e um lock completo
+antes da substituição atômica. Remove do último dependency remove `lock`; resolve
+preserva edition e dependencies e troca somente `lock`. Failure não altera os
+bytes do source. Promote recebe ou deriva manifest e lock candidates, compara
+nodes/edges de dependency, local graph, entry, requirements e provenance sem
+re-resolver, e cria `package.w`/`package.lock` equivalentes. `--with` não é a
+forma final.
+
+PEP 723 documenta metadata inline para launchers e tools em scripts Python. Ele
+é evidência de ergonomia e de risco de instalação automática. W usa header
+estrutural data-only e lock por digest. W rejeita comment metadata, dependency
+inference e tool table aberto. Sibling manifest, package-only e CLI `--with`
+foram considerados; o schema redundante foi rejeitado. Compact dependency
+constructor continua Pesquisa futura. A forma record P0 vigente permanece
+explícita. Veja o [PEP 723 oficial](https://peps.python.org/pep-0723/).
 
 Imports devem aparecer após o header e antes da primeira declaration comum.
 Essa ordem deixa o grafo de nomes visível sem executar o parser de bodies:
@@ -1025,10 +1134,34 @@ O parser usa estes diagnostics adicionais:
 | `W-PARSE-0010` | import está incompleto ou não possui `from` exigido |
 | `W-PARSE-0011` | segundo header `module` no mesmo documento |
 | `W-PARSE-0012` | manifest contém token executável ou outra declaration |
+| `W-PARSE-0031` | header `script` não é o primeiro item do source |
+| `W-PARSE-0032` | source contém mais de um header `script` |
 
 Recovery pode sincronizar no próximo import ou declaration starter. Ele não
 move um import, não cria um export e não transforma um manifest em source. Um
 build rejeita todos os nodes recuperados, conforme G0.
+
+Validações semânticas do workflow usam a família `W-SCRIPT`, não diagnostics
+de parse:
+
+| Code | Fase e condição |
+|---|---|
+| `W-SCRIPT-0001` | `source.validate`: edition ausente ou inválida |
+| `W-SCRIPT-0002` | `source.validate`: field desconhecido ou duplicado |
+| `W-SCRIPT-0003` | `source.validate`: dependency alias duplicado ou record de dependency inválido |
+| `W-SCRIPT-0004` | `source.context`: root script usado como import ou context merge ambíguo |
+| `W-SCRIPT-0005` | `source.entry`: unnamed/default entry ausente ou top-level execution |
+| `W-SCRIPT-0006` | `source.resolution`: lock ausente, digest inválido ou root não recompõe |
+| `W-SCRIPT-0007` | `source.resolution`: selection, target, edition, nodes, edges ou aliases divergem |
+| `W-SCRIPT-0008` | `source.roots`: canonical containment, traversal, symlink ou path boundary falha |
+| `W-SCRIPT-0009` | `source.capability`: requirement desconhecido, grant/secret no source ou deployment mismatch |
+| `W-SCRIPT-0010` | `source.fetch`: policy, CAS closure, digest, authority, signature ou action output falha |
+| `W-SCRIPT-0011` | `source.provenance`: identity/recipe input ou promotion equivalence diverge |
+| `W-SCRIPT-0012` | `source.graph`: dangling, unreachable, missing closure, cycle ou alias edge local diverge |
+| `W-SCRIPT-0013` | `source.roots`: canonical root provider token não contém o candidate físico |
+| `W-SCRIPT-0014` | `source.validate`: parser evidence não corresponde aos bytes ou facts normalizados do header |
+| `W-SCRIPT-0015` | `source.resolution`: target pedido possui zero ou múltiplos contexts selecionáveis |
+| `W-SCRIPT-0016` | `source.provenance`: artifact, handle ou action-output record não está ligado ao lock e recipe |
 
 #### 3.5.4 Grammar normativa G2: tipos e contratos angulares
 
@@ -23643,6 +23776,13 @@ O lock de workspace registra:
 - build-tool packages e metadata snapshots;
 - razão de cada seleção e exceção de policy.
 
+Um virtual script não possui um `package.w` root para codificar seus aliases
+diretos. Por isso, a projection mínima P0 para o root
+`.product("script")` acrescenta `rootEdges: [{alias, id}]` dentro do seu
+contexto virtual. Esse campo fecha somente a seleção desse root e entra no
+digest canônico; contexts de package normais continuam usando a forma de
+21.1.6 e não recebem esse campo por default.
+
 O source-inventory digest cobre todas as declarations de source, inclusive
 activation owner e cases inativos. O active source-set digest cobre a lista
 ordenada de `PackagePath`, module identity e role após features e target
@@ -24824,7 +24964,7 @@ dependencies aparecem como relações distintas na provenance e no SBOM.
 ### 21.6 CLI
 
 ```text
-w context
+w context [<path/file.w>]
 w workspace check
 w resolve
 w add <package>@<constraint> --as <alias> --use <use>
@@ -24841,7 +24981,11 @@ w toolchain explain <product> --target <target> [--execution-platform <platform>
 w build <product> --target <target> [--packing <packing>] [--toolchains <plan>] [--output-index <path>] --locked
 w build --matrix <set> --product <product> [--toolchains <plan>] [--output-index <path>] --locked
 w run <product> [--deployment <plan>] -- <arguments>
-w run <path/file.w> -- <arguments>
+w run <path/file.w> [--offline] [--deployment <plan>] -- <arguments>
+w script add <file.w> <package>@<constraint> --as <alias>
+w script remove <file.w> <alias>
+w script resolve <file.w>
+w script promote <file.w> --output <dir>
 w repl
 w test [product] --locked
 w explain dependency <package>
@@ -24908,24 +25052,26 @@ $ w run last-light-native --deployment deployments/local.w -- --cli
 O CLI não imprime download, compile unit ou cache hit por default. `--verbose`
 mostra fases. `--json` emite eventos estáveis.
 
-Arquivo único usa a direção PYN0:
+Arquivo único usa a forma PYN1:
 
 ```text
 $ w run path/file.w -- input.csv --limit 10
 ran path/file.w in ephemeral hermetic product
 ```
 
-Dentro de um package, `w run path/file.w` usa o entry default, o contexto e o
-lock do package. Fora de um package, usa std e módulos locais no
-package/product efêmero. Dependências remotas e a forma `--with` continuam
-**Pesquisa** na
-[auditoria PYN0](#2411-auditoria-pythonw-pyn0).
+Com header `script`, `w run path/file.w` força o contexto standalone e usa
+lock fixado. Sem header, dentro de package usa o entry default, o
+contexto e o lock do package. Fora de package usa std e módulos locais no
+product efêmero. Dependencies externas sem header são rejeitadas. `--with`
+não é forma final. O contrato está na
+[auditoria PYN1](#2412-workflow-de-script-single-file-pyn1).
 
 `w repl` usa parser, checker e HIR normais. A session transacional e
 generational pode salvar source canônico, resetar e explicar invalidation e
 cost. Jupyter/session é uma direção de tooling, não uma nova forma de source.
 O kernel deve implementar o protocol Jupyter e exportar `.w` ou package antes
-de release. O contrato completo está na [auditoria PYN0](#2411-auditoria-pythonw-pyn0).
+de release. O contrato completo está na [auditoria PYN0](#2411-auditoria-pythonw-pyn0)
+e no workflow PYN1 para roots standalone.
 
 #### 21.6.2 Publicação e reprodução
 
@@ -24979,6 +25125,8 @@ aprender” fica como alternativa de marca; não é promessa técnica.
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
 - `w build --locked` usa somente o grafo fixado;
+- `w run <path/file.w>` aplica PYN1: header, context, lock por digest e entry default;
+- `w script add/remove/resolve/promote` usa mutation atomicamente verificável;
 - `w repl` abre uma session transacional com generations e HIR normal;
 - `w audit` verifica policy, advisories, provenance e reprodução.
 
@@ -25005,6 +25153,8 @@ Formatter:
 - `w fmt` idempotente.
 
 A semântica completa da forma canônica está em [3.5.1](#351-forma-canônica-do-formatter).
+Header `script` possui pair CST-equivalent e idempotence em F0. O formatter
+preserva o header como primeiro item e não o interpreta como comentário.
 O frontend e o LSP compartilham a mesma CST lossless. O LSP pode formatar uma
 região recuperável para preview, mas `w fmt` não grava source com error fatal.
 
@@ -27173,16 +27323,16 @@ inferência de schema pertence ao tooling e publica seus limites.
 
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
-| Arquivo único com argumentos e execução repetida | `w run <product>` e lock de package | `w run path/file.w -- <args>` com contexto hermético | CLI e resolver | **Direção** |
+| Arquivo único com argumentos e execução repetida | `w run <product>` e lock de package | `w run path/file.w -- <args>` com header standalone ou package/ephemeral context hermético | CLI e resolver | **Direção** |
 | REPL com edição, history e completion | parser, checker e HIR normais | session transacional, generations e custo de invalidação | tooling e HIR | **Direção** |
 | Notebook para code, prose, data e rich output | LSP, diagnostics e outputs estruturados | kernel Jupyter, protocol tipado e export canônico | tooling e produto | **Direção** |
-| Reexecução offline e provenance | lock e artifact digests de package | dependência externa de arquivo único | resolver e release | **Pesquisa** |
+| Reexecução offline e provenance | lock e artifact digests de package; PYN1 fecha header, virtual selection, lock root e CAS para arquivo único | gates de registry/provider e execução real | resolver e release | **Direção** |
 
-`w run path/file.w -- <args>` é a direção para arquivo único. Dentro de um
-package, o comando usa o entry default, contexto e lock desse package. Fora de
-um package, ele cria um package/product efêmero hermético com std e módulos
-locais. O resolver não pesquisa ambiente ou path e não baixa remote
-implicitamente.
+`w run path/file.w -- <args>` é a direção para arquivo único. Com header, o
+source é sempre root standalone mesmo dentro de package. Sem header, dentro de
+um package o comando usa o entry default, contexto e lock desse package; fora
+de package, cria contexto efêmero hermético com std e módulos locais. O
+resolver não pesquisa ambiente ou path e não baixa remote implicitamente.
 
 O source graph do arquivo contém somente imports explícitos. Sem package
 context, a root local é o diretório do script. Com package context, a root é o
@@ -27194,16 +27344,18 @@ cria top-level execution arbitrário.
 
 Uma falha do package/product efêmero não deixa manifest ou estado oculto.
 
-Dependência externa de arquivo único continua **Pesquisa**. As alternativas são
-manifest sibling com lock, metadata inline data-only e o comando `--with`:
+PYN0 não fechou a forma de dependency externa. PYN1 adota metadata inline
+data-only no header `script`, com lock por digest e provenance. Manifest sibling
+continua uma alternativa de promoção. Comment metadata e `--with` não são
+formas finais:
 
 ```text
 w run path/file.w -- input.csv
-w run path/file.w --with package@constraint -- input.csv
+w script add path/file.w package@constraint --as package_alias
 ```
 
-Qualquer forma final exige lock por digest, provenance e reexecução offline.
-PYN0 não escolhe uma alternativa neste bundle.
+O comando final exige lock por digest, provenance e reexecução offline. A
+implementação de resolver, CLI e provider permanece missing.
 
 `w repl` usa o parser, checker e HIR normais. Ele não cria dynamic mode. Cada
 submission é transacional. Uma falha não altera a session. Uma declaração
@@ -27343,6 +27495,185 @@ compiler version, target e hardware. Não há número fixo nem vitória declarad
 HIR interpreter, ORC JIT, incremental native e outro backend rápido são
 alternativas de spike. Nenhum segundo runtime vira autoridade semântica.
 
+#### 24.1.2 Workflow de script single-file PYN1
+
+**Exemplo:** `horizon_script.w` fixa a dependency `chart`, calcula um score do
+horizonte e escolhe um menu no entry default. O source continua um oracle de
+design. Ele não afirma execução W.
+
+PYN1 fecha a forma de workflow single-file. O header contextual `script { ... }`
+é o primeiro item opcional da raiz `module_source`. Ele reutiliza o subset
+`manifest_record` data-only. Ele exige `edition`; `dependencies`, `lock` e
+`requires` são os únicos fields adicionais. `schema` é redundante. Dependencies
+não vazias exigem `lock`, e sem dependencies `lock` é proibido. `requires` usa
+values contextuais como `[.clock]`, nunca strings, records, grants ou secrets;
+process arguments são baseline channel, não capability. Unknown e duplicate
+fields são errors. `script` permanece um identifier quando não existe essa
+posição contextual. Comment metadata, inferência por import e tool table aberto
+não são formas W.
+
+Um source com header é root standalone executável. Ele pode ter module header,
+imports, declarations e unnamed/default entry. O source não possui execução
+top-level arbitrária. Um source com header não é importável como módulo. `w run`
+mantém standalone mesmo dentro de workspace. Sem header, o arquivo usa package
+context e lock dentro de package. Fora de package, o arquivo usa contexto
+efêmero com std e módulos locais explícitos. `w context` mostra a seleção. A
+ferramenta não faz merge silencioso entre contexts.
+
+O grafo de imports contém somente edges explícitos. A root local física serve
+discovery e diagnóstico; canonical containment é regra do target/provider, com
+symlink, traversal e escape avaliados nessa boundary. Recursive scan, cwd scan,
+`PATH` scan e environment scan não existem. URL, stdin e shebang permanecem
+rejeitados por causa de path, environment e portability.
+
+Uma dependency externa usa o record normal de P0. O header registra alias,
+package identity, version constraint, use e source authority. Aliases são
+únicos. `.path`, branch ou ref mutable, registry ambiental e local override são
+rejeitados para script shareable. Registry immutable é baseline; Git/content
+source immutable continua Pesquisa. A resolução deriva um virtual selection
+digest de edition e dependencies normalizadas, excluindo `lock` e bytes do body.
+O `lock` usa a forma canônica de P0 (`schema: "w.package-lock/1"`, `resolver`,
+`workspaceDigest`, `manifestDigests["virtual-script"]`, `contexts[]` e
+`packages[]`), sem flatten PYN1. O context virtual fecha root
+`.product("script")`, `use`, `targetRole`, target, `activeSourceSet`,
+`resolutionDigest`, `nodes` e `rootEdges`; cada package possui `id`
+content-derived, name, version, source, metadata/content digests e edges
+`{alias,id}` locais ao parent. O host recompõe o digest do payload P0 real e
+ignora `lock.digest`; não injeta defaults durante o hash. A closure alcançável
+é derivada por traversal desde as root edges; dangling, unreachable, missing
+node, alias collision local e cycle inválido falham. Artifacts podem representar
+qualquer node alcançável. CAS lista somente objetos content-addressed, nunca
+`alias@version`; artifact records e recipes ficam fora do payload do lock. O
+digest não concede authority.
+
+Um lock pode carregar contexts válidos para vários targets. A admission
+seleciona exatamente um context por root virtual, use, targetRole e target
+pedido; os outros contexts continuam no root digest, mas não entram na closure
+ou recipe selecionada. `rootEdges` é a extensão fechada somente do context
+virtual de script; package contexts normais continuam na forma P0 de 21.1.6.
+
+`w run` pode compilar o source normal, mas nunca resolve constraint, atualiza
+lock, instala package ou executa install/build action oculto. O lock fixa o
+package source/content graph; artifact records, recipes e action outputs são
+evidências de provider selecionadas depois do lock e ligadas por record
+digests. A operação pode buscar essas evidências em authorities ou mirrors
+conforme network policy explícita. Se root lock ou artifact evidence não está
+no CAS, um candidate real é obrigatório; expectativa não é byte recebido.
+`--offline` exige root lock e todos os digests de metadata, content, artifacts e
+action outputs no CAS. Action output necessário que não esteja no lock/CAS/policy
+falha e pede operação explícita. Digest é sempre recomposto antes de CAS
+publication; signature e authority exigem evidence/policy explícitas. Mismatch
+falha antes de publication, build e entry; bytes divergentes são retired.
+
+Artifact evidence selecionada recebe `w-script-artifact-record-v1`: o digest
+liga lock root, node, metadata/content digests, target/use, artifact digest,
+toolchain, host profile, recipe owner, authority e signature policy. Handles
+transitivos ligam owner node e seu `metadataDigest`; action outputs ligam owner,
+action/recipe digest, output digest, policy e provenance. Esses record digests
+entram na recipe/product identity quando selecionados; a lista ambiental do
+CAS permanece fora da identity.
+
+O header declara requirements de capability. Ele não concede grants ou secrets.
+O ephemeral native-script default recebe o channel de process args e a
+authority `.stdio` em contratos separados; args não é capability. Requirements usam `.filesystem`, `.network`,
+`.clock`, `.random` e `.storage`. Deployment satisfaz somente requirements
+declarados; grants extras não são propagados. Unknown requirement, source grant,
+secret ou missing deployment grant falha antes do build/entry. Dependency
+transitiva exige handles/bindings explícitos e seu próprio contrato; não herda
+authority do root.
+
+A product identity efêmera deriva dos seguintes campos normalizados:
+
+- root source bytes digest e ordered local graph `{path, digest}`;
+- selected context e reachable package content digests;
+- selected artifact record digests, handle record digests e action-output
+  record digests consumidos;
+- edition, target e host profile;
+- lock digest;
+- conjunto completo de requirements;
+- toolchain digest e recipe owner.
+
+Path físico canônico serve discovery, diagnóstico e provenance, não identity ou
+recipe. O host modela containment por target/provider; não alega que
+`replaceAll('\\','/')` resolve symlink, drive, UNC, case ou Unicode. Baseline
+channels e authority são inputs separados; host profile cobre a baseline na
+identity e `requires` inclui somente requirements explícitos. Trace e
+`w context` mostram roots, lock digest, fetches, authorities, capabilities e
+recipe. Product temporário e failed run não deixam estado oculto.
+Promotion valida o próprio payload P0 e root digest do candidate `package.lock`.
+Ele compara closure/package graph alcançável, selection, local graph, entry e
+requirements sem re-resolver; a codificação do root pode mudar para
+`.product("package")`. A provenance liga e recompõe o digest do source script,
+script lock, package manifest e package-lock output. Só então cria `package.w`
+e `package.lock` equivalentes, remove ou transforma o header e emite provenance.
+
+Os commands fechados para o header são:
+
+```text
+w script add <file.w> <package>@<constraint> --as <alias>
+w script remove <file.w> <alias>
+w script resolve <file.w>
+w script promote <file.w> --output <dir>
+```
+
+Add, remove e resolve validam virtual selection e lock antes de substituir
+source atomicamente. Remove do último dependency remove `lock`; resolve preserva
+edition/dependencies e troca somente `lock`. CAS pode receber o objeto antes,
+mas failure não altera os bytes do source. `--with` permanece rejeitado como
+forma final.
+
+O oracle host usa uma única máquina e um caso JSONL derivado. As operações são:
+
+`parseHeader` recebe `parseEvidence` produzido pela projection parser. A
+evidence liga o digest recomputado dos bytes normalizados aos facts do header,
+entry default e top-level execution; o host valida esse vínculo e não
+implementa o parser W. `scriptAdd`, `scriptRemove` e `scriptResolve` exigem
+`resultParseEvidence` com o mesmo vínculo antes da troca atômica. Tree-sitter e
+o corpus semântico continuam sendo a prova estrutural separada.
+
+| Operação | Invariante derivada |
+|---|---|
+| `parseHeader` | posição, edition, fields, aliases, source kind e `parseEvidence` ligada aos bytes |
+| `selectContext` | standalone, package ou ephemeral sem merge implícito |
+| `resolveRoots` | root física para discovery/diagnóstico, containment target-specific e discovery policy |
+| `validateImports` | edges explícitos, path→digest e script root-only |
+| `validateResolution` | lock P0 (`schema`/`resolver`/`contexts`/`packages`), recomputed root, virtual selection, reachable closure, local aliases/edges, authority e target |
+| `admitFetch` | policy pinned, lock root/content CAS offline, real candidates e retirement de bytes |
+| `verifyArtifact` | digest, authority e signature antes de build |
+| `admitCapabilities` | requirements, offered/matched/effective e handles transitivos |
+| `buildEphemeral` | recipe e identity sem path físico ou manifest oculto |
+| `runEntry` | unnamed/default entry e ausência de top-level execution |
+| `cleanup` | falha sem lock, manifest ou artifact oculto |
+| `contextExplanation` | roots, lock, fetches, authorities, capabilities e recipe |
+| `scriptAdd`, `scriptRemove`, `scriptResolve` | mutation header+lock atomic com `resultParseEvidence` |
+| `promote` | package equivalente, graph e entry preservados, provenance emitida |
+
+Alternativas consideradas e rejeitadas: comment metadata de PEP 723, sibling
+manifest obrigatório, package-only, CLI `--with` e schema redundante. A forma
+record P0 continua explícita. Compact dependency constructor fica em Pesquisa
+futura.
+
+O [corpus PYN1](tooling/script-workflow-cases.json) possui casos positivos e
+negativos para cada decisão. O [host oracle](tooling/script-workflow-machine.mjs)
+deriva state e trace. O snapshot é uma projeção de design. O host não executa W,
+não resolve registry e não implementa CLI, compiler, runtime ou provider.
+
+O Last Light usa [`horizon_script.w`](reference/last-light/horizon_script.w)
+como exemplo parseável. O lock `sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2`
+é derivado do payload P0 no fixture `header-ready` e não é um placeholder. O source importa `std.data`, usa
+`Batch<HorizonReading>`, calcula o score do horizonte e escolhe
+`steady`/`warning`/`evacuation` no entry. O README do produto registra o mapa de
+aceitação e a lista de adversariais.
+
+PEP 723 é evidência externa de ergonomia e de risco para metadata inline. Ele
+descreve metadata em comment blocks para launchers e tools. W adota um header
+estrutural data-only com lock por digest. W rejeita comment metadata,
+dependency inference e tool table aberto. A fonte é o
+[PEP 723 oficial](https://peps.python.org/pep-0723/).
+
+O estado desta subseção é **Direção** de design e oracle. Nenhum command, resolver,
+compiler, runtime, provider ou network client é alegado como implementado.
+
 ### 24.2 Resultado das pesquisas anteriores
 
 **Exemplo:** `ReadBatch` fica provável. `inout T...` fica rejeitado. Os dois
@@ -27423,10 +27754,10 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit atual classifica 214/1005
-decisões: 107 pelo eixo source, 127 pelo eixo oracle e oito explicitamente; 28
+declara todos os eixos obrigatórios. O freeze audit atual classifica 282/1075
+decisões: 107 pelo eixo source, 195 pelo eixo oracle e oito explicitamente; 28
 decisões possuem eixos sobrepostos. Duas decisões já exigem formalmente
-ambos. As 791 restantes continuam um worklist, não uma aprovação implícita.
+ambos. As 793 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -27464,11 +27795,11 @@ evidência de design:
 
 | Artefato | Estado atual | Condição de fechamento do design |
 |---|---|---|
-| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 19 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
+| grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 92 casos pareiam 46 resultados positivos com 46 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 83/83 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 96/96 codes referenciados estão catalogados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
 | std | SDK0 cataloga 285 exports em 18 módulos; todos possuem declaration draft-ready; 14/14 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 12/12 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
-| workflow interativo e científico PYN0 | `w run <product>`, locks, HIR, tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters/contracts/host evidence TAB1 estão fechados como design | fechar dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; implementações de CLI, REPL, kernel e providers ficam pós-freeze |
+| workflow single-file e científico PYN1/PYN0 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico, promotion e oracle host; PYN0 mantém REPL, tensors T2, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, runtime, session transacional com resource/drain semantics, rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
 | memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
@@ -27780,6 +28111,11 @@ O corpus compara, no mínimo:
 - newline como whitespace contra automatic semicolon insertion;
 - semicolon raro de desambiguação contra remoção que altera a CST.
 - manifest exclusivo com `{...}` contra `package<...>` inline no source;
+- header `script` data-only contextual contra comment metadata PEP 723 e dependency inference;
+- root standalone com lock por digest contra package context, ambient registry e `--with`;
+- imports explícitos e root canônica contra scan recursivo, cwd, `PATH`, environment e symlink escape;
+- capability requirements com deployment grant contra source grants e escalation transitiva;
+- entry unnamed/default e cleanup explícito contra top-level execution e estado oculto;
 - imports antes das declarations contra imports intercalados;
 - body obrigatório em função comum contra prototype solto no top-level;
 - `<...>` como contrato local nomeado contra uso como record completo de build.
@@ -28335,6 +28671,43 @@ reader binário Parquet ou Arrow.
 `tree-sitter` parse, host oracle e cases são evidência corrente. `w compile`,
 `w run`, estudo humano e estudo de modelo permanecem missing. A superfície
 derivada liga os símbolos de `data_formats.w` aos requisitos TAB1 e ao ledger.
+
+#### 26.3.16 Workflow single-file PYN1
+
+**Exemplo:** o mesmo `horizon_script.w` roda com header standalone, sem header
+em package context e depois de promotion. A resolução e o entry permanecem
+iguais nos três estados aceitos.
+
+[`tooling/script-workflow-cases.json`](tooling/script-workflow-cases.json)
+contém casos positivos e negativos para o header, root, context, imports,
+virtual selection, lock root, fetch, requirements, identity, entry, cleanup, mutation e
+promotion. São 91 casos e 533 operações (22 aceitos e 69 rejeitados). O corpus declara símbolos de
+[`horizon_script.w`](reference/last-light/horizon_script.w) e os IDs PYN1 do
+ledger como decisões que os casos exercitam. Os casos cobrem:
+
+- no-header std hello, header locked e header standalone em workspace;
+- no-header package context, context explanation e identifier `script`;
+- missing ou mismatched lock, duplicate alias/field/header e schema/field inválido;
+- imported script, path/mutable/ambient/override dependency e root/import traversal ou symlink escape;
+- recursive, cwd, `PATH` e environment scan, URL, stdin e shebang;
+- fetch antes de lock, network policy, offline root/closure hit/miss e CAS explícito;
+- digest, authority e signature mismatch, requirement/grant/secret e handle transitivo;
+- missing default entry, top-level execution, cleanup de failure e ausência de hidden state;
+- add/remove/resolve atomic, promotion equivalente e promotion com dependency/local graph,
+  entry, requirements ou provenance divergente;
+- edition, target e Windows case/drive/UNC mismatch;
+- payload P0 `contexts`/`packages`, package IDs content-derived, closure transitiva,
+  dangling/unreachable/missing nodes e alias collision local;
+- root physical opaque com same-drive, same-UNC e Unicode canonical-equivalent
+  accepted, different owner rejected.
+
+[`tooling/script-workflow-machine.mjs`](tooling/script-workflow-machine.mjs)
+deriva state, trace e digests. O teste host verifica standalone em workspace,
+retirement de bytes no mismatch, default capability e atomicidade. O snapshot
+JSONL é gerado pelo checker e não repete o campo `expected` como semântica.
+Parse Tree-sitter, host oracle e cases são evidência de design. CLI, compiler,
+resolver, provider, runtime, estudo humano e estudo de modelo permanecem
+missing.
 
 ## 27. Plano de implementação
 
@@ -29734,6 +30107,36 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1043 | host evidence TAB1 | `tooling/tabular-adapter-machine.mjs`, 84 cases/184 operations (35 accepted, 49 rejected), checker, JSONL snapshot e host tests derivam state/identity/progress/provenance/tokenizer/footer/page/IPC/ownership/quota; cada case liga símbolo real do Last Light; não compilam ou executam W | expected echo, snapshot manual, boolean rule echo, provider/reader de produção |
 | W-1044 | R1 adapter study | `r1-tabular-adapters` fixa três variantes W assíncronas que iteram todos os batches/rows e preservam primary 0.8, empty/negative/NaN/multiline, adversariais, digests, quatro tasks, orders, blinding e host oracle; mede clareza e preservação, não substituição universal | comparar formatos como equivalentes, input implícito, `expect true` ou participante/modelo inventado |
 | W-1045 | SDK0/TAB1 projections | std-api contracts e snapshot catalogam std.data/csv/parquet/arrow e SnapshotByteSource como draft; providers permanecem missing; design-index, profiles, requirements e surface são derivados por scripts | alegar provider disponível, editar snapshot manual ou alterar generated tree-sitter src |
+| W-1046 | header contextual PYN1 | `script { ... }` é o primeiro item opcional de `module_source`, usa `manifest_record` data-only e não é declaration, annotation, comment ou código | comment metadata, header depois de import, declaration top-level chamada `script` |
+| W-1047 | fields e requirements do script | header exige `edition`; somente `dependencies`, `lock` e `requires` são fields adicionais; `schema` é redundante, requires usa enum contextual e unknown/duplicate falham | schema duplicado, tool table aberto, strings/records em requires, fields desconhecidos ou duplicate last-wins |
+| W-1048 | context standalone | header torna o source root standalone mesmo dentro de workspace; sem header o arquivo seleciona package context ou ephemeral context sem merge silencioso | workspace sempre vence, merge de locks, package discovery ambiental |
+| W-1049 | entry de script | source standalone aceita module/imports/declarations e exige unnamed/default entry; não aceita top-level execution arbitrária | entry nomeado obrigatório, top-level statements, `__main__` implícito |
+| W-1050 | roots e imports explícitos | grafo usa somente imports explícitos; input físico é opaque e provider retorna canonical token/owner/containment; logical imports são relativos; same-drive/UNC/Unicode equivalentes podem passar e escape/traversal/symlink/different owner falham | replace lexical como canonicalização, recursive scan, cwd/PATH/environment scan, symlink sem provider facts |
+| W-1051 | dependency record PYN1 | dependency usa alias, package identity, version constraint, use e source authority do record normal de P0; aliases são únicos | string de dependency sem identity, alias derivado do package, resolver paralelo |
+| W-1052 | sources rejeitados em script shareable | `.path`, branch/ref mutable, registry ambiental e local override são rejeitados | override local oculto, mutable ref aceito, registry inferido do host |
+| W-1053 | lock root e virtual selection | dependency não vazia exige `lock: "sha256:..."`; payload fiel P0 usa `schema`/`resolver`/`contexts`/`packages`, selection/target/use/root edges/reachable closure são recompostos e `lock.digest` não é autoridade | flatten PYN1 custom, constraint sem lock, auto-default no hash, closure/selection opcional, authority derivada do digest |
+| W-1054 | run sem re-resolução | `w run` compila source normal, mas não resolve constraint, atualiza lock, instala package ou executa install/build action; action output necessário deve estar no lock/CAS/policy | resolver implícito, update no run, callback de package ou shell oculto |
+| W-1055 | fetch pinned e offline | fetch usa candidate real quando root/artifact não está no CAS; mirror pode servir lock content-addressed; `--offline` exige root e todos os digests de metadata/content/artifacts/action outputs; cache é explícito | network antes de resolution, fallback registry, expectativa como bytes, alias textual no CAS |
+| W-1056 | integridade de artifact | digest sempre é verificado antes de publication/build; authority e signature exigem evidence/policy explícitas, mismatch aposenta bytes | executar bytes antes de verificar, defaults `true`, retry em authority não listada, aceitar assinatura divergente |
+| W-1057 | requirements de capability | header declara `requires` com enum values e não grants/secrets; baseline channels (`process args`) e authority (`.stdio`) são separados; extras não propagam e handles transitivos exigem owner/contract | source concede authority, secret no header, string/record capability, escalation booleana |
+| W-1058 | deployment grant | `.filesystem`, `.network`, `.clock`, `.random` e `.storage` exigem requirement declarado e grant explícito; effective separa offered/matched e ignora grants extras | `fs`/`network` antigos, grant automático do host, source amplia grant, deployment ignora requirement |
+| W-1059 | capability transitiva | dependency transitiva não herda authority; effects exigem handles/bindings recebidos e contrato próprio | root grant global, boolean escalation, relay opaco, capability por import |
+| W-1060 | identity efêmera | identity deriva de root source bytes digest, ordered logical `{path,digest}` graph, edition, target/host, lock digest, full requirements e toolchain digest, nunca path físico; edição final não inclui histórico | identity por path textual/cwd, cache key só por source, hash de `{previous,header}`, host env oculto |
+| W-1061 | cleanup sem estado oculto | product temporário e failed run não deixam manifest/lock oculto; cleanup limpa artifacts transitórios e conserva provenance observável | lock temporário no cwd, manifest oculto, falha publica output parcial |
+| W-1062 | commands atômicos | add/remove validam selection+lock antes da troca; source replacement usa bytes finais e digest recomputado; remove último dependency remove `lock`; resolve preserva edition/dependencies; failure preserva bytes exatos | editar header primeiro, hash dependente do histórico, lock parcial, `--with` como substituto |
+| W-1063 | promotion equivalente | `script promote` valida root digest do candidate P0 e compara closure/package graph, selection, local graph, entry, requirements e provenance (`source`, script lock, manifest e package lock) sem re-resolve; root encoding pode mudar | promotion re-resolve, arrays soltos, troca entry/requirements/graph ou provenance declarada sem vínculo |
+| W-1064 | evidência PEP 723 | PEP 723 é referência de ergonomia e security risk para metadata inline; W rejeita comment metadata, inference e tool table aberto | copiar comment syntax, tratar PEP como semântica W, dependency inference |
+| W-1065 | operações do oracle | máquina host deriva parseHeader/evidence, context, roots, imports, resolution, selected target, fetch, artifact/handle/action records, capabilities, build, entry, cleanup e promotion | máquina que ecoa expected, boolean rules sem state, CLI falso |
+| W-1066 | corpus PYN1 | 91 casos/533 operações positivos e negativos cobrem P0 lock graph, transitividade, fetch candidate/CAS, path owner, parser evidence, multi-target, sidecar records, identity final, adversariais, Last Light symbols e IDs do ledger; snapshot JSONL é derivado | happy path only, expected como resultado, referência sem symbol |
+| W-1067 | Last Light script oracle | `horizon_script.w` usa header explícito, dependency chart locked pelo digest real do fixture P0, `std.data`, score/menu coerente e entry default; source não afirma execução | snippet isolado, digest manual, dependency fictícia sem authority, top-level execution |
+| W-1068 | grammar e projeções | grammar.js e corpus reconhecem header contextual e mantêm `script` como identifier fora do root; Tree-sitter é estrutural e TextMate usa `\\A` conservador; generated src só muda pelo generator | editar parser gerado, reservar `script` global, regex lexical em toda linha, portal definir grammar |
+| W-1069 | formatter PYN1 | F0 possui pair CST-equivalent e idempotence para header, module e entry; formatter preserva header como primeiro item | ordenar fields por heurística, apagar header, interpretar comment metadata |
+| W-1070 | diagnostics PYN1 | somente posição/duplicate estrutural usam W-PARSE-0031/0032; edition/fields/import misuse/entry/lock/context/roots/evidence/records/capabilities usam W-SCRIPT phases/facts/labels catalogados | validation chamada parse, error genérico sem fact, recovery que muda root, wildcard semântico |
+| W-1071 | host tests e snapshot | checker deriva state/trace, host test verifica standalone, CAS/root fetch, final-source identity, capability default, transitividade e atomicity; snapshot é regenerável | snapshot manual, teste só de expected, chamar host oracle de runtime |
+| W-1072 | origens rejeitadas | URL, stdin e shebang não entram na baseline por path, environment e portability | executar source remoto, stdin root implícita, shebang com resolver ambiental |
+| W-1073 | edition e target | lock/resolution e recipe falham em edition ou target mismatch antes de build | ignorar edition, escolher target do host, compartilhar lock incompatível |
+| W-1074 | context explanation | `w context` mostra mode, roots, selected context, source/content digests, lock/fetches, artifact/record/recipe digests, authorities, capabilities e recipe antes do entry | saída resumida sem razão, provenance posterior apenas, merge silencioso |
+| W-1075 | status do bundle | PYN1 é direção de design e oracle; CLI, compiler, resolver, provider, runtime e network client continuam missing | apresentar cases como execução implementada, promover oracle a produto, iniciar implementação fora do bundle |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
