@@ -124,6 +124,13 @@
     "keywords": {
       "patterns": [
         {
+          "name": "keyword.declaration.script-header.w",
+          "match": "\\A\\s*(script)(?=\\s*\\{)",
+          "captures": {
+            "1": { "name": "keyword.declaration.w" }
+          }
+        },
+        {
           "name": "entity.name.label.w",
           "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*:\\s*(?:for|while|repeat|\\{))"
         },

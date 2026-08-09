@@ -3,6 +3,29 @@
   "status": "design-oracle-input",
   "cases": [
     {
+      "id": "F0-script-header",
+      "decisions": ["W-1046", "W-1047", "W-1056"],
+      "input": {
+        "lines": [
+          "script{edition:\"2026\" lock:\"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2\" requires:[.clock]}",
+          "module horizon",
+          "entry{print(\"ready\")}"
+        ]
+      },
+      "output": [
+        "script {",
+        "  edition: \"2026\"",
+        "  lock: \"sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2\"",
+        "  requires: [.clock]",
+        "}",
+        "",
+        "module horizon",
+        "",
+        "entry { print(\"ready\") }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
       "id": "F0-compact-declarations",
       "decisions": ["W-708", "W-750"],
       "input": {

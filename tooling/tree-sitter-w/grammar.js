@@ -160,6 +160,7 @@ module.exports = grammar({
     source_file: ($) =>
       choice(
         seq(
+          optional($.script_header),
           optional($.module_header),
           repeat(
             choice(
@@ -174,6 +175,12 @@ module.exports = grammar({
         $.deployment_manifest,
         $.workspace_manifest,
         $.lock_manifest,
+      ),
+
+    script_header: ($) =>
+      seq(
+        "script",
+        field("body", $.manifest_record),
       ),
 
     module_header: ($) =>
@@ -698,24 +705,36 @@ module.exports = grammar({
       seq("(", field("default_handler", $.identifier), ")"),
 
     package_manifest: ($) =>
-      seq(
+      prec(
+        1,
+        seq(
         "package",
         field("body", $.manifest_record),
+        ),
       ),
     deployment_manifest: ($) =>
-      seq(
+      prec(
+        1,
+        seq(
         "deployment",
         field("body", $.manifest_record),
+        ),
       ),
     workspace_manifest: ($) =>
-      seq(
+      prec(
+        1,
+        seq(
         "workspace",
         field("body", $.manifest_record),
+        ),
       ),
     lock_manifest: ($) =>
-      seq(
+      prec(
+        1,
+        seq(
         "lock",
         field("body", $.manifest_record),
+        ),
       ),
     manifest_record: ($) =>
       seq("{", repeat($.manifest_field), "}"),

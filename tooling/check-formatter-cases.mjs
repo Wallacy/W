@@ -102,7 +102,7 @@ for (const [index, testCase] of corpus.cases.entries()) {
     fail(`${testCase.id} has no decision links`)
   }
   for (const decision of testCase.decisions) {
-    if (!/^W-[0-9]{3}$/.test(decision) || !design.includes(`| ${decision} |`)) {
+    if (!/^W-[0-9]{3,}$/.test(decision) || !design.includes(`| ${decision} |`)) {
       fail(`${testCase.id} references unknown decision ${decision}`)
     }
   }

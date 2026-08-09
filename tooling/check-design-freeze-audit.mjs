@@ -22,6 +22,7 @@ const corpusFiles = [
   "runtime-liveness-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
+  "script-workflow-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
@@ -75,13 +76,16 @@ for (const file of corpusFiles) {
   const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, file), "utf8"));
   for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
     knownEvidenceIds.add(testCase.id);
-    if (testCase.decisions === undefined) continue;
-    if (!Array.isArray(testCase.decisions) || testCase.decisions.length === 0) {
+    const decisions =
+      testCase.decisions ??
+      (file === "script-workflow-cases.json" ? corpus.decisions : undefined);
+    if (decisions === undefined) continue;
+    if (!Array.isArray(decisions) || decisions.length === 0) {
       errors.push(`${file}.cases[${caseIndex}].decisions must be a non-empty array.`);
       continue;
     }
     const localDecisions = new Set();
-    for (const [decisionIndex, decision] of testCase.decisions.entries()) {
+    for (const [decisionIndex, decision] of decisions.entries()) {
       const location = `${file}.cases[${caseIndex}].decisions[${decisionIndex}]`;
       if (!requireString(decision, location)) continue;
       if (!ledgerIdSet.has(decision)) {

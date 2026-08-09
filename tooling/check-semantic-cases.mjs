@@ -16,6 +16,14 @@ const phases = [
   "source.parse",
   "source.lower",
   "source.format",
+  "source.validate",
+  "source.context",
+  "source.entry",
+  "source.resolution",
+  "source.roots",
+  "source.capability",
+  "source.fetch",
+  "source.provenance",
   "semantic.resolve",
   "semantic.const",
   "semantic.type",
@@ -426,7 +434,7 @@ for (const [sourceOrdinal, testCase] of corpus.cases.entries()) {
   if (testCase.kind !== "positive" && testCase.kind !== "negative") {
     fail(`${testCase.id} has invalid kind`)
   }
-  if (!/^W-[0-9]{3}$/.test(testCase.rule) || !design.includes(`| ${testCase.rule} |`)) {
+  if (!/^W-[0-9]{3,}$/.test(testCase.rule) || !design.includes(`| ${testCase.rule} |`)) {
     fail(`${testCase.id} references an unknown decision`)
   }
   if (!Array.isArray(testCase.source) || testCase.source.length === 0) {

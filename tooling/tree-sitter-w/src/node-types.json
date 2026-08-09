@@ -9803,6 +9803,22 @@
     }
   },
   {
+    "type": "script_header",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "manifest_record",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "service_declaration",
     "named": true,
     "fields": {
@@ -10055,6 +10071,10 @@
         },
         {
           "type": "protocol_declaration",
+          "named": true
+        },
+        {
+          "type": "script_header",
           "named": true
         },
         {
@@ -12730,6 +12750,10 @@
   {
     "type": "scalar_literal",
     "named": true
+  },
+  {
+    "type": "script",
+    "named": false
   },
   {
     "type": "service",

@@ -65,7 +65,11 @@ Tree-sitter é a fonte estrutural candidata para highlighting, folds e navegaç�
 `wls`/HIR deverá produzir semantic tokens, diagnósticos e completions. TextMate
 permanece como baseline lexical nativa do VS Code, mas sua lista de tokens deve
 ser uma projeção pequena do inventário compartilhado — não uma segunda
-gramática. A fixture `fixtures/restaurant-syntax.w` é o começo lexical desse
-corpus compartilhado.
+gramática. A fixture negativa `fixtures/script-context.w` cobre `let`/`fn`/
+`module`/property names. O token contextual `script` usa anchor de documento (`\\A`) e é uma
+aproximação conservadora: comments antes do header não são reclassificados com
+segurança. Tree-sitter continua autoritativo e não colore `script` em binding,
+function, member ou property contexts. A fixture `fixtures/restaurant-syntax.w`
+é o começo lexical desse corpus compartilhado.
 
 Referência: [ícones default de linguagem no VS Code](https://code.visualstudio.com/api/extension-guides/file-icon-theme#language-default-icons).

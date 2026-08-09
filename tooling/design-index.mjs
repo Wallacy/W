@@ -259,6 +259,7 @@ const oracleCorpusFiles = [
   "runtime-liveness-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
+  "script-workflow-cases.json",
   "wmeta-cases.json",
   "tabular-carrier-cases.json",
   "tabular-adapter-cases.json",
@@ -268,7 +269,11 @@ const oracleFreezeDecisionIds = new Set(
     const corpus = JSON.parse(
       fs.readFileSync(path.join(wDirectory, "tooling", file), "utf8"),
     );
-    return corpus.cases.flatMap((testCase) => testCase.decisions ?? []);
+    return corpus.cases.flatMap(
+      (testCase) =>
+        testCase.decisions ??
+        (file === "script-workflow-cases.json" ? corpus.decisions ?? [] : []),
+    );
   }),
 );
 const classifiedFreezeDecisionIds = new Set([
@@ -467,6 +472,37 @@ const packageReleaseOperations = packageReleaseCorpus.cases.reduce(
 const acceptedPackageReleaseCases = packageReleaseCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
 ).length;
+const scriptWorkflowCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "script-workflow-cases.json"), "utf8"),
+);
+function scriptWorkflowFixtureOperations(name, stack = []) {
+  if (stack.includes(name)) throw new Error(`Script-workflow fixture cycle at ${name}.`);
+  const fixture = scriptWorkflowCorpus.fixtures[name];
+  if (!fixture) throw new Error(`Unknown script-workflow fixture ${name}.`);
+  return (
+    (fixture.operations ?? []).length +
+    (fixture.includes ?? []).reduce(
+      (count, included) =>
+        count + scriptWorkflowFixtureOperations(included, [...stack, name]),
+      0,
+    )
+  );
+}
+const scriptWorkflowCases = scriptWorkflowCorpus.cases.length;
+const scriptWorkflowOperations = scriptWorkflowCorpus.cases.reduce(
+  (count, testCase) =>
+    count +
+    (testCase.operations ?? []).length +
+    (testCase.fixtures ?? []).reduce(
+      (fixtureCount, fixture) =>
+        fixtureCount + scriptWorkflowFixtureOperations(fixture),
+      0,
+    ),
+  0,
+);
+const acceptedScriptWorkflowCases = scriptWorkflowCorpus.cases.filter(
+  (testCase) => testCase.expected.status === "accepted",
+).length;
 const wmetaCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "wmeta-cases.json"), "utf8"),
 );
@@ -617,6 +653,12 @@ output.push(
     `${packageReleaseCases}/${packageReleaseOperations} ` +
     `(${acceptedPackageReleaseCases} aceitos + ` +
     `${packageReleaseCases - acceptedPackageReleaseCases} rejeitados) |`,
+);
+output.push(
+  `| casos/operações do workflow single-file PYN1 | ` +
+    `${scriptWorkflowCases}/${scriptWorkflowOperations} ` +
+    `(${acceptedScriptWorkflowCases} aceitos + ` +
+    `${scriptWorkflowCases - acceptedScriptWorkflowCases} rejeitados) |`,
 );
 output.push(
   `| casos do container WMeta1 W0 | ${wmetaCases} ` +

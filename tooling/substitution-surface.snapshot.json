@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:9575244f1a3d255e7ee309b39cba0d530580c2cdfcb1ea2f03c60edc64c57ca6",
+  "corpusDigest": "sha256:0f7d778d7f96c570d1ae9c13c4470799768aec6a7a585ac954ed1b0a48157362",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2542,6 +2542,246 @@
             "utf8Bytes": 53,
             "codePoints": 53,
             "nonWhitespaceCodePoints": 49,
+            "lines": 2,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-pyn1-script-header",
+      "task": {
+        "utf8Bytes": 87,
+        "codePoints": 87,
+        "nonWhitespaceCodePoints": 76,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:1ef8aa3d82ec329eb587ad323d40d6d41502f01d7e1c3b4f79675cf7ace02c50",
+        "metrics": {
+          "utf8Bytes": 170,
+          "codePoints": 170,
+          "nonWhitespaceCodePoints": 145,
+          "lines": 5,
+          "surfaceLexemes": 39
+        }
+      },
+      "alternatives": [
+        {
+          "name": "pep723-comments",
+          "language": "python",
+          "sourceDigest": "sha256:308e8a6633e9c08681a25c04790b5bd8980c4d51ac19fd3bb62d5e1ae61f8f7d",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 3,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "import-inference",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:8d3ffef84f939753abd181d98fafda6869f46775bda9009dd7772d015d1c3009",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 2,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-pyn1-standalone-lock",
+      "task": {
+        "utf8Bytes": 77,
+        "codePoints": 77,
+        "nonWhitespaceCodePoints": 63,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:120b6d62c7e65894297bb79fabd02e76e4cdad4a9029703ab28d9df190b5a43d",
+        "metrics": {
+          "utf8Bytes": 70,
+          "codePoints": 70,
+          "nonWhitespaceCodePoints": 60,
+          "lines": 2,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "ambient-package-context",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:4c1719c08c5caaca112a2a70dec6fbaba7e87bcf438d58100efb3c71928e953e",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 2,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "cli-with-dependency",
+          "language": "shell",
+          "sourceDigest": "sha256:17e8cd28316bce11bcda42e153fd8e651f3f3a1c7d6b3971eafb64c389fc002b",
+          "metrics": {
+            "utf8Bytes": 40,
+            "codePoints": 40,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-pyn1-explicit-roots",
+      "task": {
+        "utf8Bytes": 76,
+        "codePoints": 76,
+        "nonWhitespaceCodePoints": 67,
+        "lines": 1,
+        "surfaceLexemes": 13
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:acc8a58840adc00fad8316ae75a84ef558c3658e7936e50c687997fce8ec21a1",
+        "metrics": {
+          "utf8Bytes": 41,
+          "codePoints": 41,
+          "nonWhitespaceCodePoints": 38,
+          "lines": 2,
+          "surfaceLexemes": 8
+        }
+      },
+      "alternatives": [
+        {
+          "name": "recursive-discovery",
+          "language": "shell",
+          "sourceDigest": "sha256:0d8c1b504f8f7b689dcde2d7997b833c9c1bd81663dfc8b206bf5f6e3b62e966",
+          "metrics": {
+            "utf8Bytes": 52,
+            "codePoints": 52,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 2,
+            "surfaceLexemes": 18
+          }
+        },
+        {
+          "name": "symlink-escape",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:75a9082a6e3fa57f3fab6ff8d1ad25c6e5d72215639d713d2a0f9c97e1608908",
+          "metrics": {
+            "utf8Bytes": 25,
+            "codePoints": 25,
+            "nonWhitespaceCodePoints": 24,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-pyn1-capability-admission",
+      "task": {
+        "utf8Bytes": 88,
+        "codePoints": 88,
+        "nonWhitespaceCodePoints": 76,
+        "lines": 1,
+        "surfaceLexemes": 14
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:decd5eff243ca2673da4e50ac7a67c139b24ef4feb9626442265d4e81fd17e71",
+        "metrics": {
+          "utf8Bytes": 70,
+          "codePoints": 70,
+          "nonWhitespaceCodePoints": 60,
+          "lines": 2,
+          "surfaceLexemes": 19
+        }
+      },
+      "alternatives": [
+        {
+          "name": "source-grant",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:221e71b55fc98ff34360b95bdc97489fd01576d3bc99867c6c38a1ae2d79883a",
+          "metrics": {
+            "utf8Bytes": 43,
+            "codePoints": 43,
+            "nonWhitespaceCodePoints": 37,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "ambient-transitive-authority",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:9c94f3aa8a3311e64f15de9db80e36c50df6da4bdfa2a56e52f6f0dc6286415c",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 2,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-pyn1-entry-cleanup",
+      "task": {
+        "utf8Bytes": 66,
+        "codePoints": 66,
+        "nonWhitespaceCodePoints": 56,
+        "lines": 1,
+        "surfaceLexemes": 12
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:8c290a4f5b4e8121e934427d1185effa7ae73929e7bb2aafef326963c8f04174",
+        "metrics": {
+          "utf8Bytes": 26,
+          "codePoints": 26,
+          "nonWhitespaceCodePoints": 21,
+          "lines": 3,
+          "surfaceLexemes": 7
+        }
+      },
+      "alternatives": [
+        {
+          "name": "top-level-execution",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:f65022d27baea8d20f5620cbab9e8a64c30bf7b17d37e61785f482e47c1da91b",
+          "metrics": {
+            "utf8Bytes": 29,
+            "codePoints": 29,
+            "nonWhitespaceCodePoints": 27,
+            "lines": 1,
+            "surfaceLexemes": 4
+          }
+        },
+        {
+          "name": "hidden-lock-cache",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:bcb1d4387e742388487c4fc0d3ad9686ba958e77711d08edf0bbd52801c56cf6",
+          "metrics": {
+            "utf8Bytes": 49,
+            "codePoints": 49,
+            "nonWhitespaceCodePoints": 39,
             "lines": 2,
             "surfaceLexemes": 14
           }

@@ -1,0 +1,206 @@
+==================
+Script header is contextual and precedes the module root
+==================
+
+script {
+  edition: "2026"
+  dependencies: [
+    {
+      alias: "chart"
+      package: "fiction/chart"
+      version: "^1.2.0"
+      use: .product
+      source: .registry("w")
+    },
+  ]
+  lock: "sha256:2351884619cf86d97ac039dd47fb29e03f0ac40fe9b0879011c9d9d07ad23174"
+  requires: [.clock]
+}
+
+module horizon
+import chart.science
+import { Batch } from std.data
+fn run(batch: Batch<HorizonReading>): String { return "horizon" }
+entry(run)
+
+---
+
+(source_file
+  (script_header
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (manifest_record
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (string_literal)))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (contextual_member_expression
+                      (identifier))))
+                (manifest_field
+                  (identifier)
+                  (manifest_value
+                    (manifest_constructor
+                      (contextual_member_expression
+                        (identifier))
+                      (manifest_argument
+                        (manifest_value
+                          (string_literal)))))))))))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (manifest_list
+            (manifest_value
+              (contextual_member_expression
+                (identifier))))))))
+  (module_header
+    (identifier))
+  (import_statement
+    (module_path
+      (identifier)
+      (identifier)))
+  (import_statement
+    (named_imports
+      (import_item
+        (identifier)))
+    (module_path
+      (identifier)
+      (identifier)))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier))))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (string_literal))))
+  (entry_declaration
+    (identifier)))
+
+==================
+Script header cannot start after an import
+==================
+
+import std.data
+script { edition: "2026" }
+entry {}
+
+---
+
+(source_file
+  (ERROR
+    (ERROR
+      (module_path
+        (identifier)
+        (identifier))
+      (identifier)
+      (named_imports
+        (import_item
+          (identifier))
+        (ERROR
+          (string_literal)))
+      (identifier))))
+
+==================
+Script header stays first when the source contains imports
+==================
+
+script { edition: "2026" }
+import child
+entry {}
+
+---
+
+(source_file
+  (script_header
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))))
+  (import_statement
+    (module_path
+      (identifier)))
+  (entry_declaration
+    (block)))
+
+==================
+Script remains an identifier outside the root header position
+==================
+
+fn use(script: String): String { return script }
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (identifier)))))
+
+==================
+Duplicate script headers are structural diagnostics
+==================
+
+script { edition: "2026" }
+script { edition: "2026" }
+entry {}
+
+---
+
+(source_file
+  (script_header
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))))
+  (ERROR
+    (identifier)
+    (identifier)
+    (string_literal))
+  (entry_declaration
+    (block)))

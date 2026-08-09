@@ -14,6 +14,18 @@
               "members": [
                 {
                   "type": "SYMBOL",
+                  "name": "script_header"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
                   "name": "module_header"
                 },
                 {
@@ -65,6 +77,23 @@
         {
           "type": "SYMBOL",
           "name": "lock_manifest"
+        }
+      ]
+    },
+    "script_header": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "script"
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "manifest_record"
+          }
         }
       ]
     },
@@ -3528,72 +3557,88 @@
       ]
     },
     "package_manifest": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "package"
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "manifest_record"
+      "type": "PREC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "package"
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "manifest_record"
+            }
           }
-        }
-      ]
+        ]
+      }
     },
     "deployment_manifest": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "deployment"
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "manifest_record"
+      "type": "PREC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "deployment"
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "manifest_record"
+            }
           }
-        }
-      ]
+        ]
+      }
     },
     "workspace_manifest": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "workspace"
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "manifest_record"
+      "type": "PREC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "workspace"
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "manifest_record"
+            }
           }
-        }
-      ]
+        ]
+      }
     },
     "lock_manifest": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "lock"
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "manifest_record"
+      "type": "PREC",
+      "value": 1,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "lock"
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "manifest_record"
+            }
           }
-        }
-      ]
+        ]
+      }
     },
     "manifest_record": {
       "type": "SEQ",

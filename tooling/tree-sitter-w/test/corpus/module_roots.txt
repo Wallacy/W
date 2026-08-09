@@ -111,8 +111,8 @@ fn run() {}
       (manifest_field
         (identifier)
         (manifest_value
-          (string_literal))))
-    (identifier)
+          (string_literal)))))
+  (module_header
     (identifier))
   (function_declaration
     (identifier)
