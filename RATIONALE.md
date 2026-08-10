@@ -10,12 +10,50 @@ Este arquivo registra justificativas, evidência, alternativas e proveniência; 
 
 ### 1.0 Migração de parâmetros de valor
 
-A forma anterior `<const rows: usize>` usava uma keyword para codificar um kind
-que o head já consegue resolver. A forma corrente usa `rows: usize` e `_ state:
-Type` para manter o envelope uniforme. O parser rejeita a forma anterior antes
-do W 1.0. Não existe alias ou compatibilidade implícita. Esta nota registra a
-alternativa histórica e a migração. O contrato normativo permanece em
-[`DESIGN.md`](DESIGN.md).
+A forma histórica `<const rows: usize>` usava uma keyword para codificar um kind
+que o head já consegue resolver. A forma corrente usa `rows: usize` e
+`_ state: Type` para manter o envelope uniforme. A interpretação histórica de `_` como
+um único primary-only slot também fica registrada aqui. Ela não limita a forma
+vigente, que permite qualquer quantidade de values sem label. O parser rejeita
+binding modifiers no envelope antes do W 1.0. Não existe alias ou compatibilidade
+implícita. Esta nota registra a alternativa histórica e a migração. O contrato
+normativo permanece em [`DESIGN.md`](DESIGN.md).
+
+O label externo pertence ao papel da call ou do initializer. O nome interno
+continua disponível para o body e, em um type head, para a associated contract
+value. A omissão de label em um parâmetro generic segue a mesma separação usada
+nos parâmetros runtime: ela evita exigir no call site um label que o caller não
+precisa escrever, sem remover a exposição estática do type head.
+
+Um type head expõe cada value parameter como associated contract value porque o
+valor faz parte da especialização e não de cada instance. Transformá-lo em field
+criaria storage, custo de allocation e uma identidade runtime que o contrato não
+solicita. Transformá-lo em um único primary slot limitaria `Matrix` e shapes com
+mais de um valor. Reordenar labels reduziria a ordem source e complicaria
+lookup, formatter e diagnostics.
+
+Estas alternativas permanecem preservadas para comparação:
+
+- `_` como único primary-only slot;
+- fields de instance automáticos para todos os values;
+- labels que permitem reorder;
+- value parameters callable como associated members.
+
+Para scripts, a alternativa rejeitada é executar qualquer statement de módulo
+durante import. O body implícito é root-only, sem `args` ou `ctx` inferidos, e
+usa o mesmo parser/checker/HIR do produto. Uma função explícita continua sendo
+a forma para arguments, `Context`, retorno customizado ou errors escapantes.
+Também ficam registradas as alternativas de um runtime de script separado, de
+remover o seed C/CMake/Ninja após o self-host, e de tratar Bun como dependência
+do produto; a direção vigente preserva a rota de recovery e migra tooling só
+depois do stage C.
+
+Para memória e concorrência, naming heuristics e warnings especulativos foram
+rejeitados. `shared` resolve somente multiplicidade real de owners; `atomic`
+resolve somente uma localização e operação compatíveis. As opções de
+partition/move+join, channel/service/domain isolation e lock permanecem
+alternativas condicionais aos proof facts, sem uma arquitetura escolhida pelo
+diagnostic.
 
 **Exemplo:** pessoas e modelos corrigem o mesmo erro de ownership no restaurante
 antes de informar preferência pela syntax.
@@ -89,7 +127,7 @@ O corpus compara, no mínimo:
 - root standalone com lock por digest contra package context, ambient registry e `--with`;
 - imports explícitos e root canônica contra scan recursivo, cwd, `PATH`, environment e symlink escape;
 - capability requirements com deployment grant contra source grants e escalation transitiva;
-- entry unnamed/default e cleanup explícito contra top-level execution e estado oculto;
+- entry explícito ou body implícito final, com cleanup explícito, contra execução arbitrária de módulo e estado oculto;
 - imports antes das declarations contra imports intercalados;
 - body obrigatório em função comum contra prototype solto no top-level;
 - `<...>` como contrato local nomeado contra uso como record completo de build.
@@ -394,7 +432,7 @@ oracle host compara somente a semântica hipotética das duas alternativas.
 
 #### 1.3.7 Slot de execution domain
 
-**Exemplo:** as duas formas selecionam o mesmo contrato estático:
+**Exemplo:** o estudo compara a forma vigente com uma variante nomeada:
 
 ```w
 spawn<.compute> let port = mix(left)
@@ -403,8 +441,9 @@ spawn<domain: .compute> let starboard = mix(right)
 
 [`tooling/studies/r1-spawn-domain/bundle.json`](tooling/studies/r1-spawn-domain/bundle.json)
 deriva de `mixPair` no módulo `execution` do Última Luz. `positional.w` usa o
-slot primário curto. `named.w` mantém o label `domain`. As duas formas são W
-válido e normalizam para o mesmo `TaskContract`.
+slot posicional sem label externo e é a forma vigente. `named.w` mantém o label
+`domain` como uma Alternativa R1 que exige schema nomeado; o estudo compara a
+intenção de domínio, não introduz alias no schema corrente.
 
 Um input liga `.compute` a um domain paralelo com capacity um. A call continua
 válida, mas não promete simultaneidade. O input adversarial liga o mesmo nome a
@@ -649,14 +688,15 @@ derivada liga os símbolos de `data_formats.w` aos requisitos TAB1 e ao ledger.
 
 #### 1.3.16 Workflow single-file PYN1
 
-**Exemplo:** o mesmo `horizon_script.w` roda com header standalone, sem header
-em package context e depois de promotion. A resolução e o entry permanecem
-iguais nos três estados aceitos.
+**Exemplo:** `horizon_script.w` usa header standalone e depois de promotion;
+um source sem dependency externa pode usar package context sem header. A
+resolução e o entry permanecem explícitos ou implícitos conforme o source.
 
 [`tooling/script-workflow-cases.json`](tooling/script-workflow-cases.json)
 contém casos positivos e negativos para o header, root, context, imports,
-virtual selection, lock root, fetch, requirements, identity, entry, cleanup, mutation e
-promotion. São 91 casos e 533 operações (22 aceitos e 69 rejeitados). O corpus declara símbolos de
+virtual selection, lock root, fetch, requirements, identity, entry, cleanup,
+mutation e promotion. São 95 casos e 546 operações (23 aceitos e 72
+rejeitados). O corpus declara símbolos de
 [`horizon_script.w`](reference/last-light/horizon_script.w) e os IDs PYN1 do
 ledger como decisões que os casos exercitam. Os casos cobrem:
 
@@ -667,7 +707,8 @@ ledger como decisões que os casos exercitam. Os casos cobrem:
 - recursive, cwd, `PATH` e environment scan, URL, stdin e shebang;
 - fetch antes de lock, network policy, offline root/closure hit/miss e CAS explícito;
 - digest, authority e signature mismatch, requirement/grant/secret e handle transitivo;
-- missing default entry, top-level execution, cleanup de failure e ausência de hidden state;
+- `entryForm` explicit/implicit/missing, body/effect evidence, declaration-after-statement,
+  import de root implícito, error escapante, cleanup de failure e ausência de hidden state;
 - add/remove/resolve atomic, promotion equivalente e promotion com dependency/local graph,
   entry, requirements ou provenance divergente;
 - edition, target e Windows case/drive/UNC mismatch;
@@ -908,7 +949,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
 | W-037 | concorrência | `async let` | Future/Promise; task API somente |
 | W-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
-| W-039 | execution domain | `async/spawn<.domain>` canônico; `<domain: .name>` válido e equivalente | `on .name` (**Rejeitado por enquanto**); descriptor-only |
+| W-039 | execution domain | `async/spawn<.domain>` canônico e sem label; `<domain: .name>` é Alternativa R1 com schema nomeado | alias duplo no mesmo slot; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
 | W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco; reasons do caller são separados de deadline, budget e saída estrutural | statement `cancel` (**Rejeitado por enquanto**); budget como reason; async thread cancellation |
@@ -1795,7 +1836,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
 | W-924 | formatter de receiver consuming | F0 preserva `(take stream).finish()` e prova CST equivalente; os parênteses pertencem ao operand de ownership e não são style opcional | remover grouping; formatar como `take stream.finish()`; mover `take` após member lookup; snapshot sem decisão |
 | W-925 | ownership do parallel default | header de módulo publica somente `domains`; `parallelDefault`, pool, capacity, queue e fallback pertencem ao execution profile selecionado pelo product; S0 rejeita o slot de módulo com W-CONTRACT-0001 | import escolhe executor; default em cada módulo; módulo concede budget; duplicar profile em source |
-| W-926 | estudo R1 de domain | `spawn<.compute>` canônico e `spawn<domain: .compute>` válido normalizam para o mesmo TaskContract; capacity um aceita parallel intent sem prometer simultaneidade; binding serial é rejeitado pelo oracle de profile | tratar domain como thread; proibir label válido; capacity um invalida spawn; chamar oracle de scheduler |
+| W-926 | estudo R1 de domain | `spawn<.compute>` é a forma canônica e `spawn<domain: .compute>` é uma variante de schema nomeado; o estudo compara a intenção de domínio, capacity um aceita parallel intent sem prometer simultaneidade e binding serial é rejeitado pelo oracle de profile | tratar domain como thread; aceitar alias duplo no mesmo slot; capacity um invalida spawn; chamar oracle de scheduler |
 | W-927 | formatter de domain | F0 preserva as formas positional e named e não troca uma pela outra; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
 | W-929 | criação de shared | `share` exige payload lifetime-independent, preserva origins internas e cria origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
@@ -1842,7 +1883,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-970 | oracle E1 e limites | `runtime-liveness-machine.mjs` é host-puro, adversarial e ligado a Última Luz; corpus cobre closure, completion/cancel races, generation, reclaim e shutdown; não prova scheduler/clock/OS I/O, fairness absoluta, advanced reclamation, device, recovery distribuído ou terminação de user code | snapshot manual; máquina runtime; declarar allocator/verifier implementado; ampliar E0/B0/A0; timing real; corpus sem símbolos ou decisões |
 | W-971 | público Python inicial | Python é público inicial nas seções 0.1 e 0.4; scripts, automação, ciência, dados e AI entram no público; pessoa com Python realiza o Tour, workflow single-file e workflow científico básico antes de ownership baixo nível; ownership e effects continuam explícitos nas boundaries | adiar Python até depois de 1.0; tratar Python somente como documentação; prometer compatibilidade dinâmica; copiar o modelo baixo nível para o onboarding |
 | W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party; TAB0 definiu o boundary e TAB1 fechou declarations, contracts, oracles e host evidence de CSV/Parquet/Arrow como design; providers e `w-compile`/`w-run` permanecem missing; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
-| W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e o unnamed/default entry; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
+| W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e `entryForm` explícito/implícito; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
 | W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis, nunca stale ou implicitamente recompilados; resubmission explícita recria e executa effects; redefinição/reset fecha admission, drena children/waits, encerra loans/views e faz drops E1, rejeitando ou escalando se foreign retention permanece | dynamic mode; replay automático de effects; redefinição que mantém dependents silenciosamente; liberar estado vivo; reset que ignora drain; notebook transcript como source de release |
 | W-975 | Jupyter como tooling | PYN3 fecha o adapter Jupyter 5.5 sobre PYN2, `presentation.Presentable`, MIME/data bounded e export `.w`/package sem hidden replay; interrupt solicita structured cancellation; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; segundo session model |
 | W-976 | interop científico | Python Array API standard é checklist T2; DLPack e Arrow C Data são adapters first-party T2; Python buffer pertence à bridge; copy, device, stream, ownership, lifetime e release são explícitos e provados | Array API como semântica normativa W; copy implícito; lifetime ou release ambiental; buffer protocol no core; pandas clone na std |
@@ -1918,7 +1959,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1046 | header contextual PYN1 | `script { ... }` é o primeiro item opcional de `module_source`, usa `manifest_record` data-only e não é declaration, annotation, comment ou código | comment metadata, header depois de import, declaration top-level chamada `script` |
 | W-1047 | fields e requirements do script | header exige `edition`; somente `dependencies`, `lock` e `requires` são fields adicionais; `schema` é redundante, requires usa enum contextual e unknown/duplicate falham | schema duplicado, tool table aberto, strings/records em requires, fields desconhecidos ou duplicate last-wins |
 | W-1048 | context standalone | header torna o source root standalone mesmo dentro de workspace; sem header o arquivo seleciona package context ou ephemeral context sem merge silencioso | workspace sempre vence, merge de locks, package discovery ambiental |
-| W-1049 | entry de script | source standalone aceita module/imports/declarations e exige unnamed/default entry; não aceita top-level execution arbitrária | entry nomeado obrigatório, top-level statements, `__main__` implícito |
+| W-1049 | entry de script | source standalone aceita module/imports/declarations e exige `entryForm` explícito ou implicit final body; não aceita top-level execution arbitrária | entry nomeado obrigatório, execução de módulo arbitrária, `__main__` com args implícitos |
 | W-1050 | roots e imports explícitos | grafo usa somente imports explícitos; input físico é opaque e provider retorna canonical token/owner/containment; logical imports são relativos; same-drive/UNC/Unicode equivalentes podem passar e escape/traversal/symlink/different owner falham | replace lexical como canonicalização, recursive scan, cwd/PATH/environment scan, symlink sem provider facts |
 | W-1051 | dependency record PYN1 | dependency usa alias, package identity, version constraint, use e source authority do record normal de P0; aliases são únicos | string de dependency sem identity, alias derivado do package, resolver paralelo |
 | W-1052 | sources rejeitados em script shareable | `.path`, branch/ref mutable, registry ambiental e local override são rejeitados | override local oculto, mutable ref aceito, registry inferido do host |
@@ -1935,8 +1976,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1063 | promotion equivalente | `script promote` valida root digest do candidate P0 e compara closure/package graph, selection, local graph, entry, requirements e provenance (`source`, script lock, manifest e package lock) sem re-resolve; root encoding pode mudar | promotion re-resolve, arrays soltos, troca entry/requirements/graph ou provenance declarada sem vínculo |
 | W-1064 | evidência PEP 723 | PEP 723 é referência de ergonomia e security risk para metadata inline; W rejeita comment metadata, inference e tool table aberto | copiar comment syntax, tratar PEP como semântica W, dependency inference |
 | W-1065 | operações do oracle | máquina host deriva parseHeader/evidence, context, roots, imports, resolution, selected target, fetch, artifact/handle/action records, capabilities, build, entry, cleanup e promotion | máquina que ecoa expected, boolean rules sem state, CLI falso |
-| W-1066 | corpus PYN1 | 91 casos/533 operações positivos e negativos cobrem P0 lock graph, transitividade, fetch candidate/CAS, path owner, parser evidence, multi-target, sidecar records, identity final, adversariais, Last Light symbols e IDs do ledger; snapshot JSONL é derivado | happy path only, expected como resultado, referência sem symbol |
-| W-1067 | Last Light script oracle | `horizon_script.w` usa header explícito, dependency chart locked pelo digest real do fixture P0, `std.data`, score/menu coerente e entry default; source não afirma execução | snippet isolado, digest manual, dependency fictícia sem authority, top-level execution |
+| W-1066 | corpus PYN1 | 95 casos/546 operações positivos e negativos cobrem P0 lock graph, transitividade, fetch candidate/CAS, path owner, parser evidence, `entryForm` explícito/implicit/missing, body/effect evidence, multi-target, sidecar records, identity final, adversariais, Last Light symbols e IDs do ledger; snapshot JSONL é derivado | happy path only, expected como resultado, referência sem symbol |
+| W-1067 | Last Light script oracle | `horizon_script.w` usa header explícito, dependency chart locked pelo digest real do fixture P0, `std.data`, score/menu coerente e statements finais no implicit `.default`; source não afirma execução | snippet isolado, digest manual, dependency fictícia sem authority, execução de módulo arbitrária |
 | W-1068 | grammar e projeções | grammar.js e corpus reconhecem header contextual e mantêm `script` como identifier fora do root; Tree-sitter é estrutural e TextMate usa `\\A` conservador; generated src só muda pelo generator | editar parser gerado, reservar `script` global, regex lexical em toda linha, portal definir grammar |
 | W-1069 | formatter PYN1 | F0 possui pair CST-equivalent e idempotence para header, module e entry; formatter preserva header como primeiro item | ordenar fields por heurística, apagar header, interpretar comment metadata |
 | W-1070 | diagnostics PYN1 | somente posição/duplicate estrutural usam W-PARSE-0031/0032; edition/fields/import misuse/entry/lock/context/roots/evidence/records/capabilities usam W-SCRIPT phases/facts/labels catalogados | validation chamada parse, error genérico sem fact, recovery que muda root, wildcard semântico |
@@ -2025,6 +2066,10 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1153 | R1E0 fluent self | bundle seleciona `: self` com fallthrough e compara `return self`; validator separa receiver mode, return contract, exit e storage; omitted type é Unit, `Self` é owned e `take fn` rejeita | tornar `: self` `Self` owned, exigir `return self`, copiar/mover/alocar receiver ou aceitar `take fn` |
 | W-1154 | R1E0 corpus metrics and status | scripts derivam 20 bundles, 48 variants, 80 tasks e 31/68 R0 promovidos; substitution surface é regenerada e o status permanece `design-oracle-input` | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
 | W-1155 | generic value parameters | parâmetros de valor usam `name: Type` ou `_ name: Type`, são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
+| W-1156 | generic labels e contract values | `_` remove somente o label externo, values posicionais precedem values nomeados, e todos os values de type heads têm associated exposure estática | primary-only, field de instance automático, reorder de labels, member callable implícito |
+| W-1157 | implicit script entry | statements finais root-only baixam para wrapper `.default` privado sem args/ctx, com `entryForm` explícito no workflow | top-level execution arbitrária, entry+implicit misturados, args/ctx implícitos, script importável |
+| W-1158 | script bootstrap e latency | `w run file.w` usa parser/checker/HIR comuns, mede first-result separado de steady-state e migra tooling para W somente após self-host C | runtime script separado, vitória sem benchmark, remover seed C, Bun como dependência do produto |
+| W-1159 | proof-backed memory recommendations | diagnostics de race e ownership usam proof facts, e alternativas de partition, channel/service, lock ou atomic permanecem condicionais | naming heuristics, shared como mutation/sync, atomic como lifetime/ownership, arquitetura automática |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

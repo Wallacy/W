@@ -20,9 +20,22 @@ export struct StaticValue<T, _ value: T> {
   export const expected = value
 }
 
+export struct StaticWindow<
+  _ start: usize,
+  _ end: usize,
+  unit: PhysicalDuration,
+> {
+  export const span = end - start
+}
+
+export struct Matrix<Element, rows: usize, columns: usize> {
+  export const area = rows * columns
+}
+
 export alias EnabledFeature = StaticValue<Bool, true>
 export alias LastCallLabel = StaticValue<String, "The final seating">
 export alias LastCallDeadline = StaticValue<PhysicalDuration, 10<si.s>>
+export alias HorizonWindow = StaticWindow<0, 60, unit: 1<si.s>>
 
 extension<T: Display & Equatable> Shelf<T>: Catalog {
   alias Item = T
@@ -61,4 +74,7 @@ test "contract atoms preserve their compile-time kind" {
   expect EnabledFeature.expected
   expect LastCallLabel.expected == "The final seating"
   expect LastCallDeadline.expected == 10<si.s>
+  expect HorizonWindow.span == 60
+  expect Matrix<f32, rows: 3, columns: 4>.rows == 3
+  expect Matrix<f32, rows: 3, columns: 4>.area == 12
 }

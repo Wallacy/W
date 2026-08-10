@@ -159,6 +159,63 @@ entry Diagnostics {
               (string_literal))))))))
 
 ==================
+Implicit script entry body
+==================
+
+script {
+  edition: "2026"
+}
+
+fn greet() {
+  print("Hello, W")
+}
+
+greet()
+
+---
+
+(source_file
+  (script_header
+    (manifest_record
+      (manifest_field
+        (identifier)
+        (manifest_value
+          (string_literal)))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (string_literal)))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (argument_list))))
+
+==================
+Declaration cannot follow an implicit entry statement
+==================
+
+let first = 1
+fn later() {}
+
+---
+
+(source_file
+  (binding_declaration
+    (pattern
+      (identifier))
+    (number_literal))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block)))
+
+==================
 Data-only package manifest
 ==================
 

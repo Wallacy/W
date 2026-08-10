@@ -239,7 +239,7 @@ alvo de execução independente.
 | `deployments/benchmark.w` | PostgreSQL, cache local, admission e limites do benchmark |
 | `orbit.w` | swarm de satélites, telemetria e propagação tipada |
 | `horizon.w` | sensores do buraco negro, event time e tensor fusion |
-| `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e entry default |
+| `horizon_script.w` | oracle PYN1 de header script, dependency locked, requirement admission, menu do horizonte e implicit entry default |
 | `tensor_interop.w` | fixture PYN4 de carrier tensorial DLPack 1.3, device/queue, zero-copy, callback scoped, materialização e export consuming |
 | `observatory_app.w` | processo nativo do swarm e da telemetria |
 | `audio.w` | render de áudio com buffers fixos e sem allocation |
@@ -310,6 +310,8 @@ Aceite:
 - `entry { ... }` cria um handler curto para um default slot único;
 - `entry(runNative)` cria o descriptor anônimo `.default`;
 - `entry LastLightTui(runTuiEntry)` cria um descriptor independente;
+- statements finais de um source root formam um implicit entry `.default` privado;
+- o wrapper implícito não cria `args` ou `ctx` e pode ser sync ou async conforme `await` visível;
 - o product escolhe um descriptor e declara callbacks ABI adicionais quando necessários;
 - process signals usam registration runtime e lifetime explícito;
 - callbacks ABI estáticos, como `device.tick`, usam `hostBindings`;
@@ -333,7 +335,10 @@ Aceite:
   closure e metadata/content/artifact CAS digests; `transitive-ready` prova a
   edge local `chart -> science`, `multi-target-ready` prova a seleção de um
   context e os cases `PYN1-sidecar-*` cobrem evidence separada do lock.
-- O source usa `std.data.Batch<HorizonReading>` e um unnamed/default `entry`.
+- O source usa `std.data.Batch<HorizonReading>` e statements finais como implicit
+  entry `.default`.
+- `w explain product` mostra `entryForm: implicit`, o digest do body, facts de
+  effect e o source map dos statements.
 - O menu deriva `steady`, `warning` ou `evacuation` do score do horizonte.
 - Header transforma o source em root standalone, mesmo dentro de workspace.
 - `w context` mostra root diagnóstico, lock digest, fetches, authorities,
@@ -346,6 +351,8 @@ Aceite:
 - Promotion preserva graph e entry, escreve package equivalentes e emite provenance.
 - `parseEvidence`/`resultParseEvidence` ligam a projection parser aos bytes
   normalizados; Tree-sitter prova a projection e o host apenas valida a evidence.
+- importar o source root é rejeitado, e um `entry` explícito misturado com os
+  statements finais é erro.
 
 Adversariais:
 
@@ -360,7 +367,9 @@ Adversariais:
   ou duplicado falha;
 - requirement desconhecido, source grant/secret, deployment grant ausente,
   handle transitivo sem metadata/record ou action output sem provenance;
-- entry ausente, execução top-level, estado oculto e promotion com graph alterado;
+- entry ausente, declaration-after-statement, import de root implícito,
+  explicit+implicit, error escapante, execução arbitrária de módulo, estado
+  oculto e promotion com graph alterado;
 - URL, stdin e shebang, que permanecem rejeitados na baseline.
 
 O host oracle [`tooling/script-workflow-machine.mjs`](../../tooling/script-workflow-machine.mjs)
@@ -385,8 +394,8 @@ Aceite:
 - O wrapper aceita expressions, declarations, statements, loops, calls, tail
   display/discard, owner async/structured `await` sem annotation, local `spawn`
   e `defer`. Parser facts e
-  checker facts produzem diagnostics separados; isso não legaliza module
-  top-level execution.
+  checker facts produzem diagnostics separados; isso não legaliza execução
+  arbitrária de módulo.
 - `snapshot = limit * 2` conserva `6` após rebind de `limit`. `fn doubled` é
   dependente compilado com `BindingId`/version e hard-edge kind; fica unavailable
   com reason e closure. O transcript termina em g4 com w[5] unavailable e w[6]
@@ -1225,11 +1234,11 @@ Aceite:
 - `String<(.scalars.count <= 40)>` usa o subject contextual do refinement;
 - `Array<u8><(.count <= 64)>` refina um generic já aplicado;
 - `Array<[u8, (.count <= 64)]>` não substitui os dois contratos;
-- `spawn<.compute>` e `spawn<domain: .compute>` produzem o mesmo task contract;
+- `spawn<.compute>` é a forma vigente; `spawn<domain: .compute>` é a Alternativa R1 com schema nomeado;
 - `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
 - `<(...)>`, `<{...}>` e `<[...]>` preservam expression, record e list;
 - um slot repetido produz diagnostic antes do type-check normal;
-- um case abreviado só preenche o slot primário declarado pelo schema;
+- um case abreviado só preenche o slot posicional sem label externo declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
 - `Money.zeroCredits` e `Course.fromOrdinal(...)` não criam estado global;
@@ -1552,6 +1561,11 @@ Aceite:
 - o body generic usa somente members declarados pelas constraints;
 - o call site não escolhe uma conformance por import ou ranking;
 - a interface registra generic HIR e witness IDs;
+- `name: Type` expõe value compile-time com label, enquanto `_ name: Type`
+  mantém somente o nome interno;
+- múltiplos values sem label precedem values nomeados, sem reorder;
+- named values de type heads aparecem por lookup estático e não viram fields;
+- `Matrix<f32, rows: 3, columns: 4>.rows` consulta a contract value associada;
 - monomorphization e shared lowering preservam a mesma semântica.
 
 O fixture negativo deve criar duas conditional conformances que se sobrepõem.
@@ -2462,7 +2476,7 @@ O Book deve mostrar pares lado a lado:
 | export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
 | plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` (válido e equivalente) |
+| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` (Alternativa R1, schema nomeado) |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |

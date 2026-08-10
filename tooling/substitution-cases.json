@@ -305,10 +305,10 @@
       },
       "alternatives": [
         {
-          "name": "repeated-primary-label",
+          "name": "named-domain-label",
           "language": "alternative-w",
           "source": ["spawn<domain: .compute> let plan = optimize(take snapshot)"],
-          "expectedDifference": "The primary slot repeats a name that the spawn schema already fixes."
+          "expectedDifference": "The named-label R1 variant requires a schema that declares domain as labeled; it is not an alias for the unlabeled slot."
         },
         {
           "name": "sentence-modifier",
@@ -1516,7 +1516,7 @@
     },
     {
       "id": "R0-pyn1-entry-cleanup",
-      "reviewItem": "entry unnamed/default e cleanup explícito contra top-level execution e estado oculto",
+      "reviewItem": "entry explícito ou body implícito final, com cleanup explícito, contra execução arbitrária de módulo e estado oculto",
       "decisions": ["W-1049", "W-1061"],
       "task": "Run the unnamed entry and remove transient state after the result.",
       "selected": {

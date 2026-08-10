@@ -27,7 +27,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `try`/`await`, `for try await`, `async let`, `spawn let` e `Task.cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
-- `entry { ... }`, descriptors nomeados, service declarations e `import service`;
+- `entry { ... }`, implicit entry bodies finais, descriptors nomeados, service declarations e `import service`;
 - header contextual `script { ... }` como root standalone antes de module/imports;
 - `hostBindings` data-only nos manifests, sem assignments de slots no source;
 - manifests `package`, `workspace`, `lock` e `deployment` com values data-only;
@@ -35,6 +35,11 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - calls, members, tuples, coleções, literais e precedência candidata;
 - queries de highlights, locals e folds;
 - casos estruturais internos, incluindo a superfície integrada vigente.
+
+Na raiz de módulo, a projeção Tree-sitter mantém declarations e statements em
+um repeat de top-level items para compartilhar estados e recovery. O checker
+localiza o primeiro statement, forma o suffix `implicit_entry_body` e rejeita
+declarations posteriores; essa fatoração não amplia a sintaxe normativa.
 
 O corpus usa snippets autocontidos para que compiler, formatter, portal e
 extensão possam futuramente reutilizar os mesmos fixtures. Os arquivos do

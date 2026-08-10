@@ -587,7 +587,7 @@
       "code": "W-SCRIPT-0005",
       "state": "active",
       "profile": "script-entry",
-      "meaning": "a standalone source lacks a default entry or has top-level execution"
+      "meaning": "a standalone source has an invalid entry form, declaration order, or escaping implicit-entry error"
     },
     {
       "code": "W-SCRIPT-0006",
@@ -782,6 +782,51 @@
       "labelRoles": {
         "call-owner": { "minimum": 1, "maximum": 1 },
         "generic-parameter": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-GENERIC-0003",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a generic parameter label or positional order is invalid",
+      "requiredFacts": {
+        "parameter": "string",
+        "kind": "string",
+        "externalLabel": "string",
+        "position": "integer",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "generic-parameter": {
+          "minimum": 1,
+          "maximum": 1
+        }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-GENERIC-0004",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a generic associated contract value name conflicts with a type-head member",
+      "requiredFacts": {
+        "head": "string",
+        "parameter": "string",
+        "member": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "generic-parameter": {
+          "minimum": 1,
+          "maximum": 1
+        },
+        "associated-member": {
+          "minimum": 1,
+          "maximum": 1
+        }
       },
       "fixes": {}
     },

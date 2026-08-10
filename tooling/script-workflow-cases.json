@@ -32,7 +32,8 @@
     "W-1072",
     "W-1073",
     "W-1074",
-    "W-1075"
+    "W-1075",
+    "W-1157"
   ],
   "fixtures": {
     "no-header-root": {
@@ -48,7 +49,7 @@
             "sourceDigest": "sha256:568727844ed0d0981cbc43b8d30833669b0d2b5a182df57abd45ac1429ee97fb",
             "headerFacts": null,
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": false
           }
         },
@@ -93,6 +94,62 @@
         }
       ]
     },
+    "implicit-entry-built": {
+      "operations": [
+        {
+          "op": "parseHeader",
+          "path": "examples/implicit-hello.w",
+          "sourceText": "print(\"Hello, W\")\n",
+          "header": null,
+          "entry": null,
+          "entryForm": "implicit",
+          "bodyDigest": "sha256:1e0bc7489fba0b3bb8037cab3b9f236440c3b1d36a5b2084b275626febc795c8",
+          "effectFacts": [],
+          "imports": [],
+          "parseEvidence": {
+            "sourceDigest": "sha256:e1b645c9051689108be0a303c4394973bbb307cffd2a031a6a0cfabc3025a6c9",
+            "headerFacts": null,
+            "entry": null,
+            "entryForm": "implicit",
+            "bodyDigest": "sha256:1e0bc7489fba0b3bb8037cab3b9f236440c3b1d36a5b2084b275626febc795c8",
+            "effectFacts": [],
+            "hasHeader": false
+          }
+        },
+        {
+          "op": "selectContext",
+          "packageContext": false
+        },
+        {
+          "op": "resolveRoots"
+        },
+        {
+          "op": "validateImports",
+          "imports": []
+        },
+        {
+          "op": "validateResolution"
+        },
+        {
+          "op": "admitFetch",
+          "offline": true
+        },
+        {
+          "op": "verifyArtifact"
+        },
+        {
+          "op": "admitCapabilities"
+        },
+        {
+          "op": "buildEphemeral",
+          "target": "x86_64-unknown-linux-gnu",
+          "hostProfile": "native-script@1",
+          "toolchain": {
+            "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          }
+        }
+      ]
+    },
     "package-root": {
       "operations": [
         {
@@ -106,7 +163,7 @@
             "sourceDigest": "sha256:0ef8bba75e1b9e0f03e4bbcb72aa947ba02f90f67dfb11fa0a26d5e5675be02f",
             "headerFacts": null,
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": false
           }
         },
@@ -184,7 +241,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -330,7 +387,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -521,7 +578,7 @@
               "requires": []
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -617,7 +674,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -799,7 +856,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -999,7 +1056,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -1183,7 +1240,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -1370,7 +1427,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -1589,7 +1646,7 @@
               "requires": []
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -1759,7 +1816,7 @@
               "requires": []
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         },
@@ -2412,7 +2469,7 @@
               "edition": "2026"
             },
             "entry": null,
-            "topLevelExecution": false,
+            "entryForm": "missing",
             "hasHeader": true
           }
         },
@@ -3455,7 +3512,7 @@
             "sourceDigest": "sha256:a25e7930f6839c468f8c2d9dc00f710ade1a0e2211918e918801c1c90f3756f9",
             "headerFacts": null,
             "entry": null,
-            "topLevelExecution": false,
+            "entryForm": "missing",
             "hasHeader": false
           }
         },
@@ -3502,25 +3559,110 @@
       }
     },
     {
-      "id": "PYN1-top-level-execution-rejected",
+      "id": "PYN1-implicit-entry-runs-default",
       "references": [
         {
           "path": "../reference/last-light/horizon_script.w",
-          "symbol": "entry"
+          "symbol": "print(result)"
         }
       ],
       "fixtures": [
-        "no-header-built"
+        "implicit-entry-built"
       ],
       "operations": [
         {
           "op": "runEntry",
-          "topLevelExecution": true
+          "entryForm": "implicit"
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
+      "id": "PYN1-implicit-declaration-after-statement",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "print(result)"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "entryForm": "implicit",
+          "declarationAfterStatement": true
         }
       ],
       "expected": {
         "status": "rejected",
-        "code": "topLevelExecutionForbidden",
+        "code": "declarationAfterStatement",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-explicit-and-implicit-entry",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "print(result)"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "entryForm": "implicit",
+          "explicitEntry": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "explicitImplicitEntry",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-implicit-root-import-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "print(result)"
+        }
+      ],
+      "operations": [
+        {
+          "op": "parseHeader",
+          "entryForm": "implicit",
+          "importedScript": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "scriptImportForbidden",
+        "at": "last"
+      }
+    },
+    {
+      "id": "PYN1-implicit-escaping-error-rejected",
+      "references": [
+        {
+          "path": "../reference/last-light/horizon_script.w",
+          "symbol": "print(result)"
+        }
+      ],
+      "fixtures": [
+        "implicit-entry-built"
+      ],
+      "operations": [
+        {
+          "op": "runEntry",
+          "entryForm": "implicit",
+          "unhandledEscapingError": true
+        }
+      ],
+      "expected": {
+        "status": "rejected",
+        "code": "unhandledEscapingError",
         "at": "last"
       }
     },
@@ -3704,7 +3846,7 @@
               "requires": []
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         }
@@ -3739,7 +3881,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         }
@@ -3849,7 +3991,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         }
@@ -4673,7 +4815,7 @@
             "sourceDigest": "sha256:47bc4f03cecac6077ea86ae775b62072dd24c99958a03ca01f3b4fa89b842d24",
             "headerFacts": null,
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": false
           }
         }
@@ -4842,7 +4984,7 @@
             "sourceDigest": "sha256:0ef8bba75e1b9e0f03e4bbcb72aa947ba02f90f67dfb11fa0a26d5e5675be02f",
             "headerFacts": null,
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": false
           }
         },
@@ -5691,7 +5833,7 @@
               "lock": "sha256:f59a22a26aa53fc0d1555350c177b8013d2f1534861872ff87f94ab0e8cf2"
             },
             "entry": null,
-            "topLevelExecution": false,
+            "entryForm": "missing",
             "hasHeader": true
           }
         }
@@ -5728,7 +5870,7 @@
               ]
             },
             "entry": "default",
-            "topLevelExecution": false,
+            "entryForm": "explicit",
             "hasHeader": true
           }
         }

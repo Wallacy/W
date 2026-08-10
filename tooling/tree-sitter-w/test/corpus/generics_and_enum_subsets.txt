@@ -436,6 +436,141 @@ struct Mutable<var rows: usize> {}
     (type_body)))
 
 ==================
+Multiple unlabeled generic values and ordered named values
+==================
+
+struct Window<_ start: usize, _ end: usize, unit: TimeUnit> {
+  const span = end - start
+}
+
+type CurrentWindow = Window<0, 60, unit: .second>
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body
+      (const_declaration
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (number_literal))
+        (type_argument
+          (number_literal))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (contextual_member_expression
+              (identifier))))))))
+
+==================
+Generic label order and type-head associated lookup
+==================
+
+struct Matrix<Element, rows: usize, columns: usize> {
+  const area = rows * columns
+}
+
+type Grid = Matrix<f32, rows: 3, columns: 4>
+
+fn readRows(): usize {
+  return Matrix<f32, rows: 3, columns: 4>.rows
+}
+
+---
+
+(source_file
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body
+      (const_declaration
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier)))))
+  (type_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier))
+      (type_arguments
+        (type_argument
+          (type
+            (type_name
+              (type_identifier))))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (number_literal)))
+        (type_argument
+          (identifier)
+          (static_argument_value
+            (number_literal))))))
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (return_statement
+        (member_expression
+          (generic_application_expression
+            (identifier)
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))
+              (type_argument
+                (identifier)
+                (static_argument_value
+                  (number_literal)))
+              (type_argument
+                (identifier)
+                (static_argument_value
+                  (number_literal)))))
+          (identifier))))))
+
+==================
 Generic domain remains unresolved for semantic checking
 ==================
 
@@ -444,6 +579,29 @@ struct Unknown<rows: UnknownName> {}
 ---
 
 (source_file
+  (struct_declaration
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type_body)))
+
+==================
+Label omission on a type parameter is structural input for semantic rejection
+==================
+
+protocol Encodable {}
+struct Invalid<_ T: Encodable> {}
+
+---
+
+(source_file
+  (protocol_declaration
+    (type_identifier)
+    (protocol_body))
   (struct_declaration
     (type_identifier)
     (generic_parameters

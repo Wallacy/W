@@ -327,7 +327,7 @@ unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
 
 `StaticList<T>` é um tipo compile-time de T0. Ele é ordenado, imutável e
 apagado depois da especialização. Um head pode publicar esse tipo como slot
-primário:
+posicional sem label externo:
 
 ```w
 enum KitchenStage {
@@ -356,8 +356,9 @@ O slot implícito `cases` de um enum declara outra regra. Ele recebe a lista e
 normaliza um conjunto pela ordem dos cases. A seção 8.6.1 define esse contrato.
 
 Em um tipo, um payload Boolean é um refinement predicate. Um member iniciado
-por `.` usa o valor refinado como subject implícito. Um range no slot primário
-inclui esse subject e o operador `in`. Portanto, estas formas possuem a mesma
+por `.` usa o valor refinado como subject implícito. Um range no slot de
+refinement sem label externo inclui esse subject e o operador `in`. Portanto,
+estas formas possuem a mesma
 HIR:
 
 ```w
@@ -375,7 +376,7 @@ Um tipo generic já aplicado recebe o refinement em outro envelope.
 `Array<u8><(.count <= 64)>` não mistura o element type com o predicate.
 
 `Array<[u8, (.count <= 64)]>` não é uma grafia equivalente. A forma passa uma
-única static list ao slot primário de `Array`. Esse slot exige um tipo de
+única static list ao slot posicional de `Array`. Esse slot exige um tipo de
 elemento. A lista também não identifica se o predicate restringe o elemento ou
 o `Array` resultante. `StagePlan` mostra um head cujo slot aceita a lista.
 
@@ -421,7 +422,8 @@ struct StaticSlot {
   name: Symbol
   kind: StaticKind
   defaultValue: ConstValue?
-  primary: Bool
+  externalLabel: Symbol?
+  associatedExposure: AssociatedExposure
 }
 
 struct StaticContract {
@@ -429,6 +431,11 @@ struct StaticContract {
   arguments: Array<StaticArgument>
 }
 ```
+
+`associatedExposure` é `contract-value` para qualquer value parameter de um type
+head, com ou sem label externo; para uma callable generic value parameter é
+`none`. Em ambos os casos o binding e o argumento normalizado permanecem na
+HIR.
 
 `.main` e os domains declarados por módulo ou pacote são fechados. `C` e `Rust`
 resolvem para uma `LanguageAdapterId` fixada no lock. A HIR guarda identity,
@@ -452,8 +459,8 @@ Os contratos estáticos seguem estas regras:
 1. O head declara um schema fechado.
 2. O evaluator aceita somente valores compile-time herméticos.
 3. O formatter usa a ordem declarada pelo schema.
-4. Argumentos posicionais precedem argumentos nomeados.
-5. Um case sem label preenche somente o slot primário.
+4. Type arguments e value arguments sem label precedem value arguments nomeados.
+5. Cada argumento mantém a ordem de declaração. Labels não reordenam argumentos.
 6. A adição de um slot não reinterpreta source anterior.
 7. `w explain` mostra defaults, inferências e a HIR normalizada.
 8. Nenhum slot concede authority, memory safety ou capability.
@@ -463,10 +470,11 @@ compatibilidade source. O experimento de
 [named type arguments do Scala 3](https://docs.scala-lang.org/scala3/reference/experimental/named-typeargs-spec.html)
 mostra esse custo.
 
-`spawn` publica `domain` como slot primário. Por isso, `spawn<.compute>` é a
-forma canônica. `spawn<domain: .compute>` é uma **Alternativa válida** e produz
-a mesma HIR. O formatter preserva a escolha. O estudo R1 mede se o label melhora
-provenance o suficiente para compensar a repetição.
+`spawn` publica `domain` como value slot posicional sem label externo.
+`spawn<.compute>` é a forma vigente. `spawn<domain: .compute>` permanece uma
+**Alternativa R1** que exige uma declaração de schema com label externo; não é
+um alias implícito do slot sem label. O formatter preserva a forma source de
+cada schema.
 
 ### 3.3 Refinement, composição e layout
 
@@ -505,7 +513,7 @@ Um head futuro pode publicar um static record como configuração. Nesse caso,
 
 ### 3.4 Funções e listas de contratos
 
-`fn<C>` usa o slot primário `language`. `fn<lang: .c>` permanece
+`fn<C>` usa o slot posicional sem label externo `language`. `fn<lang: .c>` permanece
 **Alternativa**. Um futuro slot `abi` pode compor com o primeiro sem mudar seu
 significado.
 
@@ -550,7 +558,7 @@ O corpus precisa verificar:
 literal sem label.
 
 **Alternativa:** preservar `where` e receiver implícito no corpus comparativo.
-Slots primários nomeados continuam aceitos para comparação e diagnostics. O
+Slots nomeados continuam aceitos para comparação e diagnostics. O
 formatter emite a forma curta quando o schema não é ambíguo.
 
 **Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
@@ -847,7 +855,8 @@ Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
 document = module_source | manifest_document ;
 
 module_source = script_header? module_header? import_declaration*
-                top_level_declaration* EOF ;
+                top_level_declaration* implicit_entry_body? EOF ;
+implicit_entry_body = statement+ ;
 script_header = "script" manifest_record ;
 module_header = "module" identifier contract_arguments? ";"? ;
 contract_arguments = "<" static_argument ("," static_argument)* ","? ">" ;
@@ -875,6 +884,20 @@ Um manifest ocupa o documento inteiro. Ele não usa a grammar geral de
 expressions. `package Name<...>`, `package<...>` e `package` junto de `module`
 são erros. Braces representam o record completo. Angle brackets modificam um
 contrato local já nomeado.
+
+Um source root pode terminar com uma sequência não vazia de statements fora de
+braces. Essa sequência é `implicit_entry_body` e baixa para um descriptor
+`.default` privado. Imports, module header e declarations precedem o primeiro
+statement. O checker identifica o primeiro statement, forma esse suffix e
+rejeita qualquer declaration posterior. A projeção Tree-sitter usa um repeat de
+top-level items para compartilhar o LR core e preservar recovery; ela não
+adiciona essa forma à linguagem nem substitui a verificação de ordem semântica.
+
+O source com `implicit_entry_body` é root-only e não pode ser importado. Ele não
+pode conter `entry` explícito. Mistura de formas é erro semântico. O body baixa
+para um wrapper privado que retorna `()` e não cria `args` ou `ctx` ocultos.
+Use uma função explícita mais `entry(fnName)` quando precisar de arguments,
+`Context`, return customizado ou typed errors que escapem.
 
 O header `script` reutiliza somente a forma data-only de `manifest_record`. A
 baseline exige `edition`. Os únicos fields são `edition`, `dependencies`,
@@ -1158,7 +1181,7 @@ de parse:
 | `W-SCRIPT-0002` | `source.validate`: field desconhecido ou duplicado |
 | `W-SCRIPT-0003` | `source.validate`: dependency alias duplicado ou record de dependency inválido |
 | `W-SCRIPT-0004` | `source.context`: root script usado como import ou context merge ambíguo |
-| `W-SCRIPT-0005` | `source.entry`: unnamed/default entry ausente ou top-level execution |
+| `W-SCRIPT-0005` | `source.entry`: `entryForm` missing, explicit+implicit, declaration-after-statement ou implicit body com error escapante |
 | `W-SCRIPT-0006` | `source.resolution`: lock ausente, digest inválido ou root não recompõe |
 | `W-SCRIPT-0007` | `source.resolution`: selection, target, edition, nodes, edges ou aliases divergem |
 | `W-SCRIPT-0008` | `source.roots`: canonical containment, traversal, symlink ou path boundary falha |
@@ -1329,7 +1352,8 @@ resolver o head, o checker classifica o parâmetro após name resolution. Um
 parâmetro sem `:` é type parameter. `T: P` é type parameter quando `P` resolve
 para um protocol constraint. `name: Type` é value parameter quando `Type`
 resolve para um tipo const-representable. `_ name: Type` é value parameter
-primário posicional. RHS unresolved ou ambiguous falha antes da classificação.
+posicional sem label externo. RHS unresolved ou ambiguous falha antes da
+classificação.
 W não possui inheritance ou base-class constraint que crie outra classificação.
 Um existential value exige `any P` e não transforma `T: P` em value slot.
 A HIR grava o kind resolvido e não preserva a ambiguidade.
@@ -1376,10 +1400,10 @@ Esse caso produz type diagnostic, não uma árvore alternativa.
 generic_parameters = immediate("<") generic_parameter
                      ("," generic_parameter)* ","? ">" ;
 
-generic_parameter = primary_marker identifier ":" type
+generic_parameter = label_omission identifier ":" type
                  | identifier (":" type)? ;
 
-primary_marker = "_" ;
+label_omission = "_" ;
 
 primary_associated_types = immediate("<") associated_type
                            ("," associated_type)* ","? ">" ;
@@ -1388,11 +1412,12 @@ associated_type = identifier (":" type)? ;
 
 O CST chama o envelope de `generic_parameters` e cada item de
 `generic_parameter`. Antes do name resolution, o item expõe somente `name`, o
-`primary_marker` opcional e o `domain` opcional. Ele não expõe `constraint` ou
+`label_omission` opcional e o `domain` opcional. Ele não expõe `constraint` ou
 `value_type`; o resolver decide se o item é type parameter ou value parameter.
 
-Um type parameter é posicional. Um value parameter usa seu nome como label. O
-marker `_` remove esse label para um único slot primário:
+Um type parameter é posicional e não recebe label. Um value parameter usa seu
+nome como label externo. `label_omission` remove somente esse label. O marker
+não indica ordem preferencial ou quantidade:
 
 ```w
 struct Matrix<Element, rows: usize, columns: usize> {}
@@ -1403,9 +1428,10 @@ type ServicePath = StagePath<[.accepted, .preparing, .serving]>
 ```
 
 O parser aceita a estrutura antes de resolver o head. O checker rejeita label
-desconhecido, duplicado, fora de ordem ou aplicado a type parameter. O envelope
-genérico não aceita `const`, `let` ou `var` no slot. Named type arguments
-continuam como **Alternativa**.
+desconhecido, duplicado, fora de ordem ou aplicado a type parameter. O checker
+também rejeita um argumento posicional depois do primeiro value argument nomeado.
+Binding modifiers não pertencem a esta grammar. Named type arguments continuam
+como **Alternativa**.
 
 ##### Tuples e arrays fixos
 
@@ -5402,8 +5428,8 @@ type BoundedString<min: usize, max: usize> =
 type ShortLabel = BoundedString<min: 1, max: 40>
 ```
 
-`<(...)>` aplica um refinement estático ao tipo completo. Um range no slot
-primário inclui o subject e o operador `in`. Outros predicates usam `.member`
+`<(...)>` aplica um refinement estático ao tipo completo. Um refinement sem label
+externo inclui o subject e o operador `in`. Outros predicates usam `.member`
 para acessar o mesmo subject. `value.member` continua disponível quando a forma
 curta é ambígua.
 
@@ -6189,7 +6215,7 @@ W possui dois kinds de parâmetro generic:
 | Kind | Declaração | Exemplo de argumento |
 |---|---|---|
 | type parameter | `T` ou `T: P` | `String` |
-| value parameter | `count: usize` | `count: 64` |
+| value parameter | `count: usize` ou `_ count: usize` | `count: 64` ou `64` |
 
 Parâmetros são declarados antes do uso:
 
@@ -6197,7 +6223,8 @@ Parâmetros são declarados antes do uso:
 fn get<T, count: usize>(values: ref [T; count]): T
 ```
 
-Um type parameter é posicional. Um value parameter usa seu nome como label:
+Um type parameter é posicional. `name: Type` declara um value parameter
+compile-time imutável com label externo `name`:
 
 ```w
 struct Matrix<Element, rows: usize, columns: usize> { ... }
@@ -6205,8 +6232,9 @@ struct Matrix<Element, rows: usize, columns: usize> { ... }
 let weights: Matrix<f32, rows: 3, columns: 4>
 ```
 
-`_` declara um único value slot primário posicional. Essa forma serve a um contrato
-primário cujo significado já está no nome do head:
+`_ name: Type` declara o mesmo value parameter sem label externo. O nome interno
+continua disponível no body. A omissão de label pode aparecer em qualquer
+quantidade de value parameters:
 
 ```w
 struct StagePath<
@@ -6216,15 +6244,28 @@ struct StagePath<
 }
 
 let path: StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>
+
+struct Window<_ start: usize, _ end: usize, unit: TimeUnit> {
+  const span = end - start
+}
+
+let window: Window<0, 60, unit: .second>
 ```
 
-Um head pode misturar type slots posicionais e value slots nomeados:
+Todos os type parameters e value parameters com `_` formam o prefixo
+posicional. Depois desse prefixo, value parameters nomeados aparecem na ordem
+de declaração:
 
 ```w
 struct Tensor<Element, shape: StaticList<usize>> { ... }
 
 let scores: Tensor<f32, shape: [8, 4]>
 ```
+
+Uma aplicação não pode colocar um argumento posicional depois de um argumento
+nomeado. Labels selecionam slots, mas não permitem reorder. Um `_` em type
+parameter é inválido porque type parameters já são posicionais. Um label externo
+explícito diferente do nome interno não pertence a esta baseline.
 
 Cada argumento possui o kind declarado pelo head resolvido. O checker executa a
 classificação após name resolution, sem heurística de casing:
@@ -6233,27 +6274,28 @@ classificação após name resolution, sem heurística de casing:
 2. `T: P` é type parameter se `P` resolve para protocol constraint;
 3. `name: Type` é value parameter se `Type` resolve para um tipo
    const-representable;
-4. `_ name: Type` é value parameter primário posicional;
+4. `_ name: Type` é value parameter posicional sem label externo;
 5. RHS unresolved ou ambiguous falha antes da classificação do kind.
 
 W não possui inheritance ou base-class constraint. Um existential value exige
 `any P` e não muda o kind de `T: P`. Um label desconhecido, duplicado ou fora
-de ordem é erro.
+de ordem é erro. A classificação usa o nome interno e o label externo opcional,
+sem heurística de casing.
 
 Value parameters declarados no envelope são compile-time e imutáveis por
 definição. O slot não aceita `const`, `let` ou `var`. O parâmetro participa da
 type identity, de `ConstIR` e da monomorphization. Ele não cria storage runtime.
-Os argumentos não mudam:
+Os argumentos mantêm o kind e a ordem declarados:
 
 ```w
 Matrix<f32, rows: 3, columns: 4>
 StagePath<[.accepted, .preparing, .serving]>
 ```
 
-`const` continua disponível em declarations, `const fn`, `const init` e em
-parâmetros comuns de função que exigem argumento compile-time. A forma antiga
-`<const rows: usize>` é rejeitada antes do W 1.0. Não existe compatibilidade ou
-alias. A migração e a alternativa ficam em [`RATIONALE.md`](RATIONALE.md).
+Binding modifiers não pertencem à grammar de parâmetros genéricos. `const`
+continua disponível em declarations, `const fn`, `const init` e em parâmetros
+comuns de função que exigem argumento compile-time. A migração histórica fica
+em [`RATIONALE.md`](RATIONALE.md).
 
 Exemplos de classificação vigente:
 
@@ -6261,15 +6303,13 @@ Exemplos de classificação vigente:
 struct Box<T> { value: T }                              // type sem constraint
 struct Encoded<T: Encodable> { value: T }               // type com protocol
 struct Matrix<Element, rows: usize, columns: usize> {}  // value nomeado
-struct StagePath<_ stages: StaticList<ServiceStage>> {} // value primário
+struct StagePath<_ stages: StaticList<ServiceStage>> {} // value sem label
+struct Pair<_ left: usize, _ right: usize> {}           // dois values sem label
 ```
 
 Estas declarações são rejeitadas:
 
 ```w
-struct Legacy<const rows: usize> {} // error: const não é válido no envelope
-struct Local<let rows: usize> {}    // error: let não é válido no envelope
-struct Mutable<var rows: usize> {}  // error: var não é válido no envelope
 struct Unknown<rows: UnknownName> {} // error[W-GENERIC-0001]: RHS unresolved antes do kind
 ```
 
@@ -6323,6 +6363,40 @@ W também não possui estes kinds no design vigente:
 
 Essas formas ficam **Rejeitado por enquanto**. Protocols, associated types e
 value parameters cobrem a baseline sem outro kind.
+
+##### Labels e valores associados de heads
+
+Em `struct`, `object`, `enum`, `type` e `alias`, cada value parameter, com ou
+sem label externo, é uma associated contract value imutável da especialização.
+O binding existe no body e pode ser consultado por lookup estático:
+
+```w
+struct Matrix<Element, rows: usize, columns: usize> {
+  const area = rows * columns
+}
+
+let rows = Matrix<f32, rows: 3, columns: 4>.rows
+let area = Matrix<f32, rows: 3, columns: 4>.area
+```
+
+O lookup `Matrix<...>.rows` lê a value normalizada da especialização. Ele não
+cria field de instance, allocation ou storage runtime. A visibilidade da
+`rows` é uma propriedade estática do contrato da especialização, nunca um field
+da instance. A visibilidade da associated contract value acompanha o type head.
+O nome associado fica reservado. Um member com o mesmo nome é erro semântico.
+
+Um value parameter com `_` mantém seu nome interno no body e na associated
+contract value; `_` remove somente o label externo da aplicação. Ele não muda
+visibility, storage ou exposição estática:
+
+```w
+struct OvenSession<_ state: OvenSessionState> { }
+let ready = OvenSession<.ready>.state
+```
+
+Callable generic value parameters são bindings compile-time da call. Eles não
+criam associated members. Type identity, `ConstIR`, monomorphization e cache
+usam o valor normalizado em todos os casos.
 
 #### 8.7.2 Constraints e composição
 
@@ -6711,8 +6785,10 @@ e regras dependentes da posição do result.
 
 HIR generic contém:
 
-- parâmetros e kinds em ordem;
+- parâmetros em ordem, kind, nome interno e label externo opcional;
 - constraints normalizadas;
+- domínio const-representável e argumento normalizado;
+- exposição de associated contract value quando o owner é um type head;
 - associated type projections;
 - conformance IDs e witness selections;
 - relações de borrow e effects;
@@ -6836,17 +6912,23 @@ lookup fechado e witnesses determinísticos.
 |---|---|
 | `W-GENERIC-0001` | domain de parâmetro generic não resolve para constraint de protocol ou tipo representável por const |
 | `W-GENERIC-0002` | inference não possui solução única para um parâmetro aberto |
+| `W-GENERIC-0003` | label de generic value parameter é inválido, está fora de ordem ou usa `_` em type parameter |
+| `W-GENERIC-0004` | nome de associated contract value duplica um member do type head |
 | `W-GENERIC-0005` | sequência de instantiations cresce sem convergir |
 
 `W-GENERIC-0001` registra o parâmetro, o domain e a razão de resolução. A
 classificação do kind falha antes de qualquer heurística de casing. `W-GENERIC-0002`
 registra as fontes de equações consultadas. Constraint não inventa candidate.
-`W-GENERIC-0005` registra o prefixo normalizado e a transformação recorrente. A
-falha de crescimento não é uma quota de wall clock.
+`W-GENERIC-0003` registra parâmetro, kind, label externo, índice de declaração e
+ordem observada. `W-GENERIC-0004` registra o head, o nome reservado e o member
+conflitante. `W-GENERIC-0005` registra o prefixo normalizado e a transformação
+recorrente. A falha de crescimento não é uma quota de wall clock.
 
-Três pares S0 cobrem `make<T>()`, a travessia recursiva de árvore e a
-classificação pós-name-resolution. A inversão remove a única equação de `T`,
-troca recursion estável por `T -> Array<T>` ou deixa um domain sem resolução.
+O corpus S0 cobre `make<T>()`, a travessia recursiva de árvore, a classificação
+pós-name-resolution, múltiplos value parameters sem label, a transição de
+positional para named, ordem inválida e associated name duplicate. A inversão
+remove a única equação de `T`, troca recursion estável por `T -> Array<T>`,
+deixa um domain sem resolução ou viola uma regra de label e exposição.
 
 ### 8.8 Conversões
 
@@ -9082,6 +9164,27 @@ target e profile coincidem. A medição permanece rotulada como `measurement`.
 Ela não promove uma estimate para `fact` e não é enviada sem consentimento.
 `unknown` é um resultado válido e deve ser preferido a uma precisão inventada.
 
+#### Recomendações derivadas de prova
+
+Uma recomendação de memória ou concorrência só pode ser emitida quando os
+`ProofFacts` do ponto CFG provam a condição que a torna aplicável. Naming,
+formato da chamada ou a presença de uma palavra como `shared` não são prova.
+Data race e violation de ownership continuam errors; uma oportunidade sem
+violação pode ser `information`, nunca warning especulativo.
+
+`shared` é uma resposta somente quando existem owners múltiplos e um lifetime
+compatível. Ele não concede mutation nem synchronization. `atomic` é uma
+resposta somente para accesses concorrentes sobre uma única localização
+atomic-capable e uma operação suportada; ele não resolve lifetime, ownership ou
+invariantes entre fields.
+
+Sugestões de `ref`, `inout`, `take` e `copy` dependem, respectivamente, de
+access, escape, consumption e duplicability facts. Inserir `copy`, `share` ou
+`atomic`, ou mudar uma assinatura pública, escolhe custo ou API e portanto tem
+applicability `review`; `machine` fica reservado à transformação já provada.
+Uma recomendação de `shared` exige prova de owners múltiplos. Uma de `atomic`
+exige prova de accesses concorrentes, extent único e operação compatível.
+
 O `ResourceLensRecord` também pode ser emitido para um valor ou uma função.
 `w explain memory value` acrescenta owner, escape, allocation e drop path ao
 record. Esses campos explicam a semântica e o lowering. Eles não transformam
@@ -9867,8 +9970,10 @@ await renderer.show(plan)
 A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
 executor preference de actor isolation. W mantém essa separação na HIR.
 
-`spawn<.compute>` é a forma canônica. O slot `domain` é primário e fechado.
-`spawn<domain: .compute>` é válido e normaliza para o mesmo `TaskContract`.
+`spawn<.compute>` é a forma canônica. O slot posicional sem label externo
+`domain` é fechado. `spawn<domain: .compute>` permanece **Alternativa R1** e
+exige um schema que declare o label externo; não é uma forma adicional do slot
+vigente.
 `spawn on .compute` fica **Rejeitado por enquanto** porque duplica o contrato
 estático com uma frase especial.
 
@@ -10999,6 +11104,15 @@ spawn<.compute> let left = countLeft(inout served)  // Erro: write concorrente.
 spawn<.compute> let right = countRight(inout served)
 ```
 
+Para um `inout` concorrente, o diagnostic apresenta somente alternativas
+compatíveis com os facts já provados. Ele pode listar partition e
+move+join quando os places são disjuntos ou transferíveis; channel, service ou
+domain isolation quando há uma fronteira de publicação; lock quando o contrato
+aceita exclusão; e `atomic` somente para uma operação sobre uma localização
+única cujo tipo e extent são suportados. A ferramenta não escolhe uma
+arquitetura automaticamente, e não sugere `shared` sem prova de multiplicidade
+real de owners.
+
 W cria edges de happens-before nestas operações:
 
 | Origem | Destino |
@@ -11950,6 +12064,25 @@ entry {
 
 O body contém código W normal. Ele não é uma tabela de bindings. Essa forma cria
 o descriptor anônimo `.default`.
+
+Um source root também pode terminar com statements fora de braces:
+
+```w
+let greeting = "Hello"
+print(greeting)
+```
+
+Essa sequência é um `implicit_entry_body`. O compiler cria um descriptor
+`.default` privado e preserva cada statement no source map original. O wrapper
+retorna `()` e não cria `args` ou `ctx` implícitos. Um `await` visível torna
+somente esse wrapper `async`. Typed errors não escapam implicitamente. O body
+deve tratá-los no próprio source.
+
+`w explain product` mostra o wrapper, `entry kind: implicit`, sync/async,
+requirements e o digest do body. Importar esse source nunca executa o body.
+Um `entry` explícito no mesmo root é erro, assim como uma declaration depois do
+primeiro statement. Use `fn` mais `entry(fnName)` para arguments, `Context`,
+return customizado ou typed errors públicos.
 
 O profile precisa declarar um adapter de body simples. `native-process@1`
 adapta `fn(): ()` para seu main portátil. O wrapper descarta arguments, devolve
@@ -22906,6 +23039,12 @@ API source. Os comandos não combinam os dois resultados numa palavra
 tensors e package registry. O bootstrap possui um perfil source próprio,
 `bootstrap.w0`. Ele é W normal com uma lista menor de features.
 
+`w run <path/file.w>` sempre passa pelo parser, checker e HIR W verificada.
+O driver pode escolher fast native lowering, lowering native incremental, um
+HIR evaluator ou JIT, mas todos consomem a mesma HIR e preservam a mesma
+semântica, diagnostics e source map. A escolha de backend é uma otimização de
+latência, não uma segunda linguagem ou runtime com regras próprias.
+
 O seed portátil usa CMake e Ninja. Ele aceita `bootstrap.w0` e emite um subset C
 conservador aceito em modo C11. O output não depende de uma feature C11 quando
 uma forma com suporte mais amplo é suficiente. Esse emitter existe somente para
@@ -23046,6 +23185,12 @@ O comando futuro `w bootstrap explain` lista stages, compiler parents, source
 digests, adapters, environment e pontos de convergência. Um artifact sem essa
 recipe pode funcionar, mas não recebe o estado “bootstrap reproduzido”.
 
+Bun é a ferramenta de desenvolvimento atual para scripts e tooling. Depois do
+self-host stage C e das APIs T0/T1 necessárias, tooling first-party pode migrar
+de Bun/JavaScript para scripts W. Essa migração não remove o seed C, CMake,
+Ninja, diverse double-compiling ou a rota de recovery; Bun não é dependência
+pretendida do produto W.
+
 #### 20.5.5 Oracle de fechamento
 
 **Exemplo:** `bootstrap_oracle.w` aceita diferença de target metadata, mas
@@ -23075,6 +23220,18 @@ módulo. Instâncias generics e outputs de passes possuem chaves próprias.
 Um cache miss afeta performance, não resultado. A ferramenta registra o motivo
 do miss. Ela não usa timestamps como identidade.
 
+O estudo de latência separa `time-to-first-result` de steady-state. Cada
+benchmark registra, em separado, frontend (parse/check/HIR), lowering, link e
+startup, e execution. A matriz mínima compara cold, warm e edit-run de W com
+C compile+run, CPython, Bun/TypeScript e Rust nos mesmos workloads tipados
+representativos. O resultado inclui target, hardware, toolchain, profile,
+input e digest do source; não existe vitória declarada sem medição reproduzível.
+Fast native, incremental native, HIR evaluator e JIT são caminhos de driver
+que podem ser comparados no mesmo protocolo.
+A meta de W é aproximar a latência de edição de toolchains C/Bun e obter
+execução nativa superior à de CPython em workloads tipados representativos.
+Isso é uma meta de medição, não capacidade implementada ou promessa de release.
+
 ### 20.7 Diagnostics e debug
 
 **Exemplo:** um use-after-move informa o move original, o uso inválido e um
@@ -23087,6 +23244,12 @@ A seção 22.5 define o contrato D0, a causalidade e a serialização normativa.
 O kernel M1 distingue overlap, dependency conflict, dependent escape, unstable
 referent, unstable suspension e frozen reborrow parent. Cada saída inclui owner,
 place, origin e correção sugerida.
+
+O policy de recommendation preserva os `ProofFacts` e os níveis de
+applicability definidos em 9.12. As alternativas específicas para `inout`
+concorrente ficam em 12.10.1, e D0 serializa os facts sem criar uma regra
+paralela.
+
 Correções válidas encerram scope, reordenam uso, materializam, copiam, fazem
 `take` antes do borrow, separam ou limpam um container, ou aplicam pin quando o
 endereço for realmente necessário. Nenhuma correção adiciona lifetime syntax.
@@ -25386,8 +25549,8 @@ ran path/file.w in ephemeral hermetic product
 ```
 
 Com header `script`, `w run path/file.w` força o contexto standalone e usa
-lock fixado. Sem header, dentro de package usa o entry default, o
-contexto e o lock do package. Fora de package usa std e módulos locais no
+lock fixado. Sem header, dentro de package usa o entry default explícito ou
+implícito, o contexto e o lock do package. Fora de package usa std e módulos locais no
 product efêmero. Dependencies externas sem header são rejeitadas. `--with`
 não é forma final. O contrato está na
 [auditoria PYN1](#2412-workflow-de-script-single-file-pyn1).
@@ -25451,7 +25614,8 @@ aprender” fica como alternativa de marca; não é promessa técnica.
 - `w test` reúne unit, doc, compile-fail, property e fuzz;
 - `w explain` mostra resolução, tipos, moves, layout, effects e custos;
 - `w build --locked` usa somente o grafo fixado;
-- `w run <path/file.w>` aplica PYN1: header, context, lock por digest e entry default;
+- `w run <path/file.w>` aplica PYN1: header, context, lock por digest e entry
+  explícito ou implícito;
 - `w script add/remove/resolve/promote` usa mutation atomicamente verificável;
 - `w repl` abre uma session transacional com generations e HIR normal;
 - `w audit` verifica policy, advisories, provenance e reprodução.
@@ -25897,6 +26061,10 @@ last-light/orders.w:18:9: error[W-MOVE-0002]: order is not available
 LSP e SARIF são adapters de D0. Eventos runtime `ErrorEvent` e `PanicEvent`
 usam schemas separados. `w explain diagnostic CODE` mostra meaning, facts,
 roles, exemplos e fixes do catálogo.
+
+Fixes de memória e concorrência serializam os facts e a applicability de 9.12.
+O renderer não cria labels por naming heuristics nem altera a distinção entre
+`error`, `information`, `review` e `machine`.
 
 #### 22.5.8 Snapshots e conformance
 
@@ -27656,8 +27824,9 @@ inferência de schema pertence ao tooling e publica seus limites.
 
 `w run path/file.w -- <args>` é a direção para arquivo único. Com header, o
 source é sempre root standalone mesmo dentro de package. Sem header, dentro de
-um package o comando usa o entry default, contexto e lock desse package; fora
-de package, cria contexto efêmero hermético com std e módulos locais. O
+um package o comando usa o entry default explícito ou implícito, contexto e lock
+desse package; fora de package, cria contexto efêmero hermético com std e
+módulos locais. O
 resolver não pesquisa ambiente ou path e não baixa remote implicitamente.
 
 O source graph do arquivo contém somente imports explícitos. Sem package
@@ -27666,7 +27835,8 @@ package.w selecionado pela regra de workspace vigente. `w context` mostra a
 seleção discoverable, o manifest, o workspace, o lock e as roots antes da
 execução. Não há recursive scan, cwd scan, `PATH` scan ou environment
 discovery. `w run path/file.w` exige o unnamed/default entry vigente. Ele não
-cria top-level execution arbitrário.
+cria execução arbitrária de módulo: a forma curta permitida é somente o
+`implicit_entry_body` final do root, baixado para `.default`.
 
 Uma falha do package/product efêmero não deixa manifest ou estado oculto.
 
@@ -27830,7 +28000,7 @@ alternativas de spike. Nenhum segundo runtime vira autoridade semântica.
 #### 24.1.2 Workflow de script single-file PYN1
 
 **Exemplo:** `horizon_script.w` fixa a dependency `chart`, calcula um score do
-horizonte e escolhe um menu no entry default. O source continua um oracle de
+horizonte e escolhe um menu no implicit default. O source continua um oracle de
 design. Ele não afirma execução W.
 
 PYN1 fecha a forma de workflow single-file. O header contextual `script { ... }`
@@ -27845,12 +28015,20 @@ posição contextual. Comment metadata, inferência por import e tool table aber
 não são formas W.
 
 Um source com header é root standalone executável. Ele pode ter module header,
-imports, declarations e unnamed/default entry. O source não possui execução
-top-level arbitrária. Um source com header não é importável como módulo. `w run`
-mantém standalone mesmo dentro de workspace. Sem header, o arquivo usa package
-context e lock dentro de package. Fora de package, o arquivo usa contexto
-efêmero com std e módulos locais explícitos. `w context` mostra a seleção. A
-ferramenta não faz merge silencioso entre contexts.
+imports, declarations, entry explícito ou `implicit_entry_body` final. Imports,
+module header e declarations precedem o primeiro statement. O source não possui
+execução arbitrária de módulo; somente o `implicit_entry_body` final é baixado.
+Um source com header não é importável como módulo. `w run` mantém standalone
+mesmo dentro de workspace. Sem header, o arquivo usa package context e lock
+dentro de package. Fora de package, o arquivo
+usa contexto efêmero com std e módulos locais explícitos. `w context` mostra a
+seleção. A ferramenta não faz merge silencioso entre contexts.
+
+PYN1 grava `entryForm: explicit | implicit | missing`. Para `implicit`, a
+evidence grava o digest do body e facts de effects. O host aceita implicit
+somente no root executável e rejeita import, declaration-after-statement,
+explicit+implicit, entry missing e typed error sem tratamento. Isso não modela
+arbitrary module top-level execution.
 
 O grafo de imports contém somente edges explícitos. A root local física serve
 discovery e diagnóstico; canonical containment é regra do target/provider, com
@@ -27884,8 +28062,10 @@ pedido; os outros contexts continuam no root digest, mas não entram na closure
 ou recipe selecionada. `rootEdges` é a extensão fechada somente do context
 virtual de script; package contexts normais continuam na forma P0 de 21.1.6.
 
-`w run` pode compilar o source normal, mas nunca resolve constraint, atualiza
-lock, instala package ou executa install/build action oculto. O lock fixa o
+`w run <path/file.w>` executa um package, standalone ou contexto efêmero
+conforme as regras acima. `w run` pode compilar o source normal, mas nunca resolve
+constraint, atualiza lock, instala package ou executa install/build action oculto.
+O lock fixa o
 package source/content graph; artifact records, recipes e action outputs são
 evidências de provider selecionadas depois do lock e ligadas por record
 digests. A operação pode buscar essas evidências em authorities ou mirrors
@@ -27958,14 +28138,14 @@ O oracle host usa uma única máquina e um caso JSONL derivado. As operações s
 
 `parseHeader` recebe `parseEvidence` produzido pela projection parser. A
 evidence liga o digest recomputado dos bytes normalizados aos facts do header,
-entry default e top-level execution; o host valida esse vínculo e não
-implementa o parser W. `scriptAdd`, `scriptRemove` e `scriptResolve` exigem
+`entryForm` e, para implicit, ao body digest e aos effect facts. O host valida
+esse vínculo e não implementa o parser W. `scriptAdd`, `scriptRemove` e `scriptResolve` exigem
 `resultParseEvidence` com o mesmo vínculo antes da troca atômica. Tree-sitter e
 o corpus semântico continuam sendo a prova estrutural separada.
 
 | Operação | Invariante derivada |
 |---|---|
-| `parseHeader` | posição, edition, fields, aliases, source kind e `parseEvidence` ligada aos bytes |
+| `parseHeader` | posição, edition, fields, aliases, source kind, `entryForm` e `parseEvidence` ligada aos bytes |
 | `selectContext` | standalone, package ou ephemeral sem merge implícito |
 | `resolveRoots` | root física para discovery/diagnóstico, containment target-specific e discovery policy |
 | `validateImports` | edges explícitos, path→digest e script root-only |
@@ -27974,7 +28154,7 @@ o corpus semântico continuam sendo a prova estrutural separada.
 | `verifyArtifact` | digest, authority e signature antes de build |
 | `admitCapabilities` | requirements, offered/matched/effective e handles transitivos |
 | `buildEphemeral` | recipe e identity sem path físico ou manifest oculto |
-| `runEntry` | unnamed/default entry e ausência de top-level execution |
+| `runEntry` | entry explícito ou implicit `.default`, sem top-level execution arbitrária |
 | `cleanup` | falha sem lock, manifest ou artifact oculto |
 | `contextExplanation` | roots, lock, fetches, authorities, capabilities e recipe |
 | `scriptAdd`, `scriptRemove`, `scriptResolve` | mutation header+lock atomic com `resultParseEvidence` |
@@ -28070,8 +28250,9 @@ facts do parser normal para distinguir `complete`, `incomplete` e `invalid`, e
 facts do checker normal para separar diagnóstico de parse e diagnóstico
 semântico. O wrapper aceita expression, declaration, statement, loop, call,
 tail expression, `;`/discard, `await` com owner async/structured sintético,
-`spawn` local que settle e `defer` no settle. Isso não torna essas formas module top-level
-legais em um arquivo `.w`: a regra de entry é separada. Append, complete e
+`spawn` local que settle e `defer` no settle. Isso não torna essas formas em
+execução arbitrária de módulo importável em um arquivo `.w`: somente o
+`implicit_entry_body` final de um root cria entry. Append, complete e
 clear alteram o buffer real; buffer incompleto não guarda ordinal nem history.
 
 ##### Fases e efeitos
@@ -29044,7 +29225,11 @@ frontend self-hosted.
 - String UTF-8, views, decoder incremental e maximal-subpart tests;
 - LLVM/native e runtime core por contract set;
 - seed C aceita o primeiro `bootstrap.w0` e emite o subset C conservador;
-- corpus diferencial entre o caminho seed-C e W/MLIR.
+- corpus diferencial entre o caminho seed-C e W/MLIR;
+- `w run` usa a mesma HIR verificada para fast native, incremental native,
+  evaluator ou JIT;
+- benchmark cold/warm/edit-run separado por frontend, lowering, link/startup e
+  execution contra C, CPython, Bun/TypeScript e Rust.
 
 Saída: payload determinístico para programas síncronos nos dois caminhos.
 
@@ -29086,7 +29271,10 @@ runtime real entrar.
 - fixar o adapter C para MLIR;
 - gerar stages A, B e C;
 - comparar HIR, interfaces, payloads e diagnostics;
-- publicar a recipe de recovery pelo seed.
+- publicar a recipe de recovery pelo seed;
+- somente depois de stage C e das APIs T0/T1 fechadas, migrar tooling first-party
+  de Bun/JavaScript para W sem remover seed C, CMake/Ninja ou diverse
+  double-compiling.
 
 Saída: o core W compila o próprio source sem tasks, services ou packages.
 

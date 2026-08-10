@@ -94,6 +94,21 @@ export function lockRootDigest(lock) {
 const SCRIPT_ROOT = '.product("script")';
 const DEFAULT_RECIPE_OWNER = SCRIPT_ROOT;
 
+function entryFormFor(operation) {
+  if (operation.entryForm !== undefined) {
+    if (!["explicit", "implicit", "missing"].includes(operation.entryForm)) fail("invalidEntryForm");
+    return operation.entryForm;
+  }
+  if (operation.entry === undefined || operation.entry === null) return "missing";
+  return "explicit";
+}
+
+function bodyFacts(operation) {
+  const facts = operation.effectFacts ?? [];
+  if (!Array.isArray(facts) || facts.some((fact) => typeof fact !== "string" || fact.length === 0)) fail("parseEvidenceEffectMismatch");
+  return facts;
+}
+
 function parseEvidence(state, operation, header) {
   const evidence = operation.parseEvidence;
   if (!evidence || typeof evidence !== "object") fail("parseEvidenceMissing");
@@ -109,20 +124,27 @@ function parseEvidence(state, operation, header) {
   }
   const expectedEntry = operation.entry ?? null;
   if ((evidence.entry ?? null) !== expectedEntry) fail("parseEvidenceEntryMismatch");
-  if (Boolean(evidence.topLevelExecution) !== Boolean(operation.topLevelExecution === true)) {
-    fail("parseEvidenceTopLevelMismatch");
+  const expectedEntryForm = entryFormFor(operation);
+  if (evidence.entryForm !== expectedEntryForm) fail("parseEvidenceEntryFormMismatch");
+  if (!['explicit', 'implicit', 'missing'].includes(expectedEntryForm)) fail("parseEvidenceEntryFormMismatch");
+  if (expectedEntryForm === "implicit") {
+    requireDigest(evidence.bodyDigest, "parseEvidenceBodyMismatch");
+    if (!Array.isArray(evidence.effectFacts)) fail("parseEvidenceEffectMismatch");
+    if (operation.bodyDigest !== undefined && operation.bodyDigest !== evidence.bodyDigest) fail("parseEvidenceBodyMismatch");
+    if (operation.effectFacts !== undefined && JSON.stringify(operation.effectFacts) !== JSON.stringify(evidence.effectFacts)) fail("parseEvidenceEffectMismatch");
   }
   if (Boolean(evidence.hasHeader) !== (header !== null)) fail("parseEvidenceHeaderMismatch");
   return {
     sourceDigest,
     headerFacts: header === null ? null : clone(header),
     entry: expectedEntry,
-    topLevelExecution: operation.topLevelExecution === true,
+    entryForm: expectedEntryForm,
+    ...(expectedEntryForm === "implicit" ? { bodyDigest: evidence.bodyDigest, effectFacts: [...evidence.effectFacts] } : {}),
     hasHeader: header !== null,
   };
 }
 
-function resultParseEvidence(resultSourceDigest, resultHeader, entry, topLevelExecution, evidence) {
+function resultParseEvidence(resultSourceDigest, resultHeader, entry, entryForm, evidence) {
   if (!evidence || typeof evidence !== "object") fail("resultParseEvidenceMissing");
   if ((evidence.sourceDigest ?? null) !== resultSourceDigest) fail("resultParseEvidenceSourceMismatch");
   const headerFacts = evidence.headerFacts ?? null;
@@ -130,13 +152,19 @@ function resultParseEvidence(resultSourceDigest, resultHeader, entry, topLevelEx
     fail("resultParseEvidenceHeaderMismatch");
   }
   if ((evidence.entry ?? null) !== (entry ?? null)) fail("resultParseEvidenceEntryMismatch");
-  if (Boolean(evidence.topLevelExecution) !== Boolean(topLevelExecution)) fail("resultParseEvidenceTopLevelMismatch");
+  if (evidence.entryForm !== entryForm) fail("resultParseEvidenceEntryFormMismatch");
+  if (!['explicit', 'implicit', 'missing'].includes(entryForm)) fail("resultParseEvidenceEntryFormMismatch");
+  if (entryForm === "implicit") {
+    requireDigest(evidence.bodyDigest, "resultParseEvidenceBodyMismatch");
+    if (!Array.isArray(evidence.effectFacts)) fail("resultParseEvidenceEffectMismatch");
+  }
   if (evidence.hasHeader !== true) fail("resultParseEvidenceHeaderMismatch");
   return {
     sourceDigest: resultSourceDigest,
     headerFacts: clone(resultHeader),
     entry: entry ?? null,
-    topLevelExecution: Boolean(topLevelExecution),
+    entryForm,
+    ...(entryForm === "implicit" ? { bodyDigest: evidence.bodyDigest, effectFacts: [...evidence.effectFacts] } : {}),
     hasHeader: true,
   };
 }
@@ -622,8 +650,14 @@ function parseHeader(state, operation) {
   if (["url", "stdin", "shebang"].includes(sourceKind)) fail("scriptSourceKindRejected");
   state.source.path = physicalInputPath(operation.path ?? "script.w");
   state.source.kind = sourceKind;
-  state.source.topLevelExecution = operation.topLevelExecution === true;
-  state.source.entry = operation.entry ?? null;
+  state.source.entryForm = entryFormFor(operation);
+  state.source.entry = operation.entry ?? (state.source.entryForm === "implicit" ? "default" : null);
+  state.source.bodyDigest = operation.bodyDigest ?? null;
+  state.source.effectFacts = state.source.entryForm === "implicit" ? bodyFacts(operation) : [];
+  if (state.source.entryForm === "implicit" && operation.explicitEntry === true) fail("explicitImplicitEntry");
+  if (operation.declarationAfterStatement === true) fail("declarationAfterStatement");
+  if (operation.importedScript === true && state.source.entryForm === "implicit") fail("scriptImportForbidden");
+  if (state.source.entryForm === "implicit" && operation.parseEvidence === undefined) fail("parseEvidenceMissing");
   state.source.imports = clone(operation.imports ?? []);
   state.source.text = operation.sourceText === undefined ? null : String(operation.sourceText).replace(/\r\n?/g, "\n");
   const computedSourceDigest = operation.sourceText !== undefined
@@ -643,6 +677,10 @@ function parseHeader(state, operation) {
     state.source.parseEvidence = operation.parseEvidence === undefined && operation.sourceText === undefined
       ? null
       : parseEvidence(state, operation, null);
+    if (state.source.parseEvidence?.entryForm === "implicit") {
+      state.source.bodyDigest = state.source.parseEvidence.bodyDigest;
+      state.source.effectFacts = [...state.source.parseEvidence.effectFacts];
+    }
     state.phase = "parsed";
     trace(state, "parseHeader", { header: null, rootSourceDigest: state.source.rootDigest, parseEvidence: state.source.parseEvidence });
     return;
@@ -655,6 +693,10 @@ function parseHeader(state, operation) {
   state.source.parseEvidence = operation.parseEvidence === undefined && operation.sourceText === undefined
     ? null
     : parseEvidence(state, operation, header);
+  if (state.source.parseEvidence?.entryForm === "implicit") {
+    state.source.bodyDigest = state.source.parseEvidence.bodyDigest;
+    state.source.effectFacts = [...state.source.parseEvidence.effectFacts];
+  }
   state.phase = "parsed";
   trace(state, "parseHeader", {
     header: { edition: header.edition, dependencyCount: header.dependencies.length, requirementCount: header.requires.length },
@@ -1145,14 +1187,26 @@ function buildEphemeral(state, operation) {
 
 function runEntry(state, operation) {
   requireBuild(state);
-  if (state.source.topLevelExecution || operation.topLevelExecution === true) fail("topLevelExecutionForbidden");
+  const operationEntryForm = operation.entryForm ?? state.source.entryForm;
+  if (operationEntryForm !== state.source.entryForm) fail("entryFormMismatch");
+  if (state.source.entryForm === "implicit") {
+    if (operation.entry !== undefined && operation.entry !== "default") fail("explicitImplicitEntry");
+    if (state.source.declarationAfterStatement === true || operation.declarationAfterStatement === true) fail("declarationAfterStatement");
+    if (operation.unhandledEscapingError === true || state.source.unhandledEscapingError === true) fail("unhandledEscapingError");
+  }
   const entry = operation.entry ?? state.source.entry;
   if (entry === undefined || entry === null) fail("defaultEntryMissing");
   if (entry !== undefined && entry !== null && entry !== "default" && entry !== "unnamed") fail("defaultEntryMissing");
-  state.run = { entry: "default", args: clone(operation.args ?? []), outcome: operation.outcome ?? "success" };
+  state.run = {
+    entry: "default",
+    entryForm: state.source.entryForm,
+    async: state.source.entryForm === "implicit" && state.source.effectFacts.includes("await"),
+    args: state.source.entryForm === "implicit" ? [] : clone(operation.args ?? []),
+    outcome: operation.outcome ?? "success",
+  };
   state.phase = "ran";
   state.cleanup.hiddenArtifacts = operation.hiddenArtifacts === true ? ["transient"] : [];
-  trace(state, "runEntry", { entry: "default", args: state.run.args, outcome: state.run.outcome });
+  trace(state, "runEntry", { entry: "default", entryForm: state.run.entryForm, async: state.run.async, args: state.run.args, outcome: state.run.outcome });
 }
 
 function cleanup(state, operation) {
@@ -1242,7 +1296,7 @@ function editHeader(state, operation, kind) {
   const resultSourceDigest = scriptDigest("w-script-source-v2", normalizedSourceText);
   if (operation.resultSourceDigest !== undefined && operation.resultSourceDigest !== resultSourceDigest) fail("rootDigestMismatch");
   if (operation.resultHeader !== undefined && JSON.stringify(canonical(normalizeFields(operation.resultHeader))) !== JSON.stringify(canonical(candidateHeader))) fail("sourceHeaderMismatch");
-  const resultEvidence = resultParseEvidence(resultSourceDigest, candidateHeader, state.source.entry, state.source.topLevelExecution, operation.resultParseEvidence);
+  const resultEvidence = resultParseEvidence(resultSourceDigest, candidateHeader, state.source.entry, state.source.entryForm, operation.resultParseEvidence);
   state.source.header = candidateHeader;
   state.source.headerDigest = headerDigest(candidateHeader);
   state.source.text = normalizedSourceText;
@@ -1271,7 +1325,7 @@ function scriptResolve(state, operation) {
   const resultSourceDigest = scriptDigest("w-script-source-v2", normalizedSourceText);
   if (operation.resultSourceDigest !== undefined && operation.resultSourceDigest !== resultSourceDigest) fail("rootDigestMismatch");
   if (operation.resultHeader !== undefined && JSON.stringify(canonical(normalizeFields(operation.resultHeader))) !== JSON.stringify(canonical(candidate))) fail("sourceHeaderMismatch");
-  const resultEvidence = resultParseEvidence(resultSourceDigest, candidate, state.source.entry, state.source.topLevelExecution, operation.resultParseEvidence);
+  const resultEvidence = resultParseEvidence(resultSourceDigest, candidate, state.source.entry, state.source.entryForm, operation.resultParseEvidence);
   state.source.header = candidate;
   state.source.headerDigest = headerDigest(candidate);
   state.source.text = normalizedSourceText;
@@ -1342,7 +1396,7 @@ function promote(state, operation) {
 export function createScriptWorkflowState() {
   return {
     phase: "empty",
-    source: { path: null, kind: null, header: null, headerDigest: null, parseEvidence: null, text: null, textDigest: null, rootDigest: null, entry: null, imports: [], topLevelExecution: false },
+    source: { path: null, kind: null, header: null, headerDigest: null, parseEvidence: null, text: null, textDigest: null, rootDigest: null, entry: null, entryForm: "missing", bodyDigest: null, effectFacts: [], imports: [], declarationAfterStatement: false, unhandledEscapingError: false },
     context: { mode: null, packageContext: false, reason: null, packageRoot: null, explanation: null },
     roots: { local: null, canonical: null, physicalDisplay: null, owner: null, withinRoot: null },
     imports: { validated: false, modules: [], paths: [], digests: [] },

@@ -376,16 +376,18 @@ type AfterSpaced = u8
 (source_file
   (type_declaration
     (type_identifier)
-    (type
-      (type_name
-        (type_identifier))))
-  (ERROR
-    (identifier))
-  (type_declaration
-    (type_identifier)
-    (type
-      (type_name
-        (type_identifier)))))
+  (type
+    (type_name
+      (type_identifier))))
+  (ERROR)
+  (expression_statement
+    (binary_expression
+      (identifier)
+      (identifier)))
+  (expression_statement
+    (assignment_expression
+      (identifier)
+      (identifier))))
 
 ==================
 Computed static argument requires parentheses
@@ -403,12 +405,12 @@ type AfterExpression = u8
       (type_name
         (type_identifier))
       (type_arguments
-        (ERROR
-          (identifier))
         (type_argument
           (type
             (type_name
-              (type_identifier)))))))
+              (type_identifier))))
+        (ERROR
+          (identifier)))))
   (type_declaration
     (type_identifier)
     (type

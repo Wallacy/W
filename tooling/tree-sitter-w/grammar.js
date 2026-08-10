@@ -169,7 +169,7 @@ module.exports = grammar({
               $.import_statement,
             ),
           ),
-          repeat($._declaration),
+          repeat(choice($._declaration, $._statement)),
         ),
         $.package_manifest,
         $.deployment_manifest,
@@ -271,7 +271,7 @@ module.exports = grammar({
     named_imports: ($) => seq("{", commaSep1($.import_item), optional(","), "}"),
     import_item: ($) =>
       seq(field("name", $.identifier), optional(seq("as", field("alias", $.identifier)))),
-    module_path: ($) => seq($.identifier, repeat(seq(".", $.identifier))),
+    module_path: ($) => prec.right(seq($.identifier, repeat(seq(".", $.identifier)))),
 
     _declaration: ($) =>
       choice(
@@ -373,7 +373,7 @@ module.exports = grammar({
     generic_parameter: ($) =>
       choice(
         seq(
-          field("primary_marker", "_"),
+          field("label_omission", "_"),
           field("name", $.identifier),
           ":",
           field("domain", $.type),

@@ -5206,6 +5206,16 @@
           }
         ]
       },
+      "label_omission": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "_",
+            "named": false
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": true,
@@ -5213,16 +5223,6 @@
           {
             "type": "identifier",
             "named": true
-          }
-        ]
-      },
-      "primary_marker": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "_",
-            "named": false
           }
         ]
       }
@@ -10061,7 +10061,27 @@
           "named": true
         },
         {
+          "type": "binding_declaration",
+          "named": true
+        },
+        {
+          "type": "break_statement",
+          "named": true
+        },
+        {
+          "type": "commit_statement",
+          "named": true
+        },
+        {
           "type": "const_declaration",
+          "named": true
+        },
+        {
+          "type": "continue_statement",
+          "named": true
+        },
+        {
+          "type": "defer_statement",
           "named": true
         },
         {
@@ -10070,6 +10090,10 @@
         },
         {
           "type": "dimension_declaration",
+          "named": true
+        },
+        {
+          "type": "do_statement",
           "named": true
         },
         {
@@ -10089,7 +10113,15 @@
           "named": true
         },
         {
+          "type": "expression_statement",
+          "named": true
+        },
+        {
           "type": "extension_declaration",
+          "named": true
+        },
+        {
+          "type": "for_statement",
           "named": true
         },
         {
@@ -10101,7 +10133,19 @@
           "named": true
         },
         {
+          "type": "guard_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
+          "named": true
+        },
+        {
           "type": "import_statement",
+          "named": true
+        },
+        {
+          "type": "labeled_statement",
           "named": true
         },
         {
@@ -10125,6 +10169,18 @@
           "named": true
         },
         {
+          "type": "region_statement",
+          "named": true
+        },
+        {
+          "type": "repeat_statement",
+          "named": true
+        },
+        {
+          "type": "return_statement",
+          "named": true
+        },
+        {
           "type": "script_header",
           "named": true
         },
@@ -10145,11 +10201,19 @@
           "named": true
         },
         {
+          "type": "throw_statement",
+          "named": true
+        },
+        {
           "type": "type_declaration",
           "named": true
         },
         {
           "type": "unit_declaration",
+          "named": true
+        },
+        {
+          "type": "while_statement",
           "named": true
         },
         {
