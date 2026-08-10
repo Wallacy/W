@@ -1,4 +1,4 @@
-// Allocator and region oracles for the Last Light restaurant.
+// Allocator and Arena oracles for the Last Light restaurant.
 
 import * from std.memory
 import * from std.task
@@ -13,23 +13,24 @@ export fn stageMenu(
   dishes: ref Array<String>,
   memory: ref Allocator,
 ): MenuSnapshot throws AllocationError {
-  region staging(using: memory, limit: 2<MiB>) {
-    var stagedDishes = Array<String>(using: staging)
-    try stagedDishes.tryReserve(minimumCapacity: dishes.count)
+  var storage: [u8; 2<MiB>] = [0; 2<MiB>]
+  var staging = Arena.fixed(inout storage)
+  defer { staging.clear() }
+  var stagedDishes = Array<String>(using: staging)
+  try stagedDishes.tryReserve(minimumCapacity: dishes.count)
 
-    for ref dish in dishes {
-      let stagedDish = try dish.tryDuplicate(using: staging)
-      stagedDishes.append(take stagedDish)
-    }
-
-    let staged = MenuSnapshot(
-      title: try title.tryDuplicate(using: staging),
-      dishes: take stagedDishes,
-    )
-    // Rehome changes allocation origins. It does not erase a borrow origin.
-    // The result interface maps owned storage to the `memory` parameter.
-    return try (take staged).rehome(using: memory)
+  for ref dish in dishes {
+    let stagedDish = try dish.tryDuplicate(using: staging)
+    stagedDishes.append(take stagedDish)
   }
+
+  let staged = MenuSnapshot(
+    title: try title.tryDuplicate(using: staging),
+    dishes: take stagedDishes,
+  )
+  // Rehome changes allocation origins. It does not erase a borrow origin.
+  // The result interface maps owned storage to the `memory` parameter.
+  return try (take staged).rehome(using: memory)
 }
 
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {
@@ -61,11 +62,11 @@ export async fn countStagedMenuInParallel(
   processMemory: ref Allocator<(.crossDomain)>,
 ): usize throws AllocationError {
   let snapshot = try stageMenu(title, dishes: dishes, memory: processMemory)
-  spawn let count = snapshotBytes(take snapshot)
+  spawn<.compute> let count = snapshotBytes(take snapshot)
   return await count
 }
 
-test "a staged menu leaves its temporary region" for stageMenu {
+test "a staged menu leaves its temporary Arena" for stageMenu {
   var storage: [u8; 64<KiB>] = [0; 64<KiB>]
   let destination = Arena.fixed(inout storage)
   let title = "Menu at the Observable Edge"

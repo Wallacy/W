@@ -136,7 +136,7 @@
         },
         {
           "name": "keyword.control.w",
-          "match": "\\b(?:break|case|catch|commit|continue|defer|deinit|do|else|for|guard|if|in|pipeline|region|repeat|return|switch|throw|transaction|while)\\b"
+          "match": "\\b(?:break|case|catch|commit|continue|defer|deinit|do|else|for|guard|if|in|pipeline|repeat|return|switch|throw|transaction|while)\\b"
         },
         {
           "name": "keyword.declaration.w",

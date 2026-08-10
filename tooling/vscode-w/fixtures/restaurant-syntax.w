@@ -134,7 +134,7 @@ export service lastLight: RestaurantApi {
 
   mut async fn place(order: take Order): Receipt throws RestaurantError {
     let ref Order(course, ...) = order
-    async<.network> let stock = pantry.reserve(course)
+    async let stock = pantry.reserve(course)
     spawn<.compute> let plan = optimize(order)
     plan.cancel(reason: .menuChanged)
     let (stock, plan) = try await (stock, plan)
@@ -265,10 +265,12 @@ fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
 }
 
 fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
-  region scratch(using: memory, limit: 8<MiB>) {
-    let parsed = try Menu.parse(payload, using: scratch)
-    return try (take parsed).rehome(using: memory)
-  }
+  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
+  var scratch = Arena.fixed(inout storage)
+  let parsed = try Menu.parse(payload, using: scratch)
+  let result = try (take parsed).rehome(using: memory)
+  scratch.clear()
+  return result
 }
 
 protocol Stream<Item, Failure: Error> {

@@ -27,7 +27,7 @@ permite language mode icons e não possui associação mais específica para `.w
 - ilhas `fn<Language>` e funções W com `fn<abi: .c>`;
 - operações de ownership e acesso `ref`, `view`, `inout`, `take`, `copy` e
   `pin`;
-- bloco lexical de memória `region`;
+- API avançada `Arena` para storage fixed/bounded;
 - blocos estruturados `pipeline` e `transaction`, com `commit`;
 - pares, comentário e indentação básicos do editor.
 

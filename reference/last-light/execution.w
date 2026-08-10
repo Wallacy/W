@@ -72,11 +72,35 @@ fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
   return MixingResult(index: job.index, orderId: job.orderId, mixture: mixture)
 }
 
+// The body infers maySuspend. The declaration does not repeat async.
+export fn inferredSuspension(job: take MixingJob): MixingResult throws BrigadeError {
+  await Task.yield()
+  return try mixJob(take job)
+}
+
+export protocol KitchenExecution {
+  // A protocol declaration has no body, so async publishes maySuspend.
+  async fn remote(job: take MixingJob): MixingResult throws BrigadeError
+}
+
+export fn executionForms(
+  direct: take MixingJob,
+  awaited: take MixingJob,
+  child: take MixingJob,
+  parallel: take MixingJob,
+): (MixingResult, MixingResult, MixingResult, MixingResult) throws BrigadeError {
+  let now = try mixJob(take direct)
+  let later = try await inferredSuspension(take awaited)
+  async let childTask = mixJob(take child)
+  spawn<domain: .compute> let parallelTask = mixJob(take parallel)
+  return (now, later, try await childTask, try await parallelTask)
+}
+
 async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError {
   Task.checkCancellation()
   await Task.yield()
   Task.checkCancellation()
-  return mixJob(take job)
+  return try mixJob(take job)
 }
 
 export async fn mixPair(
@@ -174,6 +198,11 @@ fn cancellationResult(cancellation: ref Cancellation): LastBellResult {
   return .canceled
 }
 
+/// Structured execution keeps direct calls, await, async let and spawn explicit.
+///
+/// @example
+/// call: explainLastBell(.canceled(.shutdown))
+/// result: .canceled
 export fn explainLastBell(
   outcome: take TaskOutcome<MixingResult, BrigadeError>,
 ): LastBellResult {

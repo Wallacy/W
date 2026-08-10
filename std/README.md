@@ -2,19 +2,18 @@
 
 > **Status:** rascunho source. Não existe build da standard library.
 
-[`DESIGN.md`](../DESIGN.md) define os tiers e a semântica. Estes arquivos
+[`DESIGN.md`](../DESIGN.md) define a policy plana por módulo e a semântica. Estes arquivos
 testam se os contratos podem ser escritos em W.
 
-## Camadas
+## Módulos e contratos
 
-| Camada | Conteúdo |
-|---|---|
-| T0 | tipos e operações necessários para compilar W e executar o core |
-| T1 | process, files, network, tasks, services, JSON e integração comum de host |
-| T2 | HTTP, database, tabular formats, SI, tensor, accelerator, crypto e domínios maiores |
-
-Um tier não define distribuição separada. O SDK pode enviar todas as camadas.
-O product inclui somente o grafo alcançável.
+Cada diretório abaixo é um módulo concreto. Ele declara target facts, required
+capabilities, effects, provider status/digest e reachability; esses facts
+determinam availability para o target selecionado. Todos os módulos bundled
+usam a mesma policy de suporte e estabilidade. `SDK0`, `PYN` e outros nomes de
+gate são etapas de design, não categorias de disponibilidade. O product inclui
+somente o grafo alcançável e diagnostica um módulo indisponível no compile ou no
+link.
 
 ## Estrutura inicial
 
@@ -69,13 +68,13 @@ staging. O host publica um action-result/manifest atômico após success, output
 obrigatórios e budgets válidos. O arquivo descreve a interface e não alega
 execução.
 `runtime/task.w` materializa reasons, budget kinds, outcomes e timeout de tasks
-lexicais. `Duration` é um intrinsic T1 signed e exato, com resolução de
+lexicais. `Duration` é um intrinsic de execução signed e exato, com resolução de
 nanosecond. `runtime/transaction.w` materializa o contrato de transação
 estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
-não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de T1.
-`json/contracts.w` materializa o codec JSON bounded de T1. `Encodable`,
+não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
+`json/contracts.w` materializa o codec JSON bounded de host. `Encodable`,
 `Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
 cursors opacos; object e array cursors vivem somente em closures scoped.
 `Limits` exige bounds positivos para bytes, depth, values, strings, number
@@ -110,7 +109,7 @@ o provider executável continua missing; o arquivo não contém um parser
 substituto. `URL` mantém backing canônico opaco, oferece views textuais O(1) e
 materializa snapshots owned de `URLSearchParams` somente por call explícita.
 `editSearchParams` mantém a mutação do URL scoped. Os outros arquivos
-materializam values e protocols de T2.
+materializam values e protocols tipados.
 
 `http/contracts.w` materializa o draft SDK0 de `Request`, `Response`,
 `Context` e a declaration de `serve`. Um único provider intrinsic `std.http@1` possui handles de
@@ -134,7 +133,7 @@ wrapper explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao
 cancellation em `ServerError`. A interface `std.net` está em draft, mas seu
 provider `std.net@1` continua missing.
 
-`net/contracts.w` materializa o carrier de rede SDK0 T1. `Network` é uma
+`net/contracts.w` materializa o carrier de rede SDK0 de host. `Network` é uma
 capability host-provided move-only, sem initializer público, e as operações
 públicas borrowam descriptors. Address values são data-only e bounded.
 `HostName` usa UTS #46 nontransitional, STD3, validade IDNA2008 e forma A-label
@@ -152,13 +151,20 @@ send por socket. `ResolveLimits`, `ConnectOptions`,
 differential targets, capability denial, SSRF, cancellation, partial I/O, fault
 injection, sanitizers, leak, limits e fuzzing.
 
-`std.process` é um módulo T1 planejado. Ele fornece `Arguments`, `Context`,
+`std.process` é um módulo de host planejado. Ele fornece `Arguments`, `Context`,
 `ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.
 Um namespace alias, como `process.Arguments`, continua válido. O módulo não
-fornece um singleton global chamado `process`. Os SDKs de target podem
-fornecer namespaces como `std.device`, `std.mobile` e `std.audio`. Seus tipos
+fornece um singleton ambiental geral chamado `process`; as duas projections
+intrínsecas abaixo são a exceção estreita para roots `native-process`. Os SDKs
+de target podem fornecer namespaces como `std.device`, `std.mobile` e
+`std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
+
+Somente um root `native-process` pode usar as projections intrínsecas
+read-only `process.args` e `process.context`. O profile concede os bindings e o
+compiler registra o effect/requirement; roots de teste, script e não-processo
+usam fixtures explícitos ou recebem diagnostic.
 
 O rascunho fixa nove fronteiras:
 
@@ -236,7 +242,7 @@ está deferido. `copyPolicy:
 .never` falha quando a cópia é necessária. Device handles não são tratados como
 CPU pointers.
 
-`presentation/contracts.w` materializa o protocol T2 `Presentable`, o `Writer`
+`presentation/contracts.w` materializa o protocol `Presentable`, o `Writer`
 opaco, `Limits`, `MediaType` validada, `Error` e operações typed/streamed de
 texto, imagem e JSON. O writer exige `text/plain` e rejeita media duplicada,
 active content, collect implícito e device copy implícita. O provider

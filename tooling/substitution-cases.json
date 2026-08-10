@@ -297,7 +297,7 @@
     {
       "id": "R0-spawn-domain",
       "reviewItem": "`spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`",
-      "decisions": ["W-039", "W-350", "W-725", "W-926", "W-927"],
+      "decisions": ["W-039", "W-350", "W-725", "W-926", "W-927", "W-1160", "W-1162"],
       "task": "Start bounded parallel planning in the product-selected compute domain.",
       "selected": {
         "language": "w",
@@ -306,9 +306,9 @@
       "alternatives": [
         {
           "name": "named-domain-label",
-          "language": "alternative-w",
+          "language": "w",
           "source": ["spawn<domain: .compute> let plan = optimize(take snapshot)"],
-          "expectedDifference": "The named-label R1 variant requires a schema that declares domain as labeled; it is not an alias for the unlabeled slot."
+          "expectedDifference": "This is the same optional-label slot in named source spelling; it normalizes to the same domain HIR while the formatter preserves the source spelling."
         },
         {
           "name": "sentence-modifier",
@@ -801,7 +801,7 @@
     {
       "id": "R0-inline-language-slot",
       "reviewItem": "`fn<C>` contra `fn<lang: .c>`",
-      "decisions": ["W-072", "W-621"],
+      "decisions": ["W-072", "W-621", "W-1160"],
       "task": "Embed one hermetic C function while keeping its body opaque to the W parser.",
       "selected": {
         "language": "w-with-c-island",
@@ -810,9 +810,9 @@
       "alternatives": [
         {
           "name": "named-primary-language-slot",
-          "language": "alternative-w",
+          "language": "w",
           "source": ["unsafe fn<lang: .c> legacyProbeStatus(status: c.int): c.int { ... }"],
-          "expectedDifference": "The primary language slot repeats a label fixed by the fn schema."
+          "expectedDifference": "This is the same optional-label slot in named source spelling; it normalizes to the same frontend HIR while the formatter preserves the source spelling."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

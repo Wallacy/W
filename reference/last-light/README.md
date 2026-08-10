@@ -128,7 +128,7 @@ RestaurantApi
   → Sonda de Aroma
   → Arquivo de Ecos shared/weak
   → Sino de Encerramento pinned
-  → Região Temporária do Cardápio
+  → Arena Temporária do Cardápio
   → Janela de Serviço sem Dono
   → Passa-Pratos de Capacidade Finita
   → Recepção callable do Último Maitre
@@ -442,7 +442,7 @@ Adversariais:
 
 O host deriva state, trace, graph fingerprint, receipt, invalidation, effects e
 cleanup. Ele não compila, executa W, drena resource físico ou fornece CLI.
-Jupyter/rich output é PYN3. DLPack permanece adapter T2 separado.
+Jupyter/rich output é PYN3. DLPack permanece adapter de tensor separado.
 
 O fixture [`repl_session_oracle.w`](repl_session_oracle.w) também contém testes
 puros separados para retenção de snapshot, predecessor de edge transitivo,
@@ -837,7 +837,7 @@ registration; folha pending duplicada com uma registration; reason publicado,
 nenhum wake perdido, cleanup único, zero refcount cycle, zero task órfã e
 nenhuma fila de events.
 
-`json.w` fixa o carrier T1 de JSON. A conformance é explícita e a synthesis
+`json.w` fixa o carrier de host de JSON. A conformance é explícita e a synthesis
 reconhece somente o protocol `std.json` por identidade. `Writer` e `Reader`
 mantêm object/array cursors dentro de closures scoped. `Limits` cobre bytes,
 depth, values, strings, number tokens, members e allocation; não existe rota
@@ -1203,7 +1203,7 @@ peak:       unknown             input-dependent
 accounting: payload + allocator
 ```
 
-O limite `2<MiB>` da região é um contract de admission. Ele não prova o peak
+O limite `2<MiB>` da Arena é um contract de admission. Ele não prova o peak
 total de `stageMenu`, porque o input e a cópia final podem usar outro storage.
 `countEmergencyTokens` mantém um buffer fixo de `64<KiB>`, mas o lens continua
 separando storage local, arena e payload produzido. Uma medição posterior só é
@@ -1234,11 +1234,11 @@ Aceite:
 - `String<(.scalars.count <= 40)>` usa o subject contextual do refinement;
 - `Array<u8><(.count <= 64)>` refina um generic já aplicado;
 - `Array<[u8, (.count <= 64)]>` não substitui os dois contratos;
-- `spawn<.compute>` é a forma vigente; `spawn<domain: .compute>` é a Alternativa R1 com schema nomeado;
-- `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético;
+- `spawn<.compute>` e `spawn<domain: .compute>` aceitam o mesmo slot opcional e normalizam para o mesmo HIR;
+- `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético pelo mesmo slot opcional;
 - `<(...)>`, `<{...}>` e `<[...]>` preservam expression, record e list;
 - um slot repetido produz diagnostic antes do type-check normal;
-- um case abreviado só preenche o slot posicional sem label externo declarado pelo schema;
+- um case abreviado usa o slot posicional com label opcional declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
 - `Money.zeroCredits` e `Course.fromOrdinal(...)` não criam estado global;
@@ -1562,8 +1562,8 @@ Aceite:
 - o call site não escolhe uma conformance por import ou ranking;
 - a interface registra generic HIR e witness IDs;
 - `name: Type` expõe value compile-time com label, enquanto `_ name: Type`
-  mantém somente o nome interno;
-- múltiplos values sem label precedem values nomeados, sem reorder;
+  mantém o nome interno e torna `name:` opcional;
+- múltiplos values com label opcional precedem values nomeados, sem reorder;
 - named values de type heads aparecem por lookup estático e não viram fields;
 - `Matrix<f32, rows: 3, columns: 4>.rows` consulta a contract value associada;
 - monomorphization e shared lowering preservam a mesma semântica.
@@ -1841,7 +1841,7 @@ lowering MLIR. Para floats, ele compara bits das operações strict, classes IEE
 signed zero e total order. Modes `fast` são avaliados por bounds próprios e não
 participam do oracle bit-exact de `.strict`.
 
-### 3.33 Região Temporária do Cardápio
+### 3.33 Arena Temporária do Cardápio
 
 Famílias: placement, allocator, arena, budget, escape e OOM.
 
@@ -1849,9 +1849,9 @@ Aceite:
 
 - um local síncrono fixo que não escapa não usa o allocator geral;
 - `object` não implica heap;
-- somente calls com `using: staging` usam a região;
+- somente calls com `using: staging` usam a Arena;
 - `tryReserve` falha antes de consumir os elementos;
-- cada string duplicada mantém a origem da região;
+- cada string duplicada mantém a origem da Arena;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
 - storage de uma arena local não atende a `transferable`;
 - `Allocator<(.crossDomain)>` é necessário para produzir um owner que cruza
@@ -1866,14 +1866,14 @@ Aceite:
 - `Arena.fixed` não pede storage ao OS;
 - importar um módulo não cria uma heap implícita;
 - o build profile fixa `generalAllocator` e `representation`;
-- o snapshot retornado não depende da região temporária;
+- o snapshot retornado não depende da Arena temporária;
 - `w check memory --require no-general-allocation` mostra a call chain que viola
   o profile.
 
 O oracle executa `stageMenu` com um allocator de falha injetada em cada
-allocation. Antes de `rehome`, toda falha limpa os valores pela região. Durante
+allocation. Antes de `rehome`, toda falha limpa os valores pela Arena. Durante
 `rehome`, toda falha limpa source e destino parcial uma vez. Depois do success,
-destruir a região não altera o snapshot. O teste repete com allocator do sistema,
+limpar a Arena não altera o snapshot. O teste repete com allocator do sistema,
 buffer fixo e os profiles `benchmark` e `benchmark-mimalloc`. Os valores, errors
 e drops são os mesmos. Cada allocation mantém a origem declarada; provider
 measurements podem mudar.
@@ -2476,7 +2476,7 @@ O Book deve mostrar pares lado a lado:
 | export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
 | plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `spawn<.compute> let x = ...` | `spawn<domain: .compute> let x = ...` (Alternativa R1, schema nomeado) |
+| domain | `spawn<.compute> let x = ...` ou `spawn<domain: .compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain relacional | `spawn<.compute> let x = ...` | `spawn on .compute let x = ...` (**Rejeitado por enquanto**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
@@ -2523,11 +2523,11 @@ O Book deve mostrar pares lado a lado:
 | callable concreto | `some fn(A): B` | todo callable apagado |
 | callable apagado | `any fn(A): B` | `CallbackType` universal |
 | callable mode | `fn` / `mut fn` / `take fn` | `Fn` / `FnMut` / `FnOnce` |
-| frontend inline | `fn<C>` | `fn<lang: .c>` |
+| frontend inline | `fn<C>` ou `fn<lang: .c>` | schema sem o slot opcional ou label incompatível |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import http from std` ou `import stdHTTP from std.http` | default export ou `as` externo |
-| região | `region request(using:, limit:)` | somente `Arena` manual |
+| Arena | `Arena.fixed(inout storage)` | somente API manual e explícita |
 | projeção borrowed | `view T` para famílias core | `StringView`/`Slice<T>` públicos e `Readonly<T>` profundo |
 | stream assíncrono | `Stream<Item, Failure>` single-pass | sequence + iterator obrigatórios ou generator |
 | loop de stream | `for try await item in stream` | `await stream` lê tudo ou callback push |

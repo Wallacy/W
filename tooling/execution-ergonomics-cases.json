@@ -1,0 +1,247 @@
+{
+  "$schema": "w-execution-ergonomics-cases-2",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "EE-POS-generic-optional-labels",
+      "kind": "positive",
+      "source": "struct OvenSession<_ state: OvenSessionState> {}\nlet a = OvenSession<.ready>.state\nlet b = OvenSession<state: .ready>.state",
+      "expect": { "genericPolicy": "optional(name)", "genericIdentity": "same" }
+    },
+    {
+      "id": "EE-POS-callable-optional-label",
+      "kind": "positive",
+      "source": "fn open(_ name: String) {}\nopen(\"oven\")\nopen(name: \"oven\")",
+      "expect": { "callableName": "open", "callablePolicy": "optional(name)", "forms": ["positional", "name:"] }
+    },
+    {
+      "id": "EE-POS-callable-external-internal-label",
+      "kind": "positive",
+      "source": "fn route(to range: Range, during duration: Duration) {}\nroute(to: 1, during: 2)",
+      "expect": { "callableName": "route", "callableExternal": "to", "callableInternal": "range", "parameterIndex": 0 }
+    },
+    {
+      "id": "EE-NEG-callable-unknown-external-label",
+      "kind": "negative",
+      "source": "fn route(to range: Range, during duration: Duration) {}\nroute(from: 1, during: 2)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "route" }
+    },
+    {
+      "id": "EE-POS-label-shapes-disjoint",
+      "kind": "positive",
+      "source": "fn serve(_ value: Value) {}\nfn serve(_ value: Value, mode: Mode) {}",
+      "expect": { "callableName": "serve", "callShapes": ["positional", "value:"] }
+    },
+    {
+      "id": "EE-NEG-label-collision",
+      "kind": "negative",
+      "source": "fn open(_ name) {}\nfn open(name) {}",
+      "expect": { "diagnostic": "W-LABEL-0004" }
+    },
+    {
+      "id": "EE-NEG-label-unknown",
+      "kind": "negative",
+      "source": "fn open(_ name) {}\nopen(other: 1)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "open" }
+    },
+    {
+      "id": "EE-NEG-label-duplicate",
+      "kind": "negative",
+      "source": "fn open(_ name) {}\nopen(name: 1, name: 2)",
+      "expect": { "diagnostic": "W-LABEL-0006", "callableName": "open" }
+    },
+    {
+      "id": "EE-NEG-generic-label-unknown",
+      "kind": "negative",
+      "source": "struct OvenSession<_ state: State> {}\nlet value = OvenSession<other: .ready>",
+      "expect": { "diagnostic": "W-LABEL-0005" }
+    },
+    {
+      "id": "EE-NEG-generic-label-duplicate",
+      "kind": "negative",
+      "source": "struct Pair<_ left: Int, _ right: Int> {}\nlet value = Pair<left: 1, left: 2>",
+      "expect": { "diagnostic": "W-LABEL-0006" }
+    },
+    {
+      "id": "EE-POS-direct-never",
+      "kind": "positive",
+      "source": "fn sync(value: Int): Int { return value }\nlet result = sync(1)",
+      "expect": { "callee": "sync", "suspension": "never", "callForm": "direct" }
+    },
+    {
+      "id": "EE-POS-await-may",
+      "kind": "positive",
+      "source": "fn load(): Value { await Task.yield(); return value }\nlet result = await load()",
+      "expect": { "callee": "load", "suspension": "may", "callForm": "await", "sourceSpelling": "inferred" }
+    },
+    {
+      "id": "EE-POS-async-let-sync",
+      "kind": "positive",
+      "source": "fn sync(value): Value { return value }\nasync let child = sync(input)\nlet value = await child",
+      "expect": { "childForm": "async let", "childAccepts": ["never", "may"] }
+    },
+    {
+      "id": "EE-POS-spawn-may",
+      "kind": "positive",
+      "source": "fn work(value): Value { await Task.yield(); return value }\nspawn<.compute> let child = work(input)\nlet value = await child",
+      "expect": { "childForm": "spawn", "childAccepts": ["never", "may"] }
+    },
+    {
+      "id": "EE-POS-scc-inference",
+      "kind": "positive",
+      "source": "fn even(n) { if n == 0 { return true }; return await odd(n - 1) }\nfn odd(n) { await Task.yield(); return if n == 0 { false } else { await even(n - 1) } }",
+      "expect": { "sccSuspension": "may", "members": ["even", "odd"] }
+    },
+    {
+      "id": "EE-INFO-public-widening",
+      "kind": "information",
+      "source": "export fn publicCall(value): Value { await Task.yield(); return value }",
+      "input": { "publicContract": { "previous": "never", "current": "may", "exported": true } },
+      "expect": { "sourceBreaking": true, "widening": true }
+    },
+    {
+      "id": "EE-POS-protocol-explicit-suspension",
+      "kind": "positive",
+      "source": "protocol Loader { async fn load(): Value }",
+      "expect": { "declaration": "load", "suspension": "may", "sourceSpelling": "explicit" }
+    },
+    {
+      "id": "EE-NEG-bare-may-suspend",
+      "kind": "negative",
+      "source": "async fn load(): Value { return value }\nfn caller(): Value { return load() }",
+      "expect": { "callee": "load", "diagnostic": "W-SUSPEND-0001" }
+    },
+    {
+      "id": "EE-INFO-await-never",
+      "kind": "information",
+      "source": "fn value(): Value { return 1 }\nfn caller(): Value { return await value() }",
+      "expect": { "callee": "value", "diagnostic": "W-SUSPEND-0002", "removable": true }
+    },
+    {
+      "id": "EE-NEG-blocking-sync",
+      "kind": "negative",
+      "source": "fn caller(): Value { return blockingWait(task) }",
+      "expect": { "diagnostic": "W-SUSPEND-0003", "fix": null }
+    },
+    {
+      "id": "EE-POS-child-staging",
+      "kind": "positive",
+      "source": "async let child = work(prepare(input))\nspawn<domain: .compute> let parallel = work(capture)",
+      "expect": { "evaluation": ["callee", "arguments", "captures", "reserve", "publish"], "child": "structured" }
+    },
+    {
+      "id": "EE-NEG-spawn-serial",
+      "kind": "negative",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()",
+      "expect": { "diagnostic": "W-PLACEMENT-0002" }
+    },
+    {
+      "id": "EE-POS-spawn-nonserial-domain",
+      "kind": "positive",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.compute> let work = f()",
+      "expect": {}
+    },
+    {
+      "id": "EE-NEG-spawn-declaration-placement",
+      "kind": "negative",
+      "source": "spawn<.network> fn fetch(request) { return request }",
+      "expect": { "diagnostic": "W-PLACEMENT-0001" }
+    },
+    {
+      "id": "EE-POS-spawn-optional-domain",
+      "kind": "positive",
+      "source": "spawn<.compute> let a = f()\nspawn<domain: .compute> let b = f()",
+      "expect": { "sameOptionalDomainForm": true }
+    },
+    {
+      "id": "EE-POS-implicit-process-projections",
+      "kind": "positive",
+      "source": "let args = process.args\nlet context = process.context\nprint(args.count)\nlet _ = context",
+      "input": { "root": true, "profile": "native-process" },
+      "expect": { "projections": ["args", "context"], "readOnly": true }
+    },
+    {
+      "id": "EE-NEG-process-non-root",
+      "kind": "negative",
+      "source": "module library\nlet context = process.context",
+      "input": { "root": false, "profile": "library" },
+      "expect": { "diagnostic": "W-PROCESS-0001" }
+    },
+    {
+      "id": "EE-NEG-process-escape",
+      "kind": "negative",
+      "source": "entry(run)\nfn save(): ref Context { return process.context }",
+      "input": { "root": true, "profile": "native-process" },
+      "expect": { "diagnostic": "W-PROCESS-0002" }
+    },
+    {
+      "id": "EE-NEG-process-service-crossing",
+      "kind": "negative",
+      "source": "entry(run)\nservice.send(process.context)",
+      "input": { "root": true, "profile": "native-process" },
+      "expect": { "diagnostic": "W-PROCESS-0002" }
+    },
+    {
+      "id": "EE-NEG-process-serialization",
+      "kind": "negative",
+      "source": "entry(run)\nserialize(process.context)",
+      "input": { "root": true, "profile": "native-process" },
+      "expect": { "diagnostic": "W-PROCESS-0002" }
+    },
+    {
+      "id": "EE-NEG-process-ctx-alias",
+      "kind": "negative",
+      "source": "entry(run)\nlet value = process.ctx",
+      "input": { "root": true, "profile": "native-process" },
+      "expect": { "diagnostic": "W-PROCESS-0003" }
+    },
+    {
+      "id": "EE-POS-doc-example",
+      "kind": "positive",
+      "source": "/// @example\n/// call: clamp(2, to: 0...3)\n/// result: 2\nfn clamp(value: Int, to range: Range): Int { return value }",
+      "expect": { "terminal": "result", "hermetic": true, "releasePayload": false }
+    },
+    {
+      "id": "EE-POS-doc-example-two-blocks",
+      "kind": "positive",
+      "source": "/**\n * @example\n * call: first()\n * result: 1\n */\nfn first(): Int { return 1 }\n/**\n * @example\n * call: second()\n * result: 2\n */\nfn second(): Int { return 2 }",
+      "expect": { "terminal": "result", "exampleCount": 2, "hermetic": true, "releasePayload": false }
+    },
+    {
+      "id": "EE-NEG-doc-example-duplicate-terminal",
+      "kind": "negative",
+      "source": "/** @example\n * call: clamp(2)\n * result: 2\n * error: RangeError\n */\nfn clamp(value: Int): Int { return value }",
+      "expect": { "diagnostic": "W-DOC-0003" }
+    },
+    {
+      "id": "EE-NEG-doc-example-ambient",
+      "kind": "negative",
+      "source": "/// @example\n/// call: readFile(process.args)\n/// result: \"data\"\nfn readFile(path: String): String { return path }",
+      "expect": { "diagnostic": "W-DOC-0005" }
+    },
+    {
+      "id": "EE-POS-doc-example-fixture",
+      "kind": "positive",
+      "source": "/// @example\n/// call: readFile(process.args)\n/// result: \"data\"\nfn readFile(path: String): String { return path }",
+      "input": { "fixture": "args-fixture" },
+      "expect": { "terminal": "result", "hermetic": true }
+    },
+    {
+      "id": "EE-POS-flat-std",
+      "kind": "positive",
+      "source": "std.io availability derives from structured module facts",
+      "input": { "std": { "modules": [
+        { "id": "std.io", "targetFacts": [], "capabilities": [], "provider": "missing", "reachability": "reachable" },
+        { "id": "std.tensor", "targetFacts": [], "capabilities": ["device"], "provider": "missing", "reachability": "unreachable" }
+      ] } },
+      "expect": { "hasTierField": false, "authority": ["targetFacts", "capabilities", "provider", "reachability"] }
+    },
+    {
+      "id": "EE-NEG-flat-std-tier-field",
+      "kind": "negative",
+      "source": "std.io module metadata",
+      "input": { "std": { "modules": [{ "id": "std.io", "tier": "old" }] } },
+      "expect": { "diagnostic": "W-STD-0001" }
+    }
+  ]
+}

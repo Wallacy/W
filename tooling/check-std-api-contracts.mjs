@@ -16,7 +16,6 @@ const design = fs.readFileSync(designPath, "utf8");
 const rationale = fs.readFileSync(rationalePath, "utf8");
 const errors = [];
 
-const allowedTiers = new Set(["T0", "T1", "T2"]);
 const allowedFailureModes = new Set(["none", "typed", "generic"]);
 const allowedImplementationProviderKinds = new Set(["std-intrinsic"]);
 const allowedImplementationProviderStatuses = new Set(["available", "missing"]);
@@ -298,8 +297,8 @@ for (const module of catalog.modules ?? []) {
   if (moduleIds.has(module.id)) errors.push(`duplicate module ${module.id}.`);
   moduleIds.add(module.id);
 
-  if (!allowedTiers.has(module.tier)) {
-    errors.push(`${module.id}: tier must be T0, T1, or T2.`);
+  if (Object.prototype.hasOwnProperty.call(module, "tier")) {
+    errors.push(`${module.id}: tier is retired; use availability and target facts.`);
   }
   if (!module.availability) errors.push(`${module.id}: availability is required.`);
 
@@ -467,7 +466,6 @@ for (const module of catalog.modules ?? []) {
   const orderedApis = snapshotApis.sort((left, right) => left.symbol.localeCompare(right.symbol));
   snapshotModules.push({
     id: module.id,
-    tier: module.tier,
     availability: module.availability,
     source: module.source,
     ...(implementationProvider

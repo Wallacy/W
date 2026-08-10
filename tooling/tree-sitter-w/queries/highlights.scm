@@ -53,7 +53,6 @@
   "guard"
   "if"
   "pipeline"
-  "region"
   "repeat"
   "return"
   "switch"

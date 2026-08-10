@@ -33,7 +33,6 @@ const CONTROL_KEYWORDS = [
   "guard",
   "if",
   "pipeline",
-  "region",
   "repeat",
   "return",
   "switch",
@@ -1016,7 +1015,6 @@ module.exports = grammar({
         $.throw_statement,
         $.defer_statement,
         $.guard_statement,
-        $.region_statement,
         $.if_statement,
         $.labeled_statement,
         $.while_statement,
@@ -1072,13 +1070,6 @@ module.exports = grammar({
       prec.right(seq("continue", optional(field("label", $.identifier)), optional(";"))),
     defer_statement: ($) => seq("defer", optional("async"), $.block),
     guard_statement: ($) => seq("guard", choice($.optional_binding, $._expression), "else", choice($.block, $._statement)),
-    region_statement: ($) =>
-      seq(
-        "region",
-        field("name", $.identifier),
-        optional(field("options", $.argument_list)),
-        field("body", $.block),
-      ),
     if_statement: ($) =>
       prec.right(seq("if", choice($.optional_binding, $._expression), $.block, optional(seq("else", choice($.if_statement, $.block))))),
     labeled_statement: ($) =>

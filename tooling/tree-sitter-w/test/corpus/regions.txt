@@ -1,12 +1,34 @@
 ==================
-Region with allocator and budget
+Retired region syntax is rejected
+==================
+
+region staging {
+  let value = 1
+}
+
+---
+
+(source_file
+  (expression_statement
+    (identifier))
+  (expression_statement
+    (identifier))
+  (ERROR)
+  (binding_declaration
+    (pattern
+      (identifier))
+    (number_literal))
+  (ERROR))
+
+==================
+Arena storage with bounded capacity
 ==================
 
 fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws AllocationError {
-  region scratch(using: memory, limit: 8<MiB>) {
-    let parsed = try Menu.parse(payload, using: scratch)
-    return try (take parsed).rehome(using: memory)
-  }
+  var storage: [u8; 8<MiB>] = [0; 8<MiB>]
+  var scratch = Arena.fixed(inout storage)
+  let parsed = try Menu.parse(payload, using: scratch)
+  return try (take parsed).rehome(using: memory)
 }
 
 ---
@@ -32,39 +54,52 @@ fn decodeMenu(payload: ref Bytes, memory: ref Allocator): Menu throws Allocation
       (type_name
         (type_identifier)))
     (block
-      (region_statement
-        (identifier)
-        (argument_list
-          (argument
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (fixed_array_type
+            (type
+              (type_name
+                (type_identifier)))
+            (quantity_literal)))
+        (repeat_array_literal
+          (number_literal)
+          (quantity_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (member_expression
             (identifier)
             (identifier))
-          (argument
-            (identifier)
-            (quantity_literal)))
-        (block
-          (binding_declaration
-            (pattern
+          (argument_list
+            (argument
+              (unary_expression
+                (identifier))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (call_expression
+            (member_expression
+              (identifier)
               (identifier))
-            (unary_expression
-              (call_expression
-                (member_expression
-                  (identifier)
-                  (identifier))
-                (argument_list
-                  (argument
-                    (identifier))
-                  (argument
-                    (identifier)
-                    (identifier))))))
-          (return_statement
-            (unary_expression
-              (call_expression
-                (member_expression
-                  (parenthesized_expression
-                    (unary_expression
-                      (identifier)))
-                  (identifier))
-                (argument_list
-                  (argument
-                    (identifier)
-                    (identifier)))))))))))
+            (argument_list
+              (argument
+                (identifier))
+              (argument
+                (identifier)
+                (identifier))))))
+      (return_statement
+        (unary_expression
+          (call_expression
+            (member_expression
+              (parenthesized_expression
+                (unary_expression
+                  (identifier)))
+              (identifier))
+            (argument_list
+              (argument
+                (identifier)
+                (identifier)))))))))
