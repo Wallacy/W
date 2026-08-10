@@ -60,8 +60,8 @@ export async fn observePair(
   right: ServiceRef<SatelliteApi>,
   after sequence: u64,
 ): PairTelemetry throws SatelliteError {
-  async<.network> let leftSample = left.telemetry(after: sequence)
-  async<.network> let rightSample = right.telemetry(after: sequence)
+  async let leftSample = left.telemetry(after: sequence)
+  async let rightSample = right.telemetry(after: sequence)
   let (leftSample, rightSample) = try await (leftSample, rightSample)
   return PairTelemetry(left: leftSample, right: rightSample)
 }

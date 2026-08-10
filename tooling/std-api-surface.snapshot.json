@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "525c33fc1a33c62fe00a42778a1ac8e9302728d6effe2ea5d19ada72c55e1862",
+  "catalogDigest": "afa05559de87a6b2b1d303223ba30c9f2285cc8eec0462dd0c77b29fec1c28cf",
   "summary": {
     "modules": 21,
     "catalogedApis": 315,
@@ -19,7 +19,6 @@
   "modules": [
     {
       "id": "std.abort",
-      "tier": "T2",
       "availability": "bundled-portable",
       "source": "std/abort/contracts.w",
       "implementationProvider": {
@@ -217,7 +216,6 @@
     },
     {
       "id": "std.arrow",
-      "tier": "T2",
       "availability": "arrow-adapter-provider",
       "source": "std/arrow/contracts.w",
       "implementationProvider": {
@@ -527,7 +525,6 @@
     },
     {
       "id": "std.build",
-      "tier": "T1",
       "availability": "build-host",
       "source": "std/build/contracts.w",
       "implementationProvider": {
@@ -621,7 +618,6 @@
     },
     {
       "id": "std.cache",
-      "tier": "T2",
       "availability": "process-local-cache-adapter",
       "source": "std/cache/contracts.w",
       "catalogedDeclarationsDigest": "7685c2c4f2e5f8a8196e30a1f3e31f54a01b41b28e0313a28a399c7cd25e3b6f",
@@ -675,7 +671,6 @@
     },
     {
       "id": "std.csv",
-      "tier": "T2",
       "availability": "csv-adapter-provider",
       "source": "std/csv/contracts.w",
       "implementationProvider": {
@@ -931,7 +926,6 @@
     },
     {
       "id": "std.data",
-      "tier": "T2",
       "availability": "tabular-carrier-provider",
       "source": "std/data/contracts.w",
       "implementationProvider": {
@@ -1322,7 +1316,6 @@
     },
     {
       "id": "std.database",
-      "tier": "T2",
       "availability": "database-adapter",
       "source": "std/database/contracts.w",
       "catalogedDeclarationsDigest": "8e88a607d2cb4536838ddf93399877914466ad4efa9c3435ecfe996867dcb782",
@@ -1439,7 +1432,6 @@
     },
     {
       "id": "std.dlpack",
-      "tier": "T2",
       "availability": "dlpack-interchange-provider",
       "source": "std/dlpack/contracts.w",
       "implementationProvider": {
@@ -1616,7 +1608,6 @@
     },
     {
       "id": "std.http",
-      "tier": "T2",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
       "implementationProvider": {
@@ -2783,7 +2774,6 @@
     },
     {
       "id": "std.io",
-      "tier": "T1",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
       "implementationProvider": {
@@ -2867,7 +2857,6 @@
     },
     {
       "id": "std.json",
-      "tier": "T1",
       "availability": "bundled-portable",
       "source": "std/json/contracts.w",
       "implementationProvider": {
@@ -3615,7 +3604,6 @@
     },
     {
       "id": "std.net",
-      "tier": "T1",
       "availability": "network-capability-carrier",
       "source": "std/net/contracts.w",
       "implementationProvider": {
@@ -4825,7 +4813,6 @@
     },
     {
       "id": "std.parquet",
-      "tier": "T2",
       "availability": "parquet-adapter-provider",
       "source": "std/parquet/contracts.w",
       "implementationProvider": {
@@ -5054,7 +5041,6 @@
     },
     {
       "id": "std.presentation",
-      "tier": "T2",
       "availability": "presentation-provider",
       "source": "std/presentation/contracts.w",
       "implementationProvider": {
@@ -5399,7 +5385,6 @@
     },
     {
       "id": "std.runtime.task",
-      "tier": "T1",
       "availability": "runtime-profile",
       "source": "std/runtime/task.w",
       "catalogedDeclarationsDigest": "3731a745d4aeedf6529cd579464a160cceb3e22816230c3564a8744a132d3a39",
@@ -5444,7 +5429,6 @@
     },
     {
       "id": "std.runtime.transaction",
-      "tier": "T1",
       "availability": "runtime-profile",
       "source": "std/runtime/transaction.w",
       "catalogedDeclarationsDigest": "aaa2c9264923aa16e41a2f836c4454e6b64b0c1351b7d09931a660676c2ea5a7",
@@ -5471,7 +5455,6 @@
     },
     {
       "id": "std.runtime.work",
-      "tier": "T1",
       "availability": "runtime-profile",
       "source": "std/runtime/work.w",
       "catalogedDeclarationsDigest": "2be3f1f59395c3db1a8e2becf3995087ca42e3aad5dfb035b83c1a167c6eb07c",
@@ -5561,7 +5544,6 @@
     },
     {
       "id": "std.runtime.workflow",
-      "tier": "T2",
       "availability": "workflow-adapter",
       "source": "std/runtime/workflow.w",
       "catalogedDeclarationsDigest": "fd5ac4fa9607c9e1487be7e00132373a6132eedf2d2d1c082977135d75dc4a78",
@@ -5642,7 +5624,6 @@
     },
     {
       "id": "std.stream",
-      "tier": "T2",
       "availability": "bundled-portable",
       "source": "std/stream/contracts.w",
       "implementationProvider": {
@@ -5743,7 +5724,6 @@
     },
     {
       "id": "std.tensor",
-      "tier": "T2",
       "availability": "tensor-device-provider",
       "source": "std/tensor/contracts.w",
       "implementationProvider": {
@@ -5891,7 +5871,6 @@
     },
     {
       "id": "std.url",
-      "tier": "T2",
       "availability": "bundled-portable",
       "source": "std/url/contracts.w",
       "implementationProvider": {

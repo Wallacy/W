@@ -187,7 +187,7 @@
     },
     {
       "id": "F0-spawn-domain-slots",
-      "decisions": ["W-039", "W-350", "W-708", "W-725", "W-927"],
+      "decisions": ["W-039", "W-350", "W-708", "W-725", "W-927", "W-1160", "W-1162"],
       "input": {
         "lines": [
           "async fn plan(left:Int,right:Int):(Int,Int){spawn<.compute> let port=mix(left) spawn<domain:.compute> let starboard=mix(right) return await(port,starboard)}"
@@ -199,6 +199,33 @@
         "  spawn<domain: .compute> let starboard = mix(right)",
         "  return await (port, starboard)",
         "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-optional-label-slots",
+      "decisions": ["W-1160"],
+      "input": {
+        "lines": [
+          "struct OvenSession<_ state:OvenSessionState>{}",
+          "let positional=OvenSession<.ready>.state",
+          "let named=OvenSession<state:.ready>.state",
+          "fn open(_ name:String){}",
+          "open(\"oven\")",
+          "open(name:\"oven\")"
+        ]
+      },
+      "output": [
+        "struct OvenSession<_ state: OvenSessionState> {}",
+        "",
+        "let positional = OvenSession<.ready>.state",
+        "",
+        "let named = OvenSession<state: .ready>.state",
+        "",
+        "fn open(_ name: String) {}",
+        "",
+        "open(\"oven\")",
+        "open(name: \"oven\")"
       ],
       "requiredSemicolons": []
     },

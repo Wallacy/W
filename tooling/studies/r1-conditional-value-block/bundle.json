@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
     "symbol": "countEmergencyTokens",
-    "digest": "sha256:824e61ff88ecf9594dc825b5f0849691b387e427f5eb15c084fc4b68dd8ce965"
+      "digest": "sha256:e0c11dcc22593815c6db39136d251b190aad8c5c8c091200c477c171f56d4fc3"
   },
   "variants": [
     {

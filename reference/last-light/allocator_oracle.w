@@ -32,7 +32,7 @@ export enum ResizeResult {
 
 export enum StorageOwner {
   unique
-  region
+  arena
   sharedPayload
   sharedControlBlock
   pinned
@@ -105,7 +105,7 @@ export const fn progressAccepts(
 export const fn baselineReclamation(owner: StorageOwner): ReclamationGate {
   return switch owner {
     case .unique: .typedDrop
-    case .region: .bulkRelease
+    case .arena: .bulkRelease
     case .sharedPayload: .strongZero
     case .sharedControlBlock: .weakZero
     case .pinned: .addressDrain
@@ -150,7 +150,7 @@ test "progress requirements remain contextual" for progressAccepts {
 
 test "each owner has one baseline reclamation gate" for baselineReclamation {
   expect baselineReclamation(.unique) == .typedDrop
-  expect baselineReclamation(.region) == .bulkRelease
+  expect baselineReclamation(.arena) == .bulkRelease
   expect baselineReclamation(.sharedPayload) == .strongZero
   expect baselineReclamation(.sharedControlBlock) == .weakZero
   expect baselineReclamation(.pinned) == .addressDrain

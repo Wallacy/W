@@ -180,10 +180,11 @@ unsafe fn<lang: .c> namedChecksum(data: c.ptr<c.uchar>): c.uint {
 }
 
 async fn prepare(): Dish {
-  async<.network> let stock = fetchStock()
+  async let stock = fetchStock()
   spawn<.compute> let plan = calculatePlan()
   spawn<.thermal> let heat = calculateHeat()
-  async<.ovenThermal> let telemetry = sampleOven()
+  async let telemetry = sampleOven()
+  let (stock, plan, heat, telemetry) = try await (stock, plan, heat, telemetry)
   defer async { await stock.close() }
   return await cook(stock, plan: plan)
 }
@@ -297,9 +298,6 @@ entry LastLight(run)
         (type_identifier)))
     (block
       (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
         (pattern
           (identifier))
         (call_expression
@@ -324,14 +322,33 @@ entry LastLight(run)
           (identifier)
           (argument_list)))
       (binding_declaration
-        (task_contract
-          (contextual_member_expression
-            (identifier)))
         (pattern
           (identifier))
         (call_expression
           (identifier)
           (argument_list)))
+      (binding_declaration
+        (pattern
+          (tuple_pattern
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))
+            (pattern
+              (identifier))))
+        (unary_expression
+          (unary_expression
+            (tuple_expression
+              (tuple_element
+                (identifier))
+              (tuple_element
+                (identifier))
+              (tuple_element
+                (identifier))
+              (tuple_element
+                (identifier))))))
       (defer_statement
         (block
           (expression_statement

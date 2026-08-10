@@ -2070,10 +2070,6 @@
           "named": true
         },
         {
-          "type": "region_statement",
-          "named": true
-        },
-        {
           "type": "repeat_statement",
           "named": true
         },
@@ -5420,10 +5416,6 @@
         },
         {
           "type": "raw_string_literal",
-          "named": true
-        },
-        {
-          "type": "region_statement",
           "named": true
         },
         {
@@ -9165,42 +9157,6 @@
     }
   },
   {
-    "type": "region_statement",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "block",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "options": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "argument_list",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "repeat_array_literal",
     "named": true,
     "fields": {
@@ -10169,10 +10125,6 @@
           "named": true
         },
         {
-          "type": "region_statement",
-          "named": true
-        },
-        {
           "type": "repeat_statement",
           "named": true
         },
@@ -10621,10 +10573,6 @@
         },
         {
           "type": "labeled_statement",
-          "named": true
-        },
-        {
-          "type": "region_statement",
           "named": true
         },
         {
@@ -12783,10 +12731,6 @@
   },
   {
     "type": "ref",
-    "named": false
-  },
-  {
-    "type": "region",
     "named": false
   },
   {

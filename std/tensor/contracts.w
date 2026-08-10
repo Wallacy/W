@@ -1,4 +1,4 @@
-// T2 tensor carrier and provider-scoped device contracts for PYN4.
+// Tensor carrier and provider-scoped device contracts for PYN4.
 //
 // This file is a parseable SDK draft. The provider is missing. Device and
 // queue handles are opaque capabilities. No raw pointer is part of safe W.

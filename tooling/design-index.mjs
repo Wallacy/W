@@ -87,7 +87,7 @@ const readingBundles = [
   {
     name: "SDK e performance",
     sections: [14, 15, 16, 17, 18, 19],
-    purpose: "tiers, números, texto, tensors, custo, C e unsafe",
+    purpose: "módulos, números, texto, tensors, custo, C e unsafe",
   },
   {
     name: "compiler e distribuição",

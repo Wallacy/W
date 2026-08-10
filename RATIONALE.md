@@ -6,18 +6,23 @@
 Este arquivo registra justificativas, evidência, alternativas e proveniência; nunca define comportamento W.
 [`history/`](history) preserva proveniência obsoleta e não decide o W atual.
 
+**Nota de terminologia retirada:** qualquer ocorrência histórica de `T0`, `T1`,
+`T2` ou `tier` neste arquivo é proveniência aposentada. Esses rótulos não são
+contratos atuais nem nomes de disponibilidade da standard library; a policy
+vigente é plana por módulo, capability, target facts, provider e reachability.
+
 ## 1. Evidência comparativa
 
 ### 1.0 Migração de parâmetros de valor
 
-A forma histórica `<const rows: usize>` usava uma keyword para codificar um kind
+**Histórico substituído:** a forma `<const rows: usize>` usava uma keyword para codificar um kind
 que o head já consegue resolver. A forma corrente usa `rows: usize` e
 `_ state: Type` para manter o envelope uniforme. A interpretação histórica de `_` como
-um único primary-only slot também fica registrada aqui. Ela não limita a forma
-vigente, que permite qualquer quantidade de values sem label. O parser rejeita
-binding modifiers no envelope antes do W 1.0. Não existe alias ou compatibilidade
-implícita. Esta nota registra a alternativa histórica e a migração. O contrato
-normativo permanece em [`DESIGN.md`](DESIGN.md).
+um único primary-only slot fica registrada somente como alternativa substituída.
+Ela não limita a forma vigente, que dá ao label o papel `optional(name)`. O
+parser rejeita binding modifiers no envelope antes do W 1.0. Não existe alias ou
+compatibilidade implícita. Esta nota registra a migração. O contrato normativo
+permanece em [`DESIGN.md`](DESIGN.md).
 
 O label externo pertence ao papel da call ou do initializer. O nome interno
 continua disponível para o body e, em um type head, para a associated contract
@@ -440,10 +445,10 @@ spawn<domain: .compute> let starboard = mix(right)
 ```
 
 [`tooling/studies/r1-spawn-domain/bundle.json`](tooling/studies/r1-spawn-domain/bundle.json)
-deriva de `mixPair` no módulo `execution` do Última Luz. `positional.w` usa o
-slot posicional sem label externo e é a forma vigente. `named.w` mantém o label
-`domain` como uma Alternativa R1 que exige schema nomeado; o estudo compara a
-intenção de domínio, não introduz alias no schema corrente.
+deriva de `mixPair` no módulo `execution` do Última Luz. `positional.w` e
+`named.w` escrevem as duas formas do mesmo slot opcional. O estudo compara a
+intenção de domínio e a preservação de source spelling; ele não introduz alias
+no schema corrente.
 
 Um input liga `.compute` a um domain paralelo com capacity um. A call continua
 válida, mas não promete simultaneidade. O input adversarial liga o mesmo nome a
@@ -909,6 +914,12 @@ e no histórico do Git.
 Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 “integrar e experimentar”, não “decisão irreversível”.
 
+### Terminologia aposentada
+
+As ocorrências históricas `T0`, `T1` e `T2` nesta seção são rótulos retirados.
+Elas preservam proveniência de decisões antigas. A standard library atual usa a
+policy plana por módulo, capability, target facts, provider e reachability.
+
 | ID | Tema | Forma vigente | Alternativas preservadas |
 |---|---|---|---|
 | W-001 | função | `fn name(...): Return` | `func`; retorno `->`; sem keyword |
@@ -935,8 +946,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| W-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; region-only |
-| W-026 | region | `region name(using:, limit:)` lidera e baixa para `Arena`; W0 implementa API primeiro | lifetime annotations; heap por módulo; API sem bloco |
+| W-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; block-region-only (retired) |
+| W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
 | W-029 | layout | W opaco; C/schema explícitos | layout W estável universal |
@@ -948,8 +959,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-035 | panic | encerra a fault boundary física mais próxima | unwind recuperável; tratar toda isolation como fault boundary |
 | W-036 | async cleanup | `defer async` | RAII sync only; `using`; cleanup solto |
 | W-037 | concorrência | `async let` | Future/Promise; task API somente |
-| W-038 | paralelismo | `spawn let` | mesma keyword de async; parallel loop apenas |
-| W-039 | execution domain | `async/spawn<.domain>` canônico e sem label; `<domain: .name>` é Alternativa R1 com schema nomeado | alias duplo no mesmo slot; `on .name` (**Rejeitado por enquanto**); descriptor-only |
+| W-038 | paralelismo (retired) | forma anterior `spawn let`; W-1161/W-1162 fecham `spawn<domain> let` com intenção explícita | mesma keyword de async; parallel loop apenas |
+| W-039 | execution domain (retired) | forma anterior `async/spawn<.domain>` sem label; W-1160/W-1162 aceitam também `<domain: .name>` no mesmo slot | alias duplo no mesmo slot; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
 | W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco; reasons do caller são separados de deadline, budget e saída estrutural | statement `cancel` (**Rejeitado por enquanto**); budget como reason; async thread cancellation |
@@ -978,9 +989,9 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-065 | matrix multiply | `@` | `*` + `.*`; `matmul` only |
 | W-066 | broadcast | diferente shape explícito | Array API implicit; dotted operators |
 | W-067 | device | transfer explícita | automatic placement |
-| W-068 | SDK | T0/T1/T2 | uma stdlib plana; packages somente |
+| W-068 | SDK | stdlib plana por módulo e capability | packages somente |
 | W-069 | prelude | pequena, edition-frozen | toda std implícita; nada implícito |
-| W-070 | print | T1 contextual ao host | T0 intrinsic; `io.print` obrigatório |
+| W-070 | print | contextual ao host | intrinsic; `io.print` obrigatório |
 | W-071 | C | `foreign c` + unsafe wrapper | C superset; generated bridge only |
 | W-072 | inline language | `fn<C>` com adapter externo | `fn<lang: .c>`; library import; multi-language v0 |
 | W-073 | parser | recursive-descent/Pratt + EBNF | generated parser; Tree-sitter compiler |
@@ -1191,7 +1202,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
 | W-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
 | W-280 | generic kinds | type e value; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
-| W-281 | generic labels | type positional; value nomeado; `_ name: Type` cria slot primário posicional | todos posicionais; named type args |
+| W-281 | generic labels (retired) | interpretação anterior: type positional; `_ name: Type` criava slot sem label; W-1160 substitui por label opcional `optional(name)` | todos posicionais; named type args |
 | W-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
 | W-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
 | W-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
@@ -1256,11 +1267,11 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-343 | boundary de layout | FFI, persistência, address exposure e ABI usam forma canônica ou schema | tag interna cruza a fronteira |
 | W-344 | fingerprint de representação | inclui somente validity, bytes, carrier e fatos ABI que mudam a entry; provider, options e patch ficam na recipe | fingerprint por target triple; allocator name sempre entra; compiler completo como proxy |
 | W-345 | pointer compression | handle de arena/heap isolado é classe própria com base e bounds | tratar índice como pointer tagged |
-| W-346 | início de async | `await` usa a task atual; `async/spawn let` avaliam captures no parent e executam body no child | Promise implícita; body parcial no parent |
+| W-346 | início de async (retired) | forma anterior; W-1161 mantém `await` na task atual e children `async let`/`spawn<domain> let` após staging lexical | Promise implícita; body parcial no parent |
 | W-347 | contexto de child | cancellation, deadline, trace, budget e preference; user data/capability são explícitos | task-local map mutável herdado |
 | W-348 | domains portáteis | somente `.main` é padrão; módulo e pacote declaram os outros IDs | lista global; enum manual; string |
 | W-349 | domain schema | capabilities, capacity, fallback, affinity e trace identity | thread/pool como identidade semântica |
-| W-350 | defaults de execução | `async` herda; `spawn` exige domain ou `parallelDefault` do execution profile | default em módulo; `.compute` global; herdar domain serial e degradar `spawn` |
+| W-350 | defaults de execução (retired) | forma anterior; W-1162 torna placement uma escolha do caller/profile no call site | default em módulo; `.compute` global; herdar domain serial e degradar `spawn` |
 | W-351 | domain de módulo | contrato declara IDs; `import domain` importa requirement, não executor | enum manual; import cria queue/thread |
 | W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
 | W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
@@ -1317,7 +1328,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-404 | view genérica | `view T` é access mode vigente; sem família pública `XView` | `Slice<T>`/`Span<T>`; `Readonly<T>` profundo; usar somente `ref` |
 | W-405 | placement | sem annotation; local síncrono fixo que não escapa não usa allocator geral | annotation stack/heap; boxing por register pressure |
 | W-406 | fato de alocação | HIR/interface registram obrigação; `w explain` e gate usam call graph | effect escrito em cada função; allocation invisível ao tooling |
-| W-407 | alocação em region | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
+| W-407 | alocação em region (retired) | somente call com `using: region`; bloco não captura todos os locais | placement lexical implícito; allocator global da região |
 | W-408 | escape de arena | inline independente pode sair; storage dependente exige consuming `rehome` | copiar sempre no return; escape unchecked; adoção presumida |
 | W-409 | arena e tasks | Arena move-only e não shareable; child paralelo recebe arena filha exclusiva | arena monotônica concorrente default; proibir todo child |
 | W-410 | budget de arena | cobra span alinhado, padding, growth retido e drop metadata; host mede resident separado | cobrar somente live payload; usar resident bytes como semântica |
@@ -1635,7 +1646,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-722 | mutação reproduzível do codec | mutations com offsets e masks fixos; aceitação exige re-encode byte-for-byte; rejection usa erro de codec conhecido | random sem seed; aceitar valor diferente sem canonicalização; misturar mutation de structure com property de scalar |
 | W-723 | segunda implementação wWire | C e Node concordam nos quatro vetores; cada implementação testa erros básicos; compilação usa diretório temporário e não cria artefato no repo | considerar GCC como target W; comparar somente o payload final; aceitar divergência de directory; exigir GCC em hosts sem toolchain |
 | W-724 | evidência de reprodução | attestation completa compara todos os inputs declarados e payload/artifact digests; builder identity mede independência, mas não é input; oracle distingue input e artifact mismatch | hash somente do executável; comparar só recipe digest; usar builder identity como input; aceitar evidence incompleta; tratar bytes iguais com recipe diferente como reprodução |
-| W-725 | resolução de execution domain | preference explícita vence herdada, que vence o default do execution profile; módulo declara requirements e não `parallelDefault`; `spawn` exige capability paralela; `.main` e domains seriais rejeitam parallel intent; deployment só reduz capacity; domain declaration não cria executor | thread group fixo no source; default de módulo; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
+| W-725 | resolução de execution domain (retired) | policy anterior de preference/default; W-1162 mantém requirements e profile, mas fecha domain no call site e não promete simultaneidade | thread group fixo no source; default de módulo; default implícito em todo `spawn`; capacity um invalida `.compute`; deployment aumenta budget; import cria queue ou thread |
 | W-726 | separação de ServiceLink e transport | local usa mailbox/thunk, component usa component ABI, wRPC usa session/codec/transport e foreign usa adapter próprio; local/component não criam frames wRPC | transport universal; local serializado por aparência; component com wire implícito; foreign adapter sem digest; ServiceLink confundido com ServiceTransport |
 | W-727 | quorum de reprodução | threshold só vale quando cada par prova builder, operator, credential e execution root distintos; contagem sem independência resulta em `rejectReproduction` | contar jobs da mesma CI; comparar somente `builderIdentity`; usar assinatura como prova de operador; aceitar root de execução compartilhado |
 | W-728 | provenance e assinatura de platform | recipe, toolchain digest, artifact e platform target precisam apontar para os mesmos records; roles permanecem distintas; divergência resulta em `rejectReproduction` | assinatura platform como prova de source; toolchain implícito; comparar somente payload; um envelope para maintainer, builder e platform |
@@ -1645,7 +1656,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-732 | control flow aninhado | `label: for/while/repeat`, `break label` e `continue label`; sem `goto` ou nonlocal jump | `goto`; label em qualquer statement; força sair por exception |
 | W-733 | assignment composta | arithmetic, power, shift e bitwise assignments avaliam place uma vez; sem logical, coalescing ou matrix assignment | increment/decrement; `&&=`; `??=`; `@=`; custom operator |
 | W-734 | identidade e assertions | `isSameInstance(as:)` compara object nominal; `assert` executa em todo profile; `expect` é test-only | `===`; address como identity; debug-only assertion; safe assume |
-| W-735 | catálogo da std | T0 freestanding, T1 host comum e T2 domínios oficiais; distribuição única e reachability-linked | std monolítica no payload; tier como package separado; import implícito universal |
+| W-735 | catálogo da std | módulos por capability, target facts, provider e reachability; distribuição única | std monolítica no payload; package separado por tier; import implícito universal |
 | W-736 | ciência e data parallel | `Complex<T>` T2 e `Simd<T, lanes>` T1 preservam numeric policy; scalar fallback não muda resultado | complex literal novo; vector width dependente do target; fast mode implícito |
 | W-737 | contexto local | `TaskLocal<T>` tem scope estruturado; `ThreadLocal<T>` usa accessor sync e não cruza `await` | mapa task-local mutável; TLS como isolation; borrow TLS suspenso |
 | W-738 | volatile e MMIO | platform SDK cria `MmioRegister<T, access>` por capability; volatile não sincroniza e não é modifier geral | `var volatile`; integer cria pointer; MMIO safe sem host authority |
@@ -1782,7 +1793,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-869 | seed R1 de controle | scanner de carrier do Última Luz compara labels estruturados e flags mutáveis; duas variantes W fazem parse e dois inputs coincidem no oracle host; execução W permanece ausente | medir snippets R0 como programa; comparar W com C de escopo menor; chamar simulação host de runtime W |
 | W-870 | máquina de memória M1 | bindings apontam para payloads; PlaceId usa root e projections; LoanId registra mode, origin, stability e parent; move/drop preservam payload e pin separa handle de payload | owner como Boolean; place sem root; loan sem token; pin copia valor; endereço pertence ao binding |
 | W-871 | forma do corpus M1 | casos ligam owner, overlap, reborrow, origins, escapes, await, pin, FFI, representation, ABI e join ao Última Luz; snapshot guarda traces byte-exact; W-917 e W-918 fixam a revisão corrente | exemplos isolados sem state; caso sem source; apenas success; resultado sem trace |
-| W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; modelam outcomes de allocation, shared/weak e region sem executar allocator, atomics, destructor graph, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; chamar outcome lógico de allocator real; apagar segundo oracle por duplicação aparente |
+| W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; modelam outcomes de allocation, shared/weak e Arena (historically region) sem executar allocator, atomics, destructor graph, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; chamar outcome lógico de allocator real; apagar segundo oracle por duplicação aparente |
 | W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
 | W-874 | corpus E0 | 50 sequências e 451 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races, modification/seq-cst order, RMW, CAS, fences, extent, exclusividade, lifetime e 8/8 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
 | W-875 | limite de E0 | oracle host recebe task, storage/extent, lifetime e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device scope, reclamation ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
@@ -1827,7 +1838,7 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, region budget/close, rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 31/68 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -1836,8 +1847,8 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
 | W-924 | formatter de receiver consuming | F0 preserva `(take stream).finish()` e prova CST equivalente; os parênteses pertencem ao operand de ownership e não são style opcional | remover grouping; formatar como `take stream.finish()`; mover `take` após member lookup; snapshot sem decisão |
 | W-925 | ownership do parallel default | header de módulo publica somente `domains`; `parallelDefault`, pool, capacity, queue e fallback pertencem ao execution profile selecionado pelo product; S0 rejeita o slot de módulo com W-CONTRACT-0001 | import escolhe executor; default em cada módulo; módulo concede budget; duplicar profile em source |
-| W-926 | estudo R1 de domain | `spawn<.compute>` é a forma canônica e `spawn<domain: .compute>` é uma variante de schema nomeado; o estudo compara a intenção de domínio, capacity um aceita parallel intent sem prometer simultaneidade e binding serial é rejeitado pelo oracle de profile | tratar domain como thread; aceitar alias duplo no mesmo slot; capacity um invalida spawn; chamar oracle de scheduler |
-| W-927 | formatter de domain | F0 preserva as formas positional e named e não troca uma pela outra; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
+| W-926 | estudo R1 de domain (retired) | decisão anterior tratava `<domain: .compute>` como variante de schema; W-1160/W-1162 tornam as duas formas equivalentes e preservam a intenção sem prometer simultaneidade | tratar domain como thread; aceitar alias duplo no mesmo slot; capacity um invalida spawn; chamar oracle de scheduler |
+| W-927 | formatter de domain (retired) | F0 preserva a forma positional ou named escrita e a HIR normaliza ambas; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
 | W-929 | criação de shared | `share` exige payload lifetime-independent, preserva origins internas e cria origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
 | W-930 | falha de operação consuming de storage | allocation failure de `pin`, `share`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; retry exige outcome que devolve o source | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
@@ -2065,11 +2076,23 @@ Esta tabela é o checklist de revisão humana. **Forma vigente** significa
 | W-1152 | R1E0 power boundary | bundle cobre `**` right-associative, unary base/exponent, `^` XOR e a separação de unit grammar | trocar `^` por power, associar à esquerda, ou exigir parentheses para exponent prefix |
 | W-1153 | R1E0 fluent self | bundle seleciona `: self` com fallthrough e compara `return self`; validator separa receiver mode, return contract, exit e storage; omitted type é Unit, `Self` é owned e `take fn` rejeita | tornar `: self` `Self` owned, exigir `return self`, copiar/mover/alocar receiver ou aceitar `take fn` |
 | W-1154 | R1E0 corpus metrics and status | scripts derivam 20 bundles, 48 variants, 80 tasks e 31/68 R0 promovidos; substitution surface é regenerada e o status permanece `design-oracle-input` | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
-| W-1155 | generic value parameters | parâmetros de valor usam `name: Type` ou `_ name: Type`, são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
-| W-1156 | generic labels e contract values | `_` remove somente o label externo, values posicionais precedem values nomeados, e todos os values de type heads têm associated exposure estática | primary-only, field de instance automático, reorder de labels, member callable implícito |
+| W-1155 | generic value parameters | parâmetros de valor usam `name: Type` ou `_ name: Type` (`optional(name)`), são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
+| W-1156 | generic labels e contract values (retired) | interpretação anterior: `_` removia o label externo; W-1160 substitui por label opcional, com as duas formas no mesmo slot; values mantêm associated exposure estática | primary-only, field de instance automático, reorder de labels, member callable implícito |
 | W-1157 | implicit script entry | statements finais root-only baixam para wrapper `.default` privado sem args/ctx, com `entryForm` explícito no workflow | top-level execution arbitrária, entry+implicit misturados, args/ctx implícitos, script importável |
 | W-1158 | script bootstrap e latency | `w run file.w` usa parser/checker/HIR comuns, mede first-result separado de steady-state e migra tooling para W somente após self-host C | runtime script separado, vitória sem benchmark, remover seed C, Bun como dependência do produto |
 | W-1159 | proof-backed memory recommendations | diagnostics de race e ownership usam proof facts, e alternativas de partition, channel/service, lock ou atomic permanecem condicionais | naming heuristics, shared como mutation/sync, atomic como lifetime/ownership, arquitetura automática |
+| W-1160 | labels opcionais | `_` dá label opcional no mesmo slot; formas positional e `name:` normalizam para uma HIR; colisão torna declaration/overload inválido | `_` elimina label, alias arbitrário, resolver por tipo |
+| W-1161 | suspensão inferida | body/HIR infere `maySuspend`; `async fn` fixa o contrato quando necessário; bare call de `maySuspend` é erro | propagação nominal obrigatória, warning para bare call, call-site `sync` |
+| W-1162 | placement no call site | domain é escolha do caller/product; network usa await; declaration-side placement existe somente por correctness | spawn como hint de performance, domain silencioso, worker dedicado para I/O |
+| W-1163 | lowering resumable | ordinary ABI para `neverSuspend`; frame somente para values live across suspension; backend pode usar MLIR, LLVM coro ou CPS | stackful obrigatório, stackless obrigatório, libmill/libdill como dependency |
+| W-1164 | standard library plana | availability deriva de target facts, capabilities, effects, provider status/digest e reachability; não há tier field | distribuição por tier, source shipping que força link, availability global |
+| W-1165 | caminho de memória | value/ref/inout/take/copy e scopes estruturados formam o caminho normal; `region` sai da Forma vigente; Arena é API avançada | region syntax vigente, promoção unique→shared, Arena em tutorial normal |
+| W-1166 | contrato atômico | atomics são operations/order/extent; lowering LLVM direto ou fallback declarado; `lockFree: true` rejeita fallback | atomics como interrupt/block, weakening silencioso, atomic para ownership |
+| W-1167 | projections de process | `process.args` e `process.context` são projections intrínsecas read-only limitadas ao native-process root e ao host profile | hidden args/ctx, singleton universal, Context global |
+| W-1168 | exemplos de documentação | `///` e `/** ... */` suportam `@example` com terminal único; runner gera teste hermético e omite release payload | doctest ambient, múltiplos terminals, measurement universal |
+| W-1169 | terminologia retirada | labels numéricos são históricos e não aparecem em catálogo, snapshot ou docs atuais | renomear tiers como levels, manter enforcement tier |
+| W-1170 | comparativos de execução | Swift, Go, Java, P2300, Koka, libdill, LLVM e MLIR formam gates comparativos sem definir W ou virar dependency | backend externo como autoridade, comparação sem diferença observável |
+| W-1171 | evidence de execution ergonomics | máquina pura deriva labels/forms, suspensão/SCC/call form, placement, projections, doctest terminals/effects e std module facts; checker compara expected, host test usa entradas independentes e snapshot JSONL fixa o resultado; nenhum artefato executa W | checker que ecoa strings do JSON, snapshot manual, host test tautológico, alegar compiler/runtime |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

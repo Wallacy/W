@@ -6,7 +6,7 @@ async fn makeCake(request: CakeRequest): Cake throws KitchenError {
   let plan = try validateCake(request)
   async let ingredients = pantry.fetch(plan.ingredients)
   let ready = try await ingredients
-  spawn let cook = bake(take ready)
+  spawn<.compute> let cook = bake(take ready)
   return try await cook
 }
 
@@ -56,6 +56,9 @@ async fn makeCake(request: CakeRequest): Cake throws KitchenError {
           operand: (unary_expression
             operand: (identifier))))
       (binding_declaration
+        task_contract: (task_contract
+          primary: (contextual_member_expression
+            member: (identifier)))
         pattern: (pattern
           (identifier))
         value: (call_expression

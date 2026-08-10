@@ -78,7 +78,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
 | services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |
 | wWire | **Pesquisa**; layout, registro core v0 e seed vectors vigentes; decoder e custo exigem protótipo |
-| wQL, V6, GPU e HDL | **Pesquisa** ou T2 fora do bootstrap |
+| wQL, V6, GPU e HDL | **Pesquisa** ou módulos separados fora do bootstrap |
 
 ## Amostra
 

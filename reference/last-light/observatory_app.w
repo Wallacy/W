@@ -41,9 +41,9 @@ async fn runObservatory(
   let right = try await satelliteSwarm.at(2)
   let horizon = horizonMonitor
 
-  async<.network> let pair = observePair(left, right: right, after: 0)
-  async<.network> let horizonStatus = horizon.status(after: 0)
-  let (telemetry, horizonStatus) = try await (pair, horizonStatus)
+  async let pairTask = observePair(left, right: right, after: 0)
+  async let horizonTask = horizon.status(after: 0)
+  let (telemetry, horizonStatus) = try await (pairTask, horizonTask)
   let horizonLabel = horizonStatusLabel(horizonStatus)
 
   print(

@@ -88,7 +88,7 @@ export struct Limits {
   }
 }
 
-// User values conform to the real T2 protocol. The provider owns the writer
+// User values conform to the real presentation protocol. The provider owns the writer
 // and closes it after this call; user code has no finish operation.
 export struct MenuPreview: presentation.Presentable {
   rows: usize

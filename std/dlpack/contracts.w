@@ -1,4 +1,4 @@
-// T2 DLPack 1.3 carrier contracts for PYN4.
+// DLPack 1.3 carrier contracts for PYN4.
 //
 // This file is a parseable SDK draft. The provider is missing. ManagedTensor,
 // imported owners and capsules are opaque, move-only and trusted in-process.

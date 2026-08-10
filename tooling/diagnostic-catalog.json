@@ -848,6 +848,199 @@
       "fixes": {}
     },
     {
+      "code": "W-LABEL-0004",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "accepted call forms collide after label policy normalization",
+      "requiredFacts": {
+        "declarations": "string[]",
+        "forms": "string[]",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LABEL-0005",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a call uses an unknown label or an invalid positional/named form",
+      "requiredFacts": {
+        "declaration": "string",
+        "label": "string",
+        "acceptedForms": "string[]"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LABEL-0006",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a call repeats a label or supplies the same normalized slot twice",
+      "requiredFacts": {
+        "declaration": "string",
+        "label": "string",
+        "slot": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SUSPEND-0001",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a maySuspend call is used without await or a structured child form",
+      "requiredFacts": {
+        "callee": "string",
+        "suspension": "string",
+        "callForm": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SUSPEND-0002",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "information",
+      "meaning": "await is removable because the callee is neverSuspend",
+      "requiredFacts": {
+        "callee": "string",
+        "suspension": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-SUSPEND-0003",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a general blocking wait is not allowed in structured execution",
+      "requiredFacts": {
+        "operation": "string",
+        "domain": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PLACEMENT-0001",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "spawn placement is written on a declaration instead of at a call site",
+      "requiredFacts": {
+        "domain": "string",
+        "declaration": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PLACEMENT-0002",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "spawn parallel intent is incompatible with a serial execution domain",
+      "requiredFacts": {
+        "domain": "string",
+        "capacity": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PROCESS-0001",
+      "state": "active",
+      "phase": "source.capability",
+      "defaultSeverity": "error",
+      "meaning": "process projection is unavailable outside a native-process entry root",
+      "requiredFacts": {
+        "projection": "string",
+        "profile": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PROCESS-0002",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a process projection or authority crosses its structured entry-root boundary; value copying does not make the crossing legal",
+      "requiredFacts": {
+        "projection": "string",
+        "boundary": "string",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PROCESS-0003",
+      "state": "active",
+      "phase": "source.capability",
+      "defaultSeverity": "error",
+      "meaning": "process.ctx is not an intrinsic alias for process.context",
+      "requiredFacts": {
+        "member": "string",
+        "canonical": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-STD-0001",
+      "state": "active",
+      "phase": "link",
+      "defaultSeverity": "error",
+      "meaning": "a standard-library module uses the retired tier field",
+      "requiredFacts": {
+        "module": "string",
+        "field": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-DOC-0003",
+      "state": "active",
+      "phase": "source.validate",
+      "defaultSeverity": "error",
+      "meaning": "a documentation example has duplicate or missing terminal outcome",
+      "requiredFacts": {
+        "example": "string",
+        "terminals": "string[]",
+        "reason": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-DOC-0005",
+      "state": "active",
+      "phase": "source.validate",
+      "defaultSeverity": "error",
+      "meaning": "a documentation example uses an ambient effect without an explicit fixture",
+      "requiredFacts": {
+        "example": "string",
+        "effect": "string",
+        "fixture": "string"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-SEM-0001",
       "state": "active",
       "phase": "semantic.type",
