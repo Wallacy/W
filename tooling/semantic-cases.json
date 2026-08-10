@@ -3331,6 +3331,285 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-generic-multiple-unlabeled-values",
+      "kind": "positive",
+      "rule": "W-1156",
+      "source": [
+        "struct Pair<_ left: usize, _ right: usize> {}",
+        "type PairValue = Pair<1, 2>"
+      ],
+      "expect": {
+        "focus": { "text": "Pair<1, 2>" },
+        "semanticResult": {
+          "resultType": "Pair<1, 2>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "generic-value-argument", "subject": "left", "value": "1" },
+            { "kind": "generic-value-argument", "subject": "right", "value": "2" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "left", "operation": "const", "subject": "1" },
+              { "id": "right", "operation": "const", "subject": "2" },
+              { "id": "specialization", "operation": "specialize", "subject": "Pair" }
+            ],
+            "edges": [
+              { "from": "left", "to": "specialization", "kind": "argument" },
+              { "from": "right", "to": "specialization", "kind": "argument" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-generic-positional-after-named",
+      "kind": "negative",
+      "rule": "W-1156",
+      "baseline": "S0-POS-generic-multiple-unlabeled-values",
+      "failureField": "proofFacts",
+      "source": [
+        "struct Ordered<_ left: usize, right: usize> {}",
+        "type InvalidOrder = Ordered<right: 1, 2>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "2" },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "left", "occurrence": 0 } }
+            ],
+            "facts": {
+              "parameter": "left",
+              "kind": "value",
+              "externalLabel": "_",
+              "position": 0,
+              "reason": "positional-after-named"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-generic-positional-to-named",
+      "kind": "positive",
+      "rule": "W-1156",
+      "source": [
+        "struct Grid<Element, _ rows: usize, _ columns: usize, unit: TimeUnit> {}",
+        "type GridValue = Grid<f32, 3, 4, unit: .second>"
+      ],
+      "expect": {
+        "focus": { "text": "Grid<f32, 3, 4, unit: .second>" },
+        "semanticResult": {
+          "resultType": "Grid<f32, 3, 4, unit: .second>",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "generic-value-argument", "subject": "rows", "value": "3" },
+            { "kind": "generic-value-argument", "subject": "columns", "value": "4" },
+            { "kind": "generic-value-argument", "subject": "unit", "value": ".second" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "element", "operation": "type-argument", "subject": "f32" },
+              { "id": "rows", "operation": "const", "subject": "3" },
+              { "id": "columns", "operation": "const", "subject": "4" },
+              { "id": "unit", "operation": "const", "subject": ".second" },
+              { "id": "specialization", "operation": "specialize", "subject": "Grid" }
+            ],
+            "edges": [
+              { "from": "element", "to": "specialization", "kind": "argument" },
+              { "from": "rows", "to": "specialization", "kind": "argument" },
+              { "from": "columns", "to": "specialization", "kind": "argument" },
+              { "from": "unit", "to": "specialization", "kind": "argument" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-generic-type-label-omission",
+      "kind": "negative",
+      "rule": "W-1156",
+      "baseline": "S0-POS-generic-positional-to-named",
+      "failureField": "proofFacts",
+      "source": [
+        "protocol Encodable {}",
+        "struct Invalid<_ T: Encodable> {}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "_ T" },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "_ T" } }
+            ],
+            "facts": {
+              "parameter": "T",
+              "kind": "type",
+              "externalLabel": "_",
+              "position": 0,
+              "reason": "type-parameter-label-omission"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-generic-associated-contract-lookup",
+      "kind": "positive",
+      "rule": "W-1156",
+      "source": [
+        "struct Matrix<Element, rows: usize, columns: usize> {}",
+        "fn readRows(): usize {",
+        "  return Matrix<f32, rows: 3, columns: 4>.rows",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "Matrix<f32, rows: 3, columns: 4>.rows" },
+        "semanticResult": {
+          "resultType": "usize",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "associated-contract-value", "subject": "Matrix.rows", "value": "3" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "specialization", "operation": "specialize", "subject": "Matrix" },
+              { "id": "lookup", "operation": "static-lookup", "subject": "rows" }
+            ],
+            "edges": [{ "from": "specialization", "to": "lookup", "kind": "associated-value" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-generic-duplicate-associated-name",
+      "kind": "negative",
+      "rule": "W-1156",
+      "baseline": "S0-POS-generic-associated-contract-lookup",
+      "failureField": "evaluationGraph",
+      "source": [
+        "struct Matrix<rows: usize> {",
+        "  rows: usize",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0004",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "rows", "occurrence": 1 },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "rows", "occurrence": 0 } },
+              { "role": "associated-member", "selector": { "text": "rows", "occurrence": 1 } }
+            ],
+            "facts": {
+              "head": "Matrix",
+              "parameter": "rows",
+              "member": "rows",
+              "reason": "associated-name-conflict"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-generic-unlabeled-associated-contract-lookup",
+      "kind": "positive",
+      "rule": "W-1156",
+      "source": [
+        "enum OvenSessionState {",
+        "  ready",
+        "}",
+        "struct OvenSession<_ state: OvenSessionState> {}",
+        "fn readState(): OvenSessionState {",
+        "  return OvenSession<.ready>.state",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "OvenSession<.ready>.state" },
+        "semanticResult": {
+          "resultType": "OvenSessionState",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "associated-contract-value", "subject": "OvenSession.state", "value": ".ready" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "specialization", "operation": "specialize", "subject": "OvenSession" },
+              { "id": "lookup", "operation": "static-lookup", "subject": "state" }
+            ],
+            "edges": [{ "from": "specialization", "to": "lookup", "kind": "associated-value" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-generic-unlabeled-duplicate-associated-name",
+      "kind": "negative",
+      "rule": "W-1156",
+      "baseline": "S0-POS-generic-unlabeled-associated-contract-lookup",
+      "failureField": "evaluationGraph",
+      "source": [
+        "enum OvenSessionState {",
+        "  ready",
+        "}",
+        "struct OvenSession<_ state: OvenSessionState> {",
+        "  state: OvenSessionState",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-GENERIC-0004",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "state", "occurrence": 1 },
+            "labels": [
+              { "role": "generic-parameter", "selector": { "text": "state", "occurrence": 0 } },
+              { "role": "associated-member", "selector": { "text": "state", "occurrence": 1 } }
+            ],
+            "facts": {
+              "head": "OvenSession",
+              "parameter": "state",
+              "member": "state",
+              "reason": "associated-name-conflict"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
     }
   ]
 }

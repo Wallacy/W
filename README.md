@@ -103,6 +103,11 @@ TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
 o module set nativo. O entry registra os process signals no runtime. Um worker
 usa outro product e outro host lifecycle.
 
+Um script de arquivo único pode usar statements finais sem `entry {}`.
+O comando `w run path/file.w` cria um wrapper `.default` privado para esse body
+e preserva o source map. Use `fn` mais `entry(fnName)` quando o handler precisar
+de `args`, `Context`, return customizado ou errors públicos.
+
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 descreve uma build transform tipada para o package principal. O contrato recebe
 somente o cardápio declarado e prepara candidatos para um action-result/manifest

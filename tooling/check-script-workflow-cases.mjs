@@ -74,6 +74,9 @@ function compactState(state) {
       parseEvidence: state.source.parseEvidence,
       textDigest: state.source.textDigest,
       entry: state.source.entry,
+      entryForm: state.source.entryForm,
+      bodyDigest: state.source.bodyDigest,
+      effectFacts: state.source.effectFacts,
     },
     context: {
       mode: state.context.mode,
@@ -116,7 +119,7 @@ if (!Array.isArray(corpus.decisions) || corpus.decisions.length === 0) {
   errors.push("script workflow corpus must declare ledger IDs");
 } else {
   for (const decision of corpus.decisions) {
-    if (!/^W-10(4[6-9]|[5-6][0-9]|7[0-5])$/.test(decision) || !ledgerIdSet.has(decision)) {
+    if (!/^(?:W-10(4[6-9]|[5-6][0-9]|7[0-5])|W-1157)$/.test(decision) || !ledgerIdSet.has(decision)) {
       errors.push(`unknown PYN1 ledger decision ${decision}`);
     }
   }

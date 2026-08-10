@@ -121,18 +121,19 @@ entry {}
 ---
 
 (source_file
-  (ERROR
-    (ERROR
-      (module_path
-        (identifier)
-        (identifier))
+  (import_statement
+    (module_path
       (identifier)
-      (named_imports
-        (import_item
-          (identifier))
-        (ERROR
-          (string_literal)))
-      (identifier))))
+      (identifier)))
+  (expression_statement
+    (identifier))
+  (ERROR)
+  (expression_statement
+    (identifier))
+  (ERROR
+    (string_literal))
+  (entry_declaration
+    (block)))
 
 ==================
 Script header stays first when the source contains imports
@@ -198,9 +199,12 @@ entry {}
         (identifier)
         (manifest_value
           (string_literal)))))
+  (expression_statement
+    (identifier))
+  (ERROR)
+  (expression_statement
+    (identifier))
   (ERROR
-    (identifier)
-    (identifier)
     (string_literal))
   (entry_declaration
     (block)))

@@ -17,7 +17,7 @@
       "path": "positional.w",
       "digest": "sha256:5e988c714290062fc207f5840f236934212af82d36ddd1bc6e2733e2467726ad",
       "changedConstructs": [
-        "primary domain slot written as a contextual case",
+        "positional domain slot written as a contextual case",
         "parallel intent remains distinct from physical placement"
       ]
     },
@@ -28,7 +28,7 @@
       "path": "named.w",
       "digest": "sha256:a13e2a5573f54d7b7f5cafef4def1a1c55897e095edb3b56e1bf280c6f14da06",
       "changedConstructs": [
-        "primary domain slot written with its source label",
+        "named domain slot written with its source label",
         "parallel intent remains distinct from physical placement"
       ]
     }

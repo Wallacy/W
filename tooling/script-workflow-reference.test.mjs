@@ -15,12 +15,13 @@ const dependency = {
   source: { kind: "registry", authority: "w", immutable: true },
 };
 
-function evidence(sourceText, header, entry = "default") {
+function evidence(sourceText, header, entry = "default", entryForm = "explicit", bodyDigest = null, effectFacts = []) {
   return {
     sourceDigest: scriptDigest("w-script-source-v2", sourceText.replace(/\r\n?/g, "\n")),
     headerFacts: header,
     entry,
-    topLevelExecution: false,
+    entryForm,
+    ...(entryForm === "implicit" ? { bodyDigest, effectFacts } : {}),
     hasHeader: header !== null,
   };
 }
@@ -117,6 +118,52 @@ test("standalone header wins over workspace and identity excludes physical path"
   expect(first.state.product.identity).toMatch(/^sha256:[0-9a-f]{64}$/);
   expect(first.state.product.identity).toBe(moved.state.product.identity);
   expect(first.state.cleanup.hiddenArtifacts).toEqual([]);
+});
+
+test("implicit entry uses the verified HIR wrapper without args", () => {
+  const sourceText = 'print("Hello")\n';
+  const bodyDigest = `sha256:${"a".repeat(64)}`;
+  const sourceDigest = scriptDigest("w-script-source-v2", sourceText);
+  const result = runScriptWorkflowProgram([
+    {
+      op: "parseHeader",
+      path: "examples/implicit-hello.w",
+      sourceText,
+      header: null,
+      entryForm: "implicit",
+      bodyDigest,
+      effectFacts: [],
+      imports: [],
+      parseEvidence: {
+        sourceDigest,
+        headerFacts: null,
+        entry: null,
+        entryForm: "implicit",
+        bodyDigest,
+        effectFacts: [],
+        hasHeader: false,
+      },
+    },
+    { op: "selectContext", packageContext: false },
+    { op: "resolveRoots" },
+    { op: "validateImports", imports: [] },
+    { op: "validateResolution" },
+    { op: "admitFetch", offline: true },
+    { op: "verifyArtifact" },
+    { op: "admitCapabilities" },
+    {
+      op: "buildEphemeral",
+      target: "x86_64-unknown-linux-gnu",
+      hostProfile: "native-script@1",
+      toolchain: { digest: toolchainDigest },
+    },
+    { op: "runEntry", entryForm: "implicit" },
+    { op: "cleanup" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.source.entryForm).toBe("implicit");
+  expect(result.state.run).toMatchObject({ entry: "default", entryForm: "implicit", args: [], async: false });
 });
 
 test("source bytes and logical local-module graph change identity", () => {
