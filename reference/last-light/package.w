@@ -788,7 +788,7 @@ package {
         ),
       ]
       targets: ["embedded"]
-      capabilities: [.monotonicClock, .interrupts, .mmio]
+      capabilities: [.clock, .interrupts, .mmio]
     },
     {
       name: "last-light-audio"
@@ -797,7 +797,7 @@ package {
       entry: "LastLightAudio"
       host: "w.host/audio-device@1"
       targets: ["embedded"]
-      capabilities: [.monotonicClock, .interrupts, .mmio]
+      capabilities: [.clock, .interrupts, .mmio]
     },
     // Descriptor-only roots derive a source-backed module manifest. A host
     // product with concrete launch sites derives the closed device artifact.

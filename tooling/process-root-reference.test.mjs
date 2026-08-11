@@ -94,6 +94,29 @@ test("filesystem projection keeps the granted root authority", () => {
   assert.equal(allowed.authorityExpanded, false)
 })
 
+test("clock projection requires explicit authority and remains root-scoped", () => {
+  const denied = deriveProcessRoot({
+    subject: "context",
+    operation: "project",
+    root: true,
+    profile: "native-process",
+    member: "clock",
+    capabilities: [],
+  })
+  const allowed = deriveProcessRoot({
+    subject: "context",
+    operation: "project",
+    root: true,
+    profile: "native-process",
+    member: "clock",
+    capabilities: ["clock"],
+  })
+  assert.equal(denied.providerCalled, false)
+  assert.equal(allowed.requirement, "clock")
+  assert.equal(allowed.retainedOwner, true)
+  assert.equal(allowed.rootBound, true)
+})
+
 test("line decoding is bounded, strict, and accepts LF plus CRLF", () => {
   const bytes = [...new TextEncoder().encode("alpha\r\nbeta\nlast")]
   const result = deriveProcessRoot({

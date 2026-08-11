@@ -2,6 +2,7 @@
 
 import webAbort from std.abort
 import http from std.http
+import { TaskOutcome, TaskTimeout } from std.runtime.task
 import { URL } from std.url
 
 export enum TelemetryFetchError: Error {

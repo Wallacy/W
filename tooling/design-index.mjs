@@ -298,6 +298,7 @@ const oracleCorpusFiles = [
   "process-root-cases.json",
   "filesystem-cases.json",
   "io-error-cases.json",
+  "operational-time-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -869,6 +870,23 @@ const ioErrorOperations = ioErrorCorpus.cases.reduce(
 const acceptedIoErrorCases = ioErrorCorpus.cases.filter(
   (testCase) => testCase.kind === "positive",
 ).length;
+const operationalTimeCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "operational-time-cases.json"), "utf8"),
+);
+const operationalTimeCases = operationalTimeCorpus.cases.length;
+const operationalTimeOperations = operationalTimeCorpus.cases.reduce(
+  (count, testCase) => {
+    const input = testCase.input ?? {};
+    return count + Object.keys(input).length
+      + (input.capabilities?.length ?? 0)
+      + (input.samples?.length ?? 0)
+      + (input.advances?.length ?? 0);
+  },
+  0,
+);
+const acceptedOperationalTimeCases = operationalTimeCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -1137,6 +1155,12 @@ output.push(
   `| casos/operações de erro portátil de I/O IOE0 | ${ioErrorCases}/${ioErrorOperations} ` +
     `(${acceptedIoErrorCases} aceitos + ${ioErrorCases - acceptedIoErrorCases} rejeitados; ` +
     `host oracle não executa W/provider) |`,
+);
+output.push(
+  `| casos/operações de tempo operacional TIME0 | ${operationalTimeCases}/${operationalTimeOperations} ` +
+    `(${acceptedOperationalTimeCases} aceitos + ` +
+    `${operationalTimeCases - acceptedOperationalTimeCases} rejeitados; ` +
+    `host oracle não executa clock/timer/provider) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

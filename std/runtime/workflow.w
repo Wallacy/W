@@ -1,5 +1,7 @@
 // Public value contracts for step-based supervised workflows.
 
+import { Duration } from std.time
+
 export enum StepEffect {
   repeatable
   idempotent

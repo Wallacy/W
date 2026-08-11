@@ -69,6 +69,8 @@ std/
     contracts.w
   sync/
     contracts.w
+  time/
+    contracts.w
   url/
     contracts.w
 ```
@@ -86,8 +88,10 @@ estruturados e drena antes do pop. O provider
 `std.runtime.task-local@1` continua missing. `runtime/thread.w` materializa o
 `ThreadLocal` restrito a `Copy` sem drop. Ele usa TLS nativo e nunca emula uma
 thread com task ou fiber. O provider `std.runtime.thread-local@1` continua
-missing. `Duration` é um intrinsic de execução signed e exato, com resolução
-de nanosecond. `runtime/transaction.w` materializa o contrato de transação
+missing. `time/contracts.w` materializa `Duration` signed e exata, `Clock`
+monotônico root-scoped e os values opacos `Instant` e `Deadline`. A capability
+`.clock` não concede wall clock; o provider `std.time@1` continua missing.
+`runtime/transaction.w` materializa o contrato de transação
 estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
@@ -105,8 +109,9 @@ publica somente limit, committed e requested bytes locais.
 O provider `std.memory@1` continua missing. O source não fixa o allocator geral,
 layout físico do handle ou estratégia de drop ledger.
 `process/contracts.w` materializa os owners nominais de um entry nativo.
-`Arguments` preserva `OsString`; `Context` projeta stdio, network, signals,
-services, filesystem e deadline somente quando o product concede a capability. `Input`
+`Arguments` preserva `OsString`; `Context` projeta stdio, network, clock,
+signals, services e filesystem somente quando o product concede a capability,
+além do deadline do próprio root. `Input`
 mantém um cursor e produz linhas UTF-8 bounded. `Output` preserva progress e não
 intercala bytes de calls admitidas. Signal registrations são geracionais e
 estruturadas. O provider `std.process@1` continua missing. O módulo não cria um

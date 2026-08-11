@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "f60418483ca13c8f7c25eff2884d2f4de1bc9fbff7c01b34e5a19acc0f6e0fc3",
+  "catalogDigest": "66376214d8eedcb88ed40656897ee38843b00b4bfce23a99908a66d5c534d512",
   "summary": {
-    "modules": 28,
-    "catalogedApis": 371,
-    "draftCatalogedApis": 371,
+    "modules": 29,
+    "catalogedApis": 377,
+    "draftCatalogedApis": 377,
     "missingCatalogedApis": 0,
-    "qualifiedReferenceSurfaces": 87,
-    "referenceRequirements": 30,
-    "contractedReferenceRequirements": 30,
+    "qualifiedReferenceSurfaces": 92,
+    "referenceRequirements": 31,
+    "contractedReferenceRequirements": 31,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
-    "implementationProviders": 22,
-    "missingImplementationProviders": 22
+    "implementationProviders": 23,
+    "missingImplementationProviders": 23
   },
   "modules": [
     {
@@ -39,14 +39,14 @@
           "wpt-dom-abort"
         ]
       },
-      "catalogedDeclarationsDigest": "a3a9f9f5cb9c4256254db42d13ad686ed66b5fc6a3380668d807f4dc96a0a743",
+      "catalogedDeclarationsDigest": "f26f005ce15496f722a5f327beca9feb24e15f8acdd005dc29f0b3ec844736b5",
       "apis": [
         {
           "symbol": "AbortController",
           "kind": "struct",
           "signature": "export struct AbortController",
           "declarationDigest": "85020ff77b08e4cd70d41a9468631854568cc9db9d982c77acec8a584d2ee3e0",
-          "line": 137,
+          "line": 139,
           "profile": "web-abort-control",
           "members": [
             {
@@ -54,7 +54,7 @@
               "overloads": [
                 {
                   "signature": "export init()",
-                  "line": 141
+                  "line": 143
                 }
               ],
               "profile": "web-abort-construction"
@@ -65,7 +65,7 @@
               "overloads": [
                 {
                   "signature": "export signal: ref AbortSignal",
-                  "line": 147
+                  "line": 149
                 }
               ],
               "profile": "web-abort-carrier"
@@ -75,7 +75,7 @@
               "overloads": [
                 {
                   "signature": "export fn abort( reason: AbortReason = .requested(.userRequest), )",
-                  "line": 151
+                  "line": 153
                 }
               ],
               "profile": "web-abort-control"
@@ -88,7 +88,7 @@
           "kind": "enum",
           "signature": "export enum AbortExternalReason: Copy",
           "declarationDigest": "5b0269ab862f156e30fc45ba593f4af9454887f508171ab52da65e6510b2e239",
-          "line": 10,
+          "line": 12,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -97,7 +97,7 @@
           "kind": "enum",
           "signature": "export enum AbortReason: Error & Copy",
           "declarationDigest": "167f6e6997f4a1d1c9c72a35d0397424d593877145f121a81a2b6d4893451f5f",
-          "line": 18,
+          "line": 20,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -106,7 +106,7 @@
           "kind": "struct",
           "signature": "export struct AbortSignal: Duplicable",
           "declarationDigest": "91acce95bc6dce236b2b2d2f6b9367a4665b97160c642516ddb004e960cd4a24",
-          "line": 59,
+          "line": 61,
           "profile": "web-abort-carrier",
           "members": [
             {
@@ -114,7 +114,7 @@
               "overloads": [
                 {
                   "signature": "export static fn abort( reason: AbortReason = .requested(.userRequest), ): AbortSignal",
-                  "line": 66
+                  "line": 68
                 }
               ],
               "profile": "web-abort-construction"
@@ -124,7 +124,7 @@
               "overloads": [
                 {
                   "signature": "export static fn timeout(for timeout: TaskTimeout): AbortSignal",
-                  "line": 73
+                  "line": 75
                 }
               ],
               "profile": "web-abort-timeout"
@@ -134,7 +134,7 @@
               "overloads": [
                 {
                   "signature": "export static fn any( maximumSources: AbortSourceLimit, _ sources: ref AbortSignal..., ): AbortSignal throws AbortSignalCombineError",
-                  "line": 89
+                  "line": 91
                 }
               ],
               "profile": "web-abort-any"
@@ -145,7 +145,7 @@
               "overloads": [
                 {
                   "signature": "export aborted: Bool",
-                  "line": 102
+                  "line": 104
                 }
               ],
               "profile": "web-abort-carrier"
@@ -156,7 +156,7 @@
               "overloads": [
                 {
                   "signature": "export reason: AbortReason?",
-                  "line": 106
+                  "line": 108
                 }
               ],
               "profile": "web-abort-carrier"
@@ -166,7 +166,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): AbortSignal",
-                  "line": 110
+                  "line": 112
                 }
               ],
               "profile": "web-abort-carrier"
@@ -176,7 +176,7 @@
               "overloads": [
                 {
                   "signature": "export fn throwIfAborted(): () throws AbortReason",
-                  "line": 115
+                  "line": 117
                 }
               ],
               "profile": "web-abort-check"
@@ -186,7 +186,7 @@
               "overloads": [
                 {
                   "signature": "export async fn wait(): AbortReason",
-                  "line": 125
+                  "line": 127
                 }
               ],
               "profile": "web-abort-wait"
@@ -199,7 +199,7 @@
           "kind": "enum",
           "signature": "export enum AbortSignalCombineError: Error",
           "declarationDigest": "a3845bd615effa6c84424ea70765be339f61f3583f2339f7ad662dd1a1c4ba90",
-          "line": 25,
+          "line": 27,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -208,7 +208,7 @@
           "kind": "type",
           "signature": "export type AbortSourceLimit = usize<(1...1_024)>",
           "declarationDigest": "182d51210ee436d857e63b3162dcb74fb4aa4186ce5082432dbd88604342bd5c",
-          "line": 8,
+          "line": 10,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -874,14 +874,14 @@
       "id": "std.cache",
       "availability": "process-local-cache-adapter",
       "source": "std/cache/contracts.w",
-      "catalogedDeclarationsDigest": "7685c2c4f2e5f8a8196e30a1f3e31f54a01b41b28e0313a28a399c7cd25e3b6f",
+      "catalogedDeclarationsDigest": "94b80849f8921842d90561db686892006f7fbfba739c24c87b3b845c9e46a513",
       "apis": [
         {
           "symbol": "CacheError",
           "kind": "enum",
           "signature": "export enum CacheError: Error",
           "declarationDigest": "fde53669eba2b5d5ec4417ff7d648aa43483ff9bc5034a1abd1125ff7140476e",
-          "line": 34,
+          "line": 36,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -890,7 +890,7 @@
           "kind": "enum",
           "signature": "export enum Expiration",
           "declarationDigest": "5e82fac4238b480db589cf61b1a76b5dc0729ad6fa3e688a9673040c9061fc80",
-          "line": 3,
+          "line": 5,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -899,7 +899,7 @@
           "kind": "enum",
           "signature": "export enum LoadFailure<Failure: Error>: Error",
           "declarationDigest": "4f0b6ae286dcec2234861b1e8ce1961b605c455f6f51af0be9e6b4bd7b889dad",
-          "line": 40,
+          "line": 42,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -908,7 +908,7 @@
           "kind": "struct",
           "signature": "export struct LocalBinding<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
           "declarationDigest": "6fbdb508268246517409ab91ee546d0e950832be964f56fb5bbacb85d026af8d",
-          "line": 9,
+          "line": 11,
           "profile": "const-binding",
           "status": "draft"
         },
@@ -917,7 +917,7 @@
           "kind": "protocol",
           "signature": "export protocol LocalCache<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
           "declarationDigest": "bd1e91eb098d9dc256fd2551ea40ab4182920aa89965c3fcf5b30cb46db17919",
-          "line": 45,
+          "line": 47,
           "profile": "cache-provider",
           "status": "draft"
         }
@@ -4911,14 +4911,14 @@
           "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "6f236f106eeb3168e2c5cf35fa9aedf1d4b52370e9cd08f70eca6ca0e064ac9c",
+      "catalogedDeclarationsDigest": "f9d852501c069818ef06b51ba4baa6626fc5d1f79c0094bd9af022e05fc6c78f",
       "apis": [
         {
           "symbol": "AcceptedTcp",
           "kind": "struct",
           "signature": "export struct AcceptedTcp",
           "declarationDigest": "9fcbfccc6597d717c293473de6be62561d089a4540ad78113ff5c3db119b3860",
-          "line": 902,
+          "line": 903,
           "profile": "net-transport",
           "members": [
             {
@@ -4927,7 +4927,7 @@
               "overloads": [
                 {
                   "signature": "export connection: TcpConnection export peer: SocketAddress",
-                  "line": 903
+                  "line": 904
                 }
               ],
               "profile": "net-transport"
@@ -4938,7 +4938,7 @@
               "overloads": [
                 {
                   "signature": "export peer: SocketAddress",
-                  "line": 904
+                  "line": 905
                 }
               ],
               "profile": "net-address-value"
@@ -4951,7 +4951,7 @@
           "kind": "enum",
           "signature": "export enum AddressError: Error & Duplicable",
           "declarationDigest": "10e88ada0a886cfdecf7908dabfc6e2592bfc6848fc21b6ca71f27e958427725",
-          "line": 14,
+          "line": 15,
           "profile": "net-address-value",
           "status": "draft"
         },
@@ -4960,7 +4960,7 @@
           "kind": "enum",
           "signature": "export enum AddressFamily: Copy & Equatable & Hashable",
           "declarationDigest": "2249cfd82d699f4cb668da65afe1e36961b5b1f64dfb365324c5b141a662bb14",
-          "line": 8,
+          "line": 9,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4969,7 +4969,7 @@
           "kind": "enum",
           "signature": "export enum AddressPreference: Copy & Equatable",
           "declarationDigest": "4ce5275d9e11f668f75744ca556b79f20851497f7c08ab471114a306e2f45f5c",
-          "line": 495,
+          "line": 496,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -4978,7 +4978,7 @@
           "kind": "struct",
           "signature": "export struct ConnectOptions: Duplicable & Equatable",
           "declarationDigest": "83c8a9a72a1630229241f33637a4626e34484f2dbd43e38c52ef4a0740225526",
-          "line": 501,
+          "line": 502,
           "profile": "value-contract",
           "members": [
             {
@@ -4986,7 +4986,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumAttempts: usize<(1...16)> = 4, fallbackDelay: Duration<(0...30<s>)> = 250<ms>, preference: AddressPreference = .system, local: SocketAddress? = .none, )",
-                  "line": 507
+                  "line": 508
                 }
               ],
               "profile": "value-contract"
@@ -4997,7 +4997,7 @@
               "overloads": [
                 {
                   "signature": "export maximumAttempts: usize<(1...16)> export fallbackDelay: Duration<(0...30<s>)> export preference: AddressPreference export local: SocketAddress?",
-                  "line": 502
+                  "line": 503
                 }
               ],
               "profile": "value-contract"
@@ -5008,7 +5008,7 @@
               "overloads": [
                 {
                   "signature": "export fallbackDelay: Duration<(0...30<s>)> export preference: AddressPreference export local: SocketAddress?",
-                  "line": 503
+                  "line": 504
                 }
               ],
               "profile": "value-contract"
@@ -5019,7 +5019,7 @@
               "overloads": [
                 {
                   "signature": "export preference: AddressPreference export local: SocketAddress?",
-                  "line": 504
+                  "line": 505
                 }
               ],
               "profile": "value-contract"
@@ -5030,7 +5030,7 @@
               "overloads": [
                 {
                   "signature": "export local: SocketAddress?",
-                  "line": 505
+                  "line": 506
                 }
               ],
               "profile": "value-contract"
@@ -5040,7 +5040,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): ConnectOptions",
-                  "line": 519
+                  "line": 520
                 }
               ],
               "profile": "value-contract"
@@ -5050,7 +5050,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref ConnectOptions): Bool",
-                  "line": 528
+                  "line": 529
                 }
               ],
               "profile": "value-contract"
@@ -5063,7 +5063,7 @@
           "kind": "struct",
           "signature": "export struct Datagram: Duplicable",
           "declarationDigest": "d2249d98686ef56c283f5f83b5c206b393699a06146e4cbd1a94b45b92fa5cb7",
-          "line": 565,
+          "line": 566,
           "profile": "net-transport",
           "members": [
             {
@@ -5072,7 +5072,7 @@
               "overloads": [
                 {
                   "signature": "export bytes: Bytes export peer: SocketAddress export truncated: Bool",
-                  "line": 566
+                  "line": 567
                 }
               ],
               "profile": "value-contract"
@@ -5083,7 +5083,7 @@
               "overloads": [
                 {
                   "signature": "export peer: SocketAddress export truncated: Bool",
-                  "line": 567
+                  "line": 568
                 }
               ],
               "profile": "value-contract"
@@ -5094,7 +5094,7 @@
               "overloads": [
                 {
                   "signature": "export truncated: Bool",
-                  "line": 568
+                  "line": 569
                 }
               ],
               "profile": "value-contract"
@@ -5104,7 +5104,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Datagram",
-                  "line": 576
+                  "line": 577
                 }
               ],
               "profile": "value-contract"
@@ -5117,7 +5117,7 @@
           "kind": "struct",
           "signature": "export struct DatagramLimits: Copy & Equatable",
           "declarationDigest": "0746d48c77072dd6871e8b368c9e5414ab4a10141f417207e5306da7729995f5",
-          "line": 549,
+          "line": 550,
           "profile": "value-contract",
           "members": [
             {
@@ -5125,7 +5125,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumDatagramBytes: usize<(1...)> = 65_507, maximumQueuedDatagrams: usize<(1...)> = 128, maximumQueuedBytes: usize<(1...)> = 1<MiB>, )",
-                  "line": 554
+                  "line": 555
                 }
               ],
               "profile": "value-contract"
@@ -5136,7 +5136,7 @@
               "overloads": [
                 {
                   "signature": "export maximumDatagramBytes: usize<(1...)> export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
-                  "line": 550
+                  "line": 551
                 }
               ],
               "profile": "value-contract"
@@ -5147,7 +5147,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
-                  "line": 551
+                  "line": 552
                 }
               ],
               "profile": "value-contract"
@@ -5158,7 +5158,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedBytes: usize<(1...)>",
-                  "line": 552
+                  "line": 553
                 }
               ],
               "profile": "value-contract"
@@ -5171,7 +5171,7 @@
           "kind": "struct",
           "signature": "export struct Endpoint: Duplicable & Equatable & Hashable",
           "declarationDigest": "df5963fc18970ac5720b96a7ad8d3e7e2b6fba0ede9878ebe6552347f543a3b6",
-          "line": 323,
+          "line": 324,
           "profile": "net-address-value",
           "members": [
             {
@@ -5179,11 +5179,11 @@
               "overloads": [
                 {
                   "signature": "export init( ip: IpAddress, port: u16<(1...65_535)>, )",
-                  "line": 327
+                  "line": 328
                 },
                 {
                   "signature": "export init( host: HostName, port: u16<(1...65_535)>, )",
-                  "line": 335
+                  "line": 336
                 }
               ],
               "profile": "net-address-value"
@@ -5194,7 +5194,7 @@
               "overloads": [
                 {
                   "signature": "export host: EndpointHost export port: u16<(1...65_535)>",
-                  "line": 324
+                  "line": 325
                 }
               ],
               "profile": "value-contract"
@@ -5205,7 +5205,7 @@
               "overloads": [
                 {
                   "signature": "export port: u16<(1...65_535)>",
-                  "line": 325
+                  "line": 326
                 }
               ],
               "profile": "value-contract"
@@ -5215,7 +5215,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Endpoint",
-                  "line": 343
+                  "line": 344
                 }
               ],
               "profile": "value-contract"
@@ -5225,7 +5225,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Endpoint): Bool",
-                  "line": 350
+                  "line": 351
                 }
               ],
               "profile": "value-contract"
@@ -5238,7 +5238,7 @@
           "kind": "enum",
           "signature": "export enum EndpointHost: Duplicable & Equatable & Hashable",
           "declarationDigest": "485a636c618374914ffe54ec18ab6055e91b00674d925c9cba4befc46d69878c",
-          "line": 360,
+          "line": 361,
           "profile": "net-address-value",
           "members": [
             {
@@ -5246,7 +5246,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): EndpointHost",
-                  "line": 364
+                  "line": 365
                 }
               ],
               "profile": "value-contract"
@@ -5256,7 +5256,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref EndpointHost): Bool",
-                  "line": 371
+                  "line": 372
                 }
               ],
               "profile": "value-contract"
@@ -5269,7 +5269,7 @@
           "kind": "struct",
           "signature": "export struct HostName: Duplicable & Equatable & Hashable",
           "declarationDigest": "ec057ca8e8be5ad6e8ed4306f8ebbe366ff2b8a32d3daf48b4dc7047e4ee0124",
-          "line": 293,
+          "line": 294,
           "profile": "net-address-value",
           "members": [
             {
@@ -5277,7 +5277,7 @@
               "overloads": [
                 {
                   "signature": "export init(_ value: String) throws AddressError",
-                  "line": 296
+                  "line": 297
                 }
               ],
               "profile": "net-address-value"
@@ -5287,7 +5287,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): view String",
-                  "line": 306
+                  "line": 307
                 }
               ],
               "profile": "net-address-value"
@@ -5297,7 +5297,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): HostName",
-                  "line": 310
+                  "line": 311
                 }
               ],
               "profile": "value-contract"
@@ -5307,7 +5307,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref HostName): Bool",
-                  "line": 314
+                  "line": 315
                 }
               ],
               "profile": "value-contract"
@@ -5320,7 +5320,7 @@
           "kind": "enum",
           "signature": "export enum IpAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "5eba17db96d08fc8763ad7021c92417023a7bf55e1019be48c234d713522d1c5",
-          "line": 174,
+          "line": 175,
           "profile": "net-address-value",
           "members": [
             {
@@ -5328,7 +5328,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): IpAddress throws AddressError",
-                  "line": 179
+                  "line": 180
                 }
               ],
               "profile": "net-address-value"
@@ -5338,7 +5338,7 @@
               "overloads": [
                 {
                   "signature": "export fn family(): AddressFamily",
-                  "line": 183
+                  "line": 184
                 }
               ],
               "profile": "value-contract"
@@ -5348,7 +5348,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 190
+                  "line": 191
                 }
               ],
               "profile": "net-address-value"
@@ -5358,7 +5358,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): IpAddress",
-                  "line": 197
+                  "line": 198
                 }
               ],
               "profile": "value-contract"
@@ -5368,7 +5368,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref IpAddress): Bool",
-                  "line": 204
+                  "line": 205
                 }
               ],
               "profile": "value-contract"
@@ -5381,7 +5381,7 @@
           "kind": "struct",
           "signature": "export struct Ipv4Address: Duplicable & Equatable & Hashable",
           "declarationDigest": "6c549c77c1fd6d8b2e57cf6dcd6d03848910a6d8947da5e72c32ef13c12cdad9",
-          "line": 60,
+          "line": 61,
           "profile": "net-address-value",
           "members": [
             {
@@ -5389,7 +5389,7 @@
               "overloads": [
                 {
                   "signature": "export const init( _ first: u8, _ second: u8, _ third: u8, _ fourth: u8, )",
-                  "line": 64
+                  "line": 65
                 }
               ],
               "profile": "net-address-value"
@@ -5399,7 +5399,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): Ipv4Address throws AddressError",
-                  "line": 77
+                  "line": 78
                 }
               ],
               "profile": "net-address-value"
@@ -5409,7 +5409,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback(): Ipv4Address",
-                  "line": 81
+                  "line": 82
                 }
               ],
               "profile": "value-contract"
@@ -5419,7 +5419,7 @@
               "overloads": [
                 {
                   "signature": "export static fn unspecified(): Ipv4Address",
-                  "line": 85
+                  "line": 86
                 }
               ],
               "profile": "value-contract"
@@ -5429,7 +5429,7 @@
               "overloads": [
                 {
                   "signature": "export fn octets(): [u8; 4]",
-                  "line": 89
+                  "line": 90
                 }
               ],
               "profile": "value-contract"
@@ -5439,7 +5439,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 93
+                  "line": 94
                 }
               ],
               "profile": "net-address-value"
@@ -5449,7 +5449,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Ipv4Address",
-                  "line": 97
+                  "line": 98
                 }
               ],
               "profile": "value-contract"
@@ -5459,7 +5459,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Ipv4Address): Bool",
-                  "line": 101
+                  "line": 102
                 }
               ],
               "profile": "value-contract"
@@ -5472,7 +5472,7 @@
           "kind": "struct",
           "signature": "export struct Ipv6Address: Duplicable & Equatable & Hashable",
           "declarationDigest": "2cba71fd25d8bc3cf4b05995be4dbb57245f15b61a1c82126d162cc0006e0003",
-          "line": 110,
+          "line": 111,
           "profile": "net-address-value",
           "members": [
             {
@@ -5480,7 +5480,7 @@
               "overloads": [
                 {
                   "signature": "export const init( _ first: u16, _ second: u16, _ third: u16, _ fourth: u16, _ fifth: u16, _ sixth: u16, _ seventh: u16, _ eighth: u16, )",
-                  "line": 114
+                  "line": 115
                 }
               ],
               "profile": "net-address-value"
@@ -5490,7 +5490,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): Ipv6Address throws AddressError",
-                  "line": 140
+                  "line": 141
                 }
               ],
               "profile": "net-address-value"
@@ -5500,7 +5500,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback(): Ipv6Address",
-                  "line": 144
+                  "line": 145
                 }
               ],
               "profile": "value-contract"
@@ -5510,7 +5510,7 @@
               "overloads": [
                 {
                   "signature": "export static fn unspecified(): Ipv6Address",
-                  "line": 148
+                  "line": 149
                 }
               ],
               "profile": "value-contract"
@@ -5520,7 +5520,7 @@
               "overloads": [
                 {
                   "signature": "export fn segments(): [u16; 8]",
-                  "line": 152
+                  "line": 153
                 }
               ],
               "profile": "value-contract"
@@ -5530,7 +5530,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 157
+                  "line": 158
                 }
               ],
               "profile": "net-address-value"
@@ -5540,7 +5540,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): Ipv6Address",
-                  "line": 161
+                  "line": 162
                 }
               ],
               "profile": "value-contract"
@@ -5550,7 +5550,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref Ipv6Address): Bool",
-                  "line": 165
+                  "line": 166
                 }
               ],
               "profile": "value-contract"
@@ -5563,7 +5563,7 @@
           "kind": "struct",
           "signature": "export struct ListenAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "396b0299db4fb30584d6b75050118b0131b4792b1c9d69d7d2e6405eca1800dd",
-          "line": 434,
+          "line": 435,
           "profile": "net-address-value",
           "members": [
             {
@@ -5571,7 +5571,7 @@
               "overloads": [
                 {
                   "signature": "export static fn loopback( port: u16, family: AddressFamily = .any, ): ListenAddress",
-                  "line": 441
+                  "line": 442
                 }
               ],
               "profile": "net-address-value"
@@ -5581,7 +5581,7 @@
               "overloads": [
                 {
                   "signature": "export static fn allInterfaces( port: u16, family: AddressFamily = .any, ): ListenAddress",
-                  "line": 448
+                  "line": 449
                 }
               ],
               "profile": "net-address-value"
@@ -5591,7 +5591,7 @@
               "overloads": [
                 {
                   "signature": "export static fn address(_ address: SocketAddress): ListenAddress",
-                  "line": 455
+                  "line": 456
                 }
               ],
               "profile": "net-address-value"
@@ -5601,7 +5601,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): ListenAddress",
-                  "line": 459
+                  "line": 460
                 }
               ],
               "profile": "value-contract"
@@ -5611,7 +5611,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref ListenAddress): Bool",
-                  "line": 467
+                  "line": 468
                 }
               ],
               "profile": "value-contract"
@@ -5624,7 +5624,7 @@
           "kind": "struct",
           "signature": "export struct ListenerLimits: Copy & Equatable",
           "declarationDigest": "eebc400f6a9ba8e6bff4019c06baeb1660123db525792e0d1be658c613aea23f",
-          "line": 536,
+          "line": 537,
           "profile": "value-contract",
           "members": [
             {
@@ -5632,7 +5632,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumBacklog: usize<(1...)> = 128, maximumQueuedAccepts: usize<(1...)> = 128, )",
-                  "line": 540
+                  "line": 541
                 }
               ],
               "profile": "value-contract"
@@ -5643,7 +5643,7 @@
               "overloads": [
                 {
                   "signature": "export maximumBacklog: usize<(1...)> export maximumQueuedAccepts: usize<(1...)>",
-                  "line": 537
+                  "line": 538
                 }
               ],
               "profile": "value-contract"
@@ -5654,7 +5654,7 @@
               "overloads": [
                 {
                   "signature": "export maximumQueuedAccepts: usize<(1...)>",
-                  "line": 538
+                  "line": 539
                 }
               ],
               "profile": "value-contract"
@@ -5667,7 +5667,7 @@
           "kind": "struct",
           "signature": "export struct Network",
           "declarationDigest": "dabbda65115e26da8fc100b19298ec721bfe9ffe85bfbd1a4d1be843c22099ba",
-          "line": 698,
+          "line": 699,
           "profile": "net-listener-carrier",
           "members": [
             {
@@ -5675,7 +5675,7 @@
               "overloads": [
                 {
                   "signature": "export async fn resolve( _ host: ref HostName, named port: u16<(1...65_535)>, named limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
-                  "line": 708
+                  "line": 709
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5685,7 +5685,7 @@
               "overloads": [
                 {
                   "signature": "export async fn connectTcp( to endpoint: ref Endpoint, named options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
-                  "line": 723
+                  "line": 724
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5695,7 +5695,7 @@
               "overloads": [
                 {
                   "signature": "export async fn listenTcp( at address: ref ListenAddress, named limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
-                  "line": 737
+                  "line": 738
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5705,7 +5705,7 @@
               "overloads": [
                 {
                   "signature": "export async fn bindUdp( at address: ref ListenAddress, named limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
-                  "line": 751
+                  "line": 752
                 }
               ],
               "profile": "net-listener-carrier"
@@ -5718,7 +5718,7 @@
           "kind": "enum",
           "signature": "export enum NetworkError: Error & Duplicable",
           "declarationDigest": "4fb8ddd4a426a4dd1f94cd95e6c65ad939bc7b09a164d7f3c9947a2fc2a65468",
-          "line": 39,
+          "line": 40,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -5727,7 +5727,7 @@
           "kind": "enum",
           "signature": "export enum NetworkLimitKind: Copy & Equatable",
           "declarationDigest": "956899b150c4d523953dd416d663158ee9cc2cb816fd20d3107cc27b24a2702d",
-          "line": 25,
+          "line": 26,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -5736,7 +5736,7 @@
           "kind": "struct",
           "signature": "export struct ResolveLimits: Copy & Equatable",
           "declarationDigest": "e94f2bd0e0626a200e1b34055cb3164b2eaea470a38dee4bab8b90a6a9e3f456",
-          "line": 476,
+          "line": 477,
           "profile": "value-contract",
           "members": [
             {
@@ -5744,7 +5744,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumAddresses: usize<(1...)> = 16, maximumCnameDepth: usize = 8, maximumResponseBytes: usize<(1...)> = 64<KiB>, maximumAllocationBytes: usize<(1...)> = 256<KiB>, )",
-                  "line": 482
+                  "line": 483
                 }
               ],
               "profile": "value-contract"
@@ -5755,7 +5755,7 @@
               "overloads": [
                 {
                   "signature": "export maximumAddresses: usize<(1...)> export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 477
+                  "line": 478
                 }
               ],
               "profile": "value-contract"
@@ -5766,7 +5766,7 @@
               "overloads": [
                 {
                   "signature": "export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 478
+                  "line": 479
                 }
               ],
               "profile": "value-contract"
@@ -5777,7 +5777,7 @@
               "overloads": [
                 {
                   "signature": "export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
-                  "line": 479
+                  "line": 480
                 }
               ],
               "profile": "value-contract"
@@ -5788,7 +5788,7 @@
               "overloads": [
                 {
                   "signature": "export maximumAllocationBytes: usize<(1...)>",
-                  "line": 480
+                  "line": 481
                 }
               ],
               "profile": "value-contract"
@@ -5801,7 +5801,7 @@
           "kind": "struct",
           "signature": "export struct SocketAddress: Duplicable & Equatable & Hashable",
           "declarationDigest": "b63dbf9dc5c1989f2feec7a9bfd685963beacd802484ea258ba15a3556790420",
-          "line": 224,
+          "line": 225,
           "profile": "net-address-value",
           "members": [
             {
@@ -5809,7 +5809,7 @@
               "overloads": [
                 {
                   "signature": "export init( ip: IpAddress, port: u16, scopeId: u32? = .none, ) throws AddressError",
-                  "line": 229
+                  "line": 230
                 }
               ],
               "profile": "net-address-value"
@@ -5820,7 +5820,7 @@
               "overloads": [
                 {
                   "signature": "export ip: IpAddress export port: u16 export scopeId: u32?",
-                  "line": 225
+                  "line": 226
                 }
               ],
               "profile": "value-contract"
@@ -5831,7 +5831,7 @@
               "overloads": [
                 {
                   "signature": "export port: u16 export scopeId: u32?",
-                  "line": 226
+                  "line": 227
                 }
               ],
               "profile": "value-contract"
@@ -5842,7 +5842,7 @@
               "overloads": [
                 {
                   "signature": "export scopeId: u32?",
-                  "line": 227
+                  "line": 228
                 }
               ],
               "profile": "value-contract"
@@ -5852,7 +5852,7 @@
               "overloads": [
                 {
                   "signature": "export static fn parse(_ text: ref String): SocketAddress throws AddressError",
-                  "line": 256
+                  "line": 257
                 }
               ],
               "profile": "net-address-value"
@@ -5862,7 +5862,7 @@
               "overloads": [
                 {
                   "signature": "export fn family(): AddressFamily",
-                  "line": 260
+                  "line": 261
                 }
               ],
               "profile": "value-contract"
@@ -5872,7 +5872,7 @@
               "overloads": [
                 {
                   "signature": "export fn text(): String",
-                  "line": 264
+                  "line": 265
                 }
               ],
               "profile": "net-address-value"
@@ -5882,7 +5882,7 @@
               "overloads": [
                 {
                   "signature": "export fn duplicate(): SocketAddress",
-                  "line": 270
+                  "line": 271
                 }
               ],
               "profile": "value-contract"
@@ -5892,7 +5892,7 @@
               "overloads": [
                 {
                   "signature": "export fn equals(other: ref SocketAddress): Bool",
-                  "line": 278
+                  "line": 279
                 }
               ],
               "profile": "value-contract"
@@ -5905,7 +5905,7 @@
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
           "declarationDigest": "7d8bf4261060138dea41a7943d98f35ebb31fabb7720569b7a4461c6c8d05a60",
-          "line": 773,
+          "line": 774,
           "profile": "net-transport",
           "members": [
             {
@@ -5913,7 +5913,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddress(): SocketAddress",
-                  "line": 784
+                  "line": 785
                 }
               ],
               "profile": "net-address-value"
@@ -5923,7 +5923,7 @@
               "overloads": [
                 {
                   "signature": "export fn peerAddress(): SocketAddress",
-                  "line": 788
+                  "line": 789
                 }
               ],
               "profile": "net-address-value"
@@ -5933,7 +5933,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 792
+                  "line": 793
                 }
               ],
               "profile": "byte-source"
@@ -5943,7 +5943,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 805
+                  "line": 806
                 }
               ],
               "profile": "byte-sink"
@@ -5953,7 +5953,7 @@
               "overloads": [
                 {
                   "signature": "export take fn split(): (TcpReadHalf, TcpWriteHalf)",
-                  "line": 811
+                  "line": 812
                 }
               ],
               "profile": "net-transport"
@@ -5963,7 +5963,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn finishWriting(): TcpReadHalf throws NetworkError",
-                  "line": 824
+                  "line": 825
                 }
               ],
               "profile": "net-transport"
@@ -5976,7 +5976,7 @@
           "kind": "struct",
           "signature": "export struct TcpListener",
           "declarationDigest": "0fb1bcd9828aeecbdc4967595d6cee6b157718df66ac4e0eccf4f9bd321c66bc",
-          "line": 912,
+          "line": 913,
           "profile": "net-transport",
           "members": [
             {
@@ -5984,7 +5984,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn accept(): AcceptedTcp throws NetworkError",
-                  "line": 922
+                  "line": 923
                 }
               ],
               "profile": "net-transport"
@@ -5994,7 +5994,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 932
+                  "line": 933
                 }
               ],
               "profile": "net-address-value"
@@ -6007,7 +6007,7 @@
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
           "declarationDigest": "5f7b7fe168189b82f2593029640f7c0d749a73415a09bfc17354878c6b78c8c3",
-          "line": 838,
+          "line": 839,
           "profile": "net-transport",
           "members": [
             {
@@ -6015,7 +6015,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 848
+                  "line": 849
                 }
               ],
               "profile": "byte-source"
@@ -6028,7 +6028,7 @@
           "kind": "struct",
           "signature": "export struct TcpWriteHalf: ByteSink<NetworkError>",
           "declarationDigest": "9e49edc1c6516a06236783d1d509a761690d6db87244ee539094b8d6ffda3f50",
-          "line": 868,
+          "line": 869,
           "profile": "net-transport",
           "members": [
             {
@@ -6036,7 +6036,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 878
+                  "line": 879
                 }
               ],
               "profile": "byte-sink"
@@ -6046,7 +6046,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn finish(): () throws NetworkError",
-                  "line": 888
+                  "line": 889
                 }
               ],
               "profile": "net-transport"
@@ -6059,7 +6059,7 @@
           "kind": "struct",
           "signature": "export struct UdpReceiveHalf",
           "declarationDigest": "727ab0044524f2388fbd6ee98f3cada28b99a8e3425caad82af29ca3d931b95d",
-          "line": 996,
+          "line": 997,
           "profile": "net-transport",
           "members": [
             {
@@ -6067,7 +6067,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
-                  "line": 1003
+                  "line": 1004
                 }
               ],
               "profile": "net-transport"
@@ -6080,7 +6080,7 @@
           "kind": "struct",
           "signature": "export struct UdpSendHalf",
           "declarationDigest": "5bd56319472334c3e0cf03f4beb6ed2d8135e5de6ea92f96463aa022b2de061d",
-          "line": 1019,
+          "line": 1020,
           "profile": "net-transport",
           "members": [
             {
@@ -6088,7 +6088,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
-                  "line": 1026
+                  "line": 1027
                 }
               ],
               "profile": "net-transport"
@@ -6101,7 +6101,7 @@
           "kind": "struct",
           "signature": "export struct UdpSocket",
           "declarationDigest": "20a84a60fd2899ff51b3f3aa465a48318b1cceab334991035480a0769b5c1774",
-          "line": 943,
+          "line": 944,
           "profile": "net-transport",
           "members": [
             {
@@ -6109,7 +6109,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 953
+                  "line": 954
                 }
               ],
               "profile": "net-address-value"
@@ -6119,7 +6119,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
-                  "line": 965
+                  "line": 966
                 }
               ],
               "profile": "net-transport"
@@ -6129,7 +6129,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
-                  "line": 976
+                  "line": 977
                 }
               ],
               "profile": "net-transport"
@@ -6139,7 +6139,7 @@
               "overloads": [
                 {
                   "signature": "export take fn split(): (UdpReceiveHalf, UdpSendHalf)",
-                  "line": 957
+                  "line": 958
                 }
               ],
               "profile": "net-transport"
@@ -6731,6 +6731,7 @@
         "status": "missing",
         "gates": [
           "capability-link-denial",
+          "clock-projection-origin",
           "native-argv-round-trip",
           "root-projection-lifetime",
           "signal-generation",
@@ -6738,14 +6739,14 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "a1d50f40d476265afaba4a8251b1fcbb2f592598cbca880af5a45bafa012cda9",
+      "catalogedDeclarationsDigest": "d697b173dbc37437cf9b7181136396bbf3e21e1748e66dda9f5848f52ca0ba22",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
           "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
-          "line": 122,
+          "line": 124,
           "profile": "process-arguments",
           "members": [
             {
@@ -6754,7 +6755,7 @@
               "overloads": [
                 {
                   "signature": "export count: usize",
-                  "line": 129
+                  "line": 131
                 }
               ],
               "profile": "process-arguments"
@@ -6765,7 +6766,7 @@
               "overloads": [
                 {
                   "signature": "export isEmpty: Bool",
-                  "line": 133
+                  "line": 135
                 }
               ],
               "profile": "process-arguments"
@@ -6775,7 +6776,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(index: usize): ref OsString?",
-                  "line": 137
+                  "line": 139
                 }
               ],
               "profile": "process-arguments"
@@ -6785,11 +6786,11 @@
               "overloads": [
                 {
                   "signature": "export fn contains(native value: ref OsString): Bool",
-                  "line": 141
+                  "line": 143
                 },
                 {
                   "signature": "export fn contains(value: ref String): Bool",
-                  "line": 148
+                  "line": 150
                 }
               ],
               "profile": "process-arguments"
@@ -6799,7 +6800,7 @@
               "overloads": [
                 {
                   "signature": "export fn iterator(): some Iterator<ref OsString>",
-                  "line": 176
+                  "line": 178
                 }
               ],
               "profile": "process-arguments"
@@ -6811,8 +6812,8 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "0aa2a9d9aff2d442a761a1757cd1469c28d7634bf95b2211cc54033056e8513c",
-          "line": 323,
+          "declarationDigest": "acfc6a4aba556641e9bc5420930db7fcaf738ea192bd89f758b52b2114100855",
+          "line": 325,
           "profile": "process-context",
           "members": [
             {
@@ -6821,7 +6822,7 @@
               "overloads": [
                 {
                   "signature": "export stdin: Input",
-                  "line": 330
+                  "line": 332
                 }
               ],
               "profile": "process-input"
@@ -6832,7 +6833,7 @@
               "overloads": [
                 {
                   "signature": "export stdout: Output",
-                  "line": 336
+                  "line": 338
                 }
               ],
               "profile": "process-output"
@@ -6843,7 +6844,7 @@
               "overloads": [
                 {
                   "signature": "export stderr: Output",
-                  "line": 342
+                  "line": 344
                 }
               ],
               "profile": "process-output"
@@ -6854,7 +6855,7 @@
               "overloads": [
                 {
                   "signature": "export filesystem: fs.FileSystem",
-                  "line": 348
+                  "line": 350
                 }
               ],
               "profile": "process-context"
@@ -6865,10 +6866,21 @@
               "overloads": [
                 {
                   "signature": "export network: net.Network",
-                  "line": 352
+                  "line": 354
                 }
               ],
               "profile": "process-context"
+            },
+            {
+              "symbol": "clock",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export clock: time.Clock",
+                  "line": 358
+                }
+              ],
+              "profile": "time-clock"
             },
             {
               "symbol": "signals",
@@ -6876,7 +6888,7 @@
               "overloads": [
                 {
                   "signature": "export signals: SignalRegistry",
-                  "line": 356
+                  "line": 362
                 }
               ],
               "profile": "process-signals"
@@ -6887,7 +6899,7 @@
               "overloads": [
                 {
                   "signature": "export services: Services",
-                  "line": 362
+                  "line": 368
                 }
               ],
               "profile": "process-services"
@@ -6897,8 +6909,8 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export deadline: Deadline",
-                  "line": 368
+                  "signature": "export deadline: time.Deadline",
+                  "line": 374
                 }
               ],
               "profile": "process-context"
@@ -6911,7 +6923,7 @@
           "kind": "enum",
           "signature": "export enum ExitCode: Copy & Equatable",
           "declarationDigest": "96392068f3a569b64d4a9b6d57d802cbd3c6487a62c12fbde9ab4965d4d415ae",
-          "line": 11,
+          "line": 12,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -6920,7 +6932,7 @@
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
           "declarationDigest": "e9a75b075acec9aafe54a8e88cfd7fac24310093ec7284d2e8b472f7c8880cdf",
-          "line": 181,
+          "line": 183,
           "profile": "process-input",
           "members": [
             {
@@ -6928,7 +6940,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
-                  "line": 188
+                  "line": 190
                 }
               ],
               "profile": "process-input"
@@ -6938,7 +6950,7 @@
               "overloads": [
                 {
                   "signature": "export fn lines( named maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
-                  "line": 201
+                  "line": 203
                 }
               ],
               "profile": "process-input"
@@ -6951,7 +6963,7 @@
           "kind": "enum",
           "signature": "export enum InputError: Error",
           "declarationDigest": "092b2c37911a08c40f89347ce4108bb68d3a8e431b54f11237adc5e0aa48e838",
-          "line": 31,
+          "line": 32,
           "profile": "process-input",
           "status": "draft"
         },
@@ -6960,7 +6972,7 @@
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
           "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
-          "line": 235,
+          "line": 237,
           "profile": "process-output",
           "members": [
             {
@@ -6968,7 +6980,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
-                  "line": 242
+                  "line": 244
                 }
               ],
               "profile": "process-output"
@@ -6978,7 +6990,7 @@
               "overloads": [
                 {
                   "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
-                  "line": 250
+                  "line": 252
                 }
               ],
               "profile": "process-output"
@@ -6990,16 +7002,16 @@
           "symbol": "Services",
           "kind": "struct",
           "signature": "export struct Services",
-          "declarationDigest": "23fdbf0e2ed39e53f98c2df5b01affd5b59dd1206ada7be3331b595c4f2993ac",
-          "line": 307,
+          "declarationDigest": "0924ec97707c46b4cb097e50d21b2375c40b562e1448807e0d6a7569f88a42d0",
+          "line": 309,
           "profile": "process-services",
           "members": [
             {
               "symbol": "drain",
               "overloads": [
                 {
-                  "signature": "export async fn drain(named deadline: Deadline)",
-                  "line": 314
+                  "signature": "export async fn drain(named deadline: time.Deadline)",
+                  "line": 316
                 }
               ],
               "profile": "process-services"
@@ -7012,7 +7024,7 @@
           "kind": "enum",
           "signature": "export enum Signal: Copy & Equatable & Hashable",
           "declarationDigest": "f6170c792a4513c253a94c3a5c534a7b99defe7eb5ae95ecc46a8039a916278f",
-          "line": 16,
+          "line": 17,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7021,7 +7033,7 @@
           "kind": "enum",
           "signature": "export enum SignalError: Error & Duplicable",
           "declarationDigest": "06fcfc3d9d46ec3760f7c8ae45ea5b40aa15eac02e247e75081ce17511e134d1",
-          "line": 21,
+          "line": 22,
           "profile": "process-signals",
           "status": "draft"
         },
@@ -7030,7 +7042,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistration",
           "declarationDigest": "6e56dc43f2b7eb1ce9c895a2761221772c9be78a57e63f005a900ef16370b1a2",
-          "line": 283,
+          "line": 285,
           "profile": "process-signals",
           "members": [
             {
@@ -7038,7 +7050,7 @@
               "overloads": [
                 {
                   "signature": "export fn replace( named handler: some async fn(Signal, Context): (), ): () throws SignalError",
-                  "line": 290
+                  "line": 292
                 }
               ],
               "profile": "process-signals"
@@ -7048,7 +7060,7 @@
               "overloads": [
                 {
                   "signature": "export fn cancel()",
-                  "line": 296
+                  "line": 298
                 }
               ],
               "profile": "process-signals"
@@ -7061,7 +7073,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistry",
           "declarationDigest": "088c77a2bd592bae01e4ee7cdd1727e0219788aab0b91ae4c5314b7df7c98b03",
-          "line": 261,
+          "line": 263,
           "profile": "process-signals",
           "members": [
             {
@@ -7069,7 +7081,7 @@
               "overloads": [
                 {
                   "signature": "export fn register( signals: view Array<Signal>, named handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
-                  "line": 268
+                  "line": 270
                 }
               ],
               "profile": "process-signals"
@@ -7097,14 +7109,14 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "05117c9b6e8c387f4a14129a94c646e2a1ed3c28e591a3fc54f11ab26511a898",
+      "catalogedDeclarationsDigest": "54899b76cd34119a14ec5e86e608b51a8571d6cedfe2b123a807233f8f3ad436",
       "apis": [
         {
           "symbol": "CancellationReason",
           "kind": "enum",
           "signature": "export enum CancellationReason",
           "declarationDigest": "0745827bfa1844259c7a6325421cfe7ae7e5d168bb18588c26a219e50246c309",
-          "line": 3,
+          "line": 5,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7113,7 +7125,7 @@
           "kind": "enum",
           "signature": "export enum TaskBudgetKind",
           "declarationDigest": "6190218b5c92db3ef176788e449c3a5275319e212f44f4e2226e4296947b4d74",
-          "line": 9,
+          "line": 11,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7122,7 +7134,7 @@
           "kind": "struct",
           "signature": "export struct TaskLocal<Value>",
           "declarationDigest": "3365109c82e8efc0c416464046674d5ab494579945164bd8fdd289d2c3174bf4",
-          "line": 45,
+          "line": 47,
           "profile": "task-local-descriptor",
           "members": [
             {
@@ -7130,7 +7142,7 @@
               "overloads": [
                 {
                   "signature": "export static const fn key( default: Value<(.shareable)>, ): TaskLocal<Value>",
-                  "line": 52
+                  "line": 54
                 }
               ],
               "profile": "task-local-descriptor"
@@ -7140,7 +7152,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(): ref Value",
-                  "line": 59
+                  "line": 61
                 }
               ],
               "profile": "task-local-read"
@@ -7150,7 +7162,7 @@
               "overloads": [
                 {
                   "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, named operation: some fn(): Result throws Failure, ): Result throws Failure",
-                  "line": 65
+                  "line": 67
                 }
               ],
               "profile": "task-local-scope"
@@ -7163,7 +7175,7 @@
           "kind": "enum",
           "signature": "export enum TaskOutcome<Value, Failure: Error>",
           "declarationDigest": "c61854ecf3d8996089be8f03e9e651c84dcc70e4e7611b44708eec4dfc581a1b",
-          "line": 16,
+          "line": 18,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7172,7 +7184,7 @@
           "kind": "alias",
           "signature": "export alias TaskTimeout = Duration<(0...)>",
           "declarationDigest": "8897786340b1e7b793a52be96359d2f1072209c811ff2d6bb513092dfa8c9cb7",
-          "line": 22,
+          "line": 24,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -7360,14 +7372,14 @@
       "id": "std.runtime.workflow",
       "availability": "workflow-adapter",
       "source": "std/runtime/workflow.w",
-      "catalogedDeclarationsDigest": "fd5ac4fa9607c9e1487be7e00132373a6132eedf2d2d1c082977135d75dc4a78",
+      "catalogedDeclarationsDigest": "4db85ff04e2c1dd6777cb29046805a4fa76bd5a33c71153a70d09028b9fde410",
       "apis": [
         {
           "symbol": "StepBackoff",
           "kind": "enum",
           "signature": "export enum StepBackoff",
           "declarationDigest": "fefe34536c261f7066033e0860ed8f00e20817fca572b0475b8af57501f1e79d",
-          "line": 10,
+          "line": 12,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7376,7 +7388,7 @@
           "kind": "enum",
           "signature": "export enum StepEffect",
           "declarationDigest": "77b53f89459fd512a458b550fe1bd882a31ebbc9a497fc463d2352bd8b3f4ee6",
-          "line": 3,
+          "line": 5,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7385,7 +7397,7 @@
           "kind": "struct",
           "signature": "export struct StepRetry<Failure: Error>",
           "declarationDigest": "9e6f357bd65771d8c6dd35051a6be414f9028475dcd3cc2e75f1c7ed60bb4f43",
-          "line": 25,
+          "line": 27,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7394,7 +7406,7 @@
           "kind": "enum",
           "signature": "export enum WaitOutcome<Payload>",
           "declarationDigest": "b00973c1704663a96717013d51cfe16dfc0497e9c3e2311bdb9cedf171128e75",
-          "line": 47,
+          "line": 49,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7403,7 +7415,7 @@
           "kind": "struct",
           "signature": "export struct WorkEventBinding<Payload>",
           "declarationDigest": "122b7b1af6da7aa01cc11c9dd3ee5d057ebe692d4a26c9ffb2ea6c57fa4109bf",
-          "line": 42,
+          "line": 44,
           "profile": "const-binding",
           "status": "draft"
         },
@@ -7412,7 +7424,7 @@
           "kind": "enum",
           "signature": "export enum WorkEventSendError<Payload>: Error",
           "declarationDigest": "1409568c36b49d4a3083e520ef20bb8f8f97f6b5a5e8dfcaa1086388661c9466",
-          "line": 57,
+          "line": 59,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7421,7 +7433,7 @@
           "kind": "enum",
           "signature": "export enum WorkEventSendResult",
           "declarationDigest": "05d19ed8bea6cadb885cd07b08f3c095c0b8fa35d6dccebebdd4576804603bc9",
-          "line": 52,
+          "line": 54,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7430,7 +7442,7 @@
           "kind": "enum",
           "signature": "export enum WorkSuspension",
           "declarationDigest": "d1777397d4aafdf60c9480e0e443e3ae552a6ded75e58b182ed95dc59b4974fb",
-          "line": 32,
+          "line": 34,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -7751,6 +7763,177 @@
           "declarationDigest": "eb8e4ea2fda79ba3b32720537656841519636f5167153dcd1bce3aee58049b0d",
           "line": 110,
           "profile": "tensor-carrier",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.time",
+      "availability": "host-operational-clock",
+      "source": "std/time/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.time@1",
+        "status": "missing",
+        "gates": [
+          "monotonic-nondecreasing",
+          "no-early-expiration",
+          "resolution-reporting",
+          "same-root-origin-check",
+          "structured-cancellation-drain",
+          "suspend-accounting-profile",
+          "virtual-clock-determinism"
+        ]
+      },
+      "catalogedDeclarationsDigest": "e0520f87f0ffa609018410f1a78ef9fe9fe472f84e2a5344725d0f67e63d7bfa",
+      "apis": [
+        {
+          "symbol": "Clock",
+          "kind": "struct",
+          "signature": "export struct Clock",
+          "declarationDigest": "8884511b31e6c52054e1aeb0436368ff2f91cdb9202a6c6d3e854fbeca0451c0",
+          "line": 82,
+          "profile": "time-clock",
+          "members": [
+            {
+              "symbol": "now",
+              "overloads": [
+                {
+                  "signature": "export fn now(): Instant",
+                  "line": 89
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "resolution",
+              "overloads": [
+                {
+                  "signature": "export fn resolution(): Duration<(1...)>",
+                  "line": 93
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "suspendAccounting",
+              "overloads": [
+                {
+                  "signature": "export fn suspendAccounting(): SuspendAccounting",
+                  "line": 97
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "duration",
+              "overloads": [
+                {
+                  "signature": "export fn duration( from earlier: Instant, to later: Instant, ): Duration",
+                  "line": 101
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "deadline",
+              "overloads": [
+                {
+                  "signature": "export fn deadline( after duration: Duration<(0...)>, ): Deadline throws ClockError",
+                  "line": 110
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "remaining",
+              "overloads": [
+                {
+                  "signature": "export fn remaining( until deadline: Deadline, ): Duration<(0...)>",
+                  "line": 119
+                }
+              ],
+              "profile": "time-clock"
+            },
+            {
+              "symbol": "hasReached",
+              "overloads": [
+                {
+                  "signature": "export fn hasReached(_ deadline: Deadline): Bool",
+                  "line": 127
+                }
+              ],
+              "profile": "time-clock"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "ClockError",
+          "kind": "enum",
+          "signature": "export enum ClockError: Error & Copy & Equatable",
+          "declarationDigest": "fc12ab51c9efedbe809985bfa675cd593d80cdf028d1113f373940343825bcdb",
+          "line": 13,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Deadline",
+          "kind": "struct",
+          "signature": "export struct Deadline: Copy",
+          "declarationDigest": "f20c7e90fb382f647ff9fe869af24b42b57d2d2b41ad3a11e541d080411ebe69",
+          "line": 71,
+          "profile": "time-local-value",
+          "status": "draft"
+        },
+        {
+          "symbol": "Duration",
+          "kind": "struct",
+          "signature": "export struct Duration: Copy & Equatable & Hashable",
+          "declarationDigest": "fb25018eca7583dac141efba72c0ce7d636656a7bfe4fece9feb3b2f37ac8531",
+          "line": 19,
+          "profile": "time-duration",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export const init(nanoseconds: i128)",
+                  "line": 22
+                }
+              ],
+              "profile": "time-duration"
+            },
+            {
+              "symbol": "nanoseconds",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export nanoseconds: i128",
+                  "line": 26
+                }
+              ],
+              "profile": "time-duration"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Instant",
+          "kind": "struct",
+          "signature": "export struct Instant: Copy",
+          "declarationDigest": "e1949b511ccbfe1ec39c30df022f55015d30cb4a7613013f7291e857e780aeab",
+          "line": 63,
+          "profile": "time-local-value",
+          "status": "draft"
+        },
+        {
+          "symbol": "SuspendAccounting",
+          "kind": "enum",
+          "signature": "export enum SuspendAccounting: Copy & Equatable",
+          "declarationDigest": "e4b6bad0a0f62112b69cca3486796d2944dcb4554796417ecbfa76b41e2798fd",
+          "line": 7,
+          "profile": "value-contract",
           "status": "draft"
         }
       ]
@@ -9063,6 +9246,46 @@
       ]
     },
     {
+      "module": "std.time",
+      "surface": "Clock",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/time_oracle.w"
+      ]
+    },
+    {
+      "module": "std.time",
+      "surface": "ClockError",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/time_oracle.w"
+      ]
+    },
+    {
+      "module": "std.time",
+      "surface": "Deadline",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/time_oracle.w"
+      ]
+    },
+    {
+      "module": "std.time",
+      "surface": "Duration",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/time_oracle.w"
+      ]
+    },
+    {
+      "module": "std.time",
+      "surface": "Instant",
+      "status": "draft",
+      "consumers": [
+        "reference/last-light/time_oracle.w"
+      ]
+    },
+    {
       "module": "std.url",
       "surface": "URL",
       "status": "draft",
@@ -9401,6 +9624,14 @@
       "status": "draft",
       "profile": "value-contract",
       "consumer": "reference/last-light/app.w"
+    },
+    {
+      "id": "sdk0-operational-time",
+      "module": "std.time",
+      "surface": "Clock",
+      "status": "draft",
+      "profile": "time-clock",
+      "consumer": "reference/last-light/time_oracle.w"
     },
     {
       "id": "sdk0-process-arguments",

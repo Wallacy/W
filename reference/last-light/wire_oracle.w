@@ -1,5 +1,7 @@
 // Pure oracle for wWire profile selection, eligibility, and strict decoding.
 
+import { Duration, Instant } from std.time
+
 enum WireSchemaRelation {
   sameWireSchema
   compatible

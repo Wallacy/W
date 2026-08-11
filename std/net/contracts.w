@@ -4,6 +4,7 @@
 // remains missing until the gates in DESIGN.md pass.
 
 import * from std.io
+import { Duration } from std.time
 
 export enum AddressFamily: Copy & Equatable & Hashable {
   ipv4

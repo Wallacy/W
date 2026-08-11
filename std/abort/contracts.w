@@ -5,6 +5,8 @@
 // authority that can transition its signal. Native task cancellation remains
 // a control outcome and is only mirrored into this adapter at Web boundaries.
 
+import { TaskTimeout } from std.runtime.task
+
 export type AbortSourceLimit = usize<(1...1_024)>
 
 export enum AbortExternalReason: Copy {

@@ -1,16 +1,16 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { deriveProcessRoot } from "./process-root-machine.mjs"
+import { deriveOperationalTime } from "./operational-time-machine.mjs"
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url))
-const casesPath = path.join(toolingDirectory, "process-root-cases.json")
-const snapshotPath = path.join(toolingDirectory, "process-root-results.snapshot.jsonl")
+const casesPath = path.join(toolingDirectory, "operational-time-cases.json")
+const snapshotPath = path.join(toolingDirectory, "operational-time-results.snapshot.jsonl")
 const write = process.argv.includes("--write")
 const corpus = JSON.parse(fs.readFileSync(casesPath, "utf8"))
 const errors = []
 const ids = new Set()
-const decisions = new Set()
+const decisionKinds = new Map()
 const results = []
 
 function matches(actual, expected, location) {
@@ -35,43 +35,57 @@ function matches(actual, expected, location) {
   }
 }
 
-if (corpus.$schema !== "w-process-root-cases-1") errors.push("schema")
+function operationCount(input) {
+  return Object.keys(input ?? {}).length
+    + (input.capabilities?.length ?? 0)
+    + (input.samples?.length ?? 0)
+    + (input.advances?.length ?? 0)
+}
+
+if (corpus.$schema !== "w-operational-time-cases-1") errors.push("schema")
 if (corpus.status !== "design-oracle-input") errors.push("status")
-if (!Array.isArray(corpus.cases) || corpus.cases.length < 30) errors.push("coverage")
+if (!Array.isArray(corpus.cases) || corpus.cases.length < 40) errors.push("coverage")
 
 let operations = 0
 let accepted = 0
 let rejected = 0
 for (const [index, item] of (corpus.cases ?? []).entries()) {
   const location = `cases[${index}]`
-  if (!/^PR0-(?:POS|NEG)-[a-z0-9-]+$/.test(item.id ?? "")) errors.push(`${location}: id`)
+  if (!/^TIME0-(?:POS|NEG)-[a-z0-9-]+$/.test(item.id ?? "")) errors.push(`${location}: id`)
   if (ids.has(item.id)) errors.push(`${location}: duplicate ${item.id}`)
   ids.add(item.id)
-  if (!["positive", "negative"].includes(item.kind)) errors.push(`${location}: kind`)
+  if (!item.id.includes(item.kind === "positive" ? "-POS-" : "-NEG-")) {
+    errors.push(`${location}: kind`)
+  }
   if (!Array.isArray(item.decisions) || item.decisions.length === 0) errors.push(`${location}: decisions`)
-  for (const decision of item.decisions ?? []) decisions.add(decision)
+  for (const decision of item.decisions ?? []) {
+    if (!/^W-131[0-6]$/.test(decision)) errors.push(`${location}: unexpected decision ${decision}`)
+    const kinds = decisionKinds.get(decision) ?? new Set()
+    kinds.add(item.kind)
+    decisionKinds.set(decision, kinds)
+  }
 
-  const result = deriveProcessRoot(item.input)
+  const result = deriveOperationalTime(item.input)
   matches(result, item.expect, item.id)
   if (item.kind === "positive" && result.accepted !== true) errors.push(`${item.id}: positive rejected`)
   if (item.kind === "negative" && result.accepted !== false) errors.push(`${item.id}: negative accepted`)
   if (result.accepted) accepted += 1
   else rejected += 1
-  operations += Object.keys(item.input ?? {}).length
-    + (item.input.values?.length ?? 0)
-    + (item.input.calls?.length ?? 0)
-    + (item.input.events?.length ?? 0)
+  operations += operationCount(item.input)
   results.push({ id: item.id, kind: item.kind, decisions: item.decisions, result })
 }
 
-for (const decision of ["W-1296", "W-1297", "W-1298", "W-1299", "W-1300", "W-1301", "W-1311"]) {
-  if (!decisions.has(decision)) errors.push(`missing decision ${decision}`)
+for (let value = 1310; value <= 1316; value += 1) {
+  const decision = `W-${value}`
+  const kinds = decisionKinds.get(decision) ?? new Set()
+  if (!kinds.has("positive")) errors.push(`${decision}: missing positive case`)
+  if (!kinds.has("negative")) errors.push(`${decision}: missing negative case`)
 }
 
 const snapshot = `${results.map((result) => JSON.stringify(result)).join("\n")}\n`
 if (write) fs.writeFileSync(snapshotPath, snapshot)
 else if (!fs.existsSync(snapshotPath) || fs.readFileSync(snapshotPath, "utf8") !== snapshot) {
-  errors.push("process-root-results.snapshot.jsonl is stale; run checker with --write")
+  errors.push("operational-time-results.snapshot.jsonl is stale; run checker with --write")
 }
 
 if (errors.length > 0) {
@@ -80,6 +94,6 @@ if (errors.length > 0) {
 }
 
 process.stdout.write(
-  `Process root PR0: ${results.length} cases, ${operations} operations, `
+  `Operational time TIME0: ${results.length} cases, ${operations} operations, `
     + `${accepted} accepted, ${rejected} rejected.\n`,
 )

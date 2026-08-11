@@ -8,7 +8,7 @@ module execution<
 
 import { OrderId } from domain
 import { Ingredient, KitchenError, Mixture, Recipe } from kitchen
-import { TaskLocal } from std.runtime.task
+import { TaskLocal, TaskTimeout } from std.runtime.task
 
 export type BatchIndex = usize
 export alias ClosingTimeout = TaskTimeout
