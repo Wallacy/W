@@ -267,6 +267,7 @@ const oracleCorpusFiles = [
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
+  "ownership-execution-cases.json",
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
@@ -431,6 +432,17 @@ const runtimeLivenessOperations = runtimeLivenessCorpus.cases.reduce(
 );
 const acceptedRuntimeLivenessCases = runtimeLivenessCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
+).length;
+const ownershipExecutionCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "ownership-execution-cases.json"), "utf8"),
+);
+const ownershipExecutionCases = ownershipExecutionCorpus.cases.length;
+const ownershipExecutionOperations = ownershipExecutionCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedOwnershipExecutionCases = ownershipExecutionCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
 ).length;
 const scopedLockCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "scoped-lock-cases.json"), "utf8"),
@@ -744,6 +756,13 @@ output.push(
     `(${acceptedRuntimeLivenessCases} aceitos + ` +
     `${runtimeLivenessCases - acceptedRuntimeLivenessCases} rejeitados; ` +
     `sete testes host) |`,
+);
+output.push(
+  `| casos/operações da composição de ownership e execução MX0 | ` +
+    `${ownershipExecutionCases}/${ownershipExecutionOperations} ` +
+    `(${acceptedOwnershipExecutionCases} aceitos + ` +
+    `${ownershipExecutionCases - acceptedOwnershipExecutionCases} rejeitados; ` +
+    `14 testes host) |`,
 );
 output.push(
   `| casos/operações de locks escopados LM0 | ` +

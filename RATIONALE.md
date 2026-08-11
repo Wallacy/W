@@ -1933,6 +1933,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
 | E0 concurrency | 57 casos, 527 operações | 31 aceitos, 26 rejeitados; 10/10 origens HB | checker puro | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
+| MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
 | LM0 scoped locks | 33 casos, 114 operações | 19 aceitos, 13 rejeitados, 1 fault | 8 testes | não implementa `std.sync@1` |
 | SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
 
@@ -1941,10 +1942,12 @@ races, modification order, fences, RMW, extents e tickets de barreira. Ele não
 prova liveness, fairness, preemption, oversubscription, task-frame allocation,
 reentrância de service, device scope, reclamation, ABA ou execução distribuída.
 
-E1 separa scheduler, clock e provider do contrato de closure. LM0 cobre loans,
-FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0 cobre
-readers antigos e novos, publicação concorrente, retirement bounded, drop,
-OOM antes de publish, close e estratégias equivalentes.
+E1 separa scheduler, clock e provider do contrato de closure. MX0 usa um único
+witness para testar owner graph e task lifecycle juntos; ele impede que duas
+provas isoladas escondam copy, share, rollback ou drop divergente. LM0 cobre
+loans, FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0
+cobre readers antigos e novos, publicação concorrente, retirement bounded,
+drop, OOM antes de publish, close e estratégias equivalentes.
 
 ## 2. Proveniência
 
@@ -3174,6 +3177,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1182 | lock admission e failure | tickets FIFO, try sem bypass, cancel pré-grant remove waiter, cancel pós-grant espera unlock e panic falha a fault boundary | barging, poisoning recuperável, closure repetida, unlock antes de cleanup |
 | W-1183 | conjunto mínimo de synchronization | atomic, locks, domain barrier, SnapshotCell, channel e service têm papéis distintos; RwLock, condition e Once raw não entram na safe std | copiar toda primitive host, RwLock paralelo à barrier, condition sem ownership, RCU safe |
 | W-1184 | oracle LM0 | máquina host pura cobre locks sync/async, queue, cancellation, failure, lifetime e seleção; não executa provider ou runtime W | expected echo, chamar model de scheduler, caso sem símbolo Última Luz |
+| W-1185 | plano cross-axis de ownership | as quatro formas de execução usam PlaceId, LoanId, OriginSet, owner delta e drop obligations comuns; placement não cria outra memória | ownership por scheduler, copy/share implícito, ARC para reparar capture inválida |
+| W-1186 | staging e fechamento cross-axis | capture passa parent→staging→child; rejection limpa uma vez; cleanup precede outcome e join restaura somente a autoridade permitida | rollback de take, outcome antes de cleanup, loan lexical encerrado por evento runtime invisível |
+| W-1187 | publicação e ownership | happens-before publica mutation autorizada sem conceder owner, ampliar loan ou ressuscitar binding; scope exit cancela, drena e faz join | cancellation como rollback, join como share, binding movido volta por error |
+| W-1188 | oracle MX0 | máquina host pura compõe staging, mobility, loans, admission, cancellation, cleanup, outcome, join e drop sem substituir M1/E0/E1 | colar snapshots independentes, expected echo, chamar modelo de compiler/runtime |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
