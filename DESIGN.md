@@ -250,16 +250,17 @@ Estas regras limitam todas as escolhas do design vigente:
 4. Concorrência e paralelismo continuam distintos.
 5. Todo filho concorrente pertence a um scope.
 6. Safe W não permite dangling references, double drop ou data race.
-7. Debug e release têm a mesma semântica observável.
-8. Layout, pointer tagging e placement físicos não viram promessa sem uma
+7. Scheduler e placement não inventam `copy`, `share` ou outro owner graph.
+8. Debug e release têm a mesma semântica observável.
+9. Layout, pointer tagging e placement físicos não viram promessa sem uma
    fronteira explícita.
-9. Conversão implícita exige uma rota única, total e sem perda.
-10. O formatter produz uma forma canônica.
-11. Uma edição pode adicionar açúcar, mas deve conseguir mostrar sua expansão.
-12. Uma otimização dependente do target possui fallback correto.
-13. Artefatos reproduzíveis dependem somente de inputs declarados.
-14. Uma assinatura não substitui reprodução, auditoria ou platform signing.
-15. Recursos para máquinas também devem ajudar pessoas ou ferramentas comuns.
+10. Conversão implícita exige uma rota única, total e sem perda.
+11. O formatter produz uma forma canônica.
+12. Uma edição pode adicionar açúcar, mas deve conseguir mostrar sua expansão.
+13. Uma otimização dependente do target possui fallback correto.
+14. Artefatos reproduzíveis dependem somente de inputs declarados.
+15. Uma assinatura não substitui reprodução, auditoria ou platform signing.
+16. Recursos para máquinas também devem ajudar pessoas ou ferramentas comuns.
 
 ## 3. Contratos estáticos e orçamento de símbolos
 
@@ -2639,7 +2640,7 @@ o trabalho começa e evita mover uma árvore de expression por regra implícita.
 Assignment, `return`, `throw`, `commit`, `break` e `continue` não duplicam um
 operand. Cada place e expression aparece uma vez no `evaluationGraph`.
 
-##### Diagnostics e evidence
+##### Diagnostics
 
 O diagnostic principal pertence à primeira fase que não consegue produzir um
 `SemanticResult` válido. Diagnostics posteriores podem aparecer como causas,
@@ -2658,131 +2659,43 @@ mas não como reparos especulativos.
 | `W-USE-0001` | value non-Unit é descartado sem `let _` |
 | `W-CAPABILITY-0001` | operational effect não possui capability ou profile permitido |
 
-Última Luz já fornece estes alvos positivos:
+As famílias específicas usam estes códigos:
 
-| Contrato | Evidence source |
+| Code | Condição |
 |---|---|
-| patterns, narrowing e branch join | `enum_contracts.w`, `command.w` |
-| labels, loops e compound assignment | `collections.w`, `numerics.w` |
-| Result, typed error e cleanup | `failure.w` |
-| callables, captures e callable modes | `callables.w` |
-| owner, borrow, pin e ABI boundary | `memory.w`, `hir_memory_oracle.w` |
-| tasks, joins e cancellation | `execution.w`, `scheduler_oracle.w` |
-| async staging e move | `allocation.w`, `dining.w` |
-| transaction e commit | `transaction_oracle.w`, `benchmark_app.w` |
-| service effects e capability routing | `service_oracle.w`, `capability_security_oracle.w` |
-
-Cinco pares adicionais exercem os contratos angulares usados por Matrix,
-Tensor, Array e refinements no Última Luz. Os fixtures de heads definidos pelo
-usuário declaram seus generic e value slots no próprio source. Assim, o checker
-não pode inventar um schema ambiental para fazer o caso passar. Labels de
-`W-CONTRACT` apontam para o head e, quando existe no fixture, para a declaração
-do slot.
-
-| Code | Baseline positivo | Campo que falha |
-|---|---|---|
-| `W-CONTRACT-0001` | slot publicado | `resultType` |
-| `W-CONTRACT-0002` | argumento com kind correto | `resultType` |
-| `W-CONTRACT-0003` | predicate que produz Bool | `proofFacts` |
-| `W-CONTRACT-0004` | labels únicos em schema order | `evaluationGraph` |
-| `W-CONTRACT-0005` | envelope aplicável ao resultado anterior | `resultType` |
-
-Nove pares cobrem patterns e match com entidades do restaurante: outcomes de
-pratos, leituras de forno, tickets, vaults, stages e ranges de cursos. Um pattern
-focal produz `Bool` lógico e category `value` no `SemanticResult` interno. Esse
-Bool representa o edge de teste; ele não transforma pattern em expression
-utilizável pelo source. Captures ficam em `ownerDelta`, narrowing fica em
-`proofFacts` e a ordem de testes fica em `evaluationGraph`.
-
-| Code | Baseline positivo | Campo que falha |
-|---|---|---|
-| `W-PATTERN-0001` | `let` na modalidade match | `ownerDelta` |
-| `W-PATTERN-0002` | payload com shape exato | `evaluationGraph` |
-| `W-PATTERN-0003` | field visível | `proofFacts` |
-| `W-PATTERN-0005` | aggregate destruturável | `evaluationGraph` |
-| `W-PATTERN-0006` | guard read-only | `ownerDelta` |
-| `W-PATTERN-0007` | bounds comparáveis | `proofFacts` |
-| `W-MATCH-0001` | domínio exaustivo | `flow` |
-| `W-MATCH-0002` | case alcançável | `evaluationGraph` |
-| `W-MATCH-0003` | enum curto com expected type | `resultType` |
+| `W-CONTRACT-0001` | static slot não existe no head |
+| `W-CONTRACT-0002` | argumento usa o kind errado |
+| `W-CONTRACT-0003` | refinement predicate não produz Bool |
+| `W-CONTRACT-0004` | label duplica ou viola schema order |
+| `W-CONTRACT-0005` | envelope não se aplica ao resultado anterior |
+| `W-PATTERN-0001` | capture não pertence à modalidade do pattern |
+| `W-PATTERN-0002` | payload possui arity, labels ou modalidade incompatível |
+| `W-PATTERN-0003` | field não é visível |
+| `W-PATTERN-0005` | aggregate não permite destructuring |
+| `W-PATTERN-0006` | guard consome, muta, escapa ou suspende uma capture provisória |
+| `W-PATTERN-0007` | bounds não são constantes ou compatíveis |
+| `W-MATCH-0001` | switch ou catch não cobre o domínio provado |
+| `W-MATCH-0002` | case já foi coberto por case anterior sem guard |
+| `W-MATCH-0003` | enum curto não possui expected type único |
+| `W-EXPR-0001` | assignment target não é place mutável |
+| `W-EXPR-0002` | assignment é exigido como value non-Unit |
+| `W-EXPR-0006` | postfix ou envelope não se aplica ao head resolvido |
+| `W-EXPR-0007` | `each` não é final ou não satisfaz rest |
+| `W-EFFECT-0010` | prefix de effect falta, sobra ou viola a ordem canônica |
+| `W-OWNERSHIP-0010` | prefix de ownership recebe place, owner, borrow ou mobility incompatível |
+| `W-BORROW-0010` | `share` recebe payload dependente do lifetime |
+| `W-OWNERSHIP-0011` | consuming receiver não foi transferido |
+| `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
 
 Um enum curto sem expected type falha sem busca global por case name. O
-diagnostic registra member, context e ausência do expected type. Adicionar outro
-enum ou import não muda candidates porque essa lista não existe.
+diagnostic registra member, context e ausência do expected type. Adicionar enum
+ou import não muda candidates porque essa lista global não existe.
 
-Nove pares cobrem a fronteira semântica de G4. Os pares tornam explícitos o
-resultado Unit de assignment, a aplicabilidade de postfix, a expansão rest, a
-ordem de effects, os requisitos de place dos prefixes de ownership e a
-transferência explícita de um receiver consuming. Os dois últimos separam
-lifetime de borrow e promotion implícita da criação explícita de shared ownership.
-
-| Code | Baseline positivo | Campo que falha |
-|---|---|---|
-| `W-EXPR-0001` | assignment em `inout` | `category` |
-| `W-EXPR-0002` | assignment em contexto Unit | `resultType` |
-| `W-EXPR-0006` | optional postfix sobre Option | `resultType` |
-| `W-EXPR-0007` | `each` final para rest compatível | `evaluationGraph` |
-| `W-EFFECT-0010` | prefixos em ordem `try await` | `effectSummary` |
-| `W-OWNERSHIP-0010` | `ref` aplicado a place | `ownerDelta` |
-| `W-BORROW-0010` | `share` de payload lifetime-independent | `proofFacts` |
-| `W-OWNERSHIP-0011` | `(take stream).finish()` | `ownerDelta` |
-| `W-OWNERSHIP-0013` | `share(Dish())` explícito | `ownerDelta` |
-
-O corpus não duplica falhas que já pertencem a outra fase. Chaining de
-comparison pertence a `W-PARSE-0030`. Condition sem Bool pertence a
-`W-SEM-0001`. Join de branches pertence a `W-TYPE-0120`.
-
-O corpus negativo do checker deve inverter uma regra por fixture. Ele deve
-preservar os outros fields do `SemanticResult`. Essa exigência impede que um
-erro de move seja aceito somente porque o checker perdeu o type ou o effect.
-
-[`tooling/semantic-cases.json`](tooling/semantic-cases.json) inicia esse corpus
-com casos syntax-valid. O status `design-oracle-input` informa que os resultados
-ainda são expectativas, não output de um checker. O verificador estrutural
-confirma IDs, coverage, decisions e parse. Ele não declara conformance sem um
-frontend S0. O [snapshot D0](tooling/semantic-diagnostics.snapshot.jsonl)
-materializa spans, facts, labels e fixes esperados.
-
-O schema `w-semantic-cases-1` acrescenta um outcome canônico por caso. Um caso
-positivo seleciona um node com `focus` e fornece os sete campos completos de
-`SemanticResult`. Um caso negativo aponta para um baseline positivo único da
-mesma decisão e identifica o único `failureField`. Esse pareamento impede que
-um checker passe porque deixou de calcular outros campos.
-
-```json
-{
-  "status": "rejected",
-  "baseline": "S0-POS-control-owner",
-  "failureField": "flow",
-  "diagnosticCodes": ["W-FLOW-0001"]
-}
-```
-
-[`tooling/semantic-results.snapshot.jsonl`](tooling/semantic-results.snapshot.jsonl)
-materializa os outcomes esperados. Cada record contém source digest, span UTF-8
-do foco e status `accepted` ou `rejected`. Um record aceito contém:
-
-1. `resultType`, com `null` somente para ausência de result em declaration;
-2. `category`, a partir do conjunto fechado definido nesta seção;
-3. `flow`, com `kind` e target explícito quando a saída possui owner;
-4. `ownerDelta`, em source order e com path quando a operação é condicional;
-5. `effectSummary`, com sets byte-sorted para signature, control e operational;
-6. `proofFacts`, válidos no caminho que continua;
-7. `evaluationGraph`, com nodes locais e edges direcionais explícitos.
-
-IDs de node existem somente dentro do record. Eles não são AST IDs persistentes
-nem dependem de endereço, scheduler ou ordem de hash. Toda edge referencia dois
-nodes declarados. O grafo registra source order, branch, transfer, suspension e
-cleanup sem inventar uma ordem para caminhos mutuamente exclusivos.
-
-O snapshot continua sendo um oracle de design. O primeiro checker deve emitir o
-mesmo record e usar comparison JSONL byte-exact. Depois disso, o status do
-corpus pode mudar para output verificado. Até lá, um snapshot aprovado não
-prova que W faz type-check.
-
-```powershell
-bun tooling/check-semantic-cases.mjs
-```
+Uma falha pertence à primeira fase que a detecta. Chaining de comparison usa
+`W-PARSE-0030`; condition sem Bool usa `W-SEM-0001`; branch join incompatível
+usa `W-TYPE-0120`. O checker não reclassifica o mesmo erro para fazer um fix
+parecer disponível. Corpus, fields de `SemanticResult` e snapshots ficam em
+[`RATIONALE.md` §1.2](RATIONALE.md#12-baseline-estática-r0s).
 
 ### 3.6 Avaliação compile-time
 
@@ -3346,19 +3259,11 @@ CE0 não inclui value generics, reflection, type builders, FFI, closures
 indiretas ou capabilities. O seed C e o compiler self-hosted devem produzir o
 mesmo ConstValue normalizado.
 
-Os precedentes principais são:
+W usa o mesmo corpo nas duas fases. Ele exige contrato `const` visível, quotas
+na recipe e nenhuma inspeção da fase. Precedentes e diferenças ficam em
+[`RATIONALE.md` §1.2](RATIONALE.md#12-baseline-estática-r0s).
 
-- [Rust const evaluation](https://doc.rust-lang.org/reference/const_eval.html),
-  que separa const context e `const fn` e usa a semântica do target;
-- [Zig comptime](https://ziglang.org/documentation/master/#comptime), que mostra
-  execução rica e a necessidade de branch quota;
-- [D CTFE](https://dlang.org/spec/function.html#interpretation), que reutiliza
-  funções runtime em compile time.
-
-W adota o mesmo corpo para as duas fases. W exige um contrato `const` visível,
-quotas na recipe e nenhuma inspeção da fase.
-
-#### 3.6.8 Diagnostics e evidence
+#### 3.6.8 Diagnostics
 
 O evaluator emite um root diagnostic para a primeira falha que impede o
 `ConstValue`. A cadeia de calls e dependências fica em facts ou labels. Uma
@@ -3378,22 +3283,9 @@ falha não produz entrada de cache.
 para o target. `W-CONST-0007` pertence somente ao contrato do call site. Os
 codes não compartilham meanings diferentes.
 
-Sete pares do corpus S0 usam operações do restaurante: tabela de menu, ordem de
-initialization, quota de receitas, path de atendimento, porta do observatório,
-índice de ingrediente e query de estoque. Cada par muda uma causa:
-
-| Code | Baseline positivo | Campo que falha |
-|---|---|---|
-| `W-CONST-0001` | call const-safe resolvida estaticamente | `effectSummary` |
-| `W-CONST-0002` | grafo de const acíclico | `evaluationGraph` |
-| `W-CONST-0003` | avaliação dentro da quota | `evaluationGraph` |
-| `W-CONST-0004` | stage path aceito pelo predicate | `proofFacts` |
-| `W-CONST-0005` | call const sem error escapante | `flow` |
-| `W-CONST-0006` | index const dentro dos bounds | `flow` |
-| `W-CONST-0007` | argumento conhecido no call site | `proofFacts` |
-
-Esses snapshots continuam expectativas de design até o checker e o evaluator
-emitirem os mesmos records. Eles não afirmam execução do ConstIR.
+Os pares S0, os fields invertidos e o limite de evidência ficam em
+[`RATIONALE.md` §1.2](RATIONALE.md#12-baseline-estática-r0s). Um snapshot de
+design não afirma execução do ConstIR.
 
 ## 4. Superfície integrada
 
@@ -6897,7 +6789,7 @@ por equações de tipos. O
 separa generic, opaque e boxed protocol types. W usa esses precedentes com
 lookup fechado e witnesses determinísticos.
 
-#### 8.7.10 Diagnostics e evidence
+#### 8.7.10 Diagnostics
 
 | Code | Condição |
 |---|---|
@@ -6915,11 +6807,8 @@ ordem observada. `W-GENERIC-0004` registra o head, o nome reservado e o member
 conflitante. `W-GENERIC-0005` registra o prefixo normalizado e a transformação
 recorrente. A falha de crescimento não é uma quota de wall clock.
 
-O corpus S0 cobre `make<T>()`, a travessia recursiva de árvore, a classificação
-pós-name-resolution, múltiplos value parameters com labels opcionais, as duas
-formas normalizadas, ordem inválida e associated name duplicate. A inversão
-remove a única equação de `T`, troca recursion estável por `T -> Array<T>`,
-deixa um domain sem resolução ou viola uma regra de label e exposição.
+As inversões S0 e seus limites ficam em
+[`RATIONALE.md` §1.2](RATIONALE.md#12-baseline-estática-r0s).
 
 ### 8.8 Conversões
 
@@ -8200,14 +8089,6 @@ reclamation pertencem ao provider do device.
 O contract fixa major, mode e capabilities. O nome de um allocator sozinho não
 concede mobilidade.
 
-#### 9.6.4 Evidence física A0
-
-**Exemplo:** uma falha de growth preserva o receipt anterior e seu prefixo.
-
-A0 precisa inverter cada regra física sem repetir M1 ou L0. O
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
-escopo, contagens, limites e artefatos. A0 não é allocator, verifier ou runtime.
-
 #### 9.6.5 Origem e mobilidade
 
 **Exemplo:** `stageMenu` devolve storage ligado ao allocator `memory`. Fechar
@@ -8509,30 +8390,10 @@ O passe escolhe uma destas classes:
 | low-bit | alignment interno provado | somente storage não exposto |
 | high-bit | tagged address ou NaN boxing | pesquisa target-specific |
 
-#### 9.9.1 Valores válidos e niches
+#### 9.9.1 Validade, tags e metadata
 
-Um niche é uma representação física que o tipo lógico não usa. O compiler pode
-usar esse espaço para representar um case adicional.
-
-**Exemplo:** `ref Oven` não aceita null. `Option<ref Oven>` pode usar null para
-`.none` e os pointers não null para `.some`. Essa escolha não adiciona um estado
-ao pointer e não permite dereference de null.
-
-A HIR registra `Validity<T>`, que descreve os bit patterns válidos conhecidos.
-O layout de um enum segue esta ordem:
-
-1. enumere os cases lógicos e os payloads;
-2. calcule os estados físicos necessários;
-3. encontre niches que nenhuma construção safe ou fronteira externa produz;
-4. escolha um mapping determinístico;
-5. use tag e payload explícitos quando a prova não for suficiente.
-
-Um niche só é válido quando todas as origens do valor respeitam o mesmo
-contrato. Um `c.ptr<T>` não null pode oferecer null como niche. Bytes vindos de
-FFI, storage persistido ou uma union C não oferecem esse niche até que um
-adapter valide a representação.
-
-**Exemplo:** os três estados abaixo permanecem distintos:
+**Exemplo:** estes estados continuam semanticamente distintos, mesmo quando um
+profile encontra um niche para dois deles:
 
 ```w
 let unknown: Option<Option<ref Oven>> = .none
@@ -8540,133 +8401,42 @@ let knownMissing: Option<Option<ref Oven>> = .some(.none)
 let knownOven: Option<Option<ref Oven>> = .some(.some(oven))
 ```
 
-Um único null separa somente dois estados. O terceiro estado exige outro niche
-provado ou uma tag explícita. O compiler nunca colapsa `unknown` e
-`knownMissing`.
+`Validity<T>` registra os bit patterns válidos por origem. O compiler pode usar
+um niche somente quando safe source e todas as fronteiras que produzem o valor
+respeitam essa validade. FFI, bytes persistidos e unions exigem validação antes
+de oferecer um niche. A ausência de prova usa tag e payload explícitos.
 
-Enums usam a mesma regra:
+O mapping é determinístico para target, profile e fingerprint. Ele preserva
+todos os cases lógicos. Um enum subset pode especializar storage interno, mas
+não promete tamanho nem muda a ABI publicada do enum base.
 
-```w
-enum BellTarget {
-  open(c.ptr<ll_bell>)
-  unavailable
-}
-```
+Low bits exigem, ao mesmo tempo:
 
-`BellTarget` pode usar null para `unavailable` num layout interno. Se o enum
-ganhar `permissionDenied`, o compiler precisa encontrar outro niche ou expandir
-o layout. A mudança de representação interna não muda o switch.
+- alignment da allocation e controle do storage;
+- operação do target que preserve provenance e non-address state;
+- forma conhecida por unwind, debugger, sanitizer e GC maps aplicáveis;
+- remoção da tag antes de dereference, FFI, comparação canônica, atomic ou
+  tooling externo.
 
-Um subset de enum reduz o conjunto semântico, mas não cria uma promessa pública
-de tamanho:
+Sem uma dessas provas, o compiler usa a forma portátil. `Address` não substitui
+o pointer original como fonte de provenance. Low bits não guardam reference
+count, generation mutável, deallocator ou allocator identity.
 
-```w
-fn nextStage(): ServiceStage<[.preparing, .serving, .completed]>
-```
+Metadata mutável pode compartilhar uma palavra atômica com o pointer somente
+quando todas as accesses usam a palavra inteira. W não mistura views atômicas e
+não atômicas do mesmo storage. Uma tag pequena também não prova ausência de ABA;
+o algoritmo precisa de generation suficiente, epoch, hazard pointer ou outra
+estratégia explícita.
 
-O caller trata somente esses três cases. Se a assinatura passar a incluir
-`.cancelled`, o diff de interface é incompatível e cada switch antes exaustivo
-recebe um diagnostic. Um specialization interno pode remover cases e tags
-impossíveis. Uma ABI pública mantém o layout publicado para o enum base ou usa
-um schema próprio.
+W não exige header universal. Owner único pode ser headerless; `shared T` pode
+usar control block; service identity pertence ao host; reflection usa metadata
+por tipo. Handles indexados e pointer compression exigem arena ou heap isolado
+com base e bounds explícitos.
 
-#### 9.9.2 Low bits
-
-Um pointer para storage alinhado a `A` bytes possui `ctz(A)` bits inferiores
-iguais a zero. O compiler pode usar esses bits somente quando prova o alignment
-real da allocation e controla todo o storage do valor.
-
-**Exemplo:** alignment provado de 16 bytes oferece quatro bits candidatos. Uma
-allocation estrangeira com alignment de 4 bytes oferece somente dois, mesmo que
-o tipo nominal tenha alignment maior.
-
-Alignment é necessário, mas não suficiente. O profile também precisa provar:
-
-1. que o address space aceita uma representação tagged estável;
-2. que inserir e remover a tag preserva non-address bits e estado externo;
-3. que o lowering mantém o pointer original como fonte de provenance;
-4. que GC maps, unwind, debugger e sanitizer conhecem a forma ou usam fallback;
-5. que toda fronteira recebe a forma canônica.
-
-O lowering mantém a provenance original. Inserir ou remover bits exige uma
-operação aprovada pelo target e baseada no pointer original. Um `Address` salvo
-não substitui esse pointer. Sem operação que conserve a origem, o compiler usa
-tag e payload explícitos.
-
-O compiler remove a tag antes de:
-
-- dereference;
-- call FFI;
-- comparação que exige pointer canônico;
-- operação atômica de pointer;
-- entrega a debugger, sanitizer ou profiler.
-
-**Exemplo:** um `shared MenuSection` interno pode guardar um flag imutável num
-low bit. `ll_bell_subscribe` recebe sempre o `c.ptr` canônico, sem esse flag.
-
-Low bits não guardam reference count, generation mutável, deallocator ou
-allocator identity. Esses valores mudam, podem exceder os bits disponíveis ou
-precisam sobreviver a uma representação canônica.
-
-#### 9.9.3 Metadata mutável, atomics e ABA
-
-Uma tag mutável só pode compartilhar uma palavra atômica com o pointer quando
-todas as leituras e atualizações usam a palavra inteira. W não mistura uma view
-atômica tagged com uma view não atômica do mesmo storage.
-
-**Exemplo:** um slot que faz compare-and-swap de `{pointer, state}` precisa de
-uma operação atômica para o par. Atomicidade de pointer não promete que uma
-palavra maior seja lock-free.
-
-Um contador pequeno não resolve ABA. Depois do wrap, o mesmo pointer e a mesma
-tag podem reaparecer. Uma estrutura que precisa impedir ABA usa generation com
-largura suficiente, epoch, hazard pointer ou outro algoritmo declarado.
-
-**Exemplo:** uma fila não pode considerar `{node, generation: 3}` único para
-sempre quando a generation possui somente dois bits.
-
-#### 9.9.4 Headers, control blocks e handles
-
-W não exige um header universal por object. Um valor com owner único pode ser
-headerless. `shared T` cria um control block quando a implementação precisa de
-strong count, weak count ou deallocator. Service identity fica no runtime do
-host. Reflection mantém metadata por tipo alcançável, não por instance.
-
-**Exemplo:** `BellHandle` possui somente seu handle e seu estado de drop.
-`shared MenuSection` pode apontar para um control block. `ServiceRef<Kitchen>`
-contém identity e capability do host. Os três valores não precisam do mesmo
-header.
-
-Pointer compression e handles indexados são uma classe diferente de tagging.
-Eles só existem quando uma arena ou heap isolado fornece base e bounds
-explícitos.
-
-**Exemplo:** um target Wasm pode representar um handle de arena por `u32` e
-expandir esse handle na façade C. Um pointer nativo fora da arena não participa
-dessa representação.
-
-`Option<ref T>` não aloca. O tamanho exato depende do profile. Uma niche não
-cria garantia de ABI sem fronteira e fingerprint compatíveis.
-
-Tags de endereço não provam owner, lifetime, thread safety ou validade. Elas
-podem guardar metadata imutável ou ajudar instrumentação. Reference count,
-generation mutável e deallocator permanecem fora dos bits de endereço.
-
-As seguintes garantias não dependem do profile:
-
-- `f64` preserva todos os bits e valores;
-- integers preservam o range declarado;
-- FFI recebe representação C canônica;
-- capability pointers usam sua representação nativa;
-- fallback expandido produz o mesmo resultado;
-- nenhum source pede `compact` ou tagged address.
-
-NaN boxing não representa `f64` comum nem um valor W universal. W preserva NaN,
-payload e signed zero. Um futuro container dinâmico interno pode pesquisar NaN
-boxing, mas precisa de fallback e não pode alterar operações IEEE.
-
-**Exemplo:** guardar `f64` em `Array<f64>` preserva os bits de um NaN. O
-compiler não usa o payload desse NaN para representar `.none`.
+Nenhum profile pode reduzir o range de integers, alterar bits IEEE de `f64`,
+entregar forma W tagged à FFI ou usar tags como prova de owner, lifetime ou
+thread safety. NaN boxing não representa `f64` comum nem um value carrier
+universal. Nenhuma dessas escolhas cria annotation no source.
 
 #### 9.9.5 Baseline por fronteira
 
@@ -9526,13 +9296,6 @@ Os diagnostics desta policy são:
 | `W-DOC-0003` | example sem terminal único `result` ou `error` |
 | `W-DOC-0005` | example usa effect ambiental sem fixture explícito |
 | `W-STD-0001` | módulo std usa o field de tier retirado |
-
-[`tooling/execution-ergonomics-cases.json`](tooling/execution-ergonomics-cases.json),
-a máquina pura em [`tooling/execution-ergonomics-machine.mjs`](tooling/execution-ergonomics-machine.mjs),
-o host test e o snapshot JSONL mantêm os positivos, negativos e as informações
-desta policy. O [perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução)
-registra escopo e contagens. Esses artefatos não são compiler, scheduler ou
-runtime W.
 
 ### 12.3 `Task` e ownership
 
@@ -10972,15 +10735,6 @@ atomics. `lockFree` não faz parte da promessa. O profile mede throughput,
 latency, contention e allocation antes de selecionar uma implementação por
 target.
 
-#### 12.9.12 Evidence
-
-**Exemplo:** cancellation antes e depois do commit não perde um item do channel.
-
-O oracle precisa explorar interleavings, cancellation, close, backpressure e
-cleanup sem alterar o contrato acima. O
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
-a matriz do ensaio e seus limites.
-
 ### 12.10 Memory model, atomics e locks
 
 **Forma vigente:** safe W não permite data races. `atomic`, isolation e locks
@@ -11076,14 +10830,6 @@ suporte.
 
 O lowering usa o modelo C++20. W remove orders inválidas da superfície safe e
 mantém `volatile`, atomics e synchronization como contratos diferentes.
-
-##### Evidence E0
-
-E0 precisa cobrir as origens de happens-before desta seção, lifecycle, races,
-orders, extents e tickets de barreira. Ele valida um witness já resolvido; não
-enumera todas as execuções nem prova liveness. O
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
-corpus, contagens e limites.
 
 #### 12.10.2 Storage `atomic`
 
@@ -12673,36 +12419,8 @@ visíveis. O pipeline preserva capability lifetime, quotas, cancellation,
 failure e outcome incerto. Ele não muda `ServiceRef` para uma Promise lazy. A
 seção 23.1.7 fecha a forma source e o lowering.
 
-##### Corpus de boundary effects B0
-
-**Exemplo:** o Última Luz confirma uma reserva somente depois do output gate.
-Se a confirmação se perde, o caller recebe o mesmo `EffectId` como
-`unknownOutcome`; cancelamento não transforma a dúvida em rollback.
-
-[`tooling/boundary-effect-cases.json`](tooling/boundary-effect-cases.json)
-mantém 39 sequências ligadas a symbols do Última Luz. A
-[`máquina B0`](tooling/boundary-effect-machine.mjs) executa 320 operações sobre:
-
-- staging, envelope commit, admission, closed turn, output gate e delivery;
-- cleanup único do envelope e output retido até confirmação e drain;
-- `commitFailed`, `unknownOutcome(effectId)` e cancelamento como outcomes
-  distintos;
-- retry `idempotent` com o mesmo effect ID e bloqueio de `atMostOnce`;
-- transaction com begin, body único, commit, abort e `unknownCommit`;
-- cancellation antes e depois de `commit requested`;
-- pipeline linear e diamond, dependências, fail-fast, drain e arbitragem;
-- incerteza dominante e settlement de capabilities intermediárias.
-
-O runner aceita 25 sequências e rejeita 14. O gate exige 17 transições críticas.
-O snapshot guarda estados finais e traces compactos. Casos negativos incluem
-delivery antes do drain, segundo closed turn, retry inseguro, abort depois do
-commit request, forward reference e resolução prematura de pipeline.
-
-B0 não é adapter, transport, storage ou runtime W. Ele recebe admission,
-evidence e effect IDs já resolvidos. Ele não prova fila bounded, clocks,
-durabilidade, codec wWire, reconexão, deduplication real, isolamento de database,
-crash recovery, workflow journal ou execução distribuída. Esses itens exigem
-implementações independentes e fault injection antes do freeze de services.
+O corpus B0 e seus limites ficam em
+[`RATIONALE.md` §1.16](RATIONALE.md#116-evidence-de-boundaries-packages-e-releases).
 
 ### 13.7 Trabalho runtime-owned e `SupervisorRef`
 
@@ -17521,11 +17239,8 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 lê um `f64` Copy com acesso checked.
 
 TAB0 fecha o modelo lógico do carrier tabular. A forma permanece **Direção** e
-estudo até TAB1 definir adapters e workflows executáveis. O bundle
-[`tooling/studies/r1-tabular-carrier/`](tooling/studies/r1-tabular-carrier/) usa
-o mesmo resumo do telemetry do Última Luz em três variantes. A máquina host
-[`tooling/tabular-carrier-machine.mjs`](tooling/tabular-carrier-machine.mjs) não
-é compiler, runtime, provider ou reader de produção.
+estudo até TAB1 definir adapters e workflows executáveis. Evidência e limites
+ficam em [`RATIONALE.md` §1.3.14](RATIONALE.md#1314-carrier-tabular-tab0).
 
 **Direção:** `data.Batch<Row>` é finito, owned, imutável depois da
 publicação, columnar e ligado a um schema lógico fechado. Todas as colunas têm
@@ -17816,7 +17531,7 @@ Todo import C recebe `CImportOptions`/`CStreamImportOptions` finitos. TAB1 C
 baseline é CPU. Device C, DLPack e tensor handoff ficam no bundle tensorial.
 Um device handle não é dereferenced como CPU nem transferido implicitamente.
 
-##### Mapping, provenance e evidência
+##### Mapping e provenance
 
 A matrix W↔CSV↔Parquet↔Arrow cobre Bool, signed e unsigned widths,
 f16/f32/f64 com policy de NaN e signed zero, FixedDecimal precision/scale,
@@ -21722,64 +21437,18 @@ como implementação do runtime.
 
 Um verifier rejeita HIR incompleta antes do lowering.
 
-##### Corpus de transições M1
+O corpus M1 e seus limites ficam em
+[`RATIONALE.md` §1.15](RATIONALE.md#115-evidence-de-memória-e-execução).
 
-**Exemplo:** `watchClosingBell` move `BellState` para `pin`, publica o endereço,
-mantém um borrow durante suspensão, move somente o handle e faz drop no payload
-estável uma vez.
-
-[`tooling/memory-transition-cases.json`](tooling/memory-transition-cases.json)
-mantém 164 sequências ligadas a symbols do Última Luz. A
-[`máquina M1`](tooling/hir-memory-machine.mjs) executa 580 operações sobre:
-
-- bindings `owned`, `moved` e `dropped`;
-- payload identity preservada por move;
-- `PlaceId` root estável e projections de field, tuple, enum payload, index,
-  range, dereference e view extent;
-- `LoanId`, overlap, parent/child reborrow, freeze e restore;
-- tokens de loan `shared` e `exclusive`;
-- duplicação de loan shared e rejeição de duplicação exclusive;
-- dependency edges individuais, `OriginSet`, copy/move de aggregates dependent
-  e escapes;
-- authority `read`/`write`, IDs únicos e criação atômica de dependency edges;
-- `ProofFacts` ligados ao prefixo `PlaceId` exato;
-- Array de refs, clear, remove provado e mutation estrutural;
-- endereço `unstable`, `stable` e `published`;
-- handle `Pinned<T>` separado do payload;
-- `AllocationOriginSet`, budget de Arena, fechamento e `rehome`;
-- control block strong/weak, upgrade, drop único e origem do último weak;
-- erasure inline/spill, box origin, spill proibido e dependency preservation;
-- estado após falha fallible consuming de `pin`, `share`, `rehome` e `erase`;
-- payload, contador e mobility combinados numa fronteira paralela;
-- representação por boundary, allocator origin e FFI scope/retention;
-- mappings de borrow/storage em `WInterface`, `SemanticInterfaceKey` e igualdade
-  de `WAbiKey`;
-- await estável, cleanup drain e join de owner states.
-
-O runner aceita 70 sequências e rejeita 94. O snapshot M1 registra schema, estado
-e trace de cada operação byte a byte. Todo caso aponta para source do Última Luz.
-Uma operação só publica o estado seguinte quando é aceita. Uma rejeição preserva
-o estado anterior e não deixa payload, loan ou edge parcial no oracle.
-O teste Node preserva os checks de owner, pin, representation, allocator e ABI
-do kernel anterior e inclui as novas transições M1 como oracles pequenos.
-
-M1 não é HIR emitida pelo frontend. Ele modela o estado lógico após allocation
-failure, mas não executa um allocator real. Ele também não prova interleaving
-atômico de strong/weak, overflow do contador, destruição física de arena, drop em
-panic, branch graph completo, happens-before ou cancellation física. Esses itens
-permanecem gates antes do freeze de memória e execução.
-
-#### 20.2.2 Oracle de layout, ABI e C L0
+#### 20.2.2 Verificação de layout, ABI e C L0
 
 **Exemplo:** `last-light-observatory` e `restaurant.horizon` possuem interfaces
 próprias diferentes. O import do observatory registra a interface esperada do
 provider de `classify`; somente essa expectativa precisa coincidir com a nota do
 provider.
 
-[`layout-abi-cases.json`](tooling/layout-abi-cases.json) separa a fronteira
-física do kernel de ownership M1. A
-[`máquina L0`](tooling/layout-abi-machine.mjs) valida uma nota lógica data-only
-antes de native lowering ou link. Ela fixa esta ordem para `.wExact`:
+O verifier valida uma nota lógica data-only antes de native lowering ou link.
+Ele aplica esta ordem para `.wExact`:
 
 1. valide schema, required features e limites do reader;
 2. compare todos os campos de `WAbiKey`;
@@ -21856,11 +21525,8 @@ O JSON do corpus é uma projeção legível, não bytes ABI. O container físico
 section por acidente. Esse isolamento permite revisar o container antes do 1.0
 sem mudar o contrato de link lógico.
 
-O corpus L0 possui 78 casos e 96 operações: 27 aceitos e 51 rejeitados. Dez
-testes host independentes refazem os invariants sem ler o snapshot. Todo caso
-aponta para `abi.w`, `abi_oracle.w`, `memory.w`, `hardware.w` ou
-`representation_oracle.w` do Última Luz. L0 é um design oracle. Ele não é o
-linker, o C importer, o header generator ou o backend W.
+Evidência e limites de L0 ficam em
+[`RATIONALE.md` §1.15](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 ### 20.3 Dialeto W/MLIR
 
@@ -22934,7 +22600,7 @@ de Bun/JavaScript para scripts W. Essa migração não remove o seed C, CMake,
 Ninja, diverse double-compiling ou a rota de recovery; Bun não é dependência
 pretendida do produto W.
 
-#### 20.5.5 Oracle de fechamento
+#### 20.5.5 Gate de fechamento
 
 **Exemplo:** `bootstrap_oracle.w` aceita diferença de target metadata, mas
 rejeita HIR, interface, diagnostics ou payload diferentes:
@@ -24993,7 +24659,7 @@ environment normalizado e todos os output digests. O verifier compara bytes ou
 hashes dos outputs definidos pela recipe. Comparar somente o executável quando
 a release inclui resources ou static libraries não é suficiente.
 
-##### 21.3.2.1 Comparação de evidência
+##### 21.3.2.1 Verificação de reprodução
 
 **Exemplo:** dois builders podem ter `builderIdentity` diferente e ainda
 produzir uma reprodução válida. Um `recipeDigest` diferente invalida a
@@ -25047,48 +24713,8 @@ Uma mudança de advisory, auditoria ou freshness não reescreve uma attestation.
 O registry publica outro snapshot. O verifier avalia a policy atual sobre
 records imutáveis.
 
-#### 21.3.3 Corpus executável P0: package e release
-
-**Exemplo:** um member local incompatível faz a resolução falhar. O resolver não
-troca esse member por uma versão do registry sem informar o usuário.
-
-O [corpus P0](tooling/package-release-cases.json) contém 44 programas ligados ao
-Última Luz. A [máquina P0](tooling/package-release-machine.mjs) executa 379
-operações sobre:
-
-- snapshot assinado, rollback, expiry, delegation e equivocation;
-- resolução determinística, features, members e realms separados;
-- lock estrutural, source inventories e active source sets;
-- CAS, mirrors listados e reconstrução offline;
-- recipe hermética, source trees, toolchain e environment declarado;
-- artifact identity e comparação de evidência completa;
-- quorum independente, papéis de assinatura, source access e transparency;
-- estados ortogonais de advisory, yank e revocation.
-
-P0 calcula digests SHA-256 tagged sobre records canônicos. O digest serve como
-identity no oracle. O algoritmo e o schema de produção continuam versionados no
-envelope correspondente.
-
-O lock fixa a estrutura da resolução. Uma alteração nos bytes de um source já
-inventariado não invalida `--locked`. A alteração muda o source-tree digest e a
-recipe. Adicionar, remover ou trocar o papel de um source invalida o lock.
-
-A mesma recipe deve produzir o mesmo artifact completo. Builder, operator,
-credential, execution root e executor não entram na identity da recipe. Eles
-entram na evidência de independência. Evidência incompleta é rejeitada antes da
-comparação de inputs ou outputs.
-
-O [snapshot P0](tooling/package-release-results.snapshot.jsonl) fixa state e
-trace byte-exact. O gate executa:
-
-```powershell
-bun tooling/check-package-release-cases.mjs
-```
-
-P0 não é resolver, registry, CAS ou sistema de assinatura de produção. Ele não
-implementa prerelease SemVer, download, TUF, Sigstore, sandbox, archive reader,
-path normalization ou rebuild real. Ele recebe os fatos criptográficos e as
-policies já verificadas. Esses limites permanecem nos gates da seção 26.
+O corpus P0 e seus limites ficam em
+[`RATIONALE.md` §1.16](RATIONALE.md#116-evidence-de-boundaries-packages-e-releases).
 
 ### 21.4 Registry, mirrors e estado de segurança
 
@@ -27433,7 +27059,7 @@ ordinário executa por bridge, service ou fault boundary explícita. Um adapter
 AOT manifest-resolved pode ser candidato conforme 19.2. Lifecycle, GIL,
 interpreter e effects ficam visíveis no adapter.
 
-##### Ergonomia e evidência de performance
+##### Ergonomia e critérios de performance
 
 | Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
 |---|---|---|---|---|
@@ -27632,36 +27258,19 @@ o corpus semântico continuam sendo a prova estrutural separada.
 A forma record P0 continua explícita. Compact dependency constructor fica em
 **Pesquisa**.
 
-O [corpus PYN1](tooling/script-workflow-cases.json) possui casos positivos e
-negativos para cada decisão. O [host oracle](tooling/script-workflow-machine.mjs)
-deriva state e trace. O snapshot é uma projeção de design. O host não executa W,
-não resolve registry e não implementa CLI, compiler, runtime ou provider.
-
-O Last Light usa [`horizon_script.w`](reference/last-light/horizon_script.w)
-como exemplo parseável. O lock `sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2`
-é derivado do payload P0 no fixture `header-ready` e não é um placeholder. O source importa `std.data`, usa
-`Batch<HorizonReading>`, calcula o score do horizonte e escolhe
-`steady`/`warning`/`evacuation` no entry. O README do produto registra o mapa de
-aceitação e a lista de adversariais.
-
-PEP 723 é evidência externa de ergonomia e de risco para metadata inline. Ele
-descreve metadata em comment blocks para launchers e tools. W adota um header
-estrutural data-only com lock por digest. W rejeita comment metadata,
-dependency inference e tool table aberto. A fonte é o
-[PEP 723 oficial](https://peps.python.org/pep-0723/).
-
-O estado desta subseção é **Direção** de design e oracle. Nenhum command, resolver,
-compiler, runtime, provider ou network client é alegado como implementado.
+O estado desta subseção é **Direção**. Evidência, fixture, comparação com PEP 723
+e limites ficam em
+[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1). Nenhum
+command, resolver, compiler, runtime, provider ou network client é alegado como
+implementado.
 
 #### 24.1.3 Sessão/REPL transacional e geracional PYN2
 
 **Exemplo:** uma sessão preserva `snapshot = 6` quando `limit` muda para `4`,
 mas invalida a função que possui lookup compilado de `limit`.
 
-PYN2 fecha a sessão efêmera de `w repl`. A sessão usa o parser, o checker e o
-HIR normais. Ela não cria um dynamic mode. A máquina host em
-[`tooling/repl-session-machine.mjs`](tooling/repl-session-machine.mjs) deriva o
-estado. Ela não compila, executa ou publica W.
+PYN2 fecha a sessão efêmera de `w repl`. A sessão usa parser, checker e HIR
+normais. Ela não cria um dynamic mode.
 
 ##### Identidade e fronteira da sessão
 
@@ -27861,11 +27470,10 @@ o limite de admission é conhecido, sempre antes de
 executing/effects. O histórico mantém somente records recentes quando a policy
 de bounded retention permite eviction; o record corrente já deve ter reservation.
 
-##### Estado do bundle PYN2
-
-PYN2 fecha o contrato de design e seus oracles. CLI, compiler, checker, HIR,
-runtime, provider, resource drain e Jupyter continuam fora deste checkpoint.
-Evidência e comparações estão em [RATIONALE.md](RATIONALE.md).
+Evidência, comparações e limites ficam em
+[`RATIONALE.md` §1.12](RATIONALE.md#112-evidência-da-sessão-transacional-pyn2).
+CLI, compiler, checker, HIR, runtime, provider, resource drain e Jupyter
+continuam fora deste checkpoint.
 
 #### 24.1.4 Apresentação tipada, kernel Jupyter e export PYN3
 
@@ -28154,11 +27762,9 @@ Os nomes finais dos comandos continuam **Pesquisa**. O contrato abstrato usa
 `notebook check`, `session receipts` e `notebook export` apenas como labels de
 tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
 
-##### Estado do bundle PYN3
-
-PYN3 fecha contratos e oracles de apresentação, Jupyter e export. Ele não
-implementa kernel, transport, compiler, runtime, provider ou sanitizer.
-Evidência e comparações estão em [RATIONALE.md](RATIONALE.md).
+Evidência, comparações e limites ficam em
+[`RATIONALE.md` §1.13](RATIONALE.md#113-evidência-de-apresentação-jupyter-e-export-pyn3).
+PYN3 não implementa kernel, transport, compiler, runtime, provider ou sanitizer.
 
 ### 24.2 Recursos deliberadamente ausentes
 
