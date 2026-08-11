@@ -1356,6 +1356,7 @@ Aceite:
 - `BoundedText<{min: 1, max: 120}>` passa um static record tipado;
 - `u16<(1...4096)>` expande para `value in 1...4096`;
 - `String<(.scalars.count <= 40)>` usa o subject contextual do refinement;
+- `String<(value.scalars.count <= 40)>` explicita o mesmo subject e a mesma ConstIR;
 - `Array<u8><(.count <= 64)>` refina um generic já aplicado;
 - `Array<[u8, (.count <= 64)]>` não substitui os dois contratos;
 - `spawn<.compute>` e `spawn<domain: .compute>` aceitam o mesmo slot opcional e normalizam para o mesmo HIR;

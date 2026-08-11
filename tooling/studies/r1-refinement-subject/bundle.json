@@ -1,0 +1,109 @@
+{
+  "$schema": "w-substitution-study-bundle-1",
+  "status": "design-oracle-input",
+  "id": "R1-refinement-subject",
+  "title": "Refinement subjects at the Last Light restaurant",
+  "r0Cases": ["R0-refinement-subject"],
+  "sourceBase": {
+    "path": "../../../reference/last-light/domain.w",
+    "symbol": "BoundedText<_ bounds: TextBounds>",
+    "digest": "sha256:d870d4ca6242097a8122da1afef4c6bc28dddeed1fd1b2b1b0f4fd9f414221e3"
+  },
+  "variants": [
+    {
+      "id": "contextual",
+      "role": "selected",
+      "language": "w",
+      "path": "contextual.w",
+      "digest": "sha256:de9e71a37975eb05dbece79bf32c114183b0ad868549cb74fce2ac3de6de910c",
+      "changedConstructs": [
+        "contextual refinement subject with dot projection",
+        "compile-time literal proof",
+        "fallible base-to-refined construction"
+      ]
+    },
+    {
+      "id": "explicit",
+      "role": "alternative",
+      "language": "w",
+      "path": "explicit.w",
+      "digest": "sha256:d9031c3be9978f68bc8e5fa4b3f3f5396d18a9828a9520daa23406575ceee167",
+      "changedConstructs": [
+        "explicit contextual value binding",
+        "the same compile-time literal proof",
+        "lexical value names shadowed inside the predicate"
+      ]
+    },
+    {
+      "id": "runtime-check",
+      "role": "alternative",
+      "language": "w",
+      "path": "runtime-check.w",
+      "digest": "sha256:c1647665f074e30c0b8e9d74e95ac78240e5e11d5252f47b5a14ed3fa0971e89",
+      "changedConstructs": [
+        "unrefined String alias",
+        "runtime guard in the construction function",
+        "no declaration-site proof for literals"
+      ]
+    }
+  ],
+  "entry": "acceptTitle",
+  "inputs": [
+    {
+      "id": "ordinary-title",
+      "value": "Milliways",
+      "expected": { "status": "accepted", "value": "Milliways", "scalarCount": 9 }
+    },
+    {
+      "id": "astral-scalar-title",
+      "value": "🌌 End",
+      "expected": { "status": "accepted", "value": "🌌 End", "scalarCount": 5 }
+    },
+    {
+      "id": "above-bound",
+      "value": "12345678901234567890123456789012345678901",
+      "expected": { "status": "rejected", "error": "outsideBounds", "scalarCount": 41 }
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "explain",
+      "instruction": "Identify the candidate value, the scalar-count proof, the lexical scope of value, and the validation point."
+    },
+    {
+      "kind": "recall",
+      "instruction": "After the controlled delay, reconstruct the title contract and its base-to-refined conversion.",
+      "minimumDelaySeconds": 60
+    },
+    {
+      "kind": "repair",
+      "instruction": "Repair the prepared defect that changes scalars to the nonexistent scalar collection.",
+      "mutations": {
+        "contextual": "Replace `.scalars.count` with `.scalar.count`.",
+        "explicit": "Replace `value.scalars.count` with `value.scalar.count`.",
+        "runtime-check": "Replace `input.scalars.count` with `input.scalar.count`."
+      }
+    },
+    {
+      "kind": "change",
+      "instruction": "Add a nonempty lower bound while preserving literal proof, error timing, and the same accepted title value."
+    }
+  ],
+  "presentationOrders": [
+    ["contextual", "explicit", "runtime-check"],
+    ["explicit", "runtime-check", "contextual"],
+    ["runtime-check", "contextual", "explicit"]
+  ],
+  "blinding": {
+    "participantLabels": { "contextual": "A", "explicit": "B", "runtime-check": "C" },
+    "hide": ["id", "role", "path", "changedConstructs"]
+  },
+  "oracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:e6d6a59024dbf5a3035755e902fe88644453cf020bdaabc90cafbf8005019eb8"
+  },
+  "evidence": {
+    "current": ["tree-sitter-parse", "host-oracle"],
+    "missing": ["w-compile", "w-run", "human-study", "model-study"]
+  }
+}
