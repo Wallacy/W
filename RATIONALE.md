@@ -993,6 +993,18 @@ libdill e libmill são referências de runtime para coroutines e channels
 ([libdill](https://sustrik.github.io/libdill/),
 [libmill](https://libmill.org/)). Nenhum deles define W ou é uma dependency.
 
+O gate W-1170 compara estrutura, placement, ordering, ownership, admission,
+cancellation e lowering. Ele passa somente quando `async let` preserva
+lifetime, um domain serial preserva FIFO, uma barrier preserva ticket subtrees
+e um domain paralelo só produz overlap quando seu profile permite. Lowerings
+diferentes precisam preservar outcome, cleanup e trace.
+
+W só pode alegar que “resolveu concorrência e paralelismo” depois que compiler,
+runtime e adapters reais passarem E0/E1, MX0 preservar owner graph e drop nos
+mesmos schedules e as matrizes de profiles/providers cobrirem os targets
+prometidos. Antes disso, a descrição correta é “contrato definido;
+implementação missing”.
+
 #### 1.4.2 Domains seriais e barreiras
 
 GCD demonstra dois contratos úteis. Uma queue serial preserva ordem sem exigir
@@ -2004,6 +2016,23 @@ CH0 não executa W e não prova scheduler ou provider. O perfil de implementaç�
 ainda precisa repetir os casos com uma, duas e quatro worker threads, TSan, leak
 sanitizer e allocation fault injection. `Stream.cancel`, tee e adapters bounded
 continuam nos ensaios próprios de stream, sem alterar a semântica de channel.
+
+#### I/O assíncrono
+
+O oracle do restaurante precisa inverter:
+
+- vazio, EOF depois de data e partições de 1 a 4096 bytes;
+- short read e short write em cada posição;
+- error antes e depois de progress;
+- cancellation antes de submit, durante espera e depois de completion;
+- destination sem mutation quando cancellation vence;
+- buffer vivo até cancel drain;
+- reads posicionais fora de ordem e cursor sequencial sem offset perdido;
+- backends blocking, readiness e completion com o mesmo resultado;
+- gather vazio, acima do limite nativo e partial dentro ou entre segments;
+- fallback, `writev` e `WSASend` com o mesmo byte stream;
+- `Stream<view Bytes>` sem allocation depois da reserva;
+- limits antes de growth, leak sanitizer, TSan e fault injection.
 
 #### Cobertura executável
 
