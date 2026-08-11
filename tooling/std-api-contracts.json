@@ -680,6 +680,27 @@
       "bounds": ["never-block", "no-waiter-bypass", "never-suspend-closure"],
       "complexity": { "time": "constant-plus-operation-when-acquired", "space": "constant-metadata" }
     },
+    "scoped-read-write-carrier": {
+      "capabilities": ["sync-provider"],
+      "effects": ["allocation", "synchronization"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["fault-boundary", "structured-lifetime", "waiter-budget", "phase-fair-admission"],
+      "complexity": { "time": "constant-metadata", "space": "payload-plus-bounded-waiters" }
+    },
+    "scoped-read-write-sync": {
+      "capabilities": ["sync-provider", "blocking-domain"],
+      "effects": ["blocking", "synchronization"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-suspend-closure", "phase-fair-admission", "structured-protected-loan"],
+      "complexity": { "time": "contention-plus-operation", "space": "constant-metadata" }
+    },
+    "scoped-read-write-try": {
+      "capabilities": ["sync-provider"],
+      "effects": ["synchronization"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-block", "no-waiter-bypass", "reader-phase-join", "never-suspend-closure"],
+      "complexity": { "time": "constant-plus-operation-when-acquired", "space": "constant-metadata" }
+    },
     "snapshot-cell-carrier": {
       "capabilities": ["snapshot-cell-provider"],
       "effects": ["allocation", "synchronization", "deferred-drop"],
@@ -1132,6 +1153,7 @@
           "scoped-loan-no-escape",
           "never-suspend-protected-operation",
           "fifo-lock-admission",
+          "phase-fair-read-write-admission",
           "async-cancellation-drain",
           "fault-boundary-isolation",
           "version-linearization",
@@ -1144,7 +1166,7 @@
       },
       "consumer": {
         "path": "reference/last-light/synchronization.w",
-        "symbols": ["Mutex", "AsyncMutex", "LockAttempt", "SnapshotCell", "PublishedMenu", "HorizonMenuPublication"]
+        "symbols": ["Mutex", "AsyncMutex", "ReadWriteLock", "LockAttempt", "SnapshotCell", "PublishedMenu", "HorizonMenuPublication", "ReadMostlyApologyLedger"]
       },
       "apis": [
         { "symbol": "LockAttempt", "kind": "enum", "profile": "value-contract" },
@@ -1166,6 +1188,18 @@
             { "symbol": "init", "profile": "scoped-lock-carrier" },
             { "symbol": "withLock", "overloads": 2, "profile": "scoped-lock-async" },
             { "symbol": "tryWithLock", "overloads": 2, "profile": "scoped-lock-try" }
+          ]
+        },
+        {
+          "symbol": "ReadWriteLock",
+          "kind": "struct",
+          "profile": "scoped-read-write-carrier",
+          "members": [
+            { "symbol": "init", "profile": "scoped-read-write-carrier" },
+            { "symbol": "read", "profile": "scoped-read-write-sync" },
+            { "symbol": "write", "profile": "scoped-read-write-sync" },
+            { "symbol": "tryRead", "profile": "scoped-read-write-try" },
+            { "symbol": "tryWrite", "profile": "scoped-read-write-try" }
           ]
         },
         {
@@ -2450,6 +2484,15 @@
       "kind": "symbol",
       "consumer": "reference/last-light/synchronization.w",
       "profile": "scoped-lock-carrier",
+      "status": "draft"
+    },
+    {
+      "id": "lm0-read-write-lock",
+      "module": "std.sync",
+      "surface": "ReadWriteLock",
+      "kind": "symbol",
+      "consumer": "reference/last-light/synchronization.w",
+      "profile": "scoped-read-write-carrier",
       "status": "draft"
     },
     {

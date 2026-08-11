@@ -1,7 +1,13 @@
 // Atomic publication and scoped locks at the Last Light restaurant.
 
 import atomic from std
-import { AsyncMutex, LockAttempt, Mutex, SnapshotCell } from std.sync
+import {
+  AsyncMutex,
+  LockAttempt,
+  Mutex,
+  ReadWriteLock,
+  SnapshotCell,
+} from std.sync
 
 export enum SignState {
   dark
@@ -152,6 +158,36 @@ export object TaskApologyLedger {
   }
 }
 
+export object ReadMostlyApologyLedger {
+  state: ReadWriteLock<ApologyLedgerState>
+
+  export init() {
+    self.state = ReadWriteLock(ApologyLedgerState(revision: 0, messages: []))
+  }
+
+  fn record(message: take String): u64 {
+    return state.write((ledger: inout ApologyLedgerState) => {
+      ledger.messages.append(take message)
+      ledger.revision += 1
+      return ledger.revision
+    })
+  }
+
+  fn revision(): u64 {
+    return state.read((ledger: ref ApologyLedgerState) => ledger.revision)
+  }
+
+  fn snapshot(): ApologyLedgerState {
+    return state.read((ledger: ref ApologyLedgerState) => copy ledger)
+  }
+
+  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
+    return state.tryRead(
+      (ledger: ref ApologyLedgerState) => copy ledger,
+    )
+  }
+}
+
 export struct PublishedMenu: Duplicable {
   revision: u64
   courses: Array<String>
@@ -234,6 +270,20 @@ test "a published menu exposes one complete revision" {
   expect snapshot.courses.count == 2
 }
 
+test "a read mostly ledger keeps reads scoped and writes exclusive" {
+  let ledger = ReadMostlyApologyLedger()
+  expect ledger.record("Sorry for the final delay") == 1
+  expect ledger.revision() == 1
+
+  let snapshot = ledger.snapshot()
+  expect snapshot.messages == ["Sorry for the final delay"]
+
+  expect switch ledger.trySnapshot() {
+    case .acquired(let value): value.revision == 1
+    case .busy: false
+  }
+}
+
 // Compile-fail assays:
 // state.load<.release>()                  // LoadOrder rejects release.
 // state.store<.acquire>(.closed)          // StoreOrder rejects acquire.
@@ -244,7 +294,10 @@ test "a published menu exposes one complete revision" {
 // state.withLock((value: ref State) => ref value)
 // state.withLock((value: ref State) => state.withLock(inspect))
 // copy state
-// ReadWriteLock(ApologyLedgerState(revision: 0, messages: [])) // Pesquisa.
+// state.read((value: ref State) => await suspend(value))
+// state.read((value: ref State) => ref value)
+// state.read((value: ref State) => state.write(update))
+// state.write((value: inout State) => state.read(inspect))
 // snapshots.read((menu: ref PublishedMenu) => await inspect(menu))
 // snapshots.read((menu: ref PublishedMenu) => ref menu)
 // snapshots.publish(ref nextMenu)

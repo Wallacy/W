@@ -369,14 +369,167 @@
       "expect": { "status": "rejected", "error": "W-LOCK-0010" }
     },
     {
-      "id": "LM0-rejected-read-write-lock-safe-surface",
-      "kind": "rejected",
-      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ReadWriteLock" },
-      "decisions": ["W-1183", "W-1184", "W-1189"],
+      "id": "LM0-accepted-read-write-reader-phases",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ReadMostlyApologyLedger" },
+      "decisions": ["W-1189", "W-1190", "W-1191", "W-1192"],
       "operations": [
-        { "op": "unsupported", "primitive": "ReadWriteLock" }
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "reader-a", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "reader-b", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "late-reader", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grantPhase", "lock": "ledger", "tasks": ["reader-a", "reader-b"] },
+        { "op": "read", "lock": "ledger", "task": "reader-a" },
+        { "op": "read", "lock": "ledger", "task": "reader-b" },
+        { "op": "finish", "lock": "ledger", "task": "reader-b", "outcome": "success" },
+        { "op": "finish", "lock": "ledger", "task": "reader-a", "outcome": "success" },
+        { "op": "grantPhase", "lock": "ledger", "task": "writer" },
+        { "op": "write", "lock": "ledger", "task": "writer", "value": 1 },
+        { "op": "finish", "lock": "ledger", "task": "writer", "outcome": "success" },
+        { "op": "grantPhase", "lock": "ledger", "tasks": ["late-reader"] },
+        { "op": "read", "lock": "ledger", "task": "late-reader" },
+        { "op": "finish", "lock": "ledger", "task": "late-reader", "outcome": "success" }
       ],
-      "expect": { "status": "rejected", "error": "W-SYNC-0001" }
+      "expect": {
+        "status": "accepted",
+        "value": 1,
+        "reads": [0, 0, 1],
+        "readers": [],
+        "queue": [],
+        "closedPhases": [
+          { "phase": 0, "access": "read", "tickets": [0, 1] },
+          { "phase": 1, "access": "write", "tickets": [2] },
+          { "phase": 2, "access": "read", "tickets": [3] }
+        ]
+      }
+    },
+    {
+      "id": "LM0-accepted-read-write-try-joins-readers",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "tryRead" },
+      "decisions": ["W-1189", "W-1190"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 7, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader-a", "access": "ref", "boundary": "restaurant" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader-b", "access": "ref", "boundary": "restaurant" },
+        { "op": "read", "lock": "ledger", "task": "reader-a" },
+        { "op": "read", "lock": "ledger", "task": "reader-b" },
+        { "op": "finish", "lock": "ledger", "task": "reader-a", "outcome": "success" },
+        { "op": "finish", "lock": "ledger", "task": "reader-b", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "tryResults": ["acquired", "acquired"], "reads": [7, 7], "readers": [] }
+    },
+    {
+      "id": "LM0-accepted-read-write-writer-blocks-late-reader",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "tryWrite" },
+      "decisions": ["W-1190"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "late-reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "finish", "lock": "ledger", "task": "reader", "outcome": "success" },
+        { "op": "grantPhase", "lock": "ledger", "task": "writer" },
+        { "op": "finish", "lock": "ledger", "task": "writer", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "tryResults": ["acquired", "busy"], "queue": [] }
+    },
+    {
+      "id": "LM0-accepted-read-write-blocking-reader-joins-phase",
+      "kind": "accepted",
+      "source": { "path": "std/sync/contracts.w", "symbol": "stdReadWriteLockRead" },
+      "decisions": ["W-1190", "W-1192"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 5, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader-a", "access": "ref", "boundary": "restaurant" },
+        { "op": "request", "lock": "ledger", "task": "reader-b", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grantPhase", "lock": "ledger", "tasks": ["reader-b"] },
+        { "op": "read", "lock": "ledger", "task": "reader-a" },
+        { "op": "read", "lock": "ledger", "task": "reader-b" },
+        { "op": "finish", "lock": "ledger", "task": "reader-a", "outcome": "success" },
+        { "op": "finish", "lock": "ledger", "task": "reader-b", "outcome": "success" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "reads": [5, 5],
+        "closedPhases": [{ "phase": 0, "access": "read", "tickets": [0, 1] }]
+      }
+    },
+    {
+      "id": "LM0-accepted-read-write-error-releases-writer",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "state.write" },
+      "decisions": ["W-1189", "W-1191"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 4, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant" },
+        { "op": "finish", "lock": "ledger", "task": "writer", "outcome": "error" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "read", "lock": "ledger", "task": "reader" },
+        { "op": "finish", "lock": "ledger", "task": "reader", "outcome": "success" }
+      ],
+      "expect": { "status": "accepted", "reads": [4], "outcomes": ["error", "success"] }
+    },
+    {
+      "id": "LM0-accepted-select-read-write-lock",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ReadWriteLock" },
+      "decisions": ["W-1183", "W-1189"],
+      "operations": [
+        { "op": "select", "facts": { "parallelReads": true, "exclusiveWrite": true, "synchronousContext": true } }
+      ],
+      "expect": { "status": "accepted", "selections": ["read-write-lock"] }
+    },
+    {
+      "id": "LM0-rejected-read-write-on-nonblocking-domain",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "ReadWriteLock<Value>" },
+      "decisions": ["W-1189", "W-1191"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "cooperative", "access": "ref", "boundary": "restaurant", "blockingAllowed": false }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0003" }
+    },
+    {
+      "id": "LM0-rejected-read-write-reader-bypasses-writer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "state.read" },
+      "decisions": ["W-1190", "W-1192"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "request", "lock": "ledger", "task": "reader-a", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "writer", "access": "inout", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "request", "lock": "ledger", "task": "reader-b", "access": "ref", "boundary": "restaurant", "blockingAllowed": true },
+        { "op": "grantPhase", "lock": "ledger", "tasks": ["reader-a", "reader-b"] }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0009" }
+    },
+    {
+      "id": "LM0-rejected-read-write-reentry",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "state.write(update)" },
+      "decisions": ["W-1189", "W-1190"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "inout", "boundary": "restaurant" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0004" }
+    },
+    {
+      "id": "LM0-rejected-read-write-drop-before-readers-drain",
+      "kind": "rejected",
+      "source": { "path": "std/sync/contracts.w", "symbol": "stdReadWriteLockDrop" },
+      "decisions": ["W-1191"],
+      "operations": [
+        { "op": "create", "lock": "ledger", "kind": "read-write", "boundary": "restaurant", "value": 0, "owned": true, "transferable": true, "lifetimeIndependent": true },
+        { "op": "tryAcquire", "lock": "ledger", "task": "reader", "access": "ref", "boundary": "restaurant" },
+        { "op": "drop", "lock": "ledger" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LOCK-0008" }
     },
     {
       "id": "LM0-rejected-condition-safe-surface",
