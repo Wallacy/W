@@ -124,7 +124,7 @@ spawn<.compute> let plan = optimize(take snapshot)
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
 | criar owners múltiplos reais | `let x: shared T = value`, `share(value)`, `try share(..., using:)` e `copy handle` | a declaração ou a operação mostra allocation; cada retain continua explícito |
 | observar owner sem mantê-lo vivo | `weak` e `upgrade()` | acesso exige adquirir owner forte opcional |
-| suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
+| suspender a task atual | `await` | mesma task, sem child; a retomada pode usar outro job |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
 | executar kernel | as mesmas quatro formas + `accelerator.Launch` | Queue e transfer explícitas; owner, cancel e join não mudam |
@@ -137,9 +137,9 @@ spawn<.compute> let plan = optimize(take snapshot)
 O source escolhe ownership, suspensão e placement lógico. O compiler escolhe
 register, stack, frame, heap, coroutine lowering, pool e estratégia de
 reclamation. Ele não insere `copy`, `share`, retain, child, thread ou lock para
-reparar um programa. `async` na declaration fixa uma recomendação de interface;
-a HIR também infere suspensão. Uma closure escapante escolhe `take`, `copy` ou
-`weak`; W não cria retain oculto para reparar lifetime.
+reparar um programa. `async` na declaration fixa o contrato público
+`maySuspend`; a HIR também infere suspensão. Uma closure escapante escolhe
+`take`, `copy` ou `weak`; W não cria retain oculto para reparar lifetime.
 
 [A seção 9](#9-memória-layout-e-alocação) define owner, loans, storage e
 reclamation. [A seção 12](#12-concorrência-paralelismo-e-execução) define
@@ -12856,7 +12856,7 @@ preserva await, mobility, quotas, ordering, cancellation, errors e tracing.
 Uma capability remota é um handle tipado. Ela não é uma URL livre. Importar a
 interface não cria o handle.
 
-**Direção:** dependent calls usam a expressão `pipeline { ... }`
+**Forma vigente:** dependent calls usam a expressão `pipeline { ... }`
 para reduzir round trips. O `try await` externo mantém suspensão e falha
 visíveis. O pipeline preserva capability lifetime, quotas, cancellation,
 failure e outcome incerto. Ele não muda `ServiceRef` para uma Promise lazy. A
@@ -13251,6 +13251,10 @@ memória indefinidamente.
 
 #### 13.7.5 Falha, restart e shutdown
 
+**Exemplo:** se o grace period expira com um root ainda ativo, o supervisor
+registra boundary failure e termina a fault boundary; ele não publica
+`.canceled` nem afirma que o cleanup de usuário terminou.
+
 Um error `E` conclui o trabalho com `.error(E)`. Cancellation conclui com
 `.canceled`. Panic ou perda da fault boundary produz `.boundary(...)` quando o
 supervisor sobrevive para registrar o evento.
@@ -13271,13 +13275,8 @@ Exceder o limite produz `restartLimit`. O supervisor não reinicia para sempre.
 Essa regra segue o objetivo de evitar restart loops das supervision trees de
 Erlang/OTP.
 
-Shutdown usa a sequência refinada de
-[12.12.1](#12121-runtime-closure-e-liveness):
-
-```text
-ready → admissionClosed → cancellationRequested → draining → quiescent → stopped
-                                                     ╰─ graceExpired → terminating → terminated
-```
+Shutdown usa, sem redefinir, a sequência de
+[12.12.1](#12121-runtime-closure-e-liveness).
 
 `graceExpired` não produz `.canceled`: a terminação forçada é uma falha da fault
 boundary. W não promete user cleanup de frames interrompidos; o host executa seu
@@ -14218,7 +14217,7 @@ state reentrant.
 
 #### 13.9.2 Output gate e commit dependencies
 
-**Direção:** um adapter durável pode registrar commit dependencies no turn
+**Forma vigente:** um adapter durável pode registrar commit dependencies no turn
 atual. Uma saída observável aguarda todas as dependencies anteriores das quais
 ela depende.
 
@@ -14899,12 +14898,12 @@ Os halves atendem a `ByteSource<NetworkError>` e
 oferece `take async fn finish()` para half-close. A conexão não dividida oferece
 `take async fn finishWriting()` e devolve o read half depois de enviar FIN.
 
-TCP não preserva messages. UDP é uma boundary concreta de SDK0 e devolve
+TCP não preserva messages. UDP é uma boundary concreta da baseline e devolve
 `Datagram { bytes, peer, truncated }`. Uma interface genérica de datagram fica
 para uma decisão futura. TLS e HTTP são adapters específicos sobre byte contracts;
 handshake, record close e protocol errors não desaparecem dentro de `read`.
 
-#### 14.2.7.1 Rede SDK0 e o carrier `std.net`
+#### 14.2.7.1 Rede baseline e o carrier `std.net`
 
 **Exemplo:** um server recebe a capability do host e abre um listener bounded.
 
@@ -15329,9 +15328,9 @@ ambiental.
 
 | Família WinterTC 2025 | Contrato W | Estado de design |
 |---|---|---|
-| Fetch | `fetch`, `Request`, `Response`, `Headers` | núcleo SDK0 fechado em 14.3.1–14.3.3; `BodySource` usa seis cases, inclusive Blob e FormData; readiness deriva dos requisitos e carriers catalogados |
-| URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra no SDK0 |
-| Streams | readable, writable, transform, BYOB e queuing strategies | `ReadableStream` e BYOB têm draft em 14.3.4; provider executável ausente; writable, transform e strategies continuam sem interface SDK0 |
+| Fetch | `fetch`, `Request`, `Response`, `Headers` | núcleo baseline fechado em 14.3.1–14.3.3; `BodySource` usa seis cases, inclusive Blob e FormData; readiness deriva dos requisitos e carriers catalogados |
+| URL | `URL`, `URLSearchParams` | draft interface fechada; provider executável ausente; `URLPattern` não entra na baseline |
+| Streams | readable, writable, transform, BYOB e queuing strategies | `ReadableStream` e BYOB têm draft em 14.3.4; provider executável ausente; writable, transform e strategies continuam sem interface baseline |
 | cancellation e events | `AbortController`, `AbortSignal`, `Event`, `EventTarget` | `std.abort` tem draft em 14.3.5; events gerais continuam pesquisa |
 | encoding e compression | text encoders/decoders e compression streams | alvo domain; algorithms e error policy precisam de catálogo |
 | binary e files | `Blob` e `File` | `std.blob.Blob` é um value imutável; File e filesystem authority continuam pesquisa |
@@ -15352,7 +15351,7 @@ As fontes comparativas ficam em
 
 #### 14.3.1 Mensagem HTTP e ownership
 
-**Direção:** SDK0 fecha um único provider intrinsic versionado,
+**Direção:** a baseline fecha um único provider intrinsic versionado,
 `std.http@1`, para mensagens, bodies, `Context` e o host server. A interface W
 fica em draft. O provider continua `missing` até passar os gates de Fetch,
 Streams, WPT, WinterTC/WinterCG, workerd, ownership, admission, sanitizers e
@@ -15368,7 +15367,7 @@ privados. Eles não atendem `Copy` ou `Duplicable`. `Drop` libera cada handle um
 vez. Cada operação consuming torna o handle inerte antes de suspender ou
 propagar um outcome.
 
-O body SDK0 é o sum type público `BodySource` com estes cases:
+O body da baseline é o sum type público `BodySource` com estes cases:
 
 ```text
 string(String)
@@ -15424,22 +15423,9 @@ source são ignorados ou rejeitados conforme o guard do adapter. Um stream de
 Response pode sobreviver ao frame somente como owner runtime-owned. Falha após
 commit trunca a mensagem e registra trace. Ela não troca a resposta.
 
-`http.Context` é struct nominal move-only, process-local e sem initializer
-público. Ele termina com o request root. O draft publica `random`, `databases`,
-`caches`, `templates` e `signal` por properties computed lazy. Cada acesso pede
-ao provider um wrapper owner retido de forma independente; o wrapper temporário
-vive até o fim da full expression e seu drop libera somente esse handle. Um
-wrapper explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao
-`request root`. `signal` devolve um `AbortSignal` owner/duplicado com a mesma
-regra.
-`databases.get(const database.Binding)`, `caches.get(const
-cache.LocalBinding<K,V>)` e template access usam identity const. Os `get` são
-infallible e devolvem `some` protocol owner; falta de binding, capability ou
-versão rejeita link/startup antes do handler, nunca runtime `missingBinding`,
-`unavailable` ou `unsupported`. Operation failures continuam nos recursos.
-Lookup não faz rede. O linker deriva a authority somente quando o member é
-alcançado. Context aceita shared borrow somente nos children estruturados do
-request root e não cruza service, wire, storage ou FFI.
+`http.Context` fornece as capabilities request-scoped do host. Seu tipo,
+lifetime, bindings e regras de authority pertencem à seção 14.3.3; a forma
+genérica dos contexts nominais fornecidos pelo host pertence à seção 14.5.1.
 
 `serve<Failure: Error>(at:, using:, limits:, handler:) async throws ServerError`
 usa o menor envelope entre product e call. Admission ocorre antes de criar
@@ -15862,7 +15848,8 @@ A compatibilidade fica explícita:
 | `forEach` e `Symbol.iterator` | `notApplicable` | W usa `for` sobre snapshot; não possui o protocol de object ECMAScript |
 | base URL de document e conversão USVString dinâmica | `notApplicable` | não existem ambiente Web global, `ToString` ou lone surrogate |
 
-`URLPattern` não entra em `std.url` SDK0 e não recebe claim de compatibilidade.
+`URLPattern` não entra na baseline de `std.url` e não recebe claim de
+compatibilidade.
 Pattern matching exige outro contrato e corpus; não é necessário para Fetch.
 W também não cria `query`, `QueryParameters`, aliases HTTP ou setters paralelos.
 
@@ -15969,10 +15956,10 @@ oracle valida o design; ele não executa W nem implementa o codec multipart.
 
 `BodySource` é o sum type público de body. Ele não é um object apagado:
 
-| Input | Ownership | Media type automático | Estado SDK0 |
+| Input | Ownership | Media type automático | Estado da interface |
 |---|---|---|---|
-| `String` | move; UTF-8 | `text/plain;charset=UTF-8` | SDK0 draft |
-| `Bytes` | move; sem cópia obrigatória | nenhum | SDK0 draft |
+| `String` | move; UTF-8 | `text/plain;charset=UTF-8` | draft |
+| `Bytes` | move; sem cópia obrigatória | nenhum | draft |
 | `URLSearchParams` | move | form URL encoded UTF-8 | draft em `std.url` |
 | `Blob` | move; backing imutável retido | `Blob.type` quando não vazio | draft em `std.blob` |
 | `FormData` | move | multipart + boundary controlada pelo host | draft em `std.http` |
@@ -16352,7 +16339,7 @@ Status 204, 205 e 304 rejeita qualquer body com
 `application/json` somente quando `headers` ainda não possui esse nome. O
 constructor não consome o modelo; o body JSON resultante usa `Response(Bytes)`.
 
-`Response.redirect` não entra no SDK0. Redirect handling continua uma policy do
+`Response.redirect` não entra na baseline. Redirect handling continua uma policy do
 provider Fetch e precisa de outro bundle antes de expor constructor W.
 
 O [Fetch Standard para Response](https://fetch.spec.whatwg.org/#response-class)
@@ -16643,6 +16630,19 @@ request root. Wrappers owners retornados pelas properties podem ser usados
 concurrentemente conforme o contrato de cada provider. O draft não introduz
 `Send` ou `Sync`.
 
+`DatabaseRegistry.get(const database.Binding)` devolve
+`some database.Database`. `CacheRegistry.get(const
+cache.LocalBinding<K,V>)` devolve `some cache.LocalCache<K,V>`. O template
+registry usa `const http.TemplateBinding`, que fixa `TemplateLimits` e
+`version` junto de `name`. Esses `get` são infallible: binding, capability ou
+versão ausente rejeita link ou startup antes do handler. Operation failures
+continuam nos resources.
+
+`Template` é uma extension provisória do host, não semântica HTTP ou Web. Seu
+`render<Value: json.Encodable>(ref Array<Value>)` aplica os limits do binding,
+incluindo `maximumOutputBytes` e `maximumValues`. Excesso devolve
+`TemplateError.limitExceeded(kind, maximum)`.
+
 #### 14.3.4 ReadableStream, BYOB e backpressure
 
 **Forma vigente:** `std.stream.ReadableStream<Item, Failure>` é o carrier
@@ -16650,7 +16650,7 @@ portátil readable do profile Web. Ele é um `struct` move-only que atende
 diretamente a `Stream<Item, Failure>` da seção 12.9. Não existe uma segunda
 interface de iteração, cursor ou runtime de streaming.
 
-A superfície SDK0 é:
+A superfície baseline é:
 
 ```text
 ReadableStream<Item, Failure>.from(take some Stream<Item, Failure>)
@@ -16663,15 +16663,18 @@ ReadableStream<Bytes, Failure>.from(
 mut async next() -> Item? throws Failure
 take async cancel() -> () throws Failure
 
-take tee(items maximumBufferedItems: usize<(1...)>)
-  -> (ReadableStream<Item, Failure>, ReadableStream<Item, Failure>)
-  throws ReadableStreamUseError
-  where Item: Duplicable, Failure: Duplicable
+extension<Item: Duplicable, Failure: Error & Duplicable>
+  ReadableStream<Item, Failure> {
+  export take fn tee(items maximumBufferedItems: usize<(1...)>)
+    -> (ReadableStream<Item, Failure>, ReadableStream<Item, Failure>)
+    throws ReadableStreamUseError
+}
 
-take tee(bytes maximumBufferedBytes: usize<(1...)>)
-  -> (ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>)
-  throws ReadableStreamUseError
-  where Failure: Duplicable
+extension<Failure: Error & Duplicable> ReadableStream<Bytes, Failure> {
+  export take fn tee(bytes maximumBufferedBytes: usize<(1...)>)
+    -> (ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>)
+    throws ReadableStreamUseError
+}
 ```
 
 O primeiro `from` guarda o source concreto no provider privado, sem iniciar um
@@ -16771,7 +16774,7 @@ adapter. `lowWaterMark` pode controlar wake-up, mas não aumenta o limite. Para
 bytes, `capacity * chunkBytes` fornece um limite exato quando ambos são
 refinements positivos. Não existem `CountQueuingStrategy`,
 `ByteLengthQueuingStrategy`, controller público ou high-water mark oculto no
-constructor SDK0.
+constructor baseline.
 
 `tee(items:)` consome o source e devolve dois owners. Ele existe
 somente quando `Item` e `Failure` atendem a `Duplicable`, porque cada branch deve
@@ -16782,7 +16785,7 @@ itens à frente. Ao alcançar o limite, ela aguarda a branch lenta. O provider
 mantém FIFO, um único pull upstream e fairness sem starvation quando ambas
 progridem.
 
-Esse overload permanece no SDK0 porque o limite estrutural em itens é útil e
+Esse overload permanece na baseline porque o limite estrutural em itens é útil e
 testável para values de tamanho conhecido pelo domínio. Ele não promete um
 limite de memória derivado de `maximumBufferedItems`. Cada item pode possuir um
 grafo arbitrariamente grande. O pico inclui as duplicatas, o item upstream, as
@@ -16878,7 +16881,7 @@ seu backing não é observável por identity e nenhuma detach atravessa a call.
 
 ##### Pipe e transform
 
-`WritableStream` e `TransformStream` ainda não entram no SDK0. Por isso,
+`WritableStream` e `TransformStream` ainda não entram na baseline. Por isso,
 `pipeTo` e `pipeThrough` não são members atuais de `ReadableStream`. A direção
 reservada é consuming e estruturada:
 
@@ -16983,7 +16986,7 @@ A compatibilidade é explícita:
 | `cancel(reason)` | `adapted` | call consuming sem payload `any`; Failure não restaura owner; task cancellation continua separada |
 | `tee()` | `adapted` | exige `Duplicable`; limita lag por item ou exatamente por byte; item count não promete memória bounded |
 | BYOB reader e controller | `adapted` | `ByteSource.read(appendTo:maximum:)` usa `Bytes` growable do caller, sem fixed-buffer identity ou detach |
-| underlying-source callbacks e queuing strategies | `notApplicable` no SDK0 | source nominal, `Stream.buffer` e `Channel` substituem object callbacks |
+| underlying-source callbacks e queuing strategies | `notApplicable` na baseline | source nominal, `Stream.buffer` e `Channel` substituem object callbacks |
 | `pipeTo` e `pipeThrough` | ausente; direção fechada | aguardam carriers writable/transform e errors tipados |
 | `WritableStream` e `TransformStream` | ausente | este bundle não alega compatibilidade dessas superfícies |
 
@@ -17010,7 +17013,7 @@ dependentes para Request e clone, testa o estado já abortado e registra passos
 de aborto. W preserva esses fatos. W não importa `EventTarget`, callbacks
 dinâmicos, object identity ou um motivo `any`.
 
-A superfície SDK0 é:
+A superfície baseline é:
 
 ```text
 AbortSourceLimit = usize<(1...1_024)>
@@ -17212,7 +17215,7 @@ e
 [`request-signal-enabled.js`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/tests/request-signal-enabled.js).
 
 `AbortSignal` não atende a `WireValue` e seu handle nunca entra em payload
-remoto. O SDK0 não aceita AbortSignal como argumento remoto geral. A automatic
+remoto. A baseline não aceita AbortSignal como argumento remoto geral. A automatic
 call cancellation da seção 23 cobre a lifetime estruturada comum. O protocol
 especial de transferência de Request cria um signal local dependente no
 receiver e usa frames de cancellation ou reset do transport. O envelope de
@@ -17237,8 +17240,8 @@ A classificação do profile é:
 | `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task.withTimeout(0)` e torna o caso determinístico |
 | `AbortSignal.any` | `adapted` | nome Web preservado; argumentos diretos e folhas pending únicas usam o mesmo fan-in explícito por result |
 | `throwIfAborted` | `adapted` | lança somente o enum fechado e tipado `AbortReason` |
-| `EventTarget`, `onabort`, `addEventListener` | `notApplicable` no SDK0 | `wait` fornece observação one-shot bounded; events gerais permanecem separados |
-| serialização geral do signal | `notApplicable` | handle não é `WireValue`; automatic call cancellation e Request control frames cobrem o SDK0 |
+| `EventTarget`, `onabort`, `addEventListener` | `notApplicable` na baseline | `wait` fornece observação one-shot bounded; events gerais permanecem separados |
+| serialização geral do signal | `notApplicable` | handle não é `WireValue`; automatic call cancellation e Request control frames cobrem a baseline |
 | `globalThis` e `[SameObject]` | `notApplicable` | import de `std.abort`, values e estado compartilhado preservam o contrato útil |
 
 O snapshot 2025 do
@@ -18085,7 +18088,7 @@ O produto de referência liga CSV, Parquet, Arrow IPC e C trusted ao mesmo schem
 e resultado. Fontes de formato, casos adversariais e limites do estudo ficam em
 [`RATIONALE.md` §1.3.15](RATIONALE.md#1315-adapters-tabulares-tab1).
 
-### 14.5 Catálogo verificável SDK0
+### 14.5 Catálogo verificável da std
 
 **Exemplo:** o build transform recebe `build.Context`. A declaration existe,
 mas o provider `std.build@1` continua **missing**.
@@ -18118,7 +18121,7 @@ eles não criam um segundo grafo de readiness.
 Oito requisitos de carrier tornam o bloqueio verificável. Todos possuem
 interface draft. Os providers executáveis permanecem separados:
 
-| Carrier | Provider SDK0 | Interface | Provider executável |
+| Carrier | Módulo std | Interface | Provider executável |
 |---|---|---|---|
 | `URL` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
 | `URLSearchParams` | `std.url` | obrigatório; draft | `std.url-record@1`; missing |
@@ -18189,103 +18192,11 @@ oculta somente dentro da std e dos shims. Source comum recebe contexts nominais
 explícitos. LTO pode substituir um method por call direta quando provider e
 target estão fechados.
 
-`build.Context` é a instância de `w.host/build-transform@1`. Seu provider único
-`std.build@1` permanece **missing**. O host entrega o owner no entry e o tipo
-não possui initializer público. A interface expõe somente overloads explícitos
-para `Input<String>`, `Input<Bytes>`, `Output<String>` e `Output<Bytes>`:
-
-```w
-async fn read(
-  string input: const Input<String>,
-  maximumBytes limit: usize<(1...)>,
-): String throws build.Error
-
-async fn read(
-  bytes input: const Input<Bytes>,
-  maximumBytes limit: usize<(1...)>,
-): Bytes throws build.Error
-
-async fn write(
-  string output: const Output<String>,
-  value content: take String,
-): () throws build.Error
-
-async fn write(
-  bytes output: const Output<Bytes>,
-  value content: take Bytes,
-): () throws build.Error
-```
-
-`Input` e `Output` são descriptors const phantom-typed. O nome possui de 1 a
-64 caracteres ASCII lowercase, digits e `-`, com letra no primeiro caractere.
-O compiler verifica binding, tipo e budget antes de iniciar o tool. Qualquer
-ceiling de `std.build@1` menor que o limite da call ou da action fica fixado no
-host profile ou toolchain plan e entra na action recipe key. O preflight rejeita
-incompatibilidade antes do tool. Nenhum limite ambiental oculto pode mudar a
-mesma recipe entre executores. Input e output compartilham o namespace da
-action. Depois do preflight, vale o menor bound declarado aplicável. Não existe
-lookup por String runtime.
-
-`read` recebe shared borrow de `Context`, devolve owner novo e pode executar em
-paralelo com outro read. `write` também recebe shared borrow, consome o value em
-success, `build.Error` e cancellation, e prepara somente um candidato em
-staging privado. Writes para bindings distintos podem coexistir. Borrows async
-terminam ou passam por cancellation drain antes de Safe W alcançar `deinit`.
-`deinit` é síncrono. Ele não espera nem drena. O drop libera o wrapper e o handle
-residual uma vez.
-
-Bytes usam identidade. String exige UTF-8 estrito. O provider mede bytes
-codificados, valida o menor bound declarado entre call, action e host profile ou
-toolchain plan antes de allocation/decode, e não normaliza Unicode, newline, BOM
-ou path. Somente `read(Input<String>)` produz `.codec(name)` quando os bytes de
-input não são UTF-8 válidos. W String já é UTF-8 válida. Bytes são identity. Os
-overloads de `write` SDK0 não produzem `.codec`. `missingOutput` é falha do host
-após o handler e não é produzido por `read` ou `write`.
-
-O effect summary registra `build.read(inputIdentity)` e
-`build.write(outputIdentity)`. O compiler rejeita duplicação provada. A
-boundary retorna `.duplicateOutput` para unsafe, foreign ou bug do compiler.
-Cancellation é outcome estrutural. Ela drena I/O e invalida toda a tentativa.
-Panic, error ou cancellation não publicam o action-result. `write` somente
-prepara ou materializa candidatos. Blobs content-addressed podem existir sem
-publicação e blobs órfãos podem ser coletados por GC. Depois do success do entry,
-com todos os outputs obrigatórios e budgets válidos, o host publica atomicamente
-um único action-result/manifest que referencia o conjunto completo de digests.
-O handler não recebe commit, rollback ou syntax `transaction`.
-
-`http.Context` é a instância SDK0 deste contrato. Seu provider é
-`std.http@1`, com handle privado e lifetime igual ao request root. A interface
-expõe somente:
-
-```text
-random: http.RandomSource
-databases: http.DatabaseRegistry
-caches: http.CacheRegistry
-templates: http.TemplateRegistry
-signal: AbortSignal
-```
-
-`DatabaseRegistry.get(const database.Binding)` devolve `some database.Database`.
-`CacheRegistry.get(const cache.LocalBinding<K,V>)` devolve
-`some cache.LocalCache<K,V>`. O template registry usa `const
-http.TemplateBinding`, que fixa `TemplateLimits` e `version` junto de `name`.
-Os três `get` são infallible: o linker/startup rejeita binding, capability ou
-versão ausente antes do handler. Nenhum lookup aceita String runtime ou faz
-rede. As properties de `Context` são computed lazy e cada acesso devolve um
-wrapper owner retido independentemente; o wrapper temporário vive até o fim da
-full expression e seu drop libera somente aquele handle. Um wrapper
-explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao `request
-root`; `signal` devolve um owner duplicado com a mesma regra. Eles não cruzam
-service, wire, storage ou FFI. O draft não cria `Send` ou `Sync`.
-
-`Template` é uma extensão host provisória, não semântica HTTP/Web. Seu
-`render<Value: json.Encodable>(ref Array<Value>)` aplica os limits do binding,
-incluindo `maximumOutputBytes` e `maximumValues`; excessos devolvem
-`TemplateError.limitExceeded(kind, maximum)`.
-
-`random`, `databases`, `caches`, `templates` e `signal` geram requirements
-exatos no linker. Secrets e services permanecem future extensions até seus
-bindings possuírem contratos próprios.
+As instâncias concretas não repetem esse contrato aqui. `http.Context`, seus
+members e seu lifetime request-scoped são definidos na seção 14.3.3.
+`build.Context`, seus quatro overloads e a publicação do action-result são
+definidos na seção 21.2.4. Cada seção concreta declara o provider, os effects,
+os limits e a política de shared borrow que especializam estas regras.
 
 **Rejeitado por enquanto:** `any Context` adicionaria erasure e dispatch sem
 necessidade. Um singleton global esconderia authority. Um `object` tornaria
@@ -25002,7 +24913,7 @@ build.transform:
 ```
 
 `build.Context` concede somente bindings declarados. `build.Input<T>` e
-`build.Output<T>` usam nomes const, tipos e codecs fechados. SDK0 oferece
+`build.Output<T>` usam nomes const, tipos e codecs fechados. A baseline oferece
 exatamente `Input<String>`, `Input<Bytes>`, `Output<String>` e `Output<Bytes>`.
 Source tree, artifact e metadata target tipada ficam para expansão futura, pois
 exigem contratos próprios de path, tree, artifact e target. Um transform não
@@ -25012,6 +24923,10 @@ enumera diretórios, abre path arbitrário ou consulta environment.
 process-local e fornecido pelo host. O tipo não possui initializer público. Um
 shared borrow pode entrar em child tasks estruturadas porque o provider do
 profile `build-transform@1` é thread-safe.
+
+Todo borrow async do context termina ou passa por cancellation drain antes de
+Safe W alcançar `deinit`. `deinit` é síncrono: ele não espera nem drena. O drop
+libera o wrapper e o handle residual exatamente uma vez.
 
 O provider `std.build@1` permanece **missing** até passar estes gates:
 
@@ -25065,7 +24980,7 @@ menor bound declarado aplicável.
 
 `write` consome `value` em success, `build.Error` e cancellation. String é
 codificada em UTF-8 estrito. W String já é UTF-8 válida, e Bytes são identity.
-Os overloads de `write` SDK0 não produzem `.codec`. O provider aplica o menor
+Os overloads baseline de `write` não produzem `.codec`. O provider aplica o menor
 bound declarado da action e do host profile ou toolchain plan antes de preparar
 ou materializar o candidato em staging privado. O segundo write para o mesmo
 binding invalida a tentativa. O compiler rejeita duplicação provada, e a
@@ -25116,7 +25031,7 @@ execution target -> artifact executável do menu-compiler
 product target   -> artifact last-light-native
 ```
 
-Uma cross-build em Windows para Cortex-M ainda executa o tool em Windows. SDK0
+Uma cross-build em Windows para Cortex-M ainda executa o tool em Windows. A baseline
 não expõe metadata do target final por `build.Context`. Uma revisão futura pode
 adicionar um carrier ou input tipado. Quando existir, o action schema deve
 declará-lo e a recipe deve incluí-lo. O host não fica observável por acidente.
@@ -26770,7 +26685,7 @@ posteriores explícitos.
 
 #### 23.1.7 Calls dependentes e “Time Travel”
 
-**Direção:** a primeira versão pública de wRPC inclui calls dependentes. Cap'n
+**Forma vigente:** a primeira versão pública de wRPC inclui calls dependentes. Cap'n
 Proto chama essa técnica de “Time Travel”; o nome técnico é promise pipelining.
 Ela não é apenas execução assíncrona.
 
@@ -27560,14 +27475,9 @@ lock, fetch, authority, capability e recipe. Run temporário ou falho não deixa
 estado oculto. Promotion valida o candidate `package.lock` sem re-resolver, preserva graph,
 entry e requirements e emite provenance que liga script, locks e manifest.
 
-Os commands fechados para o header são:
-
-```text
-w script add <file.w> <package>@<constraint> --as <alias>
-w script remove <file.w> <alias>
-w script resolve <file.w>
-w script promote <file.w> --output <dir>
-```
+Os quatro commands fechados para o header — `w script add`, `remove`, `resolve`
+e `promote` — são definidos em
+[§3.5.3](#353-grammar-normativa-g1-declarations-e-raízes-de-source).
 
 Add, remove e resolve validam virtual selection e lock antes de substituir
 source atomicamente. Remove do último dependency remove `lock`; resolve preserva
@@ -28201,7 +28111,7 @@ evidência de design:
 | grammar e formatter | G0–G5, CST lossless, recovery, F0 idempotente e FB0 para body estrangeiro opaco | cobrir cada construção normalizada e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
 | std | módulos possuem declarations e profiles; os oito carriers Web possuem interface; providers executáveis continuam missing | validar adapters byte-exact, limits e cada superfície restante com outro consumer |
-| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, apresentação, dados e tensor interop | fechar import-root/dependency, providers reais, DLPack real e latency gates |
+| workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, dependency lock, sessão, notebook, apresentação, dados e tensor interop | fechar providers executáveis, bridge Python/DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum; escapes de sistema têm authority única | fixar manifests e conformance de MMIO, interrupt, TLS, placement e assembly por target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
 | services, wire e recovery | B0 e SR0 fecham turn, gates, queue bounded, deduplication, recovery e faults; wWire tem baseline | fechar wire byte-exact, flow control e adapters reais com fault injection |
@@ -28224,9 +28134,10 @@ seção 26. Um contrato pode fechar antes de existir backend, mas não pode decl
 comportamento que seus modelos ou oracles contradizem.
 
 TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular). TAB1 fecha
-declarations, profiles, errors, limits e workflows em [14.4.2](#1442-adapters-tabulares).
-O bloqueio restante é provider, corpus adversarial e evidence dos gates, sem
-alterar a schema identity ou as regras de ownership.
+declarations, profiles, errors, limits, workflows e o corpus adversarial em
+[14.4.2](#1442-adapters-tabulares). O bloqueio restante é provider executável e
+evidence de integração, sem alterar a schema identity ou as regras de
+ownership.
 
 A ordem recomendada de fechamento é:
 
@@ -28317,7 +28228,7 @@ O mesmo módulo também produz um artifact menor:
 
 ```text
 last-light-tui / entry LastLightTui
-  → process.main = runTuiEntry
+  → handler runTuiEntry
   → runtime registra shutdown para sinais selecionados
   → seleciona o terminal adapter do target
 ```
