@@ -1005,6 +1005,19 @@ label `using:` e `try` mostram allocator e failure recuperável. Tree-sitter e o
 oracle host são a evidência atual; `w-compile`, `w-run`, estudo humano e estudo
 de modelos permanecem missing.
 
+`Shared<T>` e `shared<T>` foram consideradas como grafias de container. Elas
+foram retiradas porque ausência, payload e ownership são eixos diferentes:
+`shared T?` é um handle opcional, enquanto `shared Option<T>` compartilha um
+payload opcional. A forma prefixa também permanece coerente com `ref`, `inout`,
+`weak` e `atomic`.
+
+Um slot `shared<allocator: .name>` também foi retirado. O nome de um provider
+não identifica a instância, lifetime, mobility ou deallocator que originou o
+control block. Se o provider é a policy geral, o build profile o seleciona. Se
+a instância é scoped, `try share(..., using:)` recebe a capability diretamente.
+Assim o allocator não fragmenta APIs em tipos `shared` incompatíveis nem cria
+authority ambiental por import.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -4476,6 +4489,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1271 | partition explícita | counters locais e redução aparecem no source porque mudam overflow, publicação e snapshot; atomic global nunca é sharded silenciosamente | auto-sharding, per-thread oculto, soma com overflow diferente |
 | W-1272 | layout físico na boundary | adapter ou target record garante offsets/alignment publicados, sem prometer throughput ou cache exclusiva | wrapper safe universal, padding implícito em ABI, benchmark como semântica |
 | W-1273 | evidence IL0 | machine/corpus/test host derivam layout aplicado/não aplicado, partition e boundaries; não medem cache nem executam W | snapshot como compiler, target inventado pelo caller, performance claim sem measurement |
+| W-1274 | grafia de shared ownership | `shared T` e `weak T` são prefixos de ownership; `shared T?` é Option do handle e `shared Option<T>` possui payload opcional | `Shared<T>`, `shared<T>`, wrapper de std, optionalidade ambígua |
+| W-1275 | allocator fora de `shared T` | product profile escolhe o default; `try share(..., using:)` recebe capability scoped e preserva origin | allocator como generic slot, case de módulo criando instance, `try` no tipo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

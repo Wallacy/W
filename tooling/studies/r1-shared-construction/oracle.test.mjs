@@ -5,6 +5,11 @@ function constructShared(input) {
   const reject = (reason) => ({ status: "rejected", reason, trace })
   const declarative = input.form === "shared-declaration"
 
+  if ((input.typeSpelling ?? "prefix") !== "prefix") {
+    return reject("shared-type-is-prefix")
+  }
+  if (input.allocatorTypeSlot) return reject("allocator-is-origin-not-type")
+
   if (declarative && !new Set(["binding", "stored-field"]).has(input.context)) {
     return reject("context-cannot-promote")
   }
@@ -46,6 +51,11 @@ function constructShared(input) {
   }
 }
 
+function lowerSharedType({ payload, optionalHandle = false }) {
+  const owner = `shared ${payload}`
+  return optionalHandle ? `Option<${owner}>` : owner
+}
+
 describe("R1 shared-construction host oracle", () => {
   test("the selected declaration and custom allocator path are both explicit", () => {
     const normal = constructShared({
@@ -76,6 +86,41 @@ describe("R1 shared-construction host oracle", () => {
       resultType: "shared MenuSection",
       failurePolicy: "throws AllocationError",
     })
+    expect(recoverable.resultType).toBe(normal.resultType)
+  })
+
+  test("prefix ownership and optionality lower to distinct type shapes", () => {
+    expect(lowerSharedType({ payload: "MenuSection", optionalHandle: true })).toBe(
+      "Option<shared MenuSection>",
+    )
+    expect(lowerSharedType({ payload: "Option<MenuSection>" })).toBe(
+      "shared Option<MenuSection>",
+    )
+  })
+
+  test("container spelling and allocator type slots remain rejected", () => {
+    const container = constructShared({
+      form: "shared-declaration",
+      context: "binding",
+      explicitSharedType: true,
+      typeSpelling: "generic-container",
+      source: "temporary",
+      allocator: "product.default",
+      lifetimeIndependent: true,
+    })
+    const allocatorSlot = constructShared({
+      form: "shared-declaration",
+      context: "binding",
+      explicitSharedType: true,
+      allocatorTypeSlot: "request",
+      source: "temporary",
+      allocator: "request.arena",
+      lifetimeIndependent: true,
+    })
+    expect(container.reason).toBe("shared-type-is-prefix")
+    expect(allocatorSlot.reason).toBe("allocator-is-origin-not-type")
+    expect(container.trace).toEqual([])
+    expect(allocatorSlot.trace).toEqual([])
   })
 
   test("default share remains equivalent in expression contexts", () => {

@@ -1377,8 +1377,12 @@ Aceite:
 - shared handle não concede `inout` e weak exige `upgrade()` antes do acesso;
 - `OriginSet` de borrow e `AllocationOriginSet` de storage não se substituem;
 - `let root: shared T = temporary` mostra o primeiro owner no binding;
+- `shared T` é o tipo final; ele não é escrito como `Shared<T>` ou
+  `shared<allocator: ...> T`;
+- `shared T?` é um handle opcional; `shared Option<T>` possui payload opcional;
 - `share(temporary)` continua disponível em expression context;
 - `try share(..., using:)` torna `AllocationError` e allocator bounded explícitos;
+- trocar a origem do control block não altera o tipo `shared T`;
 - argumento, return e inference não promovem owner único para `shared T`;
 - `share(dependent)` falha até o payload ser lifetime-independent;
 - o allocator do control block continua vivo até o último weak handle;
