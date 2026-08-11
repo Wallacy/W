@@ -1393,6 +1393,7 @@ Aceite:
 - `let root: shared T = temporary` mostra o primeiro owner no binding;
 - `shared T` é o tipo final; ele não é escrito como `Shared<T>` ou
   `shared<allocator: ...> T`;
+- `atomic` modifica storage e baixa para `Atomic<T>`; ele não forma `atomic T`;
 - `shared T?` é um handle opcional; `shared Option<T>` possui payload opcional;
 - `share(temporary)` continua disponível em expression context;
 - `try share(..., using:)` torna `AllocationError` e allocator bounded explícitos;

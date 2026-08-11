@@ -4407,8 +4407,8 @@ outros modificadores de ownership nessa posição.
 `copy` e `pin` não são modos de parâmetro. Um parâmetro comum continua escrito
 `value: T`; o caller escreve `copy value` quando precisa materializar um valor
 independente. `pin` permanece uma operação de ownership. `mut` modifica binding
-ou receiver, não um parâmetro. `shared`, `weak` e `view` são partes do type e
-também ficam depois de `:`:
+ou receiver, não um parâmetro. `shared`, `weak` e `view` são formas de tipo
+definidas na seção 9.1. Elas ficam depois de `:`:
 
 ```w
 fn cache(menu: shared Menu)
@@ -7317,6 +7317,22 @@ W separa quatro contratos:
 Somente o primeiro contrato define o significado normal do programa. Os outros
 podem mudar por target ou profile sem alterar o resultado observável.
 
+As formas de memória também pertencem a categorias diferentes:
+
+| Forma source | Categoria |
+|---|---|
+| `ref T`, `inout T` e `view T` | tipos dependentes; não possuem o referent |
+| `shared T` e `weak T` | tipos de handle; fazem parte da identidade semântica do valor |
+| `take T` e `const T` | contratos de parâmetro ou receiver; não são tipos armazenáveis |
+| `var atomic value: T` | modificador de storage; o binding baixa para `Atomic<T>` |
+| `Pinned<T>`, `Arena` e `SnapshotCell<T>` | tipos nominais para contratos avançados |
+
+**W-1293 — tipo, contrato e storage ficam separados:** `shared T` é o tipo
+source final. O HIR pode usar um carrier parametrizado sem expor `Shared<T>`.
+`atomic` não segue essa regra: `atomic T` não é um tipo source. Essa separação
+impede que allocator, failure policy ou synchronization fragmentem a identidade
+de `shared T`.
+
 Gerência automática em W significa que o compiler prova lifetime, insere os
 drop paths e escolhe placement sem pedir stack, heap, arena, GC ou reference
 counting no caminho comum. O source escolhe a semântica com `ref`, `inout`,
@@ -7741,7 +7757,7 @@ object MenuSection {
 são as grafias canônicas. A HIR pode representar cada forma como um carrier
 parametrizado pelo payload, mas o source não escreve `Shared<T>` nem
 `shared<T>`. O prefixo mantém ownership na mesma família visual de `ref T`,
-`inout T` e `atomic T`; ele não expõe um wrapper de biblioteca.
+`inout T` e `weak T`; ele não expõe um wrapper de biblioteca.
 
 O postfix `?` aplica-se ao handle completo. `shared T?` equivale a
 `Option<shared T>`. Um owner compartilhado cujo payload é opcional usa
@@ -11219,6 +11235,8 @@ segunda interpretação do mesmo token:
 `atomic` é um storage modifier contextual. Ele não é um property behavior.
 Somente `var` aceita esse modifier. `var atomic Lazy value` e outras composições
 são inválidas até existir um behavior composto com semântica própria.
+`atomic T` não é uma forma de tipo. APIs que recebem o wrapper escrevem
+`Atomic<T>`.
 
 O acesso comum usa sequential consistency. O compiler rejeita uma expressão que
 parece atômica, mas separa load e store:
