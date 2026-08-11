@@ -68,7 +68,7 @@ std/
 ```
 
 `build/contracts.w` materializa bindings de transforms herméticas e o wrapper
-nominal `Context`. SDK0 fecha quatro overloads para `String` e `Bytes`, com
+nominal `Context`. A baseline fecha quatro overloads para `String` e `Bytes`, com
 Bytes identity e String UTF-8 estrito. O provider intrínseco `std.build@1`
 continua missing. `Context` somente lê inputs e materializa candidatos em
 staging. O host publica um action-result/manifest atômico após success, outputs
@@ -140,7 +140,7 @@ imutável, faixa checked, media type normalizado, cópia/retain explícito,
 SnapshotByteSource e stream com cursor próprio. Blob não contém File, path,
 blob URL ou authority. Materializar bytes ou texto exige limite.
 
-`http/contracts.w` materializa o draft SDK0 de `Request`, `Response`,
+`http/contracts.w` materializa o draft baseline de `Request`, `Response`,
 `Context` e a declaration de `serve`. Um único provider intrinsic `std.http@1` possui handles de
 mensagem, body, contexto e host. O provider continua missing até os gates
 WHATWG Fetch, Streams integration, WPT Fetch/Headers, WinterTC/WinterCG,
@@ -163,7 +163,7 @@ wrapper explicitamente bound pode sobreviver ao valor `Context`, mas nunca ao
 cancellation em `ServerError`. A interface `std.net` está em draft, mas seu
 provider `std.net@1` continua missing.
 
-`net/contracts.w` materializa o carrier de rede SDK0 de host. `Network` é uma
+`net/contracts.w` materializa o carrier de rede baseline do host. `Network` é uma
 capability host-provided move-only, sem initializer público, e as operações
 públicas borrowam descriptors. Address values são data-only e bounded.
 `HostName` usa UTS #46 nontransitional, STD3, validade IDNA2008 e forma A-label
