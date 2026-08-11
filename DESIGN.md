@@ -13224,9 +13224,22 @@ afirmar rollback. `step`, `sleep` e `wait` observam o cancel request durável.
 Cleanup de uma attempt ativa ainda segue completion drain.
 
 Steps são sequenciais na baseline. O body de um step pode usar tasks
-estruturadas e paralelismo bounded. Child workflows e fan-out com child IDs
-determinísticos são **Provável**. Race durável fica **Rejeitado** porque sua
-ordem de journal dependeria do scheduler.
+estruturadas e paralelismo bounded; todos os children drenam antes de confirmar
+o outcome do step. Outro root durável começa por uma call nominal a uma service
+ou a um `SupervisorRef`. A call carrega `effectId`, input e `WorkId` próprios.
+Uma relação parent/child pode ser application data, mas não cria inheritance,
+cancellation, retry ou cleanup ocultos entre roots.
+
+`continueAsNew` e child workflow não são primitivas da baseline. Encerrar um
+root e iniciar outro são dois efeitos explícitos. Um provider único pode ligá-los
+por transaction ou outbox; sem essa authority, o intervalo permanece
+observável e reconciliável. Durable fan-out usa várias calls explícitas e não
+faz a ordem de journal depender do scheduler. Race durável continua rejeitado.
+
+**W-1241 — roots duráveis explícitos:** W reutiliza service call,
+`SupervisorRef`, effect identity e commit provider para compor workflows. A
+linguagem não reserva syntax de child workflow ou `continueAsNew` e não cria um
+segundo modelo de ownership entre roots.
 
 Timers também são points. Eles não mantêm um task frame ou worker:
 
@@ -13429,9 +13442,8 @@ durability: {
 
 `PerRoot` limita uma instance. `retainedBytes` limita o supervisor inteiro.
 Exceder history produz `historyLimit`. `trySend` com inbox cheio devolve o
-payload. `continueAsNew` e child workflows são **Provável** com identity e
-schema fechados. Compaction definida pelo usuário fica **Rejeitado**; snapshots
-versionados do provider mantêm history bounded.
+payload. Outro root segue W-1241. Compaction definida pelo usuário fica
+rejeitada; snapshots versionados do provider mantêm history bounded.
 
 Cada root fixa a operation version, o semantic fingerprint, os schemas de
 points e events e o adapter ABI. Um deploy novo não altera um history ativo.
@@ -13613,9 +13625,14 @@ O resolver satisfaz todas as requirements antes de executar o entry. Uma
 requirement ausente impede a inicialização. A conexão física pode ser lazy. Uma
 call ainda pode falhar com `ServiceFailure`.
 
-Lookup por string é **Provável** somente em `std.plugin`. A API recebe uma
-registry capability, valida schema e devolve uma referência apagada. O resolver
-normal de services continua nominal e fechado.
+Lookup por string não faz parte do resolver de services nem da std corrente. Um
+package de plugin pode receber uma registry capability, validar um interface
+digest e devolver sua própria referência apagada. Essa API não cria import,
+`ServiceRef`, binding ou authority do core.
+
+**W-1242 — resolução nominal:** imports, requirements e bindings resolvem por
+identidade estática. Descoberta runtime por nome pertence a uma capability de
+plugin separada e não altera o grafo lógico do product.
 
 #### 13.8.2 Grafo lógico do product
 
@@ -13785,10 +13802,15 @@ o envelope.
 
 `ServiceProtocol<P>` identifica a conformance gerada para a boundary.
 `RestaurantApi` identifica a API da aplicação. `ServiceLink` e
-`ServiceTransport` são SPIs distintos. A primeira versão aceita somente
-adapters fixados por digest na toolchain ou deployment. Uma SPI pública para
-adapters customizados é **Provável**. Ela exige schema, target, capability,
-artifact digest e conformance tests.
+`ServiceTransport` são SPIs distintos. A baseline aceita somente adapters
+fixados por digest na toolchain ou deployment. Um foreign link pode usar um
+adapter do product, também fixado no lock. A v0 não publica uma SPI que packages
+possam registrar em runtime.
+
+**W-1243 — adapters fechados pelo lock:** ampliar o conjunto de adapters exige
+toolchain ou deployment novo, conformance corpus e recipe digest. Uma SPI
+pública futura pode reutilizar esses artifacts, mas não possui source shape ou
+runtime registry reservado na baseline.
 
 #### 13.8.3 Packing de build
 
@@ -14038,10 +14060,39 @@ Input e output gates são regras de scheduling, state e effect commit. Eles não
 são layouts de Cap'n Proto ou Cap'n Web. wRPC transporta os outcomes depois que
 o runtime abre o output gate.
 
-O runtime protocol do commit provider é **Provável** e permanece SPI interno.
-Ele registra uma causal frontier bounded e um commit terminal. A primeira
-versão aceita um único commit provider por turn. Vários providers exigem
-workflow ou outbox explícita.
+O commit provider permanece SPI interno e usa esta state machine:
+
+```text
+collecting → closing → committed
+                     → aborted
+                     → unknown
+```
+
+O effect summary de cada operação gated declara um provider slot. O binding
+resolvido fornece provider identity e generation. Admission prova que todas as
+operações alcançáveis do turn usam no máximo uma identity; a falha ocorre antes
+do body e de qualquer effect. Cada dependency registra `effectId`, ordinal,
+provider generation e receipt digest enquanto o turn está `collecting`. O
+runtime limita items e bytes e fecha uma causal frontier com ordem total e
+digest.
+
+Depois de body settlement, `close(frontier)` devolve um terminal receipt com
+provider, generation, turn, frontier digest, decision e provider sequence.
+`committed` prova todas as dependencies. `aborted` prova que o conjunto não tem
+mutation committed e que nenhuma saída gated foi liberada. Perda dessa prova
+produz `unknown`. Repetir uma query devolve a mesma decisão. Receipt de outra
+generation, frontier ou turn é rejeitado e não publica state.
+
+Cancellation não muda uma decisão terminal. Owners de output, dependency e
+callback ficam vivos até `committed`, `aborted`, `unknown` ou perda da fault
+boundary. `aborted` produz `commitFailed`; `unknown` produz
+`unknownOutcome(effectId)`. Dois providers exigem steps distintos, transaction
+de authority única ou outbox explícita; W não executa 2PC implícito.
+
+**W-1244 — commit provider fechado:** output gate usa uma única authority de
+commit, frontier bounded e terminal receipt estável. O protocolo é interno,
+mas seus estados, receipts, ownership e outcomes fazem parte da semântica
+observável da service call.
 
 #### 13.9.3 Recovery de service e deduplicação
 

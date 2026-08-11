@@ -4,6 +4,7 @@
   "cases": [
     {
       "id": "B0-call-commit-delivers-after-drain",
+      "decisions": ["W-1244"],
       "references": [{ "path": "../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState" }],
       "operations": [
         { "op": "registerInstance", "instance": "lastLight" },
@@ -22,6 +23,7 @@
     },
     {
       "id": "B0-call-commit-failed-is-known",
+      "decisions": ["W-1244"],
       "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "commitFailed" }],
       "operations": [
         { "op": "registerInstance", "instance": "lastLight" },
@@ -40,6 +42,7 @@
     },
     {
       "id": "B0-call-unknown-keeps-effect-id",
+      "decisions": ["W-1244"],
       "references": [{ "path": "../reference/last-light/service_oracle.w", "symbol": "unknownOutcome" }],
       "operations": [
         { "op": "registerInstance", "instance": "lastLight" },

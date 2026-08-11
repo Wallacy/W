@@ -968,12 +968,15 @@ Aceite:
 - instances keyed permitem progresso paralelo entre pedidos, mas não na mesma key;
 - `ServiceLink` separa local, component, wRPC e foreign RPC;
 - `ServiceTransport` aparece somente dentro do link wRPC;
+- resolver de service aceita somente import nominal e binding tipado;
+- adapters pertencem ao toolchain, deployment ou product fixado no lock;
 - network wRPC usa TLS 1.3 mutual ou QUIC com TLS 1.3 mutual;
 - IPC autentica os dois peers e não trata o path como identidade;
 - `hello` e `ready` vinculam seleção, peer e channel no transcript;
 - 0-RTT e application frame antes dos dois `ready` falham fechados;
 - `pipeline` reduz round trips sem ocultar calls, effects ou intermediate owners;
 - o turn continua fechado durante output commit;
+- um commit provider fecha uma frontier bounded com um terminal receipt;
 - `commitFailed` e `unknownOutcome` permanecem outcomes distintos.
 
 O oracle executa o mesmo graph em `single-process` e `split-services`. O primeiro
