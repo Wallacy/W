@@ -28,9 +28,12 @@ Os estados usados são:
 |---|---|
 | **Direção** | princípio estável que limita as soluções |
 | **Forma vigente** | forma integrada no design e no produto de referência |
-| **Alternativa** | solução legítima que continua no corpus de comparação |
 | **Pesquisa** | hipótese com baseline funcional que não depende dela |
 | **Rejeitado por enquanto** | não entra no design vigente sem nova evidência |
+| **Rejeitado** | não pertence ao W corrente; reabrir exige nova necessidade e evidência |
+
+Alternativas comparadas não são estado normativo. Elas ficam em
+[`RATIONALE.md`](RATIONALE.md) e nos bundles R0/R1.
 
 ### Mapa do sistema
 
@@ -72,43 +75,6 @@ bun run --cwd tooling/tree-sitter-w check:docs
 Use `bun run --cwd tooling/tree-sitter-w check` quando alterar grammar,
 corpus ou fontes W. O segundo comando inclui o primeiro e também executa os
 gates de parsing e dos codecs de referência.
-
-### Checkpoint de maturidade
-
-Este checkpoint estima trabalho de design. Ele não mede implementação. O
-[índice gerado](DESIGN-INDEX.md) contém as contagens atuais e os intervalos de
-leitura.
-
-| Eixo | Estimativa | Evidência e limite atual |
-|---|---:|---|
-| superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
-| compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia com evidência | 65–72% | R0 cobre 69/69, R0S mede a superfície derivada por script e R1 possui 21 bundles contrabalanceados do Última Luz que promovem 32/69 casos R0; participantes e modelos ainda não foram executados |
-| validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
-| prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
-| prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
-
-As faixas são estimativas de planejamento. Uma contagem de decisões não prova
-correção. Um item **Provável** precisa de um spike quando o resultado pode mudar
-source, tipo, ABI ou comportamento runtime.
-
-Os ciclos restantes para o design freeze são:
-
-1. ratificar syntax, formatter e diagnostics com o corpus da seção 1 de [`RATIONALE.md`](RATIONALE.md);
-2. provar memória, ownership, ABI e FFI com modelos pequenos e independentes;
-3. provar tasks, services, transaction e wWire com modelos de fault injection;
-4. fechar wrappers de metadata, resolver, rebuild, reprodução e
-   `bootstrap.w0`; o container WMeta1 já possui baseline byte-exact;
-5. fixar módulos, target facts e host profiles, revisar targets e fechar o
-   contrato público.
-
-Pesquisas que possuem fallback não bloqueiam o freeze. Elas permanecem
-experimentais ou em packages separados. Uma pesquisa bloqueia somente quando
-pode alterar um contrato corrente.
-Um oracle ou spike descartável pode produzir evidência de design. Formatter,
-checker, scheduler, runtime, provider e compiler de produção pertencem à seção
-26 e não são pré-requisitos do freeze documental.
-Mover W para outro repository também não muda este checkpoint.
 
 ### 0.1 Promessa
 
@@ -586,10 +552,6 @@ O corpus precisa verificar:
 
 **Forma vigente:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
 literal sem label.
-
-**Alternativa:** preservar `where` e receiver implícito no corpus comparativo.
-Slots nomeados continuam aceitos para comparação e diagnostics. O
-formatter emite a forma curta quando o schema não é ambíguo.
 
 **Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
 medir leitura e migração. O parser vigente não a aceita.
@@ -1462,8 +1424,7 @@ type ServicePath = StagePath<[.accepted, .preparing, .serving]>
 O parser aceita a estrutura antes de resolver o head. O checker rejeita label
 desconhecido, duplicado, fora de ordem ou aplicado a type parameter. O checker
 também rejeita um argumento posicional depois do primeiro value argument nomeado.
-Binding modifiers não pertencem a esta grammar. Named type arguments continuam
-como **Alternativa**.
+Binding modifiers e named type arguments não pertencem a esta grammar.
 
 ##### Tuples e arrays fixos
 
@@ -2938,9 +2899,6 @@ const table = buildTable()
 use(table)
 ```
 
-`comptime buildTable()` e `const { ... }` permanecem **Alternativa**. Elas só
-entram se pipelines sem um binding mostrarem ganho mensurável.
-
 Um parâmetro de chamada pode exigir um argumento compile-time com `const`:
 
 ```w
@@ -3955,16 +3913,6 @@ Esta tabela resume a precedência:
 `import fetch from std.http` cria um binding de módulo chamado `fetch`. Ele não
 seleciona a função `fetch`. Use braces para importar essa função.
 
-O wildcard com exceções nomeadas permanece **Alternativa**:
-
-```w
-import *, { Request as HttpRequest } from http
-```
-
-Essa forma achata todos os exports. O item renomeado não conserva o nome
-original. O linter recomenda imports nomeados porque um novo export pode criar
-colisão no caller.
-
 `export import` cria uma facade. URL, versão e digest nunca aparecem no source.
 Módulos formam um grafo acíclico. Um ciclo interno deve formar um único módulo.
 
@@ -4105,10 +4053,6 @@ preserva esse controle em tipos encapsulados. Para records simples, W adota a
 concisão dos
 [records Java](https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/Record.html).
 
-**Alternativa:** exigir `export` em cada field, como o opt-in de Swift e Rust.
-Outra alternativa exporta todos os membros de qualquer tipo exportado. A forma
-líder exporta somente os componentes de um struct transparente.
-
 ### 6.3 Configuração de módulo e pacote
 
 `module` aceita um contrato estático. O contrato descreve requirements locais
@@ -4241,10 +4185,6 @@ A classificação segue
 [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) e registra
 casos de conflito para revisão.
 
-**Alternativa:** todo pattern externo pode ser exaustivo e qualquer field novo
-é major. Outra alternativa exige um modifier de resiliência no tipo. A forma
-líder evita annotations e torna a aceitação de fields futuros visível no uso.
-
 O top-level aceita imports, declarations e `const`. Ele não aceita I/O, `var`
 global ou inicialização runtime.
 
@@ -4303,9 +4243,8 @@ A ordem canônica é:
 7. `fn` ou `fn<Language>`.
 
 `throws E` fica depois do return type. Uma função sem return type retorna `()`.
-Esse unit type possui um único valor, também escrito `()`. `Void` permanece
-**Alternativa** de superfície. `Never` identifica uma função ou expressão que
-não retorna ao caller.
+Esse unit type possui um único valor, também escrito `()`. `Never` identifica
+uma função ou expressão que não retorna ao caller.
 
 **W-1160 — labels opcionais:** os parâmetros callable usam uma policy fechada
 de labels. O primeiro `name: T`
@@ -4406,10 +4345,6 @@ ownership modifiers da
 [SE-0377](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md)
 e o receiver by-value do
 [Rust Reference](https://doc.rust-lang.org/reference/items/associated-items.html#methods).
-
-**Alternativa:** consumir o receiver sem marker no call site, como Swift e Rust.
-Outra alternativa usa somente uma free function com parâmetro `take`. A forma
-líder mantém a transferência visível e preserva method lookup.
 
 Um método fluente declara `: self`:
 
@@ -4524,9 +4459,7 @@ let estimator = (power, duty, duration) =>
   expectedEnergy(power, duty: duty, during: duration)
 ```
 
-O expected type da variável não escolhe a declaração. Um seletor explícito por
-forma permanece **Alternativa**. A forma pode ser parecida com
-`fn expectedEnergy(_:, duty:, during:)`.
+O expected type da variável não escolhe a declaração.
 
 A HIR registra o function type de todo callable. O design vigente infere o tipo de closures
 e referências singulares. A seção 7.5 define a annotation e a representação
@@ -4550,10 +4483,6 @@ W não adota o ranking de “melhor membro” da
 [resolução de overloads de C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution).
 A regra também evita a seleção frágil por tipos descrita no
 [FAQ de Go](https://go.dev/doc/faq#overloading).
-
-**Alternativa:** tipos e constraints podem escolher o melhor candidato. Outra
-alternativa proíbe todo overload e exige nomes distintos. A forma vigente permite
-APIs naturais e mantém a seleção local, finita e reproduzível.
 
 Parâmetros rest homogêneos entram no design vigente. A forma `T...` aceita zero
 ou mais argumentos do mesmo tipo. A seção 8.9.5 define labels, ownership,
@@ -4684,10 +4613,6 @@ invariantes e cleanup atrás da API nominal.
 Um struct com `deinit` customizado não aceita destructuring owned. O pattern
 emprestado continua válido dentro do módulo. Essa regra impede que um pattern
 ignore ou execute duas vezes o cleanup customizado.
-
-**Alternativa:** usar `{field}` como record pattern. Outra alternativa usa
-posições sem nomes. A forma vigente reutiliza `Type(...)`, mantém labels nominais
-e evita reservar `{}` para um segundo modelo de record.
 
 ### 7.5 Valores callable e closures
 
@@ -4920,8 +4845,7 @@ Esse tipo aceita somente carriers C. Ele não aceita capture, `async` ou
 explícitos. O ABI de `fn(A): B` normal é interno ao build e não é uma promessa de
 package ABI.
 
-`(args) => body` é a única forma de closure do design vigente. `{ args in body }` e
-`fn(args) { body }` ficam como alternativas de corpus.
+`(args) => body` é a única forma de closure do design vigente.
 
 A separação segue três precedentes. Swift removeu labels dos function types.
 Rust separa function pointers e tipos anônimos de closure. Clang Blocks torna
@@ -4931,10 +4855,6 @@ invoke, ambiente, copy e dispose explícitos no ABI:
 - [Rust function pointer types](https://doc.rust-lang.org/reference/types/function-pointer.html)
 - [Rust closure types](https://doc.rust-lang.org/reference/types/closure.html)
 - [Clang Blocks ABI](https://clang.llvm.org/docs/Block-ABI-Apple.html)
-
-**Alternativa:** um único `fn` apagado simplifica annotations, mas oculta capture,
-dispatch e possível allocation. Outra alternativa usa protocols `Fn`, `FnMut` e
-`FnOnce`. A forma vigente reutiliza `some`, `any`, `mut` e `take`.
 
 ## 8. Tipos e conversões
 
@@ -5254,11 +5174,6 @@ O compact constructor de
 [records Java](https://docs.oracle.com/en/java/javase/15/docs/specs/records-jls.html)
 mostra o valor de validar antes de publicar o aggregate.
 
-**Alternativa:** usar somente um initializer canônico e factories nomeadas.
-Outra alternativa permite `init?`, `async init` ou delegação após inicialização
-parcial. A forma vigente aceita vários initializers por forma, delegação total e
-falha tipada.
-
 ### 8.4 Propriedades computadas
 
 Uma computed property precisa declarar seus accessors. Ela continua diferente
@@ -5346,10 +5261,6 @@ Swift permite
 W rejeita essa forma por enquanto. A rejeição preserva a expectativa de acesso
 rápido e local. A separação entre stored e computed properties também segue as
 [propriedades do Swift](https://docs.swift.org/swift-book/LanguageGuide/Properties.html).
-
-**Alternativa:** permitir accessors com efeitos, observers e static computed
-properties. Esses recursos precisam superar o corpus de previsibilidade antes
-de entrar.
 
 ### 8.5 Option e ausência
 
@@ -5542,9 +5453,8 @@ também separa um subtype restringido por range do base type. O trabalho sobre
 [Liquid Types](https://escholarship.org/uc/item/0vx7j8zc) trata refinements como
 predicates verificáveis. W usa esses precedentes sem adotar seu source syntax.
 
-As formas `T where (predicate)`, `T<where: (...)>` e `T(where: predicate)`
-continuam como **Alternativa**. A forma vigente mantém o predicate dentro do
-contrato estático sem criar um slot chamado `where`.
+O predicate permanece dentro do contrato estático e não cria um slot chamado
+`where`.
 
 #### 8.6.1 Subconjuntos de cases de enum
 
@@ -5925,10 +5835,8 @@ alias KitchenStage =
   ServiceStage<[.reserving, .preparing, .serving]>
 ```
 
-Formas como `ActiveStage - [.accepted]` e
-`CancellableStage & WorkStage` permanecem **Alternativa**. A HIR já usa união,
-interseção e diferença de case-sets para flow analysis, mas a API pública não
-precisa expor essa álgebra no design vigente.
+A HIR pode usar união, interseção e diferença de case-sets para flow analysis.
+A API pública não expõe essa álgebra.
 
 O
 [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
@@ -6249,7 +6157,7 @@ alias AppliedOrStale =
 
 Ele não transforma o snapshot em authority sobre a instância.
 
-##### Limites e alternativas
+##### Limites
 
 W não adiciona keywords `state` ou `transition` no design vigente. Value generics,
 extensions, `take fn`, enums e refinements já expressam o protocolo.
@@ -6400,12 +6308,6 @@ struct Unknown<rows: UnknownName> {} // error[W-GENERIC-0001]: RHS unresolved an
 Facts e diagnostics usam `value:usize` (ou o kind equivalente normalizado),
 nunca `const:usize`.
 
-Named type arguments permanecem **Alternativa**:
-
-```w
-Result<Success: Dish, Failure: KitchenError>
-```
-
 O design vigente usa `Result<Dish, KitchenError>`. Inlay hints e documentação mostram os
 nomes `Success` e `Failure` sem duplicar tokens no source.
 
@@ -6511,8 +6413,7 @@ protocol StableKey: Hashable & Display {
 ```
 
 Uma declaração pode usar um protocol composto nomeado quando a combinação tem
-significado de domínio. `T<[P, Q]>` e uma cláusula postfix `where` permanecem
-**Alternativa**. A lista sugere ordem. `where` separa a constraint do parâmetro.
+significado de domínio.
 
 Same-type relationships usam um parâmetro comum:
 
@@ -7144,10 +7045,9 @@ fn makeDish(using factory: ref any DishFactory): Dish {
 }
 ```
 
-`Type<T>` permanece **Alternativa** para uma futura API que precise transportar
-um tipo preservado. Dynamic construction por nome fica **Rejeitado por
-enquanto**. Ele exigiria argumentos apagados, initializers negociados e erros
-runtime para relações que hoje são estáticas.
+Dynamic construction por nome fica **Rejeitado por enquanto**. Ele exigiria
+argumentos apagados, initializers negociados e errors runtime para relações que
+hoje são estáticas.
 
 #### 8.9.3 `Reflectable` e metadata alcançável
 
@@ -7461,8 +7361,8 @@ visibilidade. A forma vigente de pesquisa usa um construtor explícito:
 let guestName = path<Order>(.guest.name)
 ```
 
-`\Order.guest.name` permanece **Alternativa**. Reflection por string fica
-**Rejeitado por enquanto**. Até o contrato fechar, uma API recebe uma closure:
+Reflection por string fica **Rejeitado por enquanto**. Até o contrato fechar,
+uma API recebe uma closure:
 
 ```w
 let names = orders.map((order) => order.guest.name)
@@ -7886,10 +7786,6 @@ O formatter usa a ordem `try pin take value`. `try take pin value` é erro:
 enquanto** porque tornaria um move comum fallible e alocante. Ele também
 misturaria uma policy de storage com a transferência de owner.
 
-`pin let state = value` e `let pin state = value` ficam **Alternativa** para um
-futuro pinned local lexical. Elas não substituem o handle owned necessário para
-callback persistente, retorno ou field.
-
 `pin` pode alocar ou adotar storage que já possui endereço estável. A operação
 pode falhar antes de publicar o endereço. `Pinned<T>` pode mudar de endereço; o
 `T` apontado por ele não pode. O raw pointer só é válido enquanto o owner
@@ -7908,8 +7804,7 @@ um root estável distinto do handle. Mover o handle é permitido com loans ou
 dependency edges ativos porque o payload não muda. Drop do handle ou do payload
 com obrigação ativa falha. Mover ou destruir o payload com obrigação ativa não
 é permitido. A baseline não oferece initializer self-referential. Uma
-alternativa futura pode usar uma construção pinned dedicada, com prova explícita
-de endereço e cleanup.
+construção dedicada continua **Pesquisa** e precisa provar endereço e cleanup.
 
 O design vigente não possui keyword `unpin`. Consumir ou destruir `Pinned<T>`
 executa drop no endereço estável. Mover `T` para fora depois que seu endereço
@@ -8623,10 +8518,10 @@ foreign c from "packed_probe.h" {
 }
 ```
 
-`struct<layout: .c, packing: 1>` e modifiers `packed`/`aligned` permanecem
-**Alternativas**. Eles não ficam reservados na v0. Uma proposta futura precisa
-provar grammar, generic interaction, field access, atomics, ABI por target e
-diagnostics de unaligned access antes de ganhar source próprio.
+`struct<layout: .c, packing: 1>` e modifiers `packed`/`aligned` não ficam
+reservados na v0. Uma proposta futura precisa provar grammar, generic
+interaction, field access, atomics, ABI por target e diagnostics de unaligned
+access antes de ganhar source próprio.
 
 ### 9.9 Seleção de representação
 
@@ -9178,8 +9073,8 @@ alocar e guardar o valor uma vez. O nome `Lazy` torna essa diferença visível n
 declaração. `w explain` mostra o initializer e o storage gerado.
 
 Composição v0 usa um behavior composto nomeado. Lista por vírgula e nesting
-arbitrário ficam como alternativas até que ordem, exclusivity e drop tenham uma
-regra simples.
+arbitrário não entram enquanto ordem, exclusivity e drop não tiverem uma regra
+simples.
 
 Range continua responsável por `contains` e `clamp`. Um behavior `Clamped` só
 serve quando a propriedade precisa aplicar uma policy em toda atribuição. Ele
@@ -10300,8 +10195,8 @@ Uma duração zero devolve cancellation antes de executar o body.
 Nanoseconds são a resolução pública da baseline. Eles cobrem clocks e timers
 dos targets iniciais e mantêm o bootstrap simples. Quantities físicas podem
 usar `f64`, decimal ou rational. Device cycles também usam um tipo próprio.
-Picoseconds, femtoseconds e attoseconds para o clock operacional permanecem
-**Alternativa**. Eles não devem ampliar `Duration` sem um caso mensurável.
+Picoseconds, femtoseconds e attoseconds não ampliam `Duration` sem um caso
+mensurável.
 
 O runtime pode medir tempo para scheduling, deadline e trace sem conceder a
 capability de application clock. O programa só lê tempo quando seu `Context`
@@ -10537,11 +10432,6 @@ synchronization pode publicar um fato de mobilidade por interface trusted com
 target, adapter e digest. Essa forma é **Provável** somente dentro de
 `foreign` ou de um runtime provider. Uma assertion local do usuário fica
 **Rejeitado**.
-
-**Alternativas:** `T<mobility: .transferable>` usa um static slot nomeado.
-`T: Send`, `T: Sync` e `T: Sendable` usam marker protocols públicos. As formas
-ficam rejeitadas no design vigente porque permitem conformance nominal para uma propriedade
-que safe W deve derivar.
 
 ### 12.8 Task groups e backpressure
 
@@ -12065,10 +11955,8 @@ connection pool. Um adapter pode expor defaults, mas o source ainda nomeia o
 provider. Assim o compiler pode rejeitar uma call fora de `tx` e explicar qual
 efeito não pertence ao commit.
 
-Uma forma `transaction using provider { ... }`, com `tx` implícito, permanece
-**Alternativa**. Ela pode ser reavaliada se um formatter e testes mostrarem
-ganho humano sem perder a busca estática de provider, scope e capability. Ela
-não entra na baseline enquanto houver mais de um provider possível no contexto.
+`transaction` mantém `tx`, provider, scope e capability explícitos. Um contexto
+com mais de um provider nunca escolhe um implicitamente.
 
 O compiler conhece este protocol host:
 
@@ -12351,10 +12239,8 @@ entry Diagnostics {
 }
 ```
 
-`entry(args: T, ctx: C) { ... }` e sua variante `async entry` permanecem
-**Alternativa**. Elas duplicam a grammar de `fn`, dificultam teste direto e
-precisam repetir return e error effects. A forma `fn` mais `entry(fnName)` mantém
-a assinatura completa em uma função normal.
+A forma `fn` mais `entry(fnName)` mantém a assinatura completa, os effects e o
+teste direto numa função normal.
 
 Um sinal de processo é um evento runtime. O programa pode registrar, substituir
 ou remover seu handler conforme o estado da aplicação:
@@ -12532,9 +12418,8 @@ Bindings repetidos entre products podem usar um fragmento data-only do package
 no futuro. Herança entre entries fica **Rejeitado por enquanto**. Ela mistura
 source reachability com composição de build.
 
-Selecionar vários descriptors no runtime permanece **Alternativa**. A forma
-vigente liga um descriptor por product. Um handler normal escolhe modes dentro
-do mesmo lifecycle.
+A forma vigente liga um descriptor por product. Um handler normal escolhe modes
+dentro do mesmo lifecycle.
 
 ### 13.3 Unidade lógica e packing físico
 
@@ -13740,7 +13625,7 @@ Esta separação segue evidência externa:
 - [Erlang supervisors](https://www.erlang.org/doc/system/sup_princ.html)
   limitam restart intensity e distinguem children dinâmicos de estado durável.
 
-Alternativas:
+Estado das superfícies:
 
 | Forma | Estado |
 |---|---|
@@ -14944,16 +14829,8 @@ RFC 8085.
 
 SDK0 serializa as operações mutáveis de um mesmo `UdpSocket`: no máximo uma
 `receive` ou uma `send` fica em voo. Essa limitação é deliberada na primeira
-surface. Um split direcional ou um protocolo genérico de datagram é uma
-alternativa futura.
-
-**Alternativa:** um socket global ou um constructor público de `Network`
-esconderia authority e permitiria SSRF. A forma vigente exige capability do
-host e valida cada tentativa.
-
-**Alternativa:** expor nomes como `"tcp4"` ou herdar file descriptors levaria
-semântica do target para source comum. SDK0 usa types fechados e não aceita raw
-sockets, descriptors herdados ou socket-option escape hatch.
+surface. Split direcional e protocolo genérico de datagram ficam em
+**Pesquisa**.
 
 **Rejeitado por enquanto:** multicast, broadcast, Unix domain sockets, named
 pipes, TLS, STARTTLS, QUIC, WebSocket e enumeração de interfaces. Esses casos
@@ -15174,19 +15051,9 @@ informa bytes, fallback usado e offset final. `sendfile`, `TransmitFile`,
 `splice`, memory mapping e device buffers permanecem detalhes do adapter. A API
 nunca promete zero-copy sem capability do target.
 
-Esta forma permanece **Alternativa**:
-
-```w
-let step = try await output.transfer(
-  from: archive,
-  range: requestedRange,
-  fallback: inout scratch,
-)
-```
-
-O scratch explícito evita allocation escondida quando o target não possui uma
-rota especializada. A operação só entra na forma vigente depois de oracles em
-Windows, Linux e um terceiro host.
+`io.transfer` só entra na forma vigente depois de oracles em Windows, Linux e
+um terceiro host. A superfície precisa tornar qualquer scratch ou fallback
+observável.
 
 Fontes primárias:
 
@@ -16106,12 +15973,6 @@ removem shapes dinâmicos.
 Para implementação, Request e Response compartilham header list, body pump,
 URL, stream e signal. O caminho sem clone move owners e não copia body.
 
-**Alternativa:** manter String para URL e method reduziria tipos no SDK. Essa
-forma repetiria parse e perderia custom method validado.
-
-**Alternativa:** clone sem limite manteria a assinatura Web. Um consumidor lento
-poderia reter o body inteiro. Esta forma não entra na baseline.
-
 **Rejeitado por enquanto:** aliases `path`, `query`, `decodeJson` e
 `Headers.getAll`. Eles criariam uma superfície paralela ou obsoleta.
 
@@ -16350,12 +16211,6 @@ Um stream comum não promete `Content-Length`.
 O constructor custa tempo linear nos headers e na codificação exigida. Bytes e
 stream usam O(1) além do owner quando o adapter aceita move. Clone usa o bound
 do caller.
-
-**Alternativa:** `Response.text`, `.bytes`, `.stream` e `.html` removeriam um
-argumento. Eles duplicariam `BodySource` e divergiriam da API Web.
-
-**Alternativa:** confirmar entrega quando o handler retorna exigiria aguardar o
-socket. Isso removeria streaming e prenderia o request root ao peer.
 
 **Rejeitado por enquanto:** trailers mutáveis depois do constructor. O adapter
 precisa fechar validation, commit e failure antes dessa superfície.
@@ -17108,20 +16963,12 @@ control pode levar o snapshot bounded de `AbortReason`. O sender não transfere
 um controller nem authority de network ou timer. Uma rota local pode
 compartilhar o handle O(1).
 
-**Alternativa futura:** um live-control edge explícito poderia transportar um
-signal independente por RPC. A implementação de workerd possui serialização
-especial para AbortSignal em sua boundary RPC; consulte
-[`basics.c++`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/basics.c++)
-e
-[`http.h`](https://github.com/cloudflare/workerd/blob/main/src/workerd/api/http.h).
-Essa evidência preserva a alternativa, mas não publica a superfície no SDK0.
-
 Se um body Web é abortado por signal, seu terminal `Failure` é
 `HttpBodyError.aborted(reason)`. `ReadableStream.cancel()` continua a operação
 consuming de W-330. Ele não recebe um payload `any`, não cria outra cancellation
 de task e não restaura o owner.
 
-##### Compatibilidade, gates e alternativas
+##### Compatibilidade e gates
 
 A classificação do profile é:
 
@@ -17628,13 +17475,6 @@ O design usa como referências a [Apple Codable](https://developer.apple.com/doc
 e a documentação oficial do [Serde](https://serde.rs/), mas não copia
 derivation aberta, reflection ou attributes desses ecossistemas.
 
-**Alternativa:** um serializer universal baseado em reflection reduziria
-boilerplate, mas criaria schema implícito, custo não bounded e incompatibilidade
-de nomes. Fica **Rejeitado**.
-
-**Alternativa:** chamar o output determinístico de canonical JSON ou JCS daria
-uma garantia de signature que o profile não prova. Fica **Rejeitado**.
-
 **Rejeitado por enquanto:** aceitar `Any`, number IEEE sem range, duplicate
 last-wins, cursor escapante ou rota unlimited. Cada forma perde uma garantia
 de segurança ou interoperabilidade necessária ao núcleo HTTP.
@@ -17811,12 +17651,6 @@ lifetime. Eles não definem a semântica de W. CSV, Parquet e Arrow são adapter
 posteriores. DLPack continua adapter de tensor e terá um bundle próprio de
 interchange tensorial. TAB1 deve fechar somente os nomes, signatures e
 workflows exatos de CSV, Parquet e Arrow.
-
-**Alternativa:** um `Table<Row>` estável ou um DataFrame completo poderia
-combinar batches e operações. Fica em package first-party para manter o core
-pequeno. **Rejeitado por enquanto:** `Any` universal, duck typing, reflection
-unchecked, union silencioso de schema, carrier row-array universal, copy
-implícito, release duplicada e ABI física derivada do layout.
 
 #### 14.4.2 Adapters tabulares TAB1
 
@@ -18271,9 +18105,6 @@ let color = 0xff_40_00_u32
 `Int` fixo mantém overflow, serialização e refinements iguais em targets de 32
 e 64 bits. O optimizer pode estreitar uma operação interna e reestender o valor
 na boundary. Um target de 32 bits ainda implementa a semântica de 64 bits.
-`Int` com largura do target, literal default `i32` e `BigInt` como default
-permanecem **Alternativa**.
-
 O lexer aceita:
 
 - decimal, `0b` binary, `0o` octal e `0x` hexadecimal;
@@ -18606,9 +18437,9 @@ entrada byte a byte com `Display` do valor. Assim `+1`, `01` e `-0` podem
 parsear, mas falham a validação de canonical form. O schema nunca escolhe a
 representation conforme o valor runtime.
 
-APIs de radix podem existir como alternativa explícita futura. Elas não mudam o
-texto decimal usado por `Display`, schemas JSON ou IDs de Last Light. Locale
-não é uma opção de formatação numérica na baseline.
+APIs de radix ficam em **Pesquisa**. Elas não mudam o texto decimal usado por
+`Display`, schemas JSON ou IDs de Last Light. Locale não é uma opção de
+formatação numérica na baseline.
 
 ### 15.2 Ranges
 
@@ -18950,10 +18781,9 @@ Uma decimal unsigned canônica segue `0|[1-9][0-9]*`. Uma decimal signed segue
 
 Para o schema `tickDuration`, o adapter fixo escreve sempre `s`. Para
 `energyUsed`, o adapter fixo escreve sempre `J`. Para `MemorySize`, o profile integer usa
-`{"value":"524288","unit":"bit"}`. `{"value": 30, "unit": "ms"}` é rejeitado. A forma com field
-embutido, como `tickDurationSeconds`, permanece **Alternativa** para APIs muito
-compactas. `{ "value": 30, "arbitraryUnit": "ms" }` permanece **Rejeitado por
-enquanto** por canonicality, attack surface e schema ambiguity.
+`{"value":"524288","unit":"bit"}`. `{"value": 30, "unit": "ms"}` é rejeitado.
+`{ "value": 30, "arbitraryUnit": "ms" }` permanece **Rejeitado por enquanto**
+por canonicality, attack surface e schema ambiguity.
 
 `std.json@1` continua missing. O contrato JSON de Quantity é, portanto, um
 oracle de compile surface e schema documentado até existir provider. Ele não
@@ -19183,11 +19013,9 @@ O descriptor depende da família lógica:
 | `view CString` | bytes contíguos com NUL validado |
 | `view Tensor<T, ...>` | base, shape e strides; pode não ser contígua |
 
-`view` vence `slice` e `span` porque uma projeção pode ser textual ou strided,
-e não somente uma sequência contígua. `borrow` duplicaria `ref`. `readonly`
-descreveria a permissão, mas não a perda intencional de owner metadata. Esses
-nomes permanecem alternativas documentadas; não ficam reservados como
-keywords.
+`view` descreve projeção textual, contígua ou strided. Ele não é sinônimo de
+`ref` e não fica restrito a uma sequência contígua. `slice`, `span`, `borrow` e
+`readonly` não ficam reservados como keywords.
 
 Criar uma view não aloca. A interface registra owner lógico, element type, index
 model, contiguidade, shape/strides, mutabilidade e provenance. Esses fatos não
@@ -20574,9 +20402,6 @@ let transform: Matrix<f32, rows: 2, columns: 3> = [
 ]
 ```
 
-`[1 2; 3 4]` fica preservado como alternativa. Ele perde no design vigente porque usa
-whitespace e semicolon como parte do shape e não generaliza com simplicidade.
-
 Shapes usam value parameters:
 
 ```w
@@ -20715,7 +20540,7 @@ PYN4 fecha o intercâmbio tensorial entre W e produtores trusted in-process. Ele
 é design e oracle, não compiler, runtime, provider, bridge Python ou driver de
 device. O bundle liga [PYN0](#2411-auditoria-pythonw-pyn0), o contrato de
 device em [18.5](#185-matrizes-simd-e-devices),
-os bloqueios de [24.5](#245-artefatos-que-ainda-bloqueiam-o-design-freeze) e a
+os bloqueios de [24.4](#244-artefatos-que-ainda-bloqueiam-o-design-freeze) e a
 [revisão em RATIONALE 1.3.18](RATIONALE.md#1318-carrier-tensorial-pyn4). O baseline documental é
 [DLPack 1.3](https://dmlc.github.io/dlpack/latest/), com
 [C API](https://dmlc.github.io/dlpack/latest/c_api.html) e
@@ -21578,9 +21403,6 @@ segundo as regras lexicais da linguagem externa. Ele não entrega sua AST ao
 parser W. Sem o adapter, a ferramenta preserva bytes, mas informa que não pode
 validar o fechamento da ilha.
 
-**Alternativa:** um raw body com fence hash permite recovery sem adapter. O
-corpus deve comparar a forma braced com `#{...}#` antes do design freeze.
-
 O builder agrupa as funções por:
 
 - adapter e versão de toolchain;
@@ -22349,9 +22171,7 @@ type, width e bytes IEEE exatos. Essa forma preserva signed zero, NaN payload e
 target-independent identity. Big integers também usam um record tipado e bytes
 canônicos. O codec não decide a semântica numérica.
 
-O draft dCBOR permanece uma **Alternativa**. Ele ainda é um Internet-Draft.
-WMeta1 usa o RFC publicado e declara seu subset completo. Uma atualização pode
-reavaliar dCBOR sem mudar bytes WMeta1 válidos.
+WMeta1 usa o RFC publicado e declara seu subset completo.
 
 ###### Limites e fases do reader
 
@@ -22425,15 +22245,12 @@ retém esse profile. Uma distribuição source/interface publica o sidecar
 explícito só pode removê-la quando não existe load W dinâmico ou inspection
 exigida pelo product. O artifact record ainda referencia o sidecar separado.
 
-###### Performance e alternativas
+###### Performance
 
 Directory-first permite uma allocation bounded e um scan linear. Integer keys
 reduzem bytes e branches. Prefix sums substituem offsets. Chunks opcionais ficam
 lazy. Hashing e decode podem usar streaming. Um mmap reader nunca usa load
 desalinhado ou cast para struct nativa.
-
-**Alternativa:** CBOR único sem directory reduz o header. Ele exige scan completo
-para achar um body e não separa digests ou failure locality.
 
 **Rejeitado por enquanto:** Protobuf possui evolução ampla, mas seus próprios
 [documentos](https://protobuf.dev/programming-guides/serialization-not-canonical/)
@@ -22788,14 +22605,6 @@ W. A compatibilidade entre organizações usa uma façade C versionada, componen
 ABI, service schema ou source rebuild. Uma futura ABI W resiliente só entra após
 um protótipo que meça accessors, witnesses, nonexhaustive enums, metadata e o
 custo de manter um runtime permanente.
-
-**Alternativa:** uma ABI W resiliente permitiria trocar libraries sem rebuild.
-Ela exigiria field accessors, indirect value operations, metadata estável,
-nonexhaustive enums e runtime permanente. O
-[modelo de library evolution do Swift](https://www.swift.org/blog/library-evolution/)
-mostra o custo e recomenda ativá-lo somente quando client e library evoluem
-separadamente. W deixa essa forma **Rejeitado por enquanto**. Source rebuild,
-C façade, component e service schema cobrem evolução independente.
 
 #### 20.4.10 C façade escrita em W
 
@@ -23760,10 +23569,6 @@ w toolchain resolve \
   --output build/image-converter.wplan
 ```
 
-**Alternativa:** manter configuração de workspace apenas fora do repository
-facilita overlays pessoais. Ela torna CI, lock e seleção de members menos
-observáveis.
-
 #### 21.1.2 Usages de dependência
 
 **Exemplo:** o restaurante usa o compiler de cardápio durante o build. O
@@ -23889,10 +23694,6 @@ cada feature.
 
 `w explain feature <package>::<feature>` mostra os roots e edges que ativaram a
 feature. `w diff-lock` separa mudança de version, source e feature.
-
-**Alternativa:** features condicionais dentro de qualquer statement reduzem o
-número de modules. Elas aumentam o número de programas possíveis por arquivo e
-dificultam interface diff, testes e leitura por ferramentas.
 
 #### 21.1.4 Variantes por target
 
@@ -24040,14 +23841,6 @@ dentro do source e as
 [build constraints de Go](https://pkg.go.dev/cmd/go#hdr-Build_constraints)
 em comentários ou filenames. Essas formas aumentam o número de programas que
 uma ferramenta precisa reconstruir ao ler um único arquivo.
-
-**Alternativa:** uma expressão Boolean geral permite `not`, flags privadas e
-nesting. Ela dificulta prova de disjointness e deixa o resultado dependente de
-inputs abertos.
-
-**Alternativa:** escolher o case mais específico permite overrides curtos. A
-regra cria priority implícita quando o manifest cresce. A v0 exige cases
-disjuntos.
 
 #### 21.1.5 Sources e patches
 
@@ -24318,9 +24111,6 @@ Repository, homepage, display name e descrição são metadata. Eles não mudam
 package identity ou o field `authority`. O registry pode aplicar limites de
 tamanho e policy, mas não acrescenta arquivos ao snapshot enviado pelo
 maintainer.
-
-**Alternativa:** publicar todos os arquivos não ignorados reduz configuração.
-Ela transforma uma policy local e mutável em boundary de distribuição.
 
 #### 21.1.8 Product roots e library ABIs
 
@@ -24847,19 +24637,6 @@ Esta separação usa:
   prova automática de suporte;
 - [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
   como adapter de compatibilidade para tools que exigem uma variável temporal.
-
-**Alternativa:** usar sempre a toolchain instalada no host reduz o setup
-inicial. Ela deixa uma atualização de IDE, SDK ou environment mudar a recipe sem
-uma decisão no projeto.
-
-**Alternativa:** distribuir todos os SDKs com W aproxima a ergonomia cross-target
-do Zig. Ela não é possível para todo SDK, licença ou device pack. W distribui o
-que pode e usa providers explícitos para o restante.
-
-**Alternativa:** fixar um archive por module simplifica inspection. Ela impede o
-compiler de escolher uma granularidade melhor para incremental build, LTO e
-dead stripping. Module continua uma unidade semântica; archive é uma decisão da
-recipe.
 
 #### 21.2.2 Artifact identity
 
@@ -25567,8 +25344,7 @@ versionados. Deprecation informa replacement e janela de remoção. O projeto
 publica suporte de targets e security policy.
 
 Identidade do nome W, domínio, executable e trademark precisa de validação antes
-do lançamento público. A frase “A última linguagem que você vai precisar
-aprender” fica como alternativa de marca; não é promessa técnica.
+do lançamento público. Slogans não são promessa técnica.
 
 ## 22. Tooling e interface para máquinas
 
@@ -26181,19 +25957,8 @@ ou annotations. `w build` nunca altera o lock. `freeze`, `update` e `rename` sã
 mutations explícitas. O source snapshot e a release recipe incluem o digest do
 lock.
 
-As alternativas permanecem registradas:
-
-| Alternativa | Vantagem | Custo |
-|---|---|---|
-| ordinals no source | evolução explícita perto da declaração | annotations permanentes e ruído humano |
-| hash do nome | nenhum arquivo adicional | rename vira quebra e collisions exigem registry |
-| ordem de declaração | implementação pequena | reorder muda o wire |
-| `interface.lock` | source limpo e rename controlado | arquivo gerado precisa de review |
-
-Cap'n Proto exige ordinals para fields e methods. W escolhe o lock para manter o
-source sem annotations. O
-[schema de Cap'n Proto](https://capnproto.org/language.html) permanece a
-referência para os testes de evolução.
+W usa `interface.lock` para manter o source sem annotations e permitir rename
+controlado. O arquivo gerado exige review.
 
 #### 23.1.3 Compatibilidade e negociação
 
@@ -26936,11 +26701,6 @@ intermediário. Cancellation cobre o grafo inteiro, mas não desfaz um efeito j�
 confirmado. O resultado só fica disponível depois do drain e do cleanup dos
 nodes pertencentes ao pipeline.
 
-**Alternativas:** `CallPipeline.build { ... }` parece uma closure comum e pode
-sugerir record-replay runtime. O builder fluente repete operações e projections
-que o type checker já conhece. Tornar toda call uma promise lazy esconde a
-boundary em código comum. As três formas ficam rejeitadas no design vigente.
-
 Cap'n Proto envia calls que referenciam resultados ainda pendentes. Cap'n Web
 aplica a mesma ideia a projections e capabilities sobre JSON. O `map` de Cap'n
 Web usa record-replay de uma callback restrita. W começa com um IR estático e
@@ -27345,19 +27105,15 @@ Compressão ocorre depois do codec e antes do transport. O frame declara tamanho
 comprimido e tamanho lógico. O receiver reserva pelo tamanho lógico e pelo
 budget. Checksums, channel integrity e retransmission não pertencem ao wWire.
 
-**Estado e alternativas.** O layout prefixado por directory e lengths e o
+**Estado.** O layout prefixado por directory e lengths e o
 registro core v0 são **Direção**. Os seed vectors são **Forma vigente** para
 conformance. Os profiles `exact` e `compatible` são **Provável**. Extensões de
 kind ficam **Rejeitado por enquanto**. Decoder incremental, fuzzer e benchmark
 são gates de implementação, não decisões semânticas abertas.
 
-Um offset directory permanece **Alternativa** para benchmark. Ele permite acesso
-direto, mas exige validar ranges, overlap e canonical placement. O fast path
-local já remove o wire. Esse custo não entra na baseline sem evidência.
-
-TLV intercalado permanece outra **Alternativa**. Ele simplifica encode em uma
-passagem, mas mistura directory e payload. O decoder perde o preflight de
-allocation e precisa percorrer valores para localizar outro field.
+O fast path local já remove o wire. Outra representation só entra depois de
+benchmark e precisa preservar preflight de allocation, ranges, overlap e
+canonical placement.
 
 O gate compara:
 
@@ -27509,223 +27265,18 @@ Uma pesquisa só avança quando possui:
 5. impacto em parser, formatter, metadata e packages;
 6. decisão registrada por diff e teste.
 
-## 24. Classificação de viabilidade
+## 24. Design freeze e pendências
 
-| Família | Classe vigente | Motivo |
-|---|---|---|
-| owner único, borrow e whole-value move | **Possível agora** | análise e lowering conhecidos |
-| provenance separada de address | **Possível agora** | HIR e LLVM preservam a distinção |
-| `Address` sem reconstrução de pointer | **Possível agora** | `ptrtoaddr` e index width por address space são conhecidos |
-| `Address<space: S>` | **Possível agora** | static contract separa spaces; target data layout fixa mapping e `Bits` |
-| `withAddress` com provenance do receiver | **Possível agora** | lowering pointer-based evita exposed provenance |
-| cópia tipada de pointers com estado externo | **Possível agora** | loads/stores tipados e target data layout preservam o carrier |
-| pinning interno de task frame | **Provável** | lowering conhecido; drop e projection exigem corpus |
-| `pin` e `Pinned<T>` públicos | **Provável** | M1 fecha estado lógico e falha consuming; FFI persistente precisa de protótipo |
-| placement local sem annotation | **Possível agora** | escape e frame analysis conservadores fornecem fallback stack |
-| gate sem allocator geral | **Provável** | call graph e allocation facts são conhecidos; FFI exige summary |
-| `Arena` baseline com scope explícito | **Provável** | M1 fecha lifetime, budget e rehome lógicos; async e destruição física exigem protótipo |
-| allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
-| mobilidade derivada da origem | **Provável** | M1 separa origem local/cross-domain; FFI e matriz de providers exigem protótipo |
-| allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
-| `shared` + `weak` sem cycle collector | **Provável** | M1 fecha lifecycle lógico; atomics, overflow e tooling de ciclos exigem avaliação |
-| `async let`/`spawn<domain> let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
-| modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
-| UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
-| String flat com owner único no W0 | **Possível agora** | pointer/count/reserva/origin e validação UTF-8 são conhecidos |
-| carrier comum de String/Bytes consuming | **Possível agora** | ambos são buffers baseline owned; type safety permanece nas conversões |
-| SSO invisível | **Provável** | Swift e SmallString provam viabilidade; threshold e target exigem benchmark |
-| COW como baseline de String | **Rejeitado** | desloca allocation, budget, failure e deallocator para mutation futura |
-| cache lazy por String | **Rejeitado na baseline** | read não deve alocar, mutar owner ou exigir synchronization |
-| `view T` genérica para projeções core | **Possível agora** | provenance e descriptor são definidos por família; `ref` cobre o place completo |
-| fato de imutabilidade profunda | **Provável** | owner único e fields fechados são verificáveis; capabilities e foreign storage exigem fallback conservador |
-| UTF-8 incremental e maximal subpart | **Possível agora** | estado máximo de três bytes e algoritmo Unicode versionado |
-| adoção de `Bytes` por `String` | **Provável** | owner transfer é claro; reuse depende do allocator/layout |
-| Bytes, paths nativos e C strings distintos | **Possível agora** | fronteiras conhecidas; conversões preservam perda e terminador |
-| graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
-| `InlineString` com capacity no tipo | **Provável** | storage explícito atende embedded e ABI; overflow e boundary permanecem visíveis |
-| strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
-| literal exato até materialização | **Possível agora** | big integer e rational decimal ficam no frontend |
-| conversões pelo domínio completo | **Possível agora** | tabela fechada e facts de refinement decidem sem heurística |
-| float strict e total-order wrapper | **Possível agora** | IEEE e backend fornecem as operações necessárias |
-| ranges com quatro closures | **Possível agora** | representação, membership e iteration discreta são separáveis |
-| BigInt, Rational e FixedDecimal em `std.math`/`std.decimal` | **Provável** | algoritmos conhecidos; API, OOM e limites exigem corpus |
-| `f16`, `bf16` e quantization em `std.quant` | **Provável** | MLIR preserva storage/expressed type; targets exigem fallback |
-| Posit, Unum e decimal float | **Rejeitado por enquanto** | FixedDecimal, Rational e IEEE binary cobrem a baseline sem novo real universal |
-| schema fechado de contrato estático | **Possível agora** | AST/HIR simples; corpus angular já existe |
-| referências `.member` contextuais | **Possível agora** | expected type e refinement subject fecham a resolução |
-| associated constants, functions e types | **Possível agora** | lookup estático e witnesses nominais são conhecidos |
-| generics com primary associated types | **Possível agora** | inference fechada, coherence nominal e lowering híbrido definidos |
-| subsets fechados de enum | **Possível agora** | case-set normalizado, flow narrowing e layout base definidos |
-| typestate por parâmetro de valor enum + `take fn` | **Provável** | lookup e ownership são conhecidos; diagnostics e code sharing exigem corpus |
-| `TypeId` e reflection opt-in | **Possível agora** | descriptor alcançável não expõe layout nem storage privado |
-| synthesis de protocols core | **Possível agora** | families fechadas e witnesses normalizados |
-| parâmetros rest homogêneos | **Provável** | call shape é fechado; ownership e lowering exigem corpus |
-| packs heterogêneos e GAT | **Rejeitado por enquanto** | rest, tuple, primary associated types e methods generic cobrem a baseline |
-| metatype e dynamic construction | **Rejeitado por enquanto** | generics, factory e enum preservam relações estáticas |
-| visibilidade efetiva por tipo de membro | **Possível agora** | interface e HIR usam normalização determinística |
-| destructuring nominal de struct | **Possível agora** | pattern e modos de borrow fechados |
-| switch exaustivo e tuple scrutinee | **Possível agora** | ordem, guards e patterns fechados possuem análise conhecida |
-| diff de interface e SemVer | **Provável** | regras básicas fechadas; conflitos de resolução exigem corpus |
-| receiver consuming `take fn` | **Possível agora** | whole-value move e drop state já são necessários |
-| retorno fluente `: self` | **Provável** | reborrow é conhecido; borrow suspenso exige corpus |
-| overload por forma de call | **Possível agora** | seleção por labels ocorre antes do type-check |
-| vários initializers e delegação total | **Possível agora** | flow analysis e grafo de delegação são conhecidos |
-| computed property property-safe | **Possível agora** | accessors e borrow do receiver possuem lowering direto |
-| static record e static list | **Possível agora** | payload const; cada head ainda precisa de schema |
-| `fn`, `some fn` e `any fn` | **Provável** | tipos e drop são conhecidos; escape e erasure exigem corpus de custo |
-| services serial-turn e `ServiceRef` async | **Provável** | exige protótipo de mailbox, deadlock e trace |
-| `ServiceIR` e `interface.lock` | **Possível agora** | interface semântica, IDs estáveis e diff são técnicas conhecidas |
-| `ServiceLink` separado de `ServiceTransport` | **Possível agora** | local, component, native RPC e foreign RPC exigem lowers completos distintos |
-| wRPC unary e capability tables | **Provável** | lifecycle está fechado; session, disconnect e security exigem fault tests |
-| service streams com dois créditos | **Provável** | source, errors, ownership, créditos e relay estão fechados; fairness e fault injection exigem protótipo |
-| `pipeline` dependente | **Provável** | forma source e DAG estão fechados; runtime, arbitragem e routing exigem protótipo |
-| output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
-| wWire `exact` e `compatible` | **Provável** | layout, registro e dois codecs de seed fecham a direção; decoder e fuzzer são gates |
-| introdução direta entre três services | **Rejeitado por enquanto** | relay preserva consentimento, attenuation e revocation sem outro protocol |
-| `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
-| bindings tipados e runtime graph data-only | **Possível agora** | requirements, providers, imports e exports fecham por interface no link |
-| packing de service graph | **Provável** | partição e index são simples; ABI entre units e fast path exigem protótipo |
-| deployment plan e lock por digest | **Provável** | resolução é direta; placement, adapters e rolling update exigem runtime |
-| workflow durável por steps | **Provável** | superfície, replay e effect policy estão fechados; journal, crash oracle e migration exigem protótipo |
-| `<unit>` e units customizadas | **Provável** | type/lowering coerentes; ergonomia precisa de corpus |
-| refinements e value parameters | **Provável** | exige evaluator, proof budget e ABI identity |
-| interval, case-set, shape e alias facts na HIR | **Possível agora** | análises conhecidas; fallback conserva checks e largura |
-| remoção de checks por prova verificada | **Possível agora** | range e control-flow facts possuem lowering direto |
-| largura de operação e SIMD por refinement | **Provável** | precisa preservar overflow, accumulator e cost model por target |
-| storage estreito não escapante | **Provável** | exige boundary analysis, repacking e benchmark de cache/code size |
-| optimization record e `w explain performance` | **Possível agora** | facts e decisões já existem nos passes; schema precisa ser estável |
-| theorem prover ou SMT geral no build | **Rejeitado** | ProofFacts bounded cobrem a baseline e preservam reproducibility |
-| property behaviors | **Provável** | expansão HIR é viável; composição ainda precisa de teste |
-| obrigação linear genérica de async close | **Rejeitado** | scopes e cleanup específicos preservam errors sem async destructor universal |
-| entries e host profiles | **Provável** | default handler é claro; adapters e slot schemas precisam de protótipo |
-| `hostBindings` no product | **Possível agora** | símbolos e slots são estáticos; o linker valida a assinatura |
-| package manifest data-only | **Possível agora** | grammar separada, schema fechado e evaluator ausente |
-| workspace data-only com lock compartilhado | **Possível agora** | members exatos, identity e contexts são verificações estáticas |
-| usages separados de dependência | **Possível agora** | reachability e target role fecham product, build, test e benchmark |
-| features somente no grafo | **Possível agora** | união aditiva evita conditional source e defaults ocultos |
-| target variants disjuntas | **Possível agora** | predicates positivos, case único e interface matrix são verificações estáticas |
-| source snapshot por allowlist | **Possível agora** | module expansion, PackagePath e digest produzem uma árvore fechada |
-| build transform tipada | **Provável** | host profile e CAS são diretos; sandbox cross-platform exige protótipo |
-| `WInterface` semântica versionada | **Possível agora** | schema data-only separa API, facts e chunks do cache interno |
-| encoding publicável de metadata | **Possível agora** | `WMeta1` fixa envelope, profiles, subset CBOR, limits, corpus W0 e dois readers independentes |
-| `WAbiKey` exata | **Possível agora** | target, call ABI e policies globais formam uma key; layouts compartilhados usam `RepresentationMap` |
-| runtime contract set reachability-linked | **Possível agora** | requirements e offers usam o mesmo modelo tipado da toolchain |
-| C façade com body W | **Possível agora** | `fn<abi: .c>` usa carriers explícitos e calling convention do target |
-| W dynamic library por digest | **Provável** | loader e ABI note são conhecidos; parity e unload exigem protótipo |
-| ABI W resiliente entre releases | **Rejeitado por enquanto** | source rebuild, C, component e service schema evitam runtime permanente |
-| native dynamic library como sandbox | **Rejeitado** | loader e symbol boundary não contêm memory corruption ou panic |
-| parâmetro de chamada `const` | **Possível agora** | evaluator e call checking já existem; ABI pode apagar o requisito |
-| mensagem HTTP, ownership e admission | **Possível agora** | types, stream e limits estão fechados; adapters ainda precisam de corpus |
-| RestPC com HTTP QUERY | **Possível agora** | RFC 10008 fixa segurança, idempotência, content negotiation e cache key; effect checking e adapters ainda precisam de corpus |
-| adapter HTTP nativo e worker | **Provável** | sockets e WASI existem; parity, cancel drain e headers exigem implementação |
-| SQL estático e rows tipadas | **Possível agora** | descriptors e bind são diretos; schema completo depende de bundle |
-| `transaction` estruturada local e remota | **Provável** | source, provider único, scope e unknown commit estão fechados; adapters e fault tests ainda faltam |
-| cache local com limite e read-through | **Provável** | algoritmos são conhecidos; eviction, cancellation e custo exigem protótipo |
-| target identity e matrix build | **Possível agora** | recipes independentes evitam falsa identidade entre payloads |
-| target spec com platform contract | **Possível agora** | schema fechado separa runtime floor, CPU e SDK |
-| availability check por platform contract | **Possível agora** | join de requirements alcançáveis é análise estática fechada |
-| toolchain plan por roles | **Possível agora** | constraints, seleção e digests são análise data-only |
-| system SDK importer | **Provável** | Apple, Windows e vendors exigem adapters e closure hashing por instalação |
-| remote execution sem mudar a plan | **Provável** | sandbox e inputs estão fechados; parity cross-host exige corpus |
-| envelope sem assinatura reproduzível | **Provável** | ordering e metadata podem ser normalizados por packager |
-| assinatura universal bit a bit | **Rejeitado** | timestamp, notarization e authorities externas produzem delivery records |
-| WASI 0.3 native async component | **Provável** | standard estável; target e guest toolchains ainda amadurecem |
-| desktop/server LLVM targets | **Provável** | backends existem; runtime, SDK e CI ainda são trabalho W |
-| Android e Apple mobile | **Provável** | ABI e SDK existem; lifecycle, packaging e signing exigem adapters |
-| Cortex-M e RISC-V firmware | **Provável** | backends existem; freestanding runtime e device descriptions exigem corpus |
-| NVVM, ROCDL e SPIR-V device bundle | **Provável** | MLIR oferece lowerings; kernel subset e transfer precisam de protótipo |
-| ASIC/FPGA como target geral | **Rejeitado** | kernels exportados podem usar adapter específico; W comum não promete synthesis de hardware |
-| nanoservices co-localizados | **Provável** | service graph permite fast path; equivalência física exige trace e fault tests |
-| profile TechEmpower | **Provável** | sete source oracles existem; adapters, harness fixado e medição ainda faltam |
-| tensors ranked, `@` e views | **Provável** | MLIR ajuda; API e device model precisam de protótipo |
-| integer tensor com accumulator inferido por range | **Provável** | prova é conhecida; panic, widening e kernel dispatch exigem corpus |
-| float matrix modes strict/fast/reproducible | **Provável** | cada mode precisa de oracle numérico e matriz de targets |
-| niches de null e bit pattern inválido | **Possível agora** | validity facts e fallback explícito fecham a semântica |
-| low-bit interno por alignment provado | **Provável** | exige lowering de provenance e corpus de FFI, atomics e sanitizer |
-| high-bit addresses e NaN boxing | **Rejeitado na baseline** | dependem de target, process, hardening e tooling; optimization interna mantém fallback |
-| universal tagged pointer ou object header | **Rejeitado** | conflita com ABI, hardening, capability pointers e valores sem metadata |
-| fingerprint de representação sem provider noise | **Possível agora** | schema físico, `WAbiKey`, runtime closure e recipe já estão separados |
-| task lexical com outcome após cleanup | **Possível agora** | state machine, ownership, cleanup e join possuem ordem fechada |
-| fail-fast com arbitragem declarada | **Possível agora** | cancel edge e drain são conhecidos; ordem lexical/input é estática |
-| cancellation snapshot bounded | **Possível agora** | enums e bitsets fechados não exigem allocation no sinal |
-| deadline monotônico local | **Provável** | timers e clock virtual são conhecidos; races exigem corpus adversarial |
-| deadline remoto strict | **Possível por transport profile** | profile com timebase provada oferece strict; os demais usam approximate |
-| schema portátil de execution domains | **Possível agora** | IDs, capabilities e regras de binding são estáticos |
-| execution profile data-only | **Possível agora** | domains, pools, fallbacks e máximos fecham no link |
-| task admission sem fila ilimitada | **Provável** | reserva e handle canceled são fechados; pressure e wakeups exigem protótipo |
-| capacity compartilhada em paralelismo aninhado | **Provável** | runtime inicial precisa provar liveness e ausência de oversubscription |
-| `Stream<Item, Failure>` single-pass | **Possível agora** | cursor mutável, Optional terminal e error effect possuem lowering direto |
-| `for try await` | **Possível agora** | sugar local para `next()`; borrow do cursor e effects permanecem visíveis |
-| `Channel<T>` MPSC bounded | **Provável** | ownership e estados estão fechados; fairness, cancellation e custo exigem protótipo |
-| permits de channel | **Provável** | capability linear fecha capacity; close e suspension longa exigem oracle |
-| WorkQueue, broadcast, watch e weighted channel | **Provável** | cada tipo possui loss, fan-out, lag e accounting próprios |
-| `ByteSource`/`ByteSink` async-first | **Possível agora** | short progress, EOF e errors possuem resultados fechados |
-| read por append em reserva privada de `Bytes` | **Possível agora** | initialized count e commit ocultam storage ainda não inicializado |
-| cancellation de I/O com completion drain | **Provável** | backends possuem completion; runtime e borrow checker precisam de oracle |
-| filesystem com rights estáticos e offset posicional | **Provável** | handles e syscalls existem; profiles e diagnostics exigem protótipo |
-| adapters blocking com quota | **Provável** | pool bounded preserva semântica; cancellation física depende da API |
-| backends readiness/completion equivalentes | **Provável** | contrato comum está fechado; matriz de targets deve provar os mesmos traces |
-| gather write com segments borrowed | **Possível agora** | rest homogêneo, prefix progress e fallback sem allocation fecham a superfície |
-| scatter read por `ReadBatch` | **Provável** | owner único fecha aliases, initialized counts e rollback parcial |
-| file/device transfer especializada | **Provável** | operação informa progress e fallback; zero-copy exige capability do adapter |
-| `transferable`/`shareable` estruturais | **Possível agora** | fields, captures, borrows, cleanup e interface compilada fornecem facts fechados |
-| data-race freedom e happens-before | **Possível agora** | ownership, tasks, channels, services, locks e atomics fornecem edges fechados |
-| `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
-| fallback atomic não lock-free | **Provável** | runtime striped lock preserva semântica; signals e freestanding exigem profile |
-| `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
-| `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
-| closure de `AsyncMutex.withLock` sem suspension | **Possível agora** | tickets FIFO, cancellation e unlock possuem contrato LM0 |
-| `RwLock<T>` na safe std | **Rejeitado** | domain concorrente com `.barrier` preserva placement, tickets e loans |
-| condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
-| lazy concorrente, barreira cíclica e atomic wait/notify | **Pesquisa** | cada forma ainda precisa de failure, cancellation, generation e provider contract próprios |
-| `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
-| RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
-| facts trusted para FFI e synchronization customizada | **Provável** | somente provider ou foreign interface fixa target, digest e negative facts |
-| domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
-| QoS na syntax de `spawn` | **Rejeitado** | policy no profile ou group não parece garantia de ordering ou deadline |
-| `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
-| mimalloc como profile | **Provável** | API e build são conhecidos; versão, targets e foreign mix exigem benchmark |
-| mimalloc universal | **Rejeitado por enquanto** | origem estrangeira, versão e targets impedem um default sem evidência |
-| SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
-| seccomp por módulo importado | **Rejeitado** | import não é uma security boundary |
-| sandbox portátil por process/Wasm | **Provável** | depende do host, mas preserva o contrato |
-| `fn<C>` com static archive | **Provável** | depende primeiro da façade C e do build hermético |
-| `fn<Rust>`/`fn<Swift>` | **Provável após C** | adapter hermético agrupa runtime e usa façade C tipada |
-| álgebra simbólica completa no core | **Rejeitado** | package experimental preserva evolução |
-| custom operators e precedência do usuário | **Rejeitado** | piora parser, tooling e previsibilidade |
-| macros/annotations universais | **Rejeitado** | cria uma segunda linguagem e hidden behavior |
+Esta seção reúne somente auditorias que ainda fecham contratos, ausências
+deliberadas e gates. O catálogo comparativo de viabilidade está em
+[RATIONALE.md](RATIONALE.md). Cada seção normativa continua sendo a autoridade
+para a forma vigente.
 
-### 24.1 Auditoria comparativa de completude
+### 24.1 Auditorias de completude
 
-**Exemplo:** W oferece a capability de acesso a MMIO que C permite. W não copia
-o qualifier `volatile` para toda variável.
-
-A auditoria de 4 de agosto de 2026 usa estas fontes primárias:
-
-- [ISO C23 draft N3096](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf);
-- [Rust Reference](https://doc.rust-lang.org/reference/) e
-  [Rust standard library](https://doc.rust-lang.org/std/);
-- [Swift language reference](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/)
-  e [Swift standard library](https://www.swift.org/documentation/standard-library/).
-
-O objetivo é cobrir necessidades. Igualdade de feature ou syntax não é o
-critério.
-
-| Família | C23 | Rust | Swift | W vigente |
-|---|---|---|---|---|
-| control flow | labels, `goto`, loops, switch | labeled loops e expressions | labeled loops, `repeat` e pattern switch | loops/blocks rotulados, post-test loop, switch exaustivo, sem `goto` |
-| tipos | scalar, struct, union, enum | algebraic types, traits, generics | value/reference types, protocols, generics | struct, object, enum, protocols, refinements e generics |
-| memória | pointers e lifetime manual | ownership, borrow e unsafe | ARC, exclusivity e unsafe pointers | ownership, borrow, pin, allocator origin e `unsafe` |
-| erros | codes, `errno`, nonlocal jump | `Result`, panic e `?` | typed throws, `try`, defer | typed throws, `try`, Result, panic e defer |
-| concorrência | threads e atomics | threads, atomics e async libraries | tasks, actors e isolation | structured tasks, domains, services, channels e atomics |
-| compile time | preprocessing e constant expressions | const, traits, macros e build | generics, macros e compiler attributes | ConstIR bounded, contracts e build transforms, sem macro AST |
-| systems | ABI C e implementation extensions | FFI, attributes e inline assembly | C interop e platform SDKs | C façade, host slots, MMIO, placement e `fn<Asm>` |
-| biblioteca | C library | core, alloc, std e crates | core std e packages | módulos `std.io`, `std.net`, `std.tensor`, `std.runtime.*` e packages ligados por reachability |
-| ciência | complex e math | numeric core, ecosystem maior | numeric core, Accelerate packages | units, Complex, matrix, tensor e modes numéricos explícitos |
-
-W cobre todas as famílias necessárias para compiler, server, desktop shell,
-mobile host, firmware, service, ciência e accelerator. Essa conclusão é de
-design. Ela não afirma que compiler, runtime ou SDK existem.
+As comparações com C, Rust, Swift e Python estão em
+[RATIONALE.md](RATIONALE.md). As subseções seguintes preservam somente os
+contratos e gaps que ainda alteram o W corrente.
 
 #### 24.1.1 Auditoria Python→W PYN0
 
@@ -27733,46 +27284,10 @@ design. Ela não afirma que compiler, runtime ou SDK existem.
 abrir `w repl` sem aprender ownership antes. A boundary científica continua
 explícita.
 
-PYN0 torna Python um público inicial de primeira classe nas seções 0.1 e 0.4.
-A [Python Developers Survey 2024](https://lp.jetbrains.com/python-developers-survey-2024/)
-teve mais de 30 mil respostas. Ela mostra uso em análise de dados, web,
-machine learning, data engineering, scraping, pesquisa acadêmica e automação.
-Exploração e processamento de dados aparecem em 51% das respostas. Pandas e
-NumPy aparecem em 80% e 75%.
-
-A survey mede separadamente Jupyter, individual-file workflows e packaging.
-
-Os modos de arquivo, stdin, `-c`, `-m`, interativo e `-i` vêm da
-[documentação do interpretador Python](https://docs.python.org/3/tutorial/interpreter.html).
-Defaults, keyword arguments, unpacking, comprehensions, generators,
-collections e scripts são ergonomia documentada no
-[tutorial Python](https://docs.python.org/3/tutorial/). Notebooks combinam
-code, prose, data, rich output e controls. A documentação do
-[Jupyter](https://docs.jupyter.org/en/stable/) e o protocolo
-[jupyter_client](https://jupyter-client.readthedocs.io/en/stable/) são as
-referências autoritativas para o tooling e o protocol do kernel.
-
-NumPy relaciona concisão e desempenho a vectorization e broadcasting em código
-compilado. A documentação de
-[NumPy vectorization](https://numpy.org/doc/stable/user/whatisnumpy.html) e
-[broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html)
-serve como evidência de uso. O
-[Python Array API standard](https://data-apis.org/array-api/latest/purpose_and_scope.html)
-é checklist de interoperabilidade. Ele não é autoridade semântica de W.
-
-As afirmações de ergonomia usam uma fonte primária por construção. Python
-documenta [list comprehensions](https://docs.python.org/3/tutorial/datastructures.html#list-comprehensions)
-e [negative indexing](https://docs.python.org/3/tutorial/introduction.html#lists).
-NumPy documenta [broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html). Julia documenta
-[array broadcast](https://docs.julialang.org/en/v1/manual/arrays/#Broadcasting).
-C# documenta [from-end indices](https://learn.microsoft.com/en-us/dotnet/csharp/tutorials/ranges-indexes).
-Swift documenta [fixed argument order](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/).
-Essas fontes motivam alternativas documentais. Elas não são autoridade de
-syntax ou semântica W.
-
-A matriz separa linguagem, tooling, standard library, ecossistema e interop.
-“Gap real” significa ausência no design corrente. Não significa que uma
-implementação esteja atrasada.
+PYN0 trata pessoas que usam Python como público inicial sem adotar um core
+dinâmico. A matriz abaixo separa linguagem, tooling, standard library,
+ecossistema e interop. Um gap indica ausência no design, não atraso de
+implementação.
 
 O carrier tabular e a regra de binding typed ficam em [14.4.1](#1441-carrier-tabular-tab0).
 Os adapters CSV, Parquet e Arrow ficam em [14.4.2](#1442-adapters-tabulares-tab1).
@@ -27829,10 +27344,9 @@ cria execução arbitrária de módulo: a forma curta permitida é somente o
 
 Uma falha do package/product efêmero não deixa manifest ou estado oculto.
 
-PYN0 não fechou a forma de dependency externa. PYN1 adota metadata inline
-data-only no header `script`, com lock por digest e provenance. Manifest sibling
-continua uma alternativa de promoção. Comment metadata e `--with` não são
-formas finais:
+PYN1 adota metadata inline data-only no header `script`, com lock por digest e
+provenance. Manifest sibling, comment metadata e `--with` não são formas
+correntes:
 
 ```text
 w run path/file.w -- input.csv
@@ -27983,8 +27497,8 @@ Os gates de performance são separados:
 
 O corpus compara output e semântica antes de tempo. Cada registro informa
 compiler version, target e hardware. Não há número fixo nem vitória declarada.
-HIR interpreter, ORC JIT, incremental native e outro backend rápido são
-alternativas de spike. Nenhum segundo runtime vira autoridade semântica.
+O gate compara HIR interpreter, ORC JIT, incremental native e outro backend
+rápido. Nenhum segundo runtime vira autoridade semântica.
 
 #### 24.1.2 Workflow de script single-file PYN1
 
@@ -28149,10 +27663,8 @@ o corpus semântico continuam sendo a prova estrutural separada.
 | `scriptAdd`, `scriptRemove`, `scriptResolve` | mutation header+lock atomic com `resultParseEvidence` |
 | `promote` | package equivalente, graph e entry preservados, provenance emitida |
 
-Alternativas consideradas e rejeitadas: comment metadata de PEP 723, sibling
-manifest obrigatório, package-only, CLI `--with` e schema redundante. A forma
-record P0 continua explícita. Compact dependency constructor fica em Pesquisa
-futura.
+A forma record P0 continua explícita. Compact dependency constructor fica em
+**Pesquisa**.
 
 O [corpus PYN1](tooling/script-workflow-cases.json) possui casos positivos e
 negativos para cada decisão. O [host oracle](tooling/script-workflow-machine.mjs)
@@ -28383,61 +27895,11 @@ o limite de admission é conhecido, sempre antes de
 executing/effects. O histórico mantém somente records recentes quando a policy
 de bounded retention permite eviction; o record corrente já deve ter reservation.
 
-##### Evidência e alternativas
+##### Estado do bundle PYN2
 
-A classificação `complete`/`incomplete` segue a separação entre console e
-`compile_command` documentada por [Python `code`](https://docs.python.org/3/library/code.html)
-e [Python `codeop`](https://docs.python.org/3/library/codeop.html). O modo W é
-hermético e tipado, portanto não copia o namespace mutável do Python.
-
-[IPython autoreload](https://ipython.readthedocs.io/en/stable/config/extensions/autoreload.html)
-é evidência de patch/reload e de seus caveats. W não promete patch automático
-nem replay de effects.
-
-[Julia world age](https://docs.julialang.org/en/v1/manual/worldage/) é evidência
-de visibilidade exata por world. W usa generation explícita, invalidation por
-hard edge e resubmission explícita.
-
-[Pluto reactivity](https://plutojl.org/en/docs/reactivity/) é evidência de rerun
-implícito por dependência. W recusa rerun implícito porque ele repetiria effects.
-
-[Jupyter messaging](https://jupyter-client.readthedocs.io/en/latest/messaging.html)
-é evidência para session, counters, `busy`/`idle`, request identity e replies.
-Jupyter/rich output é PYN3. PYN2 reserva somente receipts, snapshots e output
-bounded do session core.
-
-| Sistema | Fato usado | Decisão W |
-|---|---|---|
-| Python | namespace mutável e console com completeness | `w repl` hermético, parser/checker/HIR normais |
-| IPython | autoreload aplica patch com caveats | sem patch ou replay automático |
-| Julia | world age separa visibilidade | generation e HIR version exatos |
-| Pluto | dependência reativa reroda cells | hard invalidation e resubmission explícita |
-| Jupyter | session/counter/status/request messages | protocolo rico fica PYN3 |
-
-As fontes sustentam somente esses fatos. Elas não definem syntax W, runtime W,
-rollback externo ou rich display.
-
-Alternativas humanas permanecem explícitas: `_`/`ans` como binding implícito do
-último resultado fica em **Pesquisa**. O baseline mostra tail result para
-display sem criar binding ou generation; `;`/discard suprime o display. Reactive
-rerun continua recusado porque repetiria effects. `let snapshot` continua um
-valor calculado; somente a função com lookup compilado é dependente.
-
-O corpus [`tooling/repl-session-cases.json`](tooling/repl-session-cases.json),
-o snapshot JSONL e o teste host exercitam identidades, parser versus semantic
-classification, expressions/statements/loops/calls/await/spawn/defer, transações,
-effects sobreviventes e provider outcomes, snapshot versus hard edge com
-BindingId/version/kind, imports locked, Copy staging, snapshot, adapter e
-deferred-no-fail, cinco rejeições de ownership, preflight derivado, scopes
-independentes, post-publish degraded, reset, stale opaque base, FIFO writer,
-reader durante staging, active/queued cancellation, quit/drain, quotas por
-família, redaction, outputs e bounds. O fixture parseável é
-[`repl_session_oracle.w`](reference/last-light/repl_session_oracle.w), com o
-mapa do transcript e o watcher do buraco negro. O README do produto mapeia a
-aceitação e os adversariais.
-
-O estado desta subseção é **Direção** de design e oracle. PYN2 não implementa
-CLI, compiler, checker, HIR, runtime, provider, resource drain ou Jupyter.
+PYN2 fecha o contrato de design e seus oracles. CLI, compiler, checker, HIR,
+runtime, provider, resource drain e Jupyter continuam fora deste checkpoint.
+Evidência e comparações estão em [RATIONALE.md](RATIONALE.md).
 
 #### 24.1.4 Apresentação tipada, kernel Jupyter e export PYN3
 
@@ -28726,56 +28188,13 @@ Os nomes finais dos comandos continuam **Pesquisa**. O contrato abstrato usa
 `notebook check`, `session receipts` e `notebook export` apenas como labels de
 tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
 
-##### Evidência e limite do bundle
+##### Estado do bundle PYN3
 
-O fixture do Última Luz deve cobrir uma prévia bounded do cardápio, leitura do
-sensor do buraco negro, tensor em device sem copy, output textual do Bistromath,
-erro redacted, cancellation e export de cells. Os casos adversariais incluem
-HMAC inválido, replay, media duplicada, JSON fora do limite, active content,
-silent mutation, password persistence, idle prematuro, counter usado como
-generation, cell invalidada e export com effect unknown.
+PYN3 fecha contratos e oracles de apresentação, Jupyter e export. Ele não
+implementa kernel, transport, compiler, runtime, provider ou sanitizer.
+Evidência e comparações estão em [RATIONALE.md](RATIONALE.md).
 
-Os modos normativos de falha do bundle usam `W-PRESENTATION-0001`,
-`W-PRESENTATION-0002`, `W-PRESENTATION-0003`, `W-PRESENTATION-0004`,
-`W-PRESENTATION-0005`, `W-PRESENTATION-0006`, `W-PRESENTATION-0007`,
-`W-PRESENTATION-0008`, `W-PRESENTATION-0009`, `W-PRESENTATION-0010`,
-`W-JUPYTER-0001`, `W-JUPYTER-0002`, `W-JUPYTER-0003`, `W-JUPYTER-0005`,
-`W-JUPYTER-0006`, `W-JUPYTER-0007`, `W-JUPYTER-0008`, `W-JUPYTER-0009`,
-`W-EXPORT-0001`, `W-EXPORT-0002`, `W-EXPORT-0003`, `W-EXPORT-0004`,
-`W-EXPORT-0005`, `W-EXPORT-0006` e `W-EXPORT-0007`. Esses códigos descrevem
-somente falhas de media, segurança, lifecycle, bounds, prova ou export. O
-tooling não cria IDs de ledger para bookkeeping.
-
-PYN3 fecha design e oracles. Ele não implementa ZeroMQ, kernel process,
-sanitizer, notebook frontend, compiler, runtime ou provider. DLPack continua um
-bundle próprio. Plotting e DataFrame completo continuam packages
-first-party ou third-party sobre `std.presentation`.
-
-### 24.2 Resultado das pesquisas anteriores
-
-**Exemplo:** `ReadBatch` fica provável. `inout T...` fica rejeitado. Os dois
-resultados tratam a mesma necessidade sem deixar uma decisão ambígua.
-
-Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
-
-| Grupo | Provável ou possível | Rejeitado ou adiado |
-|---|---|---|
-| tipos | typed property path e `StateGraph` const | anonymous sum/record, constraint list, GAT, packs e existential opening |
-| compile time | `WMeta1` com chunks CBOR | callable const indireto, SMT geral e autotuning no build |
-| memória | `InlineString`, trusted foreign facts e cache isolation | public unpin, high-bit baseline e async-close universal |
-| execução | dynamic execution-domain selection, topology types, advanced atomics, fences e sync | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
-| workflow | child workflow, fan-out e `continueAsNew` | durable race, absolute core sleep, user compaction e 2PC implícito |
-| I/O | `ReadBatch`, `io.transfer` e commit-provider SPI | zero-copy implícito, `flush` universal e transaction multi-provider |
-| services | wWire, custom adapter SPI, plugin lookup e `PersistentRef` | 0-RTT, opaque capability relay, direct introduction e distributed ref equality |
-| foreign | source islands separadas e adapters Rust/Swift após C | library unload físico e ABI W resiliente sem matriz de targets |
-| numeric e target | FixedDecimal, Rational, Complex e device kernels | Posit/Unum universal, unit sem delimiter e ASIC/FPGA como target geral |
-
-Um item **Provável** ainda precisa de implementação e oracle. Isso não o torna
-uma pergunta sem decisão. Um gate pode reprovar a abordagem e exigir nova
-evidência. Até isso ocorrer, a alternativa e o fallback acima permanecem
-canônicos.
-
-### 24.3 Recursos deliberadamente ausentes
+### 24.2 Recursos deliberadamente ausentes
 
 **Exemplo:** um wrapper C pode usar `setjmp`. Ele não pode saltar sobre um frame
 W e omitir seu cleanup.
@@ -28837,7 +28256,7 @@ decisões: 129 pelo eixo source, 282 pelo eixo oracle e oito explicitamente. Há
 eixos. As 812 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
-### 24.4 Gates que ainda precisam de prova
+### 24.3 Gates que ainda precisam de prova
 
 **Exemplo:** wWire está classificado como provável. Ele só vira implementado
 depois que decoder, fuzzer e fault corpus passam.
@@ -28861,7 +28280,7 @@ Os casos da seção 1 de [`RATIONALE.md`](RATIONALE.md) medem clareza e erro. El
 sem baseline. Um resultado ruim pode reabrir uma decisão por evidência.
 Implementação deve parar no primeiro gate que contradiz a semântica vigente.
 
-### 24.4.1 Gate comparativo de execução
+### 24.3.1 Gate comparativo de execução
 
 **Exemplo:** `.thermal` preserva FIFO; `.catalog` permite reads concorrentes e
 um write `.barrier` sem perder o join lexical.
@@ -28881,7 +28300,7 @@ paralelismo” depois que compiler, runtime e adapters reais passarem E0/E1 e as
 matrizes de profiles/providers cobrirem os targets prometidos. Antes disso, a
 forma correta é “contrato definido; implementação missing”.
 
-### 24.4.2 Gate de gerência automática de memória
+### 24.3.2 Gate de gerência automática de memória
 
 **Exemplo:** o compiler pode colocar um `Buffer` nonescaping na stack e outro
 num task frame; owner, drop e resultado permanecem iguais.
@@ -28896,7 +28315,7 @@ M1, A0, SP0, ABI e adapters reais devem passar os mesmos casos em debug e releas
 Até esse ponto, a forma correta é “modelo de memória definido; implementação
 missing”. O gate não exige GC ou reference counting como estratégia universal.
 
-### 24.5 Artefatos que ainda bloqueiam o design freeze
+### 24.4 Artefatos que ainda bloqueiam o design freeze
 
 **Exemplo:** o catálogo declara `std.fs`. O freeze exige signatures, errors,
 capabilities e complexity bounds para esse módulo.

@@ -2096,7 +2096,7 @@
       "id": "std.tensor",
       "availability": "tensor-device-provider",
       "source": "std/tensor/contracts.w",
-      "designAnchors": ["17.1", "18.5", "24.5", "1.3.18"],
+      "designAnchors": ["17.1", "18.5", "24.4", "1.3.18"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.tensor@1",
@@ -2123,7 +2123,7 @@
       "id": "std.dlpack",
       "availability": "dlpack-interchange-provider",
       "source": "std/dlpack/contracts.w",
-      "designAnchors": ["17.1", "18.5", "24.5", "1.3.18"],
+      "designAnchors": ["17.1", "18.5", "24.4", "1.3.18"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.dlpack@1",
