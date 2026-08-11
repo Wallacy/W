@@ -143,7 +143,8 @@ oculto para reparar lifetime.
 [A seção 9](#9-memória-layout-e-alocação) define owner, loans, storage e
 reclamation. [A seção 12](#12-concorrência-paralelismo-e-execução) define
 tasks, domains, barriers, atomics, channels e liveness. Esta tabela é um mapa;
-as seções indicadas continuam normativas.
+as seções indicadas continuam normativas. As alegações públicas de memória
+automática e execução resolvida dependem dos gates 24.3.1 e 24.3.2.
 
 ### 0.2 Princípios de produto
 
@@ -289,9 +290,8 @@ esquerda é o head. O head publica um schema fechado com slots, tipos, defaults 
 cardinalidade. Esse schema é um contrato estático. Ele não precisa ser um
 `protocol`. Um slot pode exigir conformance a um `protocol`.
 
-`where` e `on` não são keywords do design vigente. `where` permanece em comparação com
-refinements angulares. `on` fica **Rejeitado por enquanto**. Ele cria uma frase
-especial para uma informação que já pertence ao contrato de `spawn`.
+`where` e `on` não são keywords do design vigente. Refinement e placement usam
+os contratos angulares descritos nesta seção.
 
 ### 3.1 Formas do payload estático
 
@@ -469,10 +469,8 @@ Os contratos estáticos seguem estas regras:
 7. `w explain` mostra defaults, inferências e a HIR normalizada.
 8. Nenhum slot concede authority, memory safety ou capability.
 
-Nomes de argumentos melhoram a leitura. Eles também fazem parte da
-compatibilidade source. O experimento de
-[named type arguments do Scala 3](https://docs.scala-lang.org/scala3/reference/experimental/named-typeargs-spec.html)
-mostra esse custo.
+Nomes de argumentos fazem parte da compatibilidade source. A evidência fica em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 `spawn` publica `domain` como value slot com label opcional.
 `spawn<.compute>` e `spawn<domain: .compute>` são formas vigentes do mesmo slot.
@@ -499,17 +497,10 @@ fronteira de layout. Na v0, ela entra como tipo opaque com accessors num wrapper
 C. W não publica uma `foreign c union` safe. Essas operações não usam
 `<{...}>`.
 
-`A | B` como anonymous sum fica **Rejeitado por enquanto**. Um `enum` nomeia
-cases, payloads e evolução. `A & B` permanece somente composição nominal de
-protocols. Ele não cria structural intersection ou storage.
-
-O [TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html)
-usa `A | B` para escolha e `A & B` para composição estrutural. Uma C union
-sobrepõe storage. W não mistura os dois modelos.
-
-Um anonymous record literal runtime fica **Rejeitado por enquanto**. Tuple e
-struct nomeada cobrem dados runtime. O static record de `<{...}>` permanece
-restrito a contratos e não cria um value type implícito.
+Sums e records runtime são nominais: use `enum` e `struct`. `A & B` permanece
+composição nominal de protocols; `A | B` e anonymous record não são tipos W. A
+comparação de alternativas fica em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 Um head futuro pode publicar um static record como configuração. Nesse caso,
 `T<{...}>` aplica o schema de `T`. Ele não cria uma extensão universal.
@@ -530,9 +521,8 @@ associado por `:`:
 fn encode<T: Serializable>(value: ref T): Bytes
 ```
 
-`T<[P, Q]>` como lista de constraints fica **Rejeitado**. `[]` declara uma lista
-ordenada. Constraints sem ordem usam composição nominal, como `T: P & Q`, ou
-um composite protocol nomeado.
+`[]` declara lista ordenada. Constraints sem ordem usam `T: P & Q` ou um
+composite protocol nomeado, nunca `T<[P, Q]>`.
 
 ### 3.5 Parsing, formatter e gate
 
@@ -558,9 +548,6 @@ O corpus precisa verificar:
 
 **Forma vigente:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
 literal sem label.
-
-**Rejeitado por enquanto:** `spawn on .domain`. O corpus preserva a forma para
-medir leitura e migração. O parser vigente não a aceita.
 
 #### 3.5.1 Forma canônica do formatter
 
@@ -704,13 +691,6 @@ A notação usa estas regras:
 `argument_list` são interfaces normativas para os slices posteriores.
 Whitespace e comments separam tokens, mas newline não encerra statement. O
 parser consome a maior expression válida. Um semicolon força a boundary.
-
-Essa regra segue a independência de linha do
-[Swift](https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html).
-W não usa a inserção lexical de semicolon do
-[Go](https://go.dev/ref/spec#Semicolons) nem exige terminator para toda
-expression statement como o
-[Rust](https://doc.rust-lang.org/reference/statements.html).
 
 ```ebnf
 block = "{" statement* "}" ;
@@ -1675,18 +1655,8 @@ restantes. A ausência de `...` exige que o pattern cubra todos esses fields.
 destructuring somente onde seu storage está visível. A seção 7.4 define cleanup
 e evolução de structs exportados.
 
-Pattern alternativo com `|`, pattern customizado por protocol e destructuring
-assignment ficam **Rejeitados por enquanto**. Eles complicam bindings,
-exhaustividade ou avaliação única. Use cases separados, guard ou novo binding.
-
-```w
-// vigente
-case .reserving: reserve()
-case .preparing: prepare()
-
-// rejeitado por enquanto
-case .reserving | .preparing: continueWork()
-```
+`|`, protocol customizado e destructuring assignment não pertencem à grammar
+de pattern. Use cases separados, guard ou novo binding.
 
 ##### Avaliação e ownership
 
@@ -3211,8 +3181,7 @@ digest:
 source + declared profile -> same semantics, different permitted optimization
 ```
 
-A ideia histórica de substituir um valor source pelo resultado da execução
-anterior fica **Rejeitado por enquanto**. Ela mudaria o programa por estado
+Const evaluation não lê o resultado de uma execução anterior nem outro estado
 externo implícito.
 
 #### 3.6.7 ConstIR, MLIR e W0
@@ -3946,14 +3915,6 @@ reexportação também não amplia a visibilidade original.
 `w explain visibility Type.member` mostra regra, origem e blockers. A HIR não
 depende de defaults depois da normalização.
 
-O default de módulo e as exceções de enum/protocol seguem o
-[modelo de Rust](https://doc.rust-lang.org/reference/visibility-and-privacy.html).
-O [Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/accesscontrol/)
-exige opt-in para membros públicos e initializers memberwise públicos. W
-preserva esse controle em tipos encapsulados. Para records simples, W adota a
-concisão dos
-[records Java](https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/Record.html).
-
 ### 6.3 Configuração de módulo e pacote
 
 `module` aceita um contrato estático. O contrato descreve requirements locais
@@ -4077,14 +4038,6 @@ versão adiciona um case. W não inclui uma forma `nonexhaustive` no design vige
 Compatibilidade de source não define layout, ABI, JSON, WLO ou wRPC. Um schema
 de wire ou persistência possui versão e regras próprias. O compiler não deriva
 uma mudança de schema somente porque um struct ganhou um field.
-
-Esta direção usa a resiliência de
-[Swift Library Evolution](https://www.swift.org/blog/library-evolution/) sem
-publicar layout. O `...` externo cumpre o papel de abertura explícita do
-[`non_exhaustive` de Rust](https://doc.rust-lang.org/reference/attributes/type_system.html).
-A classificação segue
-[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) e registra
-casos de conflito para revisão.
 
 O top-level aceita imports, declarations e `const`. Ele não aceita I/O, `var`
 global ou inicialização runtime.
@@ -4241,12 +4194,6 @@ mode. Uma service instance não implementa `take fn`, pois o host controla seu
 lifecycle. Um `take fn` também não pode ser chamado por `ref`, `inout`, `shared`,
 `weak` ou `ServiceRef`.
 
-W reutiliza `take` em vez de adicionar `consuming`. A direção acompanha os
-ownership modifiers da
-[SE-0377](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md)
-e o receiver by-value do
-[Rust Reference](https://doc.rust-lang.org/reference/items/associated-items.html#methods).
-
 Um método fluente declara `: self`:
 
 ```w
@@ -4377,13 +4324,6 @@ Adicionar uma forma disjunta a um set existente é minor por default. Criar o
 primeiro overload de uma função singular é major, pois referências pelo nome
 podem falhar. Initializers não são valores. Adicionar um initializer disjunto é
 minor. Alterar uma forma existente é major. Adicionar um default exige revisão.
-
-O modelo de labels acompanha a legibilidade dos
-[argument labels de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/declarations/).
-W não adota o ranking de “melhor membro” da
-[resolução de overloads de C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/language-specification/expressions#1264-overload-resolution).
-A regra também evita a seleção frágil por tipos descrita no
-[FAQ de Go](https://go.dev/doc/faq#overloading).
 
 Parâmetros rest homogêneos entram no design vigente. A forma `T...` aceita zero
 ou mais argumentos do mesmo tipo. A seção 8.9.5 define labels, ownership,
@@ -4757,14 +4697,8 @@ package ABI.
 
 `(args) => body` é a única forma de closure do design vigente.
 
-A separação segue três precedentes. Swift removeu labels dos function types.
-Rust separa function pointers e tipos anônimos de closure. Clang Blocks torna
-invoke, ambiente, copy e dispose explícitos no ABI:
-
-- [Swift SE-0111](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0111-remove-arg-label-type-significance.md)
-- [Rust function pointer types](https://doc.rust-lang.org/reference/types/function-pointer.html)
-- [Rust closure types](https://doc.rust-lang.org/reference/types/closure.html)
-- [Clang Blocks ABI](https://clang.llvm.org/docs/Block-ABI-Apple.html)
+Os precedentes de callable ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ## 8. Tipos e conversões
 
@@ -4797,8 +4731,7 @@ fn activePolicy(): some PricingPolicy {
 ```
 
 Essa regra também atende `some fn(...)`. Ela preserva specialization sem exigir
-um nome generic usado uma única vez. A forma possui precedente nos
-[opaque parameter declarations de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0341-opaque-parameters.md).
+um nome generic usado uma única vez.
 
 Extensions não adicionam storage:
 
@@ -5355,10 +5288,8 @@ fn pair(left: Small, right: Small): Pair {
 Se a prova é `unknown`, o programa usa o constructor fallible. Uma annotation
 ou build profile não substitui a prova.
 
-A [Ada Reference Manual](https://docs.adacore.com/live/wave/arm22/pdf/arm22/arm-22.pdf)
-também separa um subtype restringido por range do base type. O trabalho sobre
-[Liquid Types](https://escholarship.org/uc/item/0vx7j8zc) trata refinements como
-predicates verificáveis. W usa esses precedentes sem adotar seu source syntax.
+Os precedentes de refinements ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 O predicate permanece dentro do contrato estático e não cria um slot chamado
 `where`.
@@ -5745,13 +5676,6 @@ alias KitchenStage =
 A HIR pode usar união, interseção e diferença de case-sets para flow analysis.
 A API pública não expõe essa álgebra.
 
-O
-[TypeScript Handbook](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
-demonstra narrowing e exhaustividade sobre discriminated unions. A
-[documentação de enums do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations/)
-exige switch exaustivo. W combina essas propriedades com um case-set explícito
-na interface.
-
 #### 8.6.2 Quando usar enum
 
 Use enum quando o domínio contém uma escolha fechada. Cada case pode exigir um
@@ -6066,37 +5990,10 @@ Ele não transforma o snapshot em authority sobre a instância.
 
 ##### Limites
 
-W não adiciona keywords `state` ou `transition` no design vigente. Value generics,
-extensions, `take fn`, enums e refinements já expressam o protocolo.
-
-Uma `StateGraph<E>` declarativa é **Provável** como descriptor const de
-tooling. Ela não adiciona keywords nem muda a semântica do enum:
-
-```w
-const serviceFlow = StateGraph<ServiceStage>([
-  (.accepted, .reserving),
-  (.accepted, .cancelled),
-  (.reserving, .preparing),
-  (.reserving, .cancelled),
-])
-```
-
-Esse valor poderia gerar diagramas e analisar estados inalcançáveis. O protótipo
-precisa provar que ele reduz duplicação sem limitar guards dinâmicos.
-
-Typestate em `shared`, `service` ou outro owner com aliases fica **Rejeitado por
-enquanto**. A transição exigiria invalidar aliases ou executar checks runtime.
-Use enum em storage e uma fronteira serial.
-
-O
-[Embedded Rust Book](https://docs.rust-embedded.org/book/static-guarantees/typestate-programming.html)
-mostra transições que consomem um estado e produzem outro. A seção sobre
-[zero-cost abstractions](https://docs.rust-embedded.org/book/static-guarantees/zero-cost-abstractions.html)
-mostra que markers de estado não precisam existir no runtime. O trabalho
-[Typestates for Objects](https://www.cs.cmu.edu/~aldrich/courses/819/deline-typestates.pdf)
-mostra o valor de preconditions por estado e o custo de aliases. As
-[regras de Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
-mostram por que coordenação compartilhada exige estado runtime e serialização.
+W não adiciona keywords `state` ou `transition`. Value generics, extensions,
+`take fn`, enums e refinements expressam typestate local. State com aliases usa
+enum em storage e uma fronteira serial. `StateGraph` e as alternativas ficam em
+[`RATIONALE.md` §1.8](RATIONALE.md#18-catálogo-comparativo-de-viabilidade).
 
 ### 8.7 Generics
 
@@ -6193,8 +6090,8 @@ StagePath<[.accepted, .preparing, .serving]>
 
 Binding modifiers não pertencem à grammar de parâmetros genéricos. `const`
 continua disponível em declarations, `const fn`, `const init` e em parâmetros
-comuns de função que exigem argumento compile-time. A migração histórica fica
-em [`RATIONALE.md`](RATIONALE.md).
+comuns de função que exigem argumento compile-time. A migração fica em
+[`RATIONALE.md` §1.0](RATIONALE.md#10-migração-de-parâmetros-de-valor).
 
 Exemplos de classificação vigente:
 
@@ -6247,15 +6144,8 @@ de refinements existente. W não adiciona `ref<sources: ...>` ou outra annotatio
 de lifetime no source. Essa forma permanece **Rejeitado por enquanto** porque
 duplicaria a inferência e criaria uma segunda fonte para o mapping da interface.
 
-W também não possui estes kinds no design vigente:
-
-- type constructors de ordem superior, como `F<_>`;
-- effects genéricos separados de tipos;
-- parameter packs;
-- parâmetros de layout ou allocator implícitos.
-
-Essas formas ficam **Rejeitado por enquanto**. Protocols, associated types e
-value parameters cobrem a baseline sem outro kind.
+Os únicos kinds de parâmetro são type e value. Protocols e associated types
+compõem esses dois kinds sem criar um terceiro.
 
 ##### Labels e valores associados de heads
 
@@ -6423,9 +6313,8 @@ O conformer também declara `alias State = ...`. W não infere associated type
 witnesses a partir de methods. A declaração explícita melhora diagnostics e
 mantém a interface estável.
 
-Generic associated types, defaults de associated type e constraints sobre uma
-projection não primária ficam **Rejeitado por enquanto**. Um associated type
-que callers precisam restringir deve ser primário no design vigente.
+Um associated type que callers precisam restringir deve ser primário. Defaults,
+GATs e constraints sobre projection não primária não fazem parte da superfície.
 
 #### 8.7.4 Verificação e inference
 
@@ -6661,8 +6550,8 @@ O compiler deriva inline ou spill a partir da policy. Spill preserva as origins
 do payload, adiciona a origin do box, rejeita storage proibido, consome o source
 numa falha de allocation e mantém dependency edges depois da erasure.
 
-`any P` não conforma automaticamente a `P`. O design vigente também não abre existentials
-de forma implícita para uma função generic:
+`any P` não conforma automaticamente a `P` nem abre um tipo fresh implícito para
+uma função generic:
 
 ```w
 fn inspect<T: PricingPolicy>(policy: ref T)
@@ -6671,9 +6560,7 @@ let erased: any PricingPolicy = StandardPricing()
 inspect(erased) // error: existential is not a generic witness
 ```
 
-A API aceita `ref any PricingPolicy` quando deseja dispatch dinâmico. Explicit
-existential opening fica **Rejeitado**. Essa decisão evita fresh types ocultos
-e regras dependentes da posição do result.
+A API aceita `ref any PricingPolicy` quando deseja dispatch dinâmico.
 
 #### 8.7.7 HIR, interface e lowering
 
@@ -6791,14 +6678,8 @@ W0 não inclui `some`, `any`, shared generic bodies, generic associated types ou
 polymorphic recursion. O compiler completo pode reconhecer essas formas sem
 usá-las no próprio source.
 
-O
-[Rust Compiler Development Guide](https://rustc-dev-guide.rust-lang.org/backend/monomorph.html)
-mostra os custos de compile time e tamanho causados por monomorphization. A
-[especificação de Go](https://go.dev/ref/spec#Type_inference) mostra inference
-por equações de tipos. O
-[Swift Book](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes/)
-separa generic, opaque e boxed protocol types. W usa esses precedentes com
-lookup fechado e witnesses determinísticos.
+Os precedentes de generics e inference ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 8.7.10 Diagnostics
 
@@ -6945,9 +6826,8 @@ fn makeDish(using factory: ref any DishFactory): Dish {
 }
 ```
 
-Dynamic construction por nome fica **Rejeitado por enquanto**. Ele exigiria
-argumentos apagados, initializers negociados e errors runtime para relações que
-hoje são estáticas.
+Construção runtime usa enum fechado, factory ou existential; nome textual não
+seleciona um initializer.
 
 #### 8.9.3 `Reflectable` e metadata alcançável
 
@@ -7104,10 +6984,9 @@ Uma mudança de field pode alterar um witness sintetizado. `w interface diff`
 marca a mudança para revisão de comportamento, além da classificação estrutural
 normal.
 
-Síntese de `Display`, `Ordering`, codecs e schemas fica **Rejeitado**. Essas
-families exigem escolhas humanas sobre formato, ordem e compatibilidade.
-User-defined synthesis fica **Rejeitado por enquanto**. Ele exigiria macro,
-reflection compile-time aberta ou outro gerador de declarations.
+Síntese automática cobre somente as conformances fechadas acima e `data.Row`.
+`Display`, `Ordering`, codecs, schemas e synthesis definido pelo usuário exigem
+witnesses ou geração explícita.
 
 `data.Row` é uma segunda síntese fechada e opt-in. Ela é struct-only, all-or-none
 e usa stored instance fields em declaration order. O carrier, schema identity e limites
@@ -7233,9 +7112,8 @@ fn archive(_ records: take AuditRecord...) {
 archive(each take pendingRecords)
 ```
 
-`inout T...` fica **Rejeitado por enquanto**. Um número dinâmico de borrows
-exclusivos torna alias diagnostics e recovery pouco previsíveis. A API recebe
-`inout view Array<T>`.
+Rest exclusivo usa `inout view Array<T>`; `inout T...` não faz parte da
+superfície.
 
 Argumentos individuais podem usar storage no call frame. Uma expansão borrowed
 passa address e count. O lowering não exige heap. `Arguments<T>` mantém cleanup
@@ -7246,47 +7124,18 @@ tipado ou `c.vaList`. Default argument promotions não entram no type checker W.
 
 #### 8.9.7 Formas adiadas
 
-Três famílias não entram no design vigente:
-
-| Família | Estado | Baseline |
-|---|---|---|
-| typed property path | **Provável** | closure ou função nominal |
-| generic associated type | **Rejeitado por enquanto** | primary associated type e método generic |
-| type/value parameter pack | **Rejeitado por enquanto** | rest homogêneo, tuple ou collection |
-
-Uma typed property path precisa preservar place, borrow, accessors e
-visibilidade. A forma vigente de pesquisa usa um construtor explícito:
-
-```w
-let guestName = path<Order>(.guest.name)
-```
-
-Reflection por string fica **Rejeitado por enquanto**. Até o contrato fechar,
-uma API recebe uma closure:
+**Exemplo:** uma closure nominaliza a projeção sem adicionar reflection por
+string:
 
 ```w
 let names = orders.map((order) => order.guest.name)
 ```
 
-Generic associated types precisam de uma relação de borrow expressável e de
-witness layout estável. O W0 não precisa dessa capacidade.
-
-Packs heterogêneos evitariam overloads por aridade. Eles também adicionariam
-outro kind, shape constraints e pack iteration. A forma fica **Rejeitado por
-enquanto**:
-
-```text
-fn format<each T: Display>(_ values: ref each T...)
-```
-
-O
-[Swift SE-0161](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0161-key-paths.md)
-mostra o valor de property paths tipadas. O
-[Swift SE-0185](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0185-synthesize-equatable-hashable.md)
-mostra síntese limitada a casos estruturalmente seguros. O
-[Swift SE-0393](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0393-parameter-packs.md)
-mostra a complexidade adicional de packs heterogêneos. W fecha primeiro a forma
-homogênea.
+Typed property path, generic associated type, parameter pack heterogêneo e
+reflection por string não fazem parte da superfície vigente. Use closure,
+primary associated type, método generic, rest homogêneo, tuple ou collection.
+Evidência e critérios de reabertura ficam em
+[`RATIONALE.md` §§1.8 e 1.17](RATIONALE.md#18-catálogo-comparativo-de-viabilidade).
 
 ## 9. Memória, layout e alocação
 
@@ -7550,8 +7399,7 @@ A interface serializa esse mapping em `WInterface` e
 key do provider que publica a interface. As keys próprias de consumer e provider
 não são comparadas entre si. Mudar o mapping é mudança relevante de API e
 source-compatibility. `interface.lock` detecta a mudança. W não aceita lifetime
-annotation no source. `ref<sources: ...>` permanece alternativa futura
-rejeitada.
+annotation no source.
 
 ##### 9.2.1.1 Escapes, destruction e diagnostics
 
@@ -7925,26 +7773,12 @@ Alocação e growth normais podem causar panic `.outOfMemory`. A forma `try*`
 retorna `AllocationError` e mantém o valor anterior quando falha. Uma API
 explícita nunca converte `BudgetExceeded` em OOM.
 
-O profile portátil começa com o allocator do sistema. O host pode selecionar
-mimalloc ou outro allocator compatível. A seleção participa da recipe, do
-artifact digest e do profile de performance. Ela não altera ownership nem muda
-o representation fingerprint quando os carriers permanecem iguais.
-
-Nenhum allocator se torna universal sem matriz de target, sanitizer, unload e
-cross-domain free.
-
-W chama o allocator selecionado por sua API. Ele não depende de override global
-de `malloc` quando código estrangeiro pode misturar origens. As regras de heap e
-thread do mimalloc variam por versão. O profile fixa versão e configuration e
-declara separadamente onde allocate e free podem ocorrer. O modo secure adiciona
-mitigations; ele não promete memory safety.
-
-| Profile de allocator | Uso |
-|---|---|
-| `system` | baseline portátil e integração estrangeira |
-| `mimalloc` | candidato de performance após benchmark |
-| `mimalloc-secure` | candidato de hardening com custo medido |
-| `fixed` | buffer fornecido pelo host; nenhuma allocation do OS |
+O profile portátil começa com o allocator do sistema. Outro provider exige
+contract versionado, matriz de target e evidência de sanitizer, unload e
+cross-domain free. A recipe fixa provider, versão e options. Essa escolha não
+altera ownership nem o representation fingerprint quando os carriers
+permanecem iguais. W chama a API do provider e não depende de override global de
+`malloc`, pois código estrangeiro pode misturar origens.
 
 O build profile fixa o default geral. A escolha não muda calls que recebem
 `using:`:
@@ -7964,22 +7798,10 @@ Os cases iniciais de `generalAllocator` são:
 | `.none` | o grafo alcançável não pode solicitar allocation geral |
 | `.runtime(contract:, mode:)` | runtime contract tipado, resolvido para um provider exato |
 
-Um ensaio com mimalloc usa um contrato, não um path ou import de source:
-
-```w
-memory: {
-  generalAllocator: .runtime(
-    contract: "w.runtime/allocator.mimalloc@3",
-    mode: .default,
-  )
-  representation: .optimized
-}
-```
-
-O profile `.secure` usa o mesmo mecanismo com `mode: .secure`. O resolver
-seleciona um provider que oferece esse mode e grava o artifact digest na
-toolchain plan e na recipe. A dependency não escolhe o provider. A string acima
-é uma identity de runtime contract versionada, não um nome livre de library.
+O resolver de `.runtime` seleciona um provider e mode exatos e grava o artifact
+digest na toolchain plan e na recipe. A dependency não escolhe o provider.
+Comparações entre providers de allocation ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 O contract entra nos runtime requirements e no `RuntimeClosureKey`. Ele não
 entra na `WAbiKey` quando o carrier de ABI permanece igual.
 
@@ -8227,11 +8049,9 @@ O diagnostic do primeiro `spawn` aponta a allocation que mantém o valor local.
 Um provider pode permitir deallocation cross-thread e ainda proibir allocation
 concorrente na mesma instance. Esses são fatos separados.
 
-A hipótese histórica de uma heap implícita por módulo não entra no contrato.
-Importar um módulo não cria instance, lifetime ou fault boundary. Um service,
-request ou task pode criar uma arena ou heap própria e liberar tudo junto. Essa
-policy usa `Arena`, um owner de service ou um allocator explícito. Ela não muda
-ownership de todo valor do módulo.
+Importar um módulo não cria instance, lifetime, heap ou fault boundary. Storage
+com lifecycle de service, request ou task usa `Arena`, o owner desse lifecycle
+ou um allocator explícito sem mudar o ownership dos demais valores do módulo.
 
 Zero-sized values não solicitam storage. Alignment precisa ser uma potência de
 dois suportada pelo allocator. Soma ou multiplicação de tamanho que excede
@@ -8249,8 +8069,8 @@ let bitmap = try Bytes(repeating: 0_u8, count: size, using: memory)
 
 Somente `unsafe MaybeUninit<T>` expõe storage sem inicialização. Um profile pode
 zerar storage ao alocar ou liberar por hardening, mas essa policy não muda o
-valor de um programa safe. O mimalloc `zalloc` é uma implementação possível para
-uma call que promete zero; ele não é o default semântico de toda allocation.
+valor de um programa safe. Uma primitive de provider que zera storage pode
+implementar uma call que promete zero; ela não muda o default semântico.
 
 Alocações que precisam de recovery usam API fallible ou uma `Arena` com budget.
 OOM geral encerra a fault boundary conforme a seção de panic. `w explain memory`
@@ -8406,10 +8226,8 @@ Wire e persistência usam schema. FFI usa layout e address space declarados. Iss
 preserva targets nos quais um pointer possui non-address bits, bounds ou estado
 externo que não cabe nos bytes comuns.
 
-W v0 não possui modifiers comuns `packed` ou `aligned`. Um struct W comum
-continua opaco, e alignment de storage é pedido ao allocator, ao Tensor, ao
-register adapter ou ao product placement que precisa desse fato. Isso evita que
-uma palavra curta congele layout, endian, call ABI e comportamento de borrow.
+Um struct W comum permanece opaco. Alignment de storage pertence ao allocator,
+Tensor, register adapter ou product placement que exige esse fato.
 
 `foreign c from "x.h"` pode importar um record packed ou over-aligned. O layout
 vem do header, target C ABI, flags fixadas e digest do importer; ele não vem de
@@ -8425,10 +8243,8 @@ foreign c from "packed_probe.h" {
 }
 ```
 
-`struct<layout: .c, packing: 1>` e modifiers `packed`/`aligned` não ficam
-reservados na v0. Uma proposta futura precisa provar grammar, generic
-interaction, field access, atomics, ABI por target e diagnostics de unaligned
-access antes de ganhar source próprio.
+W não publica modifiers `packed` ou `aligned`; as alternativas permanecem em
+[`RATIONALE.md` §1.11](RATIONALE.md#111-alternativas-retiradas-do-design-corrente).
 
 ### 9.9 Seleção de representação
 
@@ -9738,15 +9554,9 @@ O placement não concede isolation. A call ainda precisa respeitar o contrato de
 com label opcional. `fn<C>` e `fn<lang: C>` seguem a mesma policy quando o
 schema declara esse slot. O formatter preserva a forma source. A HIR usa um
 domain normalizado. `spawn` sempre exige esse slot. A forma `spawn let` é erro
-semântico porque esconderia o placement.
-`spawn on .compute` fica **Rejeitado por enquanto** porque duplica o contrato
-estático com uma frase especial.
-
-Uma declaration como `spawn<.network> fn fetch(...)` é rejeitada. Placement de
-declaration existe somente para correctness, isolation, affinity, host ou
-device. Cost e operational effects podem gerar suggestion e explain, mas não
-trocam o domain silenciosamente. A escolha de placement pertence ao caller e
-ao product profile.
+semântico porque esconderia o placement. `spawn` é sempre uma decisão do call
+site. Declarations publicam somente requisitos de correctness, isolation,
+affinity, host ou device; cost pode gerar suggestion, nunca placement oculto.
 
 #### 12.6.1 Schema de domain
 
@@ -9914,9 +9724,8 @@ scheduling. Uma task urgente sem deadline não ganha uma garantia temporal.
 `.userInteractive` pode alterar sua precedência, mas não autoriza acessar state
 UI.
 
-Syntax de QoS em `spawn<...>` fica **Rejeitado**. Policy pertence ao entry,
-service descriptor, execution profile ou task group. Isso evita confundir uma
-preferência com ordering, affinity ou deadline.
+QoS pertence ao entry, service descriptor, execution profile ou task group; não
+ocupa o contrato `spawn<...>`.
 
 O caminho comum usa um domain estático. Quando o conjunto de lanes depende de
 dados runtime, o código usa `ExecutionDomainRef`; valores runtime nunca ocupam
@@ -10828,23 +10637,9 @@ provider privado pode adaptar um source concreto, mas mantém no máximo um pull
 upstream em voo. High-water mark e prefetch continuam operações explícitas de
 `buffer(capacity:)`. Eles não viram estado ambiental do carrier.
 
-Low e high watermarks são policies de wake-up e batching. Elas não mudam a
-capacity nem o ownership. A ideia histórica `stream<watermark: ...>` permanece
-registrada em `history/WIP-audit.md`; ela não entra na assinatura antes de um benchmark
-mostrar valor portátil.
-
-`yield` e `yield*` ficam **Rejeitado por enquanto**. Stream constructors e
-closures nominais permanecem explícitos até a HIR representar:
-
-- ownership do item;
-- view borrowed do frame do producer;
-- close e async cleanup;
-- erro terminal;
-- cancellation durante suspension;
-- capacity e ordering.
-
-Um producer implementa `next()` como state machine ou usa um channel enquanto
-esses contratos não estiverem fechados no IR.
+Low e high watermarks são policies de wake-up e batching. Elas não mudam
+capacity ou ownership. Um producer implementa `next()` como state machine ou
+usa um channel; `buffer(capacity:)` continua a única superfície de prefetch.
 
 #### 12.9.11 Topologias distintas
 
@@ -11430,19 +11225,19 @@ contention, tempo protegido e provider sem transformar medida em garantia.
 **W-1183 — conjunto mínimo:** W não adiciona uma primitive só porque o host a
 oferece. Esta tabela fecha a baseline safe:
 
-| Necessidade | Forma corrente | Estado de alternativas |
+| Necessidade | Forma corrente | Regra |
 |---|---|---|
-| scalar concorrente | `Atomic<T>` | CAS não concede lifetime ou invariantes entre fields |
-| critical section síncrona | `Mutex<T>` | guard público e mutex recursivo rejeitados |
-| critical section de task | `AsyncMutex<T>` | closure protegida nunca suspende |
+| scalar concorrente | `Atomic<T>` | CAS não concede lifetime nem invariantes entre fields |
+| critical section síncrona | `Mutex<T>` | acesso ocorre numa closure scoped |
+| critical section de task | `AsyncMutex<T>` | a closure protegida não suspende |
 | reads paralelos e write in-place em tasks | domain concorrente + `.barrier` | ordena dispatch, placement e subtree |
-| reads paralelos e write in-place síncrono | `ReadWriteLock<T>` | `Mutex<T>` continua preferível quando reads não dominam |
-| versão imutável read-heavy | `SnapshotCell<T>` | RCU e grace period ficam internos ao provider |
-| transferência ou mailbox | `Channel<T>` ou service | condition variable rejeitada na safe std |
-| inicialização estática | const/module initialization | não cria ordem de inicialização runtime |
-| inicialização tardia | `var Lazy` | `Once` raw e async lazy rejeitados na baseline |
-| join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
-| park por palavra atômica | `await Atomic.wait` + `notifyOne`/`notifyAll` | baixo nível; não transporta ownership ou close |
+| reads paralelos e write in-place síncrono | `ReadWriteLock<T>` | use `Mutex<T>` quando reads não dominam |
+| versão imutável read-heavy | `SnapshotCell<T>` | reclamation fica dentro do provider |
+| transferência ou mailbox | `Channel<T>` ou service | o payload troca de owner |
+| inicialização estática | const/module initialization | não cria ordem runtime |
+| inicialização tardia | `var Lazy` | publica um único outcome lógico |
+| join lexical | `Task`, tuple ou `TaskGroup` | o owner sempre faz join ou drain |
+| park por palavra atômica | `await Atomic.wait` + `notifyOne`/`notifyAll` | não transporta ownership nem close |
 
 **W-1189 — read/write síncrono:** `ReadWriteLock<T>` é a Forma vigente para
 storage síncrono ou freestanding com reads simultâneos e write exclusivo. Ele
@@ -11501,10 +11296,10 @@ writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
 failure, drain e seleção entre storage e domain. O oracle não executa W nem
 implementa o provider.
 
-Condition variable e barreira CPU reutilizável não entram na baseline safe. Uma
-barreira de device pertence ao contract do kernel.
-`var Lazy` fecha inicialização tardia; seu provider de parking permanece
-missing.
+As primitives não selecionadas e seus substitutos permanecem em
+[`RATIONALE.md` §1.11](RATIONALE.md#111-alternativas-retiradas-do-design-corrente).
+Uma barreira de device pertence ao contract do kernel. O provider de parking de
+`var Lazy` permanece missing.
 
 Os diagnostics `W-LOCK-*` possuem escape, suspensão, blocking domain, reentrada,
 fault boundary, access mode, copy, drain e provider order. `W-SYNC-*` informa
@@ -12018,17 +11813,13 @@ scope sejam parte do contract.
 
 Um fluxo com pagamento, cozinha e entrega usa workflow durável, idempotency keys
 e compensação. Ele não usa `transaction` para esconder uma saga. Two-phase
-commit fica **Rejeitado** como primitive W. O custo inclui coordinator recovery, locks e
-transactions preparadas. A documentação do PostgreSQL recomenda encerrar uma
-prepared transaction rapidamente e usar um transaction manager externo.
-[PostgreSQL — `PREPARE TRANSACTION`](https://www.postgresql.org/docs/current/sql-prepare-transaction.html)
+commit fica **Rejeitado** como primitive W. O custo inclui coordinator recovery,
+locks e transactions preparadas.
 
 Savepoint não é uma transação nested. Ele desfaz uma parte do mesmo provider e
 o outer commit ainda decide a visibilidade final. A primeira versão expõe
 `tx.withSavepoint(name, operation:)` na API do provider. W não cria outra syntax
-estruturada. SQLite também rejeita `BEGIN` nested e usa `SAVEPOINT` nesse caso.
-[SQLite — transactions](https://www.sqlite.org/lang_transaction.html),
-[SQLite — savepoints](https://www.sqlite.org/lang_savepoint.html)
+estruturada.
 
 O Transaction HIR registra provider identity, contract, effect ID, scope
 lifetime, body errors, commit request, abort, unknown outcome e cleanup. Fault
@@ -12084,10 +11875,6 @@ serviço. Se status ou controle precisam progredir durante uma operação longa,
 handler divide o trabalho em turns curtos ou entrega a operação a um owner
 runtime supervisionado. Essa divisão não torna o state da instance reentrant.
 
-O modelo difere dos actors reentrant da
-[SE-0306](https://www.swift.org/swift-evolution/#SE-0306). Esses actors admitem
-interleaving em `await`. W prefere previsibilidade no default.
-
 O closed turn é o input gate de W. Ele é mais forte que o gate de storage de
 Durable Objects: W não admite outro handler durante nenhum `await`. Somente as
 completions necessárias ao turn podem retomá-lo. Essa regra mantém a mesma
@@ -12095,9 +11882,7 @@ invariante para storage, network, timer e task child.
 
 Uma service policy reentrant fica **Rejeitado**. Ela invalidaria borrows,
 dividiria o turn e exigiria revalidar invariantes. Trabalho longo sai do closed
-turn por task supervisionada. Os
-[input gates de Durable Objects](https://blog.cloudflare.com/durable-objects-easy-fast-correct-choose-three/)
-fornecem o caso de comparação.
+turn por task supervisionada.
 
 Uma falha lógica da instance não cria sandbox de memória. Código não confiável
 exige processo, OS sandbox ou Wasm.
@@ -12251,10 +12036,8 @@ Sinais síncronos fatais, como invalid memory access, não usam essa API para
 recuperação. Eles seguem fault e crash policy. O runtime não promete continuar
 um process cujo memory state pode estar corrompido.
 
-Fontes primárias:
-
-- [POSIX `sigaction`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/sigaction.html)
-- [Windows `SetConsoleCtrlHandler`](https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler)
+As referências de host ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 Alguns callbacks pertencem ao host ABI e precisam existir antes do entry. Um
 firmware reset vector e um mobile lifecycle slot são exemplos. O product liga
@@ -12448,12 +12231,8 @@ já ligado. O source muda somente quando authority, consistency ou effects
 mudam. Trocar o packing ou o placement não pode converter uma call síncrona
 comum em rede silenciosamente.
 
-O workerd avisa que seu processo isolado não é, sozinho, um sandbox para código
-malicioso. W mantém a mesma separação: packing fino e capability bindings
-reduzem superfície; isolamento adversarial exige boundary física adequada.
-
-Fonte primária:
-[workerd — design e nanoservices](https://github.com/cloudflare/workerd).
+Packing fino e capability bindings reduzem superfície; isolamento adversarial
+exige uma boundary física adequada.
 
 ### 13.4 Descriptor, identity e lifecycle
 
@@ -13526,51 +13305,9 @@ vivas. Delivery at-least-once exige handler idempotente.
 cleanup curto, logs ou cache. Ele não substitui `SupervisorRef` nem um workflow
 durável.
 
-Esta separação segue evidência externa:
-
-- [JEP 525](https://openjdk.org/jeps/525) confina subtasks ao scope;
-- [Cloudflare `waitUntil`](https://developers.cloudflare.com/workers/runtime-apis/context/)
-  possui lifetime limitado e recomenda queues para trabalho confiável;
-- [regras de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/rules-of-workflows/)
-  exigem identidade determinística e isolam side effects em steps;
-- [sleep e retry de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/)
-  usam waits persistentes e policies bounded;
-- [eventos de Cloudflare Workflows](https://developers.cloudflare.com/workflows/build/events-and-parameters/)
-  aceitam envio antes do wait e payload persistido;
-- [constraints de Durable Task](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-task-code-constraints)
-  mostram por que replay exige clock, I/O e scheduling controlados;
-- [versionamento de Durable Task](https://learn.microsoft.com/en-us/azure/durable-task/common/durable-orchestration-versioning)
-  fixa uma versão por instance;
-- [atomic commit do SQLite](https://www.sqlite.org/atomiccommit.html) e
-  [transactions](https://www.sqlite.org/lang_transaction.html) sustentam o
-  primeiro journal local;
-- [WAL do SQLite](https://www.sqlite.org/wal.html) delimita host, concurrency e
-  checkpoint;
-- [Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/)
-  usa identity por entidade e recomenda trabalho curto na coordination boundary;
-- [Durable Object alarms](https://developers.cloudflare.com/durable-objects/api/alarms/)
-  usa delivery at-least-once e retry para wakeups persistentes;
-- [Orleans timers e reminders](https://learn.microsoft.com/en-us/dotnet/orleans/grains/timers-and-reminders)
-  separa timers transitórios de reminders persistentes;
-- [Erlang supervisors](https://www.erlang.org/doc/system/sup_princ.html)
-  limitam restart intensity e distinguem children dinâmicos de estado durável.
-
-Estado das superfícies:
-
-| Forma | Estado |
-|---|---|
-| `WorkKeyRef.start` ou `tryStart` com operação fechada | **Forma vigente** |
-| `work.step` com point fechado, função nominal e effect policy | **Forma vigente** |
-| `work.sleep` e `work.wait` como records duráveis | **Forma vigente** |
-| child workflows e fan-out por IDs determinísticos | **Provável** |
-| channel consumido por um entry root | implementação process-local possível |
-| `ctx.waitUntil(task)` | adapter bounded, não owner geral |
-| `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de dispatch |
-| drop de `Task` destaca o child | **Rejeitado por enquanto**; perde ownership e cleanup |
-| call one-way de service | **Rejeitado por enquanto**; perde outcome e cria ambiguidade |
-| service keyed com um handler longo | oracle adversarial; ainda bloqueia controle na mesma key |
-| actor reentrant durante `await` | **Rejeitado**; quebra closed turn e borrows |
-| persistir frame async automaticamente | **Rejeitado por enquanto**; pointers, effects e upgrades não têm contrato |
+A superfície vigente usa `WorkKeyRef.start`/`tryStart`, `work.step`,
+`work.sleep` e `work.wait`. Maturidade, alternativas e evidência ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ### 13.8 Bindings tipados, product e deployment
 
@@ -14343,10 +14080,8 @@ segments como uma concatenação lógica sem materializá-la.
 Um tipo in-memory com `Failure = Never` ainda exige `await`, porque trocar a
 implementação por socket, pipe ou arquivo não muda a assinatura.
 
-`Reader`/`Writer`, `AsyncRead`/`AsyncWrite` e `Input`/`Output` permanecem
-alternativas de nome. `ByteSource`/`ByteSink` vencem por não confundir texto,
-messages, files e cursors, e por não repetir `Async` quando a função já declara
-o efeito.
+Os precedentes de nomenclatura ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 14.2.2 Leitura, inicialização e EOF
 
@@ -14773,15 +14508,8 @@ partial I/O, fault injection, ASan, TSan, leak, limits e fuzzing. O draft fica
 invalidado se um gate exigir uma nova autoridade, uma promessa de ordering ou
 um buffer sem bound.
 
-As fontes primárias desta decisão são [`std::net`](https://doc.rust-lang.org/std/net/),
-[`net` do Go](https://pkg.go.dev/net), o [modelo de capabilities da
-WASI](https://github.com/WebAssembly/WASI/blob/main/docs/Capabilities.md),
-[TCP sockets do Cloudflare](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/),
-[RFC 6724](https://www.rfc-editor.org/info/rfc6724),
-[RFC 8305](https://www.rfc-editor.org/info/rfc8305),
-[RFC 5952](https://www.rfc-editor.org/info/rfc5952) e
-[RFC 8085](https://www.rfc-editor.org/info/rfc8085/). Elas orientam diferenças
-de target e não são alegações de conformance do provider W.
+As diferenças de target e os precedentes de network ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 14.2.8 Errors portáteis
 
@@ -14971,26 +14699,10 @@ Atomicidade de `writev` em um arquivo não vira garantia de `ByteSink`. Sockets,
 filesystems e adapters possuem boundaries diferentes. Uma API que exige
 atomicidade usa um contrato específico.
 
-Scatter read é **Provável** por um owner `ReadBatch`. O batch mantém destinos,
-initialized counts e progress sem expor vários `inout` aliases. Ele não entra
-em `ByteSource`. O gate cobre cancellation e progress em POSIX, Windows e host
-component.
-
-Transferência file-to-sink é **Provável** como `io.transfer`. O resultado
-informa bytes, fallback usado e offset final. `sendfile`, `TransmitFile`,
-`splice`, memory mapping e device buffers permanecem detalhes do adapter. A API
-nunca promete zero-copy sem capability do target.
-
-`io.transfer` só entra na forma vigente depois de oracles em Windows, Linux e
-um terceiro host. A superfície precisa tornar qualquer scratch ou fallback
-observável.
-
-Fontes primárias:
-
-- [`readv` e `writev`](https://man7.org/linux/man-pages/man2/writev.2.html);
-- [`WSASend`](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-wsasend);
-- [`sendfile`](https://man7.org/linux/man-pages/man2/sendfile.2.html);
-- [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile).
+`ByteSource` mantém um único destino por operação. Scatter read e transferência
+file-to-sink não fazem parte da superfície vigente; requisitos e referências
+permanecem em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 14.2.12 Observabilidade de I/O
 
@@ -15088,11 +14800,8 @@ Um browser target pode fornecer profiles adicionais. APIs server-side como
 separadas. Assim, uma library pode declarar que usa somente
 `web-common@2025` e permanecer portátil entre W hosts.
 
-Referências:
-
-- [WinterTC](https://wintertc.org/);
-- [Minimum Common Web API](https://min-common-api.proposal.wintertc.org/);
-- [workerd](https://github.com/cloudflare/workerd).
+As fontes comparativas ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 14.3.1 Mensagem HTTP e ownership
 
@@ -16932,30 +16641,8 @@ folha pending duplicada uma vez, preserva o primeiro input já abortado somente
 depois das duas validações, permite qualquer winner concorrente válido e remove
 todas as registrations sem cycle ou leak.
 
-**Rejeitado:** colocar esses types em `std.runtime` ou chamar signal de
-cancellation W. Essa forma duplicaria `Task` e confundiria control outcome com
-error de adapter. Ela só volta à revisão se APIs não Web provarem a mesma
-semântica first-wins.
-
-**Rejeitado:** EventTarget e listeners públicos no SDK0. Eles voltam somente
-com um bundle geral de events que limite registros, lifetime, callback effects
-e reentrância.
-
-**Rejeitado:** renomear `AbortSignal.any` como `combining`. O rename não remove
-estado inválido e reduz compatibilidade sem benefício. O limite e o flatten já
-deixam a diferença W explícita na assinatura preservada.
-
-**Rejeitado:** reason genérico, `any` ou error arbitrário. Essa forma perde
-bounds, duplicação e transfer policy. Ela só volta com um carrier fechado e
-wire-safe que preserve esses contratos.
-
-**Rejeitado:** abort implícito no drop do controller. Um guard nominal separado
-pode ser reconsiderado com consumer e oracle próprios.
-
-**Rejeitado:** implementar a transição somente em W safe no draft atual. A
-operação exige publication atômica, integração com task frames e timer/root
-hooks que ainda não são públicos. Essa alternativa volta quando a linguagem
-conseguir expressar o provider sem unsafe boundary e sem perder os gates.
+As alternativas recusadas e os respectivos gates ficam no ledger W-899 de
+[`RATIONALE.md` §3](RATIONALE.md#3-ledger).
 
 #### 14.3.6 SQL estático e rows tipadas
 
@@ -17383,10 +17070,6 @@ interface, os gates precisam cobrir RFC 8259, RFC 7493/I-JSON, UTF-8 e Unicode,
 fuzzing de grammar, duplicate detection, limits de profundidade/values/
 allocation, vectors de escape C0/Unicode, shortest-round-trip, signed zero e
 exponent, e differential tests com os vectors da Web.
-O design usa como referências a [Apple Codable](https://developer.apple.com/documentation/swift/encoding-and-decoding-custom-types)
-e a documentação oficial do [Serde](https://serde.rs/), mas não copia
-derivation aberta, reflection ou attributes desses ecossistemas.
-
 **Rejeitado por enquanto:** aceitar `Any`, number IEEE sem range, duplicate
 last-wins, cursor escapante ou rota unlimited. Cada forma perde uma garantia
 de segurança ou interoperabilidade necessária ao núcleo HTTP.
@@ -18383,18 +18066,8 @@ o mesmo token.
 
 ### 15.3 Delimitador de unidade
 
-O design vigente compara quatro formas:
-
-| Forma | Estado | Motivo |
-|---|---|---|
-| `9.81<m/s^2>` | **Forma vigente** | preserva `[]`, comunica aplicação estática e possui precedente no F# |
-| `9.81[m/s^2]` | **Reserva histórica** | parse simples, mas parece indexação e sobrecarrega `[]` |
-| `9.81{m/s^2}` | **Rejeitado por enquanto** | chaves devem continuar a indicar body/scope |
-| `9.81 m/s^2` | **Rejeitado** | não mostra onde a unit expression termina |
-
-O [F#](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/units-of-measure)
-usa angle brackets em quantidades e apaga units no runtime. Isso é um precedente,
-não uma prova de preferência.
+O delimitador vigente é `<...>`. Comparações de syntax e precedentes ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 No design vigente, o literal exige adjacência:
 
@@ -18687,10 +18360,6 @@ let graphemes = title.graphemes.count
 layout e estratégia de crescimento não fazem parte da API. Cópia e move seguem
 a seção 9.
 
-Esse contrato segue a experiência de
-[Swift com armazenamento UTF-8](https://www.swift.org/blog/utf8-string/) sem
-tornar a representação curta ou COW parte da linguagem.
-
 Contiguidade é uma garantia dos bytes durante um borrow scoped. Ela não promete
 um endereço estável depois de move ou mutation. Uma implementação pode usar
 estas formas internas:
@@ -18851,12 +18520,6 @@ dentro do extent, mas não permite append, resize ou substituição do owner.
 
 Esta separação evita dois erros. `view` não é um sinônimo menor para `ref`.
 Também não é um wrapper que torna qualquer grafo profundamente imutável.
-O [`Ref` de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0519-borrow-inout-types.md)
-representa uma referência a uma instância. O
-[`Span` de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0447-span-access-to-contiguous-storage.md)
-e os [slices de Rust](https://doc.rust-lang.org/reference/types/slice.html)
-representam sequências borrowed. W mantém a mesma distinção de função, mas usa
-um access mode comum para as famílias que possuem uma projeção verificável.
 
 ```w
 fn inspectOwner(values: ref Array<Order>) {
@@ -19633,13 +19296,9 @@ allocations sem prometer threshold, tamanho ou layout. `InlineString` promete
 que um limite físico faz parte do tipo e precisa definir overflow, conversão,
 ABI e tamanho por target.
 
-O primeiro protótipo de `String` usa a forma flat semelhante ao
-[`String` de Rust](https://doc.rust-lang.org/stable/alloc/string/struct.String.html):
-UTF-8 válido sobre um buffer growable. O protótipo seguinte compara SSO com a
-[representação UTF-8 pequena de Swift](https://www.swift.org/blog/utf8-string/)
-e com storage inline explícito como
-[`SmallString` do LLVM](https://llvm.org/doxygen/classllvm_1_1SmallString.html).
-Nenhum threshold entra no contrato antes dos benchmarks.
+O primeiro protótipo de `String` usa UTF-8 válido sobre um buffer growable. O
+protótipo seguinte compara SSO com storage inline explícito. Nenhum threshold
+entra no contrato antes dos benchmarks.
 
 Literal/static, inline e dinâmica precisam produzir os mesmos resultados,
 errors, índices e bytes. Sanitizers, debug e ABI C usam o fallback flat quando a
@@ -19690,9 +19349,9 @@ type ScalarLabel = String<(.scalars.count <= 64)>   // até 256 bytes
 type VisualLabel = String<(.graphemes.count <= 64)> // bytes sem limite finito
 ```
 
-Os sketches históricos `min`, `max`, `expected`, `mask` e `inputType` não viram
-knobs universais de `String`. Refinement define invariants. Reserva define uma
-estimativa. Property behavior ou newtype define transformação.
+`String` não expõe knobs universais de `min`, `max`, `expected`, `mask` ou
+`inputType`. Refinement define invariants, reserva define uma estimativa e
+property behavior ou newtype define transformação.
 
 ```w
 type TaxId = String<(.scalars.count == 11 && TaxIdRules.isValid(value))>
@@ -19822,11 +19481,6 @@ ordem, mas não promete a mesma capacity:
 let snapshot = copy courses
 expect snapshot == courses
 ```
-
-A baseline contígua e growable possui precedente em
-[`Vec<T>`](https://doc.rust-lang.org/std/vec/struct.Vec.html). W fixa também a
-ordem de cleanup e separa `reserve` de `tryReserve`; portanto o precedente não
-é a especificação.
 
 #### 16.10.3 `view` e mutation
 
@@ -20064,14 +19718,6 @@ igualdade da key owned. `view String` atende a `EquivalentKey<String>`. Uma
 conformance que viola a lei é erro de contrato em teste e pode causar
 diagnostic dinâmico em builds instrumentados.
 
-Ordem de inserção possui precedentes no
-[dictionary de Python](https://docs.python.org/3/reference/datamodel.html#dictionaries)
-e em
-[`LinkedHashMap`](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/LinkedHashMap.html).
-Hashing keyed possui precedente em
-[`HashMap`](https://doc.rust-lang.org/std/collections/struct.HashMap.html).
-W combina as propriedades e não herda a ordem arbitrária do último.
-
 Um map inteiramente compile-time pode baixar para comparação, switch, tabela
 ordenada ou perfect hash. A escolha não muda a ordem lógica:
 
@@ -20229,10 +19875,8 @@ Timsort, fluxsort, blitsort e outros candidatos só entram após licença,
 provenance, fuzzing e benchmarks reproduzíveis. O nome de um algoritmo não vira
 o contrato de `sort()`.
 
-A separação entre sort stable e unstable possui precedente nas
-[operations de slice de Rust](https://doc.rust-lang.org/std/primitive.slice.html).
-W escolhe stable como default para reduzir surpresa; benchmark ainda decide o
-lowering.
+W escolhe sort stable como default para reduzir surpresa; benchmark ainda
+decide o lowering.
 
 #### 16.10.9 Collections especializadas e cleanup
 
@@ -20477,8 +20121,8 @@ Strides são em elementos. O span usa
 com cada soma e produto checked; padding de stride é aceito quando a extent vem
 de provenance confiável. Strides negativos são rejeitados no baseline. Zero-size
 usa data null. Data não nula exige alignment no endereço `data + byte_offset`
-necessário pelo consumer. O claim histórico de alignment 256 não é aceito como
-prova. Overlap sem layout proof do provider é rejeitado; read-only com proof
+necessário pelo consumer. Um claim fixo de alignment 256 não é prova. Overlap
+sem layout proof do provider é rejeitado; read-only com proof
 explícito é a única exceção.
 
 Somente flags conhecidas são aceitas: read-only, producer-copied e
@@ -21037,39 +20681,8 @@ avança depois de comparar epochs, hazard pointers e `shared T`.
 **Exemplo:** `last-light-benchmark` executa o mesmo handler em um processo
 monolítico e em nanoservices co-localizados.
 
-Um ranking externo não define a semântica W. Ele oferece um workload
-reproduzível para encontrar custos em HTTP, JSON, database access, scheduling,
-allocation e backpressure.
-
-O produto Última Luz mantém um profile compatível com as famílias públicas do
-TechEmpower:
-
-1. JSON serialization;
-2. single database query;
-3. multiple queries;
-4. cached queries;
-5. fortunes;
-6. data updates;
-7. plaintext.
-
-O source oracle implementa as sete rotas. O runtime graph e o deployment
-declaram PostgreSQL, cache local, admission e quotas. Esse estado não constitui
-um resultado. Ainda faltam runtime HTTP, codec JSON, template adapter, database
-adapter, cache, harness e medição.
-
-Antes de throughput, o harness valida:
-
-- method, path, payload, media type, `Server` e `Date`;
-- `queries` ou `count` com clamp em `1...500`;
-- uma query database distinta por item quando o workload exige;
-- uma boundary `Sync` por query no extended protocol do PostgreSQL;
-- read-modify-write concluído antes da resposta de updates;
-- escaping UTF-8 das fortunes;
-- read-through e replacement real na rota de cache;
-- ausência de gzip, resposta pré-renderizada e disk log por request;
-- limites de admission, pool, pipeline, cache e retained bytes.
-
-**Exemplo:** validação e medição são passos distintos:
+Um ranking externo não define semântica nem correção. O workflow separa a
+validação do workload da medição:
 
 ```text
 w benchmark validate last-light-benchmark \
@@ -21083,9 +20696,7 @@ w benchmark run last-light-benchmark \
 ```
 
 `validate` não produz ranking. `run` recusa um artifact, deployment ou harness
-que não corresponde ao validation record.
-
-Cada resultado registra:
+que não corresponde ao validation record. Cada resultado registra:
 
 - versão e configuração do benchmark;
 - hardware, kernel, database e network topology;
@@ -21094,41 +20705,11 @@ Cada resultado registra:
 - throughput, latency distribution, errors e resource use;
 - todas as diferenças da configuração oficial.
 
-“Primeiro lugar” não é um gate de correção. O gate inicial é completar o corpus
-sem bypass semântico, manter os oracles e explicar o custo por request. Depois,
-profiles separados medem:
-
-- um processo monolítico;
-- nanoservices co-localizados;
-- services separados por processo;
-- worker/component host;
-- allocators e storage adapters permitidos.
-
-As rotas compartilham business logic. Uma variante não pode retornar constants,
-remover validação ou usar SQL diferente somente para ganhar o ranking.
-
-O repositório público histórico do FrameworkBenchmarks foi arquivado em 24 de
-março de 2026. A versão, a origem do harness e o canal vigente de submissão
-precisam ser fixados antes de publicar um resultado.
-
-Fontes primárias:
-
-- [TechEmpower Framework Benchmarks](https://www.techempower.com/benchmarks/);
-- [visão dos testes](https://github.com/TechEmpower/FrameworkBenchmarks/wiki/Project-Information-Framework-Tests-Overview);
-- [repositório FrameworkBenchmarks](https://github.com/TechEmpower/FrameworkBenchmarks).
-
-Outras fontes primárias da camada de desempenho:
-
-- [LLVM `range` metadata](https://llvm.org/docs/LangRef.html#range-metadata)
-  representa intervalos de integer e vectors;
-- [MLIR Vector](https://mlir.llvm.org/docs/Dialects/Vector/) preserva operações
-  n-dimensionais para lowering retargetable;
-- [MLIR Linalg](https://mlir.llvm.org/docs/Dialects/Linalg/) preserva estrutura
-  de loops para tiling e library dispatch;
-- o [guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) separa
-  atomicidade, order e lock-freedom no lowering;
-- o [modelo UTF-8 de Swift](https://www.swift.org/blog/utf8-string/) demonstra
-  validation na criação, fast paths e storage unificado.
+O corpus sem bypass, os oracles e o custo explicável por request precedem
+qualquer claim de posição. Todas as topologias usam a mesma business logic; uma
+variante não remove validação nem retorna constants para melhorar o ranking.
+Workloads, topologias e fontes comparativas ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ## 19. FFI, unsafe e ilhas de linguagem
 
@@ -22065,15 +21646,8 @@ reduzem bytes e branches. Prefix sums substituem offsets. Chunks opcionais ficam
 lazy. Hashing e decode podem usar streaming. Um mmap reader nunca usa load
 desalinhado ou cast para struct nativa.
 
-**Rejeitado por enquanto:** Protobuf possui evolução ampla, mas seus próprios
-[documentos](https://protobuf.dev/programming-guides/serialization-not-canonical/)
-não prometem bytes canônicos entre builds e linguagens.
-
-**Rejeitado por enquanto:** Cap'n Proto fornece acesso direto e canonicalization.
-O [encoding oficial](https://capnproto.org/encoding.html#canonicalization) diz
-que writers comuns não produzem a forma canônica por default. Pointer trees,
-alignment e traversal accounting também aumentam o bootstrap reader. Cap'n
-Proto continua uma referência para RPC. Ele não define metadata W.
+As alternativas de encoding e suas fontes ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 O corpus W0 contém os bytes seed e mutations de corruption. Um reader Bun e um
 reader C sem library compartilhada validam o mesmo corpus. Eles são design
@@ -22126,10 +21700,10 @@ de owner/drop que participam do value. Ela não publica allocator instance,
 provider name, optimization level ou diagnostics quando esses fatos não mudam o
 layout.
 
-**Exemplo:** dois builds usam system allocator e mimalloc. `HorizonStatus` possui
-os mesmos bytes e o mesmo fingerprint. A recipe e o `RuntimeClosureKey` são
-diferentes. Se um carrier passa a guardar um deallocator adicional, a entry
-muda e o link exato falha.
+**Exemplo:** dois builds usam o system allocator e outro provider exato.
+`HorizonStatus` possui os mesmos bytes e o mesmo fingerprint. A recipe e o
+`RuntimeClosureKey` são diferentes. Se um carrier passa a guardar um
+deallocator adicional, a entry muda e o link exato falha.
 
 Um object W contém uma nota mínima com:
 
@@ -22367,9 +21941,8 @@ Dois runtimes no mesmo process podem coexistir como islands. Eles não trocam
 owned W values. Uma edge entre islands usa C carriers, service ABI ou component
 ABI.
 
-Essa forma substitui a hipótese histórica de globals por módulo e tabelas de
-threads compartilhadas. Contexto explícito mantém authority, lifetime e
-versionamento verificáveis.
+Contexto explícito mantém authority, lifetime e versionamento verificáveis;
+globals de módulo e tabelas de threads não participam desse contrato.
 
 #### 20.4.9 Libraries W e version skew
 
@@ -22690,7 +22263,7 @@ fixadas na recipe. O seed C e o core self-hosted comparam ConstValue normalizado
 Estas features não pertencem ao fechamento mínimo:
 
 - `async`, `spawn`, service e entries que não são `process.main`;
-- `shared`, `weak`, public Arena block e tagged address;
+- `shared`, `weak` e tagged address;
 - property behavior;
 - units, tensors, GPU e SIMD explícito;
 - existential `any`/`some`, refinements, value generics e contracts de valor;
@@ -23051,37 +22624,9 @@ O plano inicial, ainda sem implementação, usa esta ordem:
 Esta tabela define candidatos, não suporte entregue. A primeira release publica
 somente linhas que passaram o gate correspondente.
 
-O backend LLVM fornece muitas architectures. A política de LLVM inicia targets
-novos como experimentais. W aplica a mesma prudência e adiciona seus próprios
-gates de runtime e SDK.
-
-O Android NDK atual expõe `arm64-v8a`, `armeabi-v7a`, `x86` e `x86_64`. O plano
-W começa por AArch64 e x86-64. Outros ABIs entram após evidence de demanda e CI.
-
-WASI 0.3 é a baseline de Component Model. Ela possui `async func`, `stream<T>` e
-`future<T>` na Canonical ABI. Esses contratos correspondem melhor ao runtime W
-que os adapters de polling do WASI 0.2.
-
-O target `wasm32-wasip3` permanece experimental para W até existir toolchain e
-corpus próprios. `wasm32-wasip2` continua como target de compatibilidade. Um
-adapter pode satisfazer imports 0.2. Ele não muda a interface W para polling.
-
-O dialeto GPU do MLIR oferece uma abstração intermediária para launch e separa
-os address spaces `global`, `workgroup`, `private` e `constant`. Ele não
-paraleliza um algoritmo por conta própria. O frontend W precisa provar ou pedir
-o mapeamento antes do lowering para NVVM, ROCDL ou SPIR-V.
-
-Fontes primárias:
-
-- [targets configuráveis do LLVM](https://llvm.org/docs/CMake.html);
-- [política de targets experimentais do LLVM](https://llvm.org/docs/DeveloperPolicy.html);
-- [lançamento do WASI 0.3](https://bytecodealliance.org/articles/WASI-0.3);
-- [WIT e seus tipos async](https://component-model.bytecodealliance.org/design/wit.html);
-- [dialeto GPU do MLIR](https://mlir.llvm.org/docs/Dialects/GPU/);
-- [dialeto NVVM](https://mlir.llvm.org/docs/Dialects/NVVMDialect/),
-  [dialeto ROCDL](https://mlir.llvm.org/docs/Dialects/ROCDLDialect/) e
-  [dialeto SPIR-V](https://mlir.llvm.org/docs/Dialects/SPIR-V/);
-- [ABIs do Android NDK](https://developer.android.com/ndk/guides/abis).
+Backend disponível não equivale a target suportado. Runtime, SDK, corpus e CI
+fecham cada linha da matriz. A evidência de LLVM, WASI, Android e MLIR fica em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ## 21. Packages, builds e releases
 
@@ -23864,12 +23409,8 @@ próprios tests e artifacts. A recipe correspondente conclui a reprodução. O
 lock não força a resolution dos consumers. O consumer usa as constraints do
 `package.w` e grava o resultado no próprio lock.
 
-Fontes primárias usadas para os invariantes:
-
-- [Cargo workspaces](https://doc.rust-lang.org/cargo/reference/workspaces.html);
-- [Cargo features](https://doc.rust-lang.org/cargo/reference/features.html);
-- [Cargo dependency sources](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html);
-- [Go workspaces e replacements](https://go.dev/ref/mod#workspaces).
+A evidência comparativa de workspaces, features e sources fica em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 21.1.7 Source snapshot publicável
 
@@ -24943,13 +24484,8 @@ metadata assinada e content digests. GitHub Releases, Cloudflare Workers,
 mirrors comunitários e caches são transportes possíveis. A verificação ocorre
 antes de extrair, compilar ou executar.
 
-Fontes primárias:
-
-- [TUF specification](https://theupdateframework.github.io/specification/draft/);
-- [Sigstore overview](https://docs.sigstore.dev/);
-- [Rekor transparency log](https://docs.sigstore.dev/logging/overview/);
-- [SLSA provenance](https://slsa.dev/spec/v1.2/provenance);
-- [Reproducible Builds planning](https://reproducible-builds.org/docs/plans/).
+As fontes de supply-chain e transparência ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ### 21.5 Scripts e supply chain
 
@@ -25623,11 +25159,8 @@ snapshot prova schema, offsets, coverage e determinismo do oracle. Ele não prov
 que um frontend já detecta o erro. O arquivo vigente é
 [`tooling/semantic-diagnostics.snapshot.jsonl`](tooling/semantic-diagnostics.snapshot.jsonl).
 
-O schema toma como precedentes a saída
-[JSON do rustc](https://doc.rust-lang.org/beta/rustc/json.html), o
-[Language Server Protocol](https://microsoft.github.io/language-server-protocol/)
-e o [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.pdf).
-W mantém D0 menor e produz os formatos externos por adapter.
+Os precedentes de diagnostics ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ## 23. Protocolos e pesquisas de ecossistema
 
@@ -25977,13 +25510,8 @@ Casos adversariais obrigatórios incluem:
 - capability da session anterior;
 - revogação durante stream, pipeline ou transaction.
 
-Fontes primárias:
-
-- [TLS 1.3, Finished, exporters e riscos de 0-RTT](https://www.rfc-editor.org/rfc/rfc8446.html);
-- [channel binding `tls-exporter`](https://www.rfc-editor.org/rfc/rfc9266.html);
-- [TLS 1.3 como proteção default para RPC](https://www.rfc-editor.org/rfc/rfc9289.html);
-- [TLS, autenticação e 0-RTT em QUIC](https://www.rfc-editor.org/rfc/rfc9001.html);
-- [SPIFFE workload identity e trust domains](https://spiffe.io/docs/latest/spiffe-about/spiffe-concepts/).
+As referências de TLS, QUIC, channel binding e workload identity ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 23.1.5 Streaming e flow control
 
@@ -27778,7 +27306,7 @@ Os casos da seção 1 de [`RATIONALE.md`](RATIONALE.md) medem clareza e erro. El
 sem baseline. Um resultado ruim pode reabrir uma decisão por evidência.
 Implementação deve parar no primeiro gate que contradiz a semântica vigente.
 
-### 24.3.2 Gate de gerência automática de memória
+### 24.3.1 Gate de gerência automática de memória
 
 **Exemplo:** o compiler pode colocar um `Buffer` nonescaping na stack e outro
 num task frame; owner, drop e resultado permanecem iguais.
@@ -27799,6 +27327,30 @@ M1, A0, SP0, MX0, ABI e adapters reais devem passar os mesmos casos em debug e
 release. Até esse ponto, a forma correta é “modelo de memória definido;
 implementação missing”. O gate não exige GC ou reference counting como
 estratégia universal.
+
+### 24.3.2 Gate de concorrência e paralelismo
+
+**Exemplo:** o mesmo child executa num domain serial cooperativo ou num domain
+paralelo sem mudar owner, cancellation, cleanup, outcome ou ordem declarada.
+
+**W-1210 — claim de execução:** W só pode alegar que resolveu concorrência e
+paralelismo quando call direta, `await`, `async let` e `spawn<domain>` usarem o
+mesmo grafo de ownership e lifetime; quando todo child terminar por join ou
+drain; e quando serialização, `.barrier`, atomics, locks, channels e services
+produzirem uma única relação de happens-before explicável.
+
+O gate exige equivalência observável entre scheduler cooperativo single-thread,
+pool paralelo e providers de I/O para o mesmo execution profile. Admission,
+backpressure, cancellation, deadline, panic, provider completion e shutdown
+precisam passar fault injection sem task, waiter, loan ou resource órfão. Uma
+transferência entre domains não pode criar copy, share, retain ou mobility
+ocultos.
+
+E0, E1, MX0, LM0, SP0, LZ0 e B0 fornecem modelos de design. A alegação pública
+exige HIR, runtime e providers reais, stress tests, sanitizers e replay nos
+targets prometidos. Até esse ponto, a forma correta é “modelo estruturado de
+execução definido; implementação missing”. O gate não exige thread por task,
+lock-free universal nem o mesmo lowering físico em todos os targets.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
