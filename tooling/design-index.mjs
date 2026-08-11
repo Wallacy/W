@@ -289,6 +289,7 @@ const oracleCorpusFiles = [
   "dlpack-cases.json",
   "device-execution-cases.json",
   "foreign-body-cases.json",
+  "web-body-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -771,6 +772,19 @@ const acceptedForeignBodyCases = foreignBodyCorpus.cases.filter(
 const informationForeignBodyCases = foreignBodyCorpus.cases.filter(
   (testCase) => testCase.kind === "info",
 ).length;
+const webBodyCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "web-body-cases.json"), "utf8"),
+);
+const webBodyCases = webBodyCorpus.cases.length;
+const webBodyOperations = webBodyCorpus.cases.reduce(
+  (count, testCase) =>
+    count + Object.keys({ ...testCase.input, limits: testCase.input.limits ?? webBodyCorpus.limits }).length
+      + (testCase.input.entries?.length ?? 0),
+  0,
+);
+const acceptedWebBodyCases = webBodyCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -1012,6 +1026,11 @@ output.push(
     `(${acceptedForeignBodyCases} aceitos + ` +
     `${foreignBodyCases - acceptedForeignBodyCases - informationForeignBodyCases} rejeitados + ` +
     `${informationForeignBodyCases} informações; host oracle não executa adapter) |`,
+);
+output.push(
+  `| casos/operações de Web bodies WB0 | ${webBodyCases}/${webBodyOperations} ` +
+    `(${acceptedWebBodyCases} aceitos + ${webBodyCases - acceptedWebBodyCases} rejeitados; ` +
+    `host oracle não executa compiler/provider) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

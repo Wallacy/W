@@ -1,6 +1,7 @@
 // Public value contracts for HTTP messages and server admission.
 
 import { AbortReason, AbortSignal } from std.abort
+import { Blob } from std.blob
 import cache from std.cache
 import database from std.database
 import json from std.json
@@ -731,6 +732,7 @@ export enum RequestError: Error {
   headerLimitExceeded(maximumFields: usize, maximumBytes: usize)
   bodyNotAllowed(method: Method)
   body(HttpBodyError)
+  formData(FormDataError)
   bodySourceInvalid
   unsupportedPolicy
 }
@@ -740,6 +742,7 @@ export enum ResponseError: Error {
   headers(HeadersError)
   headerLimitExceeded(maximumFields: usize, maximumBytes: usize)
   encoding(json.EncodeError)
+  formData(FormDataError)
   bodyNotAllowed(status: StatusCode)
   invalidServerResponse
 }
@@ -778,12 +781,376 @@ export struct ServerLimits {
   message: MessageLimits
 }
 
-// Request and Response use the same four body sources. Blob and FormData are
-// profile-final and are deliberately absent from this SDK0 surface.
+export enum FormDataLimitKind: Copy {
+  entries
+  nameBytes
+  filenameBytes
+  textBytes
+  blobBytes
+  payloadBytes
+  encodedBytes
+}
+
+export enum FormDataError: Error & Copy {
+  unsupportedMediaType
+  malformed
+  contentTypeControlled
+  limitExceeded(kind: FormDataLimitKind, maximum: usize)
+}
+
+export struct FormDataLimits: Copy & Equatable {
+  maximumEntries: usize<(1...)>
+  maximumNameBytes: usize<(1...)>
+  maximumFilenameBytes: usize<(1...)>
+  maximumTextBytes: usize<(1...)>
+  maximumBlobBytes: usize<(1...)>
+  maximumPayloadBytes: usize<(1...)>
+  maximumEncodedBytes: usize<(1...)>
+
+  export const init(
+    maximumEntries: usize<(1...)>,
+    maximumNameBytes: usize<(1...)>,
+    maximumFilenameBytes: usize<(1...)>,
+    maximumTextBytes: usize<(1...)>,
+    maximumBlobBytes: usize<(1...)>,
+    maximumPayloadBytes: usize<(1...)>,
+    maximumEncodedBytes: usize<(1...)>,
+  ) {
+    self.maximumEntries = maximumEntries
+    self.maximumNameBytes = maximumNameBytes
+    self.maximumFilenameBytes = maximumFilenameBytes
+    self.maximumTextBytes = maximumTextBytes
+    self.maximumBlobBytes = maximumBlobBytes
+    self.maximumPayloadBytes = maximumPayloadBytes
+    self.maximumEncodedBytes = maximumEncodedBytes
+  }
+
+  export static fn standard(): FormDataLimits {
+    return FormDataLimits(
+      maximumEntries: 128,
+      maximumNameBytes: 8<KiB>,
+      maximumFilenameBytes: 8<KiB>,
+      maximumTextBytes: 1<MiB>,
+      maximumBlobBytes: 64<MiB>,
+      maximumPayloadBytes: 64<MiB>,
+      maximumEncodedBytes: 65<MiB>,
+    )
+  }
+}
+
+export enum FormDataValue: Duplicable {
+  text(String)
+  blob(Blob, filename: String)
+
+  export fn duplicate(): FormDataValue {
+    return switch self {
+      case .text(let value): .text(copy value)
+      case .blob(let value, let filename):
+        .blob(copy value, filename: copy filename)
+    }
+  }
+
+}
+
+export struct FormDataEntry: Duplicable {
+  storedName: String
+  storedValue: FormDataValue
+  storedRetainedBytes: usize
+
+  init(
+    name: String,
+    value: FormDataValue,
+    retainedBytes: usize,
+  ) {
+    self.storedName = take name
+    self.storedValue = take value
+    self.storedRetainedBytes = retainedBytes
+  }
+
+  export fn name(): view String {
+    return storedName
+  }
+
+  export fn value(): ref FormDataValue {
+    return storedValue
+  }
+
+  export fn duplicate(): FormDataEntry {
+    return FormDataEntry(
+      name: copy storedName,
+      value: storedValue.duplicate(),
+      retainedBytes: storedRetainedBytes,
+    )
+  }
+}
+
+struct FormDataAdmission {
+  totalBytes: usize
+  entryBytes: usize
+}
+
+export struct FormData: Duplicable {
+  storedLimits: FormDataLimits
+  storedPayloadBytes: usize
+  storedEntries: Array<FormDataEntry>
+
+  export init(limits: FormDataLimits = FormDataLimits.standard()) {
+    self.storedLimits = limits
+    self.storedPayloadBytes = 0
+    self.storedEntries = []
+  }
+
+  init(
+    limits: FormDataLimits,
+    payloadBytes: usize,
+    entries: take Array<FormDataEntry>,
+  ) {
+    self.storedLimits = limits
+    self.storedPayloadBytes = payloadBytes
+    self.storedEntries = take entries
+  }
+
+  export size: usize {
+    get => storedEntries.count
+  }
+
+  export limits: FormDataLimits {
+    get => storedLimits
+  }
+
+  export fn duplicate(): FormData {
+    var copied: Array<FormDataEntry> = []
+    for ref entry in storedEntries { copied.append(entry.duplicate()) }
+    return FormData(
+      limits: storedLimits,
+      payloadBytes: storedPayloadBytes,
+      entries: take copied,
+    )
+  }
+
+  fn admittedPayload(
+    name: ref String,
+    value: ref FormDataValue,
+    replacingBytes: usize = 0,
+  ): FormDataAdmission throws FormDataError {
+    guard name.bytes.count <= storedLimits.maximumNameBytes else {
+      throw .limitExceeded(
+        kind: .nameBytes,
+        maximum: storedLimits.maximumNameBytes,
+      )
+    }
+
+    switch value {
+      case .text(let text):
+        guard text.bytes.count <= storedLimits.maximumTextBytes else {
+          throw .limitExceeded(
+            kind: .textBytes,
+            maximum: storedLimits.maximumTextBytes,
+          )
+        }
+      case .blob(let blob, let filename):
+        guard filename.bytes.count <= storedLimits.maximumFilenameBytes else {
+          throw .limitExceeded(
+            kind: .filenameBytes,
+            maximum: storedLimits.maximumFilenameBytes,
+          )
+        }
+        guard blob.size <= storedLimits.maximumBlobBytes else {
+          throw .limitExceeded(
+            kind: .blobBytes,
+            maximum: storedLimits.maximumBlobBytes,
+          )
+        }
+    }
+
+    var entryBytes = name.bytes.count
+    do {
+      switch value {
+        case .text(let text):
+          entryBytes = try entryBytes.checkedAdd(text.bytes.count)
+        case .blob(let blob, let filename):
+          entryBytes = try entryBytes.checkedAdd(filename.bytes.count)
+          entryBytes = try entryBytes.checkedAdd(blob.size)
+      }
+    } catch {
+      throw .limitExceeded(
+        kind: .payloadBytes,
+        maximum: storedLimits.maximumPayloadBytes,
+      )
+    }
+
+    let retained = storedPayloadBytes - replacingBytes
+    var next: usize
+    do {
+      next = try retained.checkedAdd(entryBytes)
+    } catch {
+      throw .limitExceeded(
+        kind: .payloadBytes,
+        maximum: storedLimits.maximumPayloadBytes,
+      )
+    }
+    guard next <= storedLimits.maximumPayloadBytes else {
+      throw .limitExceeded(
+        kind: .payloadBytes,
+        maximum: storedLimits.maximumPayloadBytes,
+      )
+    }
+    return FormDataAdmission(totalBytes: next, entryBytes: entryBytes)
+  }
+
+  mut fn appendEntry(
+    name: String,
+    value: FormDataValue,
+  ): () throws FormDataError {
+    guard storedEntries.count < storedLimits.maximumEntries else {
+      throw .limitExceeded(
+        kind: .entries,
+        maximum: storedLimits.maximumEntries,
+      )
+    }
+    let admission = try admittedPayload(name: ref name, value: ref value)
+    storedEntries.append(FormDataEntry(
+      name: take name,
+      value: take value,
+      retainedBytes: admission.entryBytes,
+    ))
+    storedPayloadBytes = admission.totalBytes
+  }
+
+  export mut fn append(
+    name: String,
+    value: String,
+  ): () throws FormDataError {
+    try appendEntry(name: take name, value: .text(take value))
+  }
+
+  export mut fn append(
+    name: String,
+    blob: take Blob,
+    filename: String = "blob",
+  ): () throws FormDataError {
+    try appendEntry(
+      name: take name,
+      value: .blob(take blob, filename: take filename),
+    )
+  }
+
+  export mut fn set(
+    name: String,
+    value: String,
+  ): () throws FormDataError {
+    try setEntry(name: take name, value: .text(take value))
+  }
+
+  export mut fn set(
+    name: String,
+    blob: take Blob,
+    filename: String = "blob",
+  ): () throws FormDataError {
+    try setEntry(
+      name: take name,
+      value: .blob(take blob, filename: take filename),
+    )
+  }
+
+  mut fn setEntry(
+    name: String,
+    value: FormDataValue,
+  ): () throws FormDataError {
+    var matches: usize = 0
+    var replacedBytes: usize = 0
+    for ref entry in storedEntries {
+      if entry.storedName == name {
+        matches += 1
+        replacedBytes += entry.storedRetainedBytes
+      }
+    }
+
+    let finalCount = storedEntries.count - matches + 1
+    guard finalCount <= storedLimits.maximumEntries else {
+      throw .limitExceeded(
+        kind: .entries,
+        maximum: storedLimits.maximumEntries,
+      )
+    }
+    let admission = try admittedPayload(
+      name: ref name,
+      value: ref value,
+      replacingBytes: replacedBytes,
+    )
+
+    var replacement = FormDataEntry(
+      name: take name,
+      value: take value,
+      retainedBytes: admission.entryBytes,
+    )
+    var inserted = false
+    var updated: Array<FormDataEntry> = []
+    for entry in take storedEntries {
+      if entry.storedName == replacement.storedName {
+        if !inserted {
+          updated.append(take replacement)
+          inserted = true
+        }
+      } else {
+        updated.append(take entry)
+      }
+    }
+    if !inserted { updated.append(take replacement) }
+
+    storedEntries = take updated
+    storedPayloadBytes = admission.totalBytes
+  }
+
+  export mut fn delete(name: ref String) {
+    var kept: Array<FormDataEntry> = []
+    var keptBytes: usize = 0
+    for entry in take storedEntries {
+      if entry.storedName != name {
+        keptBytes += entry.storedRetainedBytes
+        kept.append(take entry)
+      }
+    }
+    storedEntries = take kept
+    storedPayloadBytes = keptBytes
+  }
+
+  export fn get(name: ref String): ref FormDataValue? {
+    for ref entry in storedEntries {
+      if entry.storedName == name { return entry.storedValue }
+    }
+    return .none
+  }
+
+  export fn getAll(name: ref String): Array<FormDataValue> {
+    var values: Array<FormDataValue> = []
+    for ref entry in storedEntries {
+      if entry.storedName == name {
+        values.append(entry.storedValue.duplicate())
+      }
+    }
+    return values
+  }
+
+  export fn has(name: ref String): Bool {
+    return get(name) != .none
+  }
+
+  export fn entries(): Array<FormDataEntry> {
+    var result: Array<FormDataEntry> = []
+    for ref entry in storedEntries { result.append(entry.duplicate()) }
+    return result
+  }
+}
+
+// Request and Response use the same six body sources. FormData stores the
+// logical list; only std.http serializes it and chooses the multipart boundary.
 export enum BodySource {
   string(String)
   bytes(Bytes)
   urlSearchParams(URLSearchParams)
+  blob(Blob)
+  formData(FormData)
   stream(ReadableStream<Bytes, HttpBodyError>)
 }
 
@@ -1065,6 +1432,14 @@ foreign intrinsic from "std.http@1" {
     handle: inout RequestHandle,
     maximumBytes: usize<(1...)>,
   ): String throws HttpBodyError
+  async fn stdHttpRequestBlob(
+    handle: inout RequestHandle,
+    maximumBytes: usize<(1...)>,
+  ): Blob throws HttpBodyError
+  async fn stdHttpRequestFormData(
+    handle: inout RequestHandle,
+    limits: FormDataLimits,
+  ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpRequestClone(
     handle: inout RequestHandle,
     maximumBufferedBytes: usize<(1...)>,
@@ -1095,6 +1470,14 @@ foreign intrinsic from "std.http@1" {
     handle: inout ResponseHandle,
     maximumBytes: usize<(1...)>,
   ): String throws HttpBodyError
+  async fn stdHttpResponseBlob(
+    handle: inout ResponseHandle,
+    maximumBytes: usize<(1...)>,
+  ): Blob throws HttpBodyError
+  async fn stdHttpResponseFormData(
+    handle: inout ResponseHandle,
+    limits: FormDataLimits,
+  ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpResponseClone(
     handle: inout ResponseHandle,
     maximumBufferedBytes: usize<(1...)>,
@@ -1243,6 +1626,16 @@ export struct Request {
     return unsafe { try await stdHttpRequestText(handle: inout handle, maximumBytes: maximumBytes) }
   }
 
+  export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError {
+    return unsafe { try await stdHttpRequestBlob(handle: inout handle, maximumBytes: maximumBytes) }
+  }
+
+  export take async fn formData(
+    limits: FormDataLimits = FormDataLimits.standard(),
+  ): FormData throws BodyDecodeError<FormDataError> {
+    return unsafe { try await stdHttpRequestFormData(handle: inout handle, limits: limits) }
+  }
+
   export take async fn json<Value: json.Decodable>(
     maximumBytes: usize<(1...)>,
     profile: json.Profile = .interoperable,
@@ -1360,6 +1753,38 @@ export struct Response {
     self.handle = unsafe {
       try stdHttpResponseCreate(
         body: .some(.urlSearchParams(take body)),
+        status: status,
+        statusText: take statusText,
+        headers: take headers,
+      )
+    }
+  }
+
+  export init(
+    _ body: take Blob,
+    status: StatusCode = StatusCode.ok,
+    statusText: String = "",
+    take headers: Headers = Headers(),
+  ) throws ResponseError {
+    self.handle = unsafe {
+      try stdHttpResponseCreate(
+        body: .some(.blob(take body)),
+        status: status,
+        statusText: take statusText,
+        headers: take headers,
+      )
+    }
+  }
+
+  export init(
+    _ body: take FormData,
+    status: StatusCode = StatusCode.ok,
+    statusText: String = "",
+    take headers: Headers = Headers(),
+  ) throws ResponseError {
+    self.handle = unsafe {
+      try stdHttpResponseCreate(
+        body: .some(.formData(take body)),
         status: status,
         statusText: take statusText,
         headers: take headers,
@@ -1499,6 +1924,16 @@ export struct Response {
 
   export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError {
     return unsafe { try await stdHttpResponseText(handle: inout handle, maximumBytes: maximumBytes) }
+  }
+
+  export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError {
+    return unsafe { try await stdHttpResponseBlob(handle: inout handle, maximumBytes: maximumBytes) }
+  }
+
+  export take async fn formData(
+    limits: FormDataLimits = FormDataLimits.standard(),
+  ): FormData throws BodyDecodeError<FormDataError> {
+    return unsafe { try await stdHttpResponseFormData(handle: inout handle, limits: limits) }
   }
 
   export take async fn json<Value: json.Decodable>(

@@ -495,6 +495,41 @@
       "bounds": ["body-size", "part-count", "field-count"],
       "complexity": { "time": "linear-input", "space": "owned-input" }
     },
+    "blob-carrier": {
+      "capabilities": [],
+      "effects": ["allocation", "shared-retain"],
+      "failures": { "mode": "typed", "types": ["blob.BlobError"] },
+      "bounds": ["known-byte-count", "checked-slice", "immutable-shared-backing", "explicit-duplicate"],
+      "complexity": { "time": "constant-except-materialization", "space": "shared-backing-plus-owned-result" }
+    },
+    "blob-read": {
+      "capabilities": [],
+      "effects": ["allocation", "byte-read"],
+      "failures": { "mode": "typed", "types": ["blob.BlobError"] },
+      "bounds": ["call-maximum-bytes", "chunk-bytes", "independent-cursor", "snapshot-content"],
+      "complexity": { "time": "linear-returned-bytes", "space": "bounded-by-call" }
+    },
+    "form-data-value": {
+      "capabilities": [],
+      "effects": ["allocation", "shared-retain"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["ordered-entries", "string-or-blob", "explicit-duplicate", "no-path-authority"],
+      "complexity": { "time": "linear-entries", "space": "owned-list" }
+    },
+    "form-data-mutation": {
+      "capabilities": [],
+      "effects": ["allocation", "mutation", "shared-retain"],
+      "failures": { "mode": "typed", "types": ["http.FormDataError"] },
+      "bounds": ["form-data-limits", "checked-size", "publish-after-validation", "failure-preserves-list"],
+      "complexity": { "time": "linear-entries", "space": "bounded-by-form-data-limits" }
+    },
+    "form-data-codec": {
+      "capabilities": ["http-body-provider"],
+      "effects": ["allocation", "codec", "suspension", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["http.FormDataError", "http.HttpBodyError"] },
+      "bounds": ["form-data-limits", "message-limits", "host-boundary-entropy", "streamed-blob-parts"],
+      "complexity": { "time": "linear-encoded-bytes", "space": "bounded-by-contract" }
+    },
     "http-body-source": {
       "capabilities": ["http-body-provider"],
       "effects": ["allocation"],
@@ -1680,6 +1715,37 @@
       ]
     },
     {
+      "id": "std.blob",
+      "availability": "bundled-portable",
+      "source": "std/blob/contracts.w",
+      "designAnchors": ["14.3.1", "14.5", "16.3"],
+      "consumer": {
+        "path": "reference/last-light/web_bodies.w",
+        "symbols": ["Blob", "horizonObservationForm", "horizonSnapshotResponse"]
+      },
+      "apis": [
+        { "symbol": "BlobError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Blob",
+          "kind": "struct",
+          "profile": "blob-carrier",
+          "members": [
+            { "symbol": "init", "profile": "blob-carrier" },
+            { "symbol": "size", "profile": "blob-carrier" },
+            { "symbol": "type", "profile": "blob-carrier" },
+            { "symbol": "duplicate", "profile": "blob-carrier" },
+            { "symbol": "slice", "profile": "blob-carrier" },
+            { "symbol": "bytes", "profile": "blob-read" },
+            { "symbol": "text", "profile": "blob-read" },
+            { "symbol": "stream", "profile": "blob-read" },
+            { "symbol": "byteCount", "profile": "blob-read" },
+            { "symbol": "read", "profile": "blob-read" }
+          ],
+          "requires": ["sdk0-web-readable-stream"]
+        }
+      ]
+    },
+    {
       "id": "std.http",
       "availability": "http-host-or-adapter",
       "source": "std/http/contracts.w",
@@ -1755,6 +1821,53 @@
         { "symbol": "ServerError", "kind": "enum", "profile": "value-contract" },
         { "symbol": "MessageLimits", "kind": "struct", "profile": "value-contract" },
         { "symbol": "ServerLimits", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "FormDataLimitKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FormDataError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "FormDataLimits",
+          "kind": "struct",
+          "profile": "value-contract",
+          "members": [
+            { "symbol": "init", "profile": "value-contract" },
+            { "symbol": "standard", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "FormDataValue",
+          "kind": "enum",
+          "profile": "form-data-value",
+          "members": [{ "symbol": "duplicate", "profile": "form-data-value" }],
+          "requires": ["sdk0-web-blob"]
+        },
+        {
+          "symbol": "FormDataEntry",
+          "kind": "struct",
+          "profile": "form-data-value",
+          "members": [
+            { "symbol": "name", "profile": "form-data-value" },
+            { "symbol": "value", "profile": "form-data-value" },
+            { "symbol": "duplicate", "profile": "form-data-value" }
+          ]
+        },
+        {
+          "symbol": "FormData",
+          "kind": "struct",
+          "profile": "form-data-value",
+          "members": [
+            { "symbol": "init", "profile": "form-data-value" },
+            { "symbol": "size", "profile": "form-data-value" },
+            { "symbol": "limits", "profile": "form-data-value" },
+            { "symbol": "duplicate", "profile": "form-data-value" },
+            { "symbol": "append", "overloads": 2, "profile": "form-data-mutation" },
+            { "symbol": "set", "overloads": 2, "profile": "form-data-mutation" },
+            { "symbol": "delete", "profile": "form-data-mutation" },
+            { "symbol": "get", "profile": "form-data-value" },
+            { "symbol": "getAll", "profile": "form-data-value" },
+            { "symbol": "has", "profile": "form-data-value" },
+            { "symbol": "entries", "profile": "form-data-value" }
+          ],
+          "requires": ["sdk0-web-blob"]
+        },
         { "symbol": "BodySource", "kind": "enum", "profile": "http-body-source" },
         { "symbol": "BodyOverride", "kind": "enum", "profile": "value-contract" },
         { "symbol": "RequestMode", "kind": "enum", "profile": "value-contract" },
@@ -1818,6 +1931,8 @@
             { "symbol": "body", "profile": "http-request" },
             { "symbol": "bytes", "profile": "http-request" },
             { "symbol": "text", "profile": "http-request" },
+            { "symbol": "blob", "profile": "http-request" },
+            { "symbol": "formData", "profile": "form-data-codec" },
             { "symbol": "json", "overloads": 2, "profile": "http-request" },
             { "symbol": "clone", "profile": "http-request" }
           ],
@@ -1826,7 +1941,9 @@
             "sdk0-web-url-search-params",
             "sdk0-web-readable-stream",
             "sdk0-web-abort-signal",
-            "sdk0-json-codec"
+            "sdk0-json-codec",
+            "sdk0-web-blob",
+            "sdk0-web-form-data"
           ]
         },
         {
@@ -1834,7 +1951,7 @@
           "kind": "struct",
           "profile": "http-response",
           "members": [
-            { "symbol": "init", "overloads": 6, "profile": "http-response" },
+            { "symbol": "init", "overloads": 8, "profile": "http-response" },
             { "symbol": "error", "profile": "http-response" },
             { "symbol": "json", "overloads": 4, "profile": "http-response" },
             { "symbol": "status", "profile": "http-response" },
@@ -1848,13 +1965,17 @@
             { "symbol": "body", "profile": "http-response" },
             { "symbol": "bytes", "profile": "http-response" },
             { "symbol": "text", "profile": "http-response" },
+            { "symbol": "blob", "profile": "http-response" },
+            { "symbol": "formData", "profile": "form-data-codec" },
             { "symbol": "clone", "profile": "http-response" }
           ],
           "requires": [
             "sdk0-web-url",
             "sdk0-web-url-search-params",
             "sdk0-web-readable-stream",
-            "sdk0-json-codec"
+            "sdk0-json-codec",
+            "sdk0-web-blob",
+            "sdk0-web-form-data"
           ]
         },
         {
@@ -2350,11 +2471,11 @@
     },
     {
       "id": "sdk0-web-blob",
-      "providerModule": null,
+      "providerModule": "std.blob",
       "surface": "Blob",
       "profile": "web-body-carrier",
-      "status": "missing",
-      "readiness": "profile-final",
+      "status": "draft",
+      "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response"]
     },
     {
@@ -2362,8 +2483,8 @@
       "providerModule": "std.http",
       "surface": "FormData",
       "profile": "web-body-carrier",
-      "status": "missing",
-      "readiness": "profile-final",
+      "status": "draft",
+      "readiness": "required",
       "consumers": ["std.http.Request", "std.http.Response"]
     },
     {

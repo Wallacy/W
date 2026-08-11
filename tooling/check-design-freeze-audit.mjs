@@ -46,6 +46,7 @@ const corpusFiles = [
   "dlpack-cases.json",
   "device-execution-cases.json",
   "foreign-body-cases.json",
+  "web-body-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",
