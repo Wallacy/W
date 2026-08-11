@@ -255,6 +255,7 @@ alvo de execução independente.
 | `ai_lab_app.w` | harness nativo de treinamento e oracle CPU/device |
 | `mobile_app.w` | lifecycle Android/iOS sem UI toolkit W |
 | `controller_app.w` | reset, tick, interrupt e MMIO adapter |
+| `system_escapes.w` | TLS scoped, MMIO tipado e ilha assembly com contract estático |
 | `benchmark_app.w` | workloads HTTP e database para benchmark |
 | `formatting.w` | fixture canônico para source order, comments e chamadas multilinha |
 
@@ -289,6 +290,7 @@ persistente usam carriers explícitos.
 | supervisão e workflow | `supervision.w`, `workflow.w`, `deployments/` | trabalho longo, recovery e placement mantêm owners explícitos |
 | units, números, matriz e performance | `units.w`, `numerics.w`, `oracle.w`, `performance.w` | provas de domínio autorizam otimizações |
 | C e layout | `hardware.w` | a fronteira estrangeira mantém ownership tipado |
+| escapes de sistema | `system_escapes.w`, `controller_app.w`, `package.w` | MMIO, interrupt, TLS, placement e assembly mantêm authority explícita |
 | ABI W e façade C | `horizon.w`, `abi.w`, `package.w` | interface, key, symbol e carrier ficam separados |
 | self-host e build reproduzível | `packages/menu-compiler/` e o contrato de package | bootstrap e provenance têm um oracle pequeno |
 | operação integrada | `simulation.w`, `gateway.w`, `app.w`, `restpc_oracle.w` | um dispatch tipado atende CLI, TUI e HTTP |
@@ -1223,6 +1225,21 @@ Aceite:
 - funções do mesmo adapter compartilham uma foreign unit;
 - o deallocator original executa uma vez;
 - panic não faz unwind através de C.
+
+#### 3.9.1 Escapes de sistema
+
+Famílias: MMIO, interrupt, task-local, TLS, linker placement e assembly.
+
+Aceite:
+
+- `DeviceContext` cunha register com width, access mode e side effects fixos;
+- volatile não cria atomicidade, synchronization ou uma view comum dos bytes;
+- o interrupt handler satisfaz o effect envelope do host slot;
+- task-local drena children antes de restaurar o binding anterior;
+- TLS safe aceita somente `Copy` sem drop e closure `neverSuspend`;
+- `retain` é verificado no symbol manifest do payload final;
+- `fn<Asm>` declara target, clobbers, memory, stack, unwind e volatility;
+- nenhum raw interrupt frame, TLS borrow ou assembly unwind escapa da boundary.
 
 ### 3.10 Despensa Selada
 

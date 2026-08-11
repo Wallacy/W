@@ -772,6 +772,14 @@ package {
         { slot: "device.tick", handler: "controller_app::sampleTick" },
         { slot: "device.interrupt", handler: "controller_app::interrupt" },
       ]
+      // W-1238: retention is product data verified in the final payload.
+      linkPlacements: [
+        .section(
+          symbol: "controller_app::reset",
+          name: ".vectors.reset",
+          retain: true,
+        ),
+      ]
       targets: ["embedded"]
       capabilities: [.monotonicClock, .interrupts, .mmio]
     },

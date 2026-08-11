@@ -19,6 +19,7 @@ fn sampleTick(state: inout ControllerState, ctx: device.Context): () {
   let _ = ctx.telemetry.trySend(sample)
 }
 
+// W-1235: the firmware host slot fixes this handler's effects and budget.
 fn interrupt(
   event: device.InterruptEvent,
   state: inout ControllerState,

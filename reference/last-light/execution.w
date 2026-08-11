@@ -8,6 +8,7 @@ module execution<
 
 import { OrderId } from domain
 import { Ingredient, KitchenError, Mixture, Recipe } from kitchen
+import { TaskLocal } from std.runtime.task
 
 export type BatchIndex = usize
 export alias ClosingTimeout = TaskTimeout
@@ -59,6 +60,11 @@ export enum LastBellResult {
 
 const maximumParallelCooks: usize = 256
 
+// W-1236/W-1240: the key has no mutable global storage and forwards suspension.
+struct MixingTrace {
+  const orderId = TaskLocal<OrderId?>.key(default: .none)
+}
+
 fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
   guard !job.ingredients.isEmpty else throw .kitchen(.emptyStock)
 
@@ -101,6 +107,14 @@ async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError
   await Task.yield()
   Task.checkCancellation()
   return try mixJob(take job)
+}
+
+export async fn mixWithTrace(job: take MixingJob): MixingResult throws BrigadeError {
+  let orderId = job.orderId
+  return try await MixingTrace.orderId.withValue(
+    .some(orderId),
+    operation: () => try await mixCooperatively(take job),
+  )
 }
 
 export async fn mixPair(

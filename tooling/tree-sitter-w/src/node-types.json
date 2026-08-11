@@ -6583,6 +6583,16 @@
             "named": true
           }
         ]
+      },
+      "option": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "type_argument",
+            "named": true
+          }
+        ]
       }
     }
   },

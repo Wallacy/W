@@ -1670,8 +1670,8 @@ O índice gerado usa esta tabela somente como projeção.
 | SQLite como durability universal | **Rejeitado** | adapter oficial é útil; semântica universal não é portátil |
 | seccomp por módulo importado | **Rejeitado** | import não é uma security boundary |
 | sandbox portátil por process/Wasm | **Provável** | depende do host, mas preserva o contrato |
-| `fn<C>` com static archive | **Provável** | depende primeiro da façade C e do build hermético |
-| `fn<Rust>`/`fn<Swift>` | **Provável após C** | adapter hermético agrupa runtime e usa façade C tipada |
+| `fn<C>` com static archive | **Design fechado; provider missing** | façade C, foreign unit, recipe e build hermético estão definidos |
+| `fn<Rust>`/`fn<Swift>` | **Design comum fechado; providers missing** | adapter hermético agrupa runtime e usa façade C tipada |
 | álgebra simbólica completa no core | **Rejeitado** | package experimental preserva evolução |
 | custom operators e precedência do usuário | **Rejeitado** | piora parser, tooling e previsibilidade |
 | macros/annotations universais | **Rejeitado** | cria uma segunda linguagem e hidden behavior |
@@ -2916,6 +2916,62 @@ Alternativas rejeitadas:
 - deixar completion de geração antiga publicar no state novo;
 - restart ilimitado ou alarm tratado como exactly-once.
 
+### 1.20 Escapes de sistema e fronteiras de target
+
+A seção 19 fecha as superfícies necessárias para firmware e runtime sem tornar
+detalhes de backend parte da linguagem comum. Estas fontes primárias sustentam
+as separações adotadas:
+
+- o
+  [LLVM Language Reference — volatile memory accesses](https://www.llvm.org/docs/LangRef.html#volatile-memory-accesses)
+  preserva acessos volatile, mas não lhes dá synchronization entre threads;
+- o
+  [CMSIS-SVD register schema](https://arm-software.github.io/CMSIS_5/SVD/html/elem_registers.html)
+  separa width, access, read side effects, modified writes e constraints;
+- o
+  [Swift Task Local Values proposal](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0311-task-locals.md)
+  liga binding imutável, inheritance e lifetime à árvore estruturada;
+- o
+  [LLVM Language Reference — thread local storage models](https://www.llvm.org/docs/LangRef.html#thread-local-storage-models)
+  mostra que TLS depende do target e pode usar modelos físicos distintos;
+- a
+  [documentação de `LocalKey` do Rust](https://doc.rust-lang.org/std/thread/struct.LocalKey.html)
+  mantém referências TLS dentro de closure e registra limites reais de
+  destructors por platform;
+- o
+  [LLVM Language Reference — explicit sections](https://www.llvm.org/docs/LangRef.html#global-variables)
+  trata section como assertion dependente do target;
+- o
+  [atributo `used` do Rust](https://doc.rust-lang.org/reference/abi.html#the-used-attribute)
+  preserva um item no object, mas não impede o linker final de removê-lo;
+- o
+  [LLVM inline assembler contract](https://www.llvm.org/docs/LangRef.html#inline-assembler-expressions)
+  torna constraints e flags, não o texto opaco, a base para correctness;
+- a
+  [Rust Reference de inline assembly](https://doc.rust-lang.org/reference/inline-assembly.html)
+  explicita operands, ABI clobbers e memory options por architecture.
+
+Essas fontes não definem W. Elas mostram por que `volatile`, TLS destructor,
+object-file retention e assembly text não bastam como promessa segura. W move
+esses facts para target manifest, host slot, product recipe ou adapter
+hermético.
+
+O parser canônico precisa preservar o body externo byte a byte e usar o scanner
+do adapter. A projeção Tree-sitter atual cobre o contract estático e representa
+o body somente quando ele é W-shaped ou um placeholder. Esse limite é tooling
+missing, não uma segunda semântica para `fn<Language>`.
+
+Alternativas rejeitadas:
+
+- `var volatile`, integer-to-register safe e read-modify-write genérico de MMIO;
+- annotation de interrupt no body sem slot, budget, acknowledgement ou policy;
+- task-local mutável, authority escondida ou inheritance por service/wire;
+- TLS de resource com cleanup best-effort na safe std;
+- source annotation de linker e `used` tratado como retention do payload final;
+- naked function, clobber implícito, call ou unwind escondidos em `fn<Asm>`;
+- syntax distinta de `fn<Language>` para cada linguagem ou unit externa;
+- compilation unit nomeada no source W em paralelo ao package/build graph.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -3696,15 +3752,15 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-734 | identidade e assertions | `isSameInstance(as:)` compara object nominal; `assert` executa em todo profile; `expect` é test-only | `===`; address como identity; debug-only assertion; safe assume |
 | W-735 | catálogo da std | módulos por capability, target facts, provider e reachability; distribuição única | std monolítica no payload; package separado por tier; import implícito universal |
 | W-736 | ciência e data parallel | `Complex<T>` T2 e `Simd<T, lanes>` T1 preservam numeric policy; scalar fallback não muda resultado | complex literal novo; vector width dependente do target; fast mode implícito |
-| W-737 | contexto local | `TaskLocal<T>` tem scope estruturado; `ThreadLocal<T>` usa accessor sync e não cruza `await` | mapa task-local mutável; TLS como isolation; borrow TLS suspenso |
-| W-738 | volatile e MMIO | platform SDK cria `MmioRegister<T, access>` por capability; volatile não sincroniza e não é modifier geral | `var volatile`; integer cria pointer; MMIO safe sem host authority |
-| W-739 | linker placement | product/target variant liga symbol a section/address/retain com overlap e alignment verificados | annotation em source comum; import muda section; linker flag livre |
-| W-740 | assembly | `unsafe fn<Asm>` T2 declara target, operands, clobbers, memory, unwind e volatility; adapter gera provenance | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
+| W-737 | contexto local (retired) | direção inicial separava task-local de TLS; W-1236 e W-1237 fecham inheritance, ownership, cleanup e limits | mapa task-local mutável; TLS como isolation; borrow TLS suspenso |
+| W-738 | volatile e MMIO (retired) | direção inicial usava capability; W-1234 fecha schema, accessors e ordering | `var volatile`; integer cria pointer; MMIO safe sem host authority |
+| W-739 | linker placement (retired) | direção inicial movia placement ao product; W-1238 fecha payload retention e recipe | annotation em source comum; import muda section; linker flag livre |
+| W-740 | assembly (retired) | direção inicial exigia contract estático; W-1239 fecha adapter, effects e limits | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
 | W-741 | primitives de execução (retired) | direção anterior listava SnapshotCell como provável; W-1178 fecha sua superfície sem agrupar topology ou wait/notify | um Channel muda topologia por mode; safe RCU geral; uma API universal para toda topologia |
 | W-742 | evolução de workflow | child workflows, fan-out e continue-as-new T2 usam IDs determinísticos; race durável e absolute core sleep ficam rejeitados | persistir async frame; wall clock implícito; compaction definida pelo usuário |
 | W-743 | metadata publicável | WMeta1 usa header/directory e chunks em subset CBOR determinístico; profiles separam interface e object ABI; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
 | W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
-| W-745 | ilhas externas posteriores | source units e adapters Rust/Swift/Zig/C++/Fortran são prováveis após C e sempre usam façade tipada | runtime externo implícito; staticlib por função; ABI W rica atravessa a ilha |
+| W-745 | ilhas externas posteriores (retired) | W-1233 fecha uma syntax inline e deixa source separado no build graph; providers continuam independentes | runtime externo implícito; staticlib por função; ABI W rica atravessa a ilha |
 | W-746 | loop pós-condicional | `repeat { body } while condition` executa body ao menos uma vez; `continue` avalia a condição final | rejeitar post-test loop; `do ... while`; exigir `while true` e `break` negado |
 | W-747 | block rotulado | `label: { ... }` aceita somente `break label`; saída lexical executa cleanup e não produz value | `continue` para block; label em qualquer statement; salto para dentro; break com value na baseline |
 | W-748 | documentação de substituições | toda decisão que rejeita uma construção por outra recebe caso comparativo e cobertura gerada antes do freeze | mostrar somente a forma escolhida; contar apenas exemplos por seção; executar syntax rejeitada no corpus positivo |
@@ -4192,6 +4248,14 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1230 | distribuição de trabalho | collections usam TaskGroup; streams usam concurrentMap/parallelMap bounded; services cobrem admission contínua e distribuição entre instances | `WorkQueue` MPMC, receiver compartilhado, child detached, fila ilimitada |
 | W-1231 | fan-out explícito | tee fecha duas branches estáticas; service fecha subscribers dinâmicos e nomeia loss/replay/close/failure/duplication | `Broadcast` universal, policy de lag implícita, cópia escondida por channel mode |
 | W-1232 | latest state separado de eventos | SnapshotCell mantém versão corrente; adapter específico publica revisão depois do snapshot e prova wake sem perda | `Watch` universal, conflation/equality/lifecycle escondidos, state tratado como event history |
+| W-1233 | uma syntax de ilha | `fn<Language>` contém body inline; source separado é nó foreign-unit do build graph; builder agrupa units internas | syntax de unit nomeada, arquivo externo como module W, staticlib por função |
+| W-1234 | MMIO por capability | DeviceContext e target manifest cunham register tipado; accessors respeitam access mode e volatile não sincroniza | `var volatile`, integer-to-register safe, RMW genérico, barrier implícita entre resources |
+| W-1235 | interrupt verificado | host slot fixa ABI, effects, budget, acknowledgement, preemption, overflow e fault policy; trabalho suspensivo usa event bounded | annotation livre, raw frame suspensivo, dois owners de EOI, signal/cancel como interrupt |
+| W-1236 | task-local estruturado | associated const descriptor recebe identity nominal; binding immutable/shareable acompanha children, drena antes do pop e não cruza boundaries | mapa ambiental mutável, runtime registry, authority escondida, inheritance por boundary, retain/copy oculto |
+| W-1237 | TLS estreito | associated const descriptor recebe identity nominal; safe ThreadLocal aceita initial const, Copy sem drop e closures neverSuspend; target sem TLS rejeita | destructor best-effort, runtime registry, TLS como task/domain isolation, borrow suspenso, emulação por fiber |
+| W-1238 | placement data-only | product target variant fixa section/address/alignment/visibility/retain e valida o symbol no payload final | annotation comum, object `used` como prova final, import ou flag livre alterando placement |
+| W-1239 | assembly fechada | unsafe fn<Asm> usa signature tipada e contract de target/clobber/memory/stack/unwind/volatility verificado pelo adapter | naked function, clobber/call/unwind escondido, correctness inferida do body opaco |
+| W-1240 | forwarding de suspensão | scope higher-order não escapante publica dependência simbólica da callable; call direta e await continuam distintos sem duplicar API | annotation manual, overload sync/async com a mesma forma, task escondida, blocking wait |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
