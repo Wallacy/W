@@ -16,6 +16,48 @@
       "bounds": ["const-evaluator-quota", "input-size"],
       "complexity": { "time": "linear-input", "space": "linear-input" }
     },
+    "task-local-descriptor": {
+      "capabilities": [],
+      "effects": ["const-evaluation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["nominal-symbol", "shareable-value", "const-default"],
+      "complexity": { "time": "constant", "space": "fixed-descriptor" }
+    },
+    "task-local-scope": {
+      "capabilities": [],
+      "effects": ["binding", "suspension-forwarding", "structured-drain"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["task-frame", "structured-children", "dependency-lifetime"],
+      "complexity": { "time": "constant-plus-operation", "space": "one-binding" }
+    },
+    "task-local-read": {
+      "capabilities": [],
+      "effects": ["borrow"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["current-binding-or-default", "dependency-lifetime"],
+      "complexity": { "time": "constant", "space": "constant" }
+    },
+    "thread-local-descriptor": {
+      "capabilities": ["native-tls-provider"],
+      "effects": ["const-evaluation"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["nominal-symbol", "copy-no-drop", "const-initial"],
+      "complexity": { "time": "constant", "space": "one-slot-per-native-thread" }
+    },
+    "thread-local-read": {
+      "capabilities": ["native-tls-provider"],
+      "effects": ["native-thread-storage"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["copy-no-drop", "physical-thread-identity"],
+      "complexity": { "time": "constant", "space": "one-value-copy" }
+    },
+    "thread-local-write": {
+      "capabilities": ["native-tls-provider"],
+      "effects": ["native-thread-storage", "mutation"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-suspend-closure", "non-escaping-inout", "copy-no-drop"],
+      "complexity": { "time": "constant-plus-operation", "space": "constant" }
+    },
     "build-context": {
       "capabilities": ["build-action-bindings"],
       "effects": [
@@ -749,16 +791,76 @@
       "id": "std.runtime.task",
       "availability": "runtime-profile",
       "source": "std/runtime/task.w",
-      "designAnchors": ["12.3", "12.4", "12.5", "14.2"],
+      "designAnchors": ["12.3", "12.4", "12.5", "14.2", "19.3.4"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.runtime.task-local@1",
+        "status": "missing",
+        "gates": [
+          "nominal-const-key",
+          "shareable-binding",
+          "child-snapshot-without-copy",
+          "lifo-restore-after-drain",
+          "boundary-non-inheritance",
+          "dependency-cleanup",
+          "fault-injection"
+        ]
+      },
       "consumer": {
         "path": "reference/last-light/execution.w",
-        "symbols": ["TaskOutcome", "TaskTimeout"]
+        "symbols": ["TaskOutcome", "TaskTimeout", "TaskLocal"]
       },
       "apis": [
         { "symbol": "CancellationReason", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskBudgetKind", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskOutcome", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "TaskTimeout", "kind": "alias", "profile": "value-contract" }
+        { "symbol": "TaskTimeout", "kind": "alias", "profile": "value-contract" },
+        {
+          "symbol": "TaskLocal",
+          "kind": "struct",
+          "profile": "task-local-descriptor",
+          "members": [
+            { "symbol": "key", "profile": "task-local-descriptor" },
+            { "symbol": "get", "profile": "task-local-read" },
+            { "symbol": "withValue", "profile": "task-local-scope" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.thread",
+      "availability": "native-thread-profile",
+      "source": "std/runtime/thread.w",
+      "designAnchors": ["19.3", "19.3.4"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.runtime.thread-local@1",
+        "status": "missing",
+        "gates": [
+          "nominal-const-key",
+          "copy-no-drop",
+          "native-thread-identity",
+          "never-suspend-write",
+          "non-escaping-inout",
+          "target-availability",
+          "no-fiber-emulation"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/system_escapes.w",
+        "symbols": ["ThreadLocal"]
+      },
+      "apis": [
+        {
+          "symbol": "ThreadLocal",
+          "kind": "struct",
+          "profile": "thread-local-descriptor",
+          "members": [
+            { "symbol": "key", "profile": "thread-local-descriptor" },
+            { "symbol": "read", "profile": "thread-local-read" },
+            { "symbol": "write", "profile": "thread-local-write" }
+          ]
+        }
       ]
     },
     {
@@ -2511,6 +2613,24 @@
       "kind": "symbol",
       "consumer": "reference/last-light/synchronization.w",
       "profile": "snapshot-cell-carrier",
+      "status": "draft"
+    },
+    {
+      "id": "ctx0-task-local",
+      "module": "std.runtime.task",
+      "surface": "TaskLocal",
+      "kind": "symbol",
+      "consumer": "reference/last-light/execution.w",
+      "profile": "task-local-descriptor",
+      "status": "draft"
+    },
+    {
+      "id": "ctx0-thread-local",
+      "module": "std.runtime.thread",
+      "surface": "ThreadLocal",
+      "kind": "symbol",
+      "consumer": "reference/last-light/system_escapes.w",
+      "profile": "thread-local-descriptor",
       "status": "draft"
     }
   ]

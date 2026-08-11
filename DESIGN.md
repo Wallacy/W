@@ -21446,9 +21446,9 @@ profile; não são annotations livres nem pressupostos do body.
 #### 19.3.4 Contexto de task e storage de thread
 
 `std.runtime.task.TaskLocal<T>` mantém metadata imutável ao longo da árvore
-estruturada. `T` precisa ser `shareable`. `withValue` usa o parâmetro por valor normal: `Copy`
-copia e um owner non-Copy move no último uso. A key não cria `shared`, retain ou
-copy ocultos.
+estruturada. `T` precisa ser `shareable`. `withValue` usa o parâmetro por valor
+normal: `Copy` copia e um owner non-Copy move no último uso. A key não cria
+`shared`, retain ou copy ocultos.
 
 ```w
 struct Trace {
@@ -21462,21 +21462,28 @@ return try await Trace.requestId.withValue(
 ```
 
 `key` é `static const fn` e só inicializa um module const ou associated const
-nomeado. A identidade vem do symbol da declaração e de `T`, não do default, de
-um endereço ou da ordem de initialization. `Trace.requestId` é um descriptor;
-não existe mutable type storage ou registry runtime. `withValue` usa o
-forwarding de W-1240: uma operation `neverSuspend`
-permite call direta; uma operation `maySuspend` exige `await`. O método não cria
-outra task e invoca a operation uma vez na task corrente. Os bindings vivem no
-task frame. `get()` devolve um `ref T` ligado ao binding corrente. Children
-criados dentro do scope herdam o binding, inclusive por `async let`, task group
-ou `spawn<domain>`. O binding permanece vivo até todos esses children drenarem.
-Success, error, cancellation e panic boundary restauram o binding anterior em
-ordem LIFO.
+nomeado. O default precisa ser um `const T`. A identidade vem do symbol da
+declaração e de `T`, não do default, de um endereço ou da ordem de
+initialization. `Trace.requestId` é um descriptor. Não existe mutable type
+storage ou registry runtime.
+
+`withValue` usa o forwarding de W-1240. Uma operation `neverSuspend` permite
+call direta; uma operation `maySuspend` exige `await`. O método não cria outra
+task e invoca a operation uma vez na task corrente. O binding entra no task
+frame antes da call. `get()` devolve um `ref T` ligado ao binding corrente ou ao
+default quando não existe binding.
+
+Um child captura o binding corrente quando é criado por `async let`, task group
+ou `spawn<domain>`. O child não observa um rebind posterior do parent. O mesmo
+binding imutável pode cruzar o domain porque `T` é `shareable`; não existe copy,
+retain ou lookup ambiental. O scope drena esses children antes de remover o
+binding. Success, error, cancellation e panic boundary restauram o binding
+anterior em ordem LIFO. Uma dependency de `get()` não escapa desse lifetime.
 
 Service call, wire call, device launch, foreign callback e novo host entry não
-herdam o valor; essas boundaries exigem parâmetro ou metadata explícita.
-Task-local serve a trace e configuração, não a authority escondida.
+herdam o valor. Essas boundaries exigem parâmetro ou metadata explícita.
+Task-local serve a trace e configuração. Ele não transporta capability,
+security principal, transaction, locale de protocolo ou outra authority.
 
 **W-1236 — task-local estruturado:** binding imutável acompanha somente a árvore
 de tasks e usa as mesmas provas de ownership, shareability e cleanup. Ele não é
@@ -21499,17 +21506,44 @@ return NativeCounters.samples.write((count: inout u64) => {
 })
 ```
 
-`key` também produz um associated const descriptor; o native-thread provider
-possui o storage por thread. `read` e `write` recebem closures `neverSuspend`.
-Nenhum `ref`, `inout`, guard ou dependent value pode escapar da closure ou
-permanecer vivo em `await`. Target sem native TLS informa unavailability antes
-do lowering; o provider não troca thread identity por fiber identity em
-silêncio. State com cleanup ou lifecycle usa execution domain, service ou
-adapter de host explícito.
+`key` também produz um associated const descriptor. Sua identidade vem do
+symbol e de `T`. O native-thread provider possui um slot por thread e o
+inicializa com uma cópia do valor const. `read()` devolve uma cópia. `write`
+recebe uma closure `neverSuspend` com `inout T` e aplica a mutation uma vez.
+Uma application error preserva mutations já executadas; a operação não é uma
+transaction.
+
+Nenhum `ref`, `inout`, guard ou dependent value pode escapar de `write` ou
+permanecer vivo em `await`. Duas leituras da mesma task separadas por suspensão
+podem acessar threads diferentes. Portanto, TLS não fornece task identity,
+domain isolation ou configuração herdável. Target sem native TLS rejeita o
+build antes do lowering; o provider não emula thread identity com fiber ou
+task. State com cleanup ou lifecycle usa execution domain, service ou adapter
+de host explícito.
 
 **W-1237 — TLS estreito e determinístico:** `ThreadLocal<T>` safe cobre values
 `Copy` sem drop e acesso síncrono scoped. W não depende de destructor TLS
 best-effort para cumprir a promessa de memória automática.
+
+**W-1268 — evidence CTX0:** o oracle host deriva identidade nominal, default,
+rebind LIFO, captura por child, drain e ausência de inheritance nas cinco
+boundaries. Ele também deriva slots TLS por thread, mutation síncrona,
+migração, availability e ausência de drop. O oracle não executa W, scheduler,
+TLS nativo ou os providers `std.runtime.task-local@1` e
+`std.runtime.thread-local@1`.
+
+| Code | Condição |
+|---|---|
+| `W-CONTEXT-0001` | descriptor task-local não é um const nominal válido |
+| `W-CONTEXT-0002` | payload task-local não é shareable |
+| `W-CONTEXT-0003` | binding tenta ser mutável ou transportar authority |
+| `W-CONTEXT-0004` | binding exigiria copy, retain ou ownership oculto |
+| `W-CONTEXT-0005` | boundary não estruturada tenta herdar task-local |
+| `W-CONTEXT-0006` | scope tenta remover binding antes do child drain |
+| `W-CONTEXT-0007` | dependency do binding escapa ou permanece aberta |
+| `W-TLS-0001` | descriptor TLS não é const, `Copy` ou drop-free |
+| `W-TLS-0002` | native TLS está ausente ou seria emulado por task/fiber |
+| `W-TLS-0003` | closure TLS suspende ou deixa dependency escapar |
 
 #### 19.3.5 Linker placement no product
 
@@ -27827,7 +27861,7 @@ precisam passar fault injection sem task, waiter, loan ou resource órfão. Uma
 transferência entre domains não pode criar copy, share, retain ou mobility
 ocultos.
 
-E0, E1, MX0, LM1, SP0, LZ0, B0 e DEV0 fornecem modelos de design. A alegação
+E0, E1, MX0, LM1, SP0, LZ0, CTX0, B0 e DEV0 fornecem modelos de design. A alegação
 pública exige HIR, runtime e providers reais, stress tests, sanitizers e replay
 nos targets prometidos. Até esse ponto, a forma correta é “modelo estruturado
 de execução definido; implementação missing”. O gate não exige thread por task,
@@ -27850,7 +27884,7 @@ evidência de design:
 |---|---|---|
 | grammar e formatter | G0–G5, CST lossless, recovery, F0 idempotente e FB0 para body estrangeiro opaco | cobrir cada construção normalizada e fuzzar edits, recovery e limits do external scanner; scanners de adapters além de C são providers, não novas regras W |
 | checker e diagnostics | S0 integra type, effects, ownership, flow e evaluation; D0 fixa record e causalidade | ligar cada regra a success, inversão e campo de falha exato |
-| std | módulos possuem declarations e profiles; providers executáveis continuam missing | materializar `TaskLocal` em `std.runtime.task`, `ThreadLocal` em `std.runtime.thread`, fechar carriers ausentes e validar cada superfície com outro consumer |
+| std | módulos possuem declarations e profiles; providers executáveis continuam missing | fechar carriers ausentes e validar cada superfície restante com outro consumer |
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum; escapes de sistema têm authority única | fixar manifests e conformance de MMIO, interrupt, TLS, placement e assembly por target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
@@ -27859,7 +27893,7 @@ evidência de design:
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
-M1/A0/E0/E1/LM1/SP0/LZ0/DEV0 fecham ownership, allocation, closure,
+M1/A0/E0/E1/LM1/SP0/LZ0/CTX0/DEV0 fecham ownership, allocation, closure,
 synchronization, reclamation e device launch no nível de design. B0/SR0 fecham
 turn, effect e recovery de service. HIR, allocator, scheduler, wire, storage,
 drivers e providers executáveis são gates de implementação e da alegação

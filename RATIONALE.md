@@ -2999,6 +2999,9 @@ as separações adotadas:
   [Swift Task Local Values proposal](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0311-task-locals.md)
   liga binding imutável, inheritance e lifetime à árvore estruturada;
 - o
+  [JEP 506](https://openjdk.org/jeps/506) separa scoped values imutáveis de
+  thread-local mutável e limita inheritance à concorrência estruturada;
+- o
   [LLVM Language Reference — thread local storage models](https://www.llvm.org/docs/LangRef.html#thread-local-storage-models)
   mostra que TLS depende do target e pode usar modelos físicos distintos;
 - a
@@ -3022,6 +3025,12 @@ Essas fontes não definem W. Elas mostram por que `volatile`, TLS destructor,
 object-file retention e assembly text não bastam como promessa segura. W move
 esses facts para target manifest, host slot, product recipe ou adapter
 hermético.
+
+CTX0 aplica essa separação ao Restaurante Última Luz. O identificador do pedido
+acompanha somente callees e children estruturados. O contador nativo pertence
+à thread física e não acompanha uma task depois de uma suspensão. Isso evita
+um mapa ambiental, uma cópia por child e uma falsa equivalência entre task,
+domain e thread.
 
 O parser canônico preserva o body externo byte a byte e usa o scanner do
 adapter. A projeção Tree-sitter materializa um leaf opaco com external scanner;
@@ -4355,6 +4364,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1265 | source map estrangeiro | offsets do adapter são relativos ao content e validados antes de mapear ao arquivo W | span fora do body, line/column sem bytes, diagnostic sem adapter/body digest |
 | W-1266 | failure bounded | encoding, delimiters, lexical terminal, nesting, bytes e digests falham antes de codegen; recovery não engole suffix W | scan unbounded, truncation silenciosa, fix-it dentro do body sem adapter, aceitar NUL |
 | W-1267 | evidence FB0 | 45 casos/90 operações, 9 testes host, corpus Tree-sitter e um par F0 byte-preserving cobrem scanner/body/recipe sem executar adapter ou formatter | snapshot como implementação, expected echo, alegar frontend C ou formatter prontos |
+| W-1268 | evidence CTX0 | identidade nominal, default, binding LIFO, snapshot por child, drain, boundaries, TLS físico, migration e availability são derivados por machine e teste host independentes | mapa ambiental, cópia por child, TLS por task, destructor best-effort, chamar oracle de provider/runtime |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "cce57dfc93dbfe5926d65f6240a460ba8dd5c202c28d4bf722cbcb4422551b62",
+  "catalogDigest": "d9468436c939f91e80f0031b5cad13ec0baeb64ab9ca882e6ef95b0a36c3ec61",
   "summary": {
-    "modules": 23,
-    "catalogedApis": 324,
-    "draftCatalogedApis": 324,
+    "modules": 24,
+    "catalogedApis": 326,
+    "draftCatalogedApis": 326,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 84,
-    "referenceRequirements": 23,
-    "contractedReferenceRequirements": 23,
+    "referenceRequirements": 25,
+    "contractedReferenceRequirements": 25,
     "missingReferenceRequirements": 1,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 2,
-    "implementationProviders": 17,
-    "missingImplementationProviders": 17
+    "implementationProviders": 19,
+    "missingImplementationProviders": 19
   },
   "modules": [
     {
@@ -5561,7 +5561,21 @@
       "id": "std.runtime.task",
       "availability": "runtime-profile",
       "source": "std/runtime/task.w",
-      "catalogedDeclarationsDigest": "3731a745d4aeedf6529cd579464a160cceb3e22816230c3564a8744a132d3a39",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.runtime.task-local@1",
+        "status": "missing",
+        "gates": [
+          "boundary-non-inheritance",
+          "child-snapshot-without-copy",
+          "dependency-cleanup",
+          "fault-injection",
+          "lifo-restore-after-drain",
+          "nominal-const-key",
+          "shareable-binding"
+        ]
+      },
+      "catalogedDeclarationsDigest": "f5335b884fcc9f1f1a60261a6a40897519c9462c3f71e818f3a45fb82a827f80",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -5582,6 +5596,47 @@
           "status": "draft"
         },
         {
+          "symbol": "TaskLocal",
+          "kind": "struct",
+          "signature": "export struct TaskLocal<Value>",
+          "declarationDigest": "4411724a8505b78b782574fb69c3364488bdc3d228cda53b08ce1d4e1eea3e18",
+          "line": 45,
+          "profile": "task-local-descriptor",
+          "members": [
+            {
+              "symbol": "key",
+              "overloads": [
+                {
+                  "signature": "export static const fn key( default: Value<(.shareable)>, ): TaskLocal<Value>",
+                  "line": 52
+                }
+              ],
+              "profile": "task-local-descriptor"
+            },
+            {
+              "symbol": "get",
+              "overloads": [
+                {
+                  "signature": "export fn get(): ref Value",
+                  "line": 59
+                }
+              ],
+              "profile": "task-local-read"
+            },
+            {
+              "symbol": "withValue",
+              "overloads": [
+                {
+                  "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, operation: some fn(): Result throws Failure, ): Result throws Failure",
+                  "line": 65
+                }
+              ],
+              "profile": "task-local-scope"
+            }
+          ],
+          "status": "draft"
+        },
+        {
           "symbol": "TaskOutcome",
           "kind": "enum",
           "signature": "export enum TaskOutcome<Value, Failure: Error>",
@@ -5597,6 +5652,69 @@
           "declarationDigest": "8897786340b1e7b793a52be96359d2f1072209c811ff2d6bb513092dfa8c9cb7",
           "line": 22,
           "profile": "value-contract",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.runtime.thread",
+      "availability": "native-thread-profile",
+      "source": "std/runtime/thread.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.runtime.thread-local@1",
+        "status": "missing",
+        "gates": [
+          "copy-no-drop",
+          "native-thread-identity",
+          "never-suspend-write",
+          "no-fiber-emulation",
+          "nominal-const-key",
+          "non-escaping-inout",
+          "target-availability"
+        ]
+      },
+      "catalogedDeclarationsDigest": "ee16b76b6ceb3cb01535d4d15e6b66d7e962fd003cc0bb6c89701817a2afff2d",
+      "apis": [
+        {
+          "symbol": "ThreadLocal",
+          "kind": "struct",
+          "signature": "export struct ThreadLocal<Value: Copy>",
+          "declarationDigest": "bfa8bcec79d09bbd5cbde2397b294cbded0105a438a55219628d21d36c81f089",
+          "line": 21,
+          "profile": "thread-local-descriptor",
+          "members": [
+            {
+              "symbol": "key",
+              "overloads": [
+                {
+                  "signature": "export static const fn key(initial: Value): ThreadLocal<Value>",
+                  "line": 28
+                }
+              ],
+              "profile": "thread-local-descriptor"
+            },
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export fn read(): Value",
+                  "line": 33
+                }
+              ],
+              "profile": "thread-local-read"
+            },
+            {
+              "symbol": "write",
+              "overloads": [
+                {
+                  "signature": "export fn write<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
+                  "line": 37
+                }
+              ],
+              "profile": "thread-local-write"
+            }
+          ],
           "status": "draft"
         }
       ]
@@ -7535,6 +7653,22 @@
     }
   ],
   "referenceRequirements": [
+    {
+      "id": "ctx0-task-local",
+      "module": "std.runtime.task",
+      "surface": "TaskLocal",
+      "status": "draft",
+      "profile": "task-local-descriptor",
+      "consumer": "reference/last-light/execution.w"
+    },
+    {
+      "id": "ctx0-thread-local",
+      "module": "std.runtime.thread",
+      "surface": "ThreadLocal",
+      "status": "draft",
+      "profile": "thread-local-descriptor",
+      "consumer": "reference/last-light/system_escapes.w"
+    },
     {
       "id": "dev0-accelerator-module-synthesis",
       "module": "std.accelerator",

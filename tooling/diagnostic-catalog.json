@@ -141,6 +141,36 @@
       },
       "fixes": {}
     },
+    "context-local": {
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "descriptor": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "context-binding": { "minimum": 0, "maximum": 1 },
+        "context-use": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "thread-local": {
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "descriptor": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "tls-binding": { "minimum": 0, "maximum": 1 },
+        "tls-operation": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
     "session": {
       "phase": "interface",
       "defaultSeverity": "error",
@@ -2135,6 +2165,32 @@
     { "code": "W-FOREIGN-0007", "state": "active", "profile": "foreign-build", "meaning": "the scanner or body digest differs from the build recipe" },
     { "code": "W-FOREIGN-0008", "state": "active", "profile": "foreign-build", "meaning": "a structural editor fallback was used as build evidence" },
     { "code": "W-FOREIGN-0009", "state": "active", "profile": "foreign-source", "meaning": "an adapter diagnostic span is outside the opaque body byte range" },
+    { "code": "W-CONTEXT-0001", "state": "active", "profile": "context-local", "meaning": "a task-local descriptor is not a valid nominal constant" },
+    { "code": "W-CONTEXT-0002", "state": "active", "profile": "context-local", "meaning": "a task-local payload is not shareable" },
+    { "code": "W-CONTEXT-0003", "state": "active", "profile": "context-local", "meaning": "a task-local binding is mutable or carries hidden authority" },
+    { "code": "W-CONTEXT-0004", "state": "active", "profile": "context-local", "meaning": "a task-local binding requires hidden copy, retain, or ownership" },
+    { "code": "W-CONTEXT-0005", "state": "active", "profile": "context-local", "meaning": "an unstructured boundary attempts to inherit a task-local binding" },
+    { "code": "W-CONTEXT-0006", "state": "active", "profile": "context-local", "meaning": "a task-local scope removes its binding before child drain" },
+    { "code": "W-CONTEXT-0007", "state": "active", "profile": "context-local", "meaning": "a task-local dependency escapes or remains open at scope exit" },
+    { "code": "W-TLS-0001", "state": "active", "profile": "thread-local", "meaning": "a native TLS descriptor is not constant, Copy, and drop-free" },
+    {
+      "code": "W-TLS-0002",
+      "state": "active",
+      "phase": "link",
+      "defaultSeverity": "error",
+      "meaning": "native TLS is unavailable or would be emulated by a task or fiber",
+      "requiredFacts": {
+        "actual": "string",
+        "descriptor": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "tls-binding": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    { "code": "W-TLS-0003", "state": "active", "profile": "thread-local", "meaning": "a TLS operation suspends or lets a dependency escape" },
     { "code": "W-SESSION-0001", "state": "active", "profile": "session", "meaning": "a contextual command is unknown" },
     { "code": "W-SESSION-0002", "state": "active", "profile": "session", "meaning": "the normal parser returns a parse diagnostic" },
     { "code": "W-SESSION-0003", "state": "active", "profile": "session", "meaning": "the normal checker returns a semantic diagnostic" },

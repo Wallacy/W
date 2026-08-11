@@ -53,6 +53,7 @@ std/
     contracts.w
   runtime/
     task.w
+    thread.w
     transaction.w
     work.w
     workflow.w
@@ -71,9 +72,14 @@ continua missing. `Context` somente lê inputs e materializa candidatos em
 staging. O host publica um action-result/manifest atômico após success, outputs
 obrigatórios e budgets válidos. O arquivo descreve a interface e não alega
 execução.
-`runtime/task.w` materializa reasons, budget kinds, outcomes e timeout de tasks
-lexicais. `Duration` é um intrinsic de execução signed e exato, com resolução de
-nanosecond. `runtime/transaction.w` materializa o contrato de transação
+`runtime/task.w` materializa reasons, budget kinds, outcomes, timeout e
+`TaskLocal`. O binding task-local é imutável, acompanha somente children
+estruturados e drena antes do pop. O provider
+`std.runtime.task-local@1` continua missing. `runtime/thread.w` materializa o
+`ThreadLocal` restrito a `Copy` sem drop. Ele usa TLS nativo e nunca emula uma
+thread com task ou fiber. O provider `std.runtime.thread-local@1` continua
+missing. `Duration` é um intrinsic de execução signed e exato, com resolução
+de nanosecond. `runtime/transaction.w` materializa o contrato de transação
 estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
