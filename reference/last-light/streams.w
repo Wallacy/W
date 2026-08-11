@@ -2,6 +2,12 @@
 
 import * from std.io
 import streaming from std.stream
+import {
+  BrigadeError,
+  MixingJob,
+  MixingResult,
+  inferredSuspension,
+} from execution
 
 export enum QueueError: Error {
   admission(ChannelClosed)
@@ -172,6 +178,19 @@ export async fn serveOneByOne<S: Stream<Order, Never>>(
   }
 
   return served
+}
+
+// Work distribution remains a structured Stream adapter. It does not make the
+// receive endpoint MPMC and does not create a second queue abstraction.
+export fn mixOrderStream(
+  source: take some Stream<MixingJob, BrigadeError>,
+  limit: usize<(1...256)>,
+): some Stream<MixingResult, BrigadeError> {
+  return (take source).parallelMap<.compute>(
+    limit: limit,
+    ordering: .completion,
+    using: inferredSuspension,
+  )
 }
 
 export async fn runBoundedOrderWindow(
