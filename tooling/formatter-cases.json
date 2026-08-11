@@ -417,6 +417,42 @@
         "}"
       ],
       "requiredSemicolons": []
+    },
+    {
+      "id": "F0-opaque-foreign-body",
+      "decisions": ["W-1261", "W-1264"],
+      "input": {
+        "lines": [
+          "fn<C>legacyStatus(code:c.int):c.int{",
+          "  const char *message = \"status } unchanged\";",
+          "  // A comment keeps { and } unchanged.",
+          "  if (code > 0) { return code; }",
+          "  return message[0] == 's' ? 0 : -1;",
+          "}"
+        ]
+      },
+      "output": [
+        "fn<C> legacyStatus(code: c.int): c.int {",
+        "  const char *message = \"status } unchanged\";",
+        "  // A comment keeps { and } unchanged.",
+        "  if (code > 0) { return code; }",
+        "  return message[0] == 's' ? 0 : -1;",
+        "}"
+      ],
+      "opaqueForeignBodies": [
+        "\n  const char *message = \"status } unchanged\";\n  // A comment keeps { and } unchanged.\n  if (code > 0) { return code; }\n  return message[0] == 's' ? 0 : -1;\n"
+      ],
+      "requiredSemicolons": [
+        {
+          "after": "const char *message = \"status } unchanged\"",
+          "role": "foreign-body"
+        },
+        { "after": "return code", "role": "foreign-body" },
+        {
+          "after": "return message[0] == 's' ? 0 : -1",
+          "role": "foreign-body"
+        }
+      ]
     }
   ]
 }

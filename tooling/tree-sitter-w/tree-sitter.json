@@ -8,7 +8,9 @@
       "file-types": ["w"],
       "injection-regex": "^w$",
       "highlights": "queries/highlights.scm",
-      "locals": "queries/locals.scm"
+      "locals": "queries/locals.scm",
+      "injections": "queries/injections.scm",
+      "external-files": ["src/scanner.c"]
     }
   ],
   "metadata": {

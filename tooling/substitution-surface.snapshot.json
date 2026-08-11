@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:ae7fa21386773016111471440ec3a83c8470159cbcbee6236ccb1a60774e79ee",
+  "corpusDigest": "sha256:856ec749a60dc849bbfc0a3e8459b7820f35e3542e758599a45b7a6c86eed309",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -1843,9 +1843,9 @@
     {
       "id": "R0-function-body",
       "task": {
-        "utf8Bytes": 87,
-        "codePoints": 87,
-        "nonWhitespaceCodePoints": 76,
+        "utf8Bytes": 89,
+        "codePoints": 89,
+        "nonWhitespaceCodePoints": 78,
         "lines": 1,
         "surfaceLexemes": 13
       },

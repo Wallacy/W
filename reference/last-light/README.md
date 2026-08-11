@@ -1234,12 +1234,23 @@ Aceite:
 - NaN não atravessa a wrapper sem policy;
 - metadata informa blocking, thread safety e callback executor;
 - call blocking usa adapter ou uma isolation boundary dedicada;
-- o parser W mantém o body `fn<C>` opaco;
+- o CST W mantém um único `foreign_body_content` opaco;
+- strings, characters, comments, nesting, CRLF e UTF-8 não encerram ou
+  normalizam o range por acidente;
 - o body scanner C encontra o fechamento sem interpretar statements como W;
+- directive de preprocessor não entra no profile C inline; source maior usa
+  uma foreign unit;
+- fallback editorial sem adapter nunca vira interface, object ou recipe;
+- adapter, scanner e body digest ficam ligados ao recipe;
+- diagnostic do adapter usa offsets validados no arquivo W;
 - o adapter C gera façade C e static archive reproduzível;
 - funções do mesmo adapter compartilham uma foreign unit;
 - o deallocator original executa uma vez;
 - panic não faz unwind através de C.
+
+FB0 possui 45 casos e 90 operações: 15 aceitos, 28 rejeitados e duas
+informações. Nove testes host derivam scanner, limits, source map e recipe sem
+ler o snapshot. Eles não executam C nem implementam o adapter.
 
 #### 3.9.1 Escapes de sistema
 

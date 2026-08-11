@@ -216,6 +216,34 @@
         "receipt": { "minimum": 0, "maximum": 1 }
       },
       "fixes": {}
+    },
+    "foreign-source": {
+      "phase": "source.validate",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "foreign-body": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    "foreign-build": {
+      "phase": "build",
+      "defaultSeverity": "error",
+      "requiredFacts": {
+        "actual": "string",
+        "construct": "string",
+        "expected": "string-set",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "foreign-body": { "minimum": 0, "maximum": 1 }
+      },
+      "fixes": {}
     }
   },
   "codes": [
@@ -2098,6 +2126,15 @@
       },
       "fixes": {}
     },
+    { "code": "W-FOREIGN-0001", "state": "active", "profile": "foreign-build", "meaning": "the inline language adapter is invalid, unavailable, or absent from the lock" },
+    { "code": "W-FOREIGN-0002", "state": "active", "profile": "foreign-build", "meaning": "the adapter scanner identity, version, or lexical profile is unsupported" },
+    { "code": "W-FOREIGN-0003", "state": "active", "profile": "foreign-source", "meaning": "the foreign body delimiter or scanner phase is invalid" },
+    { "code": "W-FOREIGN-0004", "state": "active", "profile": "foreign-source", "meaning": "a foreign lexical construct is unterminated" },
+    { "code": "W-FOREIGN-0005", "state": "active", "profile": "foreign-source", "meaning": "the baseline inline C profile contains a preprocessor directive or token-forming line splice" },
+    { "code": "W-FOREIGN-0006", "state": "active", "profile": "foreign-source", "meaning": "foreign source encoding, byte count, or nesting exceeds its declared bound" },
+    { "code": "W-FOREIGN-0007", "state": "active", "profile": "foreign-build", "meaning": "the scanner or body digest differs from the build recipe" },
+    { "code": "W-FOREIGN-0008", "state": "active", "profile": "foreign-build", "meaning": "a structural editor fallback was used as build evidence" },
+    { "code": "W-FOREIGN-0009", "state": "active", "profile": "foreign-source", "meaning": "an adapter diagnostic span is outside the opaque body byte range" },
     { "code": "W-SESSION-0001", "state": "active", "profile": "session", "meaning": "a contextual command is unknown" },
     { "code": "W-SESSION-0002", "state": "active", "profile": "session", "meaning": "the normal parser returns a parse diagnostic" },
     { "code": "W-SESSION-0003", "state": "active", "profile": "session", "meaning": "the normal checker returns a semantic diagnostic" },

@@ -1,0 +1,528 @@
+{
+  "$schema": "w-foreign-body-cases-1",
+  "status": "design-oracle-input",
+  "profiles": {
+    "c": {
+      "language": "C",
+      "mode": "build",
+      "available": true,
+      "locked": true,
+      "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "scannerDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scannerAbi": "w.foreign-scanner@1",
+      "scannerProfile": "c-inline-1"
+    },
+    "cAlias": {
+      "language": ".c",
+      "mode": "build",
+      "available": true,
+      "locked": true,
+      "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "scannerDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scannerAbi": "w.foreign-scanner@1",
+      "scannerProfile": "c-inline-1"
+    },
+    "rustTooling": {
+      "language": "Rust",
+      "mode": "tooling",
+      "available": false
+    }
+  },
+  "cases": [
+    {
+      "id": "FB0-accepted-simple-c-body",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return status;}" },
+        { "op": "publish" }
+      ],
+      "expect": { "phase": "published", "language": "c", "authoritative": true, "byteLength": 14 }
+    },
+    {
+      "id": "FB0-accepted-nested-braces",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{if (status < 0) { return -1; } return status;}" }
+      ],
+      "expect": { "phase": "scanned", "maximumDepthObserved": 1 }
+    },
+    {
+      "id": "FB0-accepted-c-brace-digraph",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{if (status < 0) { return -1; %> return status;}" }
+      ],
+      "expect": { "phase": "scanned", "maximumDepthObserved": 1 }
+    },
+    {
+      "id": "FB0-accepted-close-in-string",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{const char *s = \"}\"; return s[0];}after" }
+      ],
+      "expect": { "phase": "scanned", "suffix": "after", "maximumDepthObserved": 0 }
+    },
+    {
+      "id": "FB0-accepted-close-in-character",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return '}' == status;}" }
+      ],
+      "expect": { "phase": "scanned", "maximumDepthObserved": 0 }
+    },
+    {
+      "id": "FB0-accepted-close-in-line-comment",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{// } remains comment\nreturn 0;}" }
+      ],
+      "expect": { "phase": "scanned", "maximumDepthObserved": 0 }
+    },
+    {
+      "id": "FB0-accepted-close-in-block-comment",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{/* } remains comment */ return 0;}" }
+      ],
+      "expect": { "phase": "scanned" }
+    },
+    {
+      "id": "FB0-accepted-escaped-quote",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{const char *s = \"\\\"}\"; return s[1];}" }
+      ],
+      "expect": { "phase": "scanned" }
+    },
+    {
+      "id": "FB0-accepted-crlf-byte-identity",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{\r\nreturn 0;\r\n}" },
+        { "op": "publish" }
+      ],
+      "expect": { "phase": "published", "byteLength": 13 }
+    },
+    {
+      "id": "FB0-accepted-utf8-byte-identity",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{const char *s = \"Café\";}" }
+      ],
+      "expect": { "phase": "scanned", "byteLength": 24 }
+    },
+    {
+      "id": "FB0-accepted-empty-body",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{}" }
+      ],
+      "expect": { "phase": "scanned", "byteLength": 0, "closeOffset": 1 }
+    },
+    {
+      "id": "FB0-accepted-w-source-after-close",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "AromaProbeDevice" },
+      "decisions": ["W-1261", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;}\nexport fn next(): i32 { return 1 }" }
+      ],
+      "expect": { "phase": "scanned", "suffix": "\nexport fn next(): i32 { return 1 }" }
+    },
+    {
+      "id": "FB0-accepted-c-alias-normalizes",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "cAlias" },
+        { "op": "scan", "source": "{return 0;}" }
+      ],
+      "expect": { "phase": "scanned", "language": "c", "authoritative": true }
+    },
+    {
+      "id": "FB0-accepted-diagnostic-source-map",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1265"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return missing;}" },
+        { "op": "mapDiagnostic", "code": "C-UNDECLARED", "start": 7, "end": 14 }
+      ],
+      "expect": { "phase": "scanned", "mappedDiagnostics": [{ "code": "C-UNDECLARED", "start": 8, "end": 15 }] }
+    },
+    {
+      "id": "FB0-accepted-edit-replaces-digest",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;}" },
+        { "op": "replaceSource", "source": "{return 1;}" },
+        { "op": "publish" }
+      ],
+      "expect": { "phase": "published", "revision": 2, "bodyText": "return 1;" }
+    },
+    {
+      "id": "FB0-info-unknown-adapter-preserved",
+      "kind": "info",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "rustTooling" },
+        { "op": "scan", "source": "{if ready { 1 } else { 0 }}" }
+      ],
+      "expect": { "phase": "preservedUnvalidated", "language": "Rust", "authoritative": false }
+    },
+    {
+      "id": "FB0-info-fallback-preserves-comment",
+      "kind": "info",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "rustTooling" },
+        { "op": "scan", "source": "{/* } */ value}" }
+      ],
+      "expect": { "phase": "preservedUnvalidated", "suffix": "" }
+    },
+    {
+      "id": "FB0-rejected-missing-build-adapter",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "Rust", "mode": "build", "available": false }
+      ],
+      "expect": { "error": "W-FOREIGN-0001", "reason": "adapterMissing" }
+    },
+    {
+      "id": "FB0-rejected-unlocked-adapter",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "C", "mode": "build", "available": true, "locked": false, "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scannerDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "scannerAbi": "w.foreign-scanner@1", "scannerProfile": "c-inline-1" }
+      ],
+      "expect": { "error": "W-FOREIGN-0001", "reason": "adapterUnlocked" }
+    },
+    {
+      "id": "FB0-rejected-scanner-identity-missing",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "C", "mode": "build", "available": true, "locked": true, "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scannerProfile": "c-inline-1" }
+      ],
+      "expect": { "error": "W-FOREIGN-0002", "reason": "scannerIdentityMissing" }
+    },
+    {
+      "id": "FB0-rejected-scanner-digest-invalid",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "C", "mode": "build", "available": true, "locked": true, "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scannerDigest": "sha256:not-a-digest", "scannerAbi": "w.foreign-scanner@1", "scannerProfile": "c-inline-1" }
+      ],
+      "expect": { "error": "W-FOREIGN-0002", "reason": "scannerDigestInvalid" }
+    },
+    {
+      "id": "FB0-rejected-scanner-abi-unsupported",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "C", "mode": "build", "available": true, "locked": true, "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scannerDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "scannerAbi": "w.foreign-scanner@2", "scannerProfile": "c-inline-1" }
+      ],
+      "expect": { "error": "W-FOREIGN-0002", "reason": "scannerAbi" }
+    },
+    {
+      "id": "FB0-rejected-resolution-mode",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1264"],
+      "operations": [
+        { "op": "resolve", "language": "Rust", "mode": "ambient", "available": false }
+      ],
+      "expect": { "error": "W-FOREIGN-0001", "reason": "invalidMode" }
+    },
+    {
+      "id": "FB0-rejected-wrong-c-profile",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1263"],
+      "operations": [
+        { "op": "resolve", "language": "C", "mode": "build", "available": true, "locked": true, "adapterDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "scannerDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "scannerAbi": "w.foreign-scanner@1", "scannerProfile": "generic" }
+      ],
+      "expect": { "error": "W-FOREIGN-0002", "reason": "scannerProfile" }
+    },
+    {
+      "id": "FB0-rejected-missing-open",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "return 0;}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0003", "reason": "missingOpen" }
+    },
+    {
+      "id": "FB0-rejected-missing-close",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;" }
+      ],
+      "expect": { "error": "W-FOREIGN-0003", "reason": "missingClose" }
+    },
+    {
+      "id": "FB0-rejected-unterminated-string",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{const char *s = \"open" }
+      ],
+      "expect": { "error": "W-FOREIGN-0004", "reason": "doubleQuote" }
+    },
+    {
+      "id": "FB0-rejected-unterminated-character",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 'x" }
+      ],
+      "expect": { "error": "W-FOREIGN-0004", "reason": "singleQuote" }
+    },
+    {
+      "id": "FB0-rejected-unterminated-comment",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{/* open" }
+      ],
+      "expect": { "error": "W-FOREIGN-0004", "reason": "blockComment" }
+    },
+    {
+      "id": "FB0-rejected-newline-in-literal",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{const char *s = \"bad\ntext\";}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0004", "reason": "newlineInLiteral" }
+    },
+    {
+      "id": "FB0-rejected-inline-preprocessor",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{\n#define CLOSE }\nreturn 0;\n}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0005", "reason": "preprocessorDirective" }
+    },
+    {
+      "id": "FB0-rejected-inline-preprocessor-digraph",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{\n%:define CLOSE }\nreturn 0;\n}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0005", "reason": "preprocessorDirective" }
+    },
+    {
+      "id": "FB0-rejected-token-forming-line-splice",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1263", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{int val\\\nue = 0;}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0005", "reason": "lineSplice" }
+    },
+    {
+      "id": "FB0-rejected-body-byte-limit",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 1234;}", "maximumBodyBytes": 4 }
+      ],
+      "expect": { "error": "W-FOREIGN-0006", "reason": "bodyBytes" }
+    },
+    {
+      "id": "FB0-rejected-brace-depth-limit",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{{{return 0;}}}", "maximumBraceDepth": 1 }
+      ],
+      "expect": { "error": "W-FOREIGN-0006", "reason": "braceDepth" }
+    },
+    {
+      "id": "FB0-rejected-invalid-utf8",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "sourceHex": "7bff7d" }
+      ],
+      "expect": { "error": "W-FOREIGN-0006", "reason": "invalidUtf8" }
+    },
+    {
+      "id": "FB0-rejected-nul-byte",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1266"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "sourceHex": "7b007d" }
+      ],
+      "expect": { "error": "W-FOREIGN-0006", "reason": "nulByte" }
+    },
+    {
+      "id": "FB0-rejected-fallback-cannot-publish",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1264"],
+      "operations": [
+        { "op": "resolve", "profile": "rustTooling" },
+        { "op": "scan", "source": "{return value}" },
+        { "op": "publish" }
+      ],
+      "expect": { "error": "W-FOREIGN-0008", "reason": "fallbackNotBuildEvidence" }
+    },
+    {
+      "id": "FB0-rejected-scanner-digest-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;}" },
+        { "op": "publish", "scannerDigest": "sha256:other" }
+      ],
+      "expect": { "error": "W-FOREIGN-0007", "reason": "scannerDigest" }
+    },
+    {
+      "id": "FB0-rejected-body-digest-mismatch",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1261", "W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;}" },
+        { "op": "publish", "bodyDigest": "sha256:other" }
+      ],
+      "expect": { "error": "W-FOREIGN-0007", "reason": "bodyDigest" }
+    },
+    {
+      "id": "FB0-rejected-diagnostic-span-outside-body",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1265"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "scan", "source": "{return 0;}" },
+        { "op": "mapDiagnostic", "code": "C-RANGE", "start": 0, "end": 99 }
+      ],
+      "expect": { "error": "W-FOREIGN-0009", "reason": "spanOutsideBody" }
+    },
+    {
+      "id": "FB0-rejected-scan-before-resolve",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262", "W-1266"],
+      "operations": [
+        { "op": "scan", "source": "{return 0;}" }
+      ],
+      "expect": { "error": "W-FOREIGN-0003", "reason": "scanPhase" }
+    },
+    {
+      "id": "FB0-rejected-duplicate-resolve",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "resolve", "profile": "c" }
+      ],
+      "expect": { "error": "W-FOREIGN-0001", "reason": "alreadyResolved" }
+    },
+    {
+      "id": "FB0-rejected-map-before-scan",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1265"],
+      "operations": [
+        { "op": "resolve", "profile": "c" },
+        { "op": "mapDiagnostic", "code": "C-ERROR", "start": 0, "end": 1 }
+      ],
+      "expect": { "error": "W-FOREIGN-0009", "reason": "scanMissing" }
+    },
+    {
+      "id": "FB0-rejected-invalid-language-name",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/hardware.w", "symbol": "legacyProbeStatus" },
+      "decisions": ["W-1262"],
+      "operations": [
+        { "op": "resolve", "language": "bad-name", "mode": "build", "available": false }
+      ],
+      "expect": { "error": "W-FOREIGN-0001", "reason": "invalidLanguage" }
+    }
+  ]
+}

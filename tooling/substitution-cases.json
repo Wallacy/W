@@ -985,7 +985,7 @@
       "id": "R0-function-body",
       "reviewItem": "body obrigatório em função comum contra prototype solto no top-level",
       "decisions": ["W-755"],
-      "task": "Distinguish an implemented W function from a protocol requirement or foreign signature.",
+      "task": "Distinguish an implemented W function from a protocol requirement or foreign declaration.",
       "selected": {
         "language": "w",
         "source": ["fn targetTemperature(): Celsius {", "  return 180<C>", "}"]

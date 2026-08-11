@@ -883,7 +883,7 @@
       "type": "STRING",
       "value": "export"
     },
-    "_function_header": {
+    "_function_prefix": {
       "type": "SEQ",
       "members": [
         {
@@ -974,28 +974,12 @@
         {
           "type": "STRING",
           "value": "fn"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "language_tag"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "abi_contract"
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
+        }
+      ]
+    },
+    "_function_tail": {
+      "type": "SEQ",
+      "members": [
         {
           "type": "FIELD",
           "name": "name",
@@ -1076,20 +1060,84 @@
         }
       ]
     },
-    "function_declaration": {
+    "_function_header": {
       "type": "SEQ",
       "members": [
         {
           "type": "SYMBOL",
-          "name": "_function_header"
+          "name": "_function_prefix"
         },
         {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "block"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "abi_contract"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_function_tail"
+        }
+      ]
+    },
+    "_foreign_function_header": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_function_prefix"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "language_tag"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_function_tail"
+        }
+      ]
+    },
+    "function_declaration": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_function_header"
+            },
+            {
+              "type": "FIELD",
+              "name": "body",
+              "content": {
+                "type": "SYMBOL",
+                "name": "block"
+              }
+            }
+          ]
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_foreign_function_header"
+            },
+            {
+              "type": "FIELD",
+              "name": "body",
+              "content": {
+                "type": "SYMBOL",
+                "name": "foreign_body"
+              }
+            }
+          ]
         }
       ]
     },
@@ -1111,6 +1159,31 @@
               "type": "BLANK"
             }
           ]
+        }
+      ]
+    },
+    "foreign_body": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "{"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "foreign_body_content"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": "}"
         }
       ]
     },
@@ -4292,6 +4365,10 @@
                     {
                       "type": "STRING",
                       "value": "view"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "const"
                     },
                     {
                       "type": "SEQ",
@@ -9943,7 +10020,16 @@
     ]
   ],
   "precedences": [],
-  "externals": [],
+  "externals": [
+    {
+      "type": "SYMBOL",
+      "name": "foreign_body_content"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_foreign_body_error_sentinel"
+    }
+  ],
   "inline": [],
   "supertypes": [],
   "reserved": {}

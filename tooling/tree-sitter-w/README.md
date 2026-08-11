@@ -16,6 +16,7 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 
 - imports de pacote, módulo, símbolo e wildcard, aliases e exports coletivos;
 - `fn`, vários `init`, overloads estruturais, labels, generics e `throws`;
+- `fn<Language>` com body opaco delimitado por external scanner e injection C;
 - `fn(...)`, `some fn(...)`, `any fn(...)` e callable modes;
 - static records, `StaticList<T>` e payloads `<[...]>`;
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
@@ -61,6 +62,7 @@ bun run parse:packages
 bun run parse:deployments
 bun run parse:std
 bun run parse:fixture
+bun run check:injections
 bun run check:wire
 bun run check:wire:c
 bun run check:hir
@@ -94,6 +96,10 @@ O VS Code não consome Tree-sitter automaticamente, e não há adapter ou WASM
 neste corte. Eles só devem entrar depois de
 `tree-sitter generate`, corpus e smoke test do produto de referência passarem
 no host.
+
+O external scanner e a query de injection são projeções editoriais. Eles
+preservam o body e localizam o highlighter C, mas não substituem o scanner
+hermético do adapter nem publicam evidência de build.
 
 ## Lacunas deliberadas
 

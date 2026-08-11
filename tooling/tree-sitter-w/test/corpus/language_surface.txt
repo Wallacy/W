@@ -259,16 +259,8 @@ entry LastLight(run)
       (type_name
         (type_identifier)
         (type_identifier)))
-    (block
-      (return_statement
-        (unsafe_expression
-          (block
-            (expression_statement
-              (call_expression
-                (identifier)
-                (argument_list
-                  (argument
-                    (identifier))))))))))
+    (foreign_body
+      (foreign_body_content)))
   (function_declaration
     (language_tag
       (contextual_member_expression
@@ -291,16 +283,8 @@ entry LastLight(run)
       (type_name
         (type_identifier)
         (type_identifier)))
-    (block
-      (return_statement
-        (unsafe_expression
-          (block
-            (expression_statement
-              (call_expression
-                (identifier)
-                (argument_list
-                  (argument
-                    (identifier))))))))))
+    (foreign_body
+      (foreign_body_content)))
   (function_declaration
     (language_tag
       (identifier)
@@ -339,8 +323,8 @@ entry LastLight(run)
     (type
       (type_name
         (type_identifier)))
-    (block
-      (comment)))
+    (foreign_body
+      (foreign_body_content)))
   (function_declaration
     (identifier)
     (parameter_list)

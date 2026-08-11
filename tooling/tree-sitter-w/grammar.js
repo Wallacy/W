@@ -140,6 +140,11 @@ const ASSIGNMENT_OPERATORS = [
 module.exports = grammar({
   name: "w",
 
+  externals: ($) => [
+    $.foreign_body_content,
+    $._foreign_body_error_sentinel,
+  ],
+
   extras: ($) => [/[\s\uFEFF\u2060\u200B]/, $.comment],
 
   word: ($) => $.identifier,
@@ -307,7 +312,7 @@ module.exports = grammar({
 
     declaration_prefix: (_) => "export",
 
-    _function_header: ($) =>
+    _function_prefix: ($) =>
       seq(
         optional($.declaration_prefix),
         optional("static"),
@@ -316,17 +321,29 @@ module.exports = grammar({
         optional(field("receiver_modifier", choice("mut", "take"))),
         optional("async"),
         "fn",
-        optional(choice($.language_tag, $.abi_contract)),
+      ),
+    _function_tail: ($) =>
+      seq(
         field("name", $.identifier),
         optional($.generic_parameters),
         field("parameters", $.parameter_list),
         optional(seq(":", field("return_type", $.type))),
         optional(seq("throws", field("error_type", $.type))),
       ),
+    _function_header: ($) =>
+      seq($._function_prefix, optional($.abi_contract), $._function_tail),
+    _foreign_function_header: ($) =>
+      seq($._function_prefix, $.language_tag, $._function_tail),
     function_declaration: ($) =>
-      seq($._function_header, field("body", $.block)),
+      choice(
+        seq($._function_header, field("body", $.block)),
+        seq($._foreign_function_header, field("body", $.foreign_body)),
+      ),
     function_signature: ($) =>
       seq($._function_header, optional(";")),
+
+    foreign_body: ($) =>
+      seq("{", optional($.foreign_body_content), "}"),
 
     language_tag: ($) =>
       seq(
@@ -842,7 +859,17 @@ module.exports = grammar({
           optional(
             field(
               "qualifier",
-              choice("any", "some", "shared", "weak", "ref", "inout", "view", seq("inout", "view")),
+              choice(
+                "any",
+                "some",
+                "shared",
+                "weak",
+                "ref",
+                "inout",
+                "view",
+                "const",
+                seq("inout", "view"),
+              ),
             ),
           ),
           $._type_core,
