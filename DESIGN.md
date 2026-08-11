@@ -7100,7 +7100,7 @@ reflection compile-time aberta ou outro gerador de declarations.
 
 `data.Row` é uma segunda síntese fechada e opt-in. Ela é struct-only, all-or-none
 e usa stored instance fields em declaration order. O carrier, schema identity e limites
-estão fechados em [14.4.1](#1441-carrier-tabular-tab0). Ela não amplia synthesis
+estão fechados em [14.4.1](#1441-carrier-tabular). Ela não amplia synthesis
 genérica nem cria codecs ou schemas de boundary.
 
 #### 8.9.5 Parâmetros rest homogêneos
@@ -17165,7 +17165,7 @@ liga módulos fora do grafo e não concede capability implícita.
 | observabilidade e teste | log, trace, metrics, test, benchmark | recipe declara outputs, limits e reachability |
 
 A cobertura Python, o carrier tabular e os adapters científicos estão na
-[auditoria PYN0](#2411-auditoria-pythonw-pyn0).
+[workflows Python](#2411-workflows-python-e-científicos).
 
 `std.math` inclui rounding, roots, exponentials, logarithms, trigonometry,
 hyperbolic functions, `fma`, constants e classification. Cada transcendental
@@ -17206,7 +17206,7 @@ Não entram na std estável sem corpus e dois consumers: UI toolkit, web
 framework, dataframe, symbolic algebra, package de vendor e protocol de rápida
 evolução. Eles podem começar como packages first-party sem promessa permanente.
 
-#### 14.4.1 Carrier tabular TAB0
+#### 14.4.1 Carrier tabular
 
 **Exemplo:** o restaurante publica `sequence`, `hawkingFlux` e `warning` em um
 `data.Batch<HorizonReading>`. O caller seleciona `batch.column(.hawkingFlux)` e
@@ -17307,7 +17307,7 @@ posteriores. DLPack continua adapter de tensor e terá um bundle próprio de
 interchange tensorial. TAB1 deve fechar somente os nomes, signatures e
 workflows exatos de CSV, Parquet e Arrow.
 
-#### 14.4.2 Adapters tabulares TAB1
+#### 14.4.2 Adapters tabulares
 
 **Exemplo:** a mesma leitura do horizonte passa por CSV typed, arquivo Parquet
 posicional, stream IPC Arrow e import C trusted. Cada rota publica o mesmo
@@ -18570,7 +18570,7 @@ type CompactGlyph =
 ### 16.2 Views, índices e slices
 
 Views borrowed de fields tabulares não inventam uma família `XView`; o contrato
-do carrier e a forma checked para valores Copy estão em [14.4.1](#1441-carrier-tabular-tab0).
+do carrier e a forma checked para valores Copy estão em [14.4.1](#1441-carrier-tabular).
 
 W separa quatro conceitos que outras APIs chamam de “imutável”:
 
@@ -20182,18 +20182,18 @@ não ocorrem durante uma call normal.
 
 StableHLO e ONNX são adapters. Eles não definem a semântica completa de W. O
 Python Array API standard, DLPack e Arrow C Data estão na
-[auditoria PYN0](#2411-auditoria-pythonw-pyn0).
+[workflows Python](#2411-workflows-python-e-científicos).
 
 DLPack continua adapter de tensor e fica em um bundle próprio, separado de
 TAB1. O carrier tabular `data.Batch<Row>` e os contratos de columns, chunks e
-ownership estão em [14.4.1](#1441-carrier-tabular-tab0). Os adapters de formato
-e `SnapshotByteSource` estão em [14.4.2](#1442-adapters-tabulares-tab1).
+ownership estão em [14.4.1](#1441-carrier-tabular). Os adapters de formato e
+`SnapshotByteSource` estão em [14.4.2](#1442-adapters-tabulares).
 
-### 17.1 PYN4 — carrier tensorial e DLPack 1.3
+### 17.1 Carrier tensorial e DLPack 1.3
 
 PYN4 fecha o intercâmbio tensorial entre W e produtores trusted in-process. Ele
 é design e oracle, não compiler, runtime, provider, bridge Python ou driver de
-device. O bundle liga [PYN0](#2411-auditoria-pythonw-pyn0), o contrato de
+device. O bundle liga os [workflows Python](#2411-workflows-python-e-científicos), o contrato de
 device em [18.5](#185-matrizes-simd-e-devices),
 os bloqueios de [24.4](#244-artefatos-que-ainda-bloqueiam-o-design-freeze) e a
 [revisão em RATIONALE 1.3.18](RATIONALE.md#1318-carrier-tensorial-pyn4). O baseline documental é
@@ -20709,7 +20709,7 @@ Transferência de device permanece explícita. Fusion pode eliminar um
 intermediate lógico, mas não pode inserir uma transferência oculta.
 
 O mesmo contrato de device e copy vale para o carrier tabular fechado em
-[14.4.1](#1441-carrier-tabular-tab0). Um target diferente exige argumento
+[14.4.1](#1441-carrier-tabular). Um target diferente exige argumento
 explícito e transferência autorizada; `.never` falha nesse caso.
 
 ```w
@@ -21027,7 +21027,7 @@ authority do host não pode ser dereferenced nem receber provenance inventada
 pelo lowering.
 
 Python interop e `fn<Python>` seguem a
-[auditoria PYN0](#2411-auditoria-pythonw-pyn0) e as regras de adapter de 19.2.
+[workflows Python](#2411-workflows-python-e-científicos) e as regras de adapter de 19.2.
 
 ### 19.2 `fn<Language>`
 
@@ -24863,13 +24863,13 @@ lock fixado. Sem header, dentro de package usa o entry default explícito ou
 implícito, o contexto e o lock do package. Fora de package usa std e módulos locais no
 product efêmero. Dependencies externas sem header são rejeitadas. `--with`
 não é forma final. O contrato está na
-[auditoria PYN1](#2412-workflow-de-script-single-file-pyn1).
+[scripts single-file](#2412-scripts-single-file).
 
 `w repl` usa parser, checker e HIR normais. A session transacional e
 generational pode salvar source canônico, resetar e explicar invalidation e
 cost. Jupyter/session é uma direção de tooling, não uma nova forma de source.
 O kernel deve implementar o protocol Jupyter e exportar `.w` ou package antes
-de release. O contrato completo está na [auditoria PYN0](#2411-auditoria-pythonw-pyn0)
+de release. O contrato completo está em [workflows Python](#2411-workflows-python-e-científicos)
 e no workflow PYN1 para roots standalone.
 
 #### 21.6.2 Publicação e reprodução
@@ -24935,7 +24935,7 @@ e solicita structured cancellation. Notebook não é artifact de release por
 default. O export para `.w` ou package canônico, em ordem canônica e sem hidden
 replay, é obrigatório antes de release. Nomes de check/export permanecem
 **Pesquisa**.
-Veja a [auditoria PYN0](#2411-auditoria-pythonw-pyn0).
+Veja [workflows Python](#2411-workflows-python-e-científicos).
 
 LSP usa a HIR para semantic tokens, tipos, effects e rename. Tree-sitter mantém
 realce e estrutura durante source incompleto. TextMate é fallback.
@@ -26844,229 +26844,51 @@ As comparações com C, Rust, Swift e Python estão em
 [RATIONALE.md](RATIONALE.md). As subseções seguintes preservam somente os
 contratos e gaps que ainda alteram o W corrente.
 
-#### 24.1.1 Auditoria Python→W PYN0
+#### 24.1.1 Workflows Python e científicos
 
-**Exemplo:** uma pessoa pode testar `w run path/file.w -- input.csv` e depois
-abrir `w repl` sem aprender ownership antes. A boundary científica continua
-explícita.
+**Exemplo:** uma pessoa pode executar `w run path/file.w -- input.csv`, abrir
+`w repl` e analisar um `data.Batch<Row>` sem aprender ownership de baixo
+nível. As boundaries de processo, dados e device continuam explícitas.
 
-PYN0 trata pessoas que usam Python como público inicial sem adotar um core
-dinâmico. A matriz abaixo separa linguagem, tooling, standard library,
-ecossistema e interop. Um gap indica ausência no design, não atraso de
-implementação.
+Pessoas que usam Python fazem parte do público inicial de W. Essa promessa não
+adiciona um core dinâmico. W não adota duck typing, monkey patching, imports
+ambientais, GIL ou reflection unchecked. `Any` e reflection permanecem
+opt-in; dados exploratórios usam `json.Value`, schema nominal ou carrier
+tabular.
 
-O carrier tabular e a regra de binding typed ficam em [14.4.1](#1441-carrier-tabular-tab0).
-Os adapters CSV, Parquet e Arrow ficam em [14.4.2](#1442-adapters-tabulares-tab1).
-PYN0 não promove DataFrame ou duck typing a surface W.
+O workflow Python-first é uma composição de contratos existentes:
 
-##### Linguagem
+- [scripts single-file](#2412-scripts-single-file) definem root, imports, lock,
+  argumentos e execução hermética;
+- [sessão e REPL](#2413-sessão-e-repl-transacionais) definem generations,
+  invalidation, effects, resources e reset;
+- [apresentação e Jupyter](#2414-apresentação-jupyter-e-export-de-notebooks)
+  definem rich output bounded e export sem hidden replay;
+- [carrier tabular](#1441-carrier-tabular) e
+  [adapters de formato](#1442-adapters-tabulares) cobrem dados colunares;
+- [tensor e DLPack](#171-carrier-tensorial-e-dlpack-13) cobrem shape, device,
+  copy, lifetime e release;
+- a seção 19.2 mantém Python, Arrow e buffers atrás de adapters ou fault
+  boundaries explícitas.
 
-| Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
-|---|---|---|---|---|
-| Público de dados, web, ML, pesquisa e automação | Tour, tipos estáticos, ownership, effects e módulos reachability-linked | entrada Python-first e sequência pedagógica para o Tour | linguagem, Tour e documentação | **Direção** |
-| Defaults, keyword arguments, unpacking, comprehensions, generators e collections | defaults, labels, patterns, ranges, collections e closures já têm contratos parciais | R1 compara pipeline, loop, broadcast, end-relative access, labels e tuple binding; comprehension e starred unpacking continuam sem grammar | linguagem e estudo R1 | **Pesquisa** |
-| Arquivo, stdin, `-c`, `-m` e modo interativo | source file, `entry` e CLI de package existem | fluxo low-ceremony com regras herméticas e sessão | tooling e fronteiras de package | **Direção** |
-| Dados exploratórios sem object model global | `json.Value`, `data.Batch<Row>`, `data.DynamicBatch`, schemas e reflection opt-in | adapters de CSV, Parquet e Arrow, além de inferência bounded no tooling | std, tooling e schemas | **Direção** |
-| Interop com objetos Python sem duck typing | protocols nominais, C façade, adapters e `unsafe` explícito | lifecycle, GIL, interpreter e effects precisam de bridge visível | adapter e fault boundary | **Direção** |
+`w run`, `w repl` e o kernel devem compartilhar parser, checker e HIR. Nenhum
+modo interativo enfraquece tipos, ownership, effects ou capability admission.
+Notebook não é source de release: o export produz `.w` ou package canônico.
 
-O exemplo de ergonomia é uma comparação textual e pseudocódigo. Ele não fixa
-uma forma nova:
+`std.math`, `std.tensor`, `std.data`, `std.csv`, `std.parquet` e
+`std.arrow` são módulos concretos. DataFrame amplo, plotting, bridge Python e
+providers científicos podem ser packages first-party; eles não ampliam a
+linguagem por conveniência.
 
-```text
-Python: total = 0; total = sum(value * value for value in values)
-W pseudocode: var total = 0; for value in values { total += value * value }
-PYN0:         comparar comprehension documental, pipeline e loop no R1
-```
+Os gates separam time-to-first-result de steady-state. O primeiro mede
+cold/warm single-file, edit-run e session incremental. O segundo mede
+collections, CSV, tensor CPU/device e overhead de interop. Output e semântica
+precisam coincidir antes da comparação de tempo. A matriz de motivação,
+alternativas e gaps fica em
+[`RATIONALE.md` §1.10](RATIONALE.md#110-evidência-pythonw-pyn0).
 
-PYN0 não adota duck typing, monkey patching, dynamic global object model, GIL,
-ambient imports ou unchecked reflection. `Any` e reflection permanecem opt-in.
-Dados exploratórios usam `json.Value` explícito, schema ou carrier tabular. A
-inferência de schema pertence ao tooling e publica seus limites.
 
-##### Tooling e workflow interativo
-
-| Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
-|---|---|---|---|---|
-| Arquivo único com argumentos e execução repetida | `w run <product>` e lock de package | `w run path/file.w -- <args>` com header standalone ou package/ephemeral context hermético | CLI e resolver | **Direção** |
-| REPL com edição, history e completion | parser, checker e HIR normais | session transacional, generations e custo de invalidação | tooling e HIR | **Direção** |
-| Notebook para code, prose, data e rich output | LSP, diagnostics e outputs estruturados | kernel Jupyter, protocol tipado e export canônico | tooling e produto | **Direção** |
-| Reexecução offline e provenance | lock e artifact digests de package; PYN1 fecha header, virtual selection, lock root e CAS para arquivo único | gates de registry/provider e execução real | resolver e release | **Direção** |
-
-`w run path/file.w -- <args>` é a direção para arquivo único. Com header, o
-source é sempre root standalone mesmo dentro de package. Sem header, dentro de
-um package o comando usa o entry default explícito ou implícito, contexto e lock
-desse package; fora de package, cria contexto efêmero hermético com std e
-módulos locais. O
-resolver não pesquisa ambiente ou path e não baixa remote implicitamente.
-
-O source graph do arquivo contém somente imports explícitos. Sem package
-context, a root local é o diretório do script. Com package context, a root é o
-package.w selecionado pela regra de workspace vigente. `w context` mostra a
-seleção discoverable, o manifest, o workspace, o lock e as roots antes da
-execução. Não há recursive scan, cwd scan, `PATH` scan ou environment
-discovery. `w run path/file.w` exige o unnamed/default entry vigente. Ele não
-cria execução arbitrária de módulo: a forma curta permitida é somente o
-`implicit_entry_body` final do root, baixado para `.default`.
-
-Uma falha do package/product efêmero não deixa manifest ou estado oculto.
-
-PYN1 adota metadata inline data-only no header `script`, com lock por digest e
-provenance. Manifest sibling, comment metadata e `--with` não são formas
-correntes:
-
-```text
-w run path/file.w -- input.csv
-w script add path/file.w package@constraint --as package_alias
-```
-
-O comando final exige lock por digest, provenance e reexecução offline. A
-implementação de resolver, CLI e provider permanece missing.
-
-`w repl` usa o parser, checker e HIR normais. Ele não cria dynamic mode. Cada
-submission é transacional. Uma falha não altera a session. Uma declaração
-aceita cria uma generation nova. Uma redefinição invalida compiled dependents e
-torna esses bindings dependentes indisponíveis. O sistema nunca usa esses
-bindings como stale nem os recompila implicitamente. Somente uma resubmission
-explícita cria uma generation e executa effects novos. O prompt abaixo é
-somente transcript de estudo:
-
-```text
-w repl
-w[0]> let limit: i32 = 3
-w[1]> let doubled = limit * 2
-w[2]> let limit: i32 = 4
-invalidated: doubled (generation 2, replaced by generation 3)
-w[3]> var broken: i32 = "x"
-error: generation remains 3
-```
-
-Antes de substituir uma generation, a session fecha admission, solicita
-cancellation e drena structured children e waits, encerra loans e views, e
-executa drops dos owned values conforme E1. Se o drain falha ou foreign
-retention permanece, redefinição e reset são rejeitados ou escalam conforme a
-boundary policy. O sistema nunca libera estado vivo. Uma failed submission
-preserva a generation corrente. A session pode `reset`, salvar source canônico e
-explicar invalidation e cost. O transcript é evidência de tooling. Ele não é
-source W de release por default.
-
-PYN2 fecha a forma executável desse contrato de design. Ele separa
-`SessionId`, `SessionIncarnation`, `ExecutionOrdinal` e `GenerationId`, torna
-receipts e fases machine-readable e corrige o transcript para `fn doubled` como
-compiled dependent e `let snapshot = limit * 2` como valor avaliado. O fixture e
-o oracle ficam em [24.1.3](#2413-sessãorepl-transacional-e-geracional-pyn2).
-
-Jupyter kernel é **Direção** de tooling e produto, não linguagem. PYN3 fecha o
-adapter sobre o session model, o protocol `presentation.Presentable` e o export
-canônico em [24.1.4](#2414-apresentação-tipada-kernel-jupyter-e-export-pyn3).
-MIME e data têm limites declarados. `interrupt_request` solicita structured
-cancellation. Não finge matar foreign code:
-
-```text
-execute_request(source) -> execute_reply(generation)
-display_data(w-rich-output, bounded-mime-data)
-interrupt_request -> cancellation_event(structured)
-```
-
-Notebook não é artifact ou release source por default. Antes de release, o
-usuário exporta `.w` ou package canônico em ordem canônica. O export não faz
-hidden replay de effects. Nomes de comandos para check/export continuam
-**Pesquisa**. A implementação do kernel continua pós-freeze.
-
-##### Standard library e ecossistema
-
-| Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
-|---|---|---|---|---|
-| NumPy e ciência numérica | `std.math`, `std.tensor`, shapes, `@` e device transfer | adapters Python e corpus de interoperabilidade | módulos std e adapter first-party | **Direção** |
-| DataFrames e dados colunares | `std.data`, `std.csv`, `std.parquet`, `std.arrow`, schemas e database rows tipadas; TAB0 e TAB1 fecham adapters, contracts e host evidence como design | DataFrame completo fica package first-party; seguem dependency form e explicit import-root de single-file, session transacional com resource/drain semantics e rich display, bundle próprio de DLPack tensorial e evidence dos gates de latency; providers ficam pós-freeze | módulos std concretos, package first-party e codecs | **Direção** |
-| Plotting e rich display | protocols de display e tooling estruturado | renderer, limits e backends de plot | first-party package ou third-party | **Pesquisa** |
-| Package registry e descoberta | resolver, lock, registry e provenance de package | descoberta para workflow de arquivo único | tooling e ecossistema | **Pesquisa** |
-| Amplitude de otimização e ciência | `std.math`, `std.tensor` e packages first-party | breadth de solvers, optimization e providers | packages first-party e third-party | **Pesquisa** |
-
-Dataframe completo fica em package first-party antes de entrar na std estável.
-TAB0 fecha `data.Batch<Row>`, `data.DynamicBatch`, schema identity, chunks,
-copy/device policy e release. TAB1 fecha declarations, contracts, oracles e
-host evidence para o workflow de CSV, Parquet e Arrow como design. W não promete
-um clone de pandas.
-
-Gaps de std e ecossistema permanecem separados:
-
-- módulos std: carrier tabular mínimo, CSV e format contracts, e rich-display
-  protocol somente após evidência;
-- first-party: operações de DataFrame, plotting API e backends, Jupyter kernel,
-  Python bridge e adapters DLPack/Arrow;
-- third-party: providers científicos de otimização, plot e formatos que ainda
-  não possuem contrato W.
-
-##### Interop científico e Python
-
-| Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
-|---|---|---|---|---|
-| Tensor interchange sem cópia oculta | `std.tensor` e device transfer explícita | DLPack precisa de adapter com copy, device, stream, ownership, lifetime e release provados | adapter first-party | **Direção** |
-| Dados colunares entre runtimes | `std.data` (`data.Batch<Row>`, `data.DynamicBatch`), schemas e C façade | Arrow C Data precisa de adapter com schema e release explícitos; CSV e Parquet ficam para TAB1 | adapter first-party | **Direção** |
-| Buffer protocol do Python | C pointers e ownership de FFI | buffer pertence à bridge Python e não ao core W | bridge Python | **Direção** |
-| W-from-Python e Python-from-W | C ABI e data interchange já são boundaries | stable C/Python APIs, lifecycle e fault policy | bridge, service ou fault boundary | **Direção** |
-
-[DLPack Python](https://dmlc.github.io/dlpack/latest/python_spec.html),
-[Arrow C Data Interface](https://arrow.apache.org/docs/format/CDataInterface.html)
-e o [Python buffer protocol](https://docs.python.org/3/c-api/buffer.html)
-fornecem os contratos de lifetime e release que o adapter deve provar. O
-[Python Array API standard](https://data-apis.org/array-api/latest/purpose_and_scope.html)
-não substitui esses contratos.
-
-TAB0 fecha o carrier W em [14.4.1](#1441-carrier-tabular-tab0). O contrato não
-promove Arrow, Python dataframe interchange, CSV ou Parquet a autoridade W.
-
-Um contrato de adapter deve tornar os recursos observáveis. `DLPackLease` e
-`ArrowArrayLease` são nomes lógicos candidatos, não API ou syntax vigente. O
-bloco é ilustrativo:
-
-```text
-DLPackLease { copy: explicit, device: explicit, stream: explicit,
-              owner: explicit, release: required }
-ArrowArrayLease { schema: explicit, buffers: bounded, owner: explicit,
-                  release: required }
-```
-
-`fn<Python>` não é forma reservada do core baseline. Python não produz static
-library previsível por default e possui runtime e object model próprios. CPython
-ordinário executa por bridge, service ou fault boundary explícita. Um adapter
-AOT manifest-resolved pode ser candidato conforme 19.2. Lifecycle, GIL,
-interpreter e effects ficam visíveis no adapter.
-
-##### Ergonomia e critérios de performance
-
-| Motivo de adoção Python | Cobertura W atual | Gap real | Camada correta | Estado |
-|---|---|---|---|---|
-| Transformações curtas e legíveis | loops, pipelines, collections e closures | comparar comprehension documental, pipeline e loop | ergonomia R1 | **Pesquisa** |
-| Operações array concisas | shapes estáticos e broadcast explícito | checked broadcasting e forma explícita de broadcast | linguagem R1 e `std.tensor` | **Pesquisa** |
-| Acesso relativo ao fim | ranges, `.last` e arithmetic com guard | `get(fromEnd:)` e `suffix` ficam em **Pesquisa** | linguagem R1 | **Pesquisa** |
-| Indexação negativa | ranges e accessors com bounds explícitos | Python-like `[-1]` é **Rejeitado por enquanto** por signed/unsigned, empty e bounds | linguagem R1 | **Rejeitado por enquanto** |
-| Tuple e calls de baixo atrito | tuple binding, projections `.0`/`.1`, labels em ordem | labels reordenáveis ficam em **Pesquisa** | linguagem R1 | **Pesquisa** |
-| Feedback imediato | HIR e tooling têm custo declarado | gates separados de first-result e steady-state | tooling e evidence | **Direção** |
-
-PYN0 preserva labels em ordem como forma vigente. R1 mede labels reordenáveis,
-mas não muda lookup ou reproducibility antes de demonstrar ganho. Comprehension,
-checked broadcasting e labels reordenáveis ficam **Pesquisa**. `get(fromEnd:)` e
-`suffix` também ficam **Pesquisa**. Negative indexing é **Rejeitado por
-enquanto**. Pipeline, loop, `.last`, tuple binding e projections `.0`/`.1`
-continuam **Forma vigente** sob suas regras. `.last` retorna um optional seguro;
-arithmetic e subscript exigem guard explícito, e projections exigem `copy` ou
-borrow explícito para componente move-only. Starred unpacking permanece
-**Rejeitado por enquanto**.
-
-Os gates de performance são separados:
-
-- `time-to-first-result`: cold/warm single-file hello, edit-run incremental e
-  uma transaction de 10 cells com redefinition e invalidation;
-- `steady-state`: collection transforms, CSV throughput, tensor
-  elementwise/broadcast/matmul CPU e zero-copy DLPack/Arrow overhead.
-
-O corpus compara output e semântica antes de tempo. Cada registro informa
-compiler version, target e hardware. Não há número fixo nem vitória declarada.
-O gate compara HIR interpreter, ORC JIT, incremental native e outro backend
-rápido. Nenhum segundo runtime vira autoridade semântica.
-
-#### 24.1.2 Workflow de script single-file PYN1
+#### 24.1.2 Scripts single-file
 
 **Exemplo:** `horizon_script.w` fixa a dependency `chart`, calcula um score do
 horizonte e escolhe um menu no implicit default. O source continua um oracle de
@@ -27238,7 +27060,7 @@ e limites ficam em
 command, resolver, compiler, runtime, provider ou network client é alegado como
 implementado.
 
-#### 24.1.3 Sessão/REPL transacional e geracional PYN2
+#### 24.1.3 Sessão e REPL transacionais
 
 **Exemplo:** uma sessão preserva `snapshot = 6` quando `limit` muda para `4`,
 mas invalida a função que possui lookup compilado de `limit`.
@@ -27449,7 +27271,7 @@ Evidência, comparações e limites ficam em
 CLI, compiler, checker, HIR, runtime, provider, resource drain e Jupyter
 continuam fora deste checkpoint.
 
-#### 24.1.4 Apresentação tipada, kernel Jupyter e export PYN3
+#### 24.1.4 Apresentação, Jupyter e export de notebooks
 
 **Exemplo:** uma expressão que devolve uma tabela mostra uma prévia bounded no
 notebook. Ela não coleta o stream inteiro, não copia um tensor do device e não
@@ -27869,8 +27691,8 @@ compiler ou runtime. Provas sobre componentes reais continuam nos gates da
 seção 26. Um contrato pode fechar antes de existir backend, mas não pode declarar
 comportamento que seus modelos ou oracles contradizem.
 
-TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular-tab0). TAB1 fecha
-declarations, profiles, errors, limits e workflows em [14.4.2](#1442-adapters-tabulares-tab1).
+TAB0 fecha o carrier lógico em [14.4.1](#1441-carrier-tabular). TAB1 fecha
+declarations, profiles, errors, limits e workflows em [14.4.2](#1442-adapters-tabulares).
 O bloqueio restante é provider, corpus adversarial e evidence dos gates, sem
 alterar a schema identity ou as regras de ownership.
 

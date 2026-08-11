@@ -202,7 +202,7 @@ owner. Ela publica `byteCount: u64` e `read(at:appendTo:maximum:)` com offset
 `u64`, sem cursor; short reads e acessos posicionais paralelos são explícitos.
 
 Os módulos `data`, `csv`, `parquet` e `arrow` são o rascunho TAB1 descrito em
-[`DESIGN.md` §14.4.2](../DESIGN.md#1442-adapters-tabulares-tab1). Eles fecham
+[`DESIGN.md` §14.4.2](../DESIGN.md#1442-adapters-tabulares). Eles fecham
 declarations, profiles, errors, limits, progress e ownership. Os providers
 intrinsic `std.data@1`, `std.csv@1`, `std.parquet@1` e `std.arrow@1` continuam
 missing. `std.io@1` também permanece missing para a implementação de
