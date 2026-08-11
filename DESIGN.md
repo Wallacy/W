@@ -10082,11 +10082,11 @@ são avaliados no compile time, não mudam layout e não executam um check runti
 `T<(.transferable && .shareable)>` exige os dois. A forma explícita congela a
 interface; a forma omitida continua inferida.
 
-Uma prova manual não pertence a safe W. Um binding foreign ou primitive de
-synchronization pode publicar um fato de mobilidade por interface trusted com
-target, adapter e digest. Essa forma é **Provável** somente dentro de
-`foreign` ou de um runtime provider. Uma assertion local do usuário fica
-**Rejeitado**.
+**W-429 — fatos trusted de mobilidade:** uma prova manual não pertence a safe
+W. Somente uma interface `foreign` ou de provider da std pode publicar o fato,
+e a `SemanticInterfaceKey` fixa target, adapter, signature, digest e fatos
+negativos. O checker trata todo binding sem esse record como local. Uma
+assertion no source da aplicação é rejeitada.
 
 #### 12.7.1 Composição automática de ownership e execução
 
@@ -10987,9 +10987,12 @@ user code pode implementar. A baseline aceita:
 - `usize` e `isize`;
 - enums sem payload com representação canônica suportada.
 
-Float, struct com padding, owner e pointer não entram na baseline. `AtomicAddress`
-e palavras duplas são **Provável** em APIs próprias. Atomic de `shared T`
-fica **Rejeitado**; reclamation e deallocator não cabem numa bitwise operation.
+Float, struct com padding, owner e pointer não entram na baseline.
+`AtomicAddress`, palavra dupla e atomic de `shared T` também ficam fora da safe
+std. Atomicidade de bits não prova provenance, lifetime ou reclamation. Código
+comum usa integer handle, lock, domain barrier ou `SnapshotCell`. Um provider
+trusted pode usar uma operação raw target-specific atrás de uma interface
+`unsafe`; ela não amplia o conjunto de `Atomic<T>`.
 
 ```w
 enum SignState {

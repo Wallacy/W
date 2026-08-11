@@ -1130,6 +1130,9 @@ APIs de Rust para
 [`fence`](https://doc.rust-lang.org/std/sync/atomic/fn.fence.html),
 [`compiler_fence`](https://doc.rust-lang.org/std/sync/atomic/fn.compiler_fence.html)
 e [`Atomic`](https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html).
+Pointer e palavra dupla continuam disponíveis para runtime/provider unsafe,
+mas não entram em `Atomic<T>` safe: atomicidade do bit pattern não preserva por
+si provenance, owner lifetime, deallocator ou reclamation.
 
 #### 1.4.4 Liveness e providers
 
@@ -1658,7 +1661,7 @@ O índice gerado usa esta tabela somente como projeção.
 | barreira cíclica/reutilizável | **Pesquisa** | identidade, saída e failure de participantes ainda não possuem contrato fechado |
 | `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
-| facts trusted para FFI e synchronization customizada | **Provável** | somente provider ou foreign interface fixa target, digest e negative facts |
+| facts trusted para FFI e synchronization customizada | **Possível agora** | somente provider ou foreign interface fixa target, digest e negative facts |
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
 | QoS na syntax de `spawn` | **Rejeitado** | policy no profile ou group não parece garantia de ordering ou deadline |
 | `bootstrap.w0` e self-host antes de tasks | **Provável** | subset fechado; seed C e adapter MLIR precisam de prova |
@@ -3385,7 +3388,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-426 | sharing | storage vivo e reads sem race; interior mutation precisa de mecanismo verificado | exigir imutabilidade profunda; aceitar todo `ref` |
 | W-427 | constraint de mobilidade | `T<(.transferable)>` e `T<(.shareable)>`; omitida é inferida | `T: Send`; `<mobility: ...>`; annotation na declaração |
 | W-428 | views e mobilidade | descriptor não prova nada; owner, provenance e lifetime satisfazem o capture | view é Send/Sync por pointer + count; proibir toda view |
-| W-429 | FFI mobility | local por default; fato trusted provável somente em provider/foreign interface com target e digest | raw pointer deriva facts; assertion segura do usuário |
+| W-429 | FFI mobility | local por default; somente provider/foreign interface publica fato trusted com target, adapter, signature, digest e fatos negativos | raw pointer deriva facts; assertion segura do usuário |
 | W-430 | representação W0 de String | literal/static + buffer flat único com pointer/count/reserva/origin; Bytes usa carrier T0 compatível | SSO e COW no bootstrap; rope; runtime Unicode obrigatório |
 | W-431 | COW de String | fora da baseline; optimizer exige efeitos de allocation e cleanup não observáveis | refcount em toda String; COW como contrato; proibir otimização |
 | W-432 | reserva de String | mínimo total por bytes; exact capacity não é pública; `tryReserve` tem strong guarantee | bytes adicionais; growth fixo na linguagem; capacity property |
@@ -3399,7 +3402,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; atomics concorrentes precisam de extent idêntico; safe W rejeita | race com resultado definido; check somente em runtime; atomic parcial sobreposto |
 | W-441 | happens-before | task start/join, channel em W-467, service turn, unlock/lock, release sequence e fence com reads-from atômica | thread start/join somente; cancel publica user state; duas fences sem atomic publicam |
 | W-442 | storage atomic | `var atomic value: T` baixa para `Atomic<T>`; acesso comum seq-cst | `Atomic<T>` sempre explícito; behavior Atomic; todo var atomic |
-| W-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload | protocol user-defined; qualquer Copy; floats e structs na baseline |
+| W-443 | atomic value | fato intrínseco fechado para Bool, integers e enum sem payload; pointer, owner, float, struct e palavra dupla ficam fora da safe std | protocol user-defined; qualquer Copy; `AtomicAddress`; atomic de shared; target raw ampliando `Atomic<T>` |
 | W-444 | order | `<.order>` estática; load/store/update usam enum subsets; default `.sequential`; sequential participa de ordem total do scope | argumento runtime; suffix por método; relaxed default |
 | W-445 | compare-exchange | result enum; success/failure usam matriz estática; success é RMW e failure é load; weak é explícita | Boolean; expected inout; combinação inválida em runtime; failure entra na modification order |
 | W-446 | aritmética atômica | policy checked normal; wrapping/saturating/fetch nomeados | wrap do hardware implícito; closure update com retries ocultos |
