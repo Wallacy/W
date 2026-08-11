@@ -4229,6 +4229,205 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-owned-place-explicit-ref",
+      "kind": "positive",
+      "rule": "W-1292",
+      "source": [
+        "fn inspect(value: ref Menu) {}",
+        "fn valid(menu: Menu) { inspect(ref menu) }"
+      ],
+      "expect": {
+        "focus": { "text": "ref menu" },
+        "semanticResult": {
+          "resultType": "ref Menu",
+          "category": "shared-place",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "borrow", "place": "menu", "type": "ref Menu" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "argument-category", "subject": "menu", "value": "owned-place" },
+            { "kind": "parameter-contract", "subject": "value", "value": "ref" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "place", "operation": "resolve-place", "subject": "menu" },
+              { "id": "borrow", "operation": "borrow", "subject": "menu" }
+            ],
+            "edges": [{ "from": "place", "to": "borrow", "kind": "next" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-existing-borrow-call-without-marker",
+      "kind": "positive",
+      "rule": "W-1292",
+      "source": [
+        "fn inspect(value: ref Menu) {}",
+        "fn forward(menu: ref Menu) { inspect(menu) }"
+      ],
+      "expect": {
+        "focus": { "text": "inspect(menu)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [{ "operation": "borrow", "place": "menu", "type": "ref Menu" }],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "argument-category", "subject": "menu", "value": "borrow" },
+            { "kind": "parameter-contract", "subject": "value", "value": "ref" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "reborrow", "operation": "borrow", "subject": "menu" },
+              { "id": "call", "operation": "call", "subject": "inspect" }
+            ],
+            "edges": [{ "from": "reborrow", "to": "call", "kind": "next" }]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-fresh-owner-satisfies-take",
+      "kind": "positive",
+      "rule": "W-1292",
+      "source": [
+        "fn store(value: take Order) {}",
+        "fn build() { store(Order()) }"
+      ],
+      "expect": {
+        "focus": { "text": "store(Order())" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "initialize", "place": "$temporary0", "type": "Order" },
+            { "operation": "move", "place": "$temporary0", "type": "Order" }
+          ],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "argument-category", "subject": "Order()", "value": "fresh-rvalue" },
+            { "kind": "parameter-contract", "subject": "value", "value": "take" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "temporary", "operation": "initialize", "subject": "Order" },
+              { "id": "transfer", "operation": "move", "subject": "$temporary0" },
+              { "id": "call", "operation": "call", "subject": "store" }
+            ],
+            "edges": [
+              { "from": "temporary", "to": "transfer", "kind": "next" },
+              { "from": "transfer", "to": "call", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-owned-place-omits-ref",
+      "kind": "negative",
+      "rule": "W-1292",
+      "baseline": "S0-POS-existing-borrow-call-without-marker",
+      "failureField": "ownerDelta",
+      "source": [
+        "fn inspect(value: ref Menu) {}",
+        "fn invalid(menu: Menu) { inspect(menu) }"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0017",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "inspect(menu)" },
+            "labels": [
+              { "role": "argument", "selector": { "text": "inspect(menu)" } },
+              { "role": "parameter-contract", "selector": { "text": "value: ref Menu" } }
+            ],
+            "facts": {
+              "actualCategory": "owned-place",
+              "expectedContract": "ref Menu",
+              "parameter": "value",
+              "reason": "owned-place-requires-explicit-borrow",
+              "suppliedOperation": "none"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-rvalue-cannot-use-ref",
+      "kind": "negative",
+      "rule": "W-1292",
+      "baseline": "S0-POS-fresh-owner-satisfies-take",
+      "failureField": "ownerDelta",
+      "source": [
+        "fn inspect(value: ref Order) {}",
+        "fn invalid() { inspect(ref Order()) }"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0010",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "ref", "occurrence": 1 },
+            "labels": [
+              { "role": "ownership-owner", "selector": { "text": "Order()" } }
+            ],
+            "facts": {
+              "operandCategory": "rvalue",
+              "prefix": "ref",
+              "requirement": "place"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-take-does-not-satisfy-ref",
+      "kind": "negative",
+      "rule": "W-1292",
+      "baseline": "S0-POS-owned-place-explicit-ref",
+      "failureField": "ownerDelta",
+      "source": [
+        "fn inspect(value: ref Menu) {}",
+        "fn invalid(menu: Menu) { inspect(take menu) }"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0017",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "take menu" },
+            "labels": [
+              { "role": "argument", "selector": { "text": "take menu" } },
+              { "role": "parameter-contract", "selector": { "text": "value: ref Menu" } }
+            ],
+            "facts": {
+              "actualCategory": "owned-place",
+              "expectedContract": "ref Menu",
+              "parameter": "value",
+              "reason": "operation-does-not-match-parameter-contract",
+              "suppliedOperation": "take"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
     }
   ]
 }

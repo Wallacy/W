@@ -2161,6 +2161,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
 | `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
 | `W-OWNERSHIP-0016` | prefix de parâmetro aparece antes do binding ou `copy` tenta virar modo de parâmetro |
+| `W-OWNERSHIP-0017` | operação no call site não satisfaz o contrato ou um owner place omite a operação exigida |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
 `a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
@@ -2702,6 +2703,7 @@ As famílias específicas usam estes códigos:
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
 | `W-OWNERSHIP-0015` | capture escapante de owner move-first não escolhe `take`, `copy` ou `weak` |
 | `W-OWNERSHIP-0016` | ownership ou requisito de parâmetro aparece no lado dos labels |
+| `W-OWNERSHIP-0017` | argumento usa operação incompatível ou owner place omite `ref`, `inout` ou `take` |
 
 Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar enum
@@ -4426,15 +4428,41 @@ movido no último uso. `take T` exige transferência e mostra essa exigência na
 assinatura e no call site.
 
 ```w
-inspect(value)
+inspect(ref value)
 edit(inout value)
 store(take value)
 let duplicate = copy value
 ```
 
-`ref` não aparece no call site porque não altera ownership. `inout`, `take` e
-`copy` aparecem. `copy value` usa `Duplicable` quando o valor não é `Copy`. A
-operação é explícita porque pode percorrer storage ou alocar:
+**W-1292 — operações sobre places ficam visíveis:** `ref`, `inout`, `take`,
+`copy` e `pin` aparecem quando a chamada cria uma operação sobre um place que o
+caller já possui. Portanto, um owner lvalue passado a `ref T` usa `ref value`;
+um owner lvalue passado a `take T` usa `take value`. `inout` sempre exige um
+place exclusivo explícito.
+
+O prefixo não é decoração da call. Um expression que já tem type `ref T` pode
+ser passado diretamente a outro `ref T`: ele faz reborrow do loan existente.
+Um rvalue owned novo também não recebe `ref` ou `take`; o temporary owner fica
+no invocation plan e vive até o fim exigido pelo mapping de lifetime. Assim:
+
+```w
+inspect(ref ownedMenu)        // cria borrow de um owner place
+inspect(existingBorrow)      // reborrow; o expression já é ref Menu
+inspect(loadMenu())           // temporary owner, borrow call-scoped
+store(take ownedOrder)        // transfere um owner place
+store(Order(...))             // owner novo já pertence ao argumento
+edit(inout draft)             // cria loan exclusivo
+```
+
+O checker rejeita `inspect(ownedMenu)`, `inspect(take ownedMenu)` e
+`store(ref ownedOrder)`. Ele usa o contrato esperado e a value category depois
+de type checking; a grafia isolada não distingue owner place, borrow e rvalue.
+O receiver read-only de um método continua implícito em `value.method()` porque
+o member access já identifica o place e o receiver contract. Receivers
+`inout` e `take` seguem as regras explícitas da seção 7.2.
+
+`copy value` usa `Duplicable` quando o valor não é `Copy`. A operação é
+explícita porque pode percorrer storage ou alocar:
 
 ```w
 protocol Duplicable {

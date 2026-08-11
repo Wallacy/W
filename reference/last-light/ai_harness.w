@@ -46,8 +46,8 @@ export fn trainLinearKernel<
   outputs: usize,
 >(
   weights: inout WeightMatrix<inputs: inputs, outputs: outputs>,
-  batch: ref TrainingBatch<rows: rows, inputs: inputs, outputs: outputs>,
-  learningRate: f32<(0.0>..<1.0)>,
+  named batch: ref TrainingBatch<rows: rows, inputs: inputs, outputs: outputs>,
+  named learningRate: f32<(0.0>..<1.0)>,
 ): TrainingMetrics {
   let prediction = batch.features @ weights
   let error = prediction - batch.labels

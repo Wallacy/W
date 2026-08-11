@@ -352,7 +352,7 @@
           "schema-footer-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "d27346e07020cdcd08fad1976719635263b2ac30b7c413e4b05f1a30c1ad267c",
+      "catalogedDeclarationsDigest": "756b709ac83ee3651aa17ede5dc260781c3ca2a67b7a76d7b5af7b1f9477b6ed",
       "apis": [
         {
           "symbol": "BlockingQuota",
@@ -456,8 +456,8 @@
         {
           "symbol": "decodeIpcFile",
           "kind": "fn",
-          "signature": "export fn decodeIpcFile<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "ce85ae45d072dcdd5a965e2f058999a1623b56b9b146b9b34cfc1703e7e19f2d",
+          "signature": "export fn decodeIpcFile<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "97c10e8ed4887c457de0758b30e3022852796731950a8a4c05caf2cab7b5208c",
           "line": 437,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -465,8 +465,8 @@
         {
           "symbol": "decodeIpcFileAll",
           "kind": "fn",
-          "signature": "export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "419dc174aa72d9a67f21a7d5f1df9e70d88f40af5e9720597276027eec8a6978",
+          "signature": "export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "50f77f49027039c89bb8d14c36e3baab0c6aa52f6fa10e564a79e737673307be",
           "line": 455,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -474,8 +474,8 @@
         {
           "symbol": "decodeIpcFileDynamic",
           "kind": "fn",
-          "signature": "export fn decodeIpcFileDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "6122ef55dfc5663d99eaf956305e14b9cd69d4d60e6199312db15fa38a32571b",
+          "signature": "export fn decodeIpcFileDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "7f5ea29ab9ba26d63caf16ec4dfaeaa6df4a89481d9a2792a15cc0fed962b7fc",
           "line": 473,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -483,8 +483,8 @@
         {
           "symbol": "decodeIpcStream",
           "kind": "fn",
-          "signature": "export fn decodeIpcStream<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "17d514c311a7fa7c4ffd525e5a3ceeac0bee54db590c00c012e72f939a657db5",
+          "signature": "export fn decodeIpcStream<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "4a17c7e553467d5b055726629766eb5988e55630fb6ff943a7189e163078655f",
           "line": 429,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -492,8 +492,8 @@
         {
           "symbol": "decodeIpcStreamAll",
           "kind": "fn",
-          "signature": "export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "af55cd7df2c9e98f95af44a234e96b85969b7355c25b6a30753f5c145a940838",
+          "signature": "export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "6656639f5c9551b8bd673735cf05c2880df6764a35b748a0bfe32b34925cff31",
           "line": 445,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -501,8 +501,8 @@
         {
           "symbol": "decodeIpcStreamDynamic",
           "kind": "fn",
-          "signature": "export fn decodeIpcStreamDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "0ca42f82fb01b6d439607b5bfd8e993e9be7b9661e18a31ef68494c0e8d65a1e",
+          "signature": "export fn decodeIpcStreamDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "fb20a0d744e3c7f8fa26b94c46aa55f06894061daeaebecf9c6b3c7b5aa833d2",
           "line": 465,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -546,8 +546,8 @@
         {
           "symbol": "encodeIpcFile",
           "kind": "fn",
-          "signature": "export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "586e4dd9238a1da5d5a43e2c58def2bd6293551d8a337ebce92afe2a57f64f6b",
+          "signature": "export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "f558befa0d96b627899ea3fa4af3c1bcaae8cd422d3032c57c874271b9bfa82a",
           "line": 518,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -555,8 +555,8 @@
         {
           "symbol": "encodeIpcStream",
           "kind": "fn",
-          "signature": "export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "4e5d12f7fbb95c827f73af56b30e41cc24d65faaa6441f9a7a294b5850f0b102",
+          "signature": "export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "bb3ac7058d4e6ec3a73614273f5f35be6ae27683d04f66cd546e67aae970eb8c",
           "line": 492,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -940,7 +940,7 @@
           "utf8-errors"
         ]
       },
-      "catalogedDeclarationsDigest": "785a245986bcfd6ba2fb15097d6dcf9c62933656898c283f2eae09d321ff5cbb",
+      "catalogedDeclarationsDigest": "fa9c5212361764862a0636384fd3012128fc6cfd55691940a9d4c5a2d48856ce",
       "apis": [
         {
           "symbol": "BoolTokenPolicy",
@@ -963,8 +963,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "cd953a596ccd949a3b96dcf09225fb6a8ad233310ffab461589482a0b36fe21f",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "840400c43b64d2a060878fddf8b733b6f1d119c242bd23c2e723a3bc84c9e917",
           "line": 353,
           "profile": "csv-decode",
           "status": "draft"
@@ -972,8 +972,8 @@
         {
           "symbol": "decodeAll",
           "kind": "fn",
-          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "79379ffd726265300cd77db409c47af5f1ba8ae9f8ffd4a7af1dc382aa3b4e12",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "47ebf630863c5eca6e331cebbeb2c0a85819e1ca40d92e3a745cc39283f16966",
           "line": 370,
           "profile": "csv-decode",
           "status": "draft"
@@ -990,8 +990,8 @@
         {
           "symbol": "decodeDynamic",
           "kind": "fn",
-          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, schema: take data.Schema, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "b63bc515f5c745117d18d1ecb46e5c0720482fb670730b4e973a0b16b23caf05",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named schema: take data.Schema, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "61e93d90f1c915fe0ef66beba0f8fe14db175a0455565b7475250e3676b6060c",
           "line": 360,
           "profile": "csv-decode",
           "status": "draft"
@@ -1017,8 +1017,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "d3bdaabedabdd2fb7f3e7ea87a1108ef39de7ddbaa21dbcfc328fa0d162fbacc",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "7cccf242fce77aed76e474c0d37acb77ad039d88508366e08857f8de8a7dff2d",
           "line": 387,
           "profile": "csv-encode",
           "status": "draft"
@@ -1701,7 +1701,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "5a8f2ddd09ab6a4189fd8611925a1c41702b76a76329f7e2da844bdeeaf4bfca",
+      "catalogedDeclarationsDigest": "9c3f9b9503beaf0292cd3752f105c40785b57b9e1dbab01419064237ccaa470d",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1746,8 +1746,8 @@
         {
           "symbol": "export",
           "kind": "fn",
-          "signature": "export async fn export<Element, shape: StaticList<usize>>( value: take Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
-          "declarationDigest": "a050fbc2bab7e103630e809214860b5c1c4a536a808b804a2904aed6b650d1ce",
+          "signature": "export async fn export<Element, shape: StaticList<usize>>( named value: take Tensor<Element, shape>, on queue: ref tensor.Queue?, named limits: ref Limits, ): ManagedTensor throws DLPackError",
+          "declarationDigest": "4d702db90d88cb937e1702f1ae3fcb82142928f46d1178a090c729506c51e658",
           "line": 211,
           "profile": "dlpack-export",
           "status": "draft"
@@ -1825,8 +1825,8 @@
         {
           "symbol": "materialize",
           "kind": "fn",
-          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( imported: take ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
-          "declarationDigest": "bfbe167bdb54e023acc0fd5db0f09386cb37d9393dba0abcb2d951294814f073",
+          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( named imported: take ImportedTensor<Element, shape>, named target: ref tensor.Device, on queue: ref tensor.Queue?, named limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
+          "declarationDigest": "b9a824b5b6d2cbbbd80156abef5a6b3f97e56ea8ba13a879bf9c9c0f0f04daf2",
           "line": 195,
           "profile": "dlpack-materialize",
           "status": "draft"
@@ -1834,8 +1834,8 @@
         {
           "symbol": "open",
           "kind": "fn",
-          "signature": "export async fn open<Element, shape: StaticList<usize>>( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
-          "declarationDigest": "c3ed478cc840c88bc853f5bceb18bd45b49411c8c4c78665ea9272df4e2d8504",
+          "signature": "export async fn open<Element, shape: StaticList<usize>>( named managed: take ManagedTensor, on queue: ref tensor.Queue?, named limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
+          "declarationDigest": "0e9d7b5c31a9042056644b89bdd37877a4e67af8c058387792ddf5f142cec4ca",
           "line": 147,
           "profile": "dlpack-import",
           "status": "draft"
@@ -1843,8 +1843,8 @@
         {
           "symbol": "openDynamic",
           "kind": "fn",
-          "signature": "export async fn openDynamic( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
-          "declarationDigest": "90047bc2153623f680919be375d73dbc120a4b588343632de09d9f1ddd79ca00",
+          "signature": "export async fn openDynamic( named managed: take ManagedTensor, on queue: ref tensor.Queue?, named limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
+          "declarationDigest": "663704e147a83dec826a9098e9002f35b9e27b32587ea5ba1bb16c8142df6a54",
           "line": 163,
           "profile": "dlpack-import",
           "status": "draft"
@@ -5435,7 +5435,7 @@
           "page-checksum"
         ]
       },
-      "catalogedDeclarationsDigest": "8a130f88a35796ff490ce1f3abb86601dbfe8d3292f6892bf60ed53ad334e130",
+      "catalogedDeclarationsDigest": "6cd00ea17f3c5895488c578c056d79fa4d20b61a4814b56fe7e2622330bb5f4b",
       "apis": [
         {
           "symbol": "ChecksumPolicy",
@@ -5458,8 +5458,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "cfc3717a54f113aa9fe002136c217885527ef99a95694d000cbb71b4fd076ec4",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "608308a4bafd771c260df7bb434971c57b6db94b40c324d1e3ceed413406208c",
           "line": 400,
           "profile": "parquet-decode",
           "status": "draft"
@@ -5467,8 +5467,8 @@
         {
           "symbol": "decodeAll",
           "kind": "fn",
-          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "9e5fd3e78407fcd63d7ac455d6d351f5c298da12b5af926ca1307b61ae2475dc",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "0c54470d9a438d0fe37c18f1618d900b46f9a3260b03b02c86250804018164c6",
           "line": 416,
           "profile": "parquet-decode",
           "status": "draft"
@@ -5476,8 +5476,8 @@
         {
           "symbol": "decodeDynamic",
           "kind": "fn",
-          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "f57303e1241a9e8363d86c2d0c25308a2d42c3f11175d4bed406ba893c2debd0",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "ea4d657e38c7bb315ccd891067eb378a12d4a6b5c92224e7036acfb1039feb00",
           "line": 408,
           "profile": "parquet-decode",
           "status": "draft"
@@ -5521,8 +5521,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "09a258a5fbe3c8cf084137fe7a2b7207301be2197129ae31cdf1778c8c091384",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "4a17f1c1392dee171f7d07240b9358c34d5b4359b495731e1cf256611e9e7648",
           "line": 434,
           "profile": "parquet-encode",
           "status": "draft"
@@ -6365,13 +6365,13 @@
           "wpt-streams"
         ]
       },
-      "catalogedDeclarationsDigest": "c574d97d85595e8a241f2bd9a8ff178181c6a32683ce4c0d459705d722dc0c20",
+      "catalogedDeclarationsDigest": "9acf74579344603456fea16d12d20c83b614e7cf111846522fa36f6cf0734089",
       "apis": [
         {
           "symbol": "ReadableStream",
           "kind": "struct",
           "signature": "export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure>",
-          "declarationDigest": "6e8355d6ca78244628b77f2442cf88924042be01f53f3f53f72cde1c05f3a6e9",
+          "declarationDigest": "13bc30864b07927d23739904637d355a301feac9e7fc93cef27cf5002bb5b5c3",
           "line": 89,
           "profile": "web-stream-carrier",
           "members": [
@@ -6383,7 +6383,7 @@
                   "line": 92
                 },
                 {
-                  "signature": "export static fn from<Source: ByteSource<Failure>>( byteSource source: take Source, chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, Failure>",
+                  "signature": "export static fn from<Source: ByteSource<Failure>>( byteSource source: take Source, named chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, Failure>",
                   "line": 145
                 }
               ],
@@ -6535,7 +6535,7 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "1548a8a0cc318c72b0b7c9960223b8b5bb2508deff050b558ca6802edf6a9707",
+      "catalogedDeclarationsDigest": "d4db7dab0bde8bb4cb2bb9a9eb9548cb61705ccef7099bfc8f6768d949b5d11a",
       "apis": [
         {
           "symbol": "Device",
@@ -6589,8 +6589,8 @@
         {
           "symbol": "deviceOf",
           "kind": "fn",
-          "signature": "export async fn deviceOf<Element, shape: StaticList<usize>>( source: ref Tensor<Element, shape>, ): Device throws TensorError",
-          "declarationDigest": "3270c79b620b57073748275a98886df95f2c488130c0e1cdba1cc1338bd518d6",
+          "signature": "export async fn deviceOf<Element, shape: StaticList<usize>>( named source: ref Tensor<Element, shape>, ): Device throws TensorError",
+          "declarationDigest": "1044112ae0973e3205bd74fe44e29471c757e3afec9eca2d615655c390ded5ca",
           "line": 102,
           "profile": "tensor-carrier",
           "status": "draft"
@@ -6658,8 +6658,8 @@
         {
           "symbol": "transfer",
           "kind": "fn",
-          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( source: take Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
-          "declarationDigest": "4d8c06fb9e036f7d47a010fccf26e8c4622983a4f6b6f5cffa8aa6d8c5b683e0",
+          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( named source: take Tensor<Element, shape>, named target: ref Device, on queue: ref Queue?, named limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
+          "declarationDigest": "eb8e4ea2fda79ba3b32720537656841519636f5167153dcd1bce3aee58049b0d",
           "line": 110,
           "profile": "tensor-carrier",
           "status": "draft"

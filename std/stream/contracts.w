@@ -33,8 +33,8 @@ foreign intrinsic from "std.readable-stream@1" {
     Failure: Error,
     Source: ByteSource<Failure>,
   >(
-    source: take Source,
-    chunkBytes: usize<(1...)>,
+    named source: take Source,
+    named chunkBytes: usize<(1...)>,
   ): ReadableStreamHandle
 
   async fn stdReadableStreamNext<Item, Failure: Error>(
@@ -144,7 +144,7 @@ extension<Item: Duplicable, Failure: Error & Duplicable> ReadableStream<Item, Fa
 extension<Failure: Error> ReadableStream<Bytes, Failure>: ByteSource<Failure> {
   export static fn from<Source: ByteSource<Failure>>(
     byteSource source: take Source,
-    chunkBytes: usize<(1...)>,
+    named chunkBytes: usize<(1...)>,
   ): ReadableStream<Bytes, Failure> {
     let raw = unsafe {
       stdReadableStreamFromByteSource(

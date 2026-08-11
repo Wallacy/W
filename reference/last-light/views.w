@@ -68,7 +68,7 @@ test "a read-only view does not expose owner capacity" for serviceTemperatures {
 
 test "an exclusive view mutates elements but not its extent" for correctTemperatures {
   var readings = [2.70, 41.5, 272.65]
-  let inout corrected = correctTemperatures(readings, offset: 0.5)
+  let inout corrected = correctTemperatures(inout readings, offset: 0.5)
 
   expect corrected == [42.0, 273.15]
   expect readings == [2.70, 42.0, 273.15]

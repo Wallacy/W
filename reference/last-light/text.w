@@ -137,7 +137,7 @@ test "a grapheme refinement does not imply byte capacity" {
 
 test "terminal index use permits a safe edit" for replaceScalarTail {
   var title = "Last Light"
-  replaceScalarTail(title, offset: 5, replacement: "Course")
+  replaceScalarTail(inout title, offset: 5, replacement: "Course")
   expect title == "Last Course"
 }
 

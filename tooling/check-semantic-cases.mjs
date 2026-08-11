@@ -397,7 +397,7 @@ for (const sourceEntry of catalog.codes) {
 const diagnosticTablePatterns = [
   /\| `W-CONTRACT-0001`[\s\S]*?\| `W-CONTRACT-0005`[^\n]*\|/,
   /\| `W-PATTERN-0001`[\s\S]*?\| `W-MATCH-0003`[^\n]*\|/,
-  /\| `W-PARSE-0020`[\s\S]*?\| `W-OWNERSHIP-0016`[^\n]*\|/,
+  /\| `W-PARSE-0020`[\s\S]*?\| `W-OWNERSHIP-0017`[^\n]*\|/,
   /#### 3\.6\.8 Diagnostics[\s\S]*?\| `W-CONST-0001`[\s\S]*?\| `W-CONST-0007`[^\n]*\|/,
   /\| `W-TYPE-0121`[^\n]*\|/,
   /#### 8\.7\.10 Diagnostics[\s\S]*?\| `W-GENERIC-0001`[\s\S]*?\| `W-GENERIC-0005`[^\n]*\|/,

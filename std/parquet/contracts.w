@@ -366,65 +366,65 @@ foreign intrinsic from "std.parquet@1" {
 
   fn stdParquetDecode<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    source: take Source,
-    options: DecodeOptions,
+    named source: take Source,
+    named options: DecodeOptions,
   ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>
 
   fn stdParquetDecodeDynamic<SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    source: take Source,
-    options: DecodeOptions,
+    named source: take Source,
+    named options: DecodeOptions,
   ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>
 
   async fn stdParquetDecodeAll<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    source: take Source,
-    options: DecodeOptions,
+    named source: take Source,
+    named options: DecodeOptions,
   ): data.Batch<Row> throws DecodeError<SourceFailure>
 
   async fn stdParquetEncodeBatch<Row: data.Row, SinkFailure: Error,
     Sink: io.ByteSink<SinkFailure>>(
-    batch: ref data.Batch<Row>,
-    sink: inout Sink,
-    options: EncodeOptions,
+    named batch: ref data.Batch<Row>,
+    named sink: inout Sink,
+    named options: EncodeOptions,
   ): data.EncodeProgress throws EncodeError<SinkFailure>
 
   async fn stdParquetEncodeStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
     Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-    batches: take Source,
-    sink: inout Sink,
-    options: EncodeOptions,
+    named batches: take Source,
+    named sink: inout Sink,
+    named options: EncodeOptions,
   ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>
 }
 
 export fn decode<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  source: take Source,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>> {
   return unsafe { stdParquetDecode(source: take source, options: options) }
 }
 
 export fn decodeDynamic<SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  source: take Source,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>> {
   return unsafe { stdParquetDecodeDynamic(source: take source, options: options) }
 }
 
 export async fn decodeAll<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  source: take Source,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): data.Batch<Row> throws DecodeError<SourceFailure> {
   return unsafe { try await stdParquetDecodeAll(source: take source, options: options) }
 }
 
 export async fn encode<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<SinkFailure>>(
-  batch: ref data.Batch<Row>,
-  sink: inout Sink,
-  options: EncodeOptions = EncodeOptions.standard(),
+  named batch: ref data.Batch<Row>,
+  named sink: inout Sink,
+  named options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeError<SinkFailure> {
   return unsafe {
     try await stdParquetEncodeBatch(batch: batch, sink: inout sink, options: options)
@@ -433,9 +433,9 @@ export async fn encode<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<Sink
 
 export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
   Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-  batches: take Source,
-  sink: inout Sink,
-  options: EncodeOptions = EncodeOptions.standard(),
+  named batches: take Source,
+  named sink: inout Sink,
+  named options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure> {
   return unsafe {
     try await stdParquetEncodeStream(

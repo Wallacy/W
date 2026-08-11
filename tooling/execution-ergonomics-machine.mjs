@@ -1,12 +1,11 @@
 const identifier = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 function withoutComments(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|\s)\/\/.*$/gm, "$1")
+  return source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, (comment) =>
+    comment.replace(/[^\r\n]/g, " "))
 }
 
-export function splitTopLevel(text, separator = ",") {
+function splitTopLevelWithSpans(text, separator = ",") {
   const parts = []
   let start = 0
   const delimiters = []
@@ -33,13 +32,34 @@ export function splitTopLevel(text, separator = ",") {
     } else if (character === ">" && delimiters.at(-1) === "<") {
       delimiters.pop()
     } else if (character === separator && delimiters.length === 0) {
-      parts.push(text.slice(start, index).trim())
+      const raw = text.slice(start, index)
+      const leading = raw.length - raw.trimStart().length
+      const trailing = raw.length - raw.trimEnd().length
+      if (raw.trim()) {
+        parts.push({
+          end: index - trailing,
+          start: start + leading,
+          text: raw.trim(),
+        })
+      }
       start = index + 1
     }
   }
-  const tail = text.slice(start).trim()
-  if (tail || text.trim() === "") parts.push(tail)
-  return parts.filter(Boolean)
+  const raw = text.slice(start)
+  const leading = raw.length - raw.trimStart().length
+  const trailing = raw.length - raw.trimEnd().length
+  if (raw.trim()) {
+    parts.push({
+      end: text.length - trailing,
+      start: start + leading,
+      text: raw.trim(),
+    })
+  }
+  return parts
+}
+
+export function splitTopLevel(text, separator = ",") {
+  return splitTopLevelWithSpans(text, separator).map((part) => part.text)
 }
 
 function parseParameter(raw, index) {
@@ -228,10 +248,24 @@ function declarationScopes(source) {
 function declarationBodies(source) {
   const declarations = []
   const scopes = declarationScopes(source)
-  const pattern = /\b(?:(export)\s+)?((?:static\s+|const\s+|unsafe\s+|mut\s+|take\s+|async\s+)*)fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{}]*>)?\s*\(/g
+  const foreignScopes = []
+  for (const match of source.matchAll(/\bforeign\b[^{}]*\{/g)) {
+    const opening = (match.index ?? 0) + match[0].lastIndexOf("{")
+    const closing = matchingDelimiter(source, opening, "{", "}")
+    if (closing >= 0) foreignScopes.push({ start: opening, end: closing })
+  }
+  const pattern = /\b(?:(export)\s+)?((?:static\s+|const\s+|unsafe\s+|mut\s+|take\s+|async\s+)*)fn\s+([A-Za-z_][A-Za-z0-9_]*)/g
   for (const match of source.matchAll(pattern)) {
     const start = match.index ?? 0
-    const parametersStart = start + match[0].lastIndexOf("(")
+    let parametersStart = start + match[0].length
+    while (/\s/.test(source[parametersStart] ?? "")) parametersStart += 1
+    if (source[parametersStart] === "<") {
+      const genericEnd = matchingDelimiter(source, parametersStart, "<", ">")
+      if (genericEnd < 0) continue
+      parametersStart = genericEnd + 1
+      while (/\s/.test(source[parametersStart] ?? "")) parametersStart += 1
+    }
+    if (source[parametersStart] !== "(") continue
     const parametersEnd = matchingDelimiter(source, parametersStart)
     if (parametersEnd < 0) continue
     const lineEnd = source.indexOf("\n", parametersEnd)
@@ -248,6 +282,9 @@ function declarationBodies(source) {
       .filter((scope) => scope.start < start && start < scope.end)
       .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0]
     declarations.push({
+      boundary: foreignScopes.some((scope) => scope.start < start && start < scope.end)
+        ? "foreign"
+        : "w",
       name: match[3],
       params: parseParameters(source.slice(parametersStart + 1, parametersEnd)),
       line: source.slice(0, start).split("\n").length,
@@ -333,15 +370,32 @@ function parseCalls(source) {
       && braceDepth(source, scope.start + 1, start) === 0)
     if (enclosingEnum) continue
 
-    const args = splitTopLevel(source.slice(cursor + 1, closing))
+    const argumentSource = source.slice(cursor + 1, closing)
+    const args = splitTopLevelWithSpans(argumentSource)
     const labels = []
     const forms = []
-    for (const argument of args) {
+    const argumentsWithContracts = []
+    for (const argumentPart of args) {
+      const argument = argumentPart.text
       const labelMatch = argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+      const expression = labelMatch
+        ? argument.slice(labelMatch[0].length).trim()
+        : argument.trim()
+      const operation = expression.match(/^(copy|inout|pin|ref|take)\b/)?.[1] ?? "value"
+      const expressionOffset = argument.indexOf(expression)
       if (labelMatch) {
         labels.push(labelMatch[1])
         forms.push(`${labelMatch[1]}:`)
       } else forms.push("positional")
+      argumentsWithContracts.push({
+        expression,
+        expressionStart: cursor + 1 + argumentPart.start + expressionOffset,
+        form: labelMatch ? `${labelMatch[1]}:` : "positional",
+        label: labelMatch?.[1] ?? null,
+        operation,
+        start: cursor + 1 + argumentPart.start,
+        end: cursor + 1 + argumentPart.end,
+      })
     }
 
     const statementStart = Math.max(
@@ -359,9 +413,12 @@ function parseCalls(source) {
     while (/\s/.test(mask[memberCursor] ?? "")) memberCursor -= 1
     calls.push({
       callee,
+      arguments: argumentsWithContracts,
+      end: closing + 1,
       labels,
       forms,
       member: mask[memberCursor] === ".",
+      start,
       callForm,
       line: source.slice(0, start).split("\n").length,
       source: source.slice(start, closing + 1).replace(/\s+/g, " ").trim(),
@@ -430,6 +487,54 @@ export function acceptsCallShape(parameters, forms) {
   return states.has(parameters.length * 2)
 }
 
+function operationMatchesContract(parameter, argument) {
+  if (argument.operation === "ref") return parameter.contractMode === "ref"
+  if (argument.operation === "inout") return parameter.contractMode === "inout"
+  if (argument.operation === "take") return parameter.contractMode === "take"
+  if (argument.operation === "value") return parameter.contractMode !== "inout"
+  return parameter.contractMode !== "inout"
+}
+
+export function acceptsCallContract(parameters, args) {
+  const memo = new Map()
+  function visit(parameterIndex, argumentIndex, variadicStarted = false) {
+    const key = `${parameterIndex}:${argumentIndex}:${variadicStarted}`
+    if (memo.has(key)) return memo.get(key)
+    if (parameterIndex === parameters.length) {
+      const accepted = argumentIndex === args.length
+      memo.set(key, accepted)
+      return accepted
+    }
+    const parameter = parameters[parameterIndex]
+    if (argumentIndex === args.length) {
+      const accepted = (parameter.hasDefault || parameter.variadic)
+        && visit(parameterIndex + 1, argumentIndex, false)
+      memo.set(key, accepted)
+      return accepted
+    }
+    const argument = args[argumentIndex]
+    let accepted = false
+    if ((parameter.hasDefault || parameter.variadic)
+      && visit(parameterIndex + 1, argumentIndex, false)) {
+      accepted = true
+    }
+    const formMatches = variadicStarted
+      ? argument.form === "positional"
+      : parameter.forms.includes(argument.form)
+    if (!accepted
+      && formMatches
+      && operationMatchesContract(parameter, argument)) {
+      accepted = parameter.variadic
+        ? visit(parameterIndex, argumentIndex + 1, true)
+          || visit(parameterIndex + 1, argumentIndex + 1, false)
+        : visit(parameterIndex + 1, argumentIndex + 1, false)
+    }
+    memo.set(key, accepted)
+    return accepted
+  }
+  return visit(0, 0)
+}
+
 function overlappingCallShape(left, right) {
   const alphabet = [...new Set(
     left.concat(right).flatMap((parameter) =>
@@ -491,6 +596,7 @@ function deriveCallableLabels(source, declarations) {
       }
     }
     const item = {
+      boundary: declaration.boundary,
       callShapes,
       params: declaration.params,
       ordinal: declarations.indexOf(declaration),
@@ -523,11 +629,26 @@ function deriveCallableLabels(source, declarations) {
         label: unknown ?? suppliedShape,
         acceptedForms: acceptedShapes,
       })
+    } else if (!duplicate
+      && declarationsForName.some((declaration) => declaration.boundary !== "foreign")
+      && !declarationsForName.some((declaration) => declaration.boundary === "foreign"
+        || acceptsCallContract(declaration.params, call.arguments))) {
+      diagnostics.push({
+        code: "W-OWNERSHIP-0017",
+        declaration: call.callee,
+        expectedContracts: declarationsForName.map((declaration) =>
+          declaration.params.map((parameter) => parameter.contractMode)),
+        suppliedOperations: call.arguments.map((argument) => argument.operation),
+        line: call.line,
+        reason: "call-site-operation-does-not-match-parameter-contract",
+        source: call.source,
+      })
     }
   }
   return {
     declarations: declarations.map((declaration, ordinal) => ({
       name: declaration.name,
+      boundary: declaration.boundary,
       ordinal,
       scope: declaration.scope,
       line: declaration.line,
