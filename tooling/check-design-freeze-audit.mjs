@@ -51,6 +51,7 @@ const corpusFiles = [
   "process-root-cases.json",
   "filesystem-cases.json",
   "io-error-cases.json",
+  "operational-time-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

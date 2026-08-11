@@ -7,6 +7,7 @@
 import * from std.io
 import fs from std
 import net from std
+import time from std
 
 export enum ExitCode: Copy & Equatable {
   success
@@ -104,7 +105,7 @@ foreign intrinsic from "std.process@1" {
 
   async fn stdProcessServicesDrain(
     handle: ref ServicesHandle,
-    deadline: Deadline,
+    deadline: time.Deadline,
   )
   fn stdProcessServicesDrop(handle: inout ServicesHandle)
 
@@ -113,9 +114,10 @@ foreign intrinsic from "std.process@1" {
   fn stdProcessContextError(handle: ref ContextHandle): OutputHandle
   fn stdProcessContextFileSystem(handle: ref ContextHandle): fs.FileSystem
   fn stdProcessContextNetwork(handle: ref ContextHandle): net.Network
+  fn stdProcessContextClock(handle: ref ContextHandle): time.Clock
   fn stdProcessContextSignals(handle: ref ContextHandle): SignalRegistryHandle
   fn stdProcessContextServices(handle: ref ContextHandle): ServicesHandle
-  fn stdProcessContextDeadline(handle: ref ContextHandle): Deadline
+  fn stdProcessContextDeadline(handle: ref ContextHandle): time.Deadline
   fn stdProcessContextDrop(handle: inout ContextHandle)
 }
 
@@ -311,7 +313,7 @@ export struct Services {
     self.handle = validatedHandle
   }
 
-  export async fn drain(named deadline: Deadline) {
+  export async fn drain(named deadline: time.Deadline) {
     unsafe { await stdProcessServicesDrain(ref handle, deadline) }
   }
 
@@ -353,6 +355,10 @@ export struct Context {
     get => unsafe { stdProcessContextNetwork(ref handle) }
   }
 
+  export clock: time.Clock {
+    get => unsafe { stdProcessContextClock(ref handle) }
+  }
+
   export signals: SignalRegistry {
     get => SignalRegistry(validatedHandle: unsafe {
       stdProcessContextSignals(ref handle)
@@ -365,7 +371,7 @@ export struct Context {
     })
   }
 
-  export deadline: Deadline {
+  export deadline: time.Deadline {
     get => unsafe { stdProcessContextDeadline(ref handle) }
   }
 

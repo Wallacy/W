@@ -21,6 +21,7 @@
     "check:process-root": "bun test tooling/process-root-reference.test.mjs && bun tooling/check-process-root-cases.mjs",
     "check:filesystem": "bun test tooling/filesystem-reference.test.mjs && bun tooling/check-filesystem-cases.mjs",
     "check:io-error": "bun test tooling/io-error-reference.test.mjs && bun tooling/check-io-error-cases.mjs",
+    "check:time": "bun test tooling/operational-time-reference.test.mjs && bun tooling/check-operational-time-cases.mjs",
     "check:source-calls": "bun tooling/check-source-call-shapes.mjs",
     "check:web-bodies": "bun test tooling/web-body-reference.test.mjs && bun tooling/check-web-body-cases.mjs",
     "check:foreign-bodies": "bun test tooling/foreign-body-reference.test.mjs && bun tooling/check-foreign-body-cases.mjs",

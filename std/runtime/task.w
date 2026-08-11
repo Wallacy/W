@@ -1,5 +1,7 @@
 // Public value contracts for lexical tasks and structured cancellation.
 
+import { Duration } from std.time
+
 export enum CancellationReason {
   userRequest
   shutdown

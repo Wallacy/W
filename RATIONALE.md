@@ -3493,6 +3493,33 @@ Alternativas rejeitadas:
 - `wouldBlock`, EOF, interrupção ou cancellation como `IoErrorKind`;
 - `retryable: Bool` sem operation, progress, idempotência e deadline.
 
+### 1.23 Relógio operacional e deadlines
+
+As APIs maduras convergem em separar medição monotônica de calendário. O
+[WASI clocks](https://wa.dev/wasi%3Aclocks) define uma origem monotônica opaca,
+resolução explícita e subscription. O
+[Rust `Instant`](https://doc.rust-lang.org/stable/std/time/struct.Instant.html)
+é opaco e nondecreasing, mas documenta que steadiness e o tratamento de system
+suspend variam por plataforma. A
+[documentação `time` de Go](https://pkg.go.dev/time) separa leitura monotônica
+de wall time e remove a parte monotônica ao serializar. A
+[Swift SE-0329](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0329-clock-instant-duration.md)
+separa `Clock`, `Instant` e `Duration`; a
+[proposta de deadlines de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0526-deadline.md)
+reforça deadlines absolutos como forma composável.
+
+W escolhe um único clock operacional por entry/fault root. Essa regra evita
+generic identity pública e impede comparar acidentalmente origens diferentes.
+`Duration` é data signed exata; `Instant` e `Deadline` são copies dependentes do
+root, sem raw timestamp. O provider declara resolução e se system suspend entra
+na conta. `.unspecified` mantém honestidade quando o target não oferece uma
+garantia estável.
+
+Tempo civil fica separado porque UTC, timezone, calendars, leap seconds e
+serialization têm contratos diferentes. Misturar os dois faria uma correção de
+data alterar timeout ou elapsed time. TIME0 testa as regras de design, mas não
+mede um clock nem implementa scheduler ou timer.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -4427,7 +4454,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 70 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std verificável | profiles cobrem 371 APIs em 28 módulos, 30/30 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 87 superfícies são verificadas e 22/22 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
+| W-891 | catálogo std verificável | profiles cobrem 377 APIs em 29 módulos, 31/31 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 92 superfícies são verificadas e 23/23 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em seis cases, Body consuming e clone bounded; Blob compõe W e FormData separa lista de multipart; `Context` e `serve` são extensions; provider `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal; aliases `path`, `query` ou `decodeJson`; clone sem bound; Blob com authority; multipart parcial |
@@ -4834,7 +4861,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
 | W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`, sem binding oculto | descartar argv, injetar args/ctx, singleton process ou duplicar projections |
 | W-1297 | argumentos nativos | Arguments preserva OsString ordenado, empresta por get/iteração e oferece comparação textual exata sem lossy decode | Array<String>, locale, normalização, cópia por projection ou acesso sem bound |
-| W-1298 | Context por capability | getters retornam owners retidos root-scoped; reachability exige stdio/network/signals/services individualmente | mapa universal, capability opcional runtime, Context serializable ou getter ambiental |
+| W-1298 | Context por capability | getters retornam owners retidos root-scoped; reachability exige stdio/network/clock/signals/services individualmente | mapa universal, capability opcional runtime, Context serializable ou getter ambiental |
 | W-1299 | stdio de processo | Input usa um cursor ByteSource e stream de linhas UTF-8 bounded; Output usa progress e calls sem byte interleaving | readline global, decode lossy, newline implícito, collect ou concorrência sem admission |
 | W-1300 | signals geracionais | registration owned fecha admission; replace publica generation; callbacks aceitos são children estruturados fora do raw handler | callback W no signal handler, hostBinding estático, contagem exata, handler detached |
 | W-1301 | status e drain separados | ExitCode cobre término normal portátil; Services.drain fecha admission até deadline sem prometer rollback ou matar o processo | raw status truncado, drain como transaction, timeout igual cancel ou exit ambiental |
@@ -4846,6 +4873,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1307 | interferência de arquivo | shared File usa I/O posicional; ranges disjuntos e read/read são paralelos, overlap unordered é provider-ordered com warning e append atomiza somente offset; sem ordering ele também interfere com I/O posicional | cursor compartilhado, lock implícito, tratar recurso externo como data race W ou prometer ordem de append |
 | W-1308 | IoError portátil | kind fechado, operação lógica W e cause opaco bounded; adapter de domínio pode promover o snapshot | errno público, syscall como operação, cause serializável ou enum non-exhaustive |
 | W-1309 | controle de I/O | wouldBlock suspende, interrupção sem progress repete, EOF usa ReadStep e cancellation usa TaskOutcome | transformar controle em IoError ou oferecer retryable Boolean |
+| W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata | unsigned duration, float, infinity, wraparound ou layout público |
+| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; runtime interno não concede leitura à aplicação | global clock, constructor público, lookup ambiental ou `.monotonicClock` paralelo |
+| W-1312 | origem temporal local | Instant e Deadline são opacos, dependem do root e não cruzam service/wire/storage/foreign; Duration cruza | raw ticks públicos, serializar Instant, comparar roots ou identity generic na syntax |
+| W-1313 | profile monotônico honesto | now não regride; resolução positiva e suspend accounting included/excluded/unspecified são facts do provider; sem steadiness ou hard real-time | frequência constante universal, bool do caller, esconder suspend policy ou timing como prova |
+| W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
+| W-1315 | tempo civil separado | `.clock` não fornece data, timezone ou calendário; contrato civil futuro terá capability e values próprios e nunca dirige deadline | `now()` global de parede, timestamp em Instant ou calendário implícito no runtime |
+| W-1316 | evidence TIME0 | source W, 43 casos e oito testes host cobrem Duration, Clock, origin, profile, deadline, boundaries e clock virtual sem alegar provider | timing real como oracle, expected echo, chamar modelo de scheduler ou provider |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

@@ -1,5 +1,7 @@
 // Bounded process-local cache contracts.
 
+import { Duration } from std.time
+
 export enum Expiration {
   none
   afterAccess(Duration)

@@ -5,6 +5,7 @@ const contextRequirements = new Map([
   ["stderr", "stdio"],
   ["filesystem", "filesystem"],
   ["network", "network"],
+  ["clock", "clock"],
   ["signals", "signals"],
   ["services", "services"],
   ["deadline", null],

@@ -10074,9 +10074,35 @@ restrito à interface runtime `unsafe`.
 
 #### 12.6.3 Deadline e relógio operacional
 
-`Deadline` é um valor opaco ligado a um clock monotônico local. Ele não contém
-wall-clock time e não é serializável. Ajustes de data e timezone não alteram sua
-ordem.
+`std.time` separa quatro conceitos. `Duration` é data portátil. `Clock` é uma
+capability monotônica do entry ou fault root. `Instant` e `Deadline` são valores
+opacos dependentes desse mesmo root. Eles não contêm wall-clock time, não têm
+projeção numérica e não são serializáveis. Ajustes de data e timezone não
+alteram sua ordem.
+
+**W-1310 — Duration é um total exato:** seu valor semântico é um total signed de
+nanoseconds no intervalo de `i128`. Seu layout físico é opaco. Ele não possui
+NaN nem infinity. A aritmética mantém a semântica checked dos integers.
+
+**W-1311 — Clock é authority explícita:** o runtime pode medir tempo para
+scheduling, deadline e trace sem conceder a capability `.clock`. O programa só
+lê o relógio quando um `Context` projeta `time.Clock`. Não existe `Clock()`
+público, clock global ou lookup ambiental. Cada projection retém um owner no
+mesmo root; reter o wrapper não amplia authority nem lifetime.
+
+**W-1312 — origem monotônica não cruza boundaries:** `Clock.now()` produz
+`Instant` e `Clock.deadline(after:)` produz `Deadline` com a identidade do root.
+`Clock.duration(from:to:)`, `remaining(until:)` e `hasReached(_:)` aceitam
+somente valores dessa origem. O checker rejeita mistura entre roots antes do
+provider. `Duration` cruza service, wire e storage; `Clock`, `Instant` e
+`Deadline` não.
+
+**W-1313 — o profile não promete um relógio ideal:** leituras de `now()` não
+diminuem e `resolution()` é uma `Duration<(1...)>`. O provider declara
+`suspendAccounting()` como `.included`, `.excluded` ou `.unspecified`. Nenhuma
+dessas formas promete frequência constante, ausência de drift, latência máxima
+ou hard real-time. Testes podem substituir a capability do root por um clock
+virtual determinístico.
 
 Um child herda o menor deadline entre parent e operação. Nenhuma API pode
 ampliar o deadline herdado. Um timeout local cria um deadline relativo ao clock
@@ -10090,11 +10116,6 @@ let outcome = await Task.withTimeout(
   using: fetchMenu,
 )
 ```
-
-`Duration` é o intervalo operacional exato de host. Seu valor semântico é um
-total signed de nanoseconds no intervalo de `i128`. Seu layout físico é opaco.
-Ele não possui NaN nem infinity. A aritmética mantém a semântica checked dos
-integers.
 
 `Duration` expõe somente o valor por uma projection read-only e por um
 constructor total:
@@ -10132,20 +10153,42 @@ usa `none`; infinity não representa essa ausência.
 `Task.withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
 Uma duração zero devolve cancellation antes de executar o body.
 
+**W-1314 — deadline é cancelamento estruturado, não alarme exato:**
+`Clock.deadline(after:)` aceita somente duração não negativa e falha com
+`ClockError.outOfRange` quando o provider não representa o ponto. Zero já está
+alcançado. Um timer nunca publica expiration antes do deadline lógico, mas uma
+task pode voltar depois por admission, scheduling ou suspensão do host.
+Expiration solicita cancellation e aguarda cleanup; ela não mata thread, não
+faz rollback e não transforma o error da aplicação.
+
+```w
+let clock = process.context.clock
+let started = clock.now()
+let deadline = try clock.deadline(after: 250<si.ms>)
+let remaining = clock.remaining(until: deadline)
+let elapsed = clock.duration(from: started, to: clock.now())
+```
+
 Nanoseconds são a resolução pública da baseline. Eles cobrem clocks e timers
 dos targets iniciais e mantêm o bootstrap simples. Quantities físicas podem
 usar `f64`, decimal ou rational. Device cycles também usam um tipo próprio.
 Picoseconds, femtoseconds e attoseconds não ampliam `Duration` sem um caso
 mensurável.
 
-O runtime pode medir tempo para scheduling, deadline e trace sem conceder a
-capability de application clock. O programa só lê tempo quando seu `Context`
-fornece essa authority. Testes substituem o clock operacional por um clock
-virtual.
+**W-1315 — tempo civil é outro contrato:** `.clock` concede somente o relógio
+operacional. Data UTC, timezone, calendário e relógio de parede exigem uma
+capability e values próprios. Eles não entram em deadline ou elapsed time e não
+ficam implícitos em `std.time`. A forma pública de tempo civil permanece fora
+deste slice até fechar calendário, leap seconds, serialization e autoridade.
 
-`Duration` atravessa uma service boundary; `Deadline` não. A seção 13.6 define
-como a boundary propaga o budget de tempo sem fingir que dois clocks monotônicos
-são o mesmo clock.
+**W-1316 — evidence TIME0:** source W, 43 casos tabelados e oito testes host
+derivam range, exatidão, capability, origem, profile, deadline, cancellation,
+boundary e clock virtual. Eles não executam W, timer, scheduler, sistema
+operacional ou provider `std.time@1`.
+
+`std/time/contracts.w` materializa essa interface. A seção 13.6 define como uma
+boundary propaga o budget de tempo sem fingir que dois clocks monotônicos são o
+mesmo clock.
 
 #### 12.6.4 Admission de task
 
@@ -18453,9 +18496,10 @@ limitado ao mesmo root:
 | `stdout`, `stderr` | `process.Output` | `.stdio` |
 | `filesystem` | `fs.FileSystem` | `.filesystem` |
 | `network` | `net.Network` | `.network` |
+| `clock` | `time.Clock` | `.clock` |
 | `signals` | `process.SignalRegistry` | `.signals` |
 | `services` | `process.Services` | `.services` |
-| `deadline` | `Deadline` | root deadline |
+| `deadline` | `time.Deadline` | root deadline |
 
 O checker deriva requirements dos members alcançados. O linker rejeita um
 product sem a capability correspondente. O wrapper não cruza service, wire,
@@ -18487,7 +18531,7 @@ raw signal context e drena antes do root terminar. `std.posix` pode fornecer
 signals adicionais sem ampliar o enum portátil.
 
 **W-1301 — shutdown e término permanecem separados:** `Services.drain` fecha
-admission e aguarda roots de service até o `Deadline` do host. A operação não
+admission e aguarda roots de service até o `time.Deadline` do host. A operação não
 transforma timeout em rollback e não encerra o processo por conta própria.
 Depois do grace period, a fault policy do host decide o boundary. Retornar
 `ExitCode` seleciona somente o status normal; typed error, panic, signal fatal e
@@ -18495,8 +18539,9 @@ forced boundary continuam outcomes distintos.
 
 `std/process/contracts.w` é a projection source deste contrato. `filesystem`
 expõe somente a raiz `fs.FileSystem` concedida pelo product; não expõe cwd ou
-namespace ambiental. O Context não expõe environment, clock wall, secrets,
-process memory ou handles arbitrários. Cada família futura precisa de member,
+namespace ambiental. `clock` expõe somente `time.Clock` monotônico; não concede
+tempo civil. O Context não expõe environment, wall clock, secrets, process
+memory ou handles arbitrários. Cada família futura precisa de member,
 capability, limits e provider próprios.
 
 ## 15. Números, ranges e unidades

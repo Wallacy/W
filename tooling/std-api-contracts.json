@@ -201,6 +201,27 @@
       "bounds": ["entry-root-lifetime", "declared-capability-set", "no-boundary-crossing"],
       "complexity": { "time": "constant", "space": "bounded-by-projections" }
     },
+    "time-duration": {
+      "capabilities": [],
+      "effects": ["checked-arithmetic"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["signed-i128-nanoseconds", "exact-unit-conversion", "opaque-layout"],
+      "complexity": { "time": "constant", "space": "constant" }
+    },
+    "time-local-value": {
+      "capabilities": ["operational-clock-origin"],
+      "effects": ["root-dependency"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["entry-or-fault-root", "same-clock-origin", "no-boundary-crossing"],
+      "complexity": { "time": "constant", "space": "opaque-value" }
+    },
+    "time-clock": {
+      "capabilities": ["operational-clock"],
+      "effects": ["clock-read", "deadline-creation", "retained-projection"],
+      "failures": { "mode": "typed", "types": ["time.ClockError"] },
+      "bounds": ["entry-or-fault-root", "positive-resolution", "provider-range", "same-clock-origin"],
+      "complexity": { "time": "constant-provider", "space": "fixed-handle" }
+    },
     "fs-path": {
       "capabilities": [],
       "effects": ["allocation", "native-path-conversion"],
@@ -1335,6 +1356,59 @@
       ]
     },
     {
+      "id": "std.time",
+      "availability": "host-operational-clock",
+      "source": "std/time/contracts.w",
+      "designAnchors": ["12.6.3", "14.5.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.time@1",
+        "status": "missing",
+        "gates": [
+          "monotonic-nondecreasing",
+          "resolution-reporting",
+          "suspend-accounting-profile",
+          "same-root-origin-check",
+          "no-early-expiration",
+          "structured-cancellation-drain",
+          "virtual-clock-determinism"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/time_oracle.w",
+        "symbols": ["Duration", "Clock", "Instant", "Deadline"]
+      },
+      "apis": [
+        { "symbol": "SuspendAccounting", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "ClockError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Duration",
+          "kind": "struct",
+          "profile": "time-duration",
+          "members": [
+            { "symbol": "init", "profile": "time-duration" },
+            { "symbol": "nanoseconds", "profile": "time-duration" }
+          ]
+        },
+        { "symbol": "Instant", "kind": "struct", "profile": "time-local-value" },
+        { "symbol": "Deadline", "kind": "struct", "profile": "time-local-value" },
+        {
+          "symbol": "Clock",
+          "kind": "struct",
+          "profile": "time-clock",
+          "members": [
+            { "symbol": "now", "profile": "time-clock" },
+            { "symbol": "resolution", "profile": "time-clock" },
+            { "symbol": "suspendAccounting", "profile": "time-clock" },
+            { "symbol": "duration", "profile": "time-clock" },
+            { "symbol": "deadline", "profile": "time-clock" },
+            { "symbol": "remaining", "profile": "time-clock" },
+            { "symbol": "hasReached", "profile": "time-clock" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.process",
       "availability": "native-process-host",
       "source": "std/process/contracts.w",
@@ -1349,6 +1423,7 @@
           "stdio-progress",
           "signal-generation",
           "structured-callback-drain",
+          "clock-projection-origin",
           "capability-link-denial"
         ]
       },
@@ -1426,6 +1501,7 @@
             { "symbol": "stderr", "profile": "process-output" },
             { "symbol": "filesystem", "profile": "process-context" },
             { "symbol": "network", "profile": "process-context" },
+            { "symbol": "clock", "profile": "time-clock" },
             { "symbol": "signals", "profile": "process-signals" },
             { "symbol": "services", "profile": "process-services" },
             { "symbol": "deadline", "profile": "process-context" }
@@ -2951,12 +3027,22 @@
     { "binding": "http", "module": "std.http" },
     { "binding": "parquet", "module": "std.parquet" },
     { "binding": "streaming", "module": "std.stream" },
+    { "binding": "time", "module": "std.time" },
     { "binding": "url", "module": "std.url" },
     { "binding": "accelerator", "module": "std.accelerator" },
     { "binding": "tensor", "module": "std.tensor" },
     { "binding": "dlpack", "module": "std.dlpack" }
   ],
   "referenceRequirements": [
+    {
+      "id": "sdk0-operational-time",
+      "module": "std.time",
+      "surface": "Clock",
+      "kind": "symbol",
+      "consumer": "reference/last-light/time_oracle.w",
+      "profile": "time-clock",
+      "status": "draft"
+    },
     {
       "id": "sdk0-process-arguments",
       "module": "std.process",

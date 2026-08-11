@@ -226,8 +226,9 @@ let status = unsafe { ll_probe_read(handle, inout raw) }</code></pre></div>
         <article class="book-chapter" id="supply-chain" data-book-section>
           <p class="chapter-number">Capítulo 8</p>
           <h2>SDK, build, packages e distribuição</h2>
-          <p>T0 contém semântica independente do ambiente. T1 contém systems e adapters comuns, inclusive
-            <code>print</code>. T2 contém domínios oficiais como HTTP, SI, tensor e durable storage.</p>
+          <p>A standard library usa módulos concretos, como <code>std.io</code>, <code>std.net</code>,
+            <code>std.math</code> e <code>std.tensor</code>. Todos seguem o mesmo contrato de suporte;
+            capabilities, target availability e reachability determinam o que entra no produto.</p>
           <div class="code-shell"><pre><code>w build --locked --target x86_64-windows
 w explain dependency kitchen
 w explain resource restaurant.http

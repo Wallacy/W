@@ -1,0 +1,307 @@
+{
+  "$schema": "w-operational-time-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "TIME0-POS-duration-zero",
+      "kind": "positive",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "construct", "nanoseconds": "0" },
+      "expect": { "accepted": true, "nanoseconds": "0", "exact": true, "portable": true, "serializable": true, "physicalLayoutPublic": false }
+    },
+    {
+      "id": "TIME0-POS-duration-minimum",
+      "kind": "positive",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "construct", "nanoseconds": "-170141183460469231731687303715884105728" },
+      "expect": { "accepted": true, "nanoseconds": "-170141183460469231731687303715884105728" }
+    },
+    {
+      "id": "TIME0-POS-duration-maximum",
+      "kind": "positive",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "construct", "nanoseconds": "170141183460469231731687303715884105727" },
+      "expect": { "accepted": true, "nanoseconds": "170141183460469231731687303715884105727" }
+    },
+    {
+      "id": "TIME0-NEG-duration-invalid-integer",
+      "kind": "negative",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "construct", "nanoseconds": "1.5" },
+      "expect": { "accepted": false, "reason": "invalidInteger" }
+    },
+    {
+      "id": "TIME0-NEG-duration-below-minimum",
+      "kind": "negative",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "construct", "nanoseconds": "-170141183460469231731687303715884105729" },
+      "expect": { "accepted": false, "reason": "durationOutOfRange" }
+    },
+    {
+      "id": "TIME0-POS-duration-checked-add",
+      "kind": "positive",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "add", "left": "-25", "right": "40" },
+      "expect": { "accepted": true, "nanoseconds": "15", "checked": true }
+    },
+    {
+      "id": "TIME0-NEG-duration-add-overflow",
+      "kind": "negative",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "add", "left": "170141183460469231731687303715884105727", "right": "1" },
+      "expect": { "accepted": false, "reason": "checkedOverflow" }
+    },
+    {
+      "id": "TIME0-POS-exact-unit-literal",
+      "kind": "positive",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "unitLiteral", "nanosecondNumerator": "250000", "denominator": "1" },
+      "expect": { "accepted": true, "nanoseconds": "250000", "exact": true }
+    },
+    {
+      "id": "TIME0-NEG-inexact-unit-literal",
+      "kind": "negative",
+      "decisions": ["W-1310"],
+      "input": { "subject": "duration", "operation": "unitLiteral", "nanosecondNumerator": "1", "denominator": "2" },
+      "expect": { "accepted": false, "reason": "inexactOperationalDuration" }
+    },
+    {
+      "id": "TIME0-POS-clock-context-projection",
+      "kind": "positive",
+      "decisions": ["W-1311", "W-1315"],
+      "input": { "subject": "clock", "operation": "project", "root": true, "capabilities": ["clock"] },
+      "expect": { "accepted": true, "requirement": "clock", "retainedOwner": true, "rootBound": true, "global": false, "wallClock": false }
+    },
+    {
+      "id": "TIME0-NEG-clock-capability-missing",
+      "kind": "negative",
+      "decisions": ["W-1311"],
+      "input": { "subject": "clock", "operation": "project", "root": true, "capabilities": [] },
+      "expect": { "accepted": false, "reason": "clockCapabilityMissing", "providerCalled": false }
+    },
+    {
+      "id": "TIME0-NEG-clock-outside-root",
+      "kind": "negative",
+      "decisions": ["W-1311"],
+      "input": { "subject": "clock", "operation": "project", "root": false, "capabilities": ["clock"] },
+      "expect": { "accepted": false, "reason": "clockOutsideRoot" }
+    },
+    {
+      "id": "TIME0-NEG-global-clock",
+      "kind": "negative",
+      "decisions": ["W-1311"],
+      "input": { "subject": "clock", "operation": "global" },
+      "expect": { "accepted": false, "reason": "ambientClockForbidden" }
+    },
+    {
+      "id": "TIME0-POS-runtime-internal-clock-does-not-grant-authority",
+      "kind": "positive",
+      "decisions": ["W-1311"],
+      "input": { "subject": "clock", "operation": "runtimeInternal" },
+      "expect": { "accepted": true, "schedulerMayRead": true, "applicationAuthorityGranted": false }
+    },
+    {
+      "id": "TIME0-POS-provider-counts-suspend",
+      "kind": "positive",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1", "2", "2"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
+      "expect": { "accepted": true, "nondecreasing": true, "suspendAccounting": "included", "steadyFrequencyPromised": false, "hardRealtimePromised": false }
+    },
+    {
+      "id": "TIME0-POS-provider-pauses-during-suspend",
+      "kind": "positive",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["10", "10", "12"], "resolutionNanoseconds": "2", "suspendAccounting": "excluded" },
+      "expect": { "accepted": true, "resolutionNanoseconds": "2", "suspendAccounting": "excluded", "rawTicksPublic": false }
+    },
+    {
+      "id": "TIME0-POS-provider-suspend-policy-unspecified",
+      "kind": "positive",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["7"], "resolutionNanoseconds": "100", "suspendAccounting": "unspecified" },
+      "expect": { "accepted": true, "sampleCount": 1, "suspendAccounting": "unspecified" }
+    },
+    {
+      "id": "TIME0-NEG-clock-regression",
+      "kind": "negative",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["8", "7"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
+      "expect": { "accepted": false, "reason": "clockRegressed" }
+    },
+    {
+      "id": "TIME0-NEG-zero-resolution",
+      "kind": "negative",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "0", "suspendAccounting": "included" },
+      "expect": { "accepted": false, "reason": "invalidResolution" }
+    },
+    {
+      "id": "TIME0-NEG-caller-invents-provider-facts",
+      "kind": "negative",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "caller", "samples": ["1"], "resolutionNanoseconds": "1", "suspendAccounting": "included" },
+      "expect": { "accepted": false, "reason": "providerClockFactsRequired" }
+    },
+    {
+      "id": "TIME0-NEG-invalid-suspend-policy",
+      "kind": "negative",
+      "decisions": ["W-1313"],
+      "input": { "subject": "clock", "operation": "samples", "factSource": "provider", "samples": ["1"], "resolutionNanoseconds": "1", "suspendAccounting": "alwaysSteady" },
+      "expect": { "accepted": false, "reason": "invalidSuspendAccounting" }
+    },
+    {
+      "id": "TIME0-POS-instant-forward-duration",
+      "kind": "positive",
+      "decisions": ["W-1312"],
+      "input": { "subject": "relation", "operation": "duration", "clockRoot": "root-a", "valueRoot": "root-a", "earlierNanoseconds": "4", "laterNanoseconds": "19" },
+      "expect": { "accepted": true, "nanoseconds": "15", "signed": true, "rawInstantPublic": false }
+    },
+    {
+      "id": "TIME0-POS-instant-reversed-duration",
+      "kind": "positive",
+      "decisions": ["W-1312"],
+      "input": { "subject": "relation", "operation": "duration", "clockRoot": "root-a", "valueRoot": "root-a", "earlierNanoseconds": "19", "laterNanoseconds": "4" },
+      "expect": { "accepted": true, "nanoseconds": "-15", "signed": true }
+    },
+    {
+      "id": "TIME0-NEG-instant-origin-mismatch",
+      "kind": "negative",
+      "decisions": ["W-1312"],
+      "input": { "subject": "relation", "operation": "duration", "clockRoot": "root-a", "valueRoot": "root-b", "earlierNanoseconds": "4", "laterNanoseconds": "19" },
+      "expect": { "accepted": false, "reason": "clockOriginMismatch", "providerCalled": false }
+    },
+    {
+      "id": "TIME0-POS-duration-crosses-service",
+      "kind": "positive",
+      "decisions": ["W-1312"],
+      "input": { "subject": "boundary", "value": "duration", "boundary": "service" },
+      "expect": { "accepted": true, "portable": true, "authorityTransferred": false }
+    },
+    {
+      "id": "TIME0-POS-duration-crosses-storage",
+      "kind": "positive",
+      "decisions": ["W-1312"],
+      "input": { "subject": "boundary", "value": "duration", "boundary": "storage" },
+      "expect": { "accepted": true, "boundary": "storage", "portable": true }
+    },
+    {
+      "id": "TIME0-NEG-instant-crosses-service",
+      "kind": "negative",
+      "decisions": ["W-1312"],
+      "input": { "subject": "boundary", "value": "instant", "boundary": "service" },
+      "expect": { "accepted": false, "reason": "rootLocalTimeValue", "authorityTransferred": false }
+    },
+    {
+      "id": "TIME0-NEG-deadline-crosses-storage",
+      "kind": "negative",
+      "decisions": ["W-1312"],
+      "input": { "subject": "boundary", "value": "deadline", "boundary": "storage" },
+      "expect": { "accepted": false, "reason": "rootLocalTimeValue", "boundary": "storage" }
+    },
+    {
+      "id": "TIME0-NEG-clock-crosses-foreign-boundary",
+      "kind": "negative",
+      "decisions": ["W-1311", "W-1312"],
+      "input": { "subject": "boundary", "value": "clock", "boundary": "foreign" },
+      "expect": { "accepted": false, "reason": "rootLocalTimeValue", "boundary": "foreign" }
+    },
+    {
+      "id": "TIME0-POS-relative-deadline",
+      "kind": "positive",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "deadline", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "100", "delayNanoseconds": "25", "maximumNanoseconds": "1000" },
+      "expect": { "accepted": true, "deadlineCreated": true, "immediatelyReached": false, "rawDeadlinePublic": false }
+    },
+    {
+      "id": "TIME0-POS-zero-deadline-is-reached",
+      "kind": "positive",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "deadline", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "100", "delayNanoseconds": "0", "maximumNanoseconds": "1000" },
+      "expect": { "accepted": true, "immediatelyReached": true }
+    },
+    {
+      "id": "TIME0-NEG-negative-deadline-duration",
+      "kind": "negative",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "deadline", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "100", "delayNanoseconds": "-1", "maximumNanoseconds": "1000" },
+      "expect": { "accepted": false, "reason": "negativeDeadlineDuration" }
+    },
+    {
+      "id": "TIME0-NEG-deadline-provider-range",
+      "kind": "negative",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "deadline", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "990", "delayNanoseconds": "20", "maximumNanoseconds": "1000" },
+      "expect": { "accepted": false, "reason": "deadlineOutOfRange" }
+    },
+    {
+      "id": "TIME0-POS-deadline-remaining",
+      "kind": "positive",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "remaining", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "30", "deadlineNanoseconds": "80" },
+      "expect": { "accepted": true, "nanoseconds": "50", "clampedAtZero": true }
+    },
+    {
+      "id": "TIME0-POS-expired-deadline-clamps-zero",
+      "kind": "positive",
+      "decisions": ["W-1314"],
+      "input": { "subject": "relation", "operation": "remaining", "clockRoot": "root-a", "valueRoot": "root-a", "nowNanoseconds": "90", "deadlineNanoseconds": "80" },
+      "expect": { "accepted": true, "nanoseconds": "0", "clampedAtZero": true }
+    },
+    {
+      "id": "TIME0-POS-timer-fires-at-deadline",
+      "kind": "positive",
+      "decisions": ["W-1314"],
+      "input": { "subject": "timer", "deadlineNanoseconds": "100", "firedNanoseconds": "100", "cancellationRequested": true, "cleanupDrained": true },
+      "expect": { "accepted": true, "expired": true, "resumedLateNanoseconds": "0", "threadKilled": false, "rollbackClaimed": false }
+    },
+    {
+      "id": "TIME0-POS-timer-may-resume-late",
+      "kind": "positive",
+      "decisions": ["W-1313", "W-1314"],
+      "input": { "subject": "timer", "deadlineNanoseconds": "100", "firedNanoseconds": "145", "cancellationRequested": true, "cleanupDrained": true },
+      "expect": { "accepted": true, "resumedLateNanoseconds": "45", "cancellationRequested": true, "cleanupDrained": true }
+    },
+    {
+      "id": "TIME0-NEG-timer-fires-early",
+      "kind": "negative",
+      "decisions": ["W-1314"],
+      "input": { "subject": "timer", "deadlineNanoseconds": "100", "firedNanoseconds": "99", "cancellationRequested": true, "cleanupDrained": true },
+      "expect": { "accepted": false, "reason": "earlyExpiration" }
+    },
+    {
+      "id": "TIME0-NEG-expiration-without-cancellation",
+      "kind": "negative",
+      "decisions": ["W-1314"],
+      "input": { "subject": "timer", "deadlineNanoseconds": "100", "firedNanoseconds": "100", "cancellationRequested": false, "cleanupDrained": true },
+      "expect": { "accepted": false, "reason": "expirationWithoutCancellation" }
+    },
+    {
+      "id": "TIME0-NEG-expiration-without-cleanup-drain",
+      "kind": "negative",
+      "decisions": ["W-1314"],
+      "input": { "subject": "timer", "deadlineNanoseconds": "100", "firedNanoseconds": "100", "cancellationRequested": true, "cleanupDrained": false },
+      "expect": { "accepted": false, "reason": "cleanupNotDrained" }
+    },
+    {
+      "id": "TIME0-NEG-operational-clock-is-not-wall-clock",
+      "kind": "negative",
+      "decisions": ["W-1315"],
+      "input": { "subject": "clock", "operation": "wallNow" },
+      "expect": { "accepted": false, "reason": "civilTimeCapabilityRequired" }
+    },
+    {
+      "id": "TIME0-POS-virtual-clock-is-deterministic",
+      "kind": "positive",
+      "decisions": ["W-1313", "W-1316"],
+      "input": { "subject": "virtual", "provider": "virtual", "factSource": "testFixture", "advances": ["5", "0", "7"] },
+      "expect": { "accepted": true, "deterministic": true, "samples": ["0", "5", "5", "12"], "ambientReads": 0 }
+    },
+    {
+      "id": "TIME0-NEG-virtual-clock-needs-fixture-facts",
+      "kind": "negative",
+      "decisions": ["W-1316"],
+      "input": { "subject": "virtual", "provider": "system", "factSource": "caller", "advances": ["5"] },
+      "expect": { "accepted": false, "reason": "invalidVirtualClockProvider" }
+    }
+  ]
+}

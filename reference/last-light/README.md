@@ -207,6 +207,7 @@ alvo de execução independente.
 | `streams.w` | stream pull, readable Web, channel CH0, rendezvous, permits, close e owner recovery |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `io_error_oracle.w` | kind portátil, operação lógica, cause opaco e recovery específica da aplicação |
+| `time_oracle.w` | Duration exata, Clock explícito e Instant/Deadline limitados ao mesmo root |
 | `fs_oracle.w` | root capability, native paths, rights, snapshot e publicação durable de arquivo |
 | `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
@@ -2202,11 +2203,18 @@ alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 
 `process_oracle.w` fixa os valores da entry root nativa. `Arguments` preserva
 cada argumento como `OsString`; `Context` projeta somente as capabilities do
-produto; `ExitCode` separa conclusão portátil de fault. `process.args` e
+produto, inclusive o `time.Clock` monotônico quando `.clock` está presente;
+`ExitCode` separa conclusão portátil de fault. `process.args` e
 `process.context` tomam empréstimos do mesmo owner do root. Eles não criam um
 singleton ambiental. PR0 deriva stdio, signals e drain em um oracle host, mas
 não executa W, o scheduler, o sistema operacional ou o provider
 `std.process@1`.
+
+`time_oracle.w` separa `Duration` portátil de `Clock`, `Instant` e `Deadline`
+root-scoped. TIME0 deriva clock não regressivo, resolução, suspend accounting,
+origem, expiration sem disparo antecipado, cancellation drain e clock virtual.
+Ele não executa W, timer, scheduler, sistema operacional ou o provider
+`std.time@1`. Tempo civil não faz parte da capability `.clock`.
 
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
