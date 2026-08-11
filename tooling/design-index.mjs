@@ -296,6 +296,7 @@ const oracleCorpusFiles = [
   "foreign-body-cases.json",
   "web-body-cases.json",
   "process-root-cases.json",
+  "filesystem-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -819,6 +820,39 @@ const processRootOperations = processRootCorpus.cases.reduce(
 const acceptedProcessRootCases = processRootCorpus.cases.filter(
   (testCase) => testCase.kind === "positive",
 ).length;
+const filesystemCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "filesystem-cases.json"), "utf8"),
+);
+const filesystemCases = filesystemCorpus.cases.length;
+const filesystemOperations = filesystemCorpus.cases.reduce(
+  (count, testCase) => {
+    const input = testCase.input ?? {};
+    const arrays = [
+      input.rights,
+      input.parentRights,
+      input.childRights,
+      input.bytes,
+      input.source,
+      input.concurrentPrefix,
+      input.steps,
+      input.entries,
+      input.events,
+      input.operations,
+      input.happensBefore,
+      input.path?.steps,
+      input.sourcePath?.steps,
+      input.destinationPath?.steps,
+    ];
+    return count + Object.keys(input).length + Object.keys(input.rootLimits ?? {}).length + arrays.reduce(
+      (total, value) => total + (Array.isArray(value) ? value.length : 0),
+      0,
+    );
+  },
+  0,
+);
+const acceptedFilesystemCases = filesystemCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -1077,6 +1111,11 @@ output.push(
   `| casos/operações do root de processo PR0 | ${processRootCases}/${processRootOperations} ` +
     `(${acceptedProcessRootCases} aceitos + ${processRootCases - acceptedProcessRootCases} rejeitados; ` +
     `host oracle não executa W/provider) |`,
+);
+output.push(
+  `| casos/operações do filesystem FS0 | ${filesystemCases}/${filesystemOperations} ` +
+    `(${acceptedFilesystemCases} aceitos + ${filesystemCases - acceptedFilesystemCases} rejeitados; ` +
+    `host oracle não executa syscalls/provider) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

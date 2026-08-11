@@ -1,20 +1,20 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "2f6bbbd8ef4222d51fa6509e2ca1f3e84424ecee80287889edd5d8cb9ffa9668",
+  "catalogDigest": "f24668cf0659e86d0ea71b8c434c00aa04e548bf4488f4946b92fe36207329ae",
   "summary": {
-    "modules": 27,
-    "catalogedApis": 349,
-    "draftCatalogedApis": 349,
+    "modules": 28,
+    "catalogedApis": 367,
+    "draftCatalogedApis": 367,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 87,
-    "referenceRequirements": 27,
-    "contractedReferenceRequirements": 27,
+    "referenceRequirements": 29,
+    "contractedReferenceRequirements": 29,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
-    "implementationProviders": 21,
-    "missingImplementationProviders": 21
+    "implementationProviders": 22,
+    "missingImplementationProviders": 22
   },
   "modules": [
     {
@@ -1856,6 +1856,561 @@
           "declarationDigest": "889d9a8e5721fe0802f7bbc148d11b527a3448c88df0d62aba4cab7347ffaf80",
           "line": 48,
           "profile": "dlpack-import",
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.fs",
+      "availability": "filesystem-root-provider",
+      "source": "std/fs/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.fs@1",
+        "status": "missing",
+        "gates": [
+          "bounded-path-resolution",
+          "cancellation-drain",
+          "directory-stream-bounds",
+          "durability-profile",
+          "namespace-atomicity",
+          "native-path-round-trip",
+          "positional-short-io",
+          "root-containment",
+          "shared-file-interference",
+          "snapshot-version",
+          "static-rights"
+        ]
+      },
+      "catalogedDeclarationsDigest": "afdc00fe675df6f5269c67307443de60cd1b9030bfe95a07a0ea30a84de47bc9",
+      "apis": [
+        {
+          "symbol": "DirectoryEntry",
+          "kind": "struct",
+          "signature": "export struct DirectoryEntry",
+          "declarationDigest": "56c7ad84e628c3e9fa13f128a4e9635fd0827109dd21b4b9e239443552a361c0",
+          "line": 278,
+          "profile": "fs-directory",
+          "members": [
+            {
+              "symbol": "name",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export name: ref OsString",
+                  "line": 287
+                }
+              ],
+              "profile": "fs-directory"
+            },
+            {
+              "symbol": "kindHint",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export kindHint: FileKind?",
+                  "line": 291
+                }
+              ],
+              "profile": "fs-directory"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "DirectoryError",
+          "kind": "enum",
+          "signature": "export enum DirectoryError: Error & Duplicable",
+          "declarationDigest": "cbeee12464191dc3d1abc152ffcc3c516b51d8b565df6133240dab7d03db4876",
+          "line": 54,
+          "profile": "fs-directory",
+          "status": "draft"
+        },
+        {
+          "symbol": "DirectoryLimits",
+          "kind": "struct",
+          "signature": "export struct DirectoryLimits: Copy & Equatable",
+          "declarationDigest": "2d7d570824af2b767c884365b20d3877d0e9b451079af1b95f36016af707d8fd",
+          "line": 69,
+          "profile": "fs-directory",
+          "members": [
+            {
+              "symbol": "maximumEntries",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumEntries: usize<(1...)> export maximumNameUnits: usize<(1...)> export maximumTotalNameUnits: usize<(1...)>",
+                  "line": 70
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "maximumNameUnits",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumNameUnits: usize<(1...)> export maximumTotalNameUnits: usize<(1...)>",
+                  "line": 71
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "maximumTotalNameUnits",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export maximumTotalNameUnits: usize<(1...)>",
+                  "line": 72
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init( maximumEntries: usize<(1...)> = 4_096, maximumNameUnits: usize<(1...)> = 4_096, maximumTotalNameUnits: usize<(1...)> = 1_048_576, )",
+                  "line": 74
+                }
+              ],
+              "profile": "fs-directory"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Durability",
+          "kind": "enum",
+          "signature": "export enum Durability: Copy & Equatable",
+          "declarationDigest": "b0d926cb06dd8d9d594b4565f6e94f913c6c79e347f28a75a3b715f6c056c254",
+          "line": 23,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "File",
+          "kind": "struct",
+          "signature": "export struct File<_ rights: StaticList<FileRight>>",
+          "declarationDigest": "d38e95ed6f1f7048876d32fcddf761975c22ee1b7d4abf1223214307eb58c9a5",
+          "line": 372,
+          "profile": "fs-root",
+          "members": [
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export async fn read( at offset: FileOffset, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
+                  "line": 380
+                }
+              ],
+              "profile": "fs-file-read"
+            },
+            {
+              "symbol": "write",
+              "overloads": [
+                {
+                  "signature": "export async fn write( at offset: FileOffset, named source: view Bytes, ): WriteStep throws IoError",
+                  "line": 396
+                }
+              ],
+              "profile": "fs-file-write"
+            },
+            {
+              "symbol": "append",
+              "overloads": [
+                {
+                  "signature": "export async fn append(named source: view Bytes): WriteStep throws IoError",
+                  "line": 404
+                }
+              ],
+              "profile": "fs-file-write"
+            },
+            {
+              "symbol": "reader",
+              "overloads": [
+                {
+                  "signature": "export take fn reader(from offset: FileOffset): some ByteSource<IoError>",
+                  "line": 409
+                }
+              ],
+              "profile": "fs-file-read"
+            },
+            {
+              "symbol": "snapshot",
+              "overloads": [
+                {
+                  "signature": "export async fn snapshot( named maximumBytes: u64, ): FileSnapshot throws SnapshotError",
+                  "line": 415
+                }
+              ],
+              "profile": "fs-snapshot"
+            },
+            {
+              "symbol": "sync",
+              "overloads": [
+                {
+                  "signature": "export async fn sync(_ durability: Durability): () throws IoError",
+                  "line": 425
+                }
+              ],
+              "profile": "fs-durability"
+            },
+            {
+              "symbol": "finish",
+              "overloads": [
+                {
+                  "signature": "export take async fn finish( named durability: Durability = .none, ): () throws IoError",
+                  "line": 431
+                }
+              ],
+              "profile": "fs-durability"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "FileCreation",
+          "kind": "enum",
+          "signature": "export enum FileCreation: Copy & Equatable",
+          "declarationDigest": "50efa86f343e802d2bd6debb1bf84c7807d0d55acde13e90f40591cc3abf1dca",
+          "line": 16,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FileKind",
+          "kind": "enum",
+          "signature": "export enum FileKind: Copy & Equatable",
+          "declarationDigest": "2c12aa2ef34b87275a62614c5a5a066db38ec700cb7046fe23b76bce0a62a0e4",
+          "line": 34,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FileMetadata",
+          "kind": "struct",
+          "signature": "export struct FileMetadata",
+          "declarationDigest": "965730cdef1822ba7fd0a43469b435bae6906c092443ff39438acb760739c8f5",
+          "line": 260,
+          "profile": "fs-root",
+          "members": [
+            {
+              "symbol": "kind",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export kind: FileKind",
+                  "line": 269
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "byteLength",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export byteLength: u64?",
+                  "line": 273
+                }
+              ],
+              "profile": "value-contract"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "FileOffset",
+          "kind": "type",
+          "signature": "export type FileOffset = u64",
+          "declarationDigest": "63e47dc3d7095a4212a85e12482d6504075db311ad4c48ee733f2e2c63d1d2d4",
+          "line": 8,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FileRight",
+          "kind": "enum",
+          "signature": "export enum FileRight: Copy & Equatable & Hashable",
+          "declarationDigest": "f3c55e6c914e090e079eff6e9b55d86df5f639814d9dca5396e80ff1777e703c",
+          "line": 10,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "FileSnapshot",
+          "kind": "struct",
+          "signature": "export struct FileSnapshot: SnapshotByteSource<IoError>",
+          "declarationDigest": "e58512c2915748a2bf8e4f971baaf8be7a0dc1d84846becddbac2352facec9ef",
+          "line": 296,
+          "profile": "fs-snapshot",
+          "members": [
+            {
+              "symbol": "byteCount",
+              "overloads": [
+                {
+                  "signature": "export fn byteCount(): u64",
+                  "line": 303
+                }
+              ],
+              "profile": "fs-snapshot"
+            },
+            {
+              "symbol": "read",
+              "overloads": [
+                {
+                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): SnapshotReadStep throws IoError",
+                  "line": 307
+                }
+              ],
+              "profile": "fs-snapshot"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "FileSystem",
+          "kind": "struct",
+          "signature": "export struct FileSystem",
+          "declarationDigest": "56f77a799d009a6ff94246c222e1bfd8b12c4016ba51d6296f412f6b0473b1c4",
+          "line": 442,
+          "profile": "fs-root",
+          "members": [
+            {
+              "symbol": "scope",
+              "overloads": [
+                {
+                  "signature": "export async fn scope(at path: ref Path): FileSystem throws IoError",
+                  "line": 449
+                }
+              ],
+              "profile": "fs-scope"
+            },
+            {
+              "symbol": "open",
+              "overloads": [
+                {
+                  "signature": "export async fn open<_ rights: StaticList<FileRight>>( _ path: ref Path, named creation: FileCreation = .openExisting, ): File<rights> throws IoError",
+                  "line": 454
+                }
+              ],
+              "profile": "fs-open"
+            },
+            {
+              "symbol": "metadata",
+              "overloads": [
+                {
+                  "signature": "export async fn metadata(_ path: ref Path): FileMetadata throws IoError",
+                  "line": 464
+                }
+              ],
+              "profile": "fs-metadata"
+            },
+            {
+              "symbol": "entries",
+              "overloads": [
+                {
+                  "signature": "export async fn entries( at path: ref Path, named limits: DirectoryLimits = DirectoryLimits(), ): some Stream<DirectoryEntry, DirectoryError> throws DirectoryError",
+                  "line": 468
+                }
+              ],
+              "profile": "fs-directory"
+            },
+            {
+              "symbol": "createDirectory",
+              "overloads": [
+                {
+                  "signature": "export async fn createDirectory(_ path: ref Path): () throws NamespaceError",
+                  "line": 478
+                }
+              ],
+              "profile": "fs-namespace"
+            },
+            {
+              "symbol": "removeFile",
+              "overloads": [
+                {
+                  "signature": "export async fn removeFile(_ path: ref Path): () throws NamespaceError",
+                  "line": 482
+                }
+              ],
+              "profile": "fs-namespace"
+            },
+            {
+              "symbol": "removeEmptyDirectory",
+              "overloads": [
+                {
+                  "signature": "export async fn removeEmptyDirectory( _ path: ref Path, ): () throws NamespaceError",
+                  "line": 486
+                }
+              ],
+              "profile": "fs-namespace"
+            },
+            {
+              "symbol": "rename",
+              "overloads": [
+                {
+                  "signature": "export async fn rename( from source: ref Path, to destination: ref Path, named replacement: RenamePolicy = .keepExisting, ): () throws NamespaceError",
+                  "line": 492
+                }
+              ],
+              "profile": "fs-namespace"
+            },
+            {
+              "symbol": "syncNamespace",
+              "overloads": [
+                {
+                  "signature": "export async fn syncNamespace( at path: ref Path, ): () throws IoError",
+                  "line": 507
+                }
+              ],
+              "profile": "fs-durability"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "NamespaceError",
+          "kind": "enum",
+          "signature": "export enum NamespaceError: Error & Duplicable",
+          "declarationDigest": "8fcd9052a860e9e81afc75befed89b43cf354b3a655891909384fe061c748384",
+          "line": 61,
+          "profile": "fs-namespace",
+          "status": "draft"
+        },
+        {
+          "symbol": "Path",
+          "kind": "struct",
+          "signature": "export struct Path: Duplicable",
+          "declarationDigest": "bb49734c4283fa9d0904d58883de71d83e6b88c7d73189216392834e2063147b",
+          "line": 201,
+          "profile": "fs-path",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ native: ref OsString) throws PathEncodingError",
+                  "line": 204
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "fromUtf8",
+              "overloads": [
+                {
+                  "signature": "export static fn fromUtf8(_ path: ref Utf8Path): Path",
+                  "line": 212
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "toUtf8",
+              "overloads": [
+                {
+                  "signature": "export fn toUtf8(): Utf8Path throws PathEncodingError",
+                  "line": 216
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "displayLossy",
+              "overloads": [
+                {
+                  "signature": "export fn displayLossy(): String",
+                  "line": 221
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): Path",
+                  "line": 225
+                }
+              ],
+              "profile": "fs-path"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "PathEncodingError",
+          "kind": "enum",
+          "signature": "export enum PathEncodingError: Error & Duplicable",
+          "declarationDigest": "76f8e052bb7370ca188c77c6b1f2f5e53fd19d065812b4dfb028a67e027b7736",
+          "line": 41,
+          "profile": "fs-path",
+          "status": "draft"
+        },
+        {
+          "symbol": "RenamePolicy",
+          "kind": "enum",
+          "signature": "export enum RenamePolicy: Copy & Equatable",
+          "declarationDigest": "aa638fd9ee7b88944fc4da03eed857ece1b45ed9469c103aac0871bdc6c526df",
+          "line": 29,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "SnapshotError",
+          "kind": "enum",
+          "signature": "export enum SnapshotError: Error & Duplicable",
+          "declarationDigest": "c1a7ff6e3f9c84463db3b0399dde84c8c09fe3d88a11ce4bb8795c8a359c64dc",
+          "line": 47,
+          "profile": "fs-snapshot",
+          "status": "draft"
+        },
+        {
+          "symbol": "Utf8Path",
+          "kind": "struct",
+          "signature": "export struct Utf8Path: Duplicable",
+          "declarationDigest": "ac7f9d3e6474bc9a2c12fdf96c911664dfaa8d0bf47b1231f79a78b59c957c29",
+          "line": 234,
+          "profile": "fs-path",
+          "members": [
+            {
+              "symbol": "init",
+              "overloads": [
+                {
+                  "signature": "export init(_ text: String) throws PathEncodingError",
+                  "line": 237
+                },
+                {
+                  "signature": "export init(_ path: ref Path) throws PathEncodingError",
+                  "line": 243
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "text",
+              "overloads": [
+                {
+                  "signature": "export fn text(): ref String",
+                  "line": 251
+                }
+              ],
+              "profile": "fs-path"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): Utf8Path",
+                  "line": 255
+                }
+              ],
+              "profile": "fs-path"
+            }
+          ],
           "status": "draft"
         }
       ]
@@ -6086,14 +6641,14 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "8fe599c0bc1293275cfb0be8118631cd258de0dab99401aae1d5b36024207aec",
+      "catalogedDeclarationsDigest": "a1d50f40d476265afaba4a8251b1fcbb2f592598cbca880af5a45bafa012cda9",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
           "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
-          "line": 120,
+          "line": 122,
           "profile": "process-arguments",
           "members": [
             {
@@ -6102,7 +6657,7 @@
               "overloads": [
                 {
                   "signature": "export count: usize",
-                  "line": 127
+                  "line": 129
                 }
               ],
               "profile": "process-arguments"
@@ -6113,7 +6668,7 @@
               "overloads": [
                 {
                   "signature": "export isEmpty: Bool",
-                  "line": 131
+                  "line": 133
                 }
               ],
               "profile": "process-arguments"
@@ -6123,7 +6678,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(index: usize): ref OsString?",
-                  "line": 135
+                  "line": 137
                 }
               ],
               "profile": "process-arguments"
@@ -6133,11 +6688,11 @@
               "overloads": [
                 {
                   "signature": "export fn contains(native value: ref OsString): Bool",
-                  "line": 139
+                  "line": 141
                 },
                 {
                   "signature": "export fn contains(value: ref String): Bool",
-                  "line": 146
+                  "line": 148
                 }
               ],
               "profile": "process-arguments"
@@ -6147,7 +6702,7 @@
               "overloads": [
                 {
                   "signature": "export fn iterator(): some Iterator<ref OsString>",
-                  "line": 174
+                  "line": 176
                 }
               ],
               "profile": "process-arguments"
@@ -6159,8 +6714,8 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "029dcf1095df329f06bc33eeabd1869b9b8f0ff01fb3b3b8864c420f50bf8411",
-          "line": 321,
+          "declarationDigest": "0aa2a9d9aff2d442a761a1757cd1469c28d7634bf95b2211cc54033056e8513c",
+          "line": 323,
           "profile": "process-context",
           "members": [
             {
@@ -6169,7 +6724,7 @@
               "overloads": [
                 {
                   "signature": "export stdin: Input",
-                  "line": 328
+                  "line": 330
                 }
               ],
               "profile": "process-input"
@@ -6180,7 +6735,7 @@
               "overloads": [
                 {
                   "signature": "export stdout: Output",
-                  "line": 334
+                  "line": 336
                 }
               ],
               "profile": "process-output"
@@ -6191,10 +6746,21 @@
               "overloads": [
                 {
                   "signature": "export stderr: Output",
-                  "line": 340
+                  "line": 342
                 }
               ],
               "profile": "process-output"
+            },
+            {
+              "symbol": "filesystem",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export filesystem: fs.FileSystem",
+                  "line": 348
+                }
+              ],
+              "profile": "process-context"
             },
             {
               "symbol": "network",
@@ -6202,7 +6768,7 @@
               "overloads": [
                 {
                   "signature": "export network: net.Network",
-                  "line": 346
+                  "line": 352
                 }
               ],
               "profile": "process-context"
@@ -6213,7 +6779,7 @@
               "overloads": [
                 {
                   "signature": "export signals: SignalRegistry",
-                  "line": 350
+                  "line": 356
                 }
               ],
               "profile": "process-signals"
@@ -6224,7 +6790,7 @@
               "overloads": [
                 {
                   "signature": "export services: Services",
-                  "line": 356
+                  "line": 362
                 }
               ],
               "profile": "process-services"
@@ -6235,7 +6801,7 @@
               "overloads": [
                 {
                   "signature": "export deadline: Deadline",
-                  "line": 362
+                  "line": 368
                 }
               ],
               "profile": "process-context"
@@ -6248,7 +6814,7 @@
           "kind": "enum",
           "signature": "export enum ExitCode: Copy & Equatable",
           "declarationDigest": "96392068f3a569b64d4a9b6d57d802cbd3c6487a62c12fbde9ab4965d4d415ae",
-          "line": 10,
+          "line": 11,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -6257,7 +6823,7 @@
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
           "declarationDigest": "e9a75b075acec9aafe54a8e88cfd7fac24310093ec7284d2e8b472f7c8880cdf",
-          "line": 179,
+          "line": 181,
           "profile": "process-input",
           "members": [
             {
@@ -6265,7 +6831,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
-                  "line": 186
+                  "line": 188
                 }
               ],
               "profile": "process-input"
@@ -6275,7 +6841,7 @@
               "overloads": [
                 {
                   "signature": "export fn lines( named maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
-                  "line": 199
+                  "line": 201
                 }
               ],
               "profile": "process-input"
@@ -6288,7 +6854,7 @@
           "kind": "enum",
           "signature": "export enum InputError: Error",
           "declarationDigest": "092b2c37911a08c40f89347ce4108bb68d3a8e431b54f11237adc5e0aa48e838",
-          "line": 30,
+          "line": 31,
           "profile": "process-input",
           "status": "draft"
         },
@@ -6297,7 +6863,7 @@
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
           "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
-          "line": 233,
+          "line": 235,
           "profile": "process-output",
           "members": [
             {
@@ -6305,7 +6871,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
-                  "line": 240
+                  "line": 242
                 }
               ],
               "profile": "process-output"
@@ -6315,7 +6881,7 @@
               "overloads": [
                 {
                   "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
-                  "line": 248
+                  "line": 250
                 }
               ],
               "profile": "process-output"
@@ -6328,7 +6894,7 @@
           "kind": "struct",
           "signature": "export struct Services",
           "declarationDigest": "23fdbf0e2ed39e53f98c2df5b01affd5b59dd1206ada7be3331b595c4f2993ac",
-          "line": 305,
+          "line": 307,
           "profile": "process-services",
           "members": [
             {
@@ -6336,7 +6902,7 @@
               "overloads": [
                 {
                   "signature": "export async fn drain(named deadline: Deadline)",
-                  "line": 312
+                  "line": 314
                 }
               ],
               "profile": "process-services"
@@ -6349,7 +6915,7 @@
           "kind": "enum",
           "signature": "export enum Signal: Copy & Equatable & Hashable",
           "declarationDigest": "f6170c792a4513c253a94c3a5c534a7b99defe7eb5ae95ecc46a8039a916278f",
-          "line": 15,
+          "line": 16,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -6358,7 +6924,7 @@
           "kind": "enum",
           "signature": "export enum SignalError: Error & Duplicable",
           "declarationDigest": "06fcfc3d9d46ec3760f7c8ae45ea5b40aa15eac02e247e75081ce17511e134d1",
-          "line": 20,
+          "line": 21,
           "profile": "process-signals",
           "status": "draft"
         },
@@ -6367,7 +6933,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistration",
           "declarationDigest": "6e56dc43f2b7eb1ce9c895a2761221772c9be78a57e63f005a900ef16370b1a2",
-          "line": 281,
+          "line": 283,
           "profile": "process-signals",
           "members": [
             {
@@ -6375,7 +6941,7 @@
               "overloads": [
                 {
                   "signature": "export fn replace( named handler: some async fn(Signal, Context): (), ): () throws SignalError",
-                  "line": 288
+                  "line": 290
                 }
               ],
               "profile": "process-signals"
@@ -6385,7 +6951,7 @@
               "overloads": [
                 {
                   "signature": "export fn cancel()",
-                  "line": 294
+                  "line": 296
                 }
               ],
               "profile": "process-signals"
@@ -6398,7 +6964,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistry",
           "declarationDigest": "088c77a2bd592bae01e4ee7cdd1727e0219788aab0b91ae4c5314b7df7c98b03",
-          "line": 259,
+          "line": 261,
           "profile": "process-signals",
           "members": [
             {
@@ -6406,7 +6972,7 @@
               "overloads": [
                 {
                   "signature": "export fn register( signals: view Array<Signal>, named handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
-                  "line": 266
+                  "line": 268
                 }
               ],
               "profile": "process-signals"
@@ -8574,6 +9140,22 @@
       "status": "draft",
       "profile": "accelerator-launch",
       "consumer": "reference/last-light/device_execution_oracle.w"
+    },
+    {
+      "id": "fs0-file-snapshot",
+      "module": "std.fs",
+      "surface": "FileSnapshot",
+      "status": "draft",
+      "profile": "fs-snapshot",
+      "consumer": "reference/last-light/fs_oracle.w"
+    },
+    {
+      "id": "fs0-filesystem-root",
+      "module": "std.fs",
+      "surface": "FileSystem",
+      "status": "draft",
+      "profile": "fs-root",
+      "consumer": "reference/last-light/fs_oracle.w"
     },
     {
       "id": "pyn3-presentation-presentable",

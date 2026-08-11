@@ -5,6 +5,7 @@
 // compiler projections available only inside a native-process entry root.
 
 import * from std.io
+import fs from std
 import net from std
 
 export enum ExitCode: Copy & Equatable {
@@ -110,6 +111,7 @@ foreign intrinsic from "std.process@1" {
   fn stdProcessContextInput(handle: ref ContextHandle): InputHandle
   fn stdProcessContextOutput(handle: ref ContextHandle): OutputHandle
   fn stdProcessContextError(handle: ref ContextHandle): OutputHandle
+  fn stdProcessContextFileSystem(handle: ref ContextHandle): fs.FileSystem
   fn stdProcessContextNetwork(handle: ref ContextHandle): net.Network
   fn stdProcessContextSignals(handle: ref ContextHandle): SignalRegistryHandle
   fn stdProcessContextServices(handle: ref ContextHandle): ServicesHandle
@@ -341,6 +343,10 @@ export struct Context {
     get => Output(validatedHandle: unsafe {
       stdProcessContextError(ref handle)
     })
+  }
+
+  export filesystem: fs.FileSystem {
+    get => unsafe { stdProcessContextFileSystem(ref handle) }
   }
 
   export network: net.Network {

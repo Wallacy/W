@@ -194,6 +194,83 @@
       "bounds": ["entry-root-lifetime", "declared-capability-set", "no-boundary-crossing"],
       "complexity": { "time": "constant", "space": "bounded-by-projections" }
     },
+    "fs-path": {
+      "capabilities": [],
+      "effects": ["allocation", "native-path-conversion"],
+      "failures": { "mode": "typed", "types": ["fs.PathEncodingError"] },
+      "bounds": ["native-path-units", "strict-text-conversion", "no-ambient-resolution"],
+      "complexity": { "time": "linear-path", "space": "owned-path" }
+    },
+    "fs-root": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["capability-carry", "drop"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["root-authority", "root-lifetime", "product-rights", "provider-generation"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "fs-scope": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "path-resolution", "capability-derivation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["descendant-root", "non-amplification", "provider-generation"],
+      "complexity": { "time": "provider-bounded", "space": "fixed-handle" }
+    },
+    "fs-open": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "path-resolution", "allocation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["static-rights", "root-containment", "provider-quota"],
+      "complexity": { "time": "provider-bounded", "space": "fixed-handle" }
+    },
+    "fs-metadata": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "path-resolution", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["root-containment", "portable-kind", "regular-byte-length"],
+      "complexity": { "time": "provider-bounded", "space": "constant" }
+    },
+    "fs-file-read": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "byte-io", "allocation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["static-read-right", "u64-offset", "maximum-argument", "borrow-drain"],
+      "complexity": { "time": "linear-progress", "space": "destination-growth-bounded-by-maximum" }
+    },
+    "fs-file-write": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "byte-io", "namespace", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["static-write-or-append-right", "u64-offset", "source-size", "borrow-drain"],
+      "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
+    },
+    "fs-snapshot": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "byte-io", "allocation", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["fs.SnapshotError", "IoError"] },
+      "bounds": ["maximum-bytes", "file-version", "publication-after-validation"],
+      "complexity": { "time": "linear-file", "space": "bounded-by-maximum" }
+    },
+    "fs-directory": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["path-resolution", "allocation", "stream", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["fs.DirectoryError", "IoError"] },
+      "bounds": ["entry-count", "name-units", "total-name-units", "single-pass"],
+      "complexity": { "time": "linear-entries", "space": "bounded-by-limits" }
+    },
+    "fs-namespace": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "path-resolution", "namespace", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["fs.NamespaceError", "IoError"] },
+      "bounds": ["same-root", "no-recursion", "explicit-replacement", "unknown-outcome"],
+      "complexity": { "time": "provider-bounded", "space": "constant" }
+    },
+    "fs-durability": {
+      "capabilities": ["filesystem-root"],
+      "effects": ["suspension", "durability", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["IoError"] },
+      "bounds": ["static-write-or-append-right", "provider-profile", "explicit-request"],
+      "complexity": { "time": "provider-bounded", "space": "constant" }
+    },
     "http-handler": {
       "capabilities": ["http-context"],
       "effects": ["suspension", "network"],
@@ -1098,6 +1175,136 @@
       ]
     },
     {
+      "id": "std.fs",
+      "availability": "filesystem-root-provider",
+      "source": "std/fs/contracts.w",
+      "designAnchors": ["14.2.6", "14.2.9", "16.7"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.fs@1",
+        "status": "missing",
+        "gates": [
+          "native-path-round-trip",
+          "root-containment",
+          "bounded-path-resolution",
+          "static-rights",
+          "positional-short-io",
+          "shared-file-interference",
+          "directory-stream-bounds",
+          "snapshot-version",
+          "namespace-atomicity",
+          "durability-profile",
+          "cancellation-drain"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/fs_oracle.w",
+        "symbols": ["FileSystem", "Path", "File", "FileSnapshot", "DirectoryEntry"]
+      },
+      "apis": [
+        { "symbol": "FileOffset", "kind": "type", "profile": "value-contract" },
+        { "symbol": "FileRight", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FileCreation", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "Durability", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "RenamePolicy", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "FileKind", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "PathEncodingError", "kind": "enum", "profile": "fs-path" },
+        { "symbol": "SnapshotError", "kind": "enum", "profile": "fs-snapshot" },
+        { "symbol": "DirectoryError", "kind": "enum", "profile": "fs-directory" },
+        { "symbol": "NamespaceError", "kind": "enum", "profile": "fs-namespace" },
+        {
+          "symbol": "DirectoryLimits",
+          "kind": "struct",
+          "profile": "fs-directory",
+          "members": [
+            { "symbol": "maximumEntries", "profile": "value-contract" },
+            { "symbol": "maximumNameUnits", "profile": "value-contract" },
+            { "symbol": "maximumTotalNameUnits", "profile": "value-contract" },
+            { "symbol": "init", "profile": "fs-directory" }
+          ]
+        },
+        {
+          "symbol": "Path",
+          "kind": "struct",
+          "profile": "fs-path",
+          "members": [
+            { "symbol": "init", "profile": "fs-path" },
+            { "symbol": "fromUtf8", "profile": "fs-path" },
+            { "symbol": "toUtf8", "profile": "fs-path" },
+            { "symbol": "displayLossy", "profile": "fs-path" },
+            { "symbol": "duplicate", "profile": "fs-path" }
+          ]
+        },
+        {
+          "symbol": "Utf8Path",
+          "kind": "struct",
+          "profile": "fs-path",
+          "members": [
+            { "symbol": "init", "profile": "fs-path", "overloads": 2 },
+            { "symbol": "text", "profile": "fs-path" },
+            { "symbol": "duplicate", "profile": "fs-path" }
+          ]
+        },
+        {
+          "symbol": "FileMetadata",
+          "kind": "struct",
+          "profile": "fs-root",
+          "members": [
+            { "symbol": "kind", "profile": "value-contract" },
+            { "symbol": "byteLength", "profile": "value-contract" }
+          ]
+        },
+        {
+          "symbol": "DirectoryEntry",
+          "kind": "struct",
+          "profile": "fs-directory",
+          "members": [
+            { "symbol": "name", "profile": "fs-directory" },
+            { "symbol": "kindHint", "profile": "fs-directory" }
+          ]
+        },
+        {
+          "symbol": "FileSnapshot",
+          "kind": "struct",
+          "profile": "fs-snapshot",
+          "members": [
+            { "symbol": "byteCount", "profile": "fs-snapshot" },
+            { "symbol": "read", "profile": "fs-snapshot" }
+          ]
+        },
+        {
+          "symbol": "File",
+          "kind": "struct",
+          "profile": "fs-root",
+          "members": [
+            { "symbol": "read", "profile": "fs-file-read" },
+            { "symbol": "write", "profile": "fs-file-write" },
+            { "symbol": "append", "profile": "fs-file-write" },
+            { "symbol": "reader", "profile": "fs-file-read" },
+            { "symbol": "snapshot", "profile": "fs-snapshot" },
+            { "symbol": "sync", "profile": "fs-durability" },
+            { "symbol": "finish", "profile": "fs-durability" }
+          ]
+        },
+        {
+          "symbol": "FileSystem",
+          "kind": "struct",
+          "profile": "fs-root",
+          "members": [
+            { "symbol": "scope", "profile": "fs-scope" },
+            { "symbol": "open", "profile": "fs-open" },
+            { "symbol": "metadata", "profile": "fs-metadata" },
+            { "symbol": "entries", "profile": "fs-directory" },
+            { "symbol": "createDirectory", "profile": "fs-namespace" },
+            { "symbol": "removeFile", "profile": "fs-namespace" },
+            { "symbol": "removeEmptyDirectory", "profile": "fs-namespace" },
+            { "symbol": "rename", "profile": "fs-namespace" },
+            { "symbol": "syncNamespace", "profile": "fs-durability" }
+          ]
+        }
+      ]
+    },
+    {
       "id": "std.process",
       "availability": "native-process-host",
       "source": "std/process/contracts.w",
@@ -1187,6 +1394,7 @@
             { "symbol": "stdin", "profile": "process-input" },
             { "symbol": "stdout", "profile": "process-output" },
             { "symbol": "stderr", "profile": "process-output" },
+            { "symbol": "filesystem", "profile": "process-context" },
             { "symbol": "network", "profile": "process-context" },
             { "symbol": "signals", "profile": "process-signals" },
             { "symbol": "services", "profile": "process-services" },
@@ -2840,6 +3048,24 @@
       "kind": "symbol",
       "consumer": "reference/last-light/data_formats.w",
       "profile": "snapshot-byte-source",
+      "status": "draft"
+    },
+    {
+      "id": "fs0-filesystem-root",
+      "module": "std.fs",
+      "surface": "FileSystem",
+      "kind": "symbol",
+      "consumer": "reference/last-light/fs_oracle.w",
+      "profile": "fs-root",
+      "status": "draft"
+    },
+    {
+      "id": "fs0-file-snapshot",
+      "module": "std.fs",
+      "surface": "FileSnapshot",
+      "kind": "symbol",
+      "consumer": "reference/last-light/fs_oracle.w",
+      "profile": "fs-snapshot",
       "status": "draft"
     },
     {

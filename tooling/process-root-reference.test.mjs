@@ -71,6 +71,29 @@ test("Context projections require their exact product capability", () => {
   assert.equal(allowed.authorityExpanded, false)
 })
 
+test("filesystem projection keeps the granted root authority", () => {
+  const denied = deriveProcessRoot({
+    subject: "context",
+    operation: "project",
+    root: true,
+    profile: "native-process",
+    member: "filesystem",
+    capabilities: [],
+  })
+  const allowed = deriveProcessRoot({
+    subject: "context",
+    operation: "project",
+    root: true,
+    profile: "native-process",
+    member: "filesystem",
+    capabilities: ["filesystem"],
+  })
+  assert.equal(denied.providerCalled, false)
+  assert.equal(allowed.requirement, "filesystem")
+  assert.equal(allowed.rootBound, true)
+  assert.equal(allowed.authorityExpanded, false)
+})
+
 test("line decoding is bounded, strict, and accepts LF plus CRLF", () => {
   const bytes = [...new TextEncoder().encode("alpha\r\nbeta\nlast")]
   const result = deriveProcessRoot({

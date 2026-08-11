@@ -49,6 +49,7 @@ const corpusFiles = [
   "foreign-body-cases.json",
   "web-body-cases.json",
   "process-root-cases.json",
+  "filesystem-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

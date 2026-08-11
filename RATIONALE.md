@@ -3419,6 +3419,50 @@ Alternativas rejeitadas:
 - syntax distinta de `fn<Language>` para cada linguagem ou unit externa;
 - compilation unit nomeada no source W em paralelo ao package/build graph.
 
+### 1.21 Filesystem capability e I/O posicional
+
+As fontes primárias abaixo sustentam uma semântica W única, sem copiar flags ou
+handles de um host:
+
+- o
+  [POSIX `openat`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/open.html)
+  mostra resolução relativa a um descriptor e separa acesso, criação e falha;
+- o
+  [POSIX `pread`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/read.html)
+  lê em offset explícito sem alterar cursor compartilhado;
+- o
+  [POSIX `renameat`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/rename.html)
+  ancora source e destination em diretórios e distingue atomicidade de
+  namespace;
+- o
+  [WASI filesystem](https://wa.dev/wasi%3Afilesystem)
+  rejeita paths absolutos e resolução que escapa da base capability;
+- o
+  [Windows `CreateFileW`](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
+  combina desired access, creation disposition e handle nativo;
+- o
+  [Windows `ReplaceFileW`](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
+  confirma que replace é uma operação própria e não uma sequência portátil de
+  delete + rename.
+
+W usa essas evidências para separar `FileSystem` root-scoped, rights estáticos,
+creation, I/O posicional, cursor owned, mutation de namespace e durability.
+Nenhum contrato W promete que nome textual é identidade, que rename persiste
+após crash ou que cancellation libera buffers antes do provider drain. O root
+profile também limita path units, componentes e travessias de symlink; containment
+não autoriza busca ilimitada.
+
+Alternativas rejeitadas:
+
+- cwd, filesystem ou path lookup ambiental;
+- `OpenOptions` como builder de flags Boolean runtime;
+- `Array<String>` para nomes do host;
+- cursor compartilhado em todo `File`;
+- `metadata.size` seguido de write como append;
+- listagem recursiva, sorting ou symlink traversal implícitos;
+- rename como durability ou delete + rename como replace atômico;
+- async destructor ou sync escondido no drop.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -4353,7 +4397,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 70 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std verificável | profiles cobrem 349 APIs em 27 módulos, 27/27 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 87 superfícies são verificadas e 21/21 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
+| W-891 | catálogo std verificável | profiles cobrem 367 APIs em 28 módulos, 29/29 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 87 superfícies são verificadas e 22/22 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em seis cases, Body consuming e clone bounded; Blob compõe W e FormData separa lista de multipart; `Context` e `serve` são extensions; provider `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal; aliases `path`, `query` ou `decodeJson`; clone sem bound; Blob com authority; multipart parcial |
@@ -4764,6 +4808,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1299 | stdio de processo | Input usa um cursor ByteSource e stream de linhas UTF-8 bounded; Output usa progress e calls sem byte interleaving | readline global, decode lossy, newline implícito, collect ou concorrência sem admission |
 | W-1300 | signals geracionais | registration owned fecha admission; replace publica generation; callbacks aceitos são children estruturados fora do raw handler | callback W no signal handler, hostBinding estático, contagem exata, handler detached |
 | W-1301 | status e drain separados | ExitCode cobre término normal portátil; Services.drain fecha admission até deadline sem prometer rollback ou matar o processo | raw status truncado, drain como transaction, timeout igual cancel ou exit ambiental |
+| W-1302 | raiz de filesystem | FileSystem é capability root-scoped; resolução prova containment e rejeita absolute, traversal e symlink escape | cwd, root global, canonicalização lexical ou path concede authority |
+| W-1303 | paths nativos | Path preserva OsString; Utf8Path é fallible e display lossy não participa de lookup, equality ou identity | String universal, locale, normalização ou case folding implícitos |
+| W-1304 | snapshot de arquivo | snapshot materializa cópia bounded, valida versão e publica SnapshotByteSource estável | cast de File, mmap invisível, limite após allocation ou aceitar mudança durante leitura |
+| W-1305 | mutation de namespace | create/remove/rename ficam na mesma authority; rename no-replace default, replace regular explícito e unknown outcome tipado | recursive helper core, delete+rename, cross-root ou retry cego |
+| W-1306 | durability explícita | sync data/all, finish data/all e syncNamespace são as únicas solicitações; none, drop, rename e exit não inserem persistência | flush universal, async deinit, durability por default ou promessa sobre cache externa |
+| W-1307 | interferência de arquivo | shared File usa I/O posicional; ranges disjuntos e read/read são paralelos, overlap unordered é provider-ordered com warning e append atomiza somente offset; sem ordering ele também interfere com I/O posicional | cursor compartilhado, lock implícito, tratar recurso externo como data race W ou prometer ordem de append |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
