@@ -1968,6 +1968,9 @@ Aceite:
 - `ScalarName` prova no máximo 256 bytes;
 - `DisplayName` não prova um limite estático de bytes;
 - `w explain performance` separa fato, decisão, estimate e measurement;
+- `InterferenceCounters` permite layout privado sem adicionar `cache` a
+  `Atomic<T>`;
+- `countCompleted` e `combineBrigadeCounts` tornam partition e join explícitos;
 - desligar toda especialização produz os mesmos valores, errors e panic.
 
 O oracle diferencial executa `flavorScore` com lowering portátil, vector,

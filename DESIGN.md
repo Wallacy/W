@@ -218,6 +218,8 @@ concorrente, a ordem de avaliação é ownership local, domain/service, atomic,
 snapshot, channel, `lock` residual e adapter `unsafe`. Uma superfície nova só
 entra quando essa composição não expressa o problema ou quando evidência de
 custo mostra uma perda material. Precedente em outra linguagem não basta.
+Uma proposta de lock precisa mostrar por que as formas anteriores não servem ou
+por que um benchmark reproduzível torna o lock materialmente melhor.
 
 Cada contrato normativo deve incluir ou apontar para um exemplo verificável. O
 exemplo pode ser source válido, diagnostic esperado ou cenário canônico. Uma
@@ -20964,16 +20966,54 @@ Uma order mais fraca não elimina contenção na cache line. Um contador global
 pode escalar menos que counters locais combinados no join. O compiler não faz
 essa transformação sozinho, pois overflow e snapshots observáveis podem mudar.
 
-Fields atômicos independentes podem causar false sharing. O layout W pode
-separá-los quando a mudança é invisível e o profile possui evidência. Um
-contrato explícito `Atomic<T, cache: .isolated>` é **Provável**. Ele altera
-tamanho, alignment e cache footprint por target. Um target sem interference
-granule conhecido rejeita o contract.
+**W-1269 — cache não integra o tipo atômico:** fields independentes podem
+causar false sharing, mas esse efeito não muda atomicidade, order ou extent.
+`Atomic<T, cache: .isolated>` não faz parte do design corrente. Um interference
+granule é uma recomendação de target, não uma garantia universal de hardware.
+
+**W-1270 — layout privado por evidência:** o compiler pode separar places
+mutáveis independentes quando todos estes facts estão fechados:
+
+1. os accesses são race-free, concorrentes, disjuntos e ao menos um escreve;
+2. layout, stride, address e representação física não cruzam ABI, FFI, shared
+   memory, persistence, reflection física ou dynamic loading;
+3. o target profile fixa um destructive-interference size e alignment
+   utilizável;
+4. measurement ou target cost model versionado demonstra contenção;
+5. profile, evidence e layout final entram na recipe;
+6. o footprint final cabe no budget antes de admission.
+
+O lowering pode reordenar, alinhar ou preencher o aggregate ou a allocation
+inteira. Ele nunca afirma que uma cache line física ficou exclusiva. Fact
+ausente produz o layout normal, não erro de build. `w explain performance`
+registra `applied` ou `notApplied`, reason, profile, granule recomendado,
+offsets, footprint e evidence digest.
+
+**W-1271 — partition é semântica explícita:** o compiler não troca um atomic
+global por counters locais. Overflow, instante de publicação e snapshots podem
+mudar. Quando o problema permite redução, o source move partições para
+children e combina resultados no join:
 
 ```w
-// Solicita um interference granule exclusivo, não um tamanho fixo.
-let visits = Atomic<u64, cache: .isolated>(0)
+async let port = countCompleted(take portOrders)
+async let starboard = countCompleted(take starboardOrders)
+let (portCount, starboardCount) = await (port, starboard)
+let completed = portCount + starboardCount
 ```
+
+Um scalar realmente compartilhado continua `Atomic<T>`. `lockFree: true`
+continua um contrato de progress ortogonal; uma order mais fraca não reduz
+interferência de cache.
+
+**W-1272 — layout publicado usa boundary:** ABI, FFI, shared memory e device
+layout usam record de target ou adapter `unsafe` com offsets, alignment e
+digests explícitos. Esse record pode garantir bytes e offsets. Ele não promete
+throughput nem ausência de false sharing. O linter só recomenda partition ou
+mudança de layout quando possui facts de acesso e evidence reproduzível.
+
+**W-1273 — evidence IL0:** o oracle host deriva aplicação e fallback do layout,
+partition explícita, preservação de atomic global e boundaries físicas. Ele não
+executa W, não mede cache e não implementa compiler, allocator ou backend.
 
 Locks registram wait time, hold time, contention e owner causal no profile de
 observabilidade. O runtime não inclui endereço bruto ou thread ID no resultado

@@ -1,0 +1,432 @@
+{
+  "$schema": "w-interference-layout-cases-1",
+  "status": "design-oracle-input",
+  "fixtures": {
+    "candidateAtomic": [
+      {
+        "op": "declareCandidate",
+        "id": "restaurant.performance::InterferenceCounters",
+        "storage": "atomic",
+        "layoutVisibility": "privateOpaque",
+        "layoutScope": "allocation",
+        "aggregateSize": 16,
+        "instanceCount": 1,
+        "places": [
+          { "name": "completed", "offset": 0, "size": 8 },
+          { "name": "horizonSamples", "offset": 8, "size": 8 }
+        ],
+        "boundaries": []
+      }
+    ],
+    "candidateOrdinary": [
+      {
+        "op": "declareCandidate",
+        "id": "restaurant.performance::BrigadeCount",
+        "storage": "ordinary",
+        "layoutVisibility": "privateOpaque",
+        "layoutScope": "allocation",
+        "aggregateSize": 16,
+        "instanceCount": 1,
+        "places": [
+          { "name": "completed", "offset": 0, "size": 8 },
+          { "name": "failed", "offset": 8, "size": 8 }
+        ],
+        "boundaries": []
+      }
+    ],
+    "concurrentWrites": [
+      { "op": "recordAccess", "place": "completed", "group": "kitchen", "phase": "service", "mode": "write", "concurrent": true },
+      { "op": "recordAccess", "place": "horizonSamples", "group": "observatory", "phase": "service", "mode": "write", "concurrent": true }
+    ],
+    "ordinaryConcurrentWrites": [
+      { "op": "recordAccess", "place": "completed", "group": "port", "phase": "count", "mode": "write", "concurrent": true },
+      { "op": "recordAccess", "place": "failed", "group": "starboard", "phase": "count", "mode": "write", "concurrent": true }
+    ],
+    "targetKnown": [
+      { "op": "targetProfile", "digest": "sha256:target-64", "interferenceSize": 64, "maximumAlignment": 64, "recipeInput": true }
+    ],
+    "evidenceMeasured": [
+      { "op": "contentionEvidence", "digest": "sha256:perf-c2c", "kind": "measurement", "contentionObserved": true, "hot": true, "recipeInput": true }
+    ],
+    "budgetEnough": [
+      { "op": "footprintBudget", "maximumAdditionalBytes": 112 }
+    ],
+    "select": [
+      { "op": "selectLayout" }
+    ]
+  },
+  "cases": [
+    {
+      "id": "IL0-accepted-private-atomic-layout",
+      "kind": "accepted",
+      "decisions": ["W-1269", "W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": ["$candidateAtomic", "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"],
+      "expect": { "selectionStatus": "applied", "selectionReason": "privateOpaqueMeasuredContention", "additionalBytes": 112, "guaranteedExclusiveCacheLine": false }
+    },
+    {
+      "id": "IL0-accepted-private-ordinary-layout",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "BrigadeCount" },
+      "operations": ["$candidateOrdinary", "$ordinaryConcurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"],
+      "expect": { "selectionStatus": "applied", "additionalBytes": 112 }
+    },
+    {
+      "id": "IL0-accepted-relaxed-still-contends",
+      "kind": "accepted",
+      "decisions": ["W-1269", "W-1270"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic",
+        { "op": "recordAccess", "place": "completed", "group": "kitchen", "phase": "service", "mode": "write", "concurrent": true, "order": "relaxed" },
+        { "op": "recordAccess", "place": "horizonSamples", "group": "observatory", "phase": "service", "mode": "write", "concurrent": true, "order": "relaxed" },
+        "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "applied" }
+    },
+    {
+      "id": "IL0-accepted-nonconcurrent-not-needed",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic",
+        { "op": "recordAccess", "place": "completed", "group": "kitchen", "phase": "first", "mode": "write", "concurrent": false },
+        { "op": "recordAccess", "place": "horizonSamples", "group": "observatory", "phase": "second", "mode": "write", "concurrent": false },
+        "$select"
+      ],
+      "expect": { "selectionStatus": "notNeeded", "selectionReason": "noHarmfulPair" }
+    },
+    {
+      "id": "IL0-accepted-read-read-not-needed",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic",
+        { "op": "recordAccess", "place": "completed", "group": "kitchen", "phase": "service", "mode": "read", "concurrent": true },
+        { "op": "recordAccess", "place": "horizonSamples", "group": "observatory", "phase": "service", "mode": "read", "concurrent": true },
+        "$select"
+      ],
+      "expect": { "selectionStatus": "notNeeded", "selectionReason": "noHarmfulPair" }
+    },
+    {
+      "id": "IL0-accepted-unknown-granule-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1269", "W-1270"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites",
+        { "op": "targetProfile", "digest": "sha256:unknown", "interferenceSize": null, "maximumAlignment": 16, "recipeInput": true },
+        "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "interferenceSizeUnknown" }
+    },
+    {
+      "id": "IL0-accepted-unpinned-target-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites",
+        { "op": "targetProfile", "digest": "sha256:ambient", "interferenceSize": 64, "maximumAlignment": 64, "recipeInput": false },
+        "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "targetProfileUnpinned" }
+    },
+    {
+      "id": "IL0-accepted-alignment-unavailable-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites",
+        { "op": "targetProfile", "digest": "sha256:small-align", "interferenceSize": 64, "maximumAlignment": 16, "recipeInput": true },
+        "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "alignmentUnavailable" }
+    },
+    {
+      "id": "IL0-accepted-no-evidence-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": ["$candidateAtomic", "$concurrentWrites", "$targetKnown", "$budgetEnough", "$select"],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "contentionEvidenceMissing" }
+    },
+    {
+      "id": "IL0-accepted-unpinned-evidence-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites", "$targetKnown",
+        { "op": "contentionEvidence", "digest": "sha256:ambient-pgo", "kind": "measurement", "contentionObserved": true, "hot": true, "recipeInput": false },
+        "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "evidenceUnpinned" }
+    },
+    {
+      "id": "IL0-accepted-missing-budget-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": ["$candidateAtomic", "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$select"],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "footprintBudgetMissing" }
+    },
+    {
+      "id": "IL0-accepted-budget-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites", "$targetKnown", "$evidenceMeasured",
+        { "op": "footprintBudget", "maximumAdditionalBytes": 111 }, "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "footprintBudgetExceeded", "additionalBytes": 112 }
+    },
+    {
+      "id": "IL0-accepted-published-layout-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1272"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "public.metrics", "storage": "atomic",
+          "layoutVisibility": "published", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": ["abi"]
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "publishedLayout" }
+    },
+    {
+      "id": "IL0-accepted-ffi-boundary-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1272"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "ffi.metrics", "storage": "atomic",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": ["ffi"]
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "boundary:ffi" }
+    },
+    {
+      "id": "IL0-accepted-shared-memory-boundary-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1272"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "shared.metrics", "storage": "atomic",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": ["sharedMemory"]
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "boundary:sharedMemory" }
+    },
+    {
+      "id": "IL0-accepted-device-boundary-fallback",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1272"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "device.metrics", "storage": "atomic",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": ["device"]
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "boundary:device" }
+    },
+    {
+      "id": "IL0-accepted-array-needs-allocation-layout",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "metrics.array", "storage": "atomic",
+          "layoutVisibility": "privateOpaque", "layoutScope": "aggregate", "aggregateSize": 16, "instanceCount": 8,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": []
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured",
+        { "op": "footprintBudget", "maximumAdditionalBytes": 896 }, "$select"
+      ],
+      "expect": { "selectionStatus": "notApplied", "selectionReason": "strideUnproven" }
+    },
+    {
+      "id": "IL0-accepted-explicit-partition",
+      "kind": "accepted",
+      "decisions": ["W-1271", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "combineBrigadeCounts" },
+      "operations": [
+        { "op": "partitionAndJoin", "ownershipDisjoint": true, "joinExplicit": true, "overflowPolicyPreserved": true, "snapshotPolicyDeclared": true, "shards": 2, "join": "combineBrigadeCounts" }
+      ],
+      "expect": { "partitionStatus": "explicit", "traceIncludes": ["partition:2:combineBrigadeCounts"] }
+    },
+    {
+      "id": "IL0-accepted-global-atomic-preserved",
+      "kind": "accepted",
+      "decisions": ["W-1269", "W-1271"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [{ "op": "preserveGlobalAtomic", "silentSharding": false }],
+      "expect": { "globalAtomicPreserved": true }
+    },
+    {
+      "id": "IL0-accepted-lock-free-remains-orthogonal",
+      "kind": "accepted",
+      "decisions": ["W-1269", "W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "interrupt.metrics", "storage": "atomic",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "horizonSamples", "offset": 8, "size": 8 }],
+          "boundaries": [], "lockFreeRequired": true
+        },
+        "$concurrentWrites", "$targetKnown", "$evidenceMeasured", "$budgetEnough", "$select"
+      ],
+      "expect": { "selectionStatus": "applied", "guaranteedExclusiveCacheLine": false }
+    },
+    {
+      "id": "IL0-accepted-physical-record-no-performance-promise",
+      "kind": "accepted",
+      "decisions": ["W-1272", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        { "op": "publishPhysicalLayout", "targetRecordPinned": true, "offsetsVerified": true, "targetRecord": "last-light-shm-v1", "claimsExclusiveCacheLine": false }
+      ],
+      "expect": { "physicalPerformanceGuarantee": false }
+    },
+    {
+      "id": "IL0-accepted-reproduced-performance-claim",
+      "kind": "accepted",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$evidenceMeasured",
+        {
+          "op": "claimImprovement",
+          "baselineDigest": "sha256:dense",
+          "candidateDigest": "sha256:split",
+          "baselineSemanticDigest": "sha256:logic",
+          "candidateSemanticDigest": "sha256:logic",
+          "recipeInputsExceptLayoutEqual": true,
+          "reproduced": true
+        }
+      ]
+    },
+    {
+      "id": "IL0-rejected-source-cache-contract",
+      "kind": "rejected",
+      "decisions": ["W-1269", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [{ "op": "requestSourceCacheIsolation" }],
+      "expect": { "error": "interferenceSourceCacheContractAbsent" }
+    },
+    {
+      "id": "IL0-rejected-silent-sharding",
+      "kind": "rejected",
+      "decisions": ["W-1271", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "combineBrigadeCounts" },
+      "operations": [{ "op": "requestSilentSharding" }],
+      "expect": { "error": "interferenceSilentShardingChangesSemantics" }
+    },
+    {
+      "id": "IL0-rejected-forced-budget-overrun",
+      "kind": "rejected",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        "$candidateAtomic", "$concurrentWrites", "$targetKnown", "$evidenceMeasured",
+        { "op": "footprintBudget", "maximumAdditionalBytes": 111 },
+        { "op": "selectLayout", "force": true }
+      ],
+      "expect": { "error": "interferenceForcedLayoutBlocked" }
+    },
+    {
+      "id": "IL0-rejected-incomplete-partition",
+      "kind": "rejected",
+      "decisions": ["W-1271", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "combineBrigadeCounts" },
+      "operations": [
+        { "op": "partitionAndJoin", "ownershipDisjoint": true, "joinExplicit": false, "overflowPolicyPreserved": true, "snapshotPolicyDeclared": true, "shards": 2, "join": "hidden" }
+      ],
+      "expect": { "error": "interferencePartitionContractIncomplete" }
+    },
+    {
+      "id": "IL0-rejected-physical-cache-guarantee",
+      "kind": "rejected",
+      "decisions": ["W-1269", "W-1272", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        { "op": "publishPhysicalLayout", "targetRecordPinned": true, "offsetsVerified": true, "targetRecord": "last-light-shm-v1", "claimsExclusiveCacheLine": true }
+      ],
+      "expect": { "error": "interferencePhysicalPerformanceClaim" }
+    },
+    {
+      "id": "IL0-rejected-program-race",
+      "kind": "rejected",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "BrigadeCount" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "racy.metrics", "storage": "ordinary",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "completed", "offset": 0, "size": 8 }, { "name": "failed", "offset": 8, "size": 8 }],
+          "boundaries": []
+        },
+        { "op": "recordAccess", "place": "completed", "group": "port", "phase": "count", "mode": "write", "concurrent": true },
+        { "op": "recordAccess", "place": "completed", "group": "starboard", "phase": "count", "mode": "write", "concurrent": true },
+        "$select"
+      ],
+      "expect": { "error": "interferenceProgramHasRace" }
+    },
+    {
+      "id": "IL0-rejected-overlapping-places",
+      "kind": "rejected",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "BrigadeCount" },
+      "operations": [
+        {
+          "op": "declareCandidate", "id": "overlap.metrics", "storage": "ordinary",
+          "layoutVisibility": "privateOpaque", "layoutScope": "allocation", "aggregateSize": 16, "instanceCount": 1,
+          "places": [{ "name": "left", "offset": 0, "size": 12 }, { "name": "right", "offset": 8, "size": 8 }],
+          "boundaries": []
+        }
+      ],
+      "expect": { "error": "interferencePlacesOverlap" }
+    },
+    {
+      "id": "IL0-rejected-unproved-performance-claim",
+      "kind": "rejected",
+      "decisions": ["W-1270", "W-1273"],
+      "source": { "path": "reference/last-light/performance.w", "symbol": "InterferenceCounters" },
+      "operations": [
+        {
+          "op": "claimImprovement",
+          "baselineDigest": "sha256:dense",
+          "candidateDigest": "sha256:split",
+          "baselineSemanticDigest": "sha256:logic",
+          "candidateSemanticDigest": "sha256:logic",
+          "recipeInputsExceptLayoutEqual": true,
+          "reproduced": false
+        }
+      ],
+      "expect": { "error": "interferenceImprovementUnproved" }
+    }
+  ]
+}
