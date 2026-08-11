@@ -17194,10 +17194,6 @@ evolução. Eles podem começar como packages first-party sem promessa permanent
 `data.Batch<HorizonReading>`. O caller seleciona `batch.column(.hawkingFlux)` e
 lê um `f64` Copy com acesso checked.
 
-TAB0 fecha o modelo lógico do carrier tabular. A forma permanece **Direção** e
-estudo até TAB1 definir adapters e workflows executáveis. Evidência e limites
-ficam em [`RATIONALE.md` §1.3.14](RATIONALE.md#1314-carrier-tabular-tab0).
-
 **Direção:** `data.Batch<Row>` é finito, owned, imutável depois da
 publicação, columnar e ligado a um schema lógico fechado. Todas as colunas têm
 o mesmo row count. Um schema sem campos exige row count explícito. Batch vazio é
@@ -17226,9 +17222,9 @@ semantic type. O row top-level não é nullable.
 
 A seleção estática usa descriptor de field gerado: `batch.column(.hawkingFlux)`.
 Ela não usa lookup por String ou reflection no hot path. A seleção dynamic usa
-nome e binding tipado explícito. No estudo, o acesso checked `column[index]`
+nome e binding tipado explícito. O acesso checked `column[index]`
 devolve um `f64` Copy. Fields non-Copy, como `String`, `Bytes` e nested values,
-permanecem TAB1/**Pesquisa**: qualquer forma borrowed deve respeitar W-420,
+permanecem **Pesquisa**: qualquer forma borrowed deve respeitar W-420,
 usando core view, callback scoped ou borrow nominal. Não existe `XView`
 automático. Essas formas são **Direção** até promoção.
 
@@ -17257,7 +17253,8 @@ de schema no meio do stream produz typed error. O sistema não faz union ou
 promotion silenciosa.
 
 Payload importado possui um owner. A release ocorre exatamente uma vez depois
-de views, waits e children drenarem conforme E1. Export owned transfere a
+de views, waits e children drenarem conforme
+[§12.12.1](#12121-runtime-closure-e-liveness). Export owned transfere a
 responsabilidade e torna o owner local `transferred`; o local não pode liberar,
 emprestar ou exportar novamente. O novo owner deve completar a release. Export
 borrowed é scoped. Arrow C Data só aceita producer trusted in-process e valida a
@@ -17277,17 +17274,10 @@ canônicos bounded; não existe registry ambiental. Metadata é bounded e não
 altera identity, e physical layout não entra. External extension sem adapter
 fica opaque/dynamic e não pode bind para Row nominal.
 
-Arrow [columnar](https://arrow.apache.org/docs/format/Columnar.html),
-[C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
-[C Data security](https://arrow.apache.org/docs/format/Security.html) e
-[C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html), além dos
-requisitos e da [API do Python dataframe interchange](https://data-apis.org/dataframe-protocol/latest/design_requirements.html)
-e sua [API de columns/dataframe](https://data-apis.org/dataframe-protocol/latest/API.html),
-fornecem evidência dos contratos de columns, chunks, buffers, device, copy e
-lifetime. Eles não definem a semântica de W. CSV, Parquet e Arrow são adapters
-posteriores. DLPack continua adapter de tensor e terá um bundle próprio de
-interchange tensorial. TAB1 deve fechar somente os nomes, signatures e
-workflows exatos de CSV, Parquet e Arrow.
+CSV, Parquet e Arrow usam os adapters da próxima seção. DLPack continua um
+adapter tensorial separado em [§17.1](#171-carrier-tensorial-e-dlpack-13).
+Evidência, alternativas e limites do carrier ficam em
+[`RATIONALE.md` §1.3.14](RATIONALE.md#1314-carrier-tabular-tab0).
 
 #### 14.4.2 Adapters tabulares
 
@@ -17296,9 +17286,9 @@ posicional, stream IPC Arrow e import C trusted. Cada rota publica o mesmo
 `data.Batch<HorizonReading>`, `data.Schema` e resumo. O source é um oracle de
 design. Ele não alega codec, provider ou execução W.
 
-TAB1 usa quatro módulos concretos: `std.data`, `std.csv`, `std.parquet` e
-`std.arrow`. Os declarations em [`std/`](std/) são parseáveis e permanecem
-**Direção** até os providers missing e os gates correspondentes serem fechados;
+Os adapters usam quatro módulos concretos: `std.data`, `std.csv`, `std.parquet`
+e `std.arrow`. As declarations permanecem **Direção** até os providers missing
+e os gates correspondentes serem fechados;
 `std.io@1` também permanece missing para a implementação de
 `SnapshotByteSource`.
 Um adapter não redefine `Row`, `Schema` ou identity. `data.Schema` é a autoridade
@@ -17330,9 +17320,9 @@ checked, bytes committed, complete records e o fato `partialRecord`. Encoding
 não é transaction. Error ou cancellation pode deixar bytes ou records parciais.
 Não existe retry automático. Cancellation é control outcome; a progressão fica
 no trace/snapshot e errors de aplicação carregam o último progress. Cancellation
-drena waits e owners conforme E1.
+drena waits e owners conforme [§12.12.1](#12121-runtime-closure-e-liveness).
 
-`data` fecha o mínimo TAB0 necessário para TAB1:
+`std.data` exporta o carrier mínimo usado pelos adapters:
 
 - `Row`, `Schema`, nominal `SchemaIdentity`, opacos move-only `Batch<Row>`,
   `DynamicBatch`, `Column` e `FieldDescriptor<Owner,Value>`;
@@ -17483,8 +17473,8 @@ adapter bounded com `BlockingQuota` (concorrência, fila e jobs finitos),
 cancellation e drain explícitos. Cada result é
 independente do stream. `last_error` é copiado antes do callback seguinte.
 Export C é owned transfer com release callback; Safe W não publica raw pointer.
-Todo import C recebe `CImportOptions`/`CStreamImportOptions` finitos. TAB1 C
-baseline é CPU. Device C, DLPack e tensor handoff ficam no bundle tensorial.
+Todo import C recebe `CImportOptions`/`CStreamImportOptions` finitos. O baseline C
+baseline é CPU. Device C, DLPack e tensor handoff ficam nos adapters tensoriais.
 Um device handle não é dereferenced como CPU nem transferido implicitamente.
 
 ##### Mapping e provenance
@@ -17502,29 +17492,9 @@ identity, copy e materialization. Filename extension, charset, locale,
 environment lookup, path recursion e compression não são inferidos. Null
 physical slots são saneados antes de persistence ou untrusted boundary.
 
-[`reference/last-light/data_formats.w`](reference/last-light/data_formats.w)
-liga as quatro rotas ao mesmo telemetry. O schema é gerado da Row, o identity
-é nominal, e `String?` borrowed view só vive no scope de `summarize`; somente a
-materialização `copy` deixa o owner. O arquivo lista adversariais de chunks CSV,
-headers, UTF-8, bare CR, null tokens, NaN, footer, offsets, bombs, logical
-mismatch, legacy LIST, checksum, encryption, source instability, Arrow
-dictionary/schema, endian, alignment, C trust, double release, device,
-blocking quota e cancellation after progress. Os casos host ligam cada
-adversarial a símbolos reais; a lista textual não é evidência de execução.
-
-Fontes de contrato são [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180),
-[Parquet file format](https://parquet.apache.org/docs/file-format/),
-[Parquet logical types](https://parquet.apache.org/docs/file-format/types/logicaltypes/),
-[Parquet page index](https://parquet.apache.org/docs/file-format/pageindex/),
-[Parquet encryption](https://parquet.apache.org/docs/file-format/encryption/),
-[Arrow Columnar](https://arrow.apache.org/docs/format/Columnar.html),
-[Arrow IPC](https://arrow.apache.org/docs/format/IPC.html),
-[Arrow C Data](https://arrow.apache.org/docs/format/CDataInterface.html),
-[Arrow C Stream](https://arrow.apache.org/docs/format/CStreamInterface.html),
-[Arrow C Device](https://arrow.apache.org/docs/format/CDeviceDataInterface.html)
-e [Arrow Security](https://arrow.apache.org/docs/format/Security.html). Python,
-PyArrow e Polars são apenas evidência ergonômica. Eles não definem a semântica
-W.
+O produto de referência liga CSV, Parquet, Arrow IPC e C trusted ao mesmo schema
+e resultado. Fontes de formato, casos adversariais e limites do estudo ficam em
+[`RATIONALE.md` §1.3.15](RATIONALE.md#1315-adapters-tabulares-tab1).
 
 ### 14.5 Catálogo verificável SDK0
 
@@ -20173,21 +20143,11 @@ ownership estão em [14.4.1](#1441-carrier-tabular). Os adapters de formato e
 
 ### 17.1 Carrier tensorial e DLPack 1.3
 
-PYN4 fecha o intercâmbio tensorial entre W e produtores trusted in-process. Ele
-é design e oracle, não compiler, runtime, provider, bridge Python ou driver de
-device. O bundle liga os [workflows Python](#2411-workflows-python-e-científicos), o contrato de
-device em [18.5](#185-matrizes-simd-e-devices),
-os bloqueios de [24.4](#244-artefatos-que-ainda-bloqueiam-o-design-freeze) e a
-[revisão em RATIONALE 1.3.18](RATIONALE.md#1318-carrier-tensorial-pyn4). O baseline documental é
-[DLPack 1.3](https://dmlc.github.io/dlpack/latest/), com
-[C API](https://dmlc.github.io/dlpack/latest/c_api.html) e
-[Python API](https://dmlc.github.io/dlpack/latest/python_spec.html).
-As fontes primárias para a versão e para as boundaries de linguagem são o
-[release DLPack v1.3](https://github.com/dmlc/dlpack/releases/tag/v1.3), a
-[API de capsules do CPython](https://docs.python.org/3/c-api/capsule.html),
-[threads, GIL e finalização do CPython](https://docs.python.org/3/c-api/init.html)
-e o contrato Array API de
-[`from_dlpack`](https://data-apis.org/array-api/latest/API_specification/generated/array_api.from_dlpack.html).
+O intercâmbio tensorial aceita produtores trusted in-process. O baseline é
+[DLPack 1.3](https://dmlc.github.io/dlpack/latest/). Ele compõe os
+[workflows científicos](#2411-workflows-python-e-científicos) e os contratos de
+device de [§18.5](#185-matrizes-simd-e-devices). Evidência e limites ficam em
+[`RATIONALE.md` §1.3.18](RATIONALE.md#1318-carrier-tensorial-pyn4).
 
 **Direção:** `std.tensor@1` e `std.dlpack@1` são módulos concretos em draft. Os providers
 continuam **missing**. Nenhuma semântica de tensor entra no runtime. A API
@@ -20198,6 +20158,9 @@ genérico `Tensor<Element, shape>` do core; ele não redeclara `Tensor` nem torn
 head dependente de `std.tensor@1`.
 
 #### 17.1.1 Identidade, carrier e confiança
+
+**Exemplo:** dois providers podem chamar um device de `CUDA:0`; as identidades
+continuam diferentes até um adapter provar a mesma instância.
 
 `tensor.Device` é uma identidade resolvida e scoped ao provider. Ele não é o par
 bruto `(DLDeviceType, device_id)`. A igualdade inclui a instância do provider.
@@ -20219,9 +20182,6 @@ intercâmbio trusted in-process. Não é serialização, transporte de rede nem
 entrada de bytes untrusted. A proveniência do producer/provider prova a extent
 da allocation, pois DLPack não a codifica.
 
-Fixture local: `reference/last-light/tensor_interop.w` usa somente carriers
-trusted e não publica raw pointer.
-
 `DLManagedTensorVersioned` é a forma vigente. `DLManagedTensor` legacy é
 rejeitado no baseline. Em major mismatch, o consumer lê somente o prefixo
 stable de versão e o deleter, chama o deleter uma vez e não dereference dtype,
@@ -20233,6 +20193,9 @@ suspension. O bridge Python possui o `PyCapsule`, GIL e interpreter scope e não
 é parte de `std.dlpack`.
 
 #### 17.1.2 Layout, dtype e flags
+
+**Exemplo:** um tensor `f32` com shape `[samples, 6]` aceita padding provado,
+mas rejeita extent ausente, stride negativo ou mapping criado pelo caller.
 
 O import valida rank bounded e dimensões não negativas com aritmética checked
 antes de pointer arithmetic, allocation ou publication. Rank zero exige shape e
@@ -20255,12 +20218,6 @@ provado pelo provider; um booleano fornecido pelo caller não é prova. Subbyte,
 opaque, endian não nativo e dtype unsupported ficam dynamic ou rejected, nunca
 reinterpretados. Signed zero e NaN permanecem inalterados. Não há conversão
 silenciosa.
-
-Fixture local: `reference/last-light/tensor_interop.w` usa f32 com mapping nativo
-do provider em shape `[samples, 6]` e deixa dtype adversarial para o oracle host.
-`scientificRoute` usa `defer async` depois de `open`; o close ocorre tanto no
-sucesso como em falha do callback. A fixture mapeia `DLPackError` e
-`ViewError<ScoreError>` para `InteropError` sem depender de coercion implícita.
 
 #### 17.1.3 API vigente
 
@@ -20315,7 +20272,7 @@ lease. Cases internos podem expor essas fases para testar a máquina, mas uma
 call pública não exige choreography manual. `providerResolve` registra o
 mapping de dtype, native endian, layout proof, base alignment e allocation
 extent. Um target de transfer também exige um evento de resolução de Device.
-O oracle usa os digests desses eventos; fields crus do descriptor ou um
+Receipts usam os digests desses eventos; fields crus do descriptor ou um
 literal Device não concedem authority.
 
 `ImportedTensor` é owner move-only read-only e sempre foreign zero-copy. Ele só
@@ -20327,6 +20284,9 @@ chama release exatamente uma vez. Falha de close transfere o owner para runtime
 quarantine ou fault boundary. Nunca produz UAF.
 
 #### 17.1.4 Synchronization, Python e lifecycle
+
+**Exemplo:** CPU não recebe queue. Um producer CUDA precisa publicar o edge de
+happens-before na queue resolvida antes de W expor a view.
 
 Para CPU não há queue implícita e uma queue extra é rejeitada. Para stream
 devices o provider deve cunhar um receipt de `bindQueue`/`producerWait` com o
@@ -20355,10 +20315,10 @@ somente depois do drain. Late finalization envia o owner para quarantine ou
 rejeita sem callback. Sem prova, o bridge copia ou rejeita; ele nunca libera
 memória após a boundary.
 
-Fixture local: `reference/last-light/tensor_interop.w` mantém o callback scoped e
-delega GIL, finalization e release ao oracle host PYN4.
-
 #### 17.1.5 Bounds, receipts e rejeições
+
+**Exemplo:** rank ou span acima do limit falha antes de pointer arithmetic; o
+receipt não finge que payload foi copiado ou publicado.
 
 `dlpack.Limits` limita rank, cada dimensão, element count, span bytes,
 metadata/control bytes, active leases, queued release jobs, wait e deadline.
@@ -20379,16 +20339,9 @@ ausente, inout alias não provado, capsule double consume, release duplo,
 untrusted bytes e callback fora do scope são rejeitados com diagnostics
 `W-DLPACK-*`. A superfície não adiciona buffer protocol ao core.
 
-O fixture [tensor_interop.w](reference/last-light/tensor_interop.w) importa
-um tensor científico zero-copy com shape `[samples, 6]`, usa Device e Queue
-explícitos, executa callback scoped, produz scores e exporta consumindo. O
-fixture também tem copy-to-host explícito e adversariais. A máquina host em
-`tooling/dlpack-*` testa os contratos sem executar W.
-
-O gate de performance mede zero bytes de payload copiados no `open`; metadata e
-control allocation bounded entram no receipt e podem ter custo. Benchmarks
-reais de provider, device e latency continuam **missing** e não são alegados
-pelo fixture ou pela máquina host.
+`open` exige zero bytes de payload copiados. Metadata e control allocation
+bounded entram no receipt e podem ter custo. Benchmarks reais de provider,
+device e latency continuam **missing**.
 
 ## 18. Performance e custo
 
