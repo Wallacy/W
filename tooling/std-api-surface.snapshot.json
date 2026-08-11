@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "dc9d0c662c0a73e7d6e02447d3aaa02dc2f6e7e500453324df7f278bc86876e8",
+  "catalogDigest": "ddf7834f9ce41a8b6b670e4cd9e681f46f7d11cb78eb86bb032ee0dc0d9caa46",
   "summary": {
     "modules": 25,
     "catalogedApis": 334,
@@ -10,7 +10,7 @@
     "qualifiedReferenceSurfaces": 87,
     "referenceRequirements": 25,
     "contractedReferenceRequirements": 25,
-    "missingReferenceRequirements": 1,
+    "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
     "implementationProviders": 19,
@@ -231,14 +231,14 @@
           "queue-receipts"
         ]
       },
-      "catalogedDeclarationsDigest": "21db2fa3929630a3fc5f71bb16901e57a6e53bb98d8e1811698fa3a2d85a22e9",
+      "catalogedDeclarationsDigest": "6a15738c05ac0e4f45bcf4c4450d263fe96e5a6f1c48bfbef0772515fd728cd3",
       "apis": [
         {
           "symbol": "KernelModule",
           "kind": "protocol",
           "signature": "export protocol KernelModule",
           "declarationDigest": "ac3c135052b05f36fdcf5bf5382c8f976b688df3f94806afca1dbec575df2a12",
-          "line": 84,
+          "line": 88,
           "profile": "accelerator-module",
           "status": "draft"
         },
@@ -247,7 +247,7 @@
           "kind": "struct",
           "signature": "export struct Launch<Module: KernelModule>",
           "declarationDigest": "7d8a343f194724e944db2f251c872ffaa86f7c6e2a95593f9722d11563f9bfe2",
-          "line": 96,
+          "line": 100,
           "profile": "accelerator-launch",
           "members": [
             {
@@ -255,7 +255,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn close() throws LaunchError",
-                  "line": 103
+                  "line": 107
                 }
               ],
               "profile": "accelerator-launch"
@@ -268,7 +268,7 @@
           "kind": "enum",
           "signature": "export enum LaunchError: Error",
           "declarationDigest": "0cc3e89f4c88510fb7830f116e55dc519b2e6624355a9f71b0bc275e45b65bff",
-          "line": 8,
+          "line": 12,
           "profile": "accelerator-launch",
           "status": "draft"
         },
@@ -277,7 +277,7 @@
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
           "declarationDigest": "59aead5bd5c0500662937287e763ccbe427ffe1de0df9ed5cf331581627cadd9",
-          "line": 23,
+          "line": 27,
           "profile": "value-contract",
           "members": [
             {
@@ -285,7 +285,7 @@
               "overloads": [
                 {
                   "signature": "export const init( maximumInFlight: usize<(1...)>, maximumCommandBytes: u64<(1...)>, maximumArgumentBytes: u64<(1...)>, maximumResultBytes: u64<(1...)>, maximumDependencyEdges: usize<(1...)>, maximumRetainedDeviceBytes: u64<(1...)>, maximumCompletionRecords: usize<(1...)>, maximumCleanupSteps: u64<(1...)>, )",
-                  "line": 33
+                  "line": 37
                 }
               ],
               "profile": "value-contract"
@@ -295,7 +295,7 @@
               "overloads": [
                 {
                   "signature": "export static fn standard(): Limits",
-                  "line": 53
+                  "line": 57
                 }
               ],
               "profile": "value-contract"
@@ -308,7 +308,7 @@
           "kind": "struct",
           "signature": "export struct ModuleIdentity: Copy & Equatable",
           "declarationDigest": "b82c534712993441a2dc63fc185036c9a2cfbace6a8bdae06e12f0122976cf22",
-          "line": 67,
+          "line": 71,
           "profile": "accelerator-module",
           "members": [
             {
@@ -316,7 +316,7 @@
               "overloads": [
                 {
                   "signature": "export fn same(as other: ref ModuleIdentity): Bool",
-                  "line": 74
+                  "line": 78
                 }
               ],
               "profile": "accelerator-module"
@@ -329,7 +329,7 @@
           "kind": "fn",
           "signature": "export async fn open<Module: KernelModule>( module: ref Module, on queue: ref tensor.Queue, limits: ref Limits, ): Launch<Module> throws LaunchError",
           "declarationDigest": "7b6896bf4a3e883d017bcb04400ca180ce2d56e068520a6be340628e86530bb3",
-          "line": 108,
+          "line": 112,
           "profile": "accelerator-launch",
           "status": "draft"
         }
@@ -7307,7 +7307,7 @@
     {
       "module": "std.accelerator",
       "surface": "module",
-      "status": "missing",
+      "status": "draft",
       "consumers": [
         "reference/last-light/ai_harness.w"
       ]
@@ -8136,8 +8136,9 @@
       "id": "dev0-accelerator-module-synthesis",
       "module": "std.accelerator",
       "surface": "module",
-      "status": "missing",
-      "profile": "accelerator-module",
+      "kind": "compiler-synthesis",
+      "status": "draft",
+      "profile": "accelerator-module-synthesis",
       "consumer": "reference/last-light/ai_harness.w"
     },
     {
@@ -8208,6 +8209,7 @@
       "id": "sdk0-byte-sink-write-all",
       "module": "std.io",
       "surface": "ByteSink.writeAll",
+      "kind": "member",
       "status": "draft",
       "profile": "byte-sink",
       "consumer": "reference/last-light/io.w"

@@ -2674,7 +2674,11 @@ host por `tensor.transfer` explícito.
 Aceite:
 
 - cada field de `accelerator.module<{...}>()` nomeia um kernel e um launch stub
-  tipado; lista runtime e lookup por string falham;
+  tipado; o descriptor é `const` de module scope e aceita somente símbolos
+  diretos sem capture, suspension ou failure;
+- cada especialização alcançável normaliza argumentos de tipo e valores const,
+  possui identity e artifact; instances ausentes e JIT runtime falham, enquanto
+  instances não usados são removidos;
 - `Launch` pertence a module, Queue, Device, provider generation e Limits;
 - `take`, `copy`, `ref` e `inout` preservam owners e loans durante staging;
 - cancelamento pré-submit impede o launch; pós-submit aguarda provider drain;
@@ -2690,6 +2694,11 @@ O oracle host fica em
 [`tooling/device-execution-machine.mjs`](../../tooling/device-execution-machine.mjs),
 com corpus, checker, snapshot e teste independentes. Ele não executa W, kernel,
 driver ou provider.
+
+O oracle KM0 em
+[`tooling/kernel-module-machine.mjs`](../../tooling/kernel-module-machine.mjs)
+fecha a síntese antes de DEV0. DEV0 recebe a `ModuleIdentity` validada e não
+redefine source shape ou especialização.
 
 ## 4. Alternativas visuais obrigatórias
 

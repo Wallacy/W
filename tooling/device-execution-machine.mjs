@@ -17,6 +17,10 @@ function requireString(value, code) {
   if (typeof value !== "string" || value.length === 0) fail(code)
 }
 
+function requireDigest(value, code) {
+  if (!/^sha256:[0-9a-f]{64}$/.test(value ?? "")) fail(code)
+}
+
 function requirePositive(value, code) {
   if (!Number.isSafeInteger(value) || value <= 0) fail(code)
 }
@@ -53,6 +57,7 @@ function validateReceipt(state, invocation, receipt, phase) {
   if (receipt?.issuedBy !== "provider") fail("W-DEVICE-0005")
   if (receipt.generation !== state.providerGeneration) fail("W-DEVICE-0006")
   if (receipt.moduleIdentity !== state.moduleIdentity) fail("W-DEVICE-0001")
+  if (receipt.artifactIdentity !== state.artifactIdentity) fail("W-DEVICE-0001")
   if (receipt.queueId !== state.queueId) fail("W-DEVICE-0005")
   if (receipt.invocation !== invocation.id) fail("W-DEVICE-0005")
   state.physicalTrace.push(`${phase}-receipt:${invocation.id}:${receipt.generation}`)
@@ -138,6 +143,11 @@ function initialState() {
     phase: "uninitialized",
     admissionOpen: false,
     moduleIdentity: null,
+    artifactClass: null,
+    artifactIdentity: null,
+    artifactInstances: [],
+    providerAbiDigest: null,
+    deviceTarget: null,
     queueId: null,
     deviceId: null,
     provider: null,
@@ -158,10 +168,26 @@ function applyOperation(state, operation) {
   switch (operation.op) {
     case "open": {
       requireScope(state, ["uninitialized"])
-      if (operation.moduleShape !== "static-record" || operation.runtimeLookup === true) {
+      requireString(operation.moduleIdentity, "W-DEVICE-0001")
+      if (operation.artifactClass !== "closed") fail("W-DEVICE-0001")
+      requireString(operation.artifactIdentity, "W-DEVICE-0001")
+      if (operation.artifactModuleIdentity !== operation.moduleIdentity) fail("W-DEVICE-0001")
+      requireDigest(operation.artifactProviderAbiDigest, "W-DEVICE-0001")
+      requireDigest(operation.providerAbiDigest, "W-DEVICE-0002")
+      if (operation.artifactProviderAbiDigest !== operation.providerAbiDigest) {
         fail("W-DEVICE-0001")
       }
-      requireString(operation.moduleIdentity, "W-DEVICE-0001")
+      requireString(operation.artifactTarget, "W-DEVICE-0001")
+      requireString(operation.deviceTarget, "W-DEVICE-0002")
+      if (operation.artifactTarget !== operation.deviceTarget) fail("W-DEVICE-0001")
+      if (
+        !Array.isArray(operation.artifactInstances) ||
+        operation.artifactInstances.length === 0 ||
+        new Set(operation.artifactInstances).size !== operation.artifactInstances.length
+      ) {
+        fail("W-DEVICE-0001")
+      }
+      for (const instance of operation.artifactInstances) requireString(instance, "W-DEVICE-0001")
       requireString(operation.queueId, "W-DEVICE-0002")
       requireString(operation.deviceId, "W-DEVICE-0002")
       requireString(operation.provider, "W-DEVICE-0002")
@@ -173,6 +199,11 @@ function applyOperation(state, operation) {
       state.phase = "ready"
       state.admissionOpen = true
       state.moduleIdentity = operation.moduleIdentity
+      state.artifactClass = operation.artifactClass
+      state.artifactIdentity = operation.artifactIdentity
+      state.artifactInstances = [...operation.artifactInstances]
+      state.providerAbiDigest = operation.providerAbiDigest
+      state.deviceTarget = operation.deviceTarget
       state.queueId = operation.queueId
       state.deviceId = operation.deviceId
       state.provider = operation.provider
@@ -190,12 +221,7 @@ function applyOperation(state, operation) {
       if (state.invocations[operation.id]) fail("deviceInvocationDuplicate")
       if (operation.moduleIdentity !== state.moduleIdentity) fail("W-DEVICE-0001")
       if (operation.queueId !== state.queueId) fail("W-DEVICE-0002")
-      if (
-        operation.kernelDeclared !== true ||
-        operation.kernelNeverSuspend !== true ||
-        operation.kernelNonthrowing !== true ||
-        operation.effectsAllowed !== true
-      ) {
+      if (!state.artifactInstances.includes(operation.kernelInstanceIdentity)) {
         fail("W-DEVICE-0001")
       }
       validateArguments(state, operation.arguments)
@@ -435,6 +461,11 @@ function projectState(state) {
     phase: state.phase,
     admissionOpen: state.admissionOpen,
     moduleIdentity: state.moduleIdentity,
+    artifactClass: state.artifactClass,
+    artifactIdentity: state.artifactIdentity,
+    artifactInstances: [...state.artifactInstances],
+    providerAbiDigest: state.providerAbiDigest,
+    deviceTarget: state.deviceTarget,
     queueId: state.queueId,
     deviceId: state.deviceId,
     providerGeneration: state.providerGeneration,

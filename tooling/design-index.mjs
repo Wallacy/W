@@ -3,6 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ledgerIds } from "./design-ledger.mjs";
 import { expandInterferenceLayoutOperations } from "./interference-layout-machine.mjs";
+import {
+  countKernelModuleOperations,
+  prepareKernelModuleCase,
+} from "./kernel-module-machine.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -288,6 +292,7 @@ const oracleCorpusFiles = [
   "tabular-adapter-cases.json",
   "dlpack-cases.json",
   "device-execution-cases.json",
+  "kernel-module-cases.json",
   "foreign-body-cases.json",
   "web-body-cases.json",
 ];
@@ -758,6 +763,19 @@ const deviceExecutionOperations = deviceExecutionCorpus.cases.reduce(
 const acceptedDeviceExecutionCases = deviceExecutionCorpus.cases.filter(
   (testCase) => testCase.kind === "accepted",
 ).length;
+const kernelModuleCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "kernel-module-cases.json"), "utf8"),
+);
+const kernelModuleCases = kernelModuleCorpus.cases.length;
+const kernelModuleOperations = kernelModuleCorpus.cases.reduce(
+  (count, testCase) => count + countKernelModuleOperations(
+    prepareKernelModuleCase(kernelModuleCorpus, testCase),
+  ),
+  0,
+);
+const acceptedKernelModuleCases = kernelModuleCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const foreignBodyCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "foreign-body-cases.json"), "utf8"),
 );
@@ -1018,6 +1036,13 @@ output.push(
     `${deviceExecutionCases}/${deviceExecutionOperations} ` +
     `(${acceptedDeviceExecutionCases} aceitos + ` +
     `${deviceExecutionCases - acceptedDeviceExecutionCases} rejeitados; ` +
+    `host oracle não executa W) |`,
+);
+output.push(
+  `| casos/operações da síntese de kernel KM0 | ` +
+    `${kernelModuleCases}/${kernelModuleOperations} ` +
+    `(${acceptedKernelModuleCases} aceitos + ` +
+    `${kernelModuleCases - acceptedKernelModuleCases} rejeitados; ` +
     `host oracle não executa W) |`,
 );
 output.push(

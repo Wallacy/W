@@ -45,6 +45,7 @@ const corpusFiles = [
   "tabular-adapter-cases.json",
   "dlpack-cases.json",
   "device-execution-cases.json",
+  "kernel-module-cases.json",
   "foreign-body-cases.json",
   "web-body-cases.json",
 ];

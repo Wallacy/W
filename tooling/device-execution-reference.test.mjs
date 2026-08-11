@@ -16,9 +16,17 @@ const limits = {
 function open(overrides = {}) {
   return {
     op: "open",
-    moduleShape: "static-record",
     moduleIdentity: "module-v1",
-    runtimeLookup: false,
+    artifactClass: "closed",
+    artifactIdentity: "artifact-v1",
+    artifactModuleIdentity: "module-v1",
+    artifactProviderAbiDigest:
+      "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    providerAbiDigest:
+      "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    artifactTarget: "gpu-target-v1",
+    deviceTarget: "gpu-target-v1",
+    artifactInstances: ["work-instance-v1"],
     queueId: "q0",
     queueDeviceId: "gpu0",
     deviceId: "gpu0",
@@ -37,10 +45,7 @@ function stage(id = "work", overrides = {}) {
     id,
     moduleIdentity: "module-v1",
     queueId: "q0",
-    kernelDeclared: true,
-    kernelNeverSuspend: true,
-    kernelNonthrowing: true,
-    effectsAllowed: true,
+    kernelInstanceIdentity: "work-instance-v1",
     arguments: [
       { kind: "tensor", mode: "ref", deviceId: "gpu0", lifetimeStable: true },
     ],
@@ -58,6 +63,7 @@ function receipt(id = "work") {
     issuedBy: "provider",
     generation: "g1",
     moduleIdentity: "module-v1",
+    artifactIdentity: "artifact-v1",
     queueId: "q0",
     invocation: id,
   }
@@ -80,6 +86,8 @@ function successfulLifecycle() {
 test("a provider completion publishes only after cleanup and commit", () => {
   const result = runDeviceExecutionOperations(successfulLifecycle())
   assert.equal(result.status, "accepted")
+  assert.equal(result.state.artifactIdentity, "artifact-v1")
+  assert.deepEqual(result.state.artifactInstances, ["work-instance-v1"])
   assert.equal(result.state.invocations.work.phase, "joined")
   assert.equal(result.state.invocations.work.outcome, "success")
   assert.equal(result.state.invocations.work.cleanupCount, 1)

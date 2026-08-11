@@ -109,7 +109,6 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
 }
 
 for (const decision of [
-  "W-1211",
   "W-1212",
   "W-1213",
   "W-1214",

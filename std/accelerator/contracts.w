@@ -1,7 +1,11 @@
 // Structured accelerator launch contracts.
 //
-// This file is a parseable SDK draft. The provider is missing. Module
-// descriptors are synthesized by the compiler from a closed static record.
+// This file is a parseable SDK draft. The provider is missing.
+// `accelerator.module` is a compiler synthesis head cataloged separately. It
+// is not an exported runtime function. `open` is the provider boundary for a
+// descriptor and artifact that the compiler already validated. KernelModule
+// is a public constraint with compiler-owned conformance; user types cannot
+// conform manually.
 
 import tensor from std
 

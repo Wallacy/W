@@ -799,6 +799,8 @@ package {
       targets: ["embedded"]
       capabilities: [.monotonicClock, .interrupts, .mmio]
     },
+    // Descriptor-only roots derive a source-backed module manifest. A host
+    // product with concrete launch sites derives the closed device artifact.
     {
       name: "last-light-accelerators"
       kind: .deviceBundle
