@@ -11447,25 +11447,14 @@ problema, em vez de publicar uma coleção de locks:
 | callback/FFI síncrono sobre state local compartilhado | `lock` curto |
 | algoritmo especializado de kernel ou OS | adapter `unsafe` com contrato |
 
-`ReadWriteLock` fica rejeitado na baseline. Domain barrier já resolve o caso de
-tasks; `SnapshotCell` resolve snapshots síncronos; e `lock` cobre a exceção
-in-place. Um adapter especializado pode provar outro algoritmo sem tornar sua
-fairness, reclamation ou upgrade parte da linguagem. `AsyncMutex` também fica
-rejeitado: `await lock` oferece a borda rara, e domain/service continua a forma
-recomendada para state owned por tasks.
+`ReadWriteLock` e `AsyncMutex` não entram na baseline. A tabela acima é a
+seleção normativa; adapters `unsafe` podem provar outro algoritmo sem ampliar a
+linguagem. Evidência e alternativas ficam em
+[`RATIONALE.md` §1.4.5](RATIONALE.md#145-exclusão-mútua-residual).
 
-`w explain synchronization` aplica regras provadas, sem reescrever o programa:
-
-- shared owner que permaneceu único sugere owner normal;
-- lock usado por um único domain sugere mover o state para esse domain;
-- uma única location escalar sugere `atomic`;
-- reads de versões completas sugerem `SnapshotCell` ou domain barrier;
-- body com call blocking, suspension, escape ou custo não limitado produz
-  error ou warning conforme o execution profile.
-
-Uma load relaxada continua sendo uma operação atomic. W nunca troca uma load
-atomic por read comum enquanto pode existir writer concorrente. Staleness
-aceitável escolhe `load<.relaxed>()`; ela não autoriza data race.
+`w explain synchronization` segue as provas e a ordem de recomendação da seção
+9.12. Ele não reescreve architecture, insere lock ou transforma uma load
+atômica em acesso comum.
 
 **W-1260 — evidence LM1:** o oracle host deriva as três formas, acesso scoped,
 busy sem avaliação, cancellation, release/acquire, reentrada, boundary, drain e
@@ -18236,12 +18225,6 @@ tipo. Scale e zero point são contratos estáticos. Per-axis e
 per-block quantization adicionam um eixo e uma lista de parâmetros versionada.
 A conversão, o accumulator e a saturation policy ficam explícitos na API.
 
-Os contratos seguem as operações básicas de
-[LLVM](https://llvm.org/docs/LangRef.html), os rounding modes de
-[MLIR Arith](https://mlir.llvm.org/docs/Dialects/ArithOps/) e a separação entre
-storage e expressed type de
-[MLIR Quant](https://mlir.llvm.org/docs/Dialects/QuantDialect/).
-
 Posit, Unum, IEEE decimal float e arbitrary-precision real ficam **Rejeitado por
 enquanto**. `FixedDecimal` cobre decimal exato. `Rational` e BigInt cobrem
 precisão arbitrária. Um package pode experimentar outro real com rounding,
@@ -19533,9 +19516,6 @@ interpretação de `String`.
 let legacy = try TextCodec.windows1252.decode(payload)
 ```
 
-O [`OsString` de Rust](https://doc.rust-lang.org/std/ffi/struct.OsString.html)
-é um precedente para preservar texto nativo sem forçar UTF-8.
-
 ### 16.8 C strings e buffers sentinela
 
 `CString` é um buffer owned com terminador NUL. Sua construção rejeita NUL
@@ -19584,8 +19564,8 @@ strings W não recebem terminação sentinela como semântica geral.
 let wide = try WideCString.from("Última Luz")
 ```
 
-O [`CString` de Rust](https://doc.rust-lang.org/std/ffi/struct.CString.html)
-é um precedente para separar ownership, NUL e lifetime do pointer.
+Comparações com carriers de texto de outras linguagens ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 ### 16.9 Representações especializadas
 
@@ -19610,8 +19590,6 @@ let document = Rope.from(largeText)
 
 O compiler pode escolher storage especializado para um refinement quando a
 escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
-A hipótese de tree string permanece em `history/` porque favorece compartilhamento,
-mas aumenta metadata e indireções no caso comum.
 
 SSO invisível e `InlineString` público resolvem problemas diferentes. SSO reduz
 allocations sem prometer threshold, tamanho ou layout. `InlineString` promete
@@ -21134,9 +21112,6 @@ packed, unaligned, union ou opaque permanece conservadora mesmo com proof.
 explícita. A HIR chama esse fato de `TrustedWAdapterProof`. Ele não aparece no
 source. O body estrangeiro e seu toolchain não podem emitir esse fato sozinhos.
 
-O contrato de pointer scoped segue a separação de ownership da
-[safe C++ interop de Swift](https://www.swift.org/documentation/cxx-interop/safe-interop/).
-
 `c.ptr<T>` preserva a provenance recebida da fronteira. `address(of:)` e
 `pointer.address` observam somente o endereço. `pointer.withAddress` mantém a
 origem do receiver e continua `unsafe`. Um `c.ptr<T>` criado de integer sem
@@ -21761,13 +21736,8 @@ hidden: context, metadata, witnesses, error channel and sret parameters
 
 Size e alignment iguais não provam call compatibility. `f32` e `u32` podem usar
 register classes diferentes. `signext`, `zeroext`, `sret`, `byval`,
-`inalloca`, hidden parameters e address spaces precisam coincidir. O
-[LLVM LangRef](https://llvm.org/docs/LangRef.html#parameter-attributes) separa
-ABI attributes de optimization attributes e exige os primeiros nos dois lados
-da call. A
-[Rust Reference](https://doc.rust-lang.org/stable/reference/type-layout.html)
-também separa layout de call ABI e não estabiliza o layout default entre
-compilações.
+`inalloca`, hidden parameters e address spaces precisam coincidir nos dois
+lados da call.
 
 L0 valida também a façade C:
 
@@ -21856,12 +21826,8 @@ A interface semântica não fixa layout. A ABI W exata não promete substituiç�
 entre releases. A service ABI não autoriza um borrow. Um schema persistido não
 herda a evolução de um `struct`.
 
-A
-[separação de ABI, module stability e library evolution do Swift](https://www.swift.org/blog/abi-stability-and-more/)
-mostra que esses problemas exigem contratos diferentes. A
-[ABI nativa do Rust](https://doc.rust-lang.org/reference/items/external-blocks.html#abi)
-também não promete estabilidade. W adota essa baseline conservadora em todos os
-targets.
+Fontes e alternativas de ABI, modules, mangling, components e LTO ficam em
+[`RATIONALE.md` §1.15](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 #### 20.4.2 Interface semântica e cache do compiler
 
@@ -21970,10 +21936,7 @@ binary-only escolhe uma destas opções:
 - remove o generic da façade estável.
 
 Um compiler futuro não recebe direito de interpretar HIR antiga somente porque
-consegue ler a API. A
-[documentação de módulos do Clang](https://clang.llvm.org/docs/Modules.html)
-trata a representação binária do módulo como cache sensível à configuração. W
-mantém o record semântico separado desse cache.
+consegue ler a API. W mantém o record semântico separado do cache de compiler.
 
 ##### 20.4.2.1 Container físico `WMeta1`
 
@@ -22332,11 +22295,8 @@ Também podem divergir em extension, indirectness ou hidden parameters. O linker
 compara a physical signature completa. Ele não aceita um cast de function
 pointer ou um thunk inferido somente porque os bytes de memória parecem iguais.
 
-O [LLVM LangRef](https://llvm.org/docs/LangRef.html#calling-conventions) exige
-calling conventions compatíveis entre caller e callee. A
-[documentação de calling convention do Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/CallingConvention.rst)
-também separa responsabilidade, indirectness e transporte físico. W preserva
-essa separação na HIR antes de baixar para LLVM.
+W preserva responsibility, indirectness e transporte físico na HIR antes de
+baixar para LLVM.
 
 #### 20.4.6 Symbols, exports e collisions
 
@@ -22374,12 +22334,6 @@ O loader W resolve um export pelo `LibraryHandle` e pelo manifest. Ele não usa
 lookup process-global por nome. Libraries entram com visibilidade local quando
 o host permite. Calls internas não dependem de symbol interposition ou ordem de
 load. Um host C externo continua sujeito às regras da própria plataforma.
-
-O
-[mangling v0 do Rust](https://doc.rust-lang.org/beta/rustc/symbol-mangling/v0.html)
-mostra um encoding decodificável e independente de pretty-print. A própria
-documentação informa que mangling não cria uma ABI estável. W faz a mesma
-distinção.
 
 #### 20.4.7 Runtime contract set
 
@@ -22651,10 +22605,8 @@ compartment. Uma native dynamic library não vira sandbox. Hot reload inicia uma
 nova instance e drena a antiga. State migration usa schema e operation
 versionados.
 
-O [WIT](https://component-model.bytecodealliance.org/design/wit.html) separa
-interfaces, worlds e resources da representação interna da linguagem. W usa o
-mesmo princípio. W source continua sendo a API humana. O component schema é uma
-boundary explícita.
+W source continua sendo a API humana. O component schema é uma boundary
+explícita.
 
 #### 20.4.12 LTO, intermediate artifacts e observabilidade
 
@@ -22690,9 +22642,7 @@ Ele não pode:
 - alterar ownership ou error semantics;
 - usar um intermediate artifact de outra toolchain key.
 
-[ThinLTO](https://clang.llvm.org/docs/ThinLTO.html) combina summaries globais
-com cache incremental. W trata essa técnica como estratégia da recipe. Module
-continua uma unidade semântica.
+Module continua uma unidade semântica; LTO é estratégia da recipe.
 
 Tooling oferece:
 
@@ -22731,9 +22681,8 @@ uma forma com suporte mais amplo é suficiente. Esse emitter existe somente para
 bootstrap, auditoria e recovery. O backend normal continua W/MLIR.
 
 MLIR fica atrás de um adapter C estreito e versionado. C++ e TableGen podem
-implementar dialects e passes. Tipos C++/MLIR não entram na HIR W. A
-[C API do MLIR](https://mlir.llvm.org/docs/CAPI/) é low-level e não possui
-garantia de estabilidade; por isso o bundle fixa sua revisão e testa o adapter.
+implementar dialects e passes. Tipos C++/MLIR não entram na HIR W. O bundle fixa
+a revisão da C API e testa o adapter.
 
 #### 20.5.1 Fechamento mínimo de `bootstrap.w0`
 
@@ -22839,11 +22788,8 @@ trusting trust. A rota de release de alta confiança usa
 [diverse double-compiling](https://dwheeler.com/trusting-trust/) com builds do
 seed por toolchains C diversos e recipes publicadas.
 
-O modelo de stage segue uma prática conhecida em compilers self-hosted. O
-[Rust compiler](https://rustc-dev-guide.rust-lang.org/building/bootstrapping/what-bootstrapping-does.html)
-separa stage 0 e recompila o compiler. O
-[Go toolchain](https://go.dev/doc/install/source) usa uma versão Go anterior e
-preserva o compiler Go 1.4 escrito em C como rota longa de bootstrap.
+Precedentes de bootstrap e diverse compilation ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 20.5.4 Evolução e recovery
 
@@ -23704,18 +23650,8 @@ não causam download preventivo. O comando testa todas as linhas publicáveis.
 remove declarations, imports ou files do source. Uma diferença de module graph
 fica no manifest.
 
-Esta forma combina constraints tipados de
-[Bazel platforms](https://bazel.build/versions/9.0.0/extending/platforms) com
-a seleção de dependencies por target do
-[Cargo](https://doc.rust-lang.org/stable/cargo/reference/specifying-dependencies.html)
-e do
-[Swift Package Manager](https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html).
-W rejeita o
-[`cfg` de Rust](https://doc.rust-lang.org/reference/conditional-compilation.html)
-dentro do source e as
-[build constraints de Go](https://pkg.go.dev/cmd/go#hdr-Build_constraints)
-em comentários ou filenames. Essas formas aumentam o número de programas que
-uma ferramenta precisa reconstruir ao ler um único arquivo.
+Comparações com seleção de target de outras build systems ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 21.1.5 Sources e patches
 
@@ -24491,23 +24427,8 @@ unsigned envelope digest + signing policy + signer evidence
 O delivery digest pode mudar sem mudar o payload ou o unsigned envelope. Um
 signed envelope não volta como input da compilation recipe.
 
-Esta separação usa:
-
-- [cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html)
-  para distinguir triple, CPU, sysroot e libraries;
-- [toolchains do Bazel](https://bazel.build/extending/toolchains) para separar
-  target platform, execution platform e provider selection;
-- [Android NDK](https://developer.android.com/ndk/guides/other_build_systems)
-  para tornar ABI, API level e tool path explícitos;
-- [command-line tools da Apple](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools)
-  e [MSVC](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line)
-  para tratar SDK e environment como inputs importados;
-- [WASI SDK](https://github.com/WebAssembly/wasi-sdk) para separar compiler e
-  sysroot;
-- [LLD](https://lld.llvm.org/) como candidato de linker cross-target, não como
-  prova automática de suporte;
-- [`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/)
-  como adapter de compatibilidade para tools que exigem uma variável temporal.
+Fontes de cross-compilation, SDK e linker ficam em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
 #### 21.2.2 Artifact identity
 
@@ -27745,57 +27666,19 @@ kernel, transport, sanitizer, compiler, runtime e providers continuam ausentes.
 **Exemplo:** um wrapper C pode usar `setjmp`. Ele não pode saltar sobre um frame
 W e omitir seu cleanup.
 
-W não inclui uma feature somente porque outra linguagem a inclui:
+O design corrente não inclui preprocessor textual, `goto`, VLA, nonlocal jump
+entre frames W, promotions numéricas perigosas, raw varargs safe, syntax pública
+de lifetime, macros que reescrevem AST, deref coercion definida pelo usuário,
+inheritance de classe, ARC universal, force unwrap, `try!` ou operators
+customizados. Wrappers e foreign adapters continuam disponíveis quando uma
+plataforma exige uma forma externa.
 
-| Origem | Forma ausente | Exemplo ausente | Substituição W |
-|---|---|---|---|
-| C | preprocessor textual | `#define CAPACITY 64` | `const capacity = 64` e target variants |
-| C | `goto`, VLA e nonlocal jump | `goto next_row` | loops/blocks rotulados, `repeat`, owners e errors estruturados |
-| C | implicit promotions e unchecked overflow | `short + int` com promoção implícita | conversão total e numeric policies nomeadas |
-| C | raw varargs, bitfields e unions safe | `fn log(char*, ...)` | wrapper, `c.vaList` e layout foreign explícito |
-| Rust | lifetime syntax pública | `fn head<'a>(value: &'a T) -> &'a T` | inference conservadora e borrows diagnosticados |
-| Rust | macro-by-example e procedural macro | `derive(...)` que reescreve AST | ConstIR, synthesis core e build transform |
-| Rust | deref coercion e user unsafe markers | call aceita wrapper por deref oculto | conversões únicas e facts estruturais |
-| Swift | class inheritance e ARC universal | `class Cook: Employee` | composition, object owner e `shared` explícito |
-| Swift | force unwrap, `try!` e implicit optional | `order!` ou `try! cook()` | pattern, `try`, `try?` e error explícito |
-| Swift | custom operator e property-wrapper annotation | `infix operator <~>` | operators fixos e property behavior nominal |
-
-Essas ausências reduzem hidden behavior, parser states e relações implícitas.
-Foreign adapters continuam disponíveis quando uma plataforma exige a forma
-original.
-
-Cada ausência deliberada precisa de quatro itens na documentação final:
-
-1. um exemplo mínimo da forma ausente;
-2. um exemplo executável da substituição W;
-3. a diferença observável em custo, controle, cleanup ou error;
-4. um link para a decisão e para o caso comparativo.
-
-O corpus R0 é a origem do Tour comparativo e do Book. Uma nova ausência de
-superfície precisa de caso R0 ou justificativa de que não existe source
-comparável. A cobertura gerada fica em [`DESIGN-INDEX.md`](DESIGN-INDEX.md);
-ela não substitui a auditoria do ledger. Antes do design freeze, cada decisão
-classifica sua alternativa como uma destas categorias:
-
-- ausência de source com substituição comparável;
-- alternativa de implementação sem diferença de source;
-- fallback vigente de uma hipótese provável;
-- ideia histórica sem efeito no design corrente.
-
-A primeira categoria exige um caso R0. O checker final deve falhar quando uma
-decisão dessa categoria não possuir forma recusada, substituição W, diferença
-observável e referência para o Book.
-
-[`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
-auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. Um caso de corpus canônico pode ligar seu oracle
-diretamente aos IDs que prova. As outras decisões exigem uma
-disposition explícita: escolha de implementação sem diferença observável,
-hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
-maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. [`DESIGN-INDEX.md`](DESIGN-INDEX.md)
-publica a cobertura corrente e mantém as contagens fora deste contrato.
-`--require-complete` exige classificação total e todos os eixos declarados.
+Cada ausência possui uma substituição W ou uma boundary explícita nas seções
+temáticas. Origens, exemplos comparativos, alternativas e o gate R0 ficam em
+[`RATIONALE.md` §1.1](RATIONALE.md#11-cobertura-de-substituições),
+[§1.9](RATIONALE.md#19-auditoria-comparativa-c-rust-e-swift) e
+[§1.11](RATIONALE.md#111-alternativas-retiradas-do-design-corrente).
+Uma proposta para reabrir uma forma segue a regra da seção 0.5.
 
 ### 24.3 Gates que ainda precisam de prova
 

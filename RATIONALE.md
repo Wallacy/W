@@ -190,7 +190,7 @@ sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
 os 69 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
-definida na [seção 24.2](DESIGN.md#242-recursos-deliberadamente-ausentes).
+mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
 O source vigente de um caso deve ser W aceito pelo contrato corrente. Uma forma
 substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
@@ -1730,6 +1730,27 @@ W cobre todas as famílias necessárias para compiler, server, desktop shell,
 mobile host, firmware, service, ciência e accelerator. Essa conclusão é de
 design. Ela não afirma que compiler, runtime ou SDK existem.
 
+As principais formas deliberadamente ausentes e suas substituições são:
+
+| Origem | Forma ausente | Exemplo | Substituição W |
+|---|---|---|---|
+| C | preprocessor textual | `#define CAPACITY 64` | `const capacity = 64` e target variants |
+| C | `goto`, VLA e nonlocal jump | `goto next_row` | loops/blocks rotulados, `repeat`, owners e errors estruturados |
+| C | promotions implícitas e overflow unchecked | `short + int` | conversão total e numeric policies nomeadas |
+| C | raw varargs, bitfields e unions safe | `fn log(char*, ...)` | wrapper, `c.vaList` e layout foreign explícito |
+| Rust | syntax pública de lifetime | `fn head<'a>(value: &'a T) -> &'a T` | inference conservadora e borrows diagnosticados |
+| Rust | macros que reescrevem AST | `derive(...)` | ConstIR, synthesis core e build transform |
+| Rust | deref coercion definida pelo usuário | call aceita wrapper por deref oculto | conversões únicas e facts estruturais |
+| Swift | inheritance de classe e ARC universal | `class Cook: Employee` | composition, object owner e `shared` explícito |
+| Swift | force unwrap, `try!` e optional implícito | `order!` | pattern, `try`, `try?` e error explícito |
+| Swift | custom operator e wrapper annotation | `infix operator <~>` | operators fixos e property behavior nominal |
+
+O corpus R0 liga cada ausência de source comparável à decisão, à forma vigente,
+à diferença observável e ao material futuro do Book. Alternativas sem diferença
+de source, fallbacks, itens históricos e waivers usam classes distintas no
+freeze audit. Essa classificação é governança de evidência; ela não acrescenta
+semântica ao W.
+
 ### 1.10 Evidência Python→W PYN0
 
 PYN0 torna Python um público inicial de primeira classe nas seções 0.1 e 0.4.
@@ -2455,6 +2476,23 @@ valor lógico, oferece fallback e passa os oracles diferenciais. O
 [`representation_oracle.w`](reference/last-light/representation_oracle.w)
 aplica a matriz de fronteiras ao Última Luz.
 
+ABI e linker usam como evidência
+[LLVM parameter attributes](https://llvm.org/docs/LangRef.html#parameter-attributes),
+[LLVM calling conventions](https://llvm.org/docs/LangRef.html#calling-conventions),
+[layout](https://doc.rust-lang.org/stable/reference/type-layout.html) e
+[ABI nativa](https://doc.rust-lang.org/reference/items/external-blocks.html#abi)
+de Rust, a
+[separação de ABI e library evolution do Swift](https://www.swift.org/blog/abi-stability-and-more/)
+e sua
+[calling convention](https://github.com/swiftlang/swift/blob/main/docs/ABI/CallingConvention.rst).
+Modules, symbols, components e otimização foram comparados com
+[Clang modules](https://clang.llvm.org/docs/Modules.html),
+[mangling v0 de Rust](https://doc.rust-lang.org/beta/rustc/symbol-mangling/v0.html),
+[WIT](https://component-model.bytecodealliance.org/design/wit.html),
+[ThinLTO](https://clang.llvm.org/docs/ThinLTO.html) e a
+[C API do MLIR](https://mlir.llvm.org/docs/CAPI/). Essas fontes sustentam a
+separação dos contratos; não definem uma ABI W por precedente.
+
 #### Niches, tags e headers considerados
 
 `Option<ref Oven>` pode usar null porque `ref Oven` não aceita null. O mesmo
@@ -2823,6 +2861,17 @@ de Swift,
 e [`SmallString`](https://llvm.org/doxygen/classllvm_1_1SmallString.html). W não
 herda layout, derivation, hashing ou threshold desses precedentes.
 
+Texto nativo e sentinelas foram comparados com
+[`OsString`](https://doc.rust-lang.org/std/ffi/struct.OsString.html) e
+[`CString`](https://doc.rust-lang.org/std/ffi/struct.CString.html) de Rust. A
+fronteira C também usa como evidência a separação de ownership da
+[safe C++ interop de Swift](https://www.swift.org/documentation/cxx-interop/safe-interop/).
+Tipos numéricos especializados consultam
+[LLVM](https://llvm.org/docs/LangRef.html),
+[MLIR Arith](https://mlir.llvm.org/docs/Dialects/ArithOps/) e
+[MLIR Quant](https://mlir.llvm.org/docs/Dialects/QuantDialect/). Esses
+precedentes não definem layout ou conversão W.
+
 #### Targets e toolchains
 
 LLVM, WASI, Android e MLIR fundamentam a matriz inicial de targets. Essas
@@ -2838,6 +2887,20 @@ fontes explicam viabilidade; somente CI e os gates W publicam suporte:
   [SPIR-V](https://mlir.llvm.org/docs/Dialects/SPIR-V/);
 - [ABIs do Android NDK](https://developer.android.com/ndk/guides/abis).
 
+O bootstrap em stages compara a prática do
+[rustc](https://rustc-dev-guide.rust-lang.org/building/bootstrapping/what-bootstrapping-does.html)
+e da [toolchain Go](https://go.dev/doc/install/source). A rota de alta confiança
+usa [diverse double-compiling](https://dwheeler.com/trusting-trust/). O plano de
+toolchain também consultou
+[cross-compilation do Clang](https://clang.llvm.org/docs/CrossCompilation.html),
+[Bazel toolchains](https://bazel.build/extending/toolchains),
+[Android NDK](https://developer.android.com/ndk/guides/other_build_systems),
+[Apple command-line tools](https://developer.apple.com/documentation/xcode/installing-the-command-line-tools),
+[MSVC](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line),
+[WASI SDK](https://github.com/WebAssembly/wasi-sdk), [LLD](https://lld.llvm.org/)
+e
+[`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/docs/source-date-epoch/).
+
 #### Packages, releases e transportes
 
 Os invariantes de workspace, feature e source vêm de
@@ -2846,6 +2909,13 @@ Os invariantes de workspace, feature e source vêm de
 [Cargo dependency sources](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
 e [Go workspaces](https://go.dev/ref/mod#workspaces). W não herda o resolver ou
 a semântica de feature dessas ferramentas.
+
+Target variants também foram comparadas com
+[Bazel platforms](https://bazel.build/versions/9.0.0/extending/platforms),
+[Swift Package Manager](https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html),
+[`cfg` de Rust](https://doc.rust-lang.org/reference/conditional-compilation.html)
+e [build constraints de Go](https://pkg.go.dev/cmd/go#hdr-Build_constraints).
+W mantém a seleção no manifest e não em comments, filenames ou statements.
 
 O modelo de distribuição compara
 [TUF](https://theupdateframework.github.io/specification/draft/),
