@@ -27817,15 +27817,13 @@ observável e referência para o Book.
 
 [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
 auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. Um caso F0, S0, M1, L0, E0, E1, LM0, SP0, B0 ou P0 pode ligar seus
-oracles diretamente aos IDs que prova. As outras decisões exigem uma
+source automaticamente. Um caso de corpus canônico pode ligar seu oracle
+diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 376/1188
-decisões: 129 pelo eixo source, 286 pelo eixo oracle e oito explicitamente. Há
-47 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
-eixos. As 812 restantes continuam um worklist, não uma aprovação implícita.
+declara todos os eixos obrigatórios. [`DESIGN-INDEX.md`](DESIGN-INDEX.md)
+publica a cobertura corrente e mantém as contagens fora deste contrato.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.3 Gates que ainda precisam de prova

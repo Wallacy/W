@@ -26,7 +26,7 @@ linguagem.
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 61 casos (23 positivos, 36 negativos e duas informações) derivam labels, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 15 testes host usam entradas independentes | oracle host de design; não executa W nem implementa scheduler, pool ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 69 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 376/1188 decisões estão classificadas (129 source, 286 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 47 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 388/1188 decisões estão classificadas (129 source, 298 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 47 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 169 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 21 bundles R1, 51 variantes e 84 tarefas; 32/69 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
@@ -42,6 +42,7 @@ linguagem.
 | `execution-concurrency-cases.json` + máquina E0 | 57 sequências e 527 operações (31 aceitas + 26 rejeitadas) cobrem lifecycle, cancelamento, dez origens happens-before, subtrees de ticket, barriers e races | oracle host de eventos; não é scheduler, checker nem runtime W |
 | `runtime-liveness-cases.json` + máquina E1 | 41 sequências e 473 operações (19 aceitas + 22 rejeitadas), sete testes host; closure, waits, completion/cancel races, generations, frame/outcome split, blocking foreign e shutdown | oracle host de runtime closure e liveness; não prova scheduler, clock, OS I/O, allocator, verifier ou runtime W |
 | `ownership-execution-cases.json` + máquina MX0 | 46 sequências e 274 operações (23 aceitas + 23 rejeitadas), 14 testes host; call direta, await, staging, capture, admission, cancellation, cleanup, outcome, join, drop e equivalência de lowering | oracle host cross-axis; compõe M1/E0/E1, mas não implementa checker, scheduler, runtime, allocator ou provider W |
+| `channel-cases.json` + máquina CH0 | 47 sequências e 333 operações (28 aceitas + 19 rejeitadas), 12 testes host; ownership linear, capacity 0/1/64, admission FIFO, permits, cancellation, close, abort, happens-before e estratégias ring/mutex | oracle host bounded; não implementa checker, scheduler, runtime, allocator ou provider `Channel` W |
 | `scoped-lock-cases.json` + máquina LM0 | 33 casos e 114 operações (19 aceitos + 13 rejeitados + uma fault), oito testes host; payload encapsulado, FIFO, try sem bypass, cancellation, fault boundary e seleção de primitive | oracle host de locks escopados; não implementa compiler, scheduler, runtime ou provider `std.sync@1` |
 | `snapshot-cell-cases.json` + máquina SP0 | 27 casos e 82 operações (14 aceitos + 12 rejeitados + uma fault), sete testes host; publication order, version stability, retirement bounded, drop único e quatro estratégias equivalentes | oracle host de snapshot publicado; não implementa compiler, runtime, scheduler ou provider `std.sync@1` |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
@@ -283,7 +284,9 @@ integrações de editor.
    `bun run check:snapshot-cell` no root do repositório.
 11. Para validar a composição MX0 sem executar compiler ou runtime, execute
    `bun run check:ownership-execution` no root do repositório.
-12. Para validar o recorte TAB1 sem executar W, execute
+12. Para validar o channel CH0 sem executar compiler ou runtime, execute
+   `bun run check:channel` no root do repositório.
+13. Para validar o recorte TAB1 sem executar W, execute
    `bun tooling/check-tabular-adapter-cases.mjs --write` e
    `bun test tooling/tabular-adapter-reference.test.mjs`.
 

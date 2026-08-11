@@ -1980,7 +1980,11 @@ O [`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
 `async let`, domínio explícito de `spawn`, FIFO serial, gate `.parallel` e
 redução de capacity.
 
-O ensaio de channel deve cobrir:
+CH0 usa [`streams.w`](reference/last-light/streams.w) como source e a
+[`channel-machine.mjs`](tooling/channel-machine.mjs) para derivar o estado. O
+[`channel-cases.json`](tooling/channel-cases.json) possui 47 casos e 333
+operações: 28 aceitos e 19 rejeitados. Doze testes independentes não leem o
+snapshot. O conjunto cobre:
 
 - dois producers e um consumer com capacity 0, 1 e 64;
 - fechamento pelo último sender e close gracioso pelo receiver;
@@ -1989,15 +1993,17 @@ O ensaio de channel deve cobrir:
 - cancellation antes e depois de cada commit;
 - FIFO por sender e nenhuma ordem presumida entre senders;
 - `trySend` sem bypass;
-- stream owned, stream de `view String` e erro terminal;
-- `Stream.cancel()` default e override com drain e cleanup único;
-- adapter bounded sem producer órfão;
-- uma, duas e quatro worker threads;
-- TSan, leak sanitizer e allocation fault injection.
+- equivalência lógica entre estratégias ring e mutex.
 
-O scheduler virtual deve explorar interleavings pequenos. Cada item termina num
-receiver, num error que o devolve ou num cleanup. Esse ensaio ainda não possui
-um runner host separado.
+Cada item termina num receiver, num error que devolve o owner ou num cleanup.
+O checker rejeita item sem terminal, drop duplicado, permit não consumido e
+endpoint ainda vivo no fim do scope. O snapshot registra estado lógico e trace
+físico separadamente.
+
+CH0 não executa W e não prova scheduler ou provider. O perfil de implementação
+ainda precisa repetir os casos com uma, duas e quatro worker threads, TSan, leak
+sanitizer e allocation fault injection. `Stream.cancel`, tee e adapters bounded
+continuam nos ensaios próprios de stream, sem alterar a semântica de channel.
 
 #### Cobertura executável
 
@@ -2012,6 +2018,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | E0 concurrency | 57 casos, 527 operações | 31 aceitos, 26 rejeitados; 10/10 origens HB | checker puro | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
+| CH0 bounded channel | 47 casos, 333 operações | 28 aceitos, 19 rejeitados | 12 testes | não implementa scheduler, runtime ou provider W |
 | LM0 scoped locks | 33 casos, 114 operações | 19 aceitos, 13 rejeitados, 1 fault | 8 testes | não implementa `std.sync@1` |
 | SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
 
@@ -2026,6 +2033,9 @@ provas isoladas escondam copy, share, rollback ou drop divergente. LM0 cobre
 loans, FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0
 cobre readers antigos e novos, publicação concorrente, retirement bounded,
 drop, OOM antes de publish, close e estratégias equivalentes.
+
+CH0 fecha ownership linear, admission, permits, cancellation e lifecycle do
+channel bounded, sem prometer a estratégia física.
 
 ### 1.16 Evidence de boundaries, packages e releases
 

@@ -195,7 +195,7 @@ alvo de execução independente.
 | `synchronization.w` | atomics, memory orders, CAS, locks scoped e snapshots publicados |
 | `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
-| `streams.w` | stream pull, carrier readable Web, BYOB, tee com lag explícito, channel MPSC e backpressure |
+| `streams.w` | stream pull, readable Web, channel CH0, rendezvous, permits, close e owner recovery |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
@@ -824,9 +824,9 @@ Aceite:
 - sends concorrentes não ganham uma ordem global fictícia;
 - commit de send acontece antes de receive devolver o item.
 
-O oracle usa dois balcões de universos incompatíveis como producers. Um único
-maître recebe os pedidos. Ele repete o caso com capacity 0, 1 e 64, e com uma,
-duas e quatro worker threads.
+O source usa dois balcões de universos incompatíveis como producers. Um único
+maître recebe os pedidos. CH0 repete o caso com capacity 0, 1 e 64. O gate de
+runtime ainda precisa repetir o corpus com uma, duas e quatro worker threads.
 
 Failure injection cancela cada send, receive e reserve antes e depois do commit.
 Outro perfil fecha ou destrói o receiver com buffer e permits pendentes. Cada
@@ -835,6 +835,12 @@ pedido deve terminar em exatamente um destes destinos:
 1. consumer;
 2. error que devolve o owner;
 3. cleanup registrado.
+
+CH0 executa 47 sequências e 333 operações no host: 28 são aceitas e 19 são
+rejeitadas. Doze testes independentes cobrem capacity 0, 1 e 64, FIFO,
+`trySend`, permits, cancelamento nos dois lados do commit, close, abort,
+happens-before e equivalência lógica entre ring e mutex. O oracle não executa W
+e não implementa scheduler, runtime ou provider.
 
 O teste de view percorre linhas borrowed do cardápio sem allocation. O corpus
 rejeita guardar uma linha depois do próximo `next()`, enviá-la por channel ou

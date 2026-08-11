@@ -190,10 +190,54 @@ export async fn runBoundedOrderWindow(
   return accepted
 }
 
+export async fn handOffAtRendezvous(
+  order: take Order,
+): Order throws ChannelSendError<Order><[.closed]> {
+  let (output, input) = Channel<Order>.open(capacity: 0)
+
+  async let received = (take input).receive()
+  try await output.send(take order)
+
+  guard let receivedOrder = await received else {
+    panic("rendezvous ended before its accepted order")
+  }
+  return receivedOrder
+}
+
+export async fn closeAfterReservedOrder(
+  order: take Order,
+): Order throws QueueError {
+  let (output, input) = Channel<Order>.open(capacity: 1)
+  let permit = try await output.reserve()
+  input.close()
+  try (take permit).send(take order)
+
+  guard let receivedOrder = await input.receive() else {
+    panic("graceful close revoked an accepted permit")
+  }
+  return receivedOrder
+}
+
+export async fn recoverAfterReceiverAbort(
+  order: take Order,
+): Order {
+  let (output, input) = Channel<Order>.open(capacity: 1)
+  let _ = take input
+
+  do {
+    try await output.send(take order)
+  } catch .closed(let returnedOrder) {
+    return returnedOrder
+  }
+
+  panic("an aborted receiver accepted an order")
+}
+
 // Compile-fail assays:
 // let _ = Channel<view String>.open(capacity: 1) // A view is not transferable.
 // async let left = input.receive()          // The receiver is not shareable.
 // async let right = input.receive()
+// output.close()                             // Senders cannot close globally.
 // borrowedLines.append(line)                // The view would cross the next iteration.
 // let next = try await lines.next()         // Rejected when `line` is used again later.
 // let copy = copy readable                   // ReadableStream is move-only.
