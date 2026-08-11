@@ -297,6 +297,7 @@ const oracleCorpusFiles = [
   "web-body-cases.json",
   "process-root-cases.json",
   "filesystem-cases.json",
+  "io-error-cases.json",
 ];
 const oracleFreezeDecisionIds = new Set(
   oracleCorpusFiles.flatMap((file) => {
@@ -853,6 +854,21 @@ const filesystemOperations = filesystemCorpus.cases.reduce(
 const acceptedFilesystemCases = filesystemCorpus.cases.filter(
   (testCase) => testCase.kind === "positive",
 ).length;
+const ioErrorCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "io-error-cases.json"), "utf8"),
+);
+const ioErrorCases = ioErrorCorpus.cases.length;
+const ioErrorOperations = ioErrorCorpus.cases.reduce(
+  (count, testCase) => {
+    const input = testCase.input ?? {};
+    return count + Object.keys(input).length + Object.keys(input.cause ?? {}).length
+      + (input.helperOperations?.length ?? 0);
+  },
+  0,
+);
+const acceptedIoErrorCases = ioErrorCorpus.cases.filter(
+  (testCase) => testCase.kind === "positive",
+).length;
 const diagnosticSnapshots = fs
   .readFileSync(path.join(wDirectory, "tooling", "semantic-diagnostics.snapshot.jsonl"), "utf8")
   .split(/\r?\n/)
@@ -1116,6 +1132,11 @@ output.push(
   `| casos/operações do filesystem FS0 | ${filesystemCases}/${filesystemOperations} ` +
     `(${acceptedFilesystemCases} aceitos + ${filesystemCases - acceptedFilesystemCases} rejeitados; ` +
     `host oracle não executa syscalls/provider) |`,
+);
+output.push(
+  `| casos/operações de erro portátil de I/O IOE0 | ${ioErrorCases}/${ioErrorOperations} ` +
+    `(${acceptedIoErrorCases} aceitos + ${ioErrorCases - acceptedIoErrorCases} rejeitados; ` +
+    `host oracle não executa W/provider) |`,
 );
 output.push(
   `| casos do corpus semântico S0 | ${semanticCases} (${semanticPositiveCases} positivos + ${semanticNegativeCases} negativos) |`,

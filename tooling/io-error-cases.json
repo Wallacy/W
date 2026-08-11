@@ -1,0 +1,408 @@
+{
+  "$schema": "w-io-error-cases-1",
+  "status": "design-oracle-input",
+  "declaredKinds": [
+    "permissionDenied",
+    "notFound",
+    "alreadyExists",
+    "notDirectory",
+    "isDirectory",
+    "directoryNotEmpty",
+    "readOnly",
+    "busy",
+    "invalidInput",
+    "invalidData",
+    "unsupported",
+    "resourceExhausted",
+    "storageFull",
+    "quotaExceeded",
+    "timedOut",
+    "connectionReset",
+    "brokenPipe",
+    "other"
+  ],
+  "declaredOperations": [
+    "resolve",
+    "open",
+    "close",
+    "read",
+    "write",
+    "flush",
+    "sync",
+    "metadata",
+    "list",
+    "create",
+    "remove",
+    "rename",
+    "connect",
+    "listen",
+    "accept",
+    "send",
+    "receive",
+    "shutdown",
+    "register",
+    "other"
+  ],
+  "cases": [
+    {
+      "id": "IOE0-POS-access-denied-resolve-with-redacted-cause",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": {
+        "subject": "error",
+        "factSource": "provider",
+        "logicalOperation": "resolve",
+        "helperOperations": ["openat"],
+        "condition": "accessDenied",
+        "maximumCauseBytes": 64,
+        "cause": {
+          "factSource": "provider",
+          "target": "posix",
+          "nativeCode": "EACCES",
+          "summary": "access denied",
+          "redacted": true
+        }
+      },
+      "expect": {
+        "accepted": true,
+        "kind": "permissionDenied",
+        "operation": "resolve",
+        "causePresent": true,
+        "causeRedacted": true,
+        "nativeCodePublic": false,
+        "serializable": false,
+        "liveResources": 0,
+        "helperOperationsExposed": false
+      }
+    },
+    {
+      "id": "IOE0-POS-missing-open",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "open", "condition": "missing" },
+      "expect": { "accepted": true, "kind": "notFound", "operation": "open", "causePresent": false }
+    },
+    {
+      "id": "IOE0-POS-exists-create",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "create", "condition": "exists" },
+      "expect": { "accepted": true, "kind": "alreadyExists", "operation": "create" }
+    },
+    {
+      "id": "IOE0-POS-expected-directory-list",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "list", "condition": "expectedDirectory" },
+      "expect": { "accepted": true, "kind": "notDirectory", "operation": "list" }
+    },
+    {
+      "id": "IOE0-POS-expected-nondirectory-read",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "read", "condition": "expectedNonDirectory" },
+      "expect": { "accepted": true, "kind": "isDirectory", "operation": "read" }
+    },
+    {
+      "id": "IOE0-POS-nonempty-directory-remove",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "remove", "condition": "nonEmptyDirectory" },
+      "expect": { "accepted": true, "kind": "directoryNotEmpty", "operation": "remove" }
+    },
+    {
+      "id": "IOE0-POS-readonly-write",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "write", "condition": "readOnly" },
+      "expect": { "accepted": true, "kind": "readOnly", "operation": "write" }
+    },
+    {
+      "id": "IOE0-POS-busy-close",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "close", "condition": "busy" },
+      "expect": { "accepted": true, "kind": "busy", "operation": "close" }
+    },
+    {
+      "id": "IOE0-POS-invalid-input-metadata",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "metadata", "condition": "invalidInput" },
+      "expect": { "accepted": true, "kind": "invalidInput", "operation": "metadata" }
+    },
+    {
+      "id": "IOE0-POS-invalid-data-receive",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "receive", "condition": "invalidData" },
+      "expect": { "accepted": true, "kind": "invalidData", "operation": "receive" }
+    },
+    {
+      "id": "IOE0-POS-unsupported-sync",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "sync", "condition": "unsupported" },
+      "expect": { "accepted": true, "kind": "unsupported", "operation": "sync" }
+    },
+    {
+      "id": "IOE0-POS-resource-exhausted-accept",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "accept", "condition": "resourceExhausted" },
+      "expect": { "accepted": true, "kind": "resourceExhausted", "operation": "accept" }
+    },
+    {
+      "id": "IOE0-POS-storage-full-write",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "write", "condition": "storageFull" },
+      "expect": { "accepted": true, "kind": "storageFull", "operation": "write" }
+    },
+    {
+      "id": "IOE0-POS-quota-exceeded-create",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "create", "condition": "quotaExceeded" },
+      "expect": { "accepted": true, "kind": "quotaExceeded", "operation": "create" }
+    },
+    {
+      "id": "IOE0-POS-adapter-timeout-connect",
+      "kind": "positive",
+      "decisions": ["W-1308", "W-1309"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "connect", "condition": "adapterTimedOut" },
+      "expect": { "accepted": true, "kind": "timedOut", "operation": "connect" }
+    },
+    {
+      "id": "IOE0-POS-connection-reset-read",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "read", "condition": "connectionReset" },
+      "expect": { "accepted": true, "kind": "connectionReset", "operation": "read" }
+    },
+    {
+      "id": "IOE0-POS-broken-pipe-send",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "send", "condition": "brokenPipe" },
+      "expect": { "accepted": true, "kind": "brokenPipe", "operation": "send" }
+    },
+    {
+      "id": "IOE0-POS-unknown-register",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "register", "condition": "unknown" },
+      "expect": { "accepted": true, "kind": "other", "operation": "register" }
+    },
+    {
+      "id": "IOE0-POS-unsupported-flush",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "flush", "condition": "unsupported" },
+      "expect": { "accepted": true, "kind": "unsupported", "operation": "flush" }
+    },
+    {
+      "id": "IOE0-POS-busy-rename",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "rename", "condition": "busy" },
+      "expect": { "accepted": true, "kind": "busy", "operation": "rename" }
+    },
+    {
+      "id": "IOE0-POS-resource-exhausted-listen",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "listen", "condition": "resourceExhausted" },
+      "expect": { "accepted": true, "kind": "resourceExhausted", "operation": "listen" }
+    },
+    {
+      "id": "IOE0-POS-connection-reset-shutdown",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "shutdown", "condition": "connectionReset" },
+      "expect": { "accepted": true, "kind": "connectionReset", "operation": "shutdown" }
+    },
+    {
+      "id": "IOE0-POS-other-operation-keeps-other-kind",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "other", "condition": "unknown" },
+      "expect": { "accepted": true, "kind": "other", "operation": "other" }
+    },
+    {
+      "id": "IOE0-NEG-caller-cannot-forge-provider-error-fact",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "caller", "logicalOperation": "read", "condition": "missing" },
+      "expect": { "accepted": false, "reason": "providerErrorFactRequired" }
+    },
+    {
+      "id": "IOE0-NEG-unknown-logical-operation",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "pread", "condition": "missing" },
+      "expect": { "accepted": false, "reason": "unknownLogicalOperation" }
+    },
+    {
+      "id": "IOE0-NEG-unknown-provider-condition-needs-other-mapping",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "read", "condition": "newErrno" },
+      "expect": { "accepted": false, "reason": "unknownProviderCondition" }
+    },
+    {
+      "id": "IOE0-NEG-error-cannot-publish-retryable-boolean",
+      "kind": "negative",
+      "decisions": ["W-1308", "W-1309"],
+      "input": { "subject": "error", "factSource": "provider", "logicalOperation": "read", "condition": "busy", "retryable": true },
+      "expect": { "accepted": false, "reason": "universalRetryClaim" }
+    },
+    {
+      "id": "IOE0-NEG-cause-must-be-redacted",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": {
+        "subject": "error",
+        "factSource": "provider",
+        "logicalOperation": "open",
+        "condition": "missing",
+        "maximumCauseBytes": 64,
+        "cause": { "factSource": "provider", "target": "posix", "nativeCode": "ENOENT", "summary": "missing", "redacted": false }
+      },
+      "expect": { "accepted": false, "reason": "causeNotRedacted" }
+    },
+    {
+      "id": "IOE0-NEG-cause-cannot-contain-path",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": {
+        "subject": "error",
+        "factSource": "provider",
+        "logicalOperation": "open",
+        "condition": "missing",
+        "maximumCauseBytes": 64,
+        "cause": { "factSource": "provider", "target": "posix", "nativeCode": "ENOENT", "summary": "missing", "redacted": true, "path": "/secret" }
+      },
+      "expect": { "accepted": false, "reason": "causeContainsForbiddenField" }
+    },
+    {
+      "id": "IOE0-NEG-cause-byte-limit",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": {
+        "subject": "error",
+        "factSource": "provider",
+        "logicalOperation": "open",
+        "condition": "missing",
+        "maximumCauseBytes": 4,
+        "cause": { "factSource": "provider", "target": "wasi", "nativeCode": "no-entry", "summary": "missing", "redacted": true }
+      },
+      "expect": { "accepted": false, "reason": "causeLimitExceeded", "maximumCauseBytes": 4 }
+    },
+    {
+      "id": "IOE0-NEG-unknown-cause-target",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": {
+        "subject": "error",
+        "factSource": "provider",
+        "logicalOperation": "open",
+        "condition": "missing",
+        "maximumCauseBytes": 64,
+        "cause": { "factSource": "provider", "target": "browser", "nativeCode": "x", "summary": "missing", "redacted": true }
+      },
+      "expect": { "accepted": false, "reason": "invalidCause" }
+    },
+    {
+      "id": "IOE0-POS-would-block-suspends",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "wouldBlock", "asyncApi": true },
+      "expect": { "accepted": true, "action": "suspend", "publishedIoError": false }
+    },
+    {
+      "id": "IOE0-POS-interrupted-without-progress-retries-provider",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "interruptedNoProgress" },
+      "expect": { "accepted": true, "action": "retryProvider", "publishedIoError": false }
+    },
+    {
+      "id": "IOE0-POS-eof-is-read-step",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "endOfFile" },
+      "expect": { "accepted": true, "action": "readStepEnd", "publishedIoError": false }
+    },
+    {
+      "id": "IOE0-POS-task-cancellation-is-control-outcome",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "taskCanceled" },
+      "expect": { "accepted": true, "action": "taskOutcome", "taskOutcome": "canceled", "publishedIoError": false }
+    },
+    {
+      "id": "IOE0-POS-task-deadline-is-control-outcome",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "deadlineExpired" },
+      "expect": { "accepted": true, "action": "taskOutcome", "taskOutcome": "canceled", "publishedIoError": false }
+    },
+    {
+      "id": "IOE0-NEG-control-event-cannot-publish-io-error",
+      "kind": "negative",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "endOfFile", "publishedIoError": true },
+      "expect": { "accepted": false, "reason": "controlPublishedAsIoError" }
+    },
+    {
+      "id": "IOE0-NEG-would-block-requires-async-api",
+      "kind": "negative",
+      "decisions": ["W-1309"],
+      "input": { "subject": "control", "event": "wouldBlock", "asyncApi": false },
+      "expect": { "accepted": false, "reason": "asyncApiRequired" }
+    },
+    {
+      "id": "IOE0-POS-duplicate-copies-only-snapshots",
+      "kind": "positive",
+      "decisions": ["W-1308"],
+      "input": { "subject": "duplicate", "kind": "permissionDenied", "operation": "open", "causePresent": true, "copies": 2 },
+      "expect": { "accepted": true, "duplicateErrors": 2, "duplicateCauseSnapshots": 2, "duplicateRequests": 0, "duplicateHandles": 0, "duplicateAuthorities": 0 }
+    },
+    {
+      "id": "IOE0-NEG-invalid-duplicate-count",
+      "kind": "negative",
+      "decisions": ["W-1308"],
+      "input": { "subject": "duplicate", "kind": "permissionDenied", "operation": "open", "causePresent": true, "copies": 0 },
+      "expect": { "accepted": false, "reason": "invalidDuplicateRequest" }
+    },
+    {
+      "id": "IOE0-POS-last-light-retries-idempotent-busy-read",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "recovery", "policy": "lastLightRecipe", "kind": "busy", "operation": "read", "committedBytes": 0, "idempotent": true, "deadlineRemaining": true },
+      "expect": { "accepted": true, "decision": "retryAfterBackoff" }
+    },
+    {
+      "id": "IOE0-POS-last-light-stops-permission-denied-open",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "recovery", "policy": "lastLightRecipe", "kind": "permissionDenied", "operation": "open", "committedBytes": 0, "idempotent": true, "deadlineRemaining": true },
+      "expect": { "accepted": true, "decision": "stop" }
+    },
+    {
+      "id": "IOE0-POS-last-light-needs-caller-after-progress",
+      "kind": "positive",
+      "decisions": ["W-1309"],
+      "input": { "subject": "recovery", "policy": "lastLightRecipe", "kind": "timedOut", "operation": "read", "committedBytes": 4, "idempotent": true, "deadlineRemaining": true },
+      "expect": { "accepted": true, "decision": "requireCallerDecision" }
+    },
+    {
+      "id": "IOE0-NEG-recovery-cannot-use-universal-retry-claim",
+      "kind": "negative",
+      "decisions": ["W-1309"],
+      "input": { "subject": "recovery", "policy": "lastLightRecipe", "kind": "busy", "operation": "read", "committedBytes": 0, "idempotent": true, "deadlineRemaining": true, "retryable": true },
+      "expect": { "accepted": false, "reason": "universalRetryClaim" }
+    }
+  ]
+}

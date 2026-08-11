@@ -206,6 +206,7 @@ alvo de execução independente.
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, readable Web, channel CH0, rendezvous, permits, close e owner recovery |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
+| `io_error_oracle.w` | kind portátil, operação lógica, cause opaco e recovery específica da aplicação |
 | `fs_oracle.w` | root capability, native paths, rights, snapshot e publicação durable de arquivo |
 | `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
@@ -970,6 +971,27 @@ idêntico com fallback, `writev` e `WSASend`.
 O teste posicional lê blocos sobrepostos com um `shared File`. A ordem de
 completion pode mudar. Cada bloco deve manter o offset solicitado. O cursor
 sequencial continua único e rejeita duas leituras concorrentes.
+
+#### 3.5.4.1 Error portátil de I/O
+
+`io_error_oracle.w` usa `IoErrorKind`, `IoOperation`, progress, idempotência e
+deadline para uma policy específica do Arquivo das Receitas Extintas. Ele não
+adiciona `retryable` ao error comum.
+
+Aceite:
+
+- kind portátil e operação lógica são eixos independentes;
+- syscall auxiliar não substitui a operação observada pelo caller;
+- cause é um snapshot opaco, redigido e bounded, sem resource owner;
+- duplicar o error não duplica request, handle ou authority;
+- `wouldBlock` suspende; interrupção sem progress repete;
+- EOF usa `ReadStep.end`; cancellation usa `TaskOutcome.canceled`;
+- timeout do adapter pode ser `.timedOut`; deadline da task não pode;
+- unknown kind ou operation usa `.other`;
+- retry depende também de progress, idempotência e deadline.
+
+IOE0 é um oracle host de design. Ele não executa syscalls, scheduler, provider
+ou código W.
 
 ### 3.5.5 Arquivo das Receitas Extintas
 

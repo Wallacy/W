@@ -1,15 +1,15 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "f24668cf0659e86d0ea71b8c434c00aa04e548bf4488f4946b92fe36207329ae",
+  "catalogDigest": "f60418483ca13c8f7c25eff2884d2f4de1bc9fbff7c01b34e5a19acc0f6e0fc3",
   "summary": {
     "modules": 28,
-    "catalogedApis": 367,
-    "draftCatalogedApis": 367,
+    "catalogedApis": 371,
+    "draftCatalogedApis": 371,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 87,
-    "referenceRequirements": 29,
-    "contractedReferenceRequirements": 29,
+    "referenceRequirements": 30,
+    "contractedReferenceRequirements": 30,
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
@@ -3892,19 +3892,23 @@
         "gates": [
           "byte-sink",
           "byte-source",
+          "cause-redaction-bound",
+          "control-outcome-separation",
           "limits",
+          "logical-operation",
           "parallel-short-read",
+          "portable-error-mapping",
           "snapshot-positional-read"
         ]
       },
-      "catalogedDeclarationsDigest": "940a045d6fa6fa964795fb54c0750e76f9dad494fcad9d47868c413e887307e7",
+      "catalogedDeclarationsDigest": "343717aae633528a70447ba854b7b96e55237b7648288f4786e767a7570eaa56",
       "apis": [
         {
           "symbol": "ByteSink",
           "kind": "protocol",
           "signature": "export protocol ByteSink<Failure: Error>",
           "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
-          "line": 47,
+          "line": 154,
           "profile": "byte-sink",
           "status": "draft"
         },
@@ -3913,8 +3917,101 @@
           "kind": "protocol",
           "signature": "export protocol ByteSource<Failure: Error>",
           "declarationDigest": "dd686b24fef81c93a9e404708537440d465b2d3c2f9f39ca13ddc67ddb4e2d26",
-          "line": 25,
+          "line": 132,
           "profile": "byte-source",
+          "status": "draft"
+        },
+        {
+          "symbol": "IoCause",
+          "kind": "struct",
+          "signature": "export struct IoCause: Duplicable",
+          "declarationDigest": "8df5ebcb61d6c54ea38e8b11097aec17acbbe0806c34c2d76b574eb2ab873329",
+          "line": 57,
+          "profile": "io-error",
+          "members": [
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): IoCause",
+                  "line": 64
+                }
+              ],
+              "profile": "io-error"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "IoError",
+          "kind": "struct",
+          "signature": "export struct IoError: Error & Duplicable",
+          "declarationDigest": "23744070db3dc9b055e3843d3983a9cac285359db42f7676873a7a781293ba94",
+          "line": 74,
+          "profile": "io-error",
+          "members": [
+            {
+              "symbol": "kind",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export kind: IoErrorKind",
+                  "line": 89
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "operation",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export operation: IoOperation",
+                  "line": 93
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "cause",
+              "kind": "property",
+              "overloads": [
+                {
+                  "signature": "export cause: ref IoCause?",
+                  "line": 97
+                }
+              ],
+              "profile": "value-contract"
+            },
+            {
+              "symbol": "duplicate",
+              "overloads": [
+                {
+                  "signature": "export fn duplicate(): IoError",
+                  "line": 101
+                }
+              ],
+              "profile": "io-error"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "IoErrorKind",
+          "kind": "enum",
+          "signature": "export enum IoErrorKind: Copy & Equatable & Hashable",
+          "declarationDigest": "9b1e3bebbfcd4e5ce403d925296857228ea8cc39eaa6fb2bcc58f41be07fed37",
+          "line": 26,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "IoOperation",
+          "kind": "enum",
+          "signature": "export enum IoOperation: Copy & Equatable & Hashable",
+          "declarationDigest": "83d0c15eb928ba36df60cbee5e1132f8f0396ee25390baee8402a39005e9953d",
+          "line": 3,
+          "profile": "value-contract",
           "status": "draft"
         },
         {
@@ -3922,7 +4019,7 @@
           "kind": "enum",
           "signature": "export enum ReadStep",
           "declarationDigest": "1469f25e49cd86766027741ed01c789834e8a34ba2508107a083cac8e51e281b",
-          "line": 3,
+          "line": 110,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3931,7 +4028,7 @@
           "kind": "protocol",
           "signature": "export protocol SnapshotByteSource<Failure: Error>",
           "declarationDigest": "77741f256e869de0271593f23dbbc42033e6c1d9f5d372fbd8848e5b18487f4d",
-          "line": 37,
+          "line": 144,
           "profile": "snapshot-byte-source",
           "status": "draft"
         },
@@ -3940,7 +4037,7 @@
           "kind": "enum",
           "signature": "export enum SnapshotReadStep",
           "declarationDigest": "e7eaf14d8acb23095c6f86c79a9a615d2b87480cb4b8c4ff9100d78bd8fcb25c",
-          "line": 10,
+          "line": 117,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3949,7 +4046,7 @@
           "kind": "struct",
           "signature": "export struct WriteAllError<Cause: Error>: Error",
           "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
-          "line": 20,
+          "line": 127,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -3958,7 +4055,7 @@
           "kind": "enum",
           "signature": "export enum WriteStep",
           "declarationDigest": "d566289714bc5cf2aa28cdef36f3606fc74d3c30558e65587a8a92304f2a3e3d",
-          "line": 15,
+          "line": 122,
           "profile": "value-contract",
           "status": "draft"
         }
@@ -9156,6 +9253,14 @@
       "status": "draft",
       "profile": "fs-root",
       "consumer": "reference/last-light/fs_oracle.w"
+    },
+    {
+      "id": "ioe0-portable-error",
+      "module": "std.io",
+      "surface": "IoError",
+      "status": "draft",
+      "profile": "io-error",
+      "consumer": "reference/last-light/io_error_oracle.w"
     },
     {
       "id": "pyn3-presentation-presentable",

@@ -1,5 +1,112 @@
 // Public byte I/O contracts.
 
+export enum IoOperation: Copy & Equatable & Hashable {
+  resolve
+  open
+  close
+  read
+  write
+  flush
+  sync
+  metadata
+  list
+  create
+  remove
+  rename
+  connect
+  listen
+  accept
+  send
+  receive
+  shutdown
+  register
+  other
+}
+
+export enum IoErrorKind: Copy & Equatable & Hashable {
+  permissionDenied
+  notFound
+  alreadyExists
+  notDirectory
+  isDirectory
+  directoryNotEmpty
+  readOnly
+  busy
+  invalidInput
+  invalidData
+  unsupported
+  resourceExhausted
+  storageFull
+  quotaExceeded
+  timedOut
+  connectionReset
+  brokenPipe
+  other
+}
+
+foreign intrinsic from "std.io@1" {
+  type IoCauseHandle
+  type SnapshotByteSourceProviderMarker
+
+  fn stdIoCauseDuplicate(handle: ref IoCauseHandle): IoCauseHandle
+  fn stdIoCauseDrop(handle: inout IoCauseHandle)
+}
+
+// IoCause is a bounded, redacted provider snapshot. It owns no file, socket,
+// task, request, capability, or other live resource.
+export struct IoCause: Duplicable {
+  handle: IoCauseHandle
+
+  init(validatedHandle: IoCauseHandle) {
+    self.handle = validatedHandle
+  }
+
+  export fn duplicate(): IoCause {
+    let duplicate = unsafe { stdIoCauseDuplicate(ref handle) }
+    return IoCause(validatedHandle: duplicate)
+  }
+
+  deinit {
+    unsafe { stdIoCauseDrop(inout handle) }
+  }
+}
+
+export struct IoError: Error & Duplicable {
+  kindValue: IoErrorKind
+  operationValue: IoOperation
+  causeValue: IoCause?
+
+  init(
+    validatedKind kind: IoErrorKind,
+    operation: IoOperation,
+    cause: IoCause?,
+  ) {
+    self.kindValue = kind
+    self.operationValue = operation
+    self.causeValue = take cause
+  }
+
+  export kind: IoErrorKind {
+    get => kindValue
+  }
+
+  export operation: IoOperation {
+    get => operationValue
+  }
+
+  export cause: ref IoCause? {
+    get => causeValue
+  }
+
+  export fn duplicate(): IoError {
+    return IoError(
+      validatedKind: kindValue,
+      operation: operationValue,
+      cause: copy causeValue,
+    )
+  }
+}
+
 export enum ReadStep {
   data(usize<(1...)>)
   end
@@ -99,13 +206,6 @@ export protocol ByteSink<Failure: Error> {
   }
 }
 
-// The provider is intentionally missing.  This marker keeps the intrinsic
-// carrier visible in the SDK catalog without inventing a production runtime
-// implementation or a public handle.
-foreign intrinsic from "std.io@1" {
-  type SnapshotByteSourceProviderMarker
-}
-
 test "write progress is distinct from completion" {
   let complete: WriteStep = .complete
   let partial: WriteStep = .partial(1)
@@ -116,4 +216,9 @@ test "EOF is distinct from positive read progress" {
   let end: ReadStep = .end
   let data: ReadStep = .data(1)
   expect end != data
+}
+
+test "I/O control outcomes are not portable errors" {
+  expect IoErrorKind.timedOut != .other
+  expect IoOperation.read != .write
 }
