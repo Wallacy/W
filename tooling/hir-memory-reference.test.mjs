@@ -156,6 +156,39 @@ function sameAbi(left, right) {
   );
 }
 
+function referenceCycleDisposition({ phase, nodes, edges, closed, drained, externalRoots }) {
+  const strong = edges.filter((edge) => edge.mode === "strong");
+  const outgoing = new Map(nodes.map((node) => [node, []]));
+  for (const edge of strong) outgoing.get(edge.from).push(edge.to);
+
+  function reaches(from, target, seen = new Set()) {
+    if (seen.has(from)) return false;
+    seen.add(from);
+    for (const next of outgoing.get(from)) {
+      if (next === target || reaches(next, target, seen)) return true;
+    }
+    return false;
+  }
+
+  const cycleEdges = strong.filter(
+    (edge) => edge.from === edge.to || reaches(edge.to, edge.from),
+  );
+  if (cycleEdges.length === 0) return "accepted";
+
+  if (phase === "compile") {
+    if (!closed) return "dynamic";
+    return cycleEdges.every((edge) => edge.release === "deinit")
+      ? "unbreakable"
+      : "breakRequired";
+  }
+  if (!drained) return "auditBeforeDrain";
+  const cycleNodes = new Set(cycleEdges.flatMap((edge) => [edge.from, edge.to]));
+  const rooted = externalRoots.some(
+    (root) => cycleNodes.has(root) || [...cycleNodes].some((node) => reaches(root, node)),
+  );
+  return rooted ? "accepted" : "residual";
+}
+
 test("the owner kernel moves and drops exactly once", () => {
   const first = owner();
   const moved = moveOwner(first);
@@ -266,6 +299,63 @@ test("ABI mismatch rejects the link before lowering", () => {
     sameAbi(consumer, { ...consumer, target: "windows-x64" }),
     false,
   );
+});
+
+test("weak capture removes the strong owner cycle", () => {
+  const graph = {
+    phase: "compile",
+    nodes: ["hub", "callback"],
+    closed: true,
+    drained: false,
+    externalRoots: ["hub"],
+    edges: [
+      { from: "hub", to: "callback", mode: "strong", release: "deinit" },
+      { from: "callback", to: "hub", mode: "weak", release: "deinit" },
+    ],
+  };
+  assert.equal(referenceCycleDisposition(graph), "accepted");
+  graph.edges[1].mode = "strong";
+  assert.equal(referenceCycleDisposition(graph), "unbreakable");
+});
+
+test("an explicit close edge makes a known strong cycle breakable", () => {
+  const graph = {
+    phase: "compile",
+    nodes: ["hub", "callback"],
+    closed: true,
+    drained: false,
+    externalRoots: ["hub"],
+    edges: [
+      { from: "hub", to: "callback", mode: "strong", release: "explicitClose" },
+      { from: "callback", to: "hub", mode: "strong", release: "deinit" },
+    ],
+  };
+  assert.equal(referenceCycleDisposition(graph), "breakRequired");
+  graph.closed = false;
+  graph.edges[0].release = "deinit";
+  assert.equal(referenceCycleDisposition(graph), "dynamic");
+});
+
+test("cycle census distinguishes drain and external roots", () => {
+  const graph = {
+    phase: "drainedBoundary",
+    nodes: ["hub", "callback"],
+    closed: false,
+    drained: false,
+    externalRoots: [],
+    edges: [
+      { from: "hub", to: "callback", mode: "strong", release: "explicitClose" },
+      { from: "callback", to: "hub", mode: "strong", release: "deinit" },
+    ],
+  };
+  assert.equal(referenceCycleDisposition(graph), "auditBeforeDrain");
+  graph.drained = true;
+  assert.equal(referenceCycleDisposition(graph), "residual");
+  graph.externalRoots = ["hub"];
+  assert.equal(referenceCycleDisposition(graph), "accepted");
+  graph.nodes.push("unrelated");
+  graph.externalRoots = ["unrelated"];
+  assert.equal(referenceCycleDisposition(graph), "residual");
 });
 
 test("M1 tracks disjoint places and conservative dynamic overlap", () => {

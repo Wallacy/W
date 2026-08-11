@@ -179,7 +179,7 @@ alvo de execução independente.
 | `hardware.w` | fronteira C, layout e deallocator |
 | `abi.w` | façade C escrita em W, carriers e export exato |
 | `abi_oracle.w` | reuse W exact, expectativa de import, call shape e fallback de boundary |
-| `memory.w` | ownership, identidade, Address, provenance, niches, pinning e callback C |
+| `memory.w` | ownership, shared/weak, ciclos, Address, provenance, pinning e callback C |
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
 | `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
 | `allocation.w` | placement, origem, mobilidade, arena, budget e rehome |
@@ -1302,6 +1302,11 @@ Famílias: owner único, shared, weak, borrow suspenso, provenance e pinning.
 Aceite:
 
 - children mantêm descendants vivos e o parent fraco não forma ciclo forte;
+- uma closure escapante escolhe `take`, `copy` ou `weak` para owners move-first;
+- `capture(weak hub)` permite callback armazenado sem reter o próprio hub;
+- ciclo forte fechado e destruction-dependent falha com caminho causal;
+- ciclo dinâmico que nenhum root externo alcança só é reportado depois do drain
+  e nunca é coletado;
 - `upgrade()` retorna ausência depois do último shared owner;
 - `upgrade()` e o último release possuem uma ordem linearizável;
 - o value morre no strong zero e o control block no weak zero;

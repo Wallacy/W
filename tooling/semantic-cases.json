@@ -1789,6 +1789,179 @@
       }
     },
     {
+      "id": "S0-POS-explicit-weak-escaping-capture",
+      "kind": "positive",
+      "rule": "W-1206",
+      "source": [
+        "object MenuSection { title: String }",
+        "fn makeObserver(root: shared MenuSection): some fn(): String? {",
+        "  return capture(weak root) () => {",
+        "    guard let root = root.upgrade() else return .none",
+        "    return .some(copy root.title)",
+        "  }",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "capture(weak root)" },
+        "semanticResult": {
+          "resultType": "some fn(): String?",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "capture", "place": "root", "type": "weak MenuSection?" }
+          ],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "capture-mode", "subject": "root", "value": "weak" },
+            { "kind": "escape", "subject": "observer", "value": "return" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "owner", "operation": "resolve-owner", "subject": "root" },
+              { "id": "weak", "operation": "create-weak-owner", "subject": "root" },
+              { "id": "closure", "operation": "build-closure", "subject": "observer" }
+            ],
+            "edges": [
+              { "from": "owner", "to": "weak", "kind": "next" },
+              { "from": "weak", "to": "closure", "kind": "capture" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-implicit-escaping-owner-capture",
+      "kind": "negative",
+      "rule": "W-1206",
+      "baseline": "S0-POS-explicit-weak-escaping-capture",
+      "failureField": "ownerDelta",
+      "source": [
+        "object MenuSection { title: String }",
+        "fn makeObserver(root: shared MenuSection): some fn(): String {",
+        "  return () => copy root.title",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0015",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "() => copy root.title" },
+            "labels": [
+              {
+                "role": "capture-owner",
+                "selector": { "text": "root: shared MenuSection" }
+              }
+            ],
+            "facts": {
+              "capture": "root",
+              "destination": "return",
+              "ownerType": "shared MenuSection",
+              "validModes": ["copy", "take", "weak"]
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-POS-weak-capture-breaks-owner-cycle",
+      "kind": "positive",
+      "rule": "W-1207",
+      "source": [
+        "object ObserverHub {",
+        "  callbacks: Mutex<Array<any fn(): ()>>",
+        "  fn add(callback: take any fn(): ()) {",
+        "    callbacks.withLock((items) => {",
+        "      items.append(take callback)",
+        "    })",
+        "  }",
+        "  fn refresh() {}",
+        "}",
+        "fn attach(hub: shared ObserverHub) {",
+        "  hub.add(capture(weak hub) () => {",
+        "    guard let hub = hub.upgrade() else return ()",
+        "    hub.refresh()",
+        "  })",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "hub.add" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "capture", "place": "hub", "type": "weak ObserverHub?" }
+          ],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "closed-owner-graph", "subject": "hub/callback", "value": "true" },
+            { "kind": "strong-cycle", "subject": "hub/callback", "value": "false" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "hub", "operation": "resolve-owner", "subject": "hub" },
+              { "id": "weak", "operation": "create-weak-owner", "subject": "hub" },
+              { "id": "closure", "operation": "build-closure", "subject": "callback" },
+              { "id": "store", "operation": "store-owner", "subject": "callbacks" }
+            ],
+            "edges": [
+              { "from": "hub", "to": "weak", "kind": "weak" },
+              { "from": "weak", "to": "closure", "kind": "capture" },
+              { "from": "closure", "to": "store", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-closed-strong-capture-cycle",
+      "kind": "negative",
+      "rule": "W-1207",
+      "baseline": "S0-POS-weak-capture-breaks-owner-cycle",
+      "failureField": "proofFacts",
+      "source": [
+        "object ObserverHub {",
+        "  callbacks: Mutex<Array<any fn(): ()>>",
+        "  fn add(callback: take any fn(): ()) {",
+        "    callbacks.withLock((items) => {",
+        "      items.append(take callback)",
+        "    })",
+        "  }",
+        "  fn refresh() {}",
+        "}",
+        "fn attach(hub: shared ObserverHub) {",
+        "  hub.add(capture(copy hub) () => hub.refresh())",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0014",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "capture(copy hub)" },
+            "labels": [
+              { "role": "cycle-edge", "selector": { "text": "callbacks.withLock" } },
+              { "role": "cycle-edge", "selector": { "text": "capture(copy hub)" } }
+            ],
+            "facts": {
+              "cycle": ["hub", "callback", "hub"],
+              "edgeOrigins": ["callbacks", "capture(copy hub)"],
+              "releasePlan": "deinit-only"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
       "id": "S0-NEG-expr-mutable-assignment",
       "kind": "negative",
       "rule": "W-770",

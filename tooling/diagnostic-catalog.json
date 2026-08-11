@@ -1458,6 +1458,55 @@
       "fixes": {}
     },
     {
+      "code": "W-OWNERSHIP-0014",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a closed strong ownership component can only release its edges from destructors inside the same component",
+      "requiredFacts": {
+        "cycle": "string[]",
+        "edgeOrigins": "string[]",
+        "releasePlan": "string"
+      },
+      "labelRoles": {
+        "cycle-edge": { "minimum": 2, "maximum": null }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-OWNERSHIP-0015",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "an escaping closure would retain or transfer a move-first owner without an explicit capture mode",
+      "requiredFacts": {
+        "capture": "string",
+        "destination": "string",
+        "ownerType": "string",
+        "validModes": "string-set"
+      },
+      "labelRoles": {
+        "capture-owner": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
+      "code": "W-MEMORY-0001",
+      "state": "active",
+      "phase": "test",
+      "defaultSeverity": "error",
+      "meaning": "a drained lifecycle boundary retains a strong ownership cycle that no external root reaches",
+      "requiredFacts": {
+        "boundary": "string",
+        "cycle": "string[]",
+        "drained": "boolean",
+        "externalRoots": "string[]",
+        "reachableExternalRoots": "string[]"
+      },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-SNAPSHOT-0001",
       "state": "active",
       "phase": "semantic.ownership",

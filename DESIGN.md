@@ -122,6 +122,8 @@ spawn<.compute> let plan = optimize(take snapshot)
 | mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
 | transferir ownership | `take` | o source perde o owner uma vez |
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
+| criar owners múltiplos reais | `share(value)` e `copy sharedHandle` | allocation e cada retain ficam visíveis |
+| observar owner sem mantê-lo vivo | `weak` e `upgrade()` | acesso exige adquirir owner forte opcional |
 | suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
@@ -135,6 +137,8 @@ spawn<.compute> let plan = optimize(take snapshot)
 também infere suspensão. `spawn` não significa thread nem paralelismo por si só.
 Um domain serial executa um segmento por vez. Um domain com `.parallel` pode
 usar múltiplos recursos. Em ambos, children permanecem estruturados.
+Uma closure escapante também escolhe `take`, `copy` ou `weak`; W não cria retain
+oculto para reparar lifetime.
 
 [A seção 9](#9-memória-layout-e-alocação) define owner, loans, storage e
 reclamation. [A seção 12](#12-concorrência-paralelismo-e-execução) define
@@ -2150,6 +2154,8 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-BORROW-0010` | `share` recebe payload com origin de borrow dinâmica |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
 | `W-OWNERSHIP-0013` | expected type, return ou parâmetro tenta promover owner único para `shared` |
+| `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
+| `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
 `a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
@@ -2687,6 +2693,8 @@ As famílias específicas usam estes códigos:
 | `W-BORROW-0010` | `share` recebe payload dependente do lifetime |
 | `W-OWNERSHIP-0011` | consuming receiver não foi transferido |
 | `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
+| `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
+| `W-OWNERSHIP-0015` | capture escapante de owner move-first não escolhe `take`, `copy` ou `weak` |
 
 Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar enum
@@ -4693,14 +4701,23 @@ let readWord: fn(usize): u16 =
   (index) => u16(readByte(index))
 ```
 
-Captures são inferidos. `capture(...)` substitui a inferência nos casos
-importantes. Os modos são `copy`, `ref`, `take` e `weak`:
+Captures sem custo de ownership podem ser inferidos: value `Copy`, borrow
+nonescaping e borrow de child estruturado cujo join fecha o lifetime. Uma
+closure que escapa não cria `copy`, retain, `weak` ou transferência de um owner
+move-first em silêncio. Ela usa `capture(...)` com `copy`, `ref`, `take` ou
+`weak`:
 
 ```w
 let task = capture(take model, ref cache) (input) => {
   return model.run(input, cache: cache)
 }
 ```
+
+Para um handle `shared T`, `take` transfere o owner existente, `copy` cria outro
+owner forte e `weak` cria um handle fraco. O binding de uma capture `weak`
+continua fraco dentro do body e precisa de `upgrade()` antes do acesso. W não
+possui capture `unowned`: `ref` cobre lifetime provado; `weak` cobre liveness
+opcional.
 
 Uma closure possui um tipo anônimo semelhante a uma struct de captures. A HIR
 registra cada place capturado, seu modo, lifetime, owner e drop path. Uma closure
@@ -7768,13 +7785,47 @@ devolver o source num outcome próprio; a baseline não restaura o binding.
 retain visível no source. `upgrade()` é a única operação que cria um shared owner
 a partir de `weak`. Uma função pode mover seu último shared handle sem retain.
 
-W não possui cycle collector por default. Um ciclo forte precisa de uma destas
-soluções:
+#### 9.4.1 Captures e ciclos fortes
 
-- uma aresta `weak`;
-- remoção ou `close` explícito;
-- um owner de scope que destrói o grafo;
-- um owner de lifecycle, como service ou request scope.
+**W-1206 — nenhum retain implícito:** uma closure que escapa e captura um owner
+move-first precisa escolher `take`, `copy` ou `weak`. Para `shared T`, as três
+formas significam transferência do owner forte, criação explícita de outro
+owner forte e criação de um owner fraco, respectivamente:
+
+```w
+let observe = capture(weak root) () => {
+  guard let root = root.upgrade() else return .none
+  return .some(copy root.title)
+}
+```
+
+`weak` aceita somente um handle `shared`. Ele não torna `T` shareable ou
+transferable. Uma closure nonescaping pode continuar a inferir `ref`; um child
+estruturado pode manter o borrow até o join. `W-OWNERSHIP-0015` rejeita uma
+closure escapante que exigiria retain ou transferência implícita.
+
+**W-1207 — classificação de ciclos:** a HIR registra owners fortes, weak edges,
+closure environments, containers e a operação que pode remover cada edge. Um
+componente fortemente conexo (SCC) é erro `W-OWNERSHIP-0014` quando todas as
+identidades são conhecidas e cada edge forte só terminaria pelo `deinit` de um
+node do mesmo componente. O diagnostic mostra o caminho fechado e a origem de
+cada edge.
+
+Uma edge `weak` quebra o componente forte. Uma edge removida por `close` ou pelo
+drain de um lifecycle owner torna o ciclo quebrável, mas não o quebra por si só.
+O plano de cleanup precisa remover essa edge antes do último root externo. O
+compiler não troca `copy` por `weak` e não inventa `close`.
+
+Grafos cujas identidades ou mutações dependem do input continuam válidos.
+**W-1208 — censo sem coletor:** um perfil instrumentado de debug ou teste pode
+registrar edges de control blocks. Depois que uma boundary fecha a admissão e
+drena tasks, callbacks e resources, um componente forte que nenhum root
+externo alcança produz `W-MEMORY-0001`. A instrumentação reporta o ciclo; ela
+não o coleta, não executa `deinit` e não muda release.
+
+W não possui cycle collector por default. Um ciclo forte usa uma destas
+soluções: edge `weak`, remoção explícita, scope que possui o grafo ou lifecycle
+owner que drena e rompe suas edges.
 
 Aliases no mesmo isolation domain não exigem `T.shareable`. Cruzar `spawn`,
 channel, service ou callback concorrente exige, em conjunto:
@@ -7809,9 +7860,9 @@ drop. Uma representação compacta não substitui essas obrigações.
 `ServiceRef<T>` não é `shared T`. O host controla o lifecycle da instance. Um
 handle de service mantém identity e capability, não ownership direto do estado.
 
-`w explain ownership` mostra retains, releases, possíveis ciclos e a razão de
-uma contagem atômica. Isso é evidence de tooling, não prova global de ausência
-de ciclo.
+`w explain memory` mostra retains, releases, edges fortes/fracas, possíveis
+ciclos, planos de ruptura e a razão de uma contagem atômica. Um grafo dinâmico
+sem censo instrumentado permanece `unknown`; tooling não inventa prova global.
 
 ### 9.5 Arena avançada e placement invisível
 
@@ -8636,9 +8687,8 @@ Safe W usa owner único, `shared`, scopes, services, channels, locks ou
 Uma collection concorrente pode usar reclamation interna `unsafe`, mas publica
 bounds, progress, cleanup e fault behavior.
 
-W não possui cycle collector por default. Um debug profile pode detectar ciclos
-alcançáveis de control blocks. Essa instrumentação não altera o ponto de drop e
-não autoriza o release a depender do detector.
+O censo de ciclos da [seção 9.4.1](#941-captures-e-ciclos-fortes) observa
+control blocks depois do drain. Ele não altera retirement, reclamation ou drop.
 
 ### 9.12 Explicação e medição
 
@@ -27738,6 +27788,12 @@ quando safe source comprovar owner, borrow, drop e reclamation sem lifetime
 annotations; quando placement entre register, stack, frame, heap e arena não
 mudar o resultado; e quando `shared`, pinning, FFI e OOM preservarem seus
 contratos explícitos.
+
+**W-1209 — gate de ciclos e captures:** o mesmo claim exige que closures
+escapantes não criem retains implícitos, que ciclos fortes fechados recebam um
+caminho causal exato e que o censo instrumentado encontre ciclos residuais
+somente depois do drain. A ausência de um coletor universal não reduz esse
+gate; ela torna a prova de ruptura parte do contrato.
 
 M1, A0, SP0, MX0, ABI e adapters reais devem passar os mesmos casos em debug e
 release. Até esse ponto, a forma correta é “modelo de memória definido;

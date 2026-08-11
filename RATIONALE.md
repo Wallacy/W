@@ -198,8 +198,8 @@ substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
 alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
-O kernel executável de memória usa a baseline M1. O corpus possui 172 casos e
-591 operações, com 75 outcomes aceitos e 97 rejeitados. Cada caso liga
+O kernel executável de memória usa a baseline M1. O corpus possui 184 casos e
+603 operações, com 82 outcomes aceitos e 102 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
@@ -1268,6 +1268,27 @@ payload, owners fortes, owners fracos e allocator; thread-safe reference count
 não torna o payload shareable. W mantém essas distinções sem expor lifetime
 variables no source.
 
+O [ARC de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/)
+documenta ciclos entre instances e entre uma instance e uma closure. Capture
+lists permitem `weak` e `unowned`, mas a capture forte continua default. A
+documentação de [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html#breaking-cycles-with-weak)
+declara que ciclos fortes não são liberados e usa `Weak` para parent links;
+`Arc::new_cyclic` entrega somente um `Weak` durante a construção.
+
+W escolhe uma fronteira mais estrita: uma closure escapante nunca ganha retain
+ou transferência de owner move-first por inferência. `capture(copy ...)`,
+`capture(take ...)` e `capture(weak ...)` tornam a edge observável. `unowned`
+não entra porque duplicaria `ref` sem prova ou introduziria trap/use-after-free.
+O compiler rejeita apenas o componente forte fechado que consegue provar como
+destruction-dependent; grafo dinâmico não recebe certeza inventada.
+
+O artigo
+[Concurrent Cycle Collection in Reference Counted Systems](https://pages.cs.wisc.edu/~cymen/misc/interests/Bacon01Concurrent.pdf)
+mostra que coleta localizada e concorrente é possível, mas exige algoritmo,
+metadata e sincronização próprios. Por isso um coletor pode voltar como
+profile estudado, sem definir `shared` ou mudar o drop da baseline. O censo de
+debug/test registra e reporta; ele não coleta.
+
 O experimento de
 [in-place initialization do Rust](https://github.com/rust-lang/lang-team/issues/336)
 mostra que construir primeiro e mover depois não atende todos os tipos
@@ -1443,7 +1464,7 @@ O índice gerado usa esta tabela somente como projeção.
 | allocator explícito por `using` | **Possível agora** | origem e deallocator acompanham o owner |
 | mobilidade derivada da origem | **Provável** | M1 separa origem local/cross-domain; FFI e matriz de providers exigem protótipo |
 | allocator geral por build profile | **Possível agora** | profile gera runtime requirement e plan fixa provider exato |
-| `shared` + `weak` sem cycle collector | **Provável** | M1 fecha lifecycle lógico; atomics, overflow e tooling de ciclos exigem avaliação |
+| `shared` + `weak` sem cycle collector | **Provável** | M1/S0 fecham lifecycle, captures e ciclos lógicos; provider e censo reais ficam pós-freeze |
 | `async let`/`spawn<domain> let` estruturados | **Possível agora** | state machine e runtime mínimo delimitados |
 | modules sem lifecycle e imports herméticos | **Possível agora** | contrato estático simples |
 | UTF-8 owned e views | **Possível agora** | representação portátil com fallback |
@@ -2291,6 +2312,8 @@ M1 mantém uma forma aceita e uma inversão para cada regra crítica:
 | body result mapping | `M1-interface-body-maps-origins` | `M1-interface-body-missing-result-slot` |
 | import interface key | `M1-abi-exact` | `M1-interface-key-presence-asymmetric` e `M1-interface-keys-both-absent` |
 | FFI inline | `M1-language-function-explicit-proof` | `M1-language-function-needs-proof` |
+| ciclo shared | `M1-weak-capture-breaks-strong-cycle` | `M1-closed-strong-cycle-rejected` |
+| censo após drain | `M1-live-root-is-not-residual-cycle` | `M1-drained-residual-cycle-rejected` e `M1-unrelated-root-does-not-hide-residual-cycle` |
 
 [`borrowed_values.w`](reference/last-light/borrowed_values.w) mostra as formas W
 positivas. [`memory-transition-cases.json`](tooling/memory-transition-cases.json)
@@ -2436,7 +2459,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 
 | Perfil | Corpus | Resultado | Host independente | Limite principal |
 |---|---:|---:|---:|---|
-| M1 memory transition | 172 casos, 591 operações | 75 aceitos, 97 rejeitados | checker puro | não executa W |
+| M1 memory transition | 184 casos, 603 operações | 82 aceitos, 102 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
 | execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
@@ -3474,7 +3497,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 172 casos e 591 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, construção pinned, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 184 casos e 603 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle e ciclos, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, construção pinned, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 32/69 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -3763,6 +3786,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1203 | lifetime, memória e provider de atomic wait | frame estável automático, owner drena waiters, parking key inclui generation; acquire observa release, notify não é fence; provider não bloqueia worker cooperativo | pin manual no caminho comum, owner destruído com waiter, ABA tratado como evento, spin ilimitado, endereço reutilizado, provider como autoridade |
 | W-1204 | boundary blocking coerente | foreign blocking usa `spawn<.blocking>` bounded ou fault boundary física da seção 12.11 e nunca ganha fix-it `sync` | boundary ainda Pesquisa, bloquear worker cooperativo, interromper foreign frame sem contrato, reintroduzir call-site sync |
 | W-1205 | evidence atomic wait E0 | E0 deriva fast path, check/register, FIFO, notify, cancellation, drain, ABA e release/acquire; source Última Luz fixa a superfície | chamar oracle de scheduler/runtime/provider, expected echo, caso sem símbolo consumidor |
+| W-1206 | capture sem retain implícito | closure escapante de owner move-first escolhe `take`, `copy` ou `weak`; inference fica limitada a Copy e borrows provadamente bounded | ARC implícito em closure, retain escondido, capture `unowned`, fix-it que escolhe ownership |
+| W-1207 | classificação de ciclo forte | HIR rejeita SCC fechado cujas edges fortes só terminariam pelo `deinit` interno; weak, close e lifecycle drain permanecem distinções observáveis | rejeitar todo grafo cíclico, aceitar self-cycle imutável, converter strong em weak, confiar em nome de field |
+| W-1208 | censo sem coletor | profile debug/test registra control-block edges e reporta SCC que nenhum root alcança somente depois de admission close e drain; não coleta nem muda drop | coletor default, relatório antes do drain, ciclo alcançável chamado de leak, deinit executado pelo detector |
+| W-1209 | evidence de ciclos e captures M1/S0 | S0 fixa capture explícita e diagnostics; M1 deriva SCC forte, edge rompível, roots e residual pós-drain; Last Light fornece consumer | checker por substring, graph fornecendo resposta esperada, chamar oracle de runtime/compiler ou leak sanitizer real |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
