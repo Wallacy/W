@@ -1582,6 +1582,24 @@
       "fixes": {}
     },
     {
+      "code": "W-OWNERSHIP-0016",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a parameter modifier appears before its binding or is not a valid parameter mode",
+      "requiredFacts": {
+        "canonicalForm": "string",
+        "context": "string",
+        "modifier": "string",
+        "parameter": "string",
+        "reason": "string"
+      },
+      "labelRoles": {
+        "parameter-declaration": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-MEMORY-0001",
       "state": "active",
       "phase": "test",

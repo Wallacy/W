@@ -4159,6 +4159,76 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-parameter-contract-after-binding",
+      "kind": "positive",
+      "rule": "W-1291",
+      "source": [
+        "fn transfer(source: ref Menu, target: inout Menu, value: take Order) {}"
+      ],
+      "expect": {
+        "focus": {
+          "text": "source: ref Menu, target: inout Menu, value: take Order"
+        },
+        "semanticResult": {
+          "resultType": null,
+          "category": "declaration",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "parameter-contract", "subject": "source", "value": "ref" },
+            { "kind": "parameter-contract", "subject": "target", "value": "inout" },
+            { "kind": "parameter-contract", "subject": "value", "value": "take" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "labels", "operation": "bind-parameters", "subject": "transfer" },
+              { "id": "contracts", "operation": "normalize-ownership", "subject": "transfer" }
+            ],
+            "edges": [
+              { "from": "labels", "to": "contracts", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-parameter-contract-before-binding",
+      "kind": "negative",
+      "rule": "W-1291",
+      "baseline": "S0-POS-parameter-contract-after-binding",
+      "failureField": "proofFacts",
+      "source": [
+        "fn consume(take value: Menu) {}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-OWNERSHIP-0016",
+            "phase": "semantic.ownership",
+            "severity": "error",
+            "primary": { "text": "take value: Menu" },
+            "labels": [
+              {
+                "role": "parameter-declaration",
+                "selector": { "text": "take value: Menu" }
+              }
+            ],
+            "facts": {
+              "canonicalForm": "value: take Menu",
+              "context": "callable",
+              "modifier": "take",
+              "parameter": "value",
+              "reason": "parameter-contract-before-binding"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
     }
   ]
 }

@@ -108,7 +108,7 @@ export async fn deviceOf<Element, shape: StaticList<usize>>(
 }
 
 export async fn transfer<Element, shape: StaticList<usize>>(
-  take source: Tensor<Element, shape>,
+  source: take Tensor<Element, shape>,
   target: ref Device,
   on queue: ref Queue?,
   limits: ref Limits,

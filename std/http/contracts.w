@@ -1392,21 +1392,21 @@ foreign intrinsic from "std.http@1" {
 
   fn stdHttpRequestFromString(
     input: ref String,
-    take init: RequestInit,
+    init: take RequestInit,
   ): RequestHandle throws RequestError
   // Owned URL is consumed by the provider; the `Copy`-suffixed entry below
   // materializes from a borrowed URL and is intentionally distinct.
   fn stdHttpRequestFromOwnedURL(
     input: take URL,
-    take init: RequestInit,
+    init: take RequestInit,
   ): RequestHandle throws RequestError
   fn stdHttpRequestFromURLCopy(
     input: ref URL,
-    take init: RequestInit,
+    init: take RequestInit,
   ): RequestHandle throws RequestError
   fn stdHttpRequestOverride(
     handle: inout RequestHandle,
-    take override: RequestOverride,
+    override: take RequestOverride,
   ): () throws RequestError
   fn stdHttpRequestMethod(handle: ref RequestHandle): Method
   fn stdHttpRequestURL(handle: ref RequestHandle): ref URL
@@ -1528,13 +1528,13 @@ export struct Request {
     self.handle = validatedHandle
   }
 
-  export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError {
+  export init(_ input: take String, init: take RequestInit = RequestInit()) throws RequestError {
     self.handle = unsafe {
       try stdHttpRequestFromString(ref input, take init)
     }
   }
 
-  export init(_ input: take URL, take init: RequestInit = RequestInit()) throws RequestError {
+  export init(_ input: take URL, init: take RequestInit = RequestInit()) throws RequestError {
     // The owned URL entry consumes the URL in the foreign call. Borrowed URL
     // callers use the explicitly copying overload below.
     self.handle = unsafe {
@@ -1542,13 +1542,16 @@ export struct Request {
     }
   }
 
-  export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError {
+  export init(copying input: ref URL, init: take RequestInit = RequestInit()) throws RequestError {
     self.handle = unsafe {
       try stdHttpRequestFromURLCopy(input, take init)
     }
   }
 
-  export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError {
+  export init(
+    _ input: take Request,
+    override: take RequestOverride = RequestOverride(),
+  ) throws RequestError {
     self.handle = take input.handle
     unsafe { try stdHttpRequestOverride(inout self.handle, take override) }
   }
@@ -1700,7 +1703,7 @@ export struct Response {
   export init(
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1716,7 +1719,7 @@ export struct Response {
     _ body: take String,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1732,7 +1735,7 @@ export struct Response {
     _ body: take Bytes,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1748,7 +1751,7 @@ export struct Response {
     _ body: take URLSearchParams,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1764,7 +1767,7 @@ export struct Response {
     _ body: take Blob,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1780,7 +1783,7 @@ export struct Response {
     _ body: take FormData,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1796,7 +1799,7 @@ export struct Response {
     _ body: take ReadableStream<Bytes, HttpBodyError>,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
@@ -1809,10 +1812,10 @@ export struct Response {
   }
 
   export init(
-    take body: BodySource,
+    _ body: take BodySource,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
-    take headers: Headers = Headers(),
+    headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(

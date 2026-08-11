@@ -94,6 +94,41 @@ test("record-like initializers reject the redundant named marker", () => {
   expect(summarizeDiagnostics(result)).toContain("W-LABEL-0007")
 })
 
+test("parameter contracts follow labels and bindings", () => {
+  const canonical = deriveExecutionErgonomics(`
+    fn transfer(
+      source: ref Menu,
+      target: inout Menu,
+      payload: take Order,
+      format: const Format,
+    ) {}
+  `)
+  expect(canonical.labels.declarations[0]?.params.map((parameter) => parameter.contractMode))
+    .toEqual(["ref", "inout", "take", "const"])
+  expect(canonical.labels.diagnostics).toEqual([])
+
+  for (const modifier of [
+    "const",
+    "copy",
+    "inout",
+    "mut",
+    "pin",
+    "ref",
+    "shared",
+    "take",
+    "view",
+    "weak",
+  ]) {
+    const rejected = deriveExecutionErgonomics(`fn invalid(${modifier} value: Menu) {}`)
+    expect(summarizeDiagnostics(rejected)).toContain("W-OWNERSHIP-0016")
+  }
+
+  const initializer = deriveExecutionErgonomics(`
+    struct Request { init(take value: Request) {} }
+  `)
+  expect(summarizeDiagnostics(initializer)).toContain("W-OWNERSHIP-0016")
+})
+
 test("parameter splitting distinguishes generic delimiters from operators", () => {
   const result = deriveExecutionErgonomics(`
     fn project(

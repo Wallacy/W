@@ -2160,6 +2160,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem declaração ou operação explícita |
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
 | `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
+| `W-OWNERSHIP-0016` | prefix de parâmetro aparece antes do binding ou `copy` tenta virar modo de parâmetro |
 
 O code pertence à primeira fase que perde um resultado válido. Uma cadeia
 `a == b == c` falha no parser porque a grammar não cria a árvore. Uma condition
@@ -2700,6 +2701,7 @@ As famílias específicas usam estes códigos:
 | `W-OWNERSHIP-0013` | shared ownership seria criado implicitamente |
 | `W-OWNERSHIP-0014` | componente forte fechado depende do próprio `deinit` para romper o ciclo |
 | `W-OWNERSHIP-0015` | capture escapante de owner move-first não escolhe `take`, `copy` ou `weak` |
+| `W-OWNERSHIP-0016` | ownership ou requisito de parâmetro aparece no lado dos labels |
 
 Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar enum
@@ -4391,6 +4393,32 @@ fn store(value: take Value)
 fn transform(value: Value): Result
 fn prepare(format: const Format): PreparedFormat
 ```
+
+**W-1291 — contrato depois do binding:** labels e nomes ficam à esquerda de
+`:`. O modo do parâmetro fica à direita, junto do type contract. As formas
+canônicas são `value: ref T`, `value: inout T`, `value: take T` e
+`value: const T`. A forma `take value: T` não declara um parâmetro consuming:
+ela ocupa a posição sintática de um label externo e é rejeitada por
+`W-OWNERSHIP-0016`. A mesma regra rejeita `ref value: T`, `inout value: T` e
+outros modificadores de ownership nessa posição.
+
+`copy` e `pin` não são modos de parâmetro. Um parâmetro comum continua escrito
+`value: T`; o caller escreve `copy value` quando precisa materializar um valor
+independente. `pin` permanece uma operação de ownership. `mut` modifica binding
+ou receiver, não um parâmetro. `shared`, `weak` e `view` são partes do type e
+também ficam depois de `:`:
+
+```w
+fn cache(menu: shared Menu)
+fn title(menu: ref Menu): view String
+fn consume(menu: take Menu)
+
+consume(take menu)
+```
+
+Essa ordem separa três contratos sem depender de whitespace: call label e
+binding, depois ownership, depois type. Function types omitem bindings e mantêm
+somente o contrato, como `fn(ref Menu, take Order): Receipt`.
 
 Um parâmetro `T` é pass-by-value. Um tipo `Copy` produz uma cópia semântica
 implícita e de custo limitado. Um tipo owned que não atende a `Copy` pode ser
@@ -14956,10 +14984,10 @@ expõe os endereços reais, inclusive todos os listeners agregados por `.any`.
 UDP mantém boundaries de datagram. `DatagramLimits` limita payload e queues.
 O menor limite entre limits da call, do socket e do product vence.
 `receive(maximumBytes:)` devolve `Datagram { bytes, peer, truncated }` e nunca
-oculta truncation. `send(source:ref to:)` preserva atomicidade do datagram ou
-falha com `messageTooLarge(maximum)` ou outro `NetworkError`. UDP não promete
-reliability, ordering ou congestion control. O profile registra a orientação do
-RFC 8085.
+oculta truncation. `send(source: view Bytes, to:)` preserva atomicidade do
+datagram ou falha com `messageTooLarge(maximum)` ou outro `NetworkError`. UDP
+não promete reliability, ordering ou congestion control. O profile registra a
+orientação do RFC 8085.
 
 **W-1252 — UDP direcional:** um `UdpSocket` não dividido serializa `receive` e
 `send`. `(take socket).split()` cria `UdpReceiveHalf` e `UdpSendHalf` únicos.
@@ -15424,13 +15452,13 @@ responses em RPC.
 O constructor possui overloads estáticos. Ele não recebe uma union dinâmica:
 
 ```text
-Request(input: String, take init: RequestInit = RequestInit())
+Request(_ input: take String, init: take RequestInit = RequestInit())
   -> Request throws RequestError
-Request(take input: URL, take init: RequestInit = RequestInit())
+Request(_ input: take URL, init: take RequestInit = RequestInit())
   -> Request throws RequestError
-Request(copying input: ref URL, take init: RequestInit = RequestInit())
+Request(copying input: ref URL, init: take RequestInit = RequestInit())
   -> Request throws RequestError
-Request(take input: Request, take override: RequestOverride = RequestOverride())
+Request(_ input: take Request, override: take RequestOverride = RequestOverride())
   -> Request throws RequestError
 ```
 
@@ -16202,24 +16230,27 @@ preservar backpressure.
 A interface lógica contém:
 
 ```text
-Response(take body: BodySource? = none, status: StatusCode = StatusCode.ok,
-  statusText: String = "", take headers: Headers = Headers())
+Response(status: StatusCode = StatusCode.ok,
+  statusText: String = "", headers: take Headers = Headers())
   -> Response throws ResponseError
-Response(take body: Blob, ...) -> Response throws ResponseError
-Response(take body: FormData, ...) -> Response throws ResponseError
+Response(_ body: take BodySource, status: StatusCode = StatusCode.ok,
+  statusText: String = "", headers: take Headers = Headers())
+  -> Response throws ResponseError
+Response(_ body: take Blob, ...) -> Response throws ResponseError
+Response(_ body: take FormData, ...) -> Response throws ResponseError
 Response.error() -> Response
 Response.json<Value: json.Encodable>(
-  ref Value,
+  value: ref Value,
   maximumBytes: usize<(1...)>,
   status: StatusCode = StatusCode.ok,
-  take headers: Headers = Headers(),
+  headers: take Headers = Headers(),
 )
   -> Response throws ResponseError
 Response.json<Value: json.Encodable>(
-  ref Value,
+  value: ref Value,
   limits: json.Limits,
   status: StatusCode = StatusCode.ok,
-  take headers: Headers = Headers(),
+  headers: take Headers = Headers(),
 )
   -> Response throws ResponseError
 
@@ -17919,7 +17950,7 @@ compilação silenciosamente e não fazem schema inference no runtime.
 
 ##### Parquet
 
-`std.parquet.decode` recebe `take Source: SnapshotByteSource`. O
+`std.parquet.decode` recebe `source: take SnapshotByteSource`. O
 `DecodeProfile` default é `.portable` e o default de binding é `.exact`;
 `EncodeProfile` é separado e o writer modern não pode ser escolhido por uma
 opção de decode. `.project` é explícito, e o DTO target define as colunas.
@@ -20752,26 +20783,26 @@ As formas vigentes são:
 
 ```w
 async dlpack.open<Element, shape>(
-  take managed: dlpack.ManagedTensor,
+  managed: take dlpack.ManagedTensor,
   on: ref tensor.Queue?,
   limits: ref dlpack.Limits,
 ): dlpack.ImportedTensor<Element, shape> throws dlpack.DLPackError
 
 async dlpack.openDynamic(
-  take managed: dlpack.ManagedTensor,
+  managed: take dlpack.ManagedTensor,
   on: ref tensor.Queue?,
   limits: ref dlpack.Limits,
 ): dlpack.DynamicImportedTensor throws dlpack.DLPackError
 
 async dlpack.materialize<Element, shape>(
-  take source: dlpack.ManagedTensor | dlpack.ImportedTensor<Element, shape>,
+  source: take dlpack.ManagedTensor | dlpack.ImportedTensor<Element, shape>,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
   limits: ref dlpack.Limits,
 ): Tensor<Element, shape> throws dlpack.DLPackError
 
 async dlpack.export<Element, shape>(
-  take value: Tensor<Element, shape>,
+  value: take Tensor<Element, shape>,
   on queue: ref tensor.Queue?,
   limits: ref dlpack.Limits,
 ): dlpack.ManagedTensor throws dlpack.DLPackError
@@ -21596,7 +21627,7 @@ hermético satisfaz este contrato.
 nesting, strings, comments, CRLF, UTF-8, empty body, suffix W, alias `.c`, edit,
 source map, fallback, lock, digests e limits. São 15 casos aceitos, 28 rejeitados
 e duas informações; nove testes host não leem o snapshot. A gramática
-Tree-sitter possui corpus separado e scanner externo. Um dos 24 pares F0 prova
+Tree-sitter possui corpus separado e scanner externo. Um dos 25 pares F0 prova
 que a assinatura muda sem alterar os bytes do body. Esses oracles não executam
 o frontend C, compiler W, formatter ou builder.
 

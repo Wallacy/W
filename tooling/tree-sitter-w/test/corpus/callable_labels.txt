@@ -40,6 +40,55 @@ fn reserve(
     (block)))
 
 ==================
+Parameter contracts follow the binding
+==================
+
+fn transfer(source: ref Menu, target: inout Menu, payload: take Order) {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block)))
+
+==================
+Leading ownership remains structural input for semantic rejection
+==================
+
+fn consume(take value: Menu) {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block)))
+
+==================
 Named remains an identifier without a following parameter name
 ==================
 

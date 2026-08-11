@@ -1701,7 +1701,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "5f6dfbcfa34f571b4fd6fb32b2b1f274fd26f2f592dbe4a950d05861e1621120",
+      "catalogedDeclarationsDigest": "5a8f2ddd09ab6a4189fd8611925a1c41702b76a76329f7e2da844bdeeaf4bfca",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1746,8 +1746,8 @@
         {
           "symbol": "export",
           "kind": "fn",
-          "signature": "export async fn export<Element, shape: StaticList<usize>>( take value: Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
-          "declarationDigest": "4d0f5e22cdc67a69ca3977886f327792574e02c3ccac7c59864418d30c1e4cb0",
+          "signature": "export async fn export<Element, shape: StaticList<usize>>( value: take Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
+          "declarationDigest": "a050fbc2bab7e103630e809214860b5c1c4a536a808b804a2904aed6b650d1ce",
           "line": 211,
           "profile": "dlpack-export",
           "status": "draft"
@@ -1825,8 +1825,8 @@
         {
           "symbol": "materialize",
           "kind": "fn",
-          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( take imported: ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
-          "declarationDigest": "f964fe0275795c8f279f6fb5fac697109fdd3547de8763bf6e6c86ea4bd7872d",
+          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( imported: take ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
+          "declarationDigest": "bfbe167bdb54e023acc0fd5db0f09386cb37d9393dba0abcb2d951294814f073",
           "line": 195,
           "profile": "dlpack-materialize",
           "status": "draft"
@@ -1834,8 +1834,8 @@
         {
           "symbol": "open",
           "kind": "fn",
-          "signature": "export async fn open<Element, shape: StaticList<usize>>( take managed: ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
-          "declarationDigest": "f721c17b9dc8f9dd8e27d3ba46c310a21882da9b8fef8899f6dce29b474e9bc5",
+          "signature": "export async fn open<Element, shape: StaticList<usize>>( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
+          "declarationDigest": "c3ed478cc840c88bc853f5bceb18bd45b49411c8c4c78665ea9272df4e2d8504",
           "line": 147,
           "profile": "dlpack-import",
           "status": "draft"
@@ -1843,8 +1843,8 @@
         {
           "symbol": "openDynamic",
           "kind": "fn",
-          "signature": "export async fn openDynamic( take managed: ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
-          "declarationDigest": "136bf041c919027cb8542604258e1dcbabf40994a137144abdc6175c50904ebd",
+          "signature": "export async fn openDynamic( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
+          "declarationDigest": "90047bc2153623f680919be375d73dbc120a4b588343632de09d9f1ddd79ca00",
           "line": 163,
           "profile": "dlpack-import",
           "status": "draft"
@@ -1880,7 +1880,7 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "77312018a60cc06a07cfb1407de683a2984045f40bd62da5afcb71398daa9375",
+      "catalogedDeclarationsDigest": "8bbcff12918bdc292d0b72f6474e21f4e6149793b23e9737507527e6e3dc9565",
       "apis": [
         {
           "symbol": "BodyCloneError",
@@ -1932,7 +1932,7 @@
           "kind": "struct",
           "signature": "export struct CacheRegistry",
           "declarationDigest": "1fbd6c903e944839c043098ca64dfdb8c0f551ee13e824c7130df01a17c6d13d",
-          "line": 2026,
+          "line": 2029,
           "profile": "http-context",
           "members": [
             {
@@ -1940,7 +1940,7 @@
               "overloads": [
                 {
                   "signature": "export fn get<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>( binding: const cache.LocalBinding<Key, Value>, ): some cache.LocalCache<Key, Value>",
-                  "line": 2033
+                  "line": 2036
                 }
               ],
               "profile": "http-context"
@@ -1953,7 +1953,7 @@
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "cb3acb226df4947837d78978ae3187a883887f4bb5e217a38fcfa4824173e470",
-          "line": 2103,
+          "line": 2106,
           "profile": "http-context",
           "members": [
             {
@@ -1962,7 +1962,7 @@
               "overloads": [
                 {
                   "signature": "export random: RandomSource",
-                  "line": 2114
+                  "line": 2117
                 }
               ],
               "profile": "http-context"
@@ -1973,7 +1973,7 @@
               "overloads": [
                 {
                   "signature": "export databases: DatabaseRegistry",
-                  "line": 2120
+                  "line": 2123
                 }
               ],
               "profile": "http-context"
@@ -1984,7 +1984,7 @@
               "overloads": [
                 {
                   "signature": "export caches: CacheRegistry",
-                  "line": 2126
+                  "line": 2129
                 }
               ],
               "profile": "http-context"
@@ -1995,7 +1995,7 @@
               "overloads": [
                 {
                   "signature": "export templates: TemplateRegistry",
-                  "line": 2132
+                  "line": 2135
                 }
               ],
               "profile": "http-context"
@@ -2006,7 +2006,7 @@
               "overloads": [
                 {
                   "signature": "export signal: AbortSignal",
-                  "line": 2140
+                  "line": 2143
                 }
               ],
               "profile": "http-context"
@@ -2028,7 +2028,7 @@
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
           "declarationDigest": "761b5bbca15e305eecbd5cf19dd0d0121fb07852cdb7461fc90d6e0830603df8",
-          "line": 2008,
+          "line": 2011,
           "profile": "http-context",
           "members": [
             {
@@ -2036,7 +2036,7 @@
               "overloads": [
                 {
                   "signature": "export fn get( binding: const database.Binding, ): some database.Database",
-                  "line": 2015
+                  "line": 2018
                 }
               ],
               "profile": "http-context"
@@ -2458,7 +2458,7 @@
           "kind": "protocol",
           "signature": "export protocol HttpHandler<Failure: Error>",
           "declarationDigest": "fc9db826e80d97ce7fc122f230a76727fabfcfc9f3008cdecf7bc99bc04bcdff",
-          "line": 2165,
+          "line": 2168,
           "profile": "http-handler",
           "status": "draft",
           "requires": [
@@ -2517,7 +2517,7 @@
           "kind": "struct",
           "signature": "export struct RandomSource",
           "declarationDigest": "f77a8c642a83631f2893c0539296d0951b7f0a67fcb306b9a55a3dd501589b78",
-          "line": 1992,
+          "line": 1995,
           "profile": "http-context",
           "members": [
             {
@@ -2525,7 +2525,7 @@
               "overloads": [
                 {
                   "signature": "export fn integer(in range: Range<i32>): i32",
-                  "line": 1999
+                  "line": 2002
                 }
               ],
               "profile": "http-context"
@@ -2555,7 +2555,7 @@
           "symbol": "Request",
           "kind": "struct",
           "signature": "export struct Request",
-          "declarationDigest": "995aa7250aa4bb29651cbca2c92f5b87f97f6c2e699808eb8cfaddefb1fbac22",
+          "declarationDigest": "eb44373a4ada347728cf5f4579a828a477b82152c0bf99c3192d80e7e5c6db75",
           "line": 1524,
           "profile": "http-request",
           "members": [
@@ -2563,19 +2563,19 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError",
+                  "signature": "export init(_ input: take String, init: take RequestInit = RequestInit()) throws RequestError",
                   "line": 1531
                 },
                 {
-                  "signature": "export init(_ input: take URL, take init: RequestInit = RequestInit()) throws RequestError",
+                  "signature": "export init(_ input: take URL, init: take RequestInit = RequestInit()) throws RequestError",
                   "line": 1537
                 },
                 {
-                  "signature": "export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError",
+                  "signature": "export init(copying input: ref URL, init: take RequestInit = RequestInit()) throws RequestError",
                   "line": 1545
                 },
                 {
-                  "signature": "export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError",
+                  "signature": "export init( _ input: take Request, override: take RequestOverride = RequestOverride(), ) throws RequestError",
                   "line": 1551
                 }
               ],
@@ -2587,7 +2587,7 @@
               "overloads": [
                 {
                   "signature": "export method: Method",
-                  "line": 1556
+                  "line": 1559
                 }
               ],
               "profile": "http-request"
@@ -2598,7 +2598,7 @@
               "overloads": [
                 {
                   "signature": "export url: ref URL",
-                  "line": 1560
+                  "line": 1563
                 }
               ],
               "profile": "http-request"
@@ -2609,7 +2609,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1564
+                  "line": 1567
                 }
               ],
               "profile": "http-request"
@@ -2620,7 +2620,7 @@
               "overloads": [
                 {
                   "signature": "export signal: ref AbortSignal",
-                  "line": 1568
+                  "line": 1571
                 }
               ],
               "profile": "http-request"
@@ -2631,7 +2631,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1572
+                  "line": 1575
                 }
               ],
               "profile": "http-request"
@@ -2642,7 +2642,7 @@
               "overloads": [
                 {
                   "signature": "export destination: RequestDestination",
-                  "line": 1576
+                  "line": 1579
                 }
               ],
               "profile": "http-request"
@@ -2653,7 +2653,7 @@
               "overloads": [
                 {
                   "signature": "export mode: RequestMode",
-                  "line": 1580
+                  "line": 1583
                 }
               ],
               "profile": "http-request"
@@ -2664,7 +2664,7 @@
               "overloads": [
                 {
                   "signature": "export credentials: CredentialsMode",
-                  "line": 1584
+                  "line": 1587
                 }
               ],
               "profile": "http-request"
@@ -2675,7 +2675,7 @@
               "overloads": [
                 {
                   "signature": "export cache: CacheMode",
-                  "line": 1588
+                  "line": 1591
                 }
               ],
               "profile": "http-request"
@@ -2686,7 +2686,7 @@
               "overloads": [
                 {
                   "signature": "export redirect: RedirectMode",
-                  "line": 1592
+                  "line": 1595
                 }
               ],
               "profile": "http-request"
@@ -2697,7 +2697,7 @@
               "overloads": [
                 {
                   "signature": "export referrer: RequestReferrer",
-                  "line": 1596
+                  "line": 1599
                 }
               ],
               "profile": "http-request"
@@ -2708,7 +2708,7 @@
               "overloads": [
                 {
                   "signature": "export referrerPolicy: ReferrerPolicy",
-                  "line": 1600
+                  "line": 1603
                 }
               ],
               "profile": "http-request"
@@ -2719,7 +2719,7 @@
               "overloads": [
                 {
                   "signature": "export integrity: view String",
-                  "line": 1604
+                  "line": 1607
                 }
               ],
               "profile": "http-request"
@@ -2730,7 +2730,7 @@
               "overloads": [
                 {
                   "signature": "export duplex: Duplex",
-                  "line": 1608
+                  "line": 1611
                 }
               ],
               "profile": "http-request"
@@ -2741,7 +2741,7 @@
               "overloads": [
                 {
                   "signature": "export priority: Priority",
-                  "line": 1612
+                  "line": 1615
                 }
               ],
               "profile": "http-request"
@@ -2751,7 +2751,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1617
+                  "line": 1620
                 }
               ],
               "profile": "http-request"
@@ -2761,7 +2761,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1621
+                  "line": 1624
                 }
               ],
               "profile": "http-request"
@@ -2771,7 +2771,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1625
+                  "line": 1628
                 }
               ],
               "profile": "http-request"
@@ -2781,7 +2781,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
-                  "line": 1629
+                  "line": 1632
                 }
               ],
               "profile": "http-request"
@@ -2791,7 +2791,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
-                  "line": 1633
+                  "line": 1636
                 }
               ],
               "profile": "form-data-codec"
@@ -2801,11 +2801,11 @@
               "overloads": [
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1639
+                  "line": 1642
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1651
+                  "line": 1654
                 }
               ],
               "profile": "http-request"
@@ -2815,7 +2815,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
-                  "line": 1676
+                  "line": 1679
                 }
               ],
               "profile": "http-request"
@@ -2923,44 +2923,44 @@
           "symbol": "Response",
           "kind": "struct",
           "signature": "export struct Response",
-          "declarationDigest": "7614eda1c56ae706004dbce3f527f2c8f2252c6645a7c7bf61848af84ea3d392",
-          "line": 1693,
+          "declarationDigest": "a12f95d99c7bad8991b6cbd282ad4c607411ca9c609eb538e924567c5e4e1ff7",
+          "line": 1696,
           "profile": "http-response",
           "members": [
             {
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1700
+                  "signature": "export init( status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1703
                 },
                 {
-                  "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1715
+                  "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1718
                 },
                 {
-                  "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1731
+                  "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1734
                 },
                 {
-                  "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1747
+                  "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1750
                 },
                 {
-                  "signature": "export init( _ body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1763
+                  "signature": "export init( _ body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1766
                 },
                 {
-                  "signature": "export init( _ body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1779
+                  "signature": "export init( _ body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1782
                 },
                 {
-                  "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1795
+                  "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1798
                 },
                 {
-                  "signature": "export init( take body: BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", take headers: Headers = Headers(), ) throws ResponseError",
-                  "line": 1811
+                  "signature": "export init( _ body: take BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "line": 1814
                 }
               ],
               "profile": "http-response"
@@ -2970,7 +2970,7 @@
               "overloads": [
                 {
                   "signature": "export static fn error(): Response",
-                  "line": 1827
+                  "line": 1830
                 }
               ],
               "profile": "http-response"
@@ -2980,19 +2980,19 @@
               "overloads": [
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, maximumBytes byteLimit: usize<(1...)>, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1831
+                  "line": 1834
                 },
                 {
                   "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, limits encodeLimits: json.Limits, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
-                  "line": 1849
+                  "line": 1852
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1939
+                  "line": 1942
                 },
                 {
                   "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
-                  "line": 1951
+                  "line": 1954
                 }
               ],
               "profile": "http-response"
@@ -3003,7 +3003,7 @@
               "overloads": [
                 {
                   "signature": "export status: u16<(0..<600)>",
-                  "line": 1885
+                  "line": 1888
                 }
               ],
               "profile": "http-response"
@@ -3014,7 +3014,7 @@
               "overloads": [
                 {
                   "signature": "export ok: Bool",
-                  "line": 1889
+                  "line": 1892
                 }
               ],
               "profile": "http-response"
@@ -3025,7 +3025,7 @@
               "overloads": [
                 {
                   "signature": "export statusText: view String",
-                  "line": 1893
+                  "line": 1896
                 }
               ],
               "profile": "http-response"
@@ -3036,7 +3036,7 @@
               "overloads": [
                 {
                   "signature": "export headers: ref Headers",
-                  "line": 1897
+                  "line": 1900
                 }
               ],
               "profile": "http-response"
@@ -3047,7 +3047,7 @@
               "overloads": [
                 {
                   "signature": "export url: URL?",
-                  "line": 1901
+                  "line": 1904
                 }
               ],
               "profile": "http-response"
@@ -3058,7 +3058,7 @@
               "overloads": [
                 {
                   "signature": "export redirected: Bool",
-                  "line": 1905
+                  "line": 1908
                 }
               ],
               "profile": "http-response"
@@ -3069,7 +3069,7 @@
               "overloads": [
                 {
                   "signature": "export type: ResponseType",
-                  "line": 1909
+                  "line": 1912
                 }
               ],
               "profile": "http-response"
@@ -3080,7 +3080,7 @@
               "overloads": [
                 {
                   "signature": "export bodyUsed: Bool",
-                  "line": 1913
+                  "line": 1916
                 }
               ],
               "profile": "http-response"
@@ -3090,7 +3090,7 @@
               "overloads": [
                 {
                   "signature": "export take fn body(): ReadableStream<Bytes, HttpBodyError>?",
-                  "line": 1917
+                  "line": 1920
                 }
               ],
               "profile": "http-response"
@@ -3100,7 +3100,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
-                  "line": 1921
+                  "line": 1924
                 }
               ],
               "profile": "http-response"
@@ -3110,7 +3110,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
-                  "line": 1925
+                  "line": 1928
                 }
               ],
               "profile": "http-response"
@@ -3120,7 +3120,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
-                  "line": 1929
+                  "line": 1932
                 }
               ],
               "profile": "http-response"
@@ -3130,7 +3130,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
-                  "line": 1933
+                  "line": 1936
                 }
               ],
               "profile": "form-data-codec"
@@ -3140,7 +3140,7 @@
               "overloads": [
                 {
                   "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
-                  "line": 1975
+                  "line": 1978
                 }
               ],
               "profile": "http-response"
@@ -3182,7 +3182,7 @@
           "kind": "fn",
           "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, named limits: ServerLimits, named handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
           "declarationDigest": "9d9862d70a183298de077f13a3b3813a6648a549a42a5421fd4e8bcc7b665b4a",
-          "line": 2149,
+          "line": 2152,
           "profile": "http-server",
           "status": "draft",
           "requires": [
@@ -3224,7 +3224,7 @@
           "kind": "struct",
           "signature": "export struct Template",
           "declarationDigest": "299e1b1b8fa043986291f91ebd76799e2b3688e95921d5c919effa68ca47489e",
-          "line": 2065,
+          "line": 2068,
           "profile": "template-provider",
           "members": [
             {
@@ -3232,7 +3232,7 @@
               "overloads": [
                 {
                   "signature": "export fn render<Value: json.Encodable>( values: ref Array<Value>, ): String throws TemplateError",
-                  "line": 2072
+                  "line": 2075
                 }
               ],
               "profile": "template-provider"
@@ -3248,7 +3248,7 @@
           "kind": "struct",
           "signature": "export struct TemplateBinding",
           "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
-          "line": 2047,
+          "line": 2050,
           "profile": "value-contract",
           "members": [
             {
@@ -3256,7 +3256,7 @@
               "overloads": [
                 {
                   "signature": "export const init( name: String, limits: TemplateLimits, version: u32<(1...)> = 1, )",
-                  "line": 2052
+                  "line": 2055
                 }
               ],
               "profile": "value-contract"
@@ -3308,7 +3308,7 @@
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
           "declarationDigest": "3fd4df06f1d57a2b5650e62ac1abdf76fd611c0623cbbe7339af9cc57be1fe91",
-          "line": 2085,
+          "line": 2088,
           "profile": "http-context",
           "members": [
             {
@@ -3316,7 +3316,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(binding: const TemplateBinding): Template",
-                  "line": 2092
+                  "line": 2095
                 }
               ],
               "profile": "http-context"
@@ -6535,7 +6535,7 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "0d9454dfcbc6b08ddfbc5d3aea6dbbc4078ff7fb15e0de236c22d5d512803fac",
+      "catalogedDeclarationsDigest": "1548a8a0cc318c72b0b7c9960223b8b5bb2508deff050b558ca6802edf6a9707",
       "apis": [
         {
           "symbol": "Device",
@@ -6658,8 +6658,8 @@
         {
           "symbol": "transfer",
           "kind": "fn",
-          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( take source: Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
-          "declarationDigest": "8f0bce032a42ad95565cd6140793cfd87dd2e9734a5bafb1731a0288d4c3c6bc",
+          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( source: take Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
+          "declarationDigest": "4d8c06fb9e036f7d47a010fccf26e8c4622983a4f6b6f5cffa8aa6d8c5b683e0",
           "line": 110,
           "profile": "tensor-carrier",
           "status": "draft"

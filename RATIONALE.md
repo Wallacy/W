@@ -1180,6 +1180,22 @@ resolution e witness conformance completos continuam responsabilidade do
 checker S0. Nenhum desses oracles executa W. Estudo humano e estudo de modelos
 permanecem missing.
 
+#### 1.3.26 Posição do contrato de ownership
+
+W-1291 mantém labels e bindings antes de `:` e coloca `ref`, `inout`, `take` e
+`const` no início do contrato à direita. A forma `value: take T` comunica que
+`value` recebe ownership sem fazer `take` parecer um label externo. Ela também
+fica alinhada com `value: shared T`, resultados `ref T`, function types
+`fn(take T)` e calls `take value`.
+
+A alternativa `take value: T` aproxima declaration e operação, mas conflita
+visualmente e estruturalmente com `external internal: T`. Ela já havia sido
+interpretada como label pelo CST em partes da std. `copy value: T` e
+`pin value: T` seriam ainda mais problemáticos: são operações do caller e podem
+ter custo ou storage observável, portanto não são modos aceitos na assinatura.
+O oracle de execution ergonomics e o gate de source mantêm essas formas como
+evidence negativa. Eles não executam o checker W.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -2835,7 +2851,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | M1 memory transition | 184 casos, 603 operações | 82 aceitos, 102 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
-| execution ergonomics | 69 casos | 27 positivos, 40 negativos, 2 informações | 24 testes | não compila nem agenda W |
+| execution ergonomics | 73 casos | 28 positivos, 43 negativos, 2 informações | 25 testes | não compila nem agenda W |
 | E0 concurrency | 73 casos, 677 operações | 38 aceitos, 35 rejeitados; 10/10 origens HB | 17 testes | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
@@ -4446,7 +4462,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1021 | CSV errors | duplicate/empty header, row width, invalid UTF-8, field conversion, limits e byte/record/field/header location são typed errors | string error, location perdida ou error sem bound |
 | W-1022 | CSV writer | `WriterProfile.canonical` emite header e CRLF, quote mínimo, DQUOTE duplicado, shortest-roundtrip e numbers locale-free; formula escaping é policy de apresentação separada; encode parcial preserva progress | spreadsheet escaping lossless default, locale output ou quote indiscriminado |
 | W-1023 | CSV tooling | `w data inspect <path> --format csv --sample-rows <N>` e `w data schema ... --emit <file>` produzem candidate/report bounded sem alterar compilação | schema inference runtime, mutation silenciosa ou extensão magic |
-| W-1024 | Parquet source | decode recebe `take Source: SnapshotByteSource`; positional footer/row-groups/column-chunks/page access não usa cursor | ByteSource, ambient file seek ou dataset directory discovery |
+| W-1024 | Parquet source | decode recebe `source: take SnapshotByteSource`; positional footer/row-groups/column-chunks/page access não usa cursor | ByteSource, ambient file seek ou dataset directory discovery |
 | W-1025 | Parquet binding | default `.exact`; `.project` nomeia target DTO e mapping; semantic mismatch rejeita | reorder/rename/narrow/unit/timezone/missing heurístico |
 | W-1026 | Parquet limits | limits finitos cobrem encoded/decoded bytes, allocations, footer, Thrift strings/containers/nesting, row groups, chunks, pages, dictionaries, indexes, bloom e compression ratio | `.unlimited`, row-only limits ou overflow pós-allocation |
 | W-1027 | Parquet preflight | magic, footer, offsets e sizes validam antes de read/allocation; malformed stats/index/bloom não muda results | trust por offset, parse tardio ou hint alterando dados |
@@ -4713,6 +4729,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1288 | subject explícito de refinement | `value` é binding contextual imutável do candidate dentro do predicate e baixa para a mesma ConstIR de `.member`; lookup lexical exige qualificação | `value` ambiental, shadow dependente de imports, storage sintético ou HIR diferente para a forma longa |
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
 | W-1290 | labels callable uniformes | `name: T` é posicional em qualquer índice; `named name: T` exige label homônimo; `external internal: T` exige label distinto e `_ name: T` torna o label opcional; initializers e enum payloads permanecem record-like | labels inferidas pela posição, todos nomeados, reorder, ranking por tipo |
+| W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

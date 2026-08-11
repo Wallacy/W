@@ -54,7 +54,7 @@ fn copiedHeadersRequestOverrideOracle(
 ): http.Request throws http.RequestError {
   let copied = http.Headers(copying: request.headers)
   let override = http.RequestOverride(headers: .some(take copied))
-  return try http.Request(take request, take override)
+  return try http.Request(take request, override: take override)
 }
 
 async fn serveSignatureOracle<Failure: Error>(

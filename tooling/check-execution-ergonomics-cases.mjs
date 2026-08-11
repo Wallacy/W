@@ -50,6 +50,10 @@ const requiredIds = new Set([
   "EE-NEG-doc-example-ambient",
   "EE-NEG-record-named-marker",
   "EE-POS-named-remains-identifier",
+  "EE-POS-parameter-contract-after-binding",
+  "EE-NEG-parameter-contract-before-binding",
+  "EE-NEG-copy-parameter-mode",
+  "EE-NEG-initializer-contract-before-binding",
   "EE-POS-flat-std",
   "EE-NEG-flat-std-tier-field",
 ])
@@ -118,6 +122,12 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   }
   if (expected.callShapes && JSON.stringify(callableDeclaration(result, expected)?.callShapes) !== JSON.stringify(expected.callShapes)) {
     errors.push(`${item.id}: complete call shapes`)
+  }
+  const actualContractModes = callableDeclaration(result, expected)?.params
+    .map((parameter) => parameter.contractMode)
+  if (expected.contractModes
+    && JSON.stringify(actualContractModes) !== JSON.stringify(expected.contractModes)) {
+    errors.push(`${item.id}: parameter contract modes`)
   }
   if (expected.suspension) {
     const declaration = suspensionDeclaration(result, expected)
