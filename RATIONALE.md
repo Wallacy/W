@@ -198,8 +198,8 @@ substituída pode ser W rejeitado, pseudocode ou outra linguagem. O campo
 alternativa. Estudos humanos e de modelos usam o mesmo `task` e o mesmo input;
 eles registram resultados, mas não mudam a decisão sem nova entrada no ledger.
 
-O kernel executável de memória usa a baseline M1. O corpus possui 165 casos e
-580 operações, com 70 outcomes aceitos e 95 rejeitados. Cada caso liga
+O kernel executável de memória usa a baseline M1. O corpus possui 172 casos e
+591 operações, com 75 outcomes aceitos e 97 rejeitados. Cada caso liga
 PlaceId, LoanId, dependency edge, OriginSet, escape ou boundary a um symbol real
 do Última Luz.
 O snapshot declara schema M1. Ele não é uma implementação do compiler ou do
@@ -1249,6 +1249,28 @@ pointer. [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html) separa
 payload, owners fortes, owners fracos e allocator; thread-safe reference count
 não torna o payload shareable. W mantém essas distinções sem expor lifetime
 variables no source.
+
+O experimento de
+[in-place initialization do Rust](https://github.com/rust-lang/lang-team/issues/336)
+mostra que construir primeiro e mover depois não atende todos os tipos
+sensíveis ao endereço. O
+[placement new de C++](https://eel.is/c++draft/new.delete.placement) constrói num
+endereço conhecido, mas deixa lifetime e cleanup ao código low-level.
+[`MaybeUninit`](https://doc.rust-lang.org/core/mem/union.MaybeUninit.html) também
+mostra o risco de expor storage parcial e drop manual.
+
+W usa a forma já existente `try pin Type(...)`. Argumentos ficam em staging,
+o storage estável é reservado e o initializer escreve no destination final.
+Definite initialization mantém `self` indisponível até o commit. Isso evita
+uma nova annotation, um carrier parcial safe e uma segunda família de
+initializers. `pin take value` continua útil quando o valor completo já existe.
+
+As formas `pin init`, `pin let`, `let pin`, `take<.pin>` e field annotations
+ficam rejeitadas. Elas dividem a regra entre declaration e call site ou misturam
+move com policy de storage. Self-reference armazenada por source safe também
+fica rejeitada. Um adapter `unsafe` pode usar raw storage e publicar somente um
+wrapper completo. O compiler ainda pode fixar frames internos que ele próprio
+constrói e verifica.
 
 Rust separa criação normal e recuperável em `Arc::new`/`Arc::try_new` e
 `Rc::new`/`Rc::try_new`. O
@@ -2395,7 +2417,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 
 | Perfil | Corpus | Resultado | Host independente | Limite principal |
 |---|---:|---:|---:|---|
-| M1 memory transition | 165 casos, 580 operações | 70 aceitos, 95 rejeitados | checker puro | não executa W |
+| M1 memory transition | 172 casos, 591 operações | 75 aceitos, 97 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
 | execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
@@ -3429,11 +3451,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-910 | valores lifetime-dependent | cada payload possui edges individuais shared/exclusive para owner payload/place ou owner slot de interface; OriginSet é projeção deduplicada, mas duplicatas bloqueiam; composição inclui tuple, struct, object move-first, enum/payload, Option, Array, collection, closure e existential; erasure não apaga edges; stored fields são permitidos sem ARC ou referent ownership | origin sem owner identity, rejeitar stored field local, apagar provenance por erasure, metadata de lifetime em runtime |
 | W-911 | containers de refs | Array<ref T> possui owner de descriptor/storage e edges para cada referent; insert/join adiciona edges; join lê source distinto e self-join exige snapshot; remove só reduz quando nenhuma duplicata resta; clear libera edges; o grafo simbólico não limita quantidade por proof budget | join sob loan exclusive, self-join implícito, contador fixo de origins, invalidar por budget, tratar descriptor como único owner |
 | W-912 | escapes e await | `.lifetimeIndependent` é ausência de origin dinâmica; static/immortal passam somente esse gate; external escape rejeita edge dinâmica; channel/task exigem transferability, service exige WireValue + transferability mesmo local, persistence exige schema e foreign retention exige FFI; await resolve cada referent vivo e estável, com no-conflict e cleanup/cancel drain | origin immortal como authority de boundary, cópia implícita para escapar, task detached com borrow, usar estabilidade do aggregate para referent, annotation de lifetime como correção |
-| W-913 | pin e self-reference | pin exige zero LoanId e zero dependency edge dirigida ao payload; payload pinned tem root estável distinto do handle; mover handle é permitido com obrigação ativa, drop de handle/payload falha, mover payload não; initializer self-referential safe é rejeitado; construção pinned dedicada é alternativa futura | self-reference por initializer comum, unpin implícito, pin que apenas marca pointer |
+| W-913 | pin e self-reference | pin exige zero LoanId e zero dependency edge dirigida ao payload; payload pinned tem root estável distinto do handle; mover handle é permitido com obrigação ativa, drop de handle/payload falha, mover payload não; initializer self-referential safe é rejeitado | self-reference por initializer comum, unpin implícito, pin que apenas marca pointer |
 | W-914 | provenance de interface | body infere mapping exato e separado para cada result dependency slot e slot ausente falha; sem body instance usa receiver compatível e init/static/free usam todos inputs compatíveis por slot; zero input só aceita result independent/static; import expectation e SemanticInterfaceKey do provider coincidem; oracle ignora inferredMapping bodyless; witness e lock detectam mudança | key opcional unilateral, igualar interfaces próprias de módulos distintos, `ref<sources: ...>` no source, colapsar result slots, mapping conservador apagado, witness divergente, docs no semantic key |
 | W-915 | FFI de refs | safe ref/inout para C é call-scoped/noescape; retenção exige owner/lease pinned, destroy e unregister; opaque C return, packed, unaligned, union e opaque permanecem conservadores; fn<Language> passa lifetime somente com adapter W confiável | pointer persistente sem lease, free por caller, inferir lifetime de header ou body opaco |
 | W-916 | cleanup e diagnostics M1 | deinit/cleanup preserva edges usadas pelos fields; NLL termina no último uso sem deinit observável; diagnostics distinguem overlap, dependency conflict, dependent escape, unstable referent, unstable suspension e frozen parent e sugerem materialize/copy/take, split/clear, reorder ou pin | hidden runtime lifetime, uma mensagem genérica, fix-it que inventa annotation |
-| W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
+| W-917 | endurecimento executável M1 | schema M1 fixa 172 casos e 591 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, construção pinned, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
 | W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 32/69 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
@@ -3454,7 +3476,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-935 | auditoria de decisões para freeze | R0 classifica o eixo source; F0/S0/M1/L0/E0/B0/P0/TAB0/DLPack podem ligar decisões ao eixo oracle; decisões mistas declaram todos os eixos obrigatórios; as demais exigem escolha interna, fallback provável, histórico, policy ou waiver; o índice publica a contagem corrente e `--require-complete` permanece desligado até o gate | tratar 68 casos como auditoria do ledger; classificar por keyword; ausência de entrada significar aprovação; somar eixos sobrepostos como decisões distintas; aceitar um único eixo para decisão mista; manter planilha manual fora do repository |
 | W-936 | estudo R1 de callables | três variantes completas comparam representação separada, callable universal e protocols nominais; outcomes do restaurante coincidem, enquanto dispatch, custo, consumo e recovery de erasure ficam observáveis; promove três casos R0 | snippet sem capture; comparar somente tokens; esconder segunda call; chamar host oracle de execução W |
 | W-937 | storage de erasure | `any P` e `any fn` usam policy versionada de inline/spill; contextual erasure segue OOM normal; `try erase(take value, using:)` é consuming e fallible; box adiciona AllocationOriginMap; `some` e `ref any` não alocam só por opacity; M1 fixa inline, spill, failure, dependency e interface mapping | box universal; SBO ambiental; esconder allocator origin; restaurar source na falha; carrier existential em C/wire |
-| W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; snapshot totaliza 165 casos e 580 operações | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
+| W-938 | erasure executável M1 | oito casos e dois testes independentes derivam inline/spill pela policy, preservam payload origins e dependency edges, adicionam box origin, bloqueiam close prematuro, rejeitam spill proibido, convertem budget exhaustion em failure consuming e não publicam target parcial; o corpus M1 contém essa evidence | escolher storage por flag do caso; apagar origins; allocation em inline; source restaurado; target parcial; budget rejeita antes do consumo; chamar layout lógico de ABI física |
 | W-939 | publicação atômica executável | release sequence inclui RMW contígua e termina em store; CAS success modifica e failure somente lê; fence exige reads-from; atomic order não concede borrow ou lifetime; E0 fixa modification order, seq-cst order, extent e exclusividade | release/acquire prolonga owner; CAS failure modifica; store relaxed continua sequence; duas fences publicam sem atomic; misturar width ou view |
 | W-940 | fences atômicas | `std.atomic.fence` e `compilerFence` são T0, unsafe, estáticas e sem relaxed; default scope é system, compiler fence exige sameProcessor e scopes de device ficam T2 | fence T1 dependente do host; fence safe; argumento runtime; relaxed fence; compiler fence entre processadores |
 | W-941 | interface esperada no link W exact | cada import registra providerInterfaceKey, semantic/physical signatures e fingerprints; compara essa expectativa com o provider, nunca o SemanticInterfaceKey próprio de módulos consumer/provider distintos | igualar keys próprios dos dois objects; confiar só no symbol name; usar API source como ABI |
@@ -3713,6 +3735,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1194 | lowering Lazy por prova | local, isolation serial e estado atômico com parking preservam a mesma semântica; interface publica `blockingWhenContended` | nome distinto por lowering, wait oculto em domain non-blocking, sincronização sempre ativa |
 | W-1195 | failure e lifetime Lazy | initializer é sync/nonthrowing; reentrada dinâmica e panic falham boundary; mutation exige exclusividade; cada capture path e valor retido termina uma vez | poisoning recuperável, retry implícito, cancellation durante initializer, setter concorrente, self-owning closure |
 | W-1196 | evidence LZ0 | oracle host deriva winner, waiters, publication edge, lowerings equivalentes, cancellation, mutation e drop; provider continua missing | chamar oracle de runtime/compiler, snapshot manual, caso sem símbolo Última Luz |
+| W-1197 | construção pinned direta | `try pin Type(...)` avalia argumentos, reserva storage estável e executa o initializer no destination final; não cria `T` completo intermediário | construir e mover sempre, `pin init`, `pin let`, annotation de field, carrier parcial safe |
+| W-1198 | failure de construção pinned | falha de argumento limpa staging anterior; falha de allocation limpa staging; falha de initializer limpa fields em ordem inversa e libera storage; nenhum caminho publica endereço parcial | leak de staging, `deinit` sobre aggregate incompleto, binding parcial, rollback do source consumido |
+| W-1199 | limite de self-reference safe | `self` permanece initialization place até commit; endereço, borrow e escape do aggregate parcial falham; source safe não armazena self-reference; adapter unsafe publica somente wrapper completo | self-reference pelo initializer comum, `MaybeUninit` safe, pointer para bytes parcialmente válidos |
+| W-1200 | evidence de construção pinned M1 | M1 deriva destination root, zero move intermediário, delegação, cleanup, publication e rejeições; Last Light mantém casos direto e consuming | oracle isolado duplicando M1, snapshot manual, chamar modelo de compiler ou allocator |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

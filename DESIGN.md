@@ -4914,6 +4914,9 @@ let controller = try PidController(
 )
 ```
 
+`try pin Type(...)` seleciona uma construção direta em storage estável. A
+seção 9.3 define a ordem, o cleanup e a diferença para `pin take value`.
+
 O parser reconhece uma call expression. Name resolution transforma a chamada
 de um tipo em `construct` na HIR. W não usa `new`. Essa keyword sugeriria uma
 alocação que a semântica não exige.
@@ -5048,11 +5051,8 @@ Um field imutável com default já está inicializado. O `init` não pode
 reatribuí-lo. Um field `var` com default pode receber mutation. Essa mutation
 não concede acesso a outro field ainda não inicializado.
 
-Se a falha ocorre antes de `self` ficar completo, o runtime destrói os fields
-completos em ordem inversa. Ele não executa `deinit`. Se a falha ocorre depois
-de `self` ficar completo, o runtime executa `deinit` uma vez e depois destrói os
-fields. W não possui zero initialization universal. Storage parcialmente
-inicializado exige uma futura API `unsafe` própria.
+Cleanup de uma construção incompleta segue a seção 9.11. W não possui zero
+initialization universal nem expõe storage parcial ao código safe.
 
 Services usam o instance descriptor e o host. Enums usam seus cases. Um
 refined type usa seu constructor fallible. Nenhuma dessas formas ganha `init`
@@ -7617,69 +7617,90 @@ profile freestanding também declara stack e task-frame budgets.
 
 ### 9.3 Pinning e valores sensíveis ao endereço
 
-A maioria dos valores W pode mudar de endereço. Pinning só existe quando uma API
-depende de endereço estável, como uma callback C persistente ou um task frame
-que contém borrows internos. Self-reference safe continua rejeitada na baseline.
-
-Task frames gerados pelo compiler ficam estáveis enquanto uma suspensão exigir
-isso. Essa escolha não aparece no source e não exige annotation.
+A maioria dos valores W pode mudar de endereço. `pin` existe para uma callback
+C persistente ou outro contrato que exige endereço estável. O compiler fixa um
+task frame automaticamente quando um borrow suspenso exige isso.
 
 **Forma vigente:** `pin` é uma operação unary de storage e ownership:
 
 ```w
 let state = try pin take callbackState
-
-unsafe { register_callback(state.asOpaqueCPtr()) }
-```
-
-A expressão é `try (pin (take callbackState))`. `take` move o owner para a
-operação. `pin` coloca o valor em storage estável e produz
-`Result<Pinned<T>, AllocationError>`. `try` propaga o error e entrega o handle.
-Um temporary owned não precisa de `take`:
-
-```w
 let state = try pin BellState(closed: false)
 ```
 
-O formatter usa a ordem `try pin take value`. `try take pin value` é erro:
-`take` não configura outra operação. `take<.pin>` fica **Rejeitado por
-enquanto** porque tornaria um move comum fallible e alocante. Ele também
-misturaria uma policy de storage com a transferência de owner.
+As formas possuem contratos distintos:
 
-`pin` pode alocar ou adotar storage que já possui endereço estável. A operação
-pode falhar antes de publicar o endereço. `Pinned<T>` pode mudar de endereço; o
-`T` apontado por ele não pode. O raw pointer só é válido enquanto o owner
-`Pinned<T>` permanece vivo. O handle é move-only; pinning não cria um segundo
-owner.
+| Source | HIR | Contrato |
+|---|---|---|
+| `try pin Type(...)` | `pin_construct` | inicializa diretamente no destination estável |
+| `try pin take value` | `take` e `pin` | move ou adota um valor completo |
+| `try pin factory()` | call e `pin` | avalia a factory e pode mover seu resultado completo |
 
-Depois que `take` transfere o source para `pin`, uma falha de allocation também
-consome esse source. O compiler destrói `T` uma vez, libera storage parcial e
-propaga `AllocationError`. Nenhum endereço é publicado. Essa regra evita um
-estado condicional no binding original e coincide com calls consuming que usam
-`throws`.
+`pin` produz `Result<Pinned<T>, AllocationError>`. O `try` entrega o handle e
+propaga a falha de storage.
 
-`pin` exige zero `LoanId` e zero dependency edge dirigida ao payload. A operação
-pode relocar o valor antes de estabilizar seu endereço. O payload pinned recebe
-um root estável distinto do handle. Mover o handle é permitido com loans ou
-dependency edges ativos porque o payload não muda. Drop do handle ou do payload
-com obrigação ativa falha. Mover ou destruir o payload com obrigação ativa não
-é permitido. A baseline não oferece initializer self-referential. Uma
-construção dedicada continua **Pesquisa** e precisa provar endereço e cleanup.
+O formatter usa `try pin take value`. `try take pin value` e `take<.pin>` são
+inválidos. O racional fica no
+[`RATIONALE.md` §1.5.1](RATIONALE.md#151-loans-captures-pinning-e-ownership-compartilhado).
 
-O design vigente não possui keyword `unpin`. Consumir ou destruir `Pinned<T>`
-executa drop no endereço estável. Mover `T` para fora depois que seu endereço
-foi publicado exigiria provar ausência de safe borrow, self-reference e foreign
-pointer. Um consuming `intoValue` público fica **Rejeitado**.
+`pin_construct` segue esta ordem:
 
-W não cria `PinnedRef<T>` ou `PinnedMut<T>`. `Pinned<T>` usa `withRef` e
-`withMut` para borrows scoped. O contrato é fixo:
+1. avalia os argumentos da construção da esquerda para a direita;
+2. mantém cada resultado num staging place com cleanup próprio;
+3. reserva o storage estável;
+4. executa o initializer selecionado diretamente nesse storage;
+5. publica o `Pinned<T>` após a definite initialization.
 
-- pinning não é ownership compartilhado;
-- pinning não prova alias, validade ou thread safety;
-- drop ocorre antes de o storage estável ser reutilizado;
-- projection para um field pinned precisa de prova do compiler ou `unsafe`;
-- safe projection mantém o parent pinned e não permite mover o field;
-- um tipo comum não paga por pinning.
+Não existe `T` completo intermediário. Delegação mantém o mesmo destination
+root. Uma otimização de factory precisa preservar error, efeito, identity,
+custo observável e cleanup.
+
+| Falha | Cleanup antes da propagação |
+|---|---|
+| argumento | staging places anteriores, em ordem inversa |
+| reserva | todos os argumentos staged, em ordem inversa |
+| initializer | fields completos em ordem inversa, staging restante e storage |
+
+O aggregate incompleto não executa `deinit`. Nenhuma falha publica endereço ou
+binding parcial. Um único `try` cobre os errors dos argumentos, da reserva e do
+initializer:
+
+```w
+let controller = try pin PidController(
+  proportionalGain: gain,
+  integralGain: 0.1,
+  derivativeGain: 0.02,
+)
+```
+
+`AllocationError` e `KitchenError` permanecem error edges distintas. `try`
+exige uma rota total para cada edge. W não cria uma union escondida.
+
+Durante `pin_construct`, `self` é um initialization place. Ler, emprestar,
+obter seu endereço ou fazê-lo escapar antes do commit falha. Self-reference
+safe fica **Rejeitada**. Um adapter `unsafe` só publica o wrapper W depois de
+validar um carrier foreign completo.
+
+`self.back = ref self` e `address(of: self)` antes do commit produzem
+`W-INIT-0001`.
+
+`pin take value` exige zero `LoanId` e zero dependency edge dirigida ao
+payload. Uma falha de allocation consome e destrói o source uma vez. Em success,
+o payload recebe um root estável distinto do handle. O contrato comum é:
+
+- `pin` pode alocar ou adotar storage estável;
+- `Pinned<T>` é um handle move-only e pode mudar de endereço;
+- mover o handle não move o payload;
+- o raw pointer vale somente enquanto o handle mantém o payload vivo;
+- drop com loan, address lease ou dependency ativa falha;
+- drop de `T` termina antes de reutilizar o storage;
+- `withRef` e `withMut` criam borrows scoped;
+- safe projection mantém o parent pinned e não move o field;
+- projection não provada exige `unsafe`;
+- pinning não concede ownership compartilhado, alias safety ou thread safety.
+
+W não possui `unpin`, `intoValue`, `PinnedRef<T>` ou `PinnedMut<T>` públicos.
+Um tipo comum não paga por pinning.
 
 ### 9.4 `shared`, `weak` e ciclos
 

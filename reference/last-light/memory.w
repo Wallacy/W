@@ -169,6 +169,27 @@ export fn watchClosingBell(
   )
 }
 
+// A direct constructor under `pin` initializes BellState at its final stable
+// address. No complete BellState temporary exists before publication.
+export fn watchNewClosingBell(
+  bell: take BellHandle,
+  label: String,
+): BellLease throws BellError {
+  guard let handle = bell.handle else throw .closed
+  let pinned = try (pin BellState(label: take label, rings: 0))
+    .mapError((error) => .allocation(error))
+  let registration = unsafe {
+    ll_bell_subscribe(handle, pinned.asOpaqueCPtr())
+  }
+
+  guard let registration = registration else throw .registrationFailed
+  return BellLease(
+    bell: take bell,
+    registration: registration,
+    state: take pinned,
+  )
+}
+
 test "Address observes storage without creating authority" for bellStorageAddress {
   let state = BellState(label: "Closing bell", rings: 0)
   let first = bellStorageAddress(state)

@@ -150,6 +150,127 @@
       "expected": { "status": "rejected", "code": "pinWithLoan", "operation": 2 }
     },
     {
+      "id": "M1-pin-construct-final-destination",
+      "decisions": ["W-1197", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["label", "rings"],
+          "fields": ["label", "rings"],
+          "initializedFields": ["label", "rings"],
+          "consumedArguments": ["label"],
+          "allocatorKnown": true,
+          "result": "construction"
+        },
+        { "op": "publishAddress", "binding": "pinned" },
+        { "op": "move", "from": "pinned", "to": "lease" },
+        { "op": "drop", "binding": "lease" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-pin-construct-delegation-keeps-root",
+      "decisions": ["W-1197", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "root": "bell-state",
+          "arguments": ["label"],
+          "fields": ["label", "rings"],
+          "initializedFields": ["label", "rings"],
+          "consumedArguments": ["label"],
+          "delegationDepth": 2
+        },
+        { "op": "drop", "binding": "pinned" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-pin-construct-argument-failure-cleans-staging",
+      "decisions": ["W-1198", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["bell", "label", "rings"],
+          "fields": ["label", "rings"],
+          "outcome": "argumentError",
+          "failedArgumentIndex": 2,
+          "result": "construction"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-pin-construct-allocation-failure-cleans-staging",
+      "decisions": ["W-1198", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["label", "rings"],
+          "fields": ["label", "rings"],
+          "outcome": "allocationError",
+          "result": "construction"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-pin-construct-initializer-failure-cleans-fields",
+      "decisions": ["W-1198", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["label", "rings"],
+          "fields": ["label", "rings"],
+          "initializedFields": ["label"],
+          "consumedArguments": ["label"],
+          "outcome": "initializerError",
+          "result": "construction"
+        }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "M1-pin-construct-self-reference-rejected",
+      "decisions": ["W-1199", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["label"],
+          "fields": ["label", "selfView"],
+          "selfReference": true
+        }
+      ],
+      "expected": { "status": "rejected", "code": "selfReferentialValue", "operation": 0 }
+    },
+    {
+      "id": "M1-pin-construct-early-publication-rejected",
+      "decisions": ["W-1199", "W-1200"],
+      "references": [{ "path": "../reference/last-light/memory.w", "symbol": "watchNewClosingBell" }],
+      "operations": [
+        {
+          "op": "pinConstruct",
+          "binding": "pinned",
+          "arguments": ["label"],
+          "fields": ["label", "rings"],
+          "publishBeforeCommit": true
+        }
+      ],
+      "expected": { "status": "rejected", "code": "addressPublicationBeforeInitialization", "operation": 0 }
+    },
+    {
       "id": "M1-internal-low-bit",
       "references": [{ "path": "../reference/last-light/memory.w", "symbol": "BellTarget" }],
       "operations": [{ "op": "verifyBoundary", "boundary": "internal", "representation": "lowBit" }],

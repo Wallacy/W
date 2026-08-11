@@ -23,6 +23,12 @@ const FFI_RETENTIONS = new Set(["none", "call", "persistent"]);
 const ALLOCATOR_LIFETIMES = new Set(["static", "product", "parameter", "scoped"]);
 const ALLOCATOR_MOBILITIES = new Set(["local", "crossDomain"]);
 const ALLOCATION_OUTCOMES = new Set(["success", "allocationError"]);
+const PIN_CONSTRUCT_OUTCOMES = new Set([
+  "success",
+  "argumentError",
+  "allocationError",
+  "initializerError",
+]);
 const ERASURE_SPILL_POLICIES = new Set(["forbid", "allocator"]);
 const PROJECTION_KINDS = new Set([
   "field",
@@ -93,6 +99,11 @@ function controlBlockTable(state) {
 function outcomeTable(state) {
   if (!state.outcomes) state.outcomes = {};
   return state.outcomes;
+}
+
+function constructionReceiptTable(state) {
+  if (!state.constructionReceipts) state.constructionReceipts = [];
+  return state.constructionReceipts;
 }
 
 function requireAllocator(state, name) {
@@ -830,6 +841,112 @@ function applyOperation(state, operation) {
         payload,
         pinnedHandle: false,
       };
+      return;
+    }
+    case "pinConstruct": {
+      if (state.bindings[operation.binding]) {
+        throw new HirMemoryError("bindingAlreadyInitialized");
+      }
+      if (operation.selfReference) throw new HirMemoryError("selfReferentialValue");
+      if (operation.publishBeforeCommit) {
+        throw new HirMemoryError("addressPublicationBeforeInitialization");
+      }
+
+      const argumentsInOrder = operation.arguments ?? [];
+      const fieldsInOrder = operation.fields ?? [];
+      const outcome = operation.outcome ?? "success";
+      const failedArgumentIndex = operation.failedArgumentIndex;
+      const evaluatedArguments = outcome === "argumentError"
+        ? argumentsInOrder.slice(0, failedArgumentIndex)
+        : [...argumentsInOrder];
+      const initializedFields = operation.initializedFields ?? (
+        outcome === "success" ? [...fieldsInOrder] : []
+      );
+      const consumedArguments = new Set(operation.consumedArguments ?? []);
+      const expectedFieldPrefix = fieldsInOrder.slice(0, initializedFields.length);
+      if (JSON.stringify(initializedFields) !== JSON.stringify(expectedFieldPrefix)) {
+        throw new HirMemoryError("invalidInitializationProgress");
+      }
+      if (outcome === "success" && initializedFields.length !== fieldsInOrder.length) {
+        throw new HirMemoryError("incompletePinnedInitialization");
+      }
+      if (
+        (outcome === "argumentError" || outcome === "allocationError") &&
+        initializedFields.length !== 0
+      ) {
+        throw new HirMemoryError("initializationBeforePinnedStorage");
+      }
+
+      const root = `pin:${operation.root ?? operation.binding}`;
+      const receipt = {
+        binding: operation.binding,
+        outcome,
+        evaluatedArguments,
+        destinationRoot: root,
+        delegationDepth: operation.delegationDepth ?? 0,
+        intermediateMoves: 0,
+        storageReserved: !["argumentError", "allocationError"].includes(outcome),
+        initializedFields: [...initializedFields],
+        fieldCleanup: [],
+        stagingCleanup: [],
+        storageReleased: false,
+        deinitCount: 0,
+        bindingCommitted: false,
+        addressPublishedBeforeCommit: false,
+      };
+
+      if (outcome === "argumentError" || outcome === "allocationError") {
+        receipt.stagingCleanup = [...evaluatedArguments].reverse();
+        constructionReceiptTable(state).push(receipt);
+        recordOutcome(state, operation, outcome);
+        return;
+      }
+
+      if (operation.using) {
+        chargeAllocator(state, operation.using, operation.bytes ?? 0);
+      }
+
+      if (outcome === "initializerError") {
+        receipt.fieldCleanup = [...initializedFields].reverse();
+        receipt.stagingCleanup = evaluatedArguments
+          .filter((argument) => !consumedArguments.has(argument))
+          .reverse();
+        receipt.storageReleased = true;
+        constructionReceiptTable(state).push(receipt);
+        recordOutcome(state, operation, outcome);
+        return;
+      }
+
+      const payload = `p${state.nextPayload}`;
+      state.nextPayload += 1;
+      state.payloads[payload] = {
+        root,
+        pinnedRoot: root,
+        address: "stable",
+        allocatorKnown: operation.allocatorKnown ?? false,
+        origins: [],
+        dynamicOrigins: [],
+        lifetimeIndependent: true,
+        dependent: false,
+        copyable: operation.copyable !== false,
+        inoutField: false,
+        pinnedPayload: true,
+        edges: [],
+        construction: {
+          direct: true,
+          delegationDepth: operation.delegationDepth ?? 0,
+          intermediateMoves: 0,
+        },
+        ...(operation.using ? { storageOrigins: [operation.using] } : {}),
+      };
+      state.bindings[operation.binding] = {
+        state: "owned",
+        payload,
+        pinnedHandle: true,
+      };
+      receipt.bindingCommitted = true;
+      constructionReceiptTable(state).push(receipt);
+      recordOutcome(state, operation, outcome);
       return;
     }
     case "use": {
@@ -1754,6 +1871,42 @@ export function validateMemoryOperation(operation) {
         (operation.using === undefined || hasString("using")) &&
         (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0))
       );
+    case "pinConstruct": {
+      const strings = (value) =>
+        Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
+      const argumentsInOrder = operation.arguments ?? [];
+      const consumedArguments = operation.consumedArguments ?? [];
+      const initializedFields = operation.initializedFields ?? [];
+      const outcome = operation.outcome ?? "success";
+      return (
+        hasString("binding") &&
+        (operation.root === undefined || hasString("root")) &&
+        strings(argumentsInOrder) &&
+        strings(operation.fields ?? []) &&
+        strings(consumedArguments) &&
+        strings(initializedFields) &&
+        new Set(argumentsInOrder).size === argumentsInOrder.length &&
+        new Set(operation.fields ?? []).size === (operation.fields ?? []).length &&
+        consumedArguments.every((argument) => argumentsInOrder.includes(argument)) &&
+        PIN_CONSTRUCT_OUTCOMES.has(outcome) &&
+        (
+          outcome === "argumentError"
+            ? Number.isInteger(operation.failedArgumentIndex) &&
+              operation.failedArgumentIndex >= 0 &&
+              operation.failedArgumentIndex < argumentsInOrder.length
+            : operation.failedArgumentIndex === undefined
+        ) &&
+        (operation.delegationDepth === undefined ||
+          (Number.isSafeInteger(operation.delegationDepth) && operation.delegationDepth >= 0)) &&
+        (operation.selfReference === undefined || typeof operation.selfReference === "boolean") &&
+        (operation.publishBeforeCommit === undefined || typeof operation.publishBeforeCommit === "boolean") &&
+        (operation.allocatorKnown === undefined || typeof operation.allocatorKnown === "boolean") &&
+        (operation.copyable === undefined || typeof operation.copyable === "boolean") &&
+        (operation.using === undefined || hasString("using")) &&
+        (operation.bytes === undefined || (Number.isSafeInteger(operation.bytes) && operation.bytes >= 0)) &&
+        (operation.result === undefined || hasString("result"))
+      );
+    }
     case "use":
     case "read":
     case "write":
