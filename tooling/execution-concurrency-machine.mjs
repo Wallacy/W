@@ -25,6 +25,7 @@ const ATOMIC_FENCE_ORDERS = new Set([
 ]);
 const ATOMIC_EXCLUSIVE_AUTHORITIES = new Set(["ref", "inout", "consumed"]);
 const COMPARE_EXCHANGE_RESULTS = new Set(["exchanged", "mismatch"]);
+const DISPATCH_MODES = new Set(["ordinary", "barrier"]);
 
 export class ExecutionConcurrencyError extends Error {
   constructor(code) {
@@ -45,6 +46,13 @@ function requireTask(state, name) {
 
 function requireState(task, expected, code = "invalidTaskTransition") {
   if (task.state !== expected) throw new ExecutionConcurrencyError(code);
+}
+
+function requireDomainJob(state, name) {
+  for (const [domainName, domain] of Object.entries(state.domains)) {
+    if (domain.jobs[name]) return { domainName, domain, job: domain.jobs[name] };
+  }
+  throw new ExecutionConcurrencyError("domainJobNotAdmitted");
 }
 
 function addEdge(state, from, to, kind) {
@@ -476,6 +484,141 @@ function applyOperation(state, operation) {
       addEvent(state, operation, event);
       return;
     }
+    case "domainAdmit": {
+      requireTask(state, operation.task);
+      requireTask(state, operation.jobTask);
+      let domain = state.domains[operation.domain];
+      if (!domain) {
+        domain = { nextTicket: 0, jobs: {} };
+        state.domains[operation.domain] = domain;
+      }
+      if (Object.values(state.domains).some((candidate) => candidate.jobs[operation.job])) {
+        throw new ExecutionConcurrencyError("domainJobAlreadyAdmitted");
+      }
+      if (operation.ticket !== domain.nextTicket) {
+        throw new ExecutionConcurrencyError("domainTicketOutOfOrder");
+      }
+      if (operation.mode === "barrier" && operation.maySuspend) {
+        throw new ExecutionConcurrencyError("barrierMaySuspend");
+      }
+      const admission = addEvent(state, operation, {
+        task: operation.task,
+        kind: "domainAdmission",
+        domain: operation.domain,
+        job: operation.job,
+        ticket: operation.ticket,
+        mode: operation.mode,
+      });
+      domain.jobs[operation.job] = {
+        task: operation.jobTask,
+        ticket: operation.ticket,
+        mode: operation.mode,
+        state: "admitted",
+        admission,
+        start: null,
+        completion: null,
+        outcome: null,
+        groupParent: null,
+      };
+      domain.nextTicket += 1;
+      return;
+    }
+    case "domainAttachChild": {
+      requireTask(state, operation.task);
+      requireTask(state, operation.jobTask);
+      const { domainName, domain, job: parent } = requireDomainJob(state, operation.parentJob);
+      if (domainName !== operation.domain) {
+        throw new ExecutionConcurrencyError("domainParentMismatch");
+      }
+      if (parent.task !== operation.task) {
+        throw new ExecutionConcurrencyError("domainJobTaskMismatch");
+      }
+      if (parent.state !== "started") {
+        throw new ExecutionConcurrencyError("domainParentNotActive");
+      }
+      if (parent.mode === "barrier") {
+        throw new ExecutionConcurrencyError("domainBarrierCannotCreateChild");
+      }
+      if (Object.values(state.domains).some((candidate) => candidate.jobs[operation.job])) {
+        throw new ExecutionConcurrencyError("domainJobAlreadyAdmitted");
+      }
+      const attachment = addEvent(state, operation, {
+        task: operation.task,
+        kind: "domainStructuredChild",
+        domain: operation.domain,
+        job: operation.job,
+        parentJob: operation.parentJob,
+        ticket: parent.ticket,
+      });
+      domain.jobs[operation.job] = {
+        task: operation.jobTask,
+        ticket: parent.ticket,
+        mode: "ordinary",
+        state: "admitted",
+        admission: attachment,
+        start: null,
+        completion: null,
+        outcome: null,
+        groupParent: operation.parentJob,
+      };
+      return;
+    }
+    case "domainStart": {
+      const { domain, job } = requireDomainJob(state, operation.job);
+      if (job.task !== operation.task) {
+        throw new ExecutionConcurrencyError("domainJobTaskMismatch");
+      }
+      if (job.state !== "admitted") {
+        throw new ExecutionConcurrencyError("domainJobAlreadyStarted");
+      }
+      const earlier = Object.values(domain.jobs).filter((candidate) => candidate.ticket < job.ticket);
+      if (job.mode === "barrier" && earlier.some((candidate) => candidate.state !== "completed")) {
+        throw new ExecutionConcurrencyError("domainBarrierBeforePriorCompletion");
+      }
+      const earlierBarriers = earlier.filter((candidate) => candidate.mode === "barrier");
+      if (job.mode === "ordinary" && earlierBarriers.some((candidate) => candidate.state !== "completed")) {
+        throw new ExecutionConcurrencyError("domainStartBeforeBarrierCompletion");
+      }
+      const start = addEvent(state, operation, {
+        task: operation.task,
+        kind: "domainJobStart",
+        job: operation.job,
+        ticket: job.ticket,
+        mode: job.mode,
+      });
+      if (job.mode === "barrier") {
+        for (const prior of earlier) addEdge(state, prior.completion, start, "domainPriorToBarrier");
+      } else {
+        for (const barrier of earlierBarriers) {
+          addEdge(state, barrier.completion, start, "domainBarrierToLater");
+        }
+      }
+      job.state = "started";
+      job.start = start;
+      if (job.groupParent) addEdge(state, job.admission, start, "parentToChild");
+      return;
+    }
+    case "domainComplete": {
+      const { job } = requireDomainJob(state, operation.job);
+      if (job.task !== operation.task) {
+        throw new ExecutionConcurrencyError("domainJobTaskMismatch");
+      }
+      if (job.state !== "started") {
+        throw new ExecutionConcurrencyError("domainJobNotStarted");
+      }
+      const completion = addEvent(state, operation, {
+        task: operation.task,
+        kind: "domainJobCommitted",
+        job: operation.job,
+        ticket: job.ticket,
+        mode: job.mode,
+        outcome: operation.outcome ?? "success",
+      });
+      job.state = "completed";
+      job.completion = completion;
+      job.outcome = operation.outcome ?? "success";
+      return;
+    }
     case "channelSend":
     case "channelClose": {
       const event = addEvent(state, operation, {
@@ -874,6 +1017,33 @@ export function validateExecutionOperation(operation) {
         ACCESS_KINDS.has(operation.access) &&
         memoryRange()
       );
+    case "domainAdmit":
+      return (
+        idTask() &&
+        string("job") &&
+        string("jobTask") &&
+        string("domain") &&
+        Number.isInteger(operation.ticket) &&
+        operation.ticket >= 0 &&
+        DISPATCH_MODES.has(operation.mode) &&
+        (operation.maySuspend === undefined || typeof operation.maySuspend === "boolean")
+      );
+    case "domainStart":
+      return idTask() && string("job");
+    case "domainAttachChild":
+      return (
+        idTask() &&
+        string("job") &&
+        string("jobTask") &&
+        string("domain") &&
+        string("parentJob")
+      );
+    case "domainComplete":
+      return (
+        idTask() &&
+        string("job") &&
+        (operation.outcome === undefined || OUTCOMES.has(operation.outcome))
+      );
     case "channelSend":
       return (
         idTask() &&
@@ -1001,6 +1171,7 @@ export function runExecutionProgram(operations) {
     atomicModificationOrder: {},
     sequentialOrder: [],
     atomicExclusive: {},
+    domains: {},
     lastFailFastTrigger: null,
     lastArbitration: null,
     lastRace: null,

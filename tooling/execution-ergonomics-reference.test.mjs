@@ -63,7 +63,7 @@ test("suspension is inferred monotonically and child accepts sync or may", () =>
     direct: "same-task/neverSuspend",
     await: "same-task/maySuspend",
     "async let": "structured-child/current-domain",
-    spawn: "structured-child/parallel-intent",
+    spawn: "structured-child/explicit-domain",
   })
   assert.equal(result.suspension.declarations.find((item) => item.name === "odd").suspension, "may")
   assert.equal(result.suspension.declarations.find((item) => item.name === "even").suspension, "may")
@@ -84,15 +84,232 @@ test("bare maySuspend and blocking wait are errors; await never is removable", (
   assert.ok(diagnostics.includes("W-SUSPEND-0003"))
 })
 
-test("placement is caller choice and serial spawn is rejected", () => {
+test("spawn dispatches to serial or concurrent domains and requires a target", () => {
   const declaration = deriveExecutionErgonomics("spawn<.network> fn fetch(request) { return request }")
   assert.ok(summarizeDiagnostics(declaration).includes("W-PLACEMENT-0001"))
-  const serial = deriveExecutionErgonomics("module kitchen<domains: [.serial(.thermal)]>\nspawn<.compute> let work = f()")
+  const serial = deriveExecutionErgonomics("module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()")
   assert.deepEqual(summarizeDiagnostics(serial), [])
-  const serialConflict = deriveExecutionErgonomics("module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()")
-  assert.ok(summarizeDiagnostics(serialConflict).includes("W-PLACEMENT-0002"))
+  assert.equal(serial.placement.dispatches[0].domain, ".thermal")
+  assert.equal(serial.placement.dispatches[0].scheduling, "serial-fifo")
+  assert.equal(serial.placement.dispatches[0].overlapWithinTarget, false)
+  const main = deriveExecutionErgonomics("spawn<.main> let work = f()")
+  assert.equal(main.placement.dispatches[0].scheduling, "serial-fifo")
+  const missing = deriveExecutionErgonomics("spawn let work = f()")
+  assert.ok(summarizeDiagnostics(missing).includes("W-PLACEMENT-0002"))
+  const unknown = deriveExecutionErgonomics("spawn<.missing> let work = f()", { availableDomains: [".main", ".compute"] })
+  assert.ok(summarizeDiagnostics(unknown).includes("W-PLACEMENT-0002"))
   const forms = deriveExecutionErgonomics("spawn<.compute> let a = f()\nspawn<domain: .compute> let b = f()")
   assert.equal(forms.placement.sameOptionalDomainForm, true)
+})
+
+test("barrier dispatch orders read epochs and requires a closed access graph", () => {
+  const source = `
+    fn read(state: ref Menu) { return state.revision }
+    fn write(state: inout Menu) { state.revision += 1; return state.revision }
+    spawn<.catalog> let before = read(ref menu)
+    spawn<.catalog, .barrier> let update = write(inout menu)
+    spawn<domain: .catalog> let after = read(ref menu)
+  `
+  const accepted = deriveExecutionErgonomics(source, {
+    domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] },
+  })
+  assert.deepEqual(summarizeDiagnostics(accepted), [])
+  assert.equal(accepted.placement.dispatches[1].mode, ".barrier")
+  assert.equal(accepted.placement.dispatches[1].scheduling, "exclusive-barrier")
+  assert.deepEqual(accepted.placement.loanSequences[0].edges, [
+    "0.complete->1.start",
+    "1.complete->2.start",
+  ])
+  assert.equal(accepted.placement.loanSequences[0].closed, true)
+
+  const unsupported = deriveExecutionErgonomics(source, {
+    domainCapabilities: { ".catalog": ["concurrent"] },
+  })
+  assert.ok(summarizeDiagnostics(unsupported).includes("W-PLACEMENT-0003"))
+
+  const open = deriveExecutionErgonomics(source, {
+    domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] },
+    openPlaces: ["menu"],
+  })
+  assert.ok(summarizeDiagnostics(open).includes("W-OWNERSHIP-0012"))
+})
+
+test("barrier bodies cannot suspend and serial domains accept the marker", () => {
+  const suspending = deriveExecutionErgonomics(`
+    fn write(state: inout Menu) { await Task.yield(); return state.revision }
+    spawn<.catalog, .barrier> let update = write(inout menu)
+  `, { domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] } })
+  assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0004"))
+
+  const serial = deriveExecutionErgonomics(`
+    module kitchen<domains: [.serial(.thermal)]>
+    fn write(state: inout Menu) { return state.revision }
+    spawn<.thermal, .barrier> let update = write(inout menu)
+  `)
+  assert.deepEqual(summarizeDiagnostics(serial), [])
+  assert.equal(serial.placement.dispatches[0].barrierSupport, "serial")
+})
+
+test("dynamic serial lanes reuse a pool and release bounded reservations after drain", () => {
+  const profile = {
+    enabled: true,
+    pool: "cpu",
+    liveLimit: 4,
+    aggregateReadyJobs: 64,
+    aggregateFrameBytes: 1_048_576,
+    laneMaximumJobs: 16,
+    laneMaximumFrameBytes: 262_144,
+  }
+  const accepted = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      authority: true,
+      profile,
+      live: 2,
+      aggregateReadyUsed: 16,
+      aggregateFrameBytesUsed: 131_072,
+      request: { kind: "serial", readyJobs: 8, frameBytes: 65_536 },
+      operations: [
+        { op: "open" },
+        { op: "admit", job: "order", input: "order-owner", frameBytes: 4_096 },
+        { op: "admit", job: "dessert", input: "dessert-owner", frameBytes: 8_192 },
+        { op: "start", job: "order" },
+        { op: "suspend", job: "order" },
+        { op: "close" },
+        { op: "start", job: "dessert" },
+        { op: "complete", job: "dessert" },
+        { op: "resume", job: "order" },
+        { op: "complete", job: "order" },
+        { op: "drain" },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(accepted.status, "accepted")
+  assert.equal(accepted.phase, "drained")
+  assert.equal(accepted.poolReuse, true)
+  assert.equal(accepted.referenceExtendsOwner, false)
+  assert.equal(accepted.state.live, 2)
+  assert.equal(accepted.state.aggregateReadyUsed, 16)
+  assert.equal(accepted.state.aggregateFrameBytesUsed, 131_072)
+  assert.deepEqual(accepted.state.readyQueue, [])
+  assert.equal(accepted.state.activeSegment, null)
+  assert.deepEqual(accepted.trace.map((event) => event.operation), [
+    "open", "admit", "admit", "start", "suspend", "close", "start", "complete", "resume", "complete", "drain",
+  ])
+
+  const closed = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      authority: true,
+      profile,
+      request: { kind: "serial", readyJobs: 8, frameBytes: 65_536 },
+      operations: [
+        { op: "open" },
+        { op: "close" },
+        { op: "admit", job: "late", input: "late-owner", frameBytes: 1_024 },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(closed.status, "rejected")
+  assert.equal(closed.error, "closedDomain")
+  assert.equal(closed.recoveredInput, "late-owner")
+
+  const pending = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      authority: true,
+      profile,
+      request: { kind: "serial", readyJobs: 8, frameBytes: 65_536 },
+      operations: [
+        { op: "open" },
+        { op: "admit", job: "waiting", input: "waiting-owner", frameBytes: 1_024 },
+        { op: "start", job: "waiting" },
+        { op: "suspend", job: "waiting" },
+        { op: "close" },
+        { op: "drain" },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(pending.error, "drainPending")
+  assert.equal(pending.state.aggregateReadyUsed, 8)
+  assert.equal(pending.state.aggregateFrameBytesUsed, 65_536)
+})
+
+test("dynamic serial lanes start FIFO and never overlap runnable segments", () => {
+  const profile = {
+    enabled: true,
+    pool: "cpu",
+    liveLimit: 4,
+    aggregateReadyJobs: 64,
+    aggregateFrameBytes: 1_048_576,
+    laneMaximumJobs: 16,
+    laneMaximumFrameBytes: 262_144,
+  }
+  const base = {
+    authority: true,
+    profile,
+    request: { kind: "serial", readyJobs: 8, frameBytes: 65_536 },
+  }
+  const fifo = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      ...base,
+      operations: [
+        { op: "open" },
+        { op: "admit", job: "first", input: "first-owner", frameBytes: 1_024 },
+        { op: "admit", job: "second", input: "second-owner", frameBytes: 1_024 },
+        { op: "start", job: "second" },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(fifo.error, "fifoViolation")
+
+  const overlap = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      ...base,
+      operations: [
+        { op: "open" },
+        { op: "admit", job: "first", input: "first-owner", frameBytes: 1_024 },
+        { op: "admit", job: "second", input: "second-owner", frameBytes: 1_024 },
+        { op: "start", job: "first" },
+        { op: "start", job: "second" },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(overlap.error, "laneBusy")
+})
+
+test("dynamic serial lanes enforce frame reservations", () => {
+  const profile = {
+    enabled: true,
+    pool: "cpu",
+    liveLimit: 4,
+    aggregateReadyJobs: 64,
+    aggregateFrameBytes: 196_608,
+    laneMaximumJobs: 16,
+    laneMaximumFrameBytes: 131_072,
+  }
+  const aggregate = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      authority: true,
+      profile,
+      aggregateFrameBytesUsed: 163_840,
+      request: { kind: "serial", readyJobs: 8, frameBytes: 65_536 },
+      operations: [{ op: "open" }],
+    },
+  }).dynamicSerial
+  assert.equal(aggregate.error, "aggregateFrameBytesExhausted")
+
+  const admission = deriveExecutionErgonomics("", {
+    dynamicSerial: {
+      authority: true,
+      profile,
+      request: { kind: "serial", readyJobs: 8, frameBytes: 4_096 },
+      operations: [
+        { op: "open" },
+        { op: "admit", job: "first", input: "first-owner", frameBytes: 3_072 },
+        { op: "admit", job: "second", input: "second-owner", frameBytes: 2_048 },
+      ],
+    },
+  }).dynamicSerial
+  assert.equal(admission.error, "frameBudgetExhausted")
+  assert.equal(admission.recoveredInput, "second-owner")
 })
 
 test("process projections are explicit, profile gated, and nonescaping", () => {

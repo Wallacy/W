@@ -39,6 +39,10 @@ export object EndOfUniverseSign {
     )
   }
 
+  fn current(): SignState {
+    return state
+  }
+
   fn observe(): SignState {
     return state.load<.acquire>()
   }

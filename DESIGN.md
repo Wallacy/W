@@ -1,20 +1,16 @@
 # Design corrente da linguagem W
 
-> **Status:** **Candidato experimental** · 4 de agosto de 2026
+> **Status:** **Candidato experimental** · 10 de agosto de 2026
 
-Este é o documento normativo de design do W. Ele reúne linguagem, runtime, SDK,
-compilador, packages, distribuição, tooling, plano e a forma integrada vigente.
-O documento corrige contradições das tentativas anteriores; justificativas,
-evidência e alternativas ficam rastreáveis em [`RATIONALE.md`](RATIONALE.md).
+Este é o documento normativo do W. Ele define os contratos correntes de
+linguagem, runtime, SDK, compiler, packages, distribuição, tooling e plano.
+[`RATIONALE.md`](RATIONALE.md) guarda justificativas, comparações, alternativas
+e o ledger sem definir comportamento. `history/` preserva material obsoleto e
+não decide o W atual.
 
-`DESIGN.md` define os contratos normativos correntes, o estado atual, as
-pesquisas que podem mudar o contrato e a ordem de implementação. [`RATIONALE.md`](RATIONALE.md)
-registra justificativas, evidência comparativa e alternativas sem definir
-comportamento W. `history/` preserva proveniência obsoleta e não decide o W atual.
-
-A implementação pode usar estas formas antes da ratificação humana. Alternativas
-relevantes permanecem rastreáveis em [`RATIONALE.md`](RATIONALE.md). O objetivo é
-permitir revisão visual com parser, realce e o produto de referência.
+As formas correntes podem alimentar parser, realce e produto de referência antes
+da ratificação humana. Pesquisa que pode mudar source, tipo, ABI ou comportamento
+continua marcada no ponto normativo correspondente.
 
 ## 0. Como ler este documento
 
@@ -52,9 +48,7 @@ Leia o bloco que contém a dúvida e depois use o ID W correspondente. Não é
 necessário reconstruir uma decisão a partir do histórico.
 
 O histórico das consolidações anteriores e as notas originais ficam em
-[`history/`](history). O Git preserva autoria, datas e diffs. `DESIGN.md` é a
-autoridade normativa para o estado atual; [`RATIONALE.md`](RATIONALE.md) guarda a evidência e
-o ledger sem criar uma segunda especificação.
+[`history/`](history). O Git preserva autoria, datas e diffs.
 
 [`GOVERNANCE.md`](GOVERNANCE.md) define autoridade e decisão do projeto.
 [`CONTRIBUTING.md`](CONTRIBUTING.md) define o fluxo de contribuição. Esses
@@ -118,8 +112,8 @@ Mover W para outro repository também não muda este checkpoint.
 
 ### 0.1 Promessa
 
-**Exemplo:** `spawn<.compute>` mostra paralelismo no source e continua legível
-sem conhecer o executor.
+**Exemplo:** `spawn<.compute>` seleciona no source um domínio com capability
+paralela e continua legível sem conhecer o executor.
 
 > **Prazer para humanos. Clareza para máquinas.**
 
@@ -143,6 +137,39 @@ O público inicial inclui pessoas que escrevem:
 Python também faz parte do público inicial de W. A compatibilidade com Python é uma meta de
 adoção. Ela não promete duck typing, monkey patching ou compatibilidade
 dinâmica.
+
+#### 0.1.1 Núcleo de memória e execução
+
+O caminho comum combina poucos marcadores no call site:
+
+```w
+let digest = hash(data)
+let menu = try await fetchMenu()
+async let stock = pantry.reserve(order)
+spawn<.compute> let plan = optimize(take snapshot)
+```
+
+| Intenção | Forma corrente | Contrato principal |
+|---|---|---|
+| usar value local | call direta | mesma task; sem child ou suspensão oculta |
+| observar sem transferir | `ref` | borrow read-only com scope provado |
+| mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
+| transferir ownership | `take` | o source perde o owner uma vez |
+| duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
+| suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
+| criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
+| criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
+| reads concorrentes e write exclusivo | `spawn<domain>` + `.barrier` | tickets e loans verificados num grafo fechado |
+
+`async` na declaration fixa um contrato quando a interface precisa dele; a HIR
+também infere suspensão. `spawn` não significa thread nem paralelismo por si só.
+Um domain serial executa um segmento por vez. Um domain com `.parallel` pode
+usar múltiplos recursos. Em ambos, children permanecem estruturados.
+
+[A seção 9](#9-memória-layout-e-alocação) define owner, loans, storage e
+reclamation. [A seção 12](#12-concorrência-paralelismo-e-execução) define
+tasks, domains, barriers, atomics, channels e liveness. Esta tabela é um mapa;
+as seções indicadas continuam normativas.
 
 ### 0.2 Princípios de produto
 
@@ -182,8 +209,8 @@ O design vigente não tenta:
 
 ### 0.4 Critérios de sucesso
 
-**Exemplo:** uma pessoa identifica por que `async let` sobrepõe espera e
-`spawn<domain> let` permite intenção paralela após ler um único exemplo.
+**Exemplo:** uma pessoa identifica por que `async let` usa o domínio atual e
+`spawn<domain> let` envia um child para outro domínio após ler um único exemplo.
 
 - Pessoas que conhecem C, Swift ou TypeScript entendem o Tour sem treinamento
   longo.
@@ -450,7 +477,7 @@ u16<(1...65_535)>
   → TypeContract(base: u16, refinement: value in 1...65_535)
 
 spawn<.compute> let plan = optimize(order)
-  → TaskContract(kind: .parallel, domain: .compute)
+  → TaskContract(kind: .spawn, domain: .compute, mode: .ordinary)
 
 unsafe fn<Rust> checksum(...)
   → ForeignFunctionContract(language: .rust, abi: .c, safety: .unsafe)
@@ -842,8 +869,9 @@ primeiro item de `module_source`. Ele contém dados do script. Ele não é uma
 declaration top-level, annotation, comment ou código executável.
 
 O schema v0 do header de módulo publica somente o slot nomeado `domains`. Ele
-declara requirements estáticos. `parallelDefault`, pools, capacity, queues e
-fallbacks pertencem ao execution profile do package e não são slots de módulo.
+declara requirements estáticos. Pools, capacity, queues e fallbacks pertencem
+ao execution profile do package e não são slots de módulo. W não possui
+`parallelDefault`: `spawn` e `parallelMap` selecionam o domínio no call site.
 
 Esta subseção é normativa para raízes de documento, imports e declarations.
 Ela usa `type`, `expression`, `pattern`, `static_argument`, `parameter_list` e
@@ -4084,6 +4112,7 @@ da unidade de nomes.
 module kitchen<
   domains: [
     .serial(.thermal),
+    .concurrent(.catalog),
   ],
 >
 ```
@@ -7599,13 +7628,6 @@ mutação de variant conflita com todos os loans do enum. Somente fields de um
 mesmo active variant, com o variant provado no ponto CFG atual, podem ser
 disjuntos.
 
-O modelo segue a distinção entre place e value do
-[Rust Reference](https://doc.rust-lang.org/reference/expressions.html#place-expressions-and-value-expressions).
-As relações de loan usam facts explícitos no estilo das relações de
-[Polonius](https://rust-lang.github.io/polonius/rules/relations.html) e dos
-[loans](https://rust-lang.github.io/polonius/rules/loans.html). W diverge ao
-inferir o mapping da interface sem lifetime variables no source.
-
 As regras de conflito são:
 
 - `shared` com `shared` pode sobrepor;
@@ -7775,13 +7797,6 @@ O corpus M1 mantém uma forma aceita e uma inversão para cada regra crítica:
 positivas. [`memory-transition-cases.json`](tooling/memory-transition-cases.json)
 contém as inversões e os estados esperados.
 
-Referências adicionais incluem a precisão de capture de
-[Rust closures](https://doc.rust-lang.org/reference/types/closure.html#capture-precision),
-o modelo de values non-escapable de
-[Swift SE-0446](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0446-non-escapable.md)
-e a descrição de segurança de lifetime de
-[Clang](https://clang.llvm.org/docs/LifetimeSafety.html).
-
 #### 9.2.2 Placement e alocação inferida
 
 Ownership não escolhe um endereço. O compiler escolhe register, stack, static
@@ -7904,11 +7919,6 @@ W não cria `PinnedRef<T>` ou `PinnedMut<T>`. `Pinned<T>` usa `withRef` e
 - projection para um field pinned precisa de prova do compiler ou `unsafe`;
 - safe projection mantém o parent pinned e não permite mover o field;
 - um tipo comum não paga por pinning.
-
-O modelo segue a separação usada pela
-[API `Pin` do Rust](https://doc.rust-lang.org/std/pin/): estabilidade de endereço
-é um contrato de API para valores sensíveis ao endereço, não uma propriedade de
-todo ponteiro.
 
 ### 9.4 `shared`, `weak` e ciclos
 
@@ -8035,12 +8045,6 @@ handle de service mantém identity e capability, não ownership direto do estado
 uma contagem atômica. Isso é evidence de tooling, não prova global de ausência
 de ciclo.
 
-A documentação de [`Arc`](https://doc.rust-lang.org/std/sync/struct.Arc.html)
-confirma a separação entre payload, strong owners, weak owners e allocator. Ela
-também mostra que reference counting thread-safe não torna o payload seguro para
-concorrência. W mantém esses fatos, mas usa `copy`, predicates derivados e
-origens de allocation explícitas na interface.
-
 ### 9.5 Arena avançada e placement invisível
 
 **W-1165 — caminho de memória:** a syntax `region` não pertence à Forma vigente antes de W 1.0. O código normal usa value,
@@ -8107,10 +8111,8 @@ mimalloc ou outro allocator compatível. A seleção participa da recipe, do
 artifact digest e do profile de performance. Ela não altera ownership nem muda
 o representation fingerprint quando os carriers permanecem iguais.
 
-[mimalloc](https://github.com/microsoft/mimalloc) permanece uma opção forte para
-benchmark. Sua portabilidade, heaps separados e modos de segurança justificam o
-teste. Nenhum benchmark autoriza torná-lo universal sem matriz de target,
-sanitizer, override, unload e cross-thread free.
+Nenhum allocator se torna universal sem matriz de target, sanitizer, unload e
+cross-domain free.
 
 W chama o allocator selecionado por sua API. Ele não depende de override global
 de `malloc` quando código estrangeiro pode misturar origens. As regras de heap e
@@ -8166,13 +8168,6 @@ entra na `WAbiKey` quando o carrier de ABI permanece igual.
 `.optimized` permite niches e compactação aprovadas pelo profile. Sanitizer,
 debugger ou hardening ainda podem escolher o fallback. Os dois profiles precisam
 passar o mesmo oracle semântico.
-
-O modelo de arenas pre-reservadas do
-[mimalloc](https://microsoft.github.io/mimalloc/group__arenas.html) pode ajudar
-um host fixed. Os
-[heaps do mimalloc](https://microsoft.github.io/mimalloc/group__heap.html)
-mostram por que mobilidade de allocate e free precisa ser uma propriedade do
-profile, não uma suposição pelo nome do allocator.
 
 #### 9.6.1 Contrato físico do provider A0
 
@@ -8257,10 +8252,6 @@ O provider, sua versão e sua configuração entram na toolchain plan e na recip
 O descriptor entra nos runtime requirements. Ele só entra na `WAbiKey` quando
 muda um carrier ou uma operação ABI observável.
 
-O design do [`Allocator` de Rust](https://doc.rust-lang.org/std/alloc/trait.Allocator.html)
-confirma que grow ou shrink falho precisa preservar o bloco anterior. Essa API
-ainda é experimental. W fixa a propriedade no próprio contrato A0.
-
 #### 9.6.2 Relocation, growth e commit
 
 **Exemplo:** o provider pode mover o buffer de pratos. Um borrow de um prato
@@ -8298,10 +8289,6 @@ Um provider pode devolver mais bytes que o pedido. O container pode usar essa
 capacity quando o profile permite. Um budget de `Arena` cobra o span lógico
 calculado antes da call. Metadata e over-allocation do provider permanecem em
 `accounting: allocator`.
-
-O `remap` de Zig separa resize in-place de relocation opcional. A
-[documentação oficial](https://ziglang.org/download/0.14.0/release-notes.html#Allocator-API-Changes-remap)
-mostra por que W mantém fallback no caller e não exige `realloc` universal.
 
 #### 9.6.3 Progress, domains e targets
 
@@ -8341,11 +8328,8 @@ A baseline usa estes adapters:
 Device memory não é uma allocation geral do host. Copy, visibility, fence e
 reclamation pertencem ao provider do device.
 
-Mimalloc continua opcional. A documentação oficial distingue heaps v1/v2,
-limitados para allocate cross-thread, dos
-[heaps v3](https://microsoft.github.io/mimalloc/group__heap.html), que são
-first-class. Por isso o contract fixa major, mode e capabilities. O nome
-`mimalloc` sozinho não concede mobilidade.
+O contract fixa major, mode e capabilities. O nome de um allocator sozinho não
+concede mobilidade.
 
 #### 9.6.4 Oracle físico A0
 
@@ -8585,15 +8569,9 @@ MMIO, memória mapeada e handles fornecidos pelo host usam adapters `unsafe` que
 recebem a authority correspondente e devolvem um owner ou raw pointer com
 provenance. Um integer sozinho não satisfaz esse contrato.
 
-O lowering de `pointer.address` e `address(of:)` usa
-[`ptrtoaddr` do LLVM](https://llvm.org/docs/LangRef.html#ptrtoaddr-to-instruction),
-que captura a index width do address space e não a provenance. O
-[`ptrtoint` do LLVM](https://llvm.org/docs/LangRef.html#ptrtoint-to-instruction)
-captura ambos e não é um substituto. Pointers com estado externo podem perder
-esse estado num `inttoptr`. A
-[Strict Provenance do Rust](https://doc.rust-lang.org/std/ptr/index.html#strict-provenance)
-mostra a operação `with_addr`; a própria documentação classifica exposed
-provenance como ambígua. W mantém somente o caminho estrito na baseline.
+O lowering de `pointer.address` e `address(of:)` preserva o pointer original e a
+index width do address space. Um round-trip `pointer → integer → pointer` ou
+exposed provenance não substitui esse caminho.
 
 ### 9.8 Layout, addressability e ABI
 
@@ -8759,12 +8737,10 @@ Alignment é necessário, mas não suficiente. O profile também precisa provar:
 4. que GC maps, unwind, debugger e sanitizer conhecem a forma ou usam fallback;
 5. que toda fronteira recebe a forma canônica.
 
-O lowering mantém a provenance original. Para remover bits, ele pode usar
-[`llvm.ptrmask`](https://llvm.org/docs/LangRef.html#llvm-ptrmask-intrinsic), que
-mantém o underlying object. Para inserir bits, ele usa uma operação baseada no
-pointer original e aprovada pelo target. Um `Address` salvo não substitui esse
-pointer. Se a toolchain não possui uma operação que conserva a origem, o
-compiler usa tag e payload explícitos.
+O lowering mantém a provenance original. Inserir ou remover bits exige uma
+operação aprovada pelo target e baseada no pointer original. Um `Address` salvo
+não substitui esse pointer. Sem operação que conserve a origem, o compiler usa
+tag e payload explícitos.
 
 O compiler remove a tag antes de:
 
@@ -8818,11 +8794,8 @@ explícitos.
 expandir esse handle na façade C. Um pointer nativo fora da arena não participa
 dessa representação.
 
-`Option<ref T>` não aloca. O tamanho exato depende do profile. A
-[null pointer optimization do Rust](https://doc.rust-lang.org/core/option/#representation)
-e os [extra inhabitants do ABI Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeLayout.rst)
-demonstram a utilidade de niches. W não copia suas garantias de ABI sem declarar
-uma fronteira equivalente.
+`Option<ref T>` não aloca. O tamanho exato depende do profile. Uma niche não
+cria garantia de ABI sem fronteira e fingerprint compatíveis.
 
 Tags de endereço não provam owner, lifetime, thread safety ou validade. Elas
 podem guardar metadata imutável ou ajudar instrumentação. Reference count,
@@ -8902,17 +8875,6 @@ do source, usa adapter canônico ou rejeita o link.
 Hardening e diagnóstico têm precedência sobre compactação opcional. ASan,
 HWASan, TSan, MTE, pointer authentication, debugger e profiler podem desativar
 tags de W sem alterar semântica.
-
-Essa precedência é necessária porque:
-
-- o [Tagged Address ABI do Linux](https://docs.kernel.org/arch/arm64/tagged-address-abi.html)
-  possui enablement por thread e exceções de syscall;
-- o [MTE do Linux](https://docs.kernel.org/arch/arm64/memory-tagging-extension.html)
-  usa tags e granules próprios;
-- [pointer authentication no LLVM](https://llvm.org/docs/PointerAuth.html) usa
-  bits não utilizados e invariantes de IR;
-- [CHERI](https://ctsrd-cheri.github.io/cheri-c-programming/background/cheri-capabilities.html)
-  usa capabilities mais largas e uma tag de validade fora dos bytes normais.
 
 Uma otimização de high-bit não pode ser inferida somente pelo nome da CPU. O
 processo, OS, allocator, ABI e toolchain precisam confirmar a capacidade.
@@ -9018,13 +8980,6 @@ Essa regra impede double-close em todos os caminhos. Ela também evita uma
 análise de partial destruction na primeira implementação. Um futuro suporte a
 extração de fields exige uma prova inversa de definite initialization.
 
-A
-[SE-0390](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0390-noncopyable-structs-and-enums.md)
-mostra o risco de suprimir `deinit` em somente alguns caminhos. O
-[`Drop` de Rust](https://doc.rust-lang.org/stable/core/ops/trait.Drop.html)
-também mantém o destructor separado do consumo explícito. W usa um estado
-válido e drop automático como baseline.
-
 #### 9.11.1 Retirement e reclamation
 
 **Exemplo:** remover um node da fila encerra seu uso lógico. O allocator só pode
@@ -9068,11 +9023,6 @@ Hazard pointers, epoch-based reclamation e RCU permanecem domain ou adapters
 - cancellation, thread exit e task migration;
 - shutdown, leak detection e interaction com allocators;
 - memory orders e progress por target.
-
-O trabalho WG21 sobre
-[RCU](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2545r2.pdf)
-mostra que allocator, deleter context, thread registration e shutdown são
-partes do contrato. W não esconde esses eixos numa `Atomic<ptr>`.
 
 Safe baseline/host usa owner único, `shared`, scopes, services, channels ou locks.
 `Atomic<shared T>` continua rejeitado. Uma collection concorrente pode usar
@@ -9317,10 +9267,6 @@ let course = try? Course.horizonCake // W-EFFECT-0010: expression cannot fail
 `try`, `Result` ou `do`/`catch`. `try!` não existe; uma invariante usa
 `Result.expect("reason")`.
 
-O [Error Handling do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling/)
-é o precedente de ergonomia. W adiciona typed errors, Result e a regra explícita
-de que panic e cancelamento não participam da conversão.
-
 Postfix `?` não aceita Result. Ele continua exclusivo de Option:
 
 ```w
@@ -9442,12 +9388,6 @@ O lowering não exige exception unwind do host. MLIR representa success e error
 com valores tagged e control-flow edges. Cada edge executa os drops e defers
 aplicáveis.
 
-Os precedentes principais são
-[Swift typed throws](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0413-typed-throws.md),
-[Rust Result](https://doc.rust-lang.org/std/result/index.html) e
-[Zig error return traces](https://ziglang.org/documentation/master/). W mantém
-direct style, valor armazenável e trace de propagação como contratos separados.
-
 ### 11.4 Panic e fault boundaries
 
 Panic informa que o programa não pode continuar dentro de uma fault boundary.
@@ -9485,10 +9425,6 @@ PanicEvent(
 `.divisionByZero`, `.outOfMemory` e `.internalContract`. Uma mensagem literal é
 opcional. Backtrace e symbols são sidecars removíveis. Debug e release preservam
 as mesmas condições de panic.
-
-O [Rust Reference](https://doc.rust-lang.org/stable/reference/panic.html)
-também separa panic de error recuperável e permite abort ou unwind. W escolhe
-teardown da fault boundary e não expõe unwind recuperável em source.
 
 ### 11.5 OOM e alocação fallible
 
@@ -9635,10 +9571,6 @@ W separa quatro eixos:
 Um executor não cria isolation por existir. Um executor serial pode atender mais
 de uma isolation boundary. Uma boundary pode migrar entre threads.
 
-O [JEP 525](https://openjdk.org/jeps/525) usa uma árvore de tasks para preservar
-lifetime e observabilidade. W aplica a estrutura no type checker. Ela não é
-somente uma convenção de biblioteca.
-
 ### 12.2 Quatro formas de executar
 
 ```w
@@ -9653,12 +9585,12 @@ spawn<.compute> let plan = optimize(take snapshot)
 | call direta (`neverSuspend`) | agora | mesma task, sem suspensão | valor ou error |
 | `await` direto | agora | suspender o caller | valor ou error |
 | `async let` | na declaração | child estruturado no domain atual | `Task<T, E>` |
-| `spawn<domain> let` | na declaração | child estruturado com intenção paralela | `Task<T, E>` |
+| `spawn<domain> let` | na declaração | child estruturado no domínio explícito | `Task<T, E>` |
 
 Uma call que pode suspender precisa de `await`, `async let` ou `spawn<domain> let`.
 Uma call direta a `maySuspend` é erro. W não cria Promise ou Future silenciosa.
-`async let` não promete outro core. `spawn` autoriza intenção paralela, mas não
-promete simultaneidade.
+`async let` não promete outro core. `spawn` não promete paralelismo. O contrato
+do domínio selecionado define serialização, concorrência e paralelismo.
 
 `await f()` executa `f` como parte da task atual. Ele não cria um child. A call
 começa na ordem lexical e herda cancellation, deadline e preference. Um
@@ -9747,8 +9679,11 @@ Os diagnostics desta policy são:
 | `W-SUSPEND-0001` | call `maySuspend` sem `await`, `async let` ou `spawn` |
 | `W-SUSPEND-0002` | `await` removível em callable `neverSuspend` |
 | `W-SUSPEND-0003` | blocking wait geral em execução estruturada |
+| `W-SUSPEND-0004` | job de dispatch `.barrier` pode suspender |
 | `W-PLACEMENT-0001` | placement `spawn` aparece numa declaration em vez do call site |
-| `W-PLACEMENT-0002` | intenção paralela de `spawn` é incompatível com domain serial |
+| `W-PLACEMENT-0002` | `spawn` não informa um domínio explícito ou informa um domínio inexistente |
+| `W-PLACEMENT-0003` | domínio concorrente não oferece `barrierDispatch` |
+| `W-OWNERSHIP-0012` | loans de dispatch não formam uma sequência fechada num único domínio |
 | `W-PROCESS-0001` | projection process fora do root/profile válido |
 | `W-PROCESS-0002` | projeção ou authority de process cruza a boundary do entry-root (escape, service crossing ou serialização); value-copy não torna o crossing legal |
 | `W-PROCESS-0003` | `process.ctx` não é alias intrínseco de `process.context` |
@@ -9760,10 +9695,11 @@ Os diagnostics desta policy são:
 a máquina pura em [`tooling/execution-ergonomics-machine.mjs`](tooling/execution-ergonomics-machine.mjs),
 o host test e o snapshot JSONL mantêm os positivos, negativos e a informação
 desta policy. A máquina deriva labels, call forms, SCC, projections,
-doctest terminals e campos de módulo a partir de inputs estruturados; o checker
-compara o resultado derivado contra o expected e o host test exerce entradas
-independentes. Esses artefatos são oracles de design; eles não são compiler,
-scheduler ou runtime W.
+doctest terminals, campos de módulo e lifecycle de lane dinâmica a partir de
+inputs estruturados. O corpus fixa 61 casos: 23 positivos, 36 negativos e duas
+informações. Quinze testes host exercem entradas independentes. O checker compara
+o resultado derivado contra o expected. Esses artefatos são oracles de design;
+eles não são compiler, scheduler ou runtime W.
 
 ### 12.3 `Task` e ownership
 
@@ -10011,7 +9947,8 @@ cancelamento solicitado e completion do provider.
 |---|---|---:|---:|
 | required isolation | service/entry | não pode ser removido | sim |
 | executor preference | task subtree | sim | não |
-| parallel intent | `spawn`/parallel group | limitado pelo host | não |
+| domain dispatch | child criado por `spawn` | somente por fallback compatível | não |
+| parallel capability | domain/parallel group | limitado pelo host | não |
 | host affinity | profile/adapter | somente por target compatível | pode compor |
 
 ```w
@@ -10033,25 +9970,39 @@ A resolução usa esta ordem:
 
 Uma call por `ServiceRef` não muda o placement do callee. O contrato do child
 caller só muda seu trabalho não isolado. `async let` e groups concorrentes
-herdam a preference. `spawn` e groups paralelos usam a regra de parallel default
-abaixo. Um future owner runtime precisa declarar sua preference de novo.
+herdam a preference. `spawn` seleciona um domínio explícito. Um future owner
+runtime precisa declarar sua preference de novo.
 
-`spawn` em um domínio estritamente serial é error. Trabalho UI deve chamar o
-owner isolado:
+**W-1172 — `spawn` em domínio serial:** `spawn<domain>` faz dispatch assíncrono
+e estruturado. Ele não declara paralelismo. Um domínio serial aceita `spawn`,
+executa um segmento runnable por vez e inicia grupos admitidos em FIFO. Um job
+suspenso continua vivo, mas libera o permit. Outro segmento elegível pode
+progredir; domínios seriais independentes também podem progredir juntos.
+
+Se o parent já executa no destino, o child entra na fila. O parent continua até
+suspender, terminar ou fazer join. `await` e join implícito liberam o permit
+antes de aguardar; um wait síncrono para o mesmo domínio é rejeitado.
+
+Um child estruturado que seleciona o mesmo domínio entra no grupo de ticket do
+parent. Isso inclui `async let` herdado e `spawn<sameDomain>`. A barreira espera
+o subtree inteiro, mesmo quando o child nasce depois da admission da barreira.
+O child pode usar o permit enquanto o parent aguarda. Um child destinado a
+outro domínio recebe um ticket naquele destino. Essa regra evita o ciclo
+"barreira espera parent; parent espera child posterior à barreira".
 
 ```w
-await renderer.show(plan)
+spawn<.main> let update = renderer.show(plan)
+let receipt = try await update
 ```
 
-`spawn<.ui>` confundiria affinity serial com paralelismo.
-
-A [SE-0417](https://www.swift.org/swift-evolution/#SE-0417) também separa
-executor preference de actor isolation. W mantém essa separação na HIR.
+O placement não concede isolation. A call ainda precisa respeitar o contrato de
+`renderer`. `spawn<.main>` somente agenda o child no domínio host-affine.
 
 `spawn<.compute>` e `spawn<domain: .compute>` ocupam o mesmo slot de domain
 com label opcional. `fn<C>` e `fn<lang: C>` seguem a mesma policy quando o
 schema declara esse slot. O formatter preserva a forma source. A HIR usa um
-domain normalizado. `spawn<.compute>` não exige simultaneidade.
+domain normalizado. `spawn` sempre exige esse slot. A forma `spawn let` é erro
+semântico porque esconderia o placement.
 `spawn on .compute` fica **Rejeitado por enquanto** porque duplica o contrato
 estático com uma frase especial.
 
@@ -10067,8 +10018,9 @@ ao product profile.
 para thread pool. A linguagem fornece somente `.main`. Esse domínio é serial e
 pertence ao process host. Um UI profile pode ligá-lo à OS main thread.
 
-`.main` não aceita `spawn`, porque `spawn` declara parallel intent. Uma call ou
-task async pode selecionar `.main` quando o host permite a transição.
+`.main` aceita `spawn`. Ele continua serial, FIFO e host-affine. Um child
+enviado por uma task que já executa em `.main` só inicia depois que a task atual
+cede o domínio.
 
 Outros domínios vêm do contrato do módulo ou de um execution profile do pacote:
 
@@ -10080,9 +10032,9 @@ module kitchen<
 >
 ```
 
-O package seleciona pools, domains e `parallelDefault` no record
-`executionProfiles`. A seção 21.1 define esse schema. O contrato do módulo pede
-uma propriedade lógica. O package decide como o product satisfaz o pedido.
+O package seleciona pools e domains no record `executionProfiles`. A seção 21.1
+define esse schema. O contrato do módulo pede uma propriedade lógica. O package
+decide como o product satisfaz o pedido.
 
 Um domínio de módulo fica visível no próprio módulo. Um domínio comum do pacote
 fica visível em seus módulos. Outro módulo importa o nome explicitamente:
@@ -10096,9 +10048,9 @@ async let profile = sampleOven()
 O alias continua um member enum-like no contexto de domain. O import não cria
 queue, thread ou executor. Ele importa uma requirement estática.
 
-`async let` sem argumento herda o domínio atual. `spawn` sem argumento exige um
-`parallelDefault` no contrato efetivo. Sem esse default, a compilação falha.
-`concurrentMap` herda o domínio. `parallelMap` usa o mesmo parallel default.
+`async let` herda o domínio atual. `spawn<domain>` exige o domínio explícito.
+`concurrentMap` herda o domínio. `parallelMap<domain>` exige um domínio explícito
+com capability `.parallel`.
 
 **Exemplo:**
 
@@ -10132,8 +10084,10 @@ instrumentation identity
 
 `ExecutionCapability` é um enum. O schema valida a lista, rejeita duplicatas e a
 normaliza como set. Ele não dá ao enum uma semântica OR oculta. `serial`,
-`parallel`, `concurrent`, `nonBlockingIo`, `blocking`, `affine` e `device` são
-capabilities distintas.
+`parallel`, `concurrent`, `barrierDispatch`, `nonBlockingIo`, `blocking`,
+`affine` e `device` são capabilities distintas. `.serial(name)` inclui capacity
+lógica um e primeiro start FIFO. Uma policy que reordena por priority precisa
+de outro contrato explícito.
 
 **Exemplo normalizado:**
 
@@ -10145,12 +10099,15 @@ LastLight.compute
 kitchen.thermal
   capabilities = [.serial]
   capacity = 1
+
+LastLight.catalog
+  capabilities = [.concurrent, .barrierDispatch]
+  capacity = 1...host.cpuQuota
 ```
 
 O execution profile pode ligar vários domains ao mesmo pool quando conserva os
 capabilities. O deployment pode somente reduzir a capacity desse pool. Ele não
-pode remover affinity, isolation, ordering, mobility ou a capacidade necessária
-a `spawn`.
+pode remover affinity, isolation, ordering ou mobility.
 
 **Exemplo:** o profile pode ligar `.network` e `.io` ao mesmo pool quando o
 pacote declara os dois nomes. Um domínio serial `kitchen.thermal` pode usar o
@@ -10161,16 +10118,52 @@ Device transfer, kernel selection, launch e synchronization usam as APIs domain 
 seção 18.5. Um adapter pode usar um domain com `.device` para seus jobs de host;
 o kernel continua sendo outro artifact e outro contrato.
 
-Somente um execution profile pode escolher `parallelDefault` entre os domínios
-que ele liga. Um módulo publica requirements, mas não escolhe o default do host.
-Importar um módulo nunca cria executor, queue ou thread. Service e entry podem
-declarar preference porque possuem instance e lifecycle; o product seleciona o
-profile que fornece o default e os budgets.
+Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn`
+ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
+Service e entry podem declarar preference porque possuem instance e lifecycle.
+O product seleciona o profile que fornece bindings e budgets.
 
 Os antigos “thread groups” sobrevivem como domain IDs e bindings de profile.
-Essa forma mantém a finalidade e remove a promessa de uma thread fixa. A
-[documentação de Dispatch Queues da Apple](https://developer.apple.com/library/archive/documentation/General/Conceptual/ConcurrencyProgrammingGuide/OperationQueues/OperationQueues.html)
-também separa queues de threads e permite que a capacidade varie com o sistema.
+Essa forma mantém a finalidade e remove a promessa de uma thread fixa.
+
+##### 12.6.1.1 Dispatch comum e de barreira
+
+`spawn` possui os slots estáticos `domain` e `mode`. O segundo usa `.ordinary`
+quando omitido. Os labels são opcionais pelo schema:
+
+```w
+spawn<.catalog> let current = summarize(ref menu)
+spawn<.catalog, .barrier> let update = replace(inout menu, with: take nextMenu)
+spawn<.catalog> let revised = summarize(ref menu)
+
+let (before, _, after) = await (current, update, revised)
+```
+
+As formas completas equivalentes são `spawn<domain: .catalog>` e
+`spawn<domain: .catalog, mode: .barrier>`. `.barrier` é um modo de dispatch. Ele
+não é uma memory fence, uma barreira coletiva de tasks ou uma operação atômica.
+
+**W-1173 — dispatch de barreira:** cada admission externa recebe um ticket
+monotônico. Children no mesmo domínio herdam o ticket do parent. Jobs
+`.ordinary` coexistem até a capacity. Uma `.barrier` espera body e cleanup de
+todo subtree anterior, executa sozinha e libera tickets posteriores somente
+depois do outcome committed. Cancelamento preserva o ticket; return e `throw`
+preservam cleanup; panic encerra a fault boundary e não promete continuar a
+fila.
+
+Domínios seriais aceitam `.barrier` como prova de intenção. Domínios concorrentes
+exigem `barrierDispatch`. O linker exige uma admission lane lógica que preserve
+tickets, mesmo quando vários domains compartilham o pool físico.
+
+O body `.barrier` é `neverSuspend`: não usa `await`, não cria child posterior à
+própria barreira e não retém loan após o retorno. Um body `.ordinary` pode
+suspender; a barrier posterior espera seu outcome e cleanup.
+
+O checker ordena `ref` reads e um `inout` write somente para place estável,
+domain estático único e grafo de acesso fechado. Escape, raw pointer, FFI, outro
+domain ou alias não classificado invalidam a prova. `.barrier` não torna um
+object `shareable` nem concede `inout`; `w explain execution` mostra o blocker e
+sugere service, lock, atomic ou snapshot.
 
 #### 12.6.2 Priority, deadline e seleção dinâmica
 
@@ -10189,17 +10182,74 @@ Syntax de QoS em `spawn<...>` fica **Rejeitado**. Policy pertence ao entry,
 service descriptor, execution profile ou task group. Isso evita confundir uma
 preferência com ordering, affinity ou deadline.
 
-Seleção dinâmica é **Provável**. Ela usa um `ExecutionDomainRef` fornecido
-pelo host e falha na admission de forma explícita:
+O caminho comum usa um domain estático. Quando o conjunto de lanes depende de
+dados runtime, o código usa `ExecutionDomainRef`; valores runtime nunca ocupam
+o contrato compile-time de `spawn<...>`.
+
+**W-1175 — fila serial dinâmica:** `ExecutionAuthority.openSerial` cria o owner
+lexical de uma lane sobre um pool existente. O profile limita lanes vivas,
+ready jobs, frame bytes e o máximo por lane. Falha de abertura não publica owner;
+falha de admission não publica task nem perde o input. Os errors distinguem
+authority, limites, budget temporário e domain closing por
+`ExecutionDomainOpenError` e `TaskAdmissionError`. Uma reference fornecida pelo
+host usa a mesma admission API.
 
 ```w
-let task = Task.spawn(domain: domain, operation: work)
+let lane = try ctx.execution.openSerial(
+  limits: { readyJobs: 64, frameBytes: 1<MiB> },
+  traceLabel: "order-lane",
+)
+defer async { await lane.close() }
+
+let task = try Task.spawn(
+  domain: lane.reference,
+  input: take order,
+  using: prepareOrder,
+)
+let receipt = try await task
 ```
 
-O resultado precisa continuar sendo child lexical. A API também precisa
-representar admission failure sem criar uma task perdida. Implementar um
-executor customizado exige a interface de runtime `unsafe`; uma library comum
-não substitui o scheduler global por conformar um protocol.
+Os errors públicos preservam a origem da falha e o owner rejeitado:
+
+```w
+export enum ExecutionDomainOpenError: Error {
+  authorityUnavailable
+  invalidLimits
+  liveLimitExceeded
+  laneLimitExceeded
+  aggregateLimitExceeded
+  poolUnavailable
+}
+
+export enum TaskAdmissionError<Input>: Error {
+  closed(Input)
+  readyFull(Input)
+  frameFull(Input)
+  unavailable(Input)
+}
+```
+
+`TaskAdmissionError<Input>` possui o input depois de uma rejeição. Ele não
+restaura o binding movido. Um `catch` pode recuperar e tentar outra policy; a
+propagação comum faz cleanup do error e de seu payload.
+
+O root recebe a authority por `process.context.execution` e pode passá-la. A
+lane preserva FIFO no primeiro start e executa um segmento runnable por vez.
+Suspension libera o permit; outro job admitido pode progredir. Lanes distintas
+também podem progredir juntas. `close()` faz `open -> closing -> drained`,
+rejeita novas admissions e drena body, cleanup e outcome antes de liberar
+budget. Uma reference não estende o owner. `traceLabel` é metadata bounded, não
+identity.
+
+`.barrier` numa lane serial registra intenção e conserva tickets, mas uma
+reference runtime não prova os loans estáticos de 12.6.1.1. O payload ainda deve
+ser moved, shareable ou sincronizado. Read-heavy usa domain estático com
+`barrierDispatch`; state por key durável ou distribuído usa service instance.
+
+O profile precisa conceder `dynamicSerial`. W não oferece lane concorrente
+dinâmica, sync dispatch, global mutable queue, target queue, QoS no call site ou
+fire-and-forget. Critical section curta usa lock ou atomic. Executor customizado
+continua restrito à interface runtime `unsafe`.
 
 #### 12.6.3 Deadline e relógio operacional
 
@@ -10267,15 +10317,6 @@ usar `f64`, decimal ou rational. Device cycles também usam um tipo próprio.
 Picoseconds, femtoseconds e attoseconds para o clock operacional permanecem
 **Alternativa**. Eles não devem ampliar `Duration` sem um caso mensurável.
 
-Precedentes oficiais ajudam a separar as escolhas. Rust usa uma duração
-nonnegative em seconds e nanoseconds. Swift também documenta components em
-seconds e attoseconds. Kotlin aceita durações signed e infinity. W usa signed
-para diferenças, fixa nanoseconds na baseline e não usa infinity como sentinel.
-
-- [Rust `Duration`](https://doc.rust-lang.org/std/time/struct.Duration.html)
-- [Swift time e duration](https://developer.apple.com/documentation/swift/time-and-duration)
-- [Kotlin `Duration`](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.time/-duration/)
-
 O runtime pode medir tempo para scheduling, deadline e trace sem conceder a
 capability de application clock. O programa só lê tempo quando seu `Context`
 fornece essa authority. Testes substituem o clock operacional por um clock
@@ -10304,6 +10345,10 @@ Uma declaração `async let` ou `spawn<domain> let` usa esta ordem:
 4. o commit transfere o staging, publica o child e cria o handle;
 5. o child fica eligible imediatamente.
 
+`eligible` não significa `running`. Num domínio serial ocupado, o child entra
+na fila FIFO. Se o parent ocupa esse mesmo domínio, o child só inicia depois que
+o parent suspende ou termina.
+
 Antes do commit, o child não existe. O staging já consumiu os argumentos `take`,
 mas ainda pertence ao parent scope. Depois do commit, somente o child possui
 esses valores. O parent pode continuar enquanto o child executa.
@@ -10323,7 +10368,8 @@ continua pequena e não recebe `throws AllocationError`.
 Cada live task possui storage de queue intrusivo reservado. Portanto, um wakeup
 não aloca e não exige uma fila de overflow sem limite. O runtime pode executar
 o child inline, ajudar a queue ou mover o ready credit entre executors
-compatíveis. Ele não perde trabalho admitido.
+compatíveis. Ele preserva o domínio, a serialização e o ordering. Ele não perde
+trabalho admitido.
 
 O task mantém seu ready credit até o join. Uma task suspended não ocupa uma
 posição ativa da queue, mas conserva a capacidade de voltar a ready. Assim, um
@@ -10339,7 +10385,6 @@ task runtime:
 executionProfiles: [
   {
     name: "native-bounded"
-    parallelDefault: .compute
     tasks: {
       live: 16_384
       frameBytes: 256MiB
@@ -10384,12 +10429,25 @@ executionProfiles: [
       custom: [
         {
           id: "execution::thermal"
-          capabilities: [.concurrent, .parallel]
+          capabilities: [.serial]
           pool: "cpu"
           ready: { jobs: 1_024, frameBytes: 64MiB }
-          fallback: .compute
+          fallback: .reject
+        },
+        {
+          id: "domain_oracle::catalog"
+          capabilities: [.concurrent, .barrierDispatch]
+          pool: "cpu"
+          ready: { jobs: 1_024, frameBytes: 64MiB }
+          fallback: .reject
         },
       ]
+      dynamicSerial: {
+        pool: "cpu"
+        live: 128
+        aggregateReady: { jobs: 4_096, frameBytes: 64MiB }
+        laneMaximum: { jobs: 256, frameBytes: 4MiB }
+      }
     }
     cleanup: {
       asyncGrace: 5<si.s>
@@ -10402,6 +10460,10 @@ executionProfiles: [
 Os capabilities de `.main` são fixos pela linguagem. Os outros domains vêm dos
 contratos de pacote e módulo. O profile fornece pool, ready budget e fallback.
 Dois domains podem compartilhar o mesmo pool sem criar novos worker threads.
+`dynamicSerial` reserva um subenvelope do mesmo pool. `live` limita owners de
+lane, `aggregateReady` limita a soma das filas e `laneMaximum` limita cada
+pedido. O runtime não empresta budget de outro campo quando esse subenvelope
+termina.
 
 Um product que alcança tasks seleciona um profile:
 
@@ -10435,9 +10497,9 @@ requirements, bindings, shared pools, limites do artifact e reduções do
 deployment.
 
 O oracle [`domain_oracle.w`](reference/last-light/domain_oracle.w) verifica a
-ordem explicit/inherited/default, a rejeição de `spawn` em domínio serial e a
-redução de capacity pelo deployment. Declarar ou importar um domain não cria
-queue, thread ou executor.
+seleção herdada de `async let`, o domínio explícito de `spawn`, o FIFO serial,
+o gate `.parallel` de `parallelMap` e a redução de capacity pelo deployment.
+Declarar ou importar um domain não cria queue, thread ou executor.
 
 ### 12.7 Mobilidade e captures
 
@@ -10521,12 +10583,6 @@ Um `object` não ganha `shareable` somente por ter identity. O compiler analisa
 seus fields e a interface que pode executar concorrentemente. Um wrapper de
 synchronization reconhecido pode publicar o fato em sua interface compilada.
 Imports sem esse fato continuam locais.
-
-O [Rust Reference](https://doc.rust-lang.org/reference/special-types-and-traits.html)
-separa `Send` de `Sync` e deriva ambos estruturalmente. O
-[guia de concorrência de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/#Sendable-Types)
-combina value transfer, immutable state e state serializado sob `Sendable`. W
-mantém duas provas para não confundir move exclusivo com aliases concorrentes.
 
 **Forma vigente:** `transferable` e `shareable` são predicates intrínsecos. Código
 comum não declara annotations e tipos não conformam a marker protocols
@@ -10639,10 +10695,7 @@ children. O runtime pode liberar o permit, executar um child inline ou ajudar a
 fila do mesmo domain. Blocking code não usa o compute budget.
 
 Essa regra impede deadlock por pool exhaustion e reduz oversubscription. Ela não
-promete qual child executa em cada thread. O
-[task scheduler do oneTBB](https://uxlfoundation.github.io/oneTBB/main/specification/source/task_scheduler.html)
-também ajusta paralelismo real à capacidade disponível e não garante que todo
-trabalho potencialmente paralelo execute em paralelo.
+promete qual child executa em cada thread.
 
 O effective parallelism é limitado por source, domain, product e host. O
 runtime publica a medição; o programa não usa o número observado como resultado
@@ -10749,12 +10802,6 @@ Esta forma mantém uma única abstração pública. Adapters como `map`, `filter
 `AsyncMapStream`. `any Stream<..., ...>` continua uma erasure explícita, com
 indirection e possível allocation.
 
-A proposta de
-[AsyncSequence de Swift](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0298-asyncsequence.md)
-também usa `next() async throws -> Element?`, torna o fim estável e preserva os
-tipos concretos dos adapters para permitir otimização. W remove a separação
-obrigatória entre sequence e iterator: `Stream` é sempre single-pass.
-
 #### 12.9.2 Views em streams
 
 `view` não é um tipo utilitário chamado `StringView`. Ele é o access mode
@@ -10840,10 +10887,7 @@ try await textOut.send(line.materialize())
 ```
 
 Separar endpoints fecha authority de close e evita que um valor bidirecional
-seja copiado por acidente. A
-[MPSC bounded de Tokio](https://docs.rs/tokio/latest/tokio/sync/mpsc/)
-também usa handles separados, backpressure e um receiver único. W acrescenta
-move explícito, enum subsets e facts de mobilidade.
+seja copiado por acidente.
 
 #### 12.9.4 Envio, recebimento e recuperação do owner
 
@@ -10962,10 +11006,8 @@ default. Uma restrição de tipo que proíba toda suspension com permit vivo fic
 **Rejeitado**. O lint e o resource lens informam retenção longa sem criar false
 positives no type system.
 
-O mecanismo segue a função dos permits documentados por
-[Tokio](https://docs.rs/tokio/latest/tokio/sync/mpsc/struct.Sender.html):
-cancelar a espera perde a posição na fila, e destruir o permit libera a vaga.
-W mantém o item fora da espera e preserva seu ownership.
+Cancelar a espera perde a posição na fila. Destruir o permit libera a vaga. O
+item permanece fora da espera e preserva seu ownership.
 
 #### 12.9.6 Capacity e backpressure
 
@@ -11055,10 +11097,8 @@ buffer de capacity `C`, liberar a vaga no receive `k` acontece antes do send
 `k + C` que usa essa vaga concluir. O commit de `close` acontece antes de um
 receive devolver `.none`.
 
-Estas regras seguem a função de sincronização descrita no
-[memory model de Go](https://go.dev/ref/mem), mas W ainda exige ownership,
-atomic ou outra forma verificada para qualquer state compartilhado fora do
-payload.
+State compartilhado fora do payload ainda exige ownership, atomic ou outra
+forma verificada.
 
 #### 12.9.10 Buffering de streams
 
@@ -11209,6 +11249,8 @@ W cria edges de happens-before nestas operações:
 | envio de call por `ServiceRef` | início do turn que recebe o payload |
 | unlock | próxima aquisição do mesmo lock |
 | atomic release ou sua release sequence | atomic acquire que observa essa sequence |
+| conclusão e cleanup de ticket anterior | início do dispatch `.barrier` posterior |
+| outcome committed de dispatch `.barrier` | início de ticket posterior no mesmo domínio |
 
 Um edge ordena acessos. Ele não concede ownership, não cria um borrow e não
 estende lifetime. O checker de memória precisa aceitar a autoridade de acesso
@@ -11234,10 +11276,8 @@ Uma data race dentro de `unsafe` viola o contrato da boundary. O resultado não
 é definido. Um sanitizer profile deve detectar a race quando o target oferece
 suporte.
 
-W usa o modelo C++20 adotado pelo
-[guia de atomics do LLVM](https://llvm.org/docs/Atomics.html) como base de
-lowering. A linguagem remove orders inválidas da superfície safe. W também
-separa `volatile`, atomics e synchronization.
+O lowering usa o modelo C++20. W remove orders inválidas da superfície safe e
+mantém `volatile`, atomics e synchronization como contratos diferentes.
 
 ##### Corpus de execução E0
 
@@ -11246,27 +11286,29 @@ paralelo. Os resultados ficam visíveis ao parent somente depois do join. Pedir
 cancelamento de uma cozinha não publica seu estado parcial.
 
 [`tooling/execution-concurrency-cases.json`](tooling/execution-concurrency-cases.json)
-mantém 50 sequências ligadas a symbols do Última Luz. A
-[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 451 operações
+mantém 57 sequências ligadas a symbols do Última Luz. A
+[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 527 operações
 sobre:
 
 - lifecycle `reserved` até `joined`, com outcome posterior ao cleanup;
 - cancelamento idempotente, causas monotônicas e propagação descendente;
 - autoridade de cancelamento, scope exit e handles one-shot;
 - arbitragem fail-fast por ordem lexical;
-- eventos sequenced-before e as oito origens happens-before desta seção;
+- eventos sequenced-before e as dez origens happens-before desta seção;
 - races entre acessos ordinários sem path de publicação;
 - modification order por localização e reads-from explícita;
 - ordem total `.sequential`, release sequences e fences;
 - subsets de order, matriz de compare-exchange e RMW;
-- extent atômico, view mista, payload exclusivo e lifetime.
+- extent atômico, view mista, payload exclusivo e lifetime;
+- tickets comuns e de barreira, inclusive cancellation antes do body.
 
-O runner aceita 28 sequências e rejeita 22.
-[`Sete testes host`](tooling/execution-concurrency-reference.test.mjs)
-verificam as transições atômicas independentes do corpus. O snapshot guarda o estado final,
+O runner aceita 31 sequências e rejeita 26.
+[`Dez testes host`](tooling/execution-concurrency-reference.test.mjs)
+verificam transições independentes do corpus. O snapshot guarda o estado final,
 os edges e um trace compacto de cada operação. Todo caso aponta para source do
-Última Luz. O gate exige cobertura 8/8 das origens happens-before. M1 continua
-como oracle separado para owner, place loan, pin, origins e boundary.
+Última Luz. O gate exige cobertura 10/10: oito origens gerais e os dois edges
+de ticket do dispatch de barreira. M1 continua como oracle separado para owner,
+place loan, pin, origins e boundary.
 
 E0 não é scheduler, checker ou runtime W. Ele recebe task, storage, extent,
 lifetime e reads-from já resolvidos. Ele valida um witness. Ele não executa
@@ -11384,12 +11426,25 @@ sem contrato usa `.sequential`:
 ```w
 let state = sign.load<.acquire>()
 sign.store<.release>(.closed)
-let ordinary = sign.load()
+let ordinary = sign // load atômica .sequential
+let approximate = sign.load<.relaxed>()
 ```
 
+**W-1174 — leitura tolerante a staleness:** `.relaxed` remove synchronization
+com outros dados. Ela não remove atomicidade, modification order, extent ou
+lifetime. A leitura pode observar uma modificação anterior permitida pelo
+modelo, mas continua sendo uma atomic load. W nunca cria uma view não atômica
+dos mesmos bytes.
+
+O acesso `let ordinary = sign` continua sendo uma load atômica `.sequential`
+por causa do modifier `atomic`. Portanto, o source comum pode parecer uma leitura
+normal sem perder segurança. Quando todos os acessos ordinários ao payload são
+ordenados por um protocolo de dispatch de barreira, o payload pode usar storage
+comum e não precisa ser atômico. Misturar uma write atômica com uma read comum
+concorrente do mesmo storage continua sendo data race, mesmo quando o programa
+aceita um valor antigo.
+
 Essa forma evita dispatch runtime e torna uma order inválida não representável.
-O uso de argumentos constantes segue o precedente das
-[orders constantes do Swift Atomics](https://github.com/apple/swift-atomics/blob/main/Sources/Atomics/Types/UnsafeAtomic.swift).
 
 | Order | Garantia |
 |---|---|
@@ -11402,11 +11457,9 @@ O uso de argumentos constantes segue o precedente das
 `consume` não entra no design vigente. Memory scopes de GPU e device também não entram no
 core. Eles pertencem aos contratos domain de device.
 
-Uma [release sequence no LLVM](https://llvm.org/docs/LangRef.html#cmpxchg-instruction)
-começa numa modificação release. Ela contém as
-read-modify-write contíguas que seguem essa modificação na modification order.
-Uma store posterior encerra a sequence. A store encerra a sequence mesmo
-quando usa `.relaxed`.
+Uma release sequence começa numa modificação release. Ela contém as
+read-modify-write contíguas seguintes na modification order. Uma store posterior
+encerra a sequence, inclusive quando usa `.relaxed`.
 
 ```w
 epoch.store<.release>(1)
@@ -11418,9 +11471,7 @@ Se a load observa o resultado do `fetchWrappingAdd`, ela sincroniza com a store
 release. Uma compare-exchange bem-sucedida também é read-modify-write. Uma
 compare-exchange que falha é somente uma load e não entra na modification order.
 
-As [regras de fence do Rust](https://doc.rust-lang.org/std/sync/atomic/fn.fence.html)
-expõem os três pares que W precisa baixar. As fences básicas pertencem ao baseline.
-A forma vigente usa o módulo `std.atomic`:
+As fences básicas pertencem ao baseline. A forma vigente usa `std.atomic`:
 
 ```w
 import atomic from std
@@ -11435,11 +11486,9 @@ unsafe {
 Não existe fence `.relaxed`. Uma fence precisa de uma reads-from atômica para
 sincronizar duas threads. Duas fences sem essa operação não publicam memória.
 
-[`atomic.compilerFence<...>()`](https://doc.rust-lang.org/std/sync/atomic/fn.compiler_fence.html)
-também pertence ao baseline. Ela serve a signal handlers, interrupts e runtimes no
-mesmo processador. Ela não emite uma hardware fence.
-Ela não sincroniza threads em processadores diferentes. O host precisa provar
-`sameProcessor`. Uma task que pode migrar entre workers não possui esse fato.
+`atomic.compilerFence<...>()` serve a signal handlers, interrupts e runtimes no
+mesmo processador. Ela não emite hardware fence nem sincroniza processadores. O
+host precisa provar `sameProcessor`; uma task migrável não possui esse fato.
 
 As duas fences exigem `unsafe` porque o checker não deriva ownership ou
 lifetime da sequência. Código comum deve usar uma order na operação, um lock,
@@ -11494,9 +11543,8 @@ load, portanto não pode adquirir uma garantia ausente na success declarada.
 mudança concorrente. Ele serve a loops que já repetem a operação.
 `compareExchange` não falha de forma espúria.
 
-Essas regras seguem a separação de success e failure usada pela
-[API atômica de Rust](https://doc.rust-lang.org/std/sync/atomic/struct.Atomic.html).
-W substitui combinações inválidas em runtime por diagnostics.
+W torna a separação entre success e failure estática e diagnostica combinações
+inválidas antes do runtime.
 
 Compare-exchange não resolve ABA nem reclamation. Um algoritmo que recicla
 endereços usa generation suficiente, epoch, hazard pointer ou outro protocolo
@@ -11615,12 +11663,7 @@ lock mantido durante suspension. Essa escolha aplica a intenção histórica de
 W não usa poisoning. Um panic termina a fault boundary física. Nenhum caller W
 continua nessa boundary para observar state possivelmente parcial.
 
-O [mutex assíncrono de Tokio](https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html)
-mostra o custo adicional da aquisição async e o risco de guards através de
-`await`. W aceita a aquisição async, mas fecha a critical section antes de outra
-suspension.
-
-`RwLock`, condition, once, barrier e atomic wait/notify são **Pesquisa** com
+`RwLock`, condition, once, barreira coletiva e atomic wait/notify são **Pesquisa** com
 APIs scoped e contracts próprios de fairness, cancellation e failure.
 `SnapshotCell<T>` também é **Provável**. RCU genérico fica **Rejeitado** na
 safe std; reclamation customizada pertence a um adapter `unsafe`.
@@ -11722,7 +11765,7 @@ A HIR preserva:
 - task scope, parent, kind, start e join;
 - outcome, error edges, cancellation e cleanup;
 - captures, borrows e mobilidade;
-- isolation, preference, parallel intent e affinity;
+- isolation, preference, domain dispatch, parallel capability e affinity;
 - deadline, budget e causal trace.
 
 Um `await` com loans preserva também owner válido, storage estável, ausência de
@@ -11733,11 +11776,9 @@ cada `LoanId` e sua capability suspensa. Um storage unstable produz diagnostic
 de suspensão antes do lowering. O frame pode receber placement estável pelo
 compiler sem annotation no source.
 
-Somente depois dos verifiers o lowering usa o
-[dialeto Async do MLIR](https://mlir.llvm.org/docs/Dialects/AsyncDialect/) ou
-[LLVM coroutines](https://llvm.org/docs/Coroutines.html). Essas ferramentas
-modelam tokens, groups e frames. Elas não definem a semântica W de lifetime,
-cancelamento ou error primário.
+Somente depois dos verifiers o lowering escolhe MLIR Async, LLVM coroutines ou
+outro backend compatível. O backend modela tokens, groups e frames; ele não
+define lifetime, cancelamento ou error primário de W.
 
 **W-1163 — lowering resumable:** uma função `neverSuspend` usa ABI ordinary. Uma função `maySuspend` usa frame
 resumable somente quando possui values live across suspension. O compiler pode
@@ -11748,8 +11789,7 @@ Frame e child allocation podem ser elided ou fused quando lifecycle, cancel,
 cleanup e trace permanecem observáveis. O runtime usa ready, timer e I/O queues
 bounded e pools declarados. Foreign blocking work usa adapter bounded explícito.
 O mesmo source pode usar loop single-thread, pool multicore, executor embedded/RT
-ou host especializado sob um profile declarado. libmill e libdill são referências
-comparativas, não dependencies.
+ou host especializado sob um profile declarado.
 
 O runtime mínimo possui:
 
@@ -11786,10 +11826,9 @@ de uma fila observável.
 num executor cooperativo. O compiler avisa e sugere `spawn<.compute>` ou um
 suspension point explícito.
 
-A garantia segue as mesmas premissas bounded e non-blocking documentadas pelo
-[runtime Tokio](https://docs.rs/tokio/latest/tokio/runtime/#detailed-runtime-behavior).
-W grava as premissas no profile e testa starvation com scheduler virtual. Um
-profile real-time precisa publicar bounds mais fortes e usar adapters próprios.
+W grava as premissas de fairness no profile e testa starvation com scheduler
+virtual. Um profile real-time precisa publicar bounds mais fortes e usar
+adapters próprios.
 
 #### 12.12.1 Runtime closure e liveness E1
 
@@ -11892,16 +11931,7 @@ registrations e completions isolados.
 
 O oracle E1 é host-puro e adversarial. Ele não prova scheduler, clock, OS I/O,
 fairness absoluta, hazard/epoch/RCU, device scopes, distributed recovery ou
-terminação de user code. Essas superfícies permanecem gates posteriores. A
-evidência comparativa inclui [Swift SE-0304](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md),
-[C++ P3149](https://wg21.link/P3149),
-[Tokio fairness](https://docs.rs/tokio/latest/tokio/runtime/#detailed-runtime-behavior)
-e [Tokio cancellation safety](https://docs.rs/tokio/latest/tokio/macro.select.html#cancellation-safety),
-[Erlang supervision](https://www.erlang.org/doc/system/sup_princ.html), além de
-[CancelIoEx](https://learn.microsoft.com/en-us/windows/win32/fileio/cancelioex-func)
-e [io_uring cancellation](https://man7.org/linux/man-pages/man7/io_uring_cancelation.7.html)
-para as ordens de completion e cancelamento dos providers. Essas fontes informam
-alternativas; não definem a semântica W.
+terminação de user code. Essas superfícies permanecem gates posteriores.
 
 ### 12.13 Transação estruturada
 
@@ -12515,7 +12545,7 @@ Um descriptor registra:
 - scope de identity: process, key, request ou deployment;
 - required isolation;
 - executor preference;
-- parallel intent permitido;
+- execution domain e capabilities permitidos;
 - host affinity;
 - mailbox, capabilities e resource budgets;
 - durable adapter, restart policy e observabilidade.
@@ -13645,7 +13675,7 @@ Alternativas:
 | child workflows e fan-out por IDs determinísticos | **Provável** |
 | channel consumido por um entry root | implementação process-local possível |
 | `ctx.waitUntil(task)` | adapter bounded, não owner geral |
-| `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de paralelismo |
+| `spawn<owner: ...>` | **Rejeitado por enquanto**; muda lifetime pela syntax de dispatch |
 | drop de `Task` destaca o child | **Rejeitado por enquanto**; perde ownership e cleanup |
 | call one-way de service | **Rejeitado por enquanto**; perde outcome e cria ambiguidade |
 | service keyed com um handler longo | oracle adversarial; ainda bloqueia controle na mesma key |
@@ -23684,7 +23714,6 @@ package {
   executionProfiles: [
     {
       name: "edge-bounded"
-      parallelDefault: .compute
       tasks: { live: 4_096, frameBytes: 64MiB, timers: 4_096 }
       pools: [
         {
@@ -28995,10 +29024,10 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 355/1155
-decisões: 120 pelo eixo source, 268 pelo eixo oracle e oito explicitamente. Há
-41 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
-eixos. As 800 restantes continuam um worklist, não uma aprovação implícita.
+declara todos os eixos obrigatórios. O freeze audit classifica 361/1176
+decisões: 123 pelo eixo source, 274 pelo eixo oracle e oito explicitamente. Há
+44 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
+eixos. As 815 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -29027,48 +29056,38 @@ Implementação deve parar no primeiro gate que contradiz a semântica vigente.
 
 ### 24.4.1 Gate comparativo de execução
 
-**W-1170 — comparativos de execução:** antes do freeze, a revisão usa fontes
-primárias para comparar a forma vigente. Os links diretos são
-[Swift SE-0304](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0304-structured-concurrency.md),
-[SE-0417](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)
-e [SE-0296](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0296-async-await.md),
-a [especificação de `go` do Go](https://go.dev/ref/spec#Go_statements),
-[JEP 525](https://openjdk.org/jeps/525),
-[P2300R10](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2300r10.html),
-[LLVM coroutines](https://llvm.org/docs/Coroutines.html),
-[LLVM atomics](https://llvm.org/docs/Atomics.html) e
-[MLIR Async](https://mlir.llvm.org/docs/Dialects/AsyncDialect/).
+**Exemplo:** `.thermal` preserva FIFO; `.catalog` permite reads concorrentes e
+um write `.barrier` sem perder o join lexical.
 
-| Eixo | W | Swift | Go | Java Structured Concurrency | P2300 |
-|---|---|---|---|---|---|
-| call e `await` na mesma task | `await` suspende a task atual; não cria child | `await` suspende a task atual | call comum é síncrona; goroutine e channel são formas separadas | `join`/`Future` espera no caller; não é keyword `await` da linguagem | sender/receiver compõe completion; a syntax não fixa uma task W |
-| criação de child | `async let` ou `spawn<domain> let`, sempre estruturado | `async let` e task groups estruturados | `go f()` cria goroutine sem drain lexical implícito | `StructuredTaskScope.fork` cria subtask sob scope | `when_all`, `let_value` e sender algorithms formam operação composta |
-| handle e resultado | `Task` linear para child; join produz value ou `TaskOutcome` | binding de `async let`; scope produz o resultado | `go` não devolve handle de resultado | `Subtask` devolve resultado após `join`/scope | operation state representa a operação até completion |
-| lifetime e drain | saída do scope cancela, drena e faz join | scope estruturado espera children | goroutine pode sobreviver ao caller até terminar ou ser sinalizada | `join`/`close` preserva o scope e seu shutdown | operation state vive até completion ou stop conforme sender contract |
-| error e cancel | typed `throws`, `TaskOutcome` e cancellation bounded | error/cancellation de child e scope policy | errors e cancel são valores/APIs (por exemplo `context`), não regra única de `go` | scope policy escolhe shutdown por failure/success | `set_error`/`set_stopped` fazem parte da completion channel |
-| placement | caller escolhe `<domain>`; profile declara isolation/affinity/capacity | actor isolation e executor preference (SE-0417) | scheduler do runtime; sem placement source estático | executor/thread ou virtual-thread profile | scheduler sender é escolhido pela composição |
-| intenção paralela | `spawn` autoriza parallel intent; runtime pode inline/throttle | child tasks podem progredir concorrentemente; não há simultaneidade garantida | `go` inicia trabalho concorrente; simultaneidade depende do scheduler | fork permite tasks concorrentes; executor decide recursos | `bulk`/`when_all` expressam composição concorrente |
-| ownership e data race | ownership, borrow, channels, locks e atomics têm facts derivados/verificados | actor isolation/exclusivity ajudam; referências compartilhadas ainda exigem sincronização | data race é responsabilidade do programa/runtime detector | Java Memory Model e locks/atomics, sem ownership linear | regras C++ de lifetime/data race e concepts do sender |
-| admission e bounds | domains, groups e adapters declaram capacity bounded | runtime/executor policy; não há bound universal na syntax | filas e GOMAXPROCS são runtime policy | executor/scope pode ser bounded, mas não é universal | scheduler e sender contract definem admission |
-| efeito nominal vs inferido | `async fn` é opcional; `maySuspend` é inferido e fica no type/HIR | `async` é nominal no function type | não há efeito async nominal | não há efeito async nominal | completion signatures carregam efeitos; não é a inference de Koka |
+**W-1170 — comparativos de execução:** o freeze exige comparação observável de
+estrutura, placement, ordering, ownership, admission, cancellation e lowering.
+A evidência e a matriz comparativa estão em
+[`RATIONALE.md` §1.4](RATIONALE.md#14-concorrência-paralelismo-e-execução).
 
-Koka é usado somente como referência primária para [inferência de
-effects](https://koka-lang.github.io/koka/doc/book.html); não é fonte da
-semântica W. libdill e libmill são referências de escopo/runtime para
-coroutines e channels ([libdill](https://sustrik.github.io/libdill/),
-[libmill](https://libmill.org/)); W não depende deles.
+O gate passa somente quando `async let` preserva lifetime, um domain serial
+preserva FIFO, uma barrier preserva ticket subtrees e um domain paralelo só
+produz overlap quando seu profile permite. Lowering diferente deve preservar
+outcome, cleanup e trace.
 
-**Exemplo:** a matriz exige que `async let` preserve a árvore de lifetime,
-`spawn<.compute>` declare somente parallel intent e um lowering LLVM/MLIR
-preserve outcome, cleanup e trace. A comparação registra a diferença
-observável, não uma equivalência de API.
+W só pode ser descrito publicamente como tendo “resolvido concorrência e
+paralelismo” depois que compiler, runtime e adapters reais passarem E0/E1 e as
+matrizes de profiles/providers cobrirem os targets prometidos. Antes disso, a
+forma correta é “contrato definido; implementação missing”.
 
-Esta seção é um gate de design, não uma alegação de implementação. W só pode ser
-descrito publicamente como tendo “resolvido concorrência e paralelismo” depois
-que compiler, runtime e adapters reais passarem E0/E1 e as matrizes de
-profiles/providers cobrirem os targets prometidos. Até esse critério, a redação
-correta é “contrato de concorrência e paralelismo definido; implementação
-missing”.
+### 24.4.2 Gate de gerência automática de memória
+
+**Exemplo:** o compiler pode colocar um `Buffer` nonescaping na stack e outro
+num task frame; owner, drop e resultado permanecem iguais.
+
+**W-1176 — claim de memória:** W só pode alegar gerência automática de memória
+quando safe source comprovar owner, borrow, drop e reclamation sem lifetime
+annotations; quando placement entre register, stack, frame, heap e arena não
+mudar o resultado; e quando `shared`, pinning, FFI e OOM preservarem seus
+contratos explícitos.
+
+M1, A0, ABI e adapters reais devem passar os mesmos casos em debug e release.
+Até esse ponto, a forma correta é “modelo de memória definido; implementação
+missing”. O gate não exige GC ou reference counting como estratégia universal.
 
 ### 24.5 Artefatos que ainda bloqueiam o design freeze
 
@@ -29088,7 +29107,7 @@ evidência de design:
 | workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém `std.tensor`/`std.dlpack`, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 50 casos/451 operações, sete testes host e 8/8 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
+| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 57 casos/527 operações, dez testes host e 10/10 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial; o oracle de domain modela serial FIFO, dispatch de barreira e lanes seriais dinâmicas bounded | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |

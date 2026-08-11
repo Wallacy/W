@@ -28,6 +28,8 @@ const requiredSynchronizationEdges = new Set([
   "serviceCallToTurn",
   "lockReleaseAcquire",
   "atomicReleaseAcquire",
+  "domainPriorToBarrier",
+  "domainBarrierToLater",
 ]);
 
 function requireString(value, location) {
@@ -73,6 +75,7 @@ function compactState(state) {
     ...(Object.keys(state.atomicExclusive).length > 0
       ? { atomicExclusive: state.atomicExclusive }
       : {}),
+    ...(Object.keys(state.domains).length > 0 ? { domains: state.domains } : {}),
     lastFailFastTrigger: state.lastFailFastTrigger,
     lastArbitration: state.lastArbitration,
     lastRace: state.lastRace,
@@ -199,7 +202,7 @@ const rejectedCount = results.length - acceptedCount;
 const summary =
   `Execution concurrency: ${results.length} cases, ${operationCount} operations, ` +
   `${acceptedCount} accepted, ${rejectedCount} rejected, ` +
-  `${requiredSynchronizationEdges.size}/8 happens-before origins.`;
+  `${requiredSynchronizationEdges.size}/10 happens-before origins.`;
 
 if (process.argv.includes("--write")) {
   fs.writeFileSync(snapshotPath, expectedSnapshot);

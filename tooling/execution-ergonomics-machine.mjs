@@ -328,20 +328,133 @@ function deriveSuspension(source, declarations, input = {}) {
   }
 }
 
-function derivePlacement(source) {
+function derivePlacement(source, input = {}, suspension = { declarations: [] }) {
   const diagnostics = []
   const declarationPlacement = source.match(/spawn\s*<([^>]+)>\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)/)
   if (declarationPlacement) diagnostics.push({ code: "W-PLACEMENT-0001", domain: declarationPlacement[1], declaration: declarationPlacement[2] })
-  const slots = [...source.matchAll(/spawn\s*<([^>]+)>/g)].map((match) => match[1].trim())
-  const normalizedSlots = slots.map((slot) => (slot.startsWith("domain:") ? slot.replace(/^domain:\s*/, "").trim() : slot))
-  const serialDomains = [...source.matchAll(/\.serial\s*\(\s*(\.[A-Za-z_][A-Za-z0-9_]*)\s*\)/g)].map((match) => match[1])
-  for (const domain of serialDomains) {
-    if (normalizedSlots.includes(domain)) diagnostics.push({ code: "W-PLACEMENT-0002", domain, capacity: "1" })
+  const slotTexts = [...source.matchAll(/spawn\s*<([^>]+)>/g)].map((match) => ({
+    raw: match[1].trim(),
+    offset: match.index ?? 0,
+  }))
+  const parsedSlots = slotTexts.map(({ raw, offset }) => {
+    const arguments_ = splitTopLevel(raw)
+    let domain = null
+    let mode = ".ordinary"
+    const labels = new Set()
+    let positional = 0
+    for (const argument of arguments_) {
+      const named = argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/)
+      if (named) {
+        if (labels.has(named[1])) diagnostics.push({ code: "W-LABEL-0006", declaration: "spawn", label: named[1], slot: named[1] })
+        labels.add(named[1])
+        if (named[1] === "domain") domain = named[2].trim()
+        else if (named[1] === "mode") mode = named[2].trim()
+        else diagnostics.push({ code: "W-LABEL-0005", declaration: "spawn", label: named[1], acceptedForms: ["domain:", "mode:"] })
+        continue
+      }
+      if (positional === 0) domain = argument.trim()
+      else if (positional === 1) mode = argument.trim()
+      else diagnostics.push({ code: "W-LABEL-0005", declaration: "spawn", label: `position-${positional}`, acceptedForms: ["domain:", "mode:"] })
+      positional += 1
+    }
+    if (![".ordinary", ".barrier"].includes(mode)) {
+      diagnostics.push({ code: "W-PLACEMENT-0003", reason: "unknown dispatch mode", mode })
+    }
+    const lineEnd = source.indexOf("\n", offset)
+    const statement = source.slice(offset, lineEnd < 0 ? source.length : lineEnd)
+    const call = statement.match(/(?:let|var)\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*)\)/)
+    const accesses = call
+      ? [...call[2].matchAll(/\b(ref|inout)\s+([A-Za-z_][A-Za-z0-9_.]*)/g)].map((match) => ({
+          access: match[1] === "ref" ? "read" : "write",
+          place: match[2],
+        }))
+      : []
+    return { raw, offset, domain, mode, callee: call?.[1] ?? null, accesses }
+  })
+  const normalizedSlots = parsedSlots.map((slot) => slot.domain).filter(Boolean)
+  const missingDomain = [...source.matchAll(/\bspawn\s+(?=(?:let|var)\b)/g)]
+  for (const match of missingDomain) {
+    diagnostics.push({ code: "W-PLACEMENT-0002", reason: "missing explicit domain", offset: match.index ?? 0 })
+  }
+  const availableDomains = new Set(input.availableDomains ?? [])
+  if (availableDomains.size > 0) {
+    for (const domain of normalizedSlots) {
+      if (!availableDomains.has(domain)) diagnostics.push({ code: "W-PLACEMENT-0002", reason: "unknown domain", domain })
+    }
+  }
+  const serialDomains = new Set([
+    ".main",
+    ...(input.serialDomains ?? []),
+    ...[...source.matchAll(/\.serial\s*\(\s*(\.[A-Za-z_][A-Za-z0-9_]*)\s*\)/g)].map((match) => match[1]),
+  ])
+  const suspensionByName = new Map(suspension.declarations.map((declaration) => [declaration.name, declaration.suspension]))
+  const capabilities = input.domainCapabilities ?? {}
+  const ticketsByDomain = new Map()
+  const dispatches = parsedSlots.filter((slot) => slot.domain).map((slot) => {
+    const ticket = ticketsByDomain.get(slot.domain) ?? 0
+    ticketsByDomain.set(slot.domain, ticket + 1)
+    const serial = serialDomains.has(slot.domain)
+    const bindingCapabilities = capabilities[slot.domain]
+    const barrierSupported = serial || bindingCapabilities?.includes("barrierDispatch")
+    if (slot.mode === ".barrier" && Array.isArray(bindingCapabilities) && !barrierSupported) {
+      diagnostics.push({ code: "W-PLACEMENT-0003", reason: "missing barrierDispatch", domain: slot.domain })
+    }
+    if (slot.mode === ".barrier" && slot.callee && suspensionByName.get(slot.callee) === "may") {
+      diagnostics.push({ code: "W-SUSPEND-0004", reason: "barrier body may suspend", callee: slot.callee })
+    }
+    return {
+      domain: slot.domain,
+      mode: slot.mode,
+      ticket,
+      scheduling: serial ? "serial-fifo" : slot.mode === ".barrier" ? "exclusive-barrier" : "domain-contract",
+      overlapWithinTarget: serial ? false : slot.mode === ".barrier" ? false : "capability-dependent",
+      barrierSupport: slot.mode !== ".barrier" ? "not-required" : serial ? "serial" : barrierSupported ? "bound" : "required",
+      callee: slot.callee,
+      accesses: slot.accesses,
+    }
+  })
+  const accessByPlace = new Map()
+  for (const dispatch of dispatches) {
+    for (const access of dispatch.accesses) {
+      const entries = accessByPlace.get(access.place) ?? []
+      entries.push({ ...access, domain: dispatch.domain, mode: dispatch.mode, ticket: dispatch.ticket })
+      accessByPlace.set(access.place, entries)
+      if (access.access === "write" && dispatch.mode !== ".barrier") {
+        diagnostics.push({ code: "W-OWNERSHIP-0012", reason: "write requires barrier", place: access.place, domain: dispatch.domain })
+      }
+    }
+  }
+  const openPlaces = new Set(input.openPlaces ?? [])
+  const loanSequences = []
+  for (const [place, accesses] of accessByPlace) {
+    const domains = [...new Set(accesses.map((access) => access.domain))]
+    let closed = domains.length === 1 && !openPlaces.has(place)
+    if (domains.length !== 1) {
+      diagnostics.push({ code: "W-OWNERSHIP-0012", reason: "multiple domains", place, domains })
+      closed = false
+    }
+    if (openPlaces.has(place)) {
+      diagnostics.push({ code: "W-OWNERSHIP-0012", reason: "open access graph", place, domain: domains[0] })
+      closed = false
+    }
+    if (accesses.some((access) => access.access === "write" && access.mode !== ".barrier")) closed = false
+    const edges = []
+    for (const barrier of accesses.filter((access) => access.mode === ".barrier")) {
+      for (const earlier of accesses.filter((access) => access.ticket < barrier.ticket)) {
+        edges.push(`${earlier.ticket}.complete->${barrier.ticket}.start`)
+      }
+      for (const later of accesses.filter((access) => access.ticket > barrier.ticket)) {
+        edges.push(`${barrier.ticket}.complete->${later.ticket}.start`)
+      }
+    }
+    loanSequences.push({ place, domains, accesses, edges, closed })
   }
   return {
     diagnostics,
     slots: normalizedSlots,
-    sameOptionalDomainForm: slots.includes(".compute") && slots.includes("domain: .compute"),
+    dispatches,
+    loanSequences,
+    sameOptionalDomainForm: slotTexts.some((slot) => slot.raw === ".compute") && slotTexts.some((slot) => slot.raw === "domain: .compute"),
   }
 }
 
@@ -399,6 +512,147 @@ function deriveDoctest(source, input = {}) {
   return { examples, diagnostics, hermetic: examples.length > 0 && diagnostics.length === 0, releasePayload: false }
 }
 
+export function deriveDynamicSerial(input = null) {
+  if (!input) return { status: "not-requested", phase: "absent", trace: [] }
+  const profile = input.profile ?? {}
+  const request = input.request ?? {}
+  const operations = input.operations ?? []
+  const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0
+  const nonnegativeInteger = (value) => Number.isSafeInteger(value) && value >= 0
+  const state = {
+    phase: "absent",
+    live: input.live ?? 0,
+    aggregateReadyUsed: input.aggregateReadyUsed ?? 0,
+    aggregateFrameBytesUsed: input.aggregateFrameBytesUsed ?? 0,
+    reservedJobs: 0,
+    reservedFrameBytes: 0,
+    outstandingJobs: [],
+    outstandingFrameBytes: 0,
+    readyQueue: [],
+    activeSegment: null,
+  }
+  const trace = []
+  const reject = (error, operation) => {
+    const rejectedOperation = operations[operation]
+    return {
+      status: "rejected",
+      error,
+      operation,
+      phase: state.phase,
+      poolReuse: true,
+      referenceExtendsOwner: false,
+      recoveredInput: rejectedOperation?.op === "admit" ? rejectedOperation.input ?? null : null,
+      state,
+      trace,
+    }
+  }
+  for (const [index, operation] of operations.entries()) {
+    const before = structuredClone(state)
+    if (operation.op === "open") {
+      if (!input.authority || !profile.enabled) return reject("authorityUnavailable", index)
+      if (request.kind !== "serial") return reject("unsupportedKind", index)
+      if (typeof profile.pool !== "string" || profile.pool.length === 0) return reject("poolUnavailable", index)
+      if (![profile.liveLimit, profile.aggregateReadyJobs, profile.aggregateFrameBytes,
+        profile.laneMaximumJobs, profile.laneMaximumFrameBytes].every(positiveInteger)) {
+        return reject("invalidProfile", index)
+      }
+      if (![state.live, state.aggregateReadyUsed, state.aggregateFrameBytesUsed].every(nonnegativeInteger)) {
+        return reject("invalidState", index)
+      }
+      if (state.live >= profile.liveLimit) return reject("liveBudgetExhausted", index)
+      if (!positiveInteger(request.readyJobs) || request.readyJobs > profile.laneMaximumJobs) {
+        return reject("laneLimitExceeded", index)
+      }
+      if (!positiveInteger(request.frameBytes) || request.frameBytes > profile.laneMaximumFrameBytes) {
+        return reject("laneFrameLimitExceeded", index)
+      }
+      if (state.aggregateReadyUsed + request.readyJobs > profile.aggregateReadyJobs) {
+        return reject("aggregateReadyExhausted", index)
+      }
+      if (state.aggregateFrameBytesUsed + request.frameBytes > profile.aggregateFrameBytes) {
+        return reject("aggregateFrameBytesExhausted", index)
+      }
+      state.phase = "open"
+      state.live += 1
+      state.aggregateReadyUsed += request.readyJobs
+      state.aggregateFrameBytesUsed += request.frameBytes
+      state.reservedJobs = request.readyJobs
+      state.reservedFrameBytes = request.frameBytes
+    } else if (operation.op === "admit") {
+      if (state.phase !== "open") return reject("closedDomain", index)
+      if (state.outstandingJobs.length >= state.reservedJobs) return reject("readyBudgetExhausted", index)
+      if (!positiveInteger(operation.frameBytes)) return reject("invalidFrameBytes", index)
+      if (!("input" in operation)) return reject("missingInput", index)
+      if (state.outstandingJobs.some((job) => job.id === operation.job)) return reject("duplicateJob", index)
+      if (state.outstandingFrameBytes + operation.frameBytes > state.reservedFrameBytes) {
+        return reject("frameBudgetExhausted", index)
+      }
+      state.outstandingJobs.push({
+        id: operation.job,
+        frameBytes: operation.frameBytes,
+        input: operation.input,
+        state: "ready",
+      })
+      state.outstandingFrameBytes += operation.frameBytes
+      state.readyQueue.push(operation.job)
+    } else if (operation.op === "start") {
+      if (state.phase !== "open" && state.phase !== "closing") return reject("closedDomain", index)
+      if (state.activeSegment !== null) return reject("laneBusy", index)
+      const job = state.outstandingJobs.find((candidate) => candidate.id === operation.job)
+      if (!job) return reject("unknownJob", index)
+      if (job.state !== "ready") return reject("jobNotReady", index)
+      if (state.readyQueue[0] !== operation.job) return reject("fifoViolation", index)
+      state.readyQueue.shift()
+      job.state = "active"
+      state.activeSegment = operation.job
+    } else if (operation.op === "suspend") {
+      if (state.activeSegment !== operation.job) return reject("jobNotActive", index)
+      const job = state.outstandingJobs.find((candidate) => candidate.id === operation.job)
+      if (!job) return reject("unknownJob", index)
+      job.state = "suspended"
+      state.activeSegment = null
+    } else if (operation.op === "resume") {
+      if (state.phase !== "open" && state.phase !== "closing") return reject("closedDomain", index)
+      if (state.activeSegment !== null) return reject("laneBusy", index)
+      const job = state.outstandingJobs.find((candidate) => candidate.id === operation.job)
+      if (!job) return reject("unknownJob", index)
+      if (job.state !== "suspended") return reject("jobNotSuspended", index)
+      job.state = "active"
+      state.activeSegment = operation.job
+    } else if (operation.op === "complete") {
+      if (state.activeSegment !== operation.job) return reject("jobNotActive", index)
+      const job = state.outstandingJobs.findIndex((candidate) => candidate.id === operation.job)
+      if (job < 0) return reject("unknownJob", index)
+      state.outstandingFrameBytes -= state.outstandingJobs[job].frameBytes
+      state.outstandingJobs.splice(job, 1)
+      state.activeSegment = null
+    } else if (operation.op === "close") {
+      if (state.phase !== "open") return reject("closeRequiresOpen", index)
+      state.phase = "closing"
+    } else if (operation.op === "drain") {
+      if (state.phase !== "closing") return reject("drainRequiresClosing", index)
+      if (state.outstandingJobs.length > 0 || state.readyQueue.length > 0 || state.activeSegment !== null) {
+        return reject("drainPending", index)
+      }
+      state.phase = "drained"
+      state.live -= 1
+      state.aggregateReadyUsed -= state.reservedJobs
+      state.aggregateFrameBytesUsed -= state.reservedFrameBytes
+      state.reservedJobs = 0
+      state.reservedFrameBytes = 0
+    } else return reject("unknownOperation", index)
+    trace.push({ operation: operation.op, before, after: structuredClone(state) })
+  }
+  return {
+    status: "accepted",
+    phase: state.phase,
+    poolReuse: true,
+    referenceExtendsOwner: false,
+    state,
+    trace,
+  }
+}
+
 function deriveStd(input = {}) {
   const modules = Array.isArray(input.modules) ? input.modules : []
   const hasTierField = modules.some((module) => Object.prototype.hasOwnProperty.call(module, "tier"))
@@ -413,18 +667,20 @@ export function deriveExecutionErgonomics(source, input = {}) {
   const declarations = declarationBodies(clean)
   const labels = deriveCallableLabels(clean, declarations)
   const generic = parseGenericHeads(clean)
+  const suspension = deriveSuspension(clean, declarations, input)
   return {
     labels: { ...labels, generic },
-    suspension: deriveSuspension(clean, declarations, input),
-    placement: derivePlacement(clean),
+    suspension,
+    placement: derivePlacement(clean, input, suspension),
     process: deriveProcess(clean, input),
     doctest: deriveDoctest(source, input),
+    dynamicSerial: deriveDynamicSerial(input.dynamicSerial),
     std: deriveStd(input.std),
     forms: {
       direct: "same-task/neverSuspend",
       await: "same-task/maySuspend",
       "async let": "structured-child/current-domain",
-      spawn: "structured-child/parallel-intent",
+      spawn: "structured-child/explicit-domain",
     },
   }
 }

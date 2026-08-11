@@ -130,16 +130,35 @@
       "expect": { "evaluation": ["callee", "arguments", "captures", "reserve", "publish"], "child": "structured" }
     },
     {
-      "id": "EE-NEG-spawn-serial",
-      "kind": "negative",
+      "id": "EE-POS-spawn-serial-domain",
+      "kind": "positive",
       "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.thermal> let work = f()",
+      "expect": { "domain": ".thermal", "scheduling": "serial-fifo", "overlapWithinTarget": false }
+    },
+    {
+      "id": "EE-POS-spawn-main-domain",
+      "kind": "positive",
+      "source": "spawn<.main> let update = render(plan)\nlet result = await update",
+      "expect": { "domain": ".main", "scheduling": "serial-fifo", "overlapWithinTarget": false }
+    },
+    {
+      "id": "EE-POS-spawn-parallel-domain",
+      "kind": "positive",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.compute> let work = f()",
+      "expect": { "domain": ".compute", "scheduling": "domain-contract", "overlapWithinTarget": "capability-dependent" }
+    },
+    {
+      "id": "EE-NEG-spawn-missing-domain",
+      "kind": "negative",
+      "source": "spawn let work = f()",
       "expect": { "diagnostic": "W-PLACEMENT-0002" }
     },
     {
-      "id": "EE-POS-spawn-nonserial-domain",
-      "kind": "positive",
-      "source": "module kitchen<domains: [.serial(.thermal)]>\nspawn<.compute> let work = f()",
-      "expect": {}
+      "id": "EE-NEG-spawn-unknown-domain",
+      "kind": "negative",
+      "source": "spawn<.missing> let work = f()",
+      "input": { "availableDomains": [".main", ".compute"] },
+      "expect": { "diagnostic": "W-PLACEMENT-0002" }
     },
     {
       "id": "EE-NEG-spawn-declaration-placement",
@@ -152,6 +171,282 @@
       "kind": "positive",
       "source": "spawn<.compute> let a = f()\nspawn<domain: .compute> let b = f()",
       "expect": { "sameOptionalDomainForm": true }
+    },
+    {
+      "id": "EE-POS-barrier-read-write-read",
+      "kind": "positive",
+      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision: u64): u64 { state.revision = revision; return revision }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu, revision: next)\nspawn<.catalog> let after = summarize(ref menu)",
+      "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
+      "expect": {
+        "domain": ".catalog",
+        "dispatchMode": ".barrier",
+        "scheduling": "exclusive-barrier",
+        "barrierSupport": "bound",
+        "place": "menu",
+        "loanClosed": true,
+        "barrierEdges": ["0.complete->1.start", "1.complete->2.start"]
+      }
+    },
+    {
+      "id": "EE-POS-barrier-serial-domain",
+      "kind": "positive",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nfn replace(state: inout Menu): u64 { state.revision += 1; return state.revision }\nspawn<.thermal, .barrier> let update = replace(inout menu)",
+      "expect": {
+        "domain": ".thermal",
+        "dispatchMode": ".barrier",
+        "scheduling": "serial-fifo",
+        "barrierSupport": "serial",
+        "place": "menu",
+        "loanClosed": true
+      }
+    },
+    {
+      "id": "EE-NEG-barrier-capability-missing",
+      "kind": "negative",
+      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "input": { "domainCapabilities": { ".catalog": ["concurrent"] } },
+      "expect": { "diagnostic": "W-PLACEMENT-0003" }
+    },
+    {
+      "id": "EE-NEG-barrier-may-suspend",
+      "kind": "negative",
+      "source": "fn replace(state: inout Menu): u64 { await Task.yield(); return state.revision }\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
+      "expect": { "diagnostic": "W-SUSPEND-0004" }
+    },
+    {
+      "id": "EE-NEG-ordinary-domain-write",
+      "kind": "negative",
+      "source": "fn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog> let update = replace(inout menu)",
+      "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
+      "expect": { "diagnostic": "W-OWNERSHIP-0012" }
+    },
+    {
+      "id": "EE-NEG-barrier-open-access-graph",
+      "kind": "negative",
+      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu): u64 { return state.revision }\nspawn<.catalog> let before = summarize(ref menu)\nspawn<.catalog, .barrier> let update = replace(inout menu)",
+      "input": {
+        "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] },
+        "openPlaces": ["menu"]
+      },
+      "expect": { "diagnostic": "W-OWNERSHIP-0012" }
+    },
+    {
+      "id": "EE-POS-dynamic-serial-drain",
+      "kind": "positive",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "input": {
+        "functionTypes": [{ "name": "close", "suspension": "may" }],
+        "dynamicSerial": {
+          "authority": true,
+          "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+          "live": 2,
+          "aggregateReadyUsed": 32,
+          "aggregateFrameBytesUsed": 131072,
+          "request": { "kind": "serial", "readyJobs": 16, "frameBytes": 65536 },
+          "operations": [
+            { "op": "open" },
+            { "op": "admit", "job": "order", "input": "order-owner", "frameBytes": 4096 },
+            { "op": "admit", "job": "dessert", "input": "dessert-owner", "frameBytes": 8192 },
+            { "op": "start", "job": "order" },
+            { "op": "suspend", "job": "order" },
+            { "op": "close" },
+            { "op": "start", "job": "dessert" },
+            { "op": "complete", "job": "dessert" },
+            { "op": "resume", "job": "order" },
+            { "op": "complete", "job": "order" },
+            { "op": "drain" }
+          ]
+        }
+      },
+      "expect": { "dynamicStatus": "accepted", "dynamicPhase": "drained", "poolReuse": true, "referenceExtendsOwner": false }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-authority",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": false,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "authorityUnavailable", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-live-limit",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "live": 4,
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "liveBudgetExhausted", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-lane-limit",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 17, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "laneLimitExceeded", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-aggregate-limit",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 40, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "aggregateReadyUsed": 32,
+        "request": { "kind": "serial", "readyJobs": 16, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "aggregateReadyExhausted", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-closed-admission",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)\nawait lane.close()\nlet task = try Task.spawn(domain: lane.reference, operation: work)",
+      "input": {
+        "functionTypes": [{ "name": "close", "suspension": "may" }],
+        "dynamicSerial": {
+          "authority": true,
+          "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+          "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+          "operations": [{ "op": "open" }, { "op": "close" }, { "op": "admit", "job": "late", "input": "late-owner", "frameBytes": 1024 }]
+        }
+      },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "closedDomain", "dynamicPhase": "closing" }
+    },
+    {
+      "id": "EE-NEG-dynamic-concurrent-lane",
+      "kind": "negative",
+      "source": "let lane = try execution.openConcurrent(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "concurrent", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "unsupportedKind", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-lane-frame-limit",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 262145 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "laneFrameLimitExceeded", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-aggregate-frame-limit",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 196608, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 131072 },
+        "aggregateFrameBytesUsed": 163840,
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "aggregateFrameBytesExhausted", "dynamicPhase": "absent" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-fifo",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [
+          { "op": "open" },
+          { "op": "admit", "job": "first", "input": "first-owner", "frameBytes": 1024 },
+          { "op": "admit", "job": "second", "input": "second-owner", "frameBytes": 1024 },
+          { "op": "start", "job": "second" }
+        ]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "fifoViolation", "dynamicPhase": "open" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-overlap",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [
+          { "op": "open" },
+          { "op": "admit", "job": "first", "input": "first-owner", "frameBytes": 1024 },
+          { "op": "admit", "job": "second", "input": "second-owner", "frameBytes": 1024 },
+          { "op": "start", "job": "first" },
+          { "op": "start", "job": "second" }
+        ]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "laneBusy", "dynamicPhase": "open" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-frame-budget",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 4096 },
+        "operations": [
+          { "op": "open" },
+          { "op": "admit", "job": "first", "input": "first-owner", "frameBytes": 3072 },
+          { "op": "admit", "job": "second", "input": "second-owner", "frameBytes": 2048 }
+        ]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "frameBudgetExhausted", "dynamicPhase": "open" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-drain-suspended",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "input": {
+        "functionTypes": [{ "name": "close", "suspension": "may" }],
+        "dynamicSerial": {
+          "authority": true,
+          "profile": { "enabled": true, "pool": "cpu", "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+          "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+          "operations": [
+            { "op": "open" },
+            { "op": "admit", "job": "waiting", "input": "waiting-owner", "frameBytes": 1024 },
+            { "op": "start", "job": "waiting" },
+            { "op": "suspend", "job": "waiting" },
+            { "op": "close" },
+            { "op": "drain" }
+          ]
+        }
+      },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "drainPending", "dynamicPhase": "closing" }
+    },
+    {
+      "id": "EE-NEG-dynamic-serial-pool",
+      "kind": "negative",
+      "source": "let lane = try execution.openSerial(limits: limits)",
+      "input": { "dynamicSerial": {
+        "authority": true,
+        "profile": { "enabled": true, "liveLimit": 4, "aggregateReadyJobs": 128, "aggregateFrameBytes": 1048576, "laneMaximumJobs": 16, "laneMaximumFrameBytes": 262144 },
+        "request": { "kind": "serial", "readyJobs": 8, "frameBytes": 65536 },
+        "operations": [{ "op": "open" }]
+      } },
+      "expect": { "dynamicStatus": "rejected", "dynamicError": "poolUnavailable", "dynamicPhase": "absent" }
     },
     {
       "id": "EE-POS-implicit-process-projections",

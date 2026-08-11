@@ -282,6 +282,138 @@
       "expected": { "status": "rejected", "code": "dataRace", "operation": 8 }
     },
     {
+      "id": "E0-domain-barrier-orders-read-write-read",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "scheduleCatalogRevision" }],
+      "decisions": ["W-441", "W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "before", "parent": "root" },
+        { "op": "reserveTask", "task": "peer", "parent": "root" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "reserveTask", "task": "after", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "before-admit", "job": "before-job", "jobTask": "before", "domain": "catalog", "ticket": 0, "mode": "ordinary" },
+        { "op": "domainAdmit", "task": "root", "id": "peer-admit", "job": "peer-job", "jobTask": "peer", "domain": "catalog", "ticket": 1, "mode": "ordinary" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 2, "mode": "barrier", "maySuspend": false },
+        { "op": "domainAdmit", "task": "root", "id": "after-admit", "job": "after-job", "jobTask": "after", "domain": "catalog", "ticket": 3, "mode": "ordinary" },
+        { "op": "domainStart", "task": "before", "id": "before-start", "job": "before-job" },
+        { "op": "domainStart", "task": "peer", "id": "peer-start", "job": "peer-job" },
+        { "op": "access", "task": "before", "id": "before-read", "storage": "menu", "access": "read" },
+        { "op": "access", "task": "peer", "id": "peer-read", "storage": "menu", "access": "read" },
+        { "op": "domainComplete", "task": "before", "id": "before-complete", "job": "before-job" },
+        { "op": "domainComplete", "task": "peer", "id": "peer-complete", "job": "peer-job" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" },
+        { "op": "access", "task": "writer", "id": "menu-write", "storage": "menu", "access": "write" },
+        { "op": "domainComplete", "task": "writer", "id": "writer-complete", "job": "writer-job" },
+        { "op": "domainStart", "task": "after", "id": "after-start", "job": "after-job" },
+        { "op": "access", "task": "after", "id": "after-read", "storage": "menu", "access": "read" },
+        { "op": "verifyRaceFreedom" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-domain-barrier-waits-for-prior-ticket",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "waitForEarlierTickets" }],
+      "decisions": ["W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "reader-admit", "job": "reader-job", "jobTask": "reader", "domain": "catalog", "ticket": 0, "mode": "ordinary" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 1, "mode": "barrier" },
+        { "op": "domainStart", "task": "reader", "id": "reader-start", "job": "reader-job" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" }
+      ],
+      "expected": { "status": "rejected", "code": "domainBarrierBeforePriorCompletion", "operation": 7 }
+    },
+    {
+      "id": "E0-domain-ticket-waits-for-barrier",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "waitForBarrier" }],
+      "decisions": ["W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 0, "mode": "barrier" },
+        { "op": "domainAdmit", "task": "root", "id": "reader-admit", "job": "reader-job", "jobTask": "reader", "domain": "catalog", "ticket": 1, "mode": "ordinary" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" },
+        { "op": "domainStart", "task": "reader", "id": "reader-start", "job": "reader-job" }
+      ],
+      "expected": { "status": "rejected", "code": "domainStartBeforeBarrierCompletion", "operation": 7 }
+    },
+    {
+      "id": "E0-domain-barrier-body-cannot-suspend",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "barrierMaySuspend" }],
+      "decisions": ["W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 0, "mode": "barrier", "maySuspend": true }
+      ],
+      "expected": { "status": "rejected", "code": "barrierMaySuspend", "operation": 3 }
+    },
+    {
+      "id": "E0-canceled-domain-barrier-releases-later-ticket",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "scheduleBarrierTicket" }],
+      "decisions": ["W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "reserveTask", "task": "reader", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 0, "mode": "barrier" },
+        { "op": "domainAdmit", "task": "root", "id": "reader-admit", "job": "reader-job", "jobTask": "reader", "domain": "catalog", "ticket": 1, "mode": "ordinary" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" },
+        { "op": "domainComplete", "task": "writer", "id": "writer-canceled", "job": "writer-job", "outcome": "canceled" },
+        { "op": "domainStart", "task": "reader", "id": "reader-start", "job": "reader-job" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-same-domain-child-inherits-prior-ticket",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "resolveStructuredTicket" }],
+      "decisions": ["W-1172", "W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "parent", "parent": "root" },
+        { "op": "reserveTask", "task": "child", "parent": "parent" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "parent-admit", "job": "parent-job", "jobTask": "parent", "domain": "catalog", "ticket": 0, "mode": "ordinary" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 1, "mode": "barrier" },
+        { "op": "domainStart", "task": "parent", "id": "parent-start", "job": "parent-job" },
+        { "op": "domainAttachChild", "task": "parent", "id": "child-attach", "job": "child-job", "jobTask": "child", "domain": "catalog", "parentJob": "parent-job" },
+        { "op": "domainStart", "task": "child", "id": "child-start", "job": "child-job" },
+        { "op": "domainComplete", "task": "child", "id": "child-complete", "job": "child-job" },
+        { "op": "domainComplete", "task": "parent", "id": "parent-complete", "job": "parent-job" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-domain-barrier-waits-for-ticket-subtree",
+      "references": [{ "path": "../reference/last-light/domain_oracle.w", "symbol": "inheritParentTicket" }],
+      "decisions": ["W-1172", "W-1173"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "reserveTask", "task": "parent", "parent": "root" },
+        { "op": "reserveTask", "task": "child", "parent": "parent" },
+        { "op": "reserveTask", "task": "writer", "parent": "root" },
+        { "op": "domainAdmit", "task": "root", "id": "parent-admit", "job": "parent-job", "jobTask": "parent", "domain": "catalog", "ticket": 0, "mode": "ordinary" },
+        { "op": "domainAdmit", "task": "root", "id": "writer-admit", "job": "writer-job", "jobTask": "writer", "domain": "catalog", "ticket": 1, "mode": "barrier" },
+        { "op": "domainStart", "task": "parent", "id": "parent-start", "job": "parent-job" },
+        { "op": "domainAttachChild", "task": "parent", "id": "child-attach", "job": "child-job", "jobTask": "child", "domain": "catalog", "parentJob": "parent-job" },
+        { "op": "domainStart", "task": "child", "id": "child-start", "job": "child-job" },
+        { "op": "domainComplete", "task": "parent", "id": "parent-complete", "job": "parent-job" },
+        { "op": "domainStart", "task": "writer", "id": "writer-start", "job": "writer-job" }
+      ],
+      "expected": { "status": "rejected", "code": "domainBarrierBeforePriorCompletion", "operation": 11 }
+    },
+    {
       "id": "E0-join-publishes-child-state",
       "references": [{ "path": "../reference/last-light/execution.w", "symbol": "return try await (leftResult, rightResult)" }],
       "decisions": ["W-441"],
@@ -437,7 +569,7 @@
     {
       "id": "E0-relaxed-flag-does-not-publish-data",
       "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "announcements.load<.relaxed>()" }],
-      "decisions": ["W-441", "W-444"],
+      "decisions": ["W-441", "W-444", "W-1174"],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },

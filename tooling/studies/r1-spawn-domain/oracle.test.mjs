@@ -13,23 +13,28 @@ function evaluate(input) {
       status: "rejected",
       reason: "emptyCapacity",
       domain: profile.domain,
-      parallelIntent: true,
+      dispatch: "explicit",
     };
   }
 
-  if (!profile.capabilities.includes("parallel")) {
+  const missingCapability = (profile.requiredCapabilities ?? [])
+    .find((capability) => !profile.capabilities.includes(capability));
+  if (missingCapability) {
     return {
       status: "rejected",
-      reason: "serialDomain",
+      reason: "missingCapability",
       domain: profile.domain,
-      parallelIntent: true,
+      dispatch: "explicit",
+      missingCapability,
     };
   }
 
   return {
     status: "accepted",
     domain: profile.domain,
-    parallelIntent: true,
+    dispatch: "explicit",
+    scheduling: profile.capabilities.includes("serial") ? "serial-fifo" : "domain-contract",
+    parallelCapability: profile.capabilities.includes("parallel"),
     result: {
       port: input.left * input.left + 1,
       starboard: input.right * input.right + 1,

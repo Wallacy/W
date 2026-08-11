@@ -18,7 +18,7 @@
       "digest": "sha256:5e988c714290062fc207f5840f236934212af82d36ddd1bc6e2733e2467726ad",
       "changedConstructs": [
         "positional domain slot written as a contextual case",
-        "parallel intent remains distinct from physical placement"
+        "explicit dispatch remains distinct from serial or parallel execution"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "digest": "sha256:a13e2a5573f54d7b7f5cafef4def1a1c55897e095edb3b56e1bf280c6f14da06",
       "changedConstructs": [
         "named domain slot written with its source label",
-        "parallel intent remains distinct from physical placement"
+        "explicit dispatch remains distinct from serial or parallel execution"
       ]
     }
   ],
@@ -41,37 +41,59 @@
       "right": 3,
       "profile": {
         "domain": "compute",
+        "requiredCapabilities": ["parallel"],
         "capabilities": ["concurrent", "parallel"],
         "capacity": 1
       },
       "expected": {
         "status": "accepted",
         "domain": "compute",
-        "parallelIntent": true,
+        "dispatch": "explicit",
+        "scheduling": "domain-contract",
+        "parallelCapability": true,
         "result": { "port": 5, "starboard": 10 }
       }
     },
     {
-      "id": "serial-misbind",
+      "id": "compute-contract-misbind",
       "left": 2,
       "right": 3,
       "profile": {
         "domain": "compute",
+        "requiredCapabilities": ["parallel"],
         "capabilities": ["serial"],
         "capacity": 1
       },
       "expected": {
         "status": "rejected",
-        "reason": "serialDomain",
+        "reason": "missingCapability",
         "domain": "compute",
-        "parallelIntent": true
+        "dispatch": "explicit",
+        "missingCapability": "parallel"
+      }
+    },
+    {
+      "id": "empty-capacity",
+      "left": 2,
+      "right": 3,
+      "profile": {
+        "domain": "compute",
+        "requiredCapabilities": ["parallel"],
+        "capabilities": ["concurrent", "parallel"],
+        "capacity": 0
+      },
+      "expected": {
+        "status": "rejected",
+        "reason": "emptyCapacity",
+        "domain": "compute",
+        "dispatch": "explicit"
       }
     }
   ],
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain what `.compute` selects and which thread, pool, simultaneity, and isolation properties it does not promise."
+      "instruction": "Explain what the explicit domain selects and which thread, pool, simultaneity, and isolation properties it does not promise."
     },
     {
       "kind": "recall",
@@ -80,7 +102,7 @@
     },
     {
       "kind": "repair",
-      "instruction": "Repair the prepared defect that changes both compute domains to the serial `.main` domain.",
+      "instruction": "Repair the change from the required `.compute` domain to host-affine `.main`; serial dispatch itself remains valid.",
       "mutations": {
         "positional": "Replace both `.compute` cases with `.main`.",
         "named": "Replace both `.compute` cases with `.main`."
@@ -98,7 +120,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:f63e26c7220fe904d05fb1ab12ae8e2a0d3bbc2db505883080bd8b85b2b89cd9"
+    "digest": "sha256:8ca0e8b8653d6970ea804e7f2458f160d3a0b289c6e13519a63a8ef948f9bbdf"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle"],

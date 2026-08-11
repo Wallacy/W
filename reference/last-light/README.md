@@ -717,8 +717,11 @@ Famílias: data-race freedom, happens-before, atomics, CAS e locks scoped.
 Aceite:
 
 - `var atomic value: T` baixa para `Atomic<T>`;
-- load, store e compound update comuns usam `.sequential`;
+- read, assignment e compound update comuns usam `.sequential`; `let current = value`
+  continua sendo uma load atômica;
 - orders mais fracas usam contratos como `load<.acquire>()`;
+- uma leitura tolerante a staleness usa `load<.relaxed>()`, mas continua
+  atômica;
 - load rejeita `.release`, e store rejeita `.acquire`;
 - `+=` é uma read-modify-write checked;
 - `value = value + 1` é rejeitado como load e store separados;
@@ -733,6 +736,9 @@ Aceite:
 - `Atomic<T>` não promete lock-freedom;
 - `lockFree: true` falha no build quando o target não oferece a garantia;
 - `ref atomicValue` obtém `ref Atomic<T>`, nunca `ref T`;
+- nenhuma leitura comum pode disputar os mesmos bytes com uma write atômica;
+- state comum pode evitar atomics quando tickets de domain provam reads
+  ordinários e writes de barreira;
 - `withExclusive` exige `inout Atomic<T>` ou consumo;
 - release/acquire não concede borrow nem prolonga lifetime;
 - operações atômicas concorrentes usam endereço e extent idênticos;
@@ -1704,10 +1710,22 @@ Famílias: execution domain, capacity, paralelismo aninhado, fairness e liveness
 Aceite:
 
 - `async let` herda a preference do parent;
-- `spawn` sem domain usa o parallel default;
+- `spawn` exige um domain explícito;
+- `spawn<.thermal>` é válido e entra na fila FIFO do domain serial;
+- `spawn<.main>` é válido e preserva a affinity do host;
+- await ou join no domain serial libera seu permit antes de aguardar o child;
+- `spawn<.catalog>` admite reads comuns que podem coexistir;
+- `spawn<.catalog, .barrier>` espera reads anteriores, executa sozinho e
+  libera os tickets posteriores somente depois do cleanup;
+- o body da barreira é `neverSuspend` e o mesmo place usa `ref` nos reads e
+  `inout` somente no ticket de barreira;
+- `ctx.execution.openSerial` cria uma lane runtime bounded no pool existente;
+- a lane runtime preserva FIFO no primeiro start, permite só um segmento
+  runnable, libera o permit durante suspension, limita jobs e frame bytes,
+  devolve o input rejeitado e libera budget somente após drain;
 - `.compute` permanece válido quando a capacity efetiva é 1;
 - `.network` pode compartilhar executor físico com `.io`;
-- `execution` declara `.thermal` e o product fornece binding parallel;
+- `execution` declara `.thermal` e o product fornece binding serial;
 - `.thermal` e `.compute` compartilham o pool `cpu`;
 - declarar ou importar um domain não cria um executor;
 - um módulo importado não cria domain, queue ou thread;
@@ -1735,12 +1753,15 @@ children, esgota cada budget e suspende um nested group quando a capacity está
 cheia. O programa deve terminar com o mesmo resultado, limpar cada owner uma
 vez e não criar um worker adicional.
 
-`domain_oracle.w` verifica a ordem explicit/inherited/default. Ele rejeita
-`spawn` sem `parallelDefault`, mantém `.compute` válido com capacity um e
-impede que o deployment aumente a capacity do artifact. Declarar ou importar
-um domain continua sendo somente uma requirement. Não cria queue, thread ou
-executor. Somente o execution profile selecionado pelo product fornece
-`parallelDefault`; o header do módulo não possui esse slot.
+`domain_oracle.w` verifica inheritance de `async let` e o target explícito de
+`spawn`. Ele aceita domains seriais, preserva FIFO, mantém `.compute` válido com
+capacity um e exige `.parallel` somente para `parallelMap`. Ele também modela
+tickets comuns e de barreira, capability `barrierDispatch`, exclusividade e a
+rejeição de um body suspending. O oracle também limita jobs e frame bytes de
+lanes seriais dinâmicas e verifica `open -> closing -> drained`. O deployment não
+pode aumentar a capacity do artifact. Declarar ou importar um domain continua
+sendo somente uma requirement. Somente `openSerial` cria uma lane runtime; ele
+não cria thread ou executor. W não possui `parallelDefault`.
 
 ### 3.30.1 Closure e liveness E1
 
