@@ -100,7 +100,7 @@ export struct Limits: Copy & Equatable {
 // every Tensor depend on the provider. These adapters keep device operations
 // explicit at the std boundary while the core owns Tensor<Element, shape>.
 export async fn deviceOf<Element, shape: StaticList<usize>>(
-  source: ref Tensor<Element, shape>,
+  named source: ref Tensor<Element, shape>,
 ): Device throws TensorError {
   return Device(validatedHandle: unsafe {
     try await stdTensorDevice(source: ref source)
@@ -108,10 +108,10 @@ export async fn deviceOf<Element, shape: StaticList<usize>>(
 }
 
 export async fn transfer<Element, shape: StaticList<usize>>(
-  source: take Tensor<Element, shape>,
-  target: ref Device,
+  named source: take Tensor<Element, shape>,
+  named target: ref Device,
   on queue: ref Queue?,
-  limits: ref Limits,
+  named limits: ref Limits,
 ): Tensor<Element, shape> throws TensorError {
   return unsafe {
     try await stdTensorTransfer(
@@ -134,12 +134,12 @@ foreign intrinsic from "std.tensor@1" {
   ): Bool
   fn stdTensorQueueDevice(handle: ref QueueHandle): DeviceHandle
   async fn stdTensorDevice<Element, shape: StaticList<usize>>(
-    source: ref Tensor<Element, shape>,
+    named source: ref Tensor<Element, shape>,
   ): DeviceHandle throws TensorError
   async fn stdTensorTransfer<Element, shape: StaticList<usize>>(
-    source: take Tensor<Element, shape>,
-    target: ref Device,
-    queue: ref Queue?,
-    limits: ref Limits,
+    named source: take Tensor<Element, shape>,
+    named target: ref Device,
+    named queue: ref Queue?,
+    named limits: ref Limits,
   ): Tensor<Element, shape> throws TensorError
 }

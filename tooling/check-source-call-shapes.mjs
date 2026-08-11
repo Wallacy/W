@@ -3,6 +3,7 @@ import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import {
+  acceptsCallContract,
   acceptsCallShape,
   deriveExecutionErgonomics,
 } from "./execution-ergonomics-machine.mjs"
@@ -95,6 +96,35 @@ for (const { path, result } of analyses) {
         file: relative(repositoryRoot, candidate.path).replaceAll("\\", "/"),
         line: candidate.line,
       })),
+    })
+  }
+}
+
+for (const { path, result } of analyses) {
+  const localNames = new Set(result.labels.declarations
+    .filter((declaration) => declaration.scope === "module")
+    .map((declaration) => declaration.name))
+  for (const call of result.labels.calls.filter((candidate) => !candidate.member)) {
+    if (localNames.has(call.callee)) continue
+    const candidates = (declarationsByName.get(call.callee) ?? [])
+      .filter((candidate) => candidate.scope === "module")
+    const matchingShapes = candidates.filter((candidate) =>
+      acceptsCallShape(candidate.params, call.forms))
+    if (matchingShapes.length === 0
+      || matchingShapes.some((candidate) => candidate.boundary === "foreign")
+      || matchingShapes.some((candidate) =>
+        acceptsCallContract(candidate.params, call.arguments))) {
+      continue
+    }
+    diagnostics.push({
+      file: relative(repositoryRoot, path).replaceAll("\\", "/"),
+      line: call.line,
+      code: "W-OWNERSHIP-0017",
+      declaration: call.callee,
+      expectedContracts: matchingShapes.map((candidate) =>
+        candidate.params.map((parameter) => parameter.contractMode)),
+      suppliedOperations: call.arguments.map((argument) => argument.operation),
+      reason: "imported-call-operation-does-not-match-parameter-contract",
     })
   }
 }

@@ -84,7 +84,7 @@ const fn asciiLowercaseScalar(value: UnicodeScalar): UnicodeScalar {
   return value
 }
 
-const fn asciiLowercaseToken(value: String): String {
+const fn asciiLowercaseToken(value: take String): String {
   var result = String(reservingBytes: value.bytes.count)
 
   for scalar in value.scalars {
@@ -94,7 +94,7 @@ const fn asciiLowercaseToken(value: String): String {
   return result
 }
 
-const fn normalizeHttpFieldValue(value: String): String throws HttpSyntaxError {
+const fn normalizeHttpFieldValue(value: take String): String throws HttpSyntaxError {
   guard isHttpFieldValue(value) else throw .invalidHeaderValue
 
   var normalized = String(reservingBytes: value.bytes.count)
@@ -1449,7 +1449,7 @@ foreign intrinsic from "std.http@1" {
   fn stdHttpResponseCreate(
     named body: take BodySource?,
     named status: StatusCode,
-    named statusText: String,
+    named statusText: take String,
     named headers: take Headers,
   ): ResponseHandle throws ResponseError
   fn stdHttpResponseError(): ResponseHandle

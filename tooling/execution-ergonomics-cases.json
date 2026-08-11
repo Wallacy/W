@@ -66,6 +66,30 @@
       "expect": { "diagnostic": "W-OWNERSHIP-0016" }
     },
     {
+      "id": "EE-POS-owned-place-explicit-ref-call",
+      "kind": "positive",
+      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: Menu) { inspect(ref menu) }",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-POS-existing-borrow-call",
+      "kind": "positive",
+      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: ref Menu) { inspect(menu) }",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-POS-fresh-owner-take-call",
+      "kind": "positive",
+      "source": "fn store(value: take Order) {}\nfn run() { store(Order()) }",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-NEG-call-operation-mismatch",
+      "kind": "negative",
+      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: Menu) { inspect(take menu) }",
+      "expect": { "diagnostic": "W-OWNERSHIP-0017" }
+    },
+    {
       "id": "EE-POS-label-overload-owner-scoped",
       "kind": "positive",
       "source": "protocol Left { fn read(value: Value) }\nstruct Right { fn read(value: Value) {} }",

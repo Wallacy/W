@@ -54,6 +54,10 @@ const requiredIds = new Set([
   "EE-NEG-parameter-contract-before-binding",
   "EE-NEG-copy-parameter-mode",
   "EE-NEG-initializer-contract-before-binding",
+  "EE-POS-owned-place-explicit-ref-call",
+  "EE-POS-existing-borrow-call",
+  "EE-POS-fresh-owner-take-call",
+  "EE-NEG-call-operation-mismatch",
   "EE-POS-flat-std",
   "EE-NEG-flat-std-tier-field",
 ])

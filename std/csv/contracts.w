@@ -321,46 +321,46 @@ export enum EncodeStreamError<BatchFailure: Error, SinkFailure: Error>: Error {
 
 foreign intrinsic from "std.csv@1" {
   fn stdCsvDecode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-    source: take Source,
-    options: DecodeOptions,
+    named source: take Source,
+    named options: DecodeOptions,
   ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>
 
   fn stdCsvDecodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-    source: take Source,
-    schema: take data.Schema,
-    options: DecodeOptions,
+    named source: take Source,
+    named schema: take data.Schema,
+    named options: DecodeOptions,
   ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>
 
   async fn stdCsvDecodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-    source: take Source,
-    options: DecodeOptions,
+    named source: take Source,
+    named options: DecodeOptions,
   ): data.Batch<Row> throws DecodeError<SourceFailure>
 
   async fn stdCsvEncodeBatch<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<SinkFailure>>(
-    batch: ref data.Batch<Row>,
-    sink: inout Sink,
-    options: EncodeOptions,
+    named batch: ref data.Batch<Row>,
+    named sink: inout Sink,
+    named options: EncodeOptions,
   ): data.EncodeProgress throws EncodeError<SinkFailure>
 
   async fn stdCsvEncodeStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
     Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-    batches: take Source,
-    sink: inout Sink,
-    options: EncodeOptions,
+    named batches: take Source,
+    named sink: inout Sink,
+    named options: EncodeOptions,
   ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>
 }
 
 export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-  source: take Source,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>> {
   return unsafe { stdCsvDecode(source: take source, options: options) }
 }
 
 export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-  source: take Source,
-  schema: take data.Schema,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named schema: take data.Schema,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>> {
   return unsafe {
     stdCsvDecodeDynamic(source: take source, schema: take schema, options: options)
@@ -368,16 +368,16 @@ export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailur
 }
 
 export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>(
-  source: take Source,
-  options: DecodeOptions = DecodeOptions.standard(),
+  named source: take Source,
+  named options: DecodeOptions = DecodeOptions.standard(),
 ): data.Batch<Row> throws DecodeError<SourceFailure> {
   return unsafe { try await stdCsvDecodeAll(source: take source, options: options) }
 }
 
 export async fn encode<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<SinkFailure>>(
-  batch: ref data.Batch<Row>,
-  sink: inout Sink,
-  options: EncodeOptions = EncodeOptions.standard(),
+  named batch: ref data.Batch<Row>,
+  named sink: inout Sink,
+  named options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeError<SinkFailure> {
   return unsafe {
     try await stdCsvEncodeBatch(batch: batch, sink: inout sink, options: options)
@@ -386,9 +386,9 @@ export async fn encode<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<Sink
 
 export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
   Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-  batches: take Source,
-  sink: inout Sink,
-  options: EncodeOptions = EncodeOptions.standard(),
+  named batches: take Source,
+  named sink: inout Sink,
+  named options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure> {
   return unsafe {
     try await stdCsvEncodeStream(batches: take batches, sink: inout sink, options: options)

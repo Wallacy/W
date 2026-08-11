@@ -129,6 +129,28 @@ test("parameter contracts follow labels and bindings", () => {
   expect(summarizeDiagnostics(initializer)).toContain("W-OWNERSHIP-0016")
 })
 
+test("call-site operations match parameter contracts without decorating rvalues", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn inspect(value: ref Menu) {}
+    fn store(value: take Order) {}
+    fn forward(borrowed: ref Menu, owned: Menu) {
+      inspect(borrowed)
+      inspect(ref owned)
+      inspect(Menu())
+      store(Order())
+    }
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+  expect(accepted.labels.calls.filter((call) => call.callee === "inspect")
+    .map((call) => call.arguments[0]?.operation)).toEqual(["value", "ref", "value"])
+
+  const rejected = deriveExecutionErgonomics(`
+    fn inspect(value: ref Menu) {}
+    fn run(menu: Menu) { inspect(take menu) }
+  `)
+  expect(summarizeDiagnostics(rejected)).toContain("W-OWNERSHIP-0017")
+})
+
 test("parameter splitting distinguishes generic delimiters from operators", () => {
   const result = deriveExecutionErgonomics(`
     fn project(

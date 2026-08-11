@@ -96,7 +96,7 @@ fn writeDashboard(snapshot: ref RestaurantSnapshot, to output: inout String) {
   }
 
   for ref order in snapshot.orders {
-    writeOrderSummary(order, to: output)
+    writeOrderSummary(order, to: inout output)
   }
 }
 
@@ -109,29 +109,29 @@ export fn renderResponse(response: take AppResponse, named mode: RenderMode): St
 
   switch response {
     case .help:
-      writeHeading("Last Light Restaurant", mode: mode, to: output)
-      writeHelp(to: output)
+      writeHeading("Last Light Restaurant", mode: mode, to: inout output)
+      writeHelp(to: inout output)
     case .menu(let items):
-      writeHeading("Observable menu", mode: mode, to: output)
-      writeMenu(items, to: output)
+      writeHeading("Observable menu", mode: mode, to: inout output)
+      writeMenu(items, to: inout output)
     case .placed(let receipt):
-      writeHeading("Order accepted", mode: mode, to: output)
+      writeHeading("Order accepted", mode: mode, to: inout output)
       output.append("  #${receipt.orderId} — ${receipt.total.minorUnits}")
       output.append(" ${currencyCode(receipt.total.currency)} minor units\n")
     case .status(let orderId, let stage):
-      writeHeading("Order status", mode: mode, to: output)
+      writeHeading("Order status", mode: mode, to: inout output)
       output.append("  #${orderId} — ${serviceStageName(stage)}\n")
     case .cancelled(let orderId, let stage):
-      writeHeading("Order cancelled", mode: mode, to: output)
+      writeHeading("Order cancelled", mode: mode, to: inout output)
       output.append("  #${orderId} — ${serviceStageName(stage)}\n")
     case .dashboard(let snapshot):
-      writeHeading("Service dashboard", mode: mode, to: output)
-      writeDashboard(snapshot, to: output)
+      writeHeading("Service dashboard", mode: mode, to: inout output)
+      writeDashboard(snapshot, to: inout output)
     case .simulation(let report):
-      writeHeading("Deterministic shift", mode: mode, to: output)
-      writeSimulation(report, to: output)
+      writeHeading("Deterministic shift", mode: mode, to: inout output)
+      writeSimulation(report, to: inout output)
     case .shuttingDown:
-      writeHeading("Service shutdown requested", mode: mode, to: output)
+      writeHeading("Service shutdown requested", mode: mode, to: inout output)
   }
 
   return output

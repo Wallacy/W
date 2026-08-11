@@ -253,7 +253,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
       switch candidate.stage {
         case .scheduled if candidate.arrivalTick <= tick:
           candidate.stage = .waiting
-          record(events, tick: tick, orderId: candidate.order.id, stage: .waiting)
+          record(inout events, tick: tick, orderId: candidate.order.id, stage: .waiting)
         case .cooking:
           energyUsed += energyPerCookingTick
 
@@ -262,13 +262,13 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
           } else {
             candidate.preparationRemaining = 0
             candidate.stage = .ready
-            record(events, tick: tick, orderId: candidate.order.id, stage: .ready)
+            record(inout events, tick: tick, orderId: candidate.order.id, stage: .ready)
           }
         case .seated:
           let price = try quote(pricing, course: candidate.order.course)
           revenue = try add(revenue, to: price)
           candidate.stage = .completed
-          record(events, tick: tick, orderId: candidate.order.id, stage: .completed)
+          record(inout events, tick: tick, orderId: candidate.order.id, stage: .completed)
         case _:
       }
     }
@@ -281,7 +281,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
       if candidate.stage == .ready && freeTables > 0 {
         candidate.stage = .seated
         freeTables -= 1
-        record(events, tick: tick, orderId: candidate.order.id, stage: .seated)
+        record(inout events, tick: tick, orderId: candidate.order.id, stage: .seated)
       }
     }
 
@@ -293,7 +293,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
       if candidate.stage == .waiting && freeCooks > 0 {
         candidate.stage = .cooking
         freeCooks -= 1
-        record(events, tick: tick, orderId: candidate.order.id, stage: .cooking)
+        record(inout events, tick: tick, orderId: candidate.order.id, stage: .cooking)
       }
     }
 
@@ -303,7 +303,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
 
         if candidate.waitedTicks >= candidate.patienceTicks {
           candidate.stage = .departed
-          record(events, tick: tick, orderId: candidate.order.id, stage: .departed)
+          record(inout events, tick: tick, orderId: candidate.order.id, stage: .departed)
         }
       }
     }

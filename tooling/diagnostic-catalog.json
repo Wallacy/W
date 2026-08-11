@@ -1600,6 +1600,25 @@
       "fixes": {}
     },
     {
+      "code": "W-OWNERSHIP-0017",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a call-site ownership operation does not satisfy the parameter contract or is missing for an owned place",
+      "requiredFacts": {
+        "actualCategory": "string",
+        "expectedContract": "string",
+        "parameter": "string",
+        "reason": "string",
+        "suppliedOperation": "string"
+      },
+      "labelRoles": {
+        "argument": { "minimum": 1, "maximum": 1 },
+        "parameter-contract": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-MEMORY-0001",
       "state": "active",
       "phase": "test",

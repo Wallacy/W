@@ -1196,6 +1196,20 @@ ter custo ou storage observável, portanto não são modos aceitos na assinatura
 O oracle de execution ergonomics e o gate de source mantêm essas formas como
 evidence negativa. Eles não executam o checker W.
 
+#### 1.3.27 Operação de ownership no call site
+
+W-1292 exige `ref`, `inout`, `take`, `copy` ou `pin` quando a call cria a
+operação sobre um place existente. Exigir um marker em todo argumento de
+`ref T` ou `take T` tornaria `inspect(makeValue())` e `store(Value())`
+redundantes e permitiria `ref` sobre rvalue, embora `ref` exija place. O outro
+extremo, omitir sempre `ref`, esconderia a criação de um loan de owner lvalue.
+
+A regra vigente usa type e value category. Borrow já existente e rvalue novo
+passam sem marker; owner place mostra a operação. O source-call gate consegue
+rejeitar operações explicitamente incompatíveis e labels inválidos. Somente S0
+consegue provar que um argumento sem marker era owner place, borrow ou rvalue.
+Os oracles host não substituem essa análise.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -2851,7 +2865,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | M1 memory transition | 184 casos, 603 operações | 82 aceitos, 102 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
-| execution ergonomics | 73 casos | 28 positivos, 43 negativos, 2 informações | 25 testes | não compila nem agenda W |
+| execution ergonomics | 77 casos | 31 positivos, 44 negativos, 2 informações | 26 testes | não compila, não resolve value category e não agenda W |
 | E0 concurrency | 73 casos, 677 operações | 38 aceitos, 35 rejeitados; 10/10 origens HB | 17 testes | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
@@ -4278,7 +4292,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-837 | aplicabilidade postfix | head resolvido decide se o suffix é válido; optional member exige Option e falha antes do result type | aceitar `?.` em qualquer head como no-op; resolver member antes do head; diagnostic somente no lowering |
 | W-838 | expansão `each` | collection é avaliada uma vez; `each` ocupa o argumento final de rest compatível; diagnostic usa índice zero-based em source order | spread universal; expansão intermediária; índice por parameter order; reavaliar collection por item |
 | W-839 | ordem de effect prefix | ordem source canônica é `try await`; ausência, redundância e ordem compartilham W-EFFECT-0010 com facts distintos | `await try`; code separado para cada spelling; inferir effect no caller; fix sem schema |
-| W-840 | operand de ownership prefix | `ref` e `inout` exigem place; `take`, `copy` e `pin` verificam owner, mobility e origem antes de criar delta | borrow de rvalue com lifetime temporário implícito; annotation de lifetime; operação inferida pelo callee |
+| W-840 | operand de ownership prefix | `ref` e `inout` exigem place; W-1292 permite que o invocation plan possua um rvalue novo e satisfaça `ref T` sem aplicar `ref` ao rvalue; `take`, `copy` e `pin` verificam owner, mobility e origem antes de criar delta | `ref` sobre rvalue, annotation de lifetime ou operação sobre owner place inferida pelo callee |
 | W-841 | corpus G4/S0 | sete families de expression, effect e ownership possuem baseline único, inversão syntax-valid, outcome e snapshot D0 | examples sem outcome; um fixture com várias falhas; duplicar errors de parser, type e expression |
 | W-842 | ownership de diagnostic const | W-CONST possui sete meanings fechados; a primeira falha que impede ConstValue cria o root e a cadeia permanece estruturada | texto livre do evaluator; um code para toda falha; error por cada caller da mesma cadeia |
 | W-843 | operação não const-safe | W-CONST-0001 cobre call, capability ou target semantic que ConstIR não reproduz; target é fact, não outro meaning | usar W-CONST-0007 para target; executar host semantic; fallback runtime num const obrigatório |
@@ -4730,6 +4744,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
 | W-1290 | labels callable uniformes | `name: T` é posicional em qualquer índice; `named name: T` exige label homônimo; `external internal: T` exige label distinto e `_ name: T` torna o label opcional; initializers e enum payloads permanecem record-like | labels inferidas pela posição, todos nomeados, reorder, ranking por tipo |
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
+| W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

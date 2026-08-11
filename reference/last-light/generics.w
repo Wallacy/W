@@ -51,7 +51,7 @@ extension<T: Display & Equatable> Shelf<T>: Catalog {
 
 export fn firstEquals<T: Equatable, S: Source<T>>(
   source: ref S,
-  expected: ref T,
+  named expected: ref T,
 ): Bool {
   guard let ref item = source.first() else return false
   return item == expected

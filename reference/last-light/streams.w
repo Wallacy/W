@@ -89,8 +89,8 @@ export async fn pumpReadableBytes<
   Destination: ByteSink<WriteFailure>,
 >(
   source: take streaming.ReadableStream<Bytes, ReadFailure>,
-  destination: take Destination,
-  maximumChunkBytes: usize<(1...)>,
+  named destination: take Destination,
+  named maximumChunkBytes: usize<(1...)>,
 ): ReadableBytePumpOutcome<ReadFailure, WriteFailure> {
   var input = take source
   var output = take destination

@@ -262,12 +262,12 @@ foreign intrinsic from "std.presentation@1" {
   ) throws Error
   fn stdPresentationWriterJson(
     handle: inout PresentationWriterHandle,
-    body: some take fn(inout json.Writer): () throws json.EncodeError,
+    body: take some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
   fn stdPresentationWriterVendorJson(
     named handle: inout PresentationWriterHandle,
     named media: ref MediaType,
-    named body: some take fn(inout json.Writer): () throws json.EncodeError,
+    named body: take some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
   fn stdPresentationWriterDrop(handle: inout PresentationWriterHandle)
 }

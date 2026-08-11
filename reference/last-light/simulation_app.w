@@ -23,7 +23,7 @@ async fn runSimulation(
   ] {
     let report = try simulateShift(profile)
     var output = String()
-    writeSimulation(report, to: output)
+    writeSimulation(report, to: inout output)
     print(output)
   }
 
