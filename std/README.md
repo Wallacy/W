@@ -33,6 +33,8 @@ std/
     contracts.w
   io/
     contracts.w
+  memory/
+    contracts.w
   data/
     contracts.w
   csv/
@@ -90,6 +92,14 @@ não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
 `try lock` e `LockAttempt` pertencem à linguagem e não a um wrapper da std.
 O provider `std.sync@1` continua missing. O source não fixa reference counting,
 epoch, hazard pointer ou outra estratégia física compatível com snapshots.
+`memory/contracts.w` materializa uma única capability opaca `Allocator`.
+`Arena` é o alias transparente `Allocator<(.arena)>`; não é outro protocol ou
+provider. `fixed` liga o handle ao storage do caller sem allocation geral, e
+`clear` só existe no refinement quando não há loan ou valor dependente vivo.
+`AllocationError` separa OOM, budget, overflow e layout. `BudgetExceeded`
+publica somente limit, committed e requested bytes locais.
+O provider `std.memory@1` continua missing. O source não fixa o allocator geral,
+layout físico do handle ou estratégia de drop ledger.
 `accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
 `Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
 um static record de module scope; `accelerator.module` não é uma função runtime.

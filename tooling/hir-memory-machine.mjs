@@ -63,9 +63,10 @@ const ESCAPE_TARGETS = new Set([
 ]);
 
 export class HirMemoryError extends Error {
-  constructor(code) {
+  constructor(code, facts = null) {
     super(code);
     this.code = code;
+    this.facts = facts;
   }
 }
 
@@ -213,10 +214,18 @@ function requireAllocator(state, name) {
 function chargeAllocator(state, name, bytes = 0) {
   const allocator = requireAllocator(state, name);
   const charge = Number.isSafeInteger(bytes) ? bytes : 0;
-  if (allocator.limit !== null && allocator.charged + charge > allocator.limit) {
-    throw new HirMemoryError("budgetExceeded");
+  const nextCharge = allocator.charged + charge;
+  if (!Number.isSafeInteger(nextCharge)) {
+    throw new HirMemoryError("sizeOverflow");
   }
-  allocator.charged += charge;
+  if (allocator.limit !== null && nextCharge > allocator.limit) {
+    throw new HirMemoryError("budgetExceeded", {
+      limitBytes: allocator.limit,
+      committedBytes: allocator.charged,
+      requestedBytes: charge,
+    });
+  }
+  allocator.charged = nextCharge;
   return allocator;
 }
 
@@ -2323,8 +2332,16 @@ export function runMemoryProgram(operations) {
         operation: clone(operation),
         before,
         rejected: error.code,
+        ...(error.facts ? { facts: clone(error.facts) } : {}),
       });
-      return { status: "rejected", code: error.code, operation: index, state: before, trace };
+      return {
+        status: "rejected",
+        code: error.code,
+        operation: index,
+        ...(error.facts ? { facts: clone(error.facts) } : {}),
+        state: before,
+        trace,
+      };
     }
   }
 

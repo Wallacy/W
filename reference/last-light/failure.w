@@ -1,6 +1,7 @@
 // Absence, recoverable failure, panic, OOM, and cleanup at the last service window.
 
 import { Course, Guest, GuestId, GuestName, Order } from domain
+import { AllocationError } from std.memory
 
 export enum ServiceLookupError: Error {
   missingGuest(GuestId)

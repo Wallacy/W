@@ -7954,13 +7954,31 @@ freestanding ou performance. A API é explícita:
 ```w
 var storage: [u8; 64<KiB>] = [0; 64<KiB>]
 var scratch = Arena.fixed(inout storage)
-let tokens = try lex(source, using: scratch)
+let tokens = try lex(source, using: ref scratch)
 scratch.clear()
 ```
 
 `Arena.fixed` nunca solicita storage ao OS. `clear` executa os drops registrados
-e reinicia a capacidade. Ele falha enquanto borrow ou valor dependente permanece
-vivo. Allocator, budget e origin continuam contratos separados.
+e reinicia a capacidade. O checker rejeita a call enquanto borrow ou valor
+dependente permanece vivo; `clear` não converte esse erro estático em failure
+runtime. Allocator, budget e origin continuam contratos separados.
+
+**W-1294 — Arena é um refinement de Allocator:** `Allocator` publica os facts
+compile-time `.arena` e `.crossDomain` em seu type contract. `Arena` é o alias
+transparente abaixo, não outro protocol, wrapper ou provider:
+
+```w
+export alias Arena = Allocator<(.arena)>
+```
+
+O initializer raw de `Allocator` é privado. Somente um intrinsic confiável pode
+anexar os facts ao handle validado. `Arena.fixed(inout storage)` devolve o
+refinement, liga sua lifetime ao storage e resolve por member lookup normal do
+alias transparente. Refined-to-base é implícito, portanto uma API continua
+recebendo `ref Allocator`; o call site escreve `using: ref scratch`. `clear`
+existe somente no refinement `Arena` e exige receiver exclusivo. Os facts não
+identificam a instance ou seu deallocator: `AllocationOrigin` continua
+registrando essas informações por allocation.
 
 Os overloads de `share` são reservados para múltiplos owners que excedem o scope
 lexical. W não promove unique para shared em silêncio. A promoção pode alocar e
@@ -8195,7 +8213,7 @@ reclamation pertencem ao provider do device.
 O contract fixa major, mode e capabilities. O nome de um allocator sozinho não
 concede mobilidade.
 
-#### 9.6.5 Origem e mobilidade
+#### 9.6.4 Origem e mobilidade
 
 **Exemplo:** `stageMenu` devolve storage ligado ao allocator `memory`. Fechar
 essa instance antes do snapshot é um erro de lifetime.
@@ -8258,7 +8276,7 @@ async fn stageForParallel(
 ): () throws AllocationError {
   var storage: [u8; 8<MiB>] = [0; 8<MiB>]
   var scratch = Arena.fixed(inout storage)
-  let local = try Menu.parse(payload, using: scratch)
+  let local = try Menu.parse(payload, using: ref scratch)
   // spawn<.compute> let invalid = consume(take local)
 
   let portable = try (take local).rehome(using: processMemory)
@@ -8538,7 +8556,7 @@ entregar forma W tagged à FFI ou usar tags como prova de owner, lifetime ou
 thread safety. NaN boxing não representa `f64` comum nem um value carrier
 universal. Nenhuma dessas escolhas cria annotation no source.
 
-#### 9.9.5 Baseline por fronteira
+#### 9.9.2 Baseline por fronteira
 
 **Baseline v0 de representação:** a técnica é escolhida pela fronteira, não pelo
 nome do tipo:
@@ -9224,7 +9242,25 @@ let snapshot = try menu.tryDuplicate()
 `tryReserve` retorna `Result<(), AllocationError>`. `tryDuplicate` retorna
 `Result<T, AllocationError>`. Elas não alteram o valor quando falham.
 As duas formas aceitam `using:` quando o caller precisa escolher o allocator.
-`AllocationError` possui cases estáveis:
+**W-1295 — budget de allocation é um valor local em bytes:**
+`BudgetExceeded` informa a carga já publicada, o limite e a carga adicional da
+operação. Alignment, padding e metadata de drop cobrados pelo allocator entram
+em `requestedBytes`. O provider verifica overflow antes do budget; overflow
+produz `.sizeOverflow`, não um payload truncado. Nenhum field identifica a
+instance ou o provider:
+
+```w
+struct BudgetExceeded: Copy & Equatable {
+  limitBytes: usize
+  committedBytes: usize
+  requestedBytes: usize
+}
+```
+
+`committedBytes` é menor ou igual a `limitBytes`. `requestedBytes` é positivo e
+maior que `limitBytes - committedBytes` quando o erro é construído. A operação
+não publica allocation, novo offset ou drop record. `AllocationError` possui
+cases estáveis:
 
 ```w
 enum AllocationError: Error {
@@ -9240,11 +9276,11 @@ O diagnostic pode anexar allocator e origem como evidence local. Essa evidence
 não faz parte de equality, serialization ou resultado reproduzível. O erro
 `outOfMemory` não promete a quantidade global de memória livre.
 
-`BudgetExceeded` é diferente de OOM. Ele informa que uma quota conhecida foi
+`BudgetExceeded` é diferente de OOM. Ele informa que a quota explícita foi
 atingida:
 
 ```w
-let frame = try Bytes(repeating: 0_u8, count: size, using: arena)
+let frame = try Bytes(repeating: 0_u8, count: size, using: ref arena)
 // A falha pode ser `.budgetExceeded(...)`.
 ```
 
@@ -14513,7 +14549,7 @@ commit failure, perda de confirmação, disconnect de transporte e quota
 exhaustion. Elas não colapsam `canceled`, `applicationError`, `commitFailed`,
 `unknownOutcome` e `faultBoundary` em um único error.
 
-## 14. Prelude e SDK
+## 14. Prelude e standard library
 
 APIs públicas da standard library são escritas em W quando a linguagem consegue
 expressá-las. Compiler intrinsics ficam atrás de declarations pequenas e

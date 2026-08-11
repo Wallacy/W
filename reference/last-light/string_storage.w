@@ -91,14 +91,14 @@ test "reservation makes incremental construction deterministic" for joinAnnounce
   let memory = Arena.fixed(inout storage)
   let lines = ["Do not panic", "Dessert remains available"]
 
-  let result = try joinAnnouncements(lines, memory: memory)
+  let result = try joinAnnouncements(ref lines, memory: ref memory)
   expect result == "Do not panic\nDessert remains available"
 }
 
 test "takeAll moves a frame and leaves a reusable String" {
   var storage: [u8; 4<KiB>] = [0; 4<KiB>]
   let memory = Arena.fixed(inout storage)
-  let buffer = AnnouncementBuffer(memory: memory)
+  let buffer = AnnouncementBuffer(memory: ref memory)
 
   buffer.push("Last")
   buffer.push(" orders")

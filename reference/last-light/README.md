@@ -1433,7 +1433,7 @@ Aceite:
 - o tool artifact é compilado para o target da execution platform;
 - a action executa nessa platform, não no product target;
 - nenhum path, environment, clock, random ou network fica disponível;
-- SDK0 usa somente overloads fechados `String`/`Bytes`, com UTF-8 estrito e
+- o build transform usa somente overloads fechados `String`/`Bytes`, com UTF-8 estrito e
   Bytes identity;
 - ceilings menores do provider ficam no host profile ou toolchain plan e entram
   na action recipe key;
@@ -2038,9 +2038,11 @@ Aceite:
 
 - um local síncrono fixo que não escapa não usa o allocator geral;
 - `object` não implica heap;
-- somente calls com `using: staging` usam a Arena;
+- somente calls com `using: ref staging` usam a Arena;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem da Arena;
+- `Arena` é `Allocator<(.arena)>` e atende diretamente a `ref Allocator`;
+- `clear` exige exclusividade e nenhum loan ou valor dependente vivo;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;
 - storage de uma arena local não atende a `transferable`;
 - `Allocator<(.crossDomain)>` é necessário para produzir um owner que cruza
@@ -2048,7 +2050,11 @@ Aceite:
 - `rehome` move storage independente e realoca somente storage dependente;
 - uma falha de `rehome` consome e limpa o snapshot e o destino parcial;
 - `attemptRehome` devolve o snapshot no outcome quando retry é necessário;
-- o budget cobra alignment, padding e growth retido;
+- o budget cobra alignment, padding, growth retido e metadata de drop;
+- `.budgetExceeded` informa `limitBytes`, `committedBytes` e `requestedBytes`
+  sem a identidade do provider;
+- `.sizeOverflow` falha antes da comparação de budget e não altera
+  `committedBytes`;
 - `.budgetExceeded` não vira `.outOfMemory`;
 - drop executa em ordem inversa da construção concluída;
 - um child paralelo não compartilha a arena default;
@@ -2127,7 +2133,7 @@ encoda Session. `wifi_app.w` devolve 204 sem body.
 `worker_app.w` liga o gateway ao slot. `app.w` serve o mesmo handler no processo
 nativo. Todos usam o mesmo modelo de mensagem.
 
-`net_oracle.w` fixa o carrier de network SDK0. Ele usa somente constructors e
+`net_oracle.w` fixa os carriers de `std.net`. Ele usa somente constructors e
 parse textual estrito para IPv4, IPv6, socket e listen addresses. O oracle
 também chama resolve e connect com limits finitos e descriptors borrowed,
 separa os cursors TCP e UDP, demonstra `finishWriting` e termina o write half

@@ -1180,3 +1180,52 @@ test("M1 erasure failure consumes once and forbidden spill preserves the owner",
   assert.equal(forbidden.state.bindings.handler.state, "owned");
   assert.equal(forbidden.state.bindings.stored, undefined);
 });
+
+test("M1 budget failure reports local bytes and preserves committed state", () => {
+  const result = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "scratch",
+      lifetime: "scoped",
+      mobility: "local",
+      adoptionFamily: "arena",
+      limit: 64,
+    },
+    { op: "initialize", binding: "tokens", using: "scratch", bytes: 48 },
+    { op: "initialize", binding: "overflow", using: "scratch", bytes: 32 },
+  ]);
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.code, "budgetExceeded");
+  assert.deepEqual(result.facts, {
+    limitBytes: 64,
+    committedBytes: 48,
+    requestedBytes: 32,
+  });
+  assert.equal(result.state.allocators.scratch.charged, 48);
+  assert.equal(result.state.bindings.overflow, undefined);
+
+  const overflow = runMemoryProgram([
+    {
+      op: "defineAllocator",
+      allocator: "scratch",
+      lifetime: "scoped",
+      mobility: "local",
+      adoptionFamily: "arena",
+      limit: Number.MAX_SAFE_INTEGER,
+    },
+    {
+      op: "initialize",
+      binding: "tokens",
+      using: "scratch",
+      bytes: Number.MAX_SAFE_INTEGER - 1,
+    },
+    { op: "initialize", binding: "overflow", using: "scratch", bytes: 2 },
+  ]);
+  assert.equal(overflow.code, "sizeOverflow");
+  assert.equal(overflow.facts, undefined);
+  assert.equal(
+    overflow.state.allocators.scratch.charged,
+    Number.MAX_SAFE_INTEGER - 1,
+  );
+});
