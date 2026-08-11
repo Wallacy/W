@@ -9,6 +9,18 @@ export type WireName = String<(.bytes.count <= 64)>
 export type ScalarName = String<(.scalars.count <= 64)>
 export type DisplayName = String<(.graphemes.count <= 64)>
 
+export struct BrigadeCount {
+  completed: u64
+  failed: u64
+}
+
+// The compiler may change this private physical layout. Cache placement is not
+// part of Atomic<T> or of the logical fields.
+object InterferenceCounters {
+  var atomic completed: u64 = 0
+  var atomic horizonSamples: u64 = 0
+}
+
 export alias ActiveStage =
   ServiceStage<[.reserving, .preparing, .serving]>
 
@@ -41,6 +53,28 @@ export fn scaleForecast(
   values *= factor
 }
 
+export fn countCompleted(orders: Array<Bool>): BrigadeCount {
+  var completed: u64 = 0
+  var failed: u64 = 0
+
+  for succeeded in orders {
+    if succeeded { completed += 1 }
+    else { failed += 1 }
+  }
+
+  return BrigadeCount(completed: completed, failed: failed)
+}
+
+export fn combineBrigadeCounts(
+  left: BrigadeCount,
+  right: BrigadeCount,
+): BrigadeCount {
+  return BrigadeCount(
+    completed: left.completed + right.completed,
+    failed: left.failed + right.failed,
+  )
+}
+
 export fn wireName(value: ref String): WireName throws RefinementError {
   return try WireName(value)
 }
@@ -67,4 +101,13 @@ test "text refinements expose different capacity facts" {
   expect wire.bytes.count <= 64
   expect scalar.scalars.count <= 64
   expect display.graphemes.count <= 64
+}
+
+test "partitioned counts combine only at the join" for combineBrigadeCounts {
+  let port = countCompleted([true, true, false])
+  let starboard = countCompleted([false, true])
+  let total = combineBrigadeCounts(port, right: starboard)
+
+  expect total.completed == 3
+  expect total.failed == 2
 }

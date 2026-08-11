@@ -2393,7 +2393,7 @@ Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
 |---|---|---|
 | tipos | typed property path e `StateGraph` const | anonymous sum/record, constraint list, GAT, packs e existential opening |
 | compile time | `WMeta1` com chunks CBOR | callable const indireto, SMT geral e autotuning no build |
-| memória | `InlineString`, trusted foreign facts e cache isolation | public unpin, high-bit baseline e async-close universal |
+| memória | `InlineString`, trusted foreign facts e layout privado por evidence | public unpin, high-bit baseline, cache contract no tipo e async-close universal |
 | execução | dynamic execution-domain selection, topology types, advanced atomics, fences e sync | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
 | workflow | roots explícitos por service/`SupervisorRef`, steps e outbox | child workflow/`continueAsNew` intrínsecos, durable race, absolute core sleep, user compaction e 2PC implícito |
 | I/O | `ReadBatch`, `io.transfer` e commit-provider SPI interno fechado | zero-copy implícito, `flush` universal e transaction multi-provider |
@@ -2576,6 +2576,42 @@ CH0 não executa W e não prova scheduler ou provider. O perfil de implementaç�
 ainda precisa repetir os casos com uma, duas e quatro worker threads, TSan, leak
 sanitizer e allocation fault injection. `Stream.cancel`, tee e adapters bounded
 continuam nos ensaios próprios de stream, sem alterar a semântica de channel.
+
+#### False sharing e layout de contenção
+
+False sharing precisa de state compartilhado, execução em cores diferentes e
+ao menos uma write. Separar fields pode melhorar throughput, mas aumenta
+footprint e pode deslocar o gargalo. Por isso W não transforma uma dica de cache
+em parâmetro semântico de `Atomic<T>`.
+
+Os precedentes mostram o mesmo limite por caminhos diferentes:
+
+- [C++ P0154R1](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2016/p0154r1.html)
+  define destructive e constructive interference sizes como recomendações de
+  quality-of-implementation para `alignas`, não como garantia física;
+- [OpenJDK JEP 142](https://openjdk.org/jeps/142) usa padding de fields
+  contended e registra o custo de memória e a dificuldade de manter alignment;
+- o [guia do kernel Linux](https://docs.kernel.org/kernel-hacking/false-sharing.html)
+  recomenda primeiro medir e então separar hot fields, evitar writes ou usar
+  state per-CPU com agregação;
+- [`CacheLinePad` de Go](https://go.dev/src/internal/cpu/cpu.go) usa tamanho por
+  arquitetura como aproximação, sem detecção runtime;
+- [`CachePadded<T>` de Crossbeam](https://docs.rs/crossbeam-utils/latest/crossbeam_utils/struct.CachePadded.html)
+  é um wrapper de layout com estimativas específicas por arquitetura.
+
+| Alternativa | Resultado W | Motivo |
+|---|---|---|
+| `Atomic<T, cache: .isolated>` | rejeitada | mistura semântica atômica com uma hipótese de layout e target |
+| wrapper `CachePadded<T>` safe universal | rejeitado | propaga detalhe físico, aumenta tipos e ainda não garante a microarquitetura real |
+| padding/reorder privado automático | vigente | preserva semântica quando layout e footprint não são observáveis |
+| counters por child/domain + join | vigente e explícito | muda publicação e snapshots, portanto deve aparecer no source |
+| record físico em adapter/target | vigente na boundary | offsets e alignment são verificáveis; desempenho continua medido |
+
+IL0 modela a decisão do optimizer com facts fechados. O corpus não mede uma
+cache real. O gate de implementação precisa executar perfis com e sem layout,
+em mais de um número de cores, e publicar throughput, latency, misses, footprint
+e recipe inputs. Uma regressão ou ganho não reproduzível desativa a decisão do
+profile sem alterar o programa.
 
 #### I/O assíncrono
 
@@ -3619,7 +3655,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-450 | mutex síncrono (retired) | W-1257 preserva a critical section scoped como `lock` da linguagem e remove o wrapper | lock/unlock manual; guard; poisoning; wrapper nominal |
 | W-451 | mutex assíncrono (retired) | W-1257 preserva aquisição suspensiva como `await lock`; domain/service lideram para task-owned state | guard cruza await; wrapper async; mutex síncrono no worker cooperativo |
 | W-452 | RwLock e RCU (retired) | W-1259 rejeita RW lock baseline; W-1178 fecha SnapshotCell e mantém RCU safe em adapter | policy automática por property; RCU default universal; fairness do host como contrato |
-| W-453 | contenção | explanation record mostra lowering, lock-free, waits e de-atomicization provada; cache isolation é provável com target contract | prometer performance por `atomic`; padding universal; enfraquecer order sem prova |
+| W-453 | contenção (retired) | W-1269–W-1272 retiram cache do tipo, permitem layout privado por evidence e mantêm partition explícita | prometer performance por `atomic`; padding universal; enfraquecer order sem prova |
 | W-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
 | W-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
 | W-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
@@ -4435,6 +4471,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1266 | failure bounded | encoding, delimiters, lexical terminal, nesting, bytes e digests falham antes de codegen; recovery não engole suffix W | scan unbounded, truncation silenciosa, fix-it dentro do body sem adapter, aceitar NUL |
 | W-1267 | evidence FB0 | 45 casos/90 operações, 9 testes host, corpus Tree-sitter e um par F0 byte-preserving cobrem scanner/body/recipe sem executar adapter ou formatter | snapshot como implementação, expected echo, alegar frontend C ou formatter prontos |
 | W-1268 | evidence CTX0 | identidade nominal, default, binding LIFO, snapshot por child, drain, boundaries, TLS físico, migration e availability são derivados por machine e teste host independentes | mapa ambiental, cópia por child, TLS por task, destructor best-effort, chamar oracle de provider/runtime |
+| W-1269 | cache fora do tipo atômico | Atomic descreve value, extent, order e progress; cache isolation não entra no schema do tipo | `cache: .isolated`, granule universal, ordem fraca como mitigação |
+| W-1270 | layout privado por evidence | compiler pode separar places disjuntos somente com layout opaco, target/evidence pinados e footprint admitido; ausência de fact mantém fallback | padding obrigatório, erro em target desconhecido, profile ambiental, claim de exclusividade física |
+| W-1271 | partition explícita | counters locais e redução aparecem no source porque mudam overflow, publicação e snapshot; atomic global nunca é sharded silenciosamente | auto-sharding, per-thread oculto, soma com overflow diferente |
+| W-1272 | layout físico na boundary | adapter ou target record garante offsets/alignment publicados, sem prometer throughput ou cache exclusiva | wrapper safe universal, padding implícito em ABI, benchmark como semântica |
+| W-1273 | evidence IL0 | machine/corpus/test host derivam layout aplicado/não aplicado, partition e boundaries; não medem cache nem executam W | snapshot como compiler, target inventado pelo caller, performance claim sem measurement |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

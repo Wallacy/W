@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ledgerIds } from "./design-ledger.mjs";
+import { expandInterferenceLayoutOperations } from "./interference-layout-machine.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -271,6 +272,7 @@ const oracleCorpusFiles = [
   "ownership-execution-cases.json",
   "channel-cases.json",
   "context-local-cases.json",
+  "interference-layout-cases.json",
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
@@ -501,6 +503,22 @@ const contextLocalOperations = contextLocalCorpus.cases.reduce(
   0,
 );
 const acceptedContextLocalCases = contextLocalCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const interferenceLayoutCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "interference-layout-cases.json"), "utf8"),
+);
+const interferenceLayoutCases = interferenceLayoutCorpus.cases.length;
+const interferenceLayoutOperations = interferenceLayoutCorpus.cases.reduce(
+  (count, testCase) =>
+    count +
+    expandInterferenceLayoutOperations(
+      interferenceLayoutCorpus.fixtures,
+      testCase.operations,
+    ).length,
+  0,
+);
+const acceptedInterferenceLayoutCases = interferenceLayoutCorpus.cases.filter(
   (testCase) => testCase.kind === "accepted",
 ).length;
 const scopedLockCorpus = JSON.parse(
@@ -891,6 +909,13 @@ output.push(
     `${contextLocalCases}/${contextLocalOperations} ` +
     `(${acceptedContextLocalCases} aceitos + ` +
     `${contextLocalCases - acceptedContextLocalCases} rejeitados; seis testes host) |`,
+);
+output.push(
+  `| casos/operações de layout de interferência IL0 | ` +
+    `${interferenceLayoutCases}/${interferenceLayoutOperations} ` +
+    `(${acceptedInterferenceLayoutCases} aceitos + ` +
+    `${interferenceLayoutCases - acceptedInterferenceLayoutCases} rejeitados; ` +
+    `nove testes host) |`,
 );
 output.push(
   `| casos/operações de lock da linguagem LM1 | ` +

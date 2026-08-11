@@ -22,6 +22,7 @@
     "check:ownership-execution": "bun test tooling/ownership-execution-reference.test.mjs && bun tooling/check-ownership-execution-cases.mjs",
     "check:channel": "bun test tooling/channel-reference.test.mjs && bun tooling/check-channel-cases.mjs",
     "check:context-local": "bun test tooling/context-local-reference.test.mjs && bun tooling/check-context-local-cases.mjs",
+    "check:interference-layout": "bun test tooling/interference-layout-reference.test.mjs && bun tooling/check-interference-layout-cases.mjs",
     "check:liveness": "bun test tooling/runtime-liveness-reference.test.mjs && bun tooling/check-runtime-liveness-cases.mjs",
     "check:lazy": "bun test tooling/lazy-behavior-reference.test.mjs && bun tooling/check-lazy-behavior-cases.mjs",
     "check:locks": "bun test tooling/scoped-lock-reference.test.mjs && bun tooling/check-scoped-lock-cases.mjs",

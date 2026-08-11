@@ -29,6 +29,7 @@ const corpusFiles = [
   "ownership-execution-cases.json",
   "channel-cases.json",
   "context-local-cases.json",
+  "interference-layout-cases.json",
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
