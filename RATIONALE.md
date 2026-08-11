@@ -778,6 +778,29 @@ Parse Tree-sitter, host oracle e cases são evidência de design. CLI, compiler,
 resolver, provider, runtime, estudo humano e estudo de modelo permanecem
 missing.
 
+O oracle mantém separadas estas projeções operacionais:
+
+| Operação | Evidência derivada |
+|---|---|
+| `parseHeader` | posição, edition, fields, aliases, source kind, entry e digest do body implícito |
+| `selectContext` | standalone, package ou ephemeral sem merge implícito |
+| `resolveRoots` | discovery físico, containment do target e policy de busca |
+| `validateImports` | edges explícitos, path→digest e script root-only |
+| `validateResolution` | payload P0, root recomposto, seleção virtual e closure alcançável |
+| `admitFetch` e `verifyArtifact` | policy, CAS, candidate real, authority, signature e retirement |
+| `admitCapabilities` | requirements, grants efetivos e handles transitivos |
+| `buildEphemeral` e `runEntry` | identity sem path físico e entry explícito ou implícito |
+| `cleanup` e `contextExplanation` | ausência de estado oculto e explicação completa da seleção |
+| `scriptAdd`, `scriptRemove`, `scriptResolve` | troca atômica de header e lock após nova prova de parse |
+| `promote` | package equivalente, graph e entry preservados, provenance emitida |
+
+O fixture conserva também os detalhes do lock que não precisam ser repetidos no
+contrato de scripts: payload P0 não achatado, context virtual com `rootEdges`,
+IDs de package derivados de conteúdo, aliases locais ao parent, traversal da
+closure e seleção exata por use, target role e target. Artifact records, recipes
+e outputs ficam fora do payload do lock e entram na identity somente quando são
+selecionados. CAS ambiental nunca entra na identity.
+
 #### 1.3.17 Sessão/REPL transacional PYN2
 
 **Exemplo:** `limit` muda de `3` para `4`, `snapshot` preserva `6`, `doubled`
@@ -2294,6 +2317,14 @@ drop, OOM antes de publish, close e estratégias equivalentes.
 
 CH0 fecha ownership linear, admission, permits, cancellation e lifecycle do
 channel bounded, sem prometer a estratégia física.
+
+Os profiles de representação também passam pelo mesmo corpus lógico nas formas
+portátil e otimizada. Sanitizers exercitam o fallback e, quando possível, a
+forma compacta. Diferença observável bloqueia a otimização. SP0 inverte readers
+antigos e novos, erro, publicação concorrente, retirement bounded, drop único,
+OOM pré-publicação, close e estratégias físicas equivalentes. O scheduler de
+teste injeta clock, entropy e I/O, registra decisões e reproduz joins, cancel
+points, overload, drain e falha sem tornar a instrumentação observável.
 
 ### 1.16 Evidence de boundaries, packages e releases
 

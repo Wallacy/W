@@ -7470,7 +7470,7 @@ Essa verificação usa somente os `ProofFacts` do ponto CFG atual.
 
 Cada edge ativa possui ID único. A operação interna da HIR `accessDependency`
 seleciona esse ID e verifica o modo antes de acessar o referent. Ela não é sintaxe
-W. O source continua usando o field `ref`, `view` ou `inout`. O oracle aceita
+W. O source continua usando o field `ref`, `view` ou `inout`. O verifier aceita
 origin como abreviação somente quando ela identifica uma única edge. Cada
 operação fornece ID ou origin, nunca ambos. Origin ambígua é rejeitada. A
 criação de um conjunto de edges é atômica: ID duplicado,
@@ -7531,7 +7531,7 @@ própria. Um slot dependent sem entrada é rejeitado. Sem body, instance usa
 receiver compatível. Init, static e free
 requirement usam todos os inputs borrowed ou dependent compatíveis. Zero source
 só permite result independent ou static. Caso contrário a declaração é
-rejeitada. O oracle deriva esse default de `kind`, `inputSlots` e `resultSlots`.
+rejeitada. O compiler deriva esse default de `kind`, `inputSlots` e `resultSlots`.
 Ele ignora `inferredMapping` bodyless. Witness e lock rejeitam divergência.
 
 A interface serializa esse mapping em `WInterface` e
@@ -7925,7 +7925,7 @@ entra na `WAbiKey` quando o carrier de ABI permanece igual.
 `representation: .portable` força os fallbacks de layout do target. A forma
 `.optimized` permite niches e compactação aprovadas pelo profile. Sanitizer,
 debugger ou hardening ainda podem escolher o fallback. Os dois profiles precisam
-passar o mesmo oracle semântico.
+preservar o mesmo contrato semântico.
 
 #### 9.6.1 Contrato físico do provider A0
 
@@ -8465,9 +8465,6 @@ Uma tag MTE pertence ao pointer nativo do provider. Uma tag lógica low-bit do W
 pertence ao carrier interno. O lowering não mistura as duas. A forma entregue ao
 allocator preserva o pointer e o estado externo exigidos pelo target.
 
-A matriz histórica e o oracle diferencial ficam no
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
-
 ### 9.10 Negociação, hardening e instrumentação
 
 **Exemplo:** um profile com Memory Tagging Extension (MTE) pode desativar uma
@@ -8503,9 +8500,8 @@ Hardening vence compactação. MTE, pointer authentication, HWASan ou uma
 capability architecture podem ocupar bits ou impor provenance que W não pode
 reutilizar.
 
-Testes diferenciais executam o mesmo corpus em profile portátil e otimizado.
-Sanitizers executam o fallback e, quando suportado, também a forma compacta. Um
-resultado diferente bloqueia a otimização.
+Profile otimizado precisa preservar o mesmo valor lógico e todas as fronteiras
+do profile portátil. Diferença observável bloqueia a otimização.
 
 Uma entrada de representação contém:
 
@@ -10018,8 +10014,7 @@ não exige recompilar o artifact.
 
 `w explain execution <product>` mostra requirements, bindings, shared pools,
 limites e reduções. Declarar ou importar domain não cria queue, thread ou
-executor. O oracle e sua cobertura ficam no
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
+executor.
 
 ### 12.7 Mobilidade e captures
 
@@ -11337,16 +11332,9 @@ owner explícito atrás de service, domain ou lock. A baseline também não exp�
 `tryPublish`: falha de allocation antes da publicação segue a policy normal de
 OOM e mantém a versão anterior corrente.
 
-**W-1180 — evidence de snapshot:** SP0 precisa cobrir readers antigos e novos,
-error, publicação concorrente, retirement bounded, drop único, OOM
-pré-publicação, close e estratégias equivalentes. Contagens e limites ficam no
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
-
 #### 12.10.8 Diagnostics e gate
 
-O compiler rejeita:
-
-Os diagnostics de `SnapshotCell` usam a família `W-SNAPSHOT-*`.
+O compiler usa a família `W-SNAPSHOT-*` e rejeita:
 
 - borrow comum do payload atômico;
 - order incompatível com a operação;
@@ -11475,9 +11463,8 @@ O runtime mínimo possui:
 O primeiro runtime não precisa de work stealing sofisticado, filas todas
 lock-free, remote tasks, QoS completa ou GPU.
 
-Testes usam scheduler, clock, entropy e I/O injetáveis. O scheduler registra e
-reproduz decisões. O corpus explora joins, cancel points, overload, drain e
-falha. Instrumentação não pode mudar ordering.
+Scheduler, clock, entropy e I/O são injetáveis. O scheduler registra e reproduz
+decisões. Instrumentação não pode mudar ordering.
 
 O profile portátil publica fairness condicional. Sob estas premissas:
 
@@ -26927,54 +26914,22 @@ symlink, traversal e escape avaliados nessa boundary. Recursive scan, cwd scan,
 `PATH` scan e environment scan não existem. URL, stdin e shebang permanecem
 rejeitados por causa de path, environment e portability.
 
-Uma dependency externa usa o record normal de P0. O header registra alias,
-package identity, version constraint, use e source authority. Aliases são
-únicos. `.path`, branch ou ref mutable, registry ambiental e local override são
-rejeitados para script shareable. Registry immutable é baseline; Git/content
-source immutable continua Pesquisa. A resolução deriva um virtual selection
-digest de edition e dependencies normalizadas, excluindo `lock` e bytes do body.
-O `lock` usa a forma canônica de P0 (`schema: "w.package-lock/1"`, `resolver`,
-`workspaceDigest`, `manifestDigests["virtual-script"]`, `contexts[]` e
-`packages[]`), sem flatten PYN1. O context virtual fecha root
-`.product("script")`, `use`, `targetRole`, target, `activeSourceSet`,
-`resolutionDigest`, `nodes` e `rootEdges`; cada package possui `id`
-content-derived, name, version, source, metadata/content digests e edges
-`{alias,id}` locais ao parent. O host recompõe o digest do payload P0 real e
-ignora `lock.digest`; não injeta defaults durante o hash. A closure alcançável
-é derivada por traversal desde as root edges; dangling, unreachable, missing
-node, alias collision local e cycle inválido falham. Artifacts podem representar
-qualquer node alcançável. CAS lista somente objetos content-addressed, nunca
-`alias@version`; artifact records e recipes ficam fora do payload do lock. O
-digest não concede authority.
+Uma dependency externa usa o record e o lock canônicos de
+[§21.1.6](#2116-contexts-de-resolução-e-lock). O header acrescenta somente o
+root virtual `.product("script")`, suas `rootEdges` explícitas e a seleção por
+use, target role e target. Alias, package identity, constraint e source
+authority permanecem explícitos. Mutable source, registry ambiental e override
+local são rejeitados para script compartilhável. O lock cobre todos os
+contexts, mas build e run usam apenas a closure alcançável do context
+selecionado. Digest não concede authority.
 
-Um lock pode carregar contexts válidos para vários targets. A admission
-seleciona exatamente um context por root virtual, use, targetRole e target
-pedido; os outros contexts continuam no root digest, mas não entram na closure
-ou recipe selecionada. `rootEdges` é a extensão fechada somente do context
-virtual de script; package contexts normais continuam na forma P0 de 21.1.6.
-
-`w run <path/file.w>` executa um package, standalone ou contexto efêmero
-conforme as regras acima. `w run` pode compilar o source normal, mas nunca resolve
-constraint, atualiza lock, instala package ou executa install/build action oculto.
-O lock fixa o
-package source/content graph; artifact records, recipes e action outputs são
-evidências de provider selecionadas depois do lock e ligadas por record
-digests. A operação pode buscar essas evidências em authorities ou mirrors
-conforme network policy explícita. Se root lock ou artifact evidence não está
-no CAS, um candidate real é obrigatório; expectativa não é byte recebido.
-`--offline` exige root lock e todos os digests de metadata, content, artifacts e
-action outputs no CAS. Action output necessário que não esteja no lock/CAS/policy
-falha e pede operação explícita. Digest é sempre recomposto antes de CAS
-publication; signature e authority exigem evidence/policy explícitas. Mismatch
-falha antes de publication, build e entry; bytes divergentes são retired.
-
-Artifact evidence selecionada recebe `w-script-artifact-record-v1`: o digest
-liga lock root, node, metadata/content digests, target/use, artifact digest,
-toolchain, host profile, recipe owner, authority e signature policy. Handles
-transitivos ligam owner node e seu `metadataDigest`; action outputs ligam owner,
-action/recipe digest, output digest, policy e provenance. Esses record digests
-entram na recipe/product identity quando selecionados; a lista ambiental do
-CAS permanece fora da identity.
+`w run <path/file.w>` seleciona package, standalone ou contexto efêmero pelas
+regras acima e então faz compile/run normal. Ele nunca resolve constraint,
+altera lock, instala package ou executa action oculto. Fetch, CAS, artifact,
+signature, authority e offline seguem P0. Mismatch falha antes de build e entry;
+bytes divergentes são retired. Records de artifact, handle transitivo e output
+consumido entram na recipe e na product identity por digest, nunca pela lista
+ambiental do CAS.
 
 O header declara requirements de capability. Ele não concede grants ou secrets.
 O ephemeral native-script default recebe o channel de process args e a
@@ -26985,7 +26940,8 @@ secret ou missing deployment grant falha antes do build/entry. Dependency
 transitiva exige handles/bindings explícitos e seu próprio contrato; não herda
 authority do root.
 
-A product identity efêmera deriva dos seguintes campos normalizados:
+A product identity efêmera acrescenta ao contrato de build estes campos
+normalizados:
 
 - root source bytes digest e ordered local graph `{path, digest}`;
 - selected context e reachable package content digests;
@@ -26996,19 +26952,11 @@ A product identity efêmera deriva dos seguintes campos normalizados:
 - conjunto completo de requirements;
 - toolchain digest e recipe owner.
 
-Path físico canônico serve discovery, diagnóstico e provenance, não identity ou
-recipe. O host modela containment por target/provider; não alega que
-`replaceAll('\\','/')` resolve symlink, drive, UNC, case ou Unicode. Baseline
-channels e authority são inputs separados; host profile cobre a baseline na
-identity e `requires` inclui somente requirements explícitos. Trace e
-`w context` mostram roots, lock digest, fetches, authorities, capabilities e
-recipe. Product temporário e failed run não deixam estado oculto.
-Promotion valida o próprio payload P0 e root digest do candidate `package.lock`.
-Ele compara closure/package graph alcançável, selection, local graph, entry e
-requirements sem re-resolver; a codificação do root pode mudar para
-`.product("package")`. A provenance liga e recompõe o digest do source script,
-script lock, package manifest e package-lock output. Só então cria `package.w`
-e `package.lock` equivalentes, remove ou transforma o header e emite provenance.
+Path físico serve discovery, diagnóstico e provenance, não identity ou recipe.
+Baseline channels e authorities são inputs separados. `w context` explica root,
+lock, fetch, authority, capability e recipe. Run temporário ou falho não deixa
+estado oculto. Promotion valida o candidate P0 sem re-resolver, preserva graph,
+entry e requirements e emite provenance que liga script, locks e manifest.
 
 Os commands fechados para o header são:
 
@@ -27024,32 +26972,6 @@ source atomicamente. Remove do último dependency remove `lock`; resolve preserv
 edition/dependencies e troca somente `lock`. CAS pode receber o objeto antes,
 mas failure não altera os bytes do source. `--with` permanece rejeitado como
 forma final.
-
-O oracle host usa uma única máquina e um caso JSONL derivado. As operações são:
-
-`parseHeader` recebe `parseEvidence` produzido pela projection parser. A
-evidence liga o digest recomputado dos bytes normalizados aos facts do header,
-`entryForm` e, para implicit, ao body digest e aos effect facts. O host valida
-esse vínculo e não implementa o parser W. `scriptAdd`, `scriptRemove` e `scriptResolve` exigem
-`resultParseEvidence` com o mesmo vínculo antes da troca atômica. Tree-sitter e
-o corpus semântico continuam sendo a prova estrutural separada.
-
-| Operação | Invariante derivada |
-|---|---|
-| `parseHeader` | posição, edition, fields, aliases, source kind, `entryForm` e `parseEvidence` ligada aos bytes |
-| `selectContext` | standalone, package ou ephemeral sem merge implícito |
-| `resolveRoots` | root física para discovery/diagnóstico, containment target-specific e discovery policy |
-| `validateImports` | edges explícitos, path→digest e script root-only |
-| `validateResolution` | lock P0 (`schema`/`resolver`/`contexts`/`packages`), recomputed root, virtual selection, reachable closure, local aliases/edges, authority e target |
-| `admitFetch` | policy pinned, lock root/content CAS offline, real candidates e retirement de bytes |
-| `verifyArtifact` | digest, authority e signature antes de build |
-| `admitCapabilities` | requirements, offered/matched/effective e handles transitivos |
-| `buildEphemeral` | recipe e identity sem path físico ou manifest oculto |
-| `runEntry` | entry explícito ou implicit `.default`, sem top-level execution arbitrária |
-| `cleanup` | falha sem lock, manifest ou artifact oculto |
-| `contextExplanation` | roots, lock, fetches, authorities, capabilities e recipe |
-| `scriptAdd`, `scriptRemove`, `scriptResolve` | mutation header+lock atomic com `resultParseEvidence` |
-| `promote` | package equivalente, graph e entry preservados, provenance emitida |
 
 A forma record P0 continua explícita. Compact dependency constructor fica em
 **Pesquisa**.
