@@ -9110,8 +9110,9 @@ defer async {
 scope. O body trata seus próprios errors. O runtime mascara cancelamento durante
 uma janela limitada pelo profile. A janela não permite cleanup sem limite.
 
-O recorte [E1](#12121-runtime-closure-e-liveness-e1) fecha a ordem entre esse cleanup, os children, os
-waits de I/O, os wakers e a publicação do outcome. Ele não cria uma forma nova
+O contrato de [runtime closure](#12121-runtime-closure-e-liveness) fecha a ordem
+entre esse cleanup, os children, os waits de I/O, os wakers e a publicação do
+outcome. Ele não cria uma forma nova
 de `defer` nem promete que código foreign termina por cooperação.
 
 Um remote lease não pode depender de `deinit`. Destruction é síncrona. A forma
@@ -9309,8 +9310,9 @@ scheduler:             ready ↔ running ↔ suspended
 O estado de scheduler não muda o lifetime. Uma task pode alternar entre ready,
 running e suspended muitas vezes. Ela publica somente um outcome.
 
-O [E1](#12121-runtime-closure-e-liveness-e1) refina esse lifetime em eixos independentes de body, closure, observation e
-storage. O refinement não muda a superfície de `Task`; ele fixa quando o frame,
+O [runtime closure](#12121-runtime-closure-e-liveness) refina esse lifetime em
+eixos independentes de body, closure, observation e storage. O refinement não
+muda a superfície de `Task`; ele fixa quando o frame,
 o TCB e a outcome cell podem ser reclamados.
 
 O body seleciona success, application error ou cancellation quando fica
@@ -9534,7 +9536,7 @@ commit points e metadata do adapter. Uma API que não informa o contrato recebe 
 policy conservadora.
 
 O refinement de completion, reclamation e shutdown está em
-[12.12.1](#12121-runtime-closure-e-liveness-e1). E1 não altera a distinção entre
+[12.12.1](#12121-runtime-closure-e-liveness). Esse contrato não altera a distinção entre
 cancelamento solicitado e completion do provider.
 
 ### 12.6 Isolation, preference, paralelismo e affinity
@@ -10147,7 +10149,7 @@ target, adapter e digest. Essa forma é **Provável** somente dentro de
 `foreign` ou de um runtime provider. Uma assertion local do usuário fica
 **Rejeitado**.
 
-#### 12.7.1 Composição automática de ownership e execução MX0
+#### 12.7.1 Composição automática de ownership e execução
 
 **Exemplo:** duas courses são movidas para children diferentes. O parent recebe
 os resultados somente depois que cleanup e join fecham os dois caminhos:
@@ -10202,13 +10204,6 @@ Inline execution, queue serial, pool paralelo ou coroutine lowering precisam
 produzir o mesmo owner graph, outcome, drop ledger e happens-before projection.
 Diferenças físicas podem aparecer no trace e em `w explain execution`; elas não
 podem mudar o resultado lógico.
-
-**W-1188 — evidence MX0:** o oracle cross-axis precisa inverter staging,
-transfer, loans, admission, cancellation, cleanup, outcome, join e drop no mesmo
-witness. M1 continua autoridade para memória, E0 para ordering e E1 para runtime
-closure. MX0 prova somente a composição entre esses contratos. Evidência,
-contagens e limites ficam em
-[`RATIONALE.md` §1.15](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 ### 12.8 Task groups e backpressure
 
@@ -11505,10 +11500,9 @@ W grava as premissas de fairness no profile e testa starvation com scheduler
 virtual. Um profile real-time precisa publicar bounds mais fortes e usar
 adapters próprios.
 
-#### 12.12.1 Runtime closure e liveness E1
+#### 12.12.1 Runtime closure e liveness
 
-**Forma vigente:** E1 é uma evidência de design para runtime closure e liveness.
-Ele refina `Task` sem mudar a superfície source e separa quatro eixos:
+**Forma vigente:** `Task` separa quatro eixos sem mudar a superfície source:
 
 ```text
 body:        reserved → published → active → settled
@@ -11604,11 +11598,9 @@ Cleanup incompleto não vira success/canceled. O host libera seu cleanup registr
 o trace registra roots não concluídos e cada generation mantém seus slots,
 registrations e completions isolados.
 
-E1 não prova scheduler, clock, OS I/O, fairness absoluta, device scopes,
-distributed recovery ou terminação de user code. Seu corpus e seus limites
-ficam no [perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
-SP0 fecha a semântica safe de versões publicadas. A estratégia física de
-reclamation continua uma escolha de provider e exige testes reais.
+O contrato não promete scheduler, clock, OS I/O, fairness absoluta, device
+scopes, distributed recovery ou terminação de user code. A estratégia física
+de reclamation continua uma escolha de provider.
 
 ### 12.13 Transação estruturada
 
@@ -12829,7 +12821,7 @@ Essa regra segue o objetivo de evitar restart loops das supervision trees de
 Erlang/OTP.
 
 Shutdown usa a sequência refinada de
-[12.12.1](#12121-runtime-closure-e-liveness-e1):
+[12.12.1](#12121-runtime-closure-e-liveness):
 
 ```text
 ready → admissionClosed → cancellationRequested → draining → quiescent → stopped
@@ -14746,7 +14738,7 @@ Fontes primárias:
 - [`sendfile`](https://man7.org/linux/man-pages/man2/sendfile.2.html);
 - [`TransmitFile`](https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile).
 
-#### 14.2.12 Observabilidade e oracle
+#### 14.2.12 Observabilidade de I/O
 
 **Exemplo:** o explanation record mostra por que o mesmo source usa IOCP num
 product e blocking pool em outro.
@@ -14775,24 +14767,6 @@ allocation:       none
 O resource lens registra bytes solicitados, confirmados e descartados, short
 operations, queue time, backend, blocking workers, pinned bytes, syscall count,
 cancel latency e native cause redigida.
-
-O oracle do restaurante executa:
-
-- vazio, EOF depois de data e todas as partições de 1 a 4096 bytes;
-- short read e short write em cada posição;
-- error antes e depois de progress;
-- cancellation antes da submissão, durante espera e depois da completion;
-- destination sem mutation quando cancellation vence;
-- buffer vivo até cancel drain;
-- positional reads fora de ordem com resultado ordenado pelo caller;
-- cursor sequencial sem offset perdido;
-- blocking, readiness e completion backends com o mesmo resultado;
-- gather com zero, empty e mais segments que o limite nativo;
-- partial gather dentro e entre segments;
-- fallback, `writev` e `WSASend` com o mesmo byte stream;
-- `Stream<view Bytes>` sem allocation depois da reserva;
-- limits de line e read-to-end antes de growth;
-- leak sanitizer, TSan e fault injection.
 
 ### 14.3 Módulos especializados e adapters oficiais
 
@@ -27849,27 +27823,6 @@ quando contradiz a baseline.
 Os casos da seção 1 de [`RATIONALE.md`](RATIONALE.md) medem clareza e erro. Eles não escolhem entre designs ainda
 sem baseline. Um resultado ruim pode reabrir uma decisão por evidência.
 Implementação deve parar no primeiro gate que contradiz a semântica vigente.
-
-### 24.3.1 Gate comparativo de execução
-
-**Exemplo:** `.thermal` preserva FIFO; `.catalog` permite reads concorrentes e
-um write `.barrier` sem perder o join lexical.
-
-**W-1170 — comparativos de execução:** o freeze exige comparação observável de
-estrutura, placement, ordering, ownership, admission, cancellation e lowering.
-A evidência e a matriz comparativa estão em
-[`RATIONALE.md` §1.4](RATIONALE.md#14-concorrência-paralelismo-e-execução).
-
-O gate passa somente quando `async let` preserva lifetime, um domain serial
-preserva FIFO, uma barrier preserva ticket subtrees e um domain paralelo só
-produz overlap quando seu profile permite. Lowering diferente deve preservar
-outcome, cleanup e trace.
-
-W só pode ser descrito publicamente como tendo “resolvido concorrência e
-paralelismo” depois que compiler, runtime e adapters reais passarem E0/E1 e as
-matrizes de profiles/providers cobrirem os targets prometidos. MX0 também deve
-provar que os mesmos schedules preservam owner graph, cleanup e drop. Antes
-disso, a forma correta é “contrato definido; implementação missing”.
 
 ### 24.3.2 Gate de gerência automática de memória
 
