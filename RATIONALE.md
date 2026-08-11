@@ -1032,6 +1032,40 @@ A documentação do kernel Linux sobre
 Ela também exige que readers anteriores terminem antes do reuse. W preserva
 essa divisão em `SnapshotCell`, mas não expõe grace periods no safe source.
 
+#### 1.4.5 Locks de leitura e escrita
+
+[`std::sync::RwLock` do Rust](https://doc.rust-lang.org/std/sync/struct.RwLock.html)
+delega a priority policy ao sistema operacional e documenta um caso em que uma
+segunda read pode deadlock com um writer em espera. O
+[`sync.RWMutex` do Go](https://pkg.go.dev/sync#RWMutex) escolhe outra regra:
+readers novos esperam um writer pendente, read recursiva é proibida e não há
+upgrade ou downgrade.
+
+Essas APIs mostram que “muitos readers, um writer” não define fairness,
+reentrada, upgrade ou placement. A
+[barrier de Dispatch](https://developer.apple.com/documentation/dispatch/dispatch-barrier)
+oferece uma unidade mais próxima do W: jobs anteriores drenam, o write executa
+sozinho e jobs posteriores só iniciam depois. W acrescenta tickets, children,
+cleanup e prova de loans ao mesmo padrão.
+
+Um `RwLock` ainda seria útil se W não tivesse domains. Depois de W-1173, ele
+duplica o caso read/write com menos contexto para o compiler. `SnapshotCell`
+cobre publicação imutável; `Mutex` e `AsyncMutex` cobrem state local; service
+cobre state por identity ou boundary. Por isso, a safe std rejeita `RwLock` sem
+rejeitar adapters foreign `unsafe`.
+
+Condition variables foram consideradas pelo mesmo critério. Separar predicate,
+lock e notification cria uma protocol surface em que lost wakeup e lifetime do
+waiter pertencem ao caller. Channel, task outcome e service carregam state,
+ownership, cancellation e close no mesmo contrato. O runtime continua livre
+para usar condition, futex ou parking internamente.
+
+`Once` raw também não entra. Const/module initialization resolve o caso
+estático. Uma forma lazy concorrente precisa decidir value, winner, reentrada,
+error, panic e cancellation antes de ser um behavior ou carrier. Barreiras
+cíclicas e atomic wait/notify permanecem pesquisas separadas porque possuem
+participantes e suspension diferentes.
+
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
@@ -2369,6 +2403,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
 | W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
 | W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
+| W-1181 | lock escopado | `Mutex<T>` e `AsyncMutex<T>` encapsulam payload non-shareable, expõem `ref`/`inout` por closure `neverSuspend` e não publicam guard | guard escapante, await protegido, payload shareable obrigatório, recursive lock |
+| W-1182 | lock admission e failure | tickets FIFO, try sem bypass, cancel pré-grant remove waiter, cancel pós-grant espera unlock e panic falha a fault boundary | barging, poisoning recuperável, closure repetida, unlock antes de cleanup |
+| W-1183 | conjunto mínimo de synchronization | atomic, locks, domain barrier, SnapshotCell, channel e service têm papéis distintos; RwLock, condition e Once raw não entram na safe std | copiar toda primitive host, RwLock paralelo à barrier, condition sem ownership, RCU safe |
+| W-1184 | oracle LM0 | máquina host pura cobre locks sync/async, queue, cancellation, failure, lifetime e seleção; não executa provider ou runtime W | expected echo, chamar model de scheduler, caso sem símbolo Última Luz |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
