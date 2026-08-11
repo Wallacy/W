@@ -27,8 +27,8 @@ const INTERACTIVE_PHASES = new Set([
   "defer",
 ]);
 const MUTATION_MODES = new Set(["take", "inout", "ref", "borrow", "view"]);
-const COMMANDS = new Set(["status", "why", "history", "cancel", "reset", "quit"]);
-const READ_OPERATIONS = new Set(["complete", "inspect", "status", "history", "why"]);
+const COMMANDS = new Set(["status", "why", "history", "receipts", "cancel", "drain", "reset", "quit"]);
+const READ_OPERATIONS = new Set(["complete", "inspect", "status", "history", "receipts", "why"]);
 const OPERATION_NAMES = new Set([
   "open",
   "appendBuffer",
@@ -44,8 +44,10 @@ const OPERATION_NAMES = new Set([
   "inspect",
   "status",
   "history",
+  "receipts",
   "why",
   "cancel",
+  "drain",
   "command",
   "reset",
   "restart",
@@ -55,6 +57,24 @@ const OPERATION_NAMES = new Set([
 
 function clone(value) {
   return structuredClone(value);
+}
+
+const DRAIN_CONFIRMATION_BINDINGS = [
+  "session",
+  "incarnation",
+  "generation",
+  "closure",
+  "action",
+  "deadline",
+];
+
+function validDrainConfirmation(value, token = value?.token) {
+  return value?.confirmed === true &&
+    value?.evidence === "validated-token" &&
+    typeof value?.token === "string" && value.token.length > 0 &&
+    token === value.token &&
+    Array.isArray(value?.bindings) &&
+    JSON.stringify(value.bindings) === JSON.stringify(DRAIN_CONFIRMATION_BINDINGS);
 }
 
 function boundedPush(state, collection, value, countLimit, bytesKey = null, bytes = 0, evictedKey = null, canEvict = null) {
@@ -955,7 +975,10 @@ function deriveDrainPlan(state, operation, base, candidate) {
     const factsKnown = ["replaceable", "unreplaceable", "foreign-retained"].includes(providerState);
     const replaceable = providerState === "replaceable";
     const deadline = event.deadlineMs ?? state.limits.drainTimeMs;
-    const confirmation = operation.allowDrain?.confirmed === true && (!Array.isArray(operation.allowDrain.targets) || operation.allowDrain.targets.includes(scope.scopeId) || operation.allowDrain.targets.includes(scope.resource));
+    const confirmation = validDrainConfirmation(operation.allowDrain) &&
+      (!Array.isArray(operation.allowDrain.targets) ||
+        operation.allowDrain.targets.includes(scope.scopeId) ||
+        operation.allowDrain.targets.includes(scope.resource));
     return { scopeId: scope.scopeId, resource: scope.resource, active, providerState, replaceable, factsKnown, deadline, confirmation, cooperative: event.cooperative !== false, providerEvents: clone(providerEvents) };
   });
   if (operation.drain && Object.keys(operation.drain).some((key) => ["replaceability", "foreignRetention", "postPublishFailure", "quota", "deadline"].includes(key))) fail("drainConclusionFactRequired", { expected: "resourceEvents-and-allowDrain" });
@@ -1340,6 +1363,25 @@ function readOnly(state, operation) {
     state.lastResult = { kind: "completion", source: "committed-snapshot", generation: snapshot.generation, names: snapshot.bindings.map((binding) => binding.name).filter((name) => name.startsWith(prefix)).sort() };
   } else if (operation.op === "history") {
     state.lastResult = { kind: "history", count: state.history.records.length, bytes: state.history.bytes, reserved: state.history.reserved, ordinals: state.history.records.map((record) => record.ordinal), evicted: state.history.evicted };
+  } else if (operation.op === "receipts") {
+    if (typeof operation.path !== "string" || operation.path.trim() === "") fail("commandArgumentRequired");
+    state.lastResult = {
+      kind: "receipt-manifest",
+      path: operation.path,
+      source: "committed-snapshot",
+      sessionId: state.session.sessionId,
+      incarnation: state.session.incarnation,
+      generation: generationRef(state.generation),
+      receipts: state.history.records.map((record) => ({
+        ordinal: record.ordinal,
+        source: record.rawSource,
+        sourceDigest: record.normalizedDigest,
+        receiptDigest: sessionDigest("w-repl-receipt-v1", record),
+      })),
+      containsLiveValues: false,
+      containsResources: false,
+      containsCapabilities: false,
+    };
   } else if (operation.op === "why") {
     const matches = state.invalidation.filter((entry) => entry.name === operation.name || entry.closure?.includes(operation.name) || entry.closure?.includes(currentBinding(state, operation.name)?.bindingId));
     state.lastResult = { kind: "why", name: operation.name ?? null, source: "committed-snapshot", invalidation: clone(matches) };
@@ -1382,7 +1424,7 @@ function preflightReset(state, operation, oldGeneration) {
     const providerState = event.providerState ?? providerEvents.find((entry) => entry?.providerState)?.providerState ?? null;
     const factsKnown = ["replaceable", "unreplaceable", "foreign-retained"].includes(providerState);
     const replaceable = providerState === "replaceable";
-    const confirmation = operation.allowDrain?.confirmed === true;
+    const confirmation = validDrainConfirmation(operation.allowDrain, operation.drainToken ?? operation.allowDrain?.token);
     if (!factsKnown) reasons.push({ family: "providerFacts", scopeId: scope.scopeId });
     if (replaceable === false) reasons.push({ family: "replaceability", scopeId: scope.scopeId });
     if (providerState === "foreign-retained" || providerEvents.some((entry) => entry?.outcome === "foreign-retained")) reasons.push({ family: "foreignRetention", scopeId: scope.scopeId });
@@ -1390,6 +1432,81 @@ function preflightReset(state, operation, oldGeneration) {
     return { scopeId: scope.scopeId, resource: scope.resource, providerState, factsKnown, replaceable, confirmation, event: clone(event) };
   });
   return { oldGeneration: generationRef(oldGeneration), targets: plans, reasons, closure: plans.map((plan) => plan.scopeId) };
+}
+
+function drainSessionScopes(state, operation, source = ":drain") {
+  requireOpen(state);
+  if (state.admission.active) fail("writerBusy");
+  const old = state.generation;
+  const requestId = operation.requestId ?? `drain:${state.trace.length + 1}`;
+  const ordinal = incrementOrdinal(state);
+  const receipt = baseReceipt(state, requestId, ordinal, old, "committed", source);
+  state.transactionTrace = [];
+  phaseTrace(state, "collected", { drain: true });
+  phaseTrace(state, "parsed", { command: source });
+  phaseTrace(state, "checked", { drain: true });
+  const plan = preflightReset(state, operation, old);
+  const reservation = reserveHistory(state, source, receipt);
+  if (plan.reasons.length) {
+    receipt.outcome = "rejected";
+    receipt.diagnostics = [diagnostic("W-SESSION-0012", "drain confirmation rejected", "session.preflight", plan)];
+    receipt.cleanup = {
+      stagedScope: "none",
+      oldGeneration: generationRef(old),
+      drain: "rejected-preflight",
+      forceBoundary: false,
+      preflight: plan,
+    };
+    phaseTrace(state, "preflight", { outcome: "rejected", ...plan });
+    finalizeReceipt(state, receipt, source, reservation);
+    state.lastResult = { kind: "drain", receipt: clone(receipt) };
+    return receipt;
+  }
+  phaseTrace(state, "preflight", { outcome: "ready", ...plan });
+  state.ownerScopes = state.ownerScopes.map((scope) =>
+    plan.closure.includes(scope.scopeId) ? { ...scope, state: "draining", pendingCleanup: true } : scope,
+  );
+  const postEvents = Array.isArray(operation.drainEvents) ? operation.drainEvents : [];
+  if (postEvents.some((event) => event.outcome !== "ready")) {
+    state.phase = "degraded";
+    state.generation.status = "degraded";
+    state.mutationBlocked = true;
+    receipt.outcome = "degraded";
+    receipt.cleanup = {
+      stagedScope: "none",
+      oldGeneration: generationRef(old),
+      drain: "failed",
+      forceBoundary: false,
+    };
+    receipt.diagnostics.push(diagnostic(
+      "W-SESSION-0013",
+      "standalone drain failed",
+      "session.drain",
+      { events: clone(postEvents) },
+    ));
+    state.ownerScopes = state.ownerScopes.map((scope) =>
+      plan.closure.includes(scope.scopeId) ? { ...scope, state: "faulted", pendingCleanup: true } : scope,
+    );
+  } else {
+    const drained = new Set(plan.closure);
+    state.ownerScopes = state.ownerScopes.filter((scope) => !drained.has(scope.scopeId));
+    state.generation.scope.resources = state.ownerScopes.map(clone);
+    receipt.cleanup = {
+      stagedScope: "none",
+      oldGeneration: generationRef(old),
+      drain: plan.closure.length ? "ready" : "not-required",
+      forceBoundary: false,
+      cancellation: "requested",
+      children: "drained",
+      waits: "joined",
+      drops: "e1",
+    };
+  }
+  phaseTrace(state, receipt.outcome === "degraded" ? "committed/degraded" : "committed/ready", { drain: true });
+  finalizeReceipt(state, receipt, source, reservation);
+  state.lastResult = { kind: "drain", receipt: clone(receipt) };
+  trace(state, "drain", { outcome: receipt.outcome, closure: plan.closure });
+  return receipt;
 }
 
 function resetSession(state, operation, source = ":reset") {
@@ -1489,9 +1606,12 @@ function closeSession(state, operation, source = ":quit") {
   state.transactionTrace = [];
   phaseTrace(state, "collected", { quit: true });
   phaseTrace(state, "preflight", { closeAdmission: true, ownerScopes: state.ownerScopes.length });
-  const plan = preflightReset(state, { ...operation, allowDrain: operation.allowDrain ?? { confirmed: operation.force === true } }, old);
+  const plan = preflightReset(state, operation, old);
   const reservation = reserveHistory(state, source, receipt);
-  if (plan.reasons.length && operation.force !== true) {
+  const forceAuthorized = operation.force === true &&
+    operation.allowDrain?.afterFailure === true &&
+    validDrainConfirmation(operation.allowDrain, operation.drainToken ?? operation.allowDrain?.token);
+  if (plan.reasons.length && !forceAuthorized) {
     receipt.outcome = "degraded";
     receipt.cleanup = { stagedScope: "none", oldGeneration: generationRef(old), drain: "force-boundary-required", forceBoundary: false, close: "admission-closed" };
     receipt.diagnostics.push(diagnostic("W-SESSION-0014", "session close could not drain owner scopes", "session.close", plan));
@@ -1501,7 +1621,7 @@ function closeSession(state, operation, source = ":quit") {
     state.phase = "closing";
     state.mutationBlocked = true;
   } else {
-    const forced = plan.reasons.length > 0 && operation.force === true;
+    const forced = plan.reasons.length > 0 && forceAuthorized;
     receipt.cleanup = { stagedScope: "none", oldGeneration: generationRef(old), drain: forced ? "forced" : "ready", forceBoundary: forced, close: "admission-closed", ownerScopes: forced ? "force-boundary" : "drained" };
     if (forced) state.ownerScopes = state.ownerScopes.map((scope) => plan.closure.includes(scope.scopeId) ? { ...scope, state: "force-boundary", pendingCleanup: true, active: false, forceBoundary: true } : scope);
     else state.ownerScopes = state.ownerScopes.filter((scope) => !plan.closure.includes(scope.scopeId));
@@ -1526,10 +1646,11 @@ function command(state, operation) {
   if (!match || !COMMANDS.has(match[1].toLowerCase())) fail("unknownContextCommand");
   const name = match[1].toLowerCase();
   const argument = match[2] ?? null;
-  if (name === "why" && !argument) fail("commandArgumentRequired");
+  if (["why", "receipts", "drain"].includes(name) && !argument) fail("commandArgumentRequired");
   switch (name) {
     case "status": readOnly(state, { op: "status" }); break;
     case "history": readOnly(state, { op: "history" }); break;
+    case "receipts": readOnly(state, { op: "receipts", path: argument }); break;
     case "why": readOnly(state, { op: "why", name: argument }); break;
     case "cancel": {
       const target = argument ?? state.admission.active?.requestId ?? state.admission.queue[0]?.requestId ?? null;
@@ -1540,6 +1661,7 @@ function command(state, operation) {
       }
       break;
     }
+    case "drain": drainSessionScopes(state, { ...operation, drainToken: argument }, operation.text); break;
     case "reset": resetSession(state, { ...(operation.reset ?? {}), requestId: operation.requestId }, operation.text); break;
     case "quit": closeSession(state, operation, operation.text); break;
     default: fail("unknownContextCommand");
@@ -1584,8 +1706,10 @@ function applyOperation(state, operation) {
     case "inspect":
     case "status":
     case "history":
+    case "receipts":
     case "why": readOnly(state, operation); break;
     case "cancel": cancel(state, operation); break;
+    case "drain": drainSessionScopes(state, operation); break;
     case "command": command(state, operation); break;
     case "reset": resetSession(state, operation); break;
     case "restart": resetSession(state, operation, ":restart"); break;

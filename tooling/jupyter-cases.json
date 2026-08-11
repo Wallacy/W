@@ -2,12 +2,13 @@
   "$schema": "w-jupyter-cases-1",
   "status": "design-oracle-input",
   "machine": "jupyter-machine-pyn3",
-  "decisions": ["W-1112", "W-1113", "W-1114", "W-1115", "W-1116", "W-1117", "W-1118", "W-1119", "W-1123"],
+  "decisions": ["W-1112", "W-1113", "W-1114", "W-1115", "W-1116", "W-1117", "W-1118", "W-1119", "W-1123", "W-1249"],
   "references": [
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "JupyterIdentity" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "Lifecycle" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "ExecutionOrdinal" },
-    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "ReceiptProof" }
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "ReceiptProof" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "HistoryAccessPolicy" }
   ],
   "base": {
     "open": {
@@ -272,7 +273,7 @@
     },
     {
       "id": "PYN3-J-completeness-and-history-tail",
-      "decisions": ["W-1118"],
+      "decisions": ["W-1118", "W-1249"],
       "operations": [
         { "op": "open", "use": "base" },
         { "op": "frame", "request": { "msgId": "ic", "channel": "shell", "msgType": "is_complete_request", "content": { "code": "x" } } },
@@ -281,6 +282,26 @@
         { "op": "read", "frameMsgId": "ht", "analysis": { "offsetUnit": "unicode-codepoint" } }
       ],
       "expected": { "status": "accepted", "assertions": { "reads": 2, "readSource": "committed" } }
+    },
+    {
+      "id": "PYN3-J-history-range-rejected",
+      "decisions": ["W-1249"],
+      "operations": [
+        { "op": "open", "use": "base" },
+        { "op": "frame", "request": { "msgId": "hr", "channel": "shell", "msgType": "history_request", "content": { "hist_access_type": "range", "session": 0, "start": 0, "stop": 4 } } },
+        { "op": "read", "frameMsgId": "hr", "analysis": { "offsetUnit": "unicode-codepoint" } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-JUPYTER-0009" } }
+    },
+    {
+      "id": "PYN3-J-history-search-rejected",
+      "decisions": ["W-1249"],
+      "operations": [
+        { "op": "open", "use": "base" },
+        { "op": "frame", "request": { "msgId": "hs", "channel": "shell", "msgType": "history_request", "content": { "hist_access_type": "search" } } },
+        { "op": "read", "frameMsgId": "hs", "analysis": { "offsetUnit": "unicode-codepoint" } }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-JUPYTER-0009" } }
     },
     {
       "id": "PYN3-J-namespaced-metadata",

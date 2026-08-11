@@ -2,8 +2,9 @@
 // Its map names the canonical roots, imports, lock digest, CAS, authority,
 // signature, offline, network, target, standalone, failure, provenance, graph,
 // cleanup, and promotion gates.
-// `w context`, `w script add`, `w script remove`, and `w script resolve` edit
-// only the data header. PATH, environment, stdin, URL, shebang, hidden state, and transitive
+// W-1245 keeps dependency metadata in this explicit P0 record. `w context`,
+// `w script add`, `w script remove`, and `w script resolve` edit only the data
+// header. PATH, environment, stdin, URL, shebang, hidden state, and transitive
 // capability grants remain rejected. The default entry is unnamed. The oracle
 // also covers lock roots, nodes/edges closure, artifact evidence, CAS, action output, handles, local override, ambient
 // registry, traversal, symlink, case, drive, UNC, requirements, process args,

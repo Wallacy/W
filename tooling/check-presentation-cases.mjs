@@ -65,7 +65,7 @@ if (corpus.$schema !== "w-presentation-cases-1") error("presentation corpus sche
 if (corpus.status !== "design-oracle-input") error("presentation corpus must be a design-oracle input.");
 if (corpus.machine !== "presentation-machine-pyn3") error("presentation corpus machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
-  if (!/^W-11(?:0[7-9]|1[0-1]|23)$/.test(decision)) error(`unexpected presentation decision ${decision}.`);
+  if (!/^(?:W-11(?:0[7-9]|1[0-1]|23)|W-1248)$/.test(decision)) error(`unexpected presentation decision ${decision}.`);
   if (!ledgerIdSet.has(decision)) error(`presentation decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }

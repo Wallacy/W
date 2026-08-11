@@ -2,7 +2,7 @@
   "$schema": "w-presentation-cases-1",
   "status": "design-oracle-input",
   "machine": "presentation-machine-pyn3",
-  "decisions": ["W-1107", "W-1108", "W-1109", "W-1110", "W-1111", "W-1123"],
+  "decisions": ["W-1107", "W-1108", "W-1109", "W-1110", "W-1111", "W-1123", "W-1248"],
   "references": [
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "Presentable" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "MenuPreview" },
@@ -12,6 +12,7 @@
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "BlackHoleSensor" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "DeviceTensorSummary" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "BistromathText" },
+    { "path": "reference/last-light/pyn3_oracle.w", "symbol": "PresentationMutationPolicy" },
     { "path": "reference/last-light/pyn3_oracle.w", "symbol": "RedactedError" }
   ],
   "cases": [
@@ -214,6 +215,26 @@
         { "op": "redactedError", "facts": { "code": "WSessionDegraded", "privateFields": ["token"], "publicMessage": "presentation failed: token=secret" } }
       ],
       "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0010" } }
+    },
+    {
+      "id": "PYN3-P-append-only-progress",
+      "decisions": ["W-1248"],
+      "operations": [
+        { "op": "open" },
+        { "op": "text", "value": "reservation progress" },
+        { "op": "vendorJson", "media": "application/vnd.w.progress.v1+json", "payload": { "completed": 4, "total": 9 } },
+        { "op": "finish" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "phase": "finished", "representations": 2, "plainText": true } }
+    },
+    {
+      "id": "PYN3-N-live-display-mutation",
+      "decisions": ["W-1248"],
+      "operations": [
+        { "op": "open" },
+        { "op": "displayUpdate", "displayId": "menu-progress", "value": "replacement" }
+      ],
+      "expected": { "status": "rejected", "assertions": { "diagnostic": "W-PRESENTATION-0002" } }
     }
   ]
 }

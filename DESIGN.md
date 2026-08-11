@@ -972,13 +972,11 @@ nodes/edges de dependency, local graph, entry, requirements e provenance sem
 re-resolver, e cria `package.w`/`package.lock` equivalentes. `--with` não é a
 forma final.
 
-PEP 723 documenta metadata inline para launchers e tools em scripts Python. Ele
-é evidência de ergonomia e de risco de instalação automática. W usa header
-estrutural data-only e lock por digest. W rejeita comment metadata, dependency
-inference e tool table aberto. Sibling manifest, package-only e CLI `--with`
-foram considerados; o schema redundante foi rejeitado. Compact dependency
-constructor continua Pesquisa futura. A forma record P0 vigente permanece
-explícita. Veja o [PEP 723 oficial](https://peps.python.org/pep-0723/).
+Dependency de script usa somente o record P0 explícito. Comment metadata,
+dependency inference, tool table aberto, sibling manifest e CLI `--with` não
+fazem parte da forma vigente. A evidência do
+[PEP 723](https://peps.python.org/pep-0723/) fica em
+[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1).
 
 Imports devem aparecer após o header e antes da primeira declaration comum.
 Essa ordem deixa o grafo de nomes visível sem executar o parser de bodies:
@@ -27050,41 +27048,24 @@ contratos e gaps que ainda alteram o W corrente.
 `w repl` e analisar um `data.Batch<Row>` sem aprender ownership de baixo
 nível. As boundaries de processo, dados e device continuam explícitas.
 
-Pessoas que usam Python fazem parte do público inicial de W. Essa promessa não
-adiciona um core dinâmico. W não adota duck typing, monkey patching, imports
-ambientais, GIL ou reflection unchecked. `Any` e reflection permanecem
-opt-in; dados exploratórios usam `json.Value`, schema nominal ou carrier
-tabular.
+Pessoas que usam Python fazem parte do público inicial sem adicionar um core
+dinâmico. Duck typing, monkey patching, imports ambientais, GIL e reflection
+unchecked permanecem fora. O workflow combina:
 
-O workflow Python-first é uma composição de contratos existentes:
+- [single-file](#2412-scripts-single-file), [REPL](#2413-sessão-e-repl-transacionais)
+  e [Jupyter/export](#2414-apresentação-jupyter-e-export-de-notebooks);
+- [dados colunares](#1441-carrier-tabular),
+  [formatos](#1442-adapters-tabulares) e
+  [tensor/DLPack](#171-carrier-tensorial-e-dlpack-13);
+- adapters ou fault boundaries explícitas para Python, Arrow e buffers.
 
-- [scripts single-file](#2412-scripts-single-file) definem root, imports, lock,
-  argumentos e execução hermética;
-- [sessão e REPL](#2413-sessão-e-repl-transacionais) definem generations,
-  invalidation, effects, resources e reset;
-- [apresentação e Jupyter](#2414-apresentação-jupyter-e-export-de-notebooks)
-  definem rich output bounded e export sem hidden replay;
-- [carrier tabular](#1441-carrier-tabular) e
-  [adapters de formato](#1442-adapters-tabulares) cobrem dados colunares;
-- [tensor e DLPack](#171-carrier-tensorial-e-dlpack-13) cobrem shape, device,
-  copy, lifetime e release;
-- a seção 19.2 mantém Python, Arrow e buffers atrás de adapters ou fault
-  boundaries explícitas.
-
-`w run`, `w repl` e o kernel devem compartilhar parser, checker e HIR. Nenhum
-modo interativo enfraquece tipos, ownership, effects ou capability admission.
-Notebook não é source de release: o export produz `.w` ou package canônico.
-
-`std.math`, `std.tensor`, `std.data`, `std.csv`, `std.parquet` e
-`std.arrow` são módulos concretos. DataFrame amplo, plotting, bridge Python e
-providers científicos podem ser packages first-party; eles não ampliam a
-linguagem por conveniência.
-
-Os gates separam time-to-first-result de steady-state. O primeiro mede
-cold/warm single-file, edit-run e session incremental. O segundo mede
-collections, CSV, tensor CPU/device e overhead de interop. Output e semântica
-precisam coincidir antes da comparação de tempo. A matriz de motivação,
-alternativas e gaps fica em
+Run, REPL e kernel compartilham parser, checker e HIR. Nenhum modo interativo
+enfraquece tipos, ownership, effects ou capability admission. Notebook exporta
+`.w` ou package canônico; ele não é source de release. Módulos científicos
+concretos ficam na std, e DataFrame amplo, plotting, bridge Python e providers
+podem ser packages sem ampliar a linguagem. Gates de first-result e
+steady-state exigem output e semântica iguais antes do tempo. Evidência e gaps
+ficam em
 [`RATIONALE.md` §1.10](RATIONALE.md#110-evidência-pythonw-pyn0).
 
 
@@ -27187,14 +27168,14 @@ edition/dependencies e troca somente `lock`. CAS pode receber o objeto antes,
 mas failure não altera os bytes do source. `--with` permanece rejeitado como
 forma final.
 
-A forma record canônica continua explícita. Compact dependency constructor fica em
-**Pesquisa**.
+**W-1245 — dependency explícita:** `script.dependencies` aceita somente o record
+P0 canônico. `w script add`, `remove` e `resolve` editam esse record e o lock
+atomicamente. Compact constructor, sibling manifest, comment metadata e
+`--with` ficam rejeitados antes do W 1.0.
 
-O estado desta subseção é **Direção**. Evidência, fixture, comparação com PEP 723
-e limites ficam em
-[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1). Nenhum
-command, resolver, compiler, runtime, provider ou network client é alegado como
-implementado.
+**Estado:** design/oracle. Evidência e limites ficam no
+[`RATIONALE.md` §1.3.16](RATIONALE.md#1316-workflow-single-file-pyn1); CLI,
+resolver, compiler, runtime e providers continuam ausentes.
 
 #### 24.1.3 Sessão e REPL transacionais
 
@@ -27215,25 +27196,18 @@ Uma sessão possui quatro identidades distintas:
 | `ExecutionOrdinal` | incrementa em cada submission completa que guarda history, inclusive error | prompt `w[n]` |
 | `GenerationId` | muda somente quando o grafo/estado publicado muda | ID opaco interno e display `gN` |
 
-Buffer incompleto, completion e inspect não incrementam `ExecutionOrdinal`.
-`:reset`, `:restart` e `:quit` são mutating boundary submissions: produzem
-receipt/history e consomem um `ExecutionOrdinal`. Commands read-only e
-cancellation de request queued não consomem ordinal. O prompt continua no
-`w[n]` da última receipt; uma cancellation de submission active usa o ordinal
-da submission ativa.
-`GenerationId` não usa o ordinal como identidade. O prompt mostra `w[n]`, nunca
-o número da geração. `SubmissionReceipt` é machine-readable e informa request,
-session, incarnation, ordinal, prompt, generation base/final, outcome, phases,
-effects, diagnostics, invalidation e cleanup.
+Buffer incompleto, completion, inspect, commands read-only e cancel queued não
+consomem ordinal. `:drain`, `:reset`, `:restart` e `:quit` produzem receipt e
+history. Cancel active usa o ordinal da submission. O prompt mostra `w[n]`,
+nunca o número da generation. `SubmissionReceipt` registra request, identities,
+generation base/final, outcome, phases, effects, diagnostics, invalidation e
+cleanup.
 
-O modo default é `ephemeral-std-only`. A abertura fixa lock, capabilities,
-parser profile, checker profile e contexto. A sessão não varre cwd, `PATH` ou
-environment. Ela não importa módulos implícitos, resolve dependency ou acessa
-network dentro da sessão. Contexto externo exige uma operação explícita antes da
-abertura. O contexto aberto permanece imutável. A primeira geração de cada
-incarnation é `g0`; o primeiro publish do grafo cria `g1`. `gN` é apenas uma
-projeção humana: `generationMatches` exige o par opaco `{id, incarnation}` e
-nunca aceita `gN` como identidade.
+O modo default `ephemeral-std-only` fixa lock, capabilities, parser, checker e
+contexto na abertura. Não há scan de cwd, `PATH` ou environment, import
+implícito, resolução ou network ambiental. Contexto externo é explícito e
+imutável. Cada incarnation começa em `g0`; `generationMatches` exige o par opaco
+`{id, incarnation}`, nunca o display `gN`.
 
 Completion, inspect, status, history e `:why` leem um snapshot committed
 imutável, inclusive enquanto outra request está staged ou drenando. Eles não
@@ -27248,7 +27222,9 @@ espaço de uma entrada nova sem source acumulado:
 :status
 :why doubled
 :history
+:receipts horizon-receipts.json
 :cancel [request-17]
+:drain <token>
 :reset
 :quit
 ```
@@ -27300,13 +27276,15 @@ Antes de effects, o preflight deriva closure, replaceability, quota, foreign
 retention e deadline dos states/events de resource e provider. Ele não aceita
 booleans fornecidos pelo caller como prova. Retenção, quota, deadline ou resource
 não substituível rejeita e preserva a generation antiga. Resource ou task ativo
-exige confirmação estruturada de drain; a forma CLI permanece **Pesquisa**.
+exige confirmação estruturada de drain.
 
-Falha depois de `publish` mantém a nova generation committed e deixa a sessão
-`degraded`; não existe rollback da publicação. `reset` abre outra incarnation em
-`g0` e usa o mesmo preflight. Sua rejeição altera somente ordinal, receipt e
-history. `:quit` fecha admission antes do drain e pode deixar a sessão `closing`.
-`force` é uma fault boundary registrada, não uma promessa de cleanup externo.
+**W-1246 — confirmação de drain:** `DrainConfirmation` é opaco, one-shot e
+ligado a sessão, incarnation, generation base, closure, ação e deadline.
+`:drain <token>` revalida e consome o token antes de cancel/join/close/drop; ele
+nunca repete source. Mudança, expiry ou reuso rejeita. Depois, a pessoa resubmete
+ou executa reset/quit. `:quit --force <token>` exige drain falho e fault boundary
+do host; não promete cleanup W ou foreign. Reset rejeitado altera somente
+ordinal, receipt e history. Quit sem drain seguro permanece `closing`.
 
 ##### Grafo de bindings e mutação cross-generation
 
@@ -27377,10 +27355,15 @@ staged não entra no snapshot committed após falha.
 History guarda metadata, source e digests, não live values, opaque capabilities
 ou handles serializados. Ele é bounded por count e bytes. A policy de abertura
 pode redigir source bruto; não existe history file, startup script, import
-ambiental ou persistência implícita. Persist e export explícitos ficam em
-**Pesquisa**. A reservation do receipt ocorre antes de effects. Output reserva
-budget e registra `deliveredBytes`, `truncated` ou `dropped`; falha nunca é
-mascarada como rollback.
+ambiental ou persistência implícita.
+
+**W-1247 — sessão efêmera:** W não restaura heap, bindings vivos, resources,
+tasks, loans, handles ou capabilities. `:receipts <path>` exporta somente
+source/digests/receipts/provenance bounded e redacted para audit ou notebook.
+
+A reservation do receipt ocorre antes de effects. Output reserva budget e
+registra `deliveredBytes`, `truncated` ou `dropped`; falha nunca é mascarada
+como rollback.
 
 Quotas cobrem source, total de bindings (não só declarations novas), hard edges,
 HIR/artifacts, history reservation, tasks/resources, output bytes, diagnostic
@@ -27392,10 +27375,9 @@ o limite de admission é conhecido, sempre antes de
 executing/effects. O histórico mantém somente records recentes quando a policy
 de bounded retention permite eviction; o record corrente já deve ter reservation.
 
-Evidência, comparações e limites ficam em
-[`RATIONALE.md` §1.12](RATIONALE.md#112-evidência-da-sessão-transacional-pyn2).
-CLI, compiler, checker, HIR, runtime, provider, resource drain e Jupyter
-continuam fora deste checkpoint.
+**Estado:** design/oracle. Evidência fica no
+[`RATIONALE.md` §1.12](RATIONALE.md#112-evidência-da-sessão-transacional-pyn2);
+CLI, compiler, runtime e resource providers continuam ausentes.
 
 #### 24.1.4 Apresentação, Jupyter e export de notebooks
 
@@ -27516,10 +27498,13 @@ exige snapshot/copy explícito antes da apresentação. A representation não en
 na identity do valor nem na generation.
 
 Tail expressions usam o profile `summary`. Uma expressão descartada não gera
-output. O baseline não cria `_`, `ans` ou outro binding implícito. Uma API para
-`display_id`, `update_display_data`, `clear_output` ou progress live permanece
-**Pesquisa**. O kernel inicial não emite essas mensagens. Isso evita um handle
-de frontend com lifetime indefinido antes de existir um owner/drain contract.
+output. O baseline não cria `_`, `ans` ou outro binding implícito.
+
+**W-1248 — apresentação append-only:** output rico publica itens imutáveis em
+ordem de request, ordinal e sequence. W não expõe `display_id`, update, clear ou
+progress handle no baseline. Progresso usa novos itens bounded, inclusive vendor
+JSON, e não muta output anterior. Uma API futura de atualização precisa de
+owner, cancel, drain e quota próprios; nenhum nome fica reservado agora.
 
 ##### Adapter Jupyter
 
@@ -27615,8 +27600,12 @@ fault boundary; o kernel não responde success antes disso.
 Completion, inspection e completeness usam parser, checker, LSP e generation
 snapshot normais. Cursor offsets seguem Unicode code points do protocolo. Eles
 não observam staging e não executam effects. Inspection devolve MIME bounded e
-sempre inclui `text/plain`. History tail é obrigatório. Range e search ficam
-**Pesquisa** até a policy de raw source, glob bounds e redaction ficar fechada.
+sempre inclui `text/plain`.
+
+**W-1249 — history tail-only:** o adapter implementa somente
+`hist_access_type: "tail"`, com `n` bounded e redaction da sessão. `range` e
+`search` retornam `W-JUPYTER-0009`. O kernel não cria índice persistente nem
+conserva raw source para busca.
 
 `kernel_info_reply` anuncia a versão do W e `language_info` com nome `w`,
 versão, file extension `.w` e media type `text/x-w`. O baseline usa
@@ -27680,15 +27669,22 @@ de source automaticamente. Notebook outputs não entram no source; o audit pode
 guardar somente seus digests e media metadata bounded. Um check ou run posterior
 é uma ação separada com authority explícita. O export não a dispara.
 
-Os nomes finais dos comandos continuam **Pesquisa**. O contrato abstrato usa
-`notebook check`, `session receipts` e `notebook export` apenas como labels de
-tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
+**W-1250 — comandos iniciais de notebook:** a CLI vigente é:
 
-Evidência, comparações e limites ficam em
-[`RATIONALE.md` §1.13](RATIONALE.md#113-evidência-de-apresentação-jupyter-e-export-pyn3).
-Este contrato não implementa kernel, transport, compiler, runtime, provider ou sanitizer.
-Os diagnostics `W-PRESENTATION-*`, `W-JUPYTER-*` e `W-EXPORT-*` cobrem essas
-três boundaries de tooling.
+```text
+w notebook check <notebook.ipynb> --receipts <receipts.json>
+w notebook export <notebook.ipynb> --receipts <receipts.json> --output <path>
+:receipts <receipts.json>
+```
+
+`check` valida sem executar cells. `export` produz a forma canônica sem replay.
+`:receipts` opera somente na sessão corrente e não descobre sessões por nome,
+path ou ambiente.
+
+**Estado:** design/oracle. Evidência fica no
+[`RATIONALE.md` §1.13](RATIONALE.md#113-evidência-de-apresentação-jupyter-e-export-pyn3);
+kernel, transport, sanitizer, compiler, runtime e providers continuam ausentes.
+`W-PRESENTATION-*`, `W-JUPYTER-*` e `W-EXPORT-*` nomeiam as três boundaries.
 
 ### 24.2 Recursos deliberadamente ausentes
 

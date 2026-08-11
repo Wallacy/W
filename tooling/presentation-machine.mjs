@@ -413,6 +413,8 @@ export function runPresentationProgram(operations = []) {
         deriveFallback(state, operation.facts);
       } else if (op === "redactedError") {
         redactError(state, operation.facts);
+      } else if (["displayUpdate", "clearOutput", "liveProgress"].includes(op)) {
+        fail("W-PRESENTATION-0002", { reason: "live presentation mutation is outside the append-only baseline" });
       } else if (op === "cancel" || op === "timeout" || op === "failure") {
         requireOpen(state);
         state.cancelled = op === "cancel";

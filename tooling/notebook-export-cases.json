@@ -7,12 +7,17 @@
     "W-1121",
     "W-1122",
     "W-1123",
-    "W-1124"
+    "W-1124",
+    "W-1250"
   ],
   "references": [
     {
       "path": "reference/last-light/pyn3_oracle.w",
       "symbol": "NotebookCell"
+    },
+    {
+      "path": "reference/last-light/pyn3_oracle.w",
+      "symbol": "NotebookToolCommand"
     },
     {
       "path": "reference/last-light/pyn3_oracle.w",
@@ -38,7 +43,8 @@
         "W-1121",
         "W-1122",
         "W-1123",
-        "W-1124"
+        "W-1124",
+        "W-1250"
       ],
       "operations": [
         {
@@ -662,7 +668,8 @@
       "id": "PYN3-N-missing-receipt",
       "decisions": [
         "W-1120",
-        "W-1121"
+        "W-1121",
+        "W-1250"
       ],
       "operations": [
         {

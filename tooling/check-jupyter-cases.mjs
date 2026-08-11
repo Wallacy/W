@@ -73,7 +73,7 @@ if (corpus.$schema !== "w-jupyter-cases-1") errors.push("Jupyter corpus schema i
 if (corpus.status !== "design-oracle-input") errors.push("Jupyter corpus must be a design-oracle input.");
 if (corpus.machine !== "jupyter-machine-pyn3") errors.push("Jupyter corpus machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
-  if (!/^W-11(?:1[2-9]|23)$/.test(decision)) errors.push(`unexpected Jupyter decision ${decision}.`);
+  if (!/^(?:W-11(?:1[2-9]|23)|W-1249)$/.test(decision)) errors.push(`unexpected Jupyter decision ${decision}.`);
   if (!ledgerIdSet.has(decision)) errors.push(`Jupyter decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }

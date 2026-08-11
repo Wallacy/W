@@ -13,6 +13,23 @@ export type ExecutionOrdinal = u64
 export type GenerationId = String
 export type BindingId = String
 
+// W-1246: consent is bound to one session state and one drain closure.
+export struct DrainConfirmation {
+  token: String
+  sessionId: SessionId
+  incarnation: SessionIncarnation
+  generation: GenerationId
+  closureDigest: String
+  action: String
+  deadlineNanos: u64
+}
+
+// W-1247: a session exports receipts, never a restorable live heap.
+export enum SessionPersistence {
+  ephemeral
+  receiptManifest
+}
+
 export enum DependencyKind {
   compiledLookup
   typeLayout
@@ -94,7 +111,7 @@ export struct ResourceEvent {
   resource: String
   owner: OwnerState
   providerState: String
-  allowDrain: Bool
+  confirmation: DrainConfirmation?
   outcome: DrainOutcome
 }
 

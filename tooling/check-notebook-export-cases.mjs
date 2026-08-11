@@ -50,7 +50,7 @@ if (corpus.$schema !== "w-notebook-export-cases-1") errors.push("notebook export
 if (corpus.status !== "design-oracle-input") errors.push("notebook export corpus must be a design-oracle input.");
 if (corpus.machine !== "notebook-export-machine-pyn3") errors.push("notebook export machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
-  if (!/^W-112[0-4]$/.test(decision)) errors.push(`unexpected notebook export decision ${decision}.`);
+  if (!/^(?:W-112[0-4]|W-1250)$/.test(decision)) errors.push(`unexpected notebook export decision ${decision}.`);
   if (!ledgerIdSet.has(decision)) errors.push(`notebook export decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }

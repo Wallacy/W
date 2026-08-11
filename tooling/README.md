@@ -124,7 +124,7 @@ bun test tooling/repl-session-reference.test.mjs
 bun tooling/check-repl-session-cases.mjs
 ```
 
-O corpus atual possui 67 casos e 287 operações (53 programas aceitos e 14
+O corpus atual possui 70 casos e 298 operações (56 programas aceitos e 14
 rejeitados), com casos negativos separados para cada operação de ownership,
 stale identity, parser/semantic, quota, cancellation, close/reset e drain.
 
@@ -178,9 +178,9 @@ bun tooling/check-jupyter-cases.mjs
 bun tooling/check-notebook-export-cases.mjs
 ```
 
-Os nomes `notebook check`, `session receipts` e `notebook export` são labels de
-design. O tooling não fornece CLI, ZeroMQ, kernel process, sanitizer, frontend,
-provider ou runtime.
+O design fixa `w notebook check`, `w notebook export` e `:receipts`. Este
+tooling valida somente os contratos; ele não fornece CLI, ZeroMQ, kernel
+process, sanitizer, frontend, provider ou runtime.
 
 ### Carrier tensorial e DLPack PYN4
 

@@ -837,7 +837,7 @@ stale base, single writer, output markers e quotas. O corpus usa
 [`repl_session_oracle.w`](reference/last-light/repl_session_oracle.w) como
 referência parseável e liga cada caso a um símbolo do Última Luz.
 
-O corte corrente tem 67 casos e 287 operações: 53 programas aceitos e 14
+O corte corrente tem 70 casos e 298 operações: 56 programas aceitos e 14
 rejeitados. Há negativos separados para parse/semantic, cada modo de ownership,
 base stale/display, preflight/close/reset, cancellation, provider rollback claim,
 structured child lifecycle, output partial/zero e cada família útil de quota; o
@@ -1841,6 +1841,11 @@ w script add path/file.w package@constraint --as package_alias
 O comando final exige lock por digest, provenance e reexecução offline. A
 implementação de resolver, CLI e provider permanece missing.
 
+W-1245 fecha a última alternativa de escrita. Um compact constructor economiza
+caracteres, mas cria outro schema, outra regra de merge e outra superfície de
+migração. A v0 mantém somente o record P0 explícito. Os comandos `w script`
+editam esse record sem criar uma representação paralela.
+
 `w repl` usa o parser, checker e HIR normais. Ele não cria dynamic mode. Cada
 submission é transacional. Uma falha não altera a session. Uma declaração
 aceita cria uma generation nova. Uma redefinição invalida compiled dependents e
@@ -1874,6 +1879,13 @@ receipts e fases machine-readable e corrige o transcript para `fn doubled` como
 compiled dependent e `let snapshot = limit * 2` como valor avaliado. O fixture e
 o oracle ficam em [24.1.3](DESIGN.md#2413-sessão-e-repl-transacionais).
 
+W-1246 evita uma confirmação booleana ou modal desconectada do state. O token de
+drain é one-shot e identifica sessão, generation, closure, ação e deadline.
+`:drain` não repete a submission rejeitada; a pessoa decide quando resubmeter.
+W-1247 rejeita persistir um heap interativo. Receipts bounded e redacted podem
+ser exportados, mas valores vivos, tasks, resources e capabilities não podem ser
+restaurados como se fossem source reproduzível.
+
 Jupyter kernel é **Direção** de tooling e produto, não linguagem. PYN3 fecha o
 adapter sobre o session model, o protocol `presentation.Presentable` e o export
 canônico em
@@ -1889,8 +1901,9 @@ interrupt_request -> cancellation_event(structured)
 
 Notebook não é artifact ou release source por default. Antes de release, o
 usuário exporta `.w` ou package canônico em ordem canônica. O export não faz
-hidden replay de effects. Nomes de comandos para check/export continuam
-**Pesquisa**. A implementação do kernel continua pós-freeze.
+hidden replay de effects. W-1250 fixa `w notebook check`,
+`w notebook export` e `:receipts`; cada comando recebe paths explícitos. A
+implementação do kernel continua pós-freeze.
 
 ##### Standard library e ecossistema
 
@@ -2304,6 +2317,13 @@ PYN3 fecha design e oracles. Ele não implementa ZeroMQ, kernel process,
 sanitizer, notebook frontend, compiler, runtime ou provider. DLPack continua um
 bundle próprio. Plotting e DataFrame completo continuam packages
 first-party ou third-party sobre `std.presentation`.
+
+W-1248 mantém presentation append-only. `display_id`, update e clear exigiriam
+um handle de frontend com owner, cancellation, drain e quota próprios. Progresso
+append-only cobre o baseline sem criar esse lifetime oculto. W-1249 limita
+Jupyter history a tail bounded; range e search exigiriam retenção e índice de raw
+source incompatíveis com redaction por default. W-1250 fixa a primeira CLI para
+evitar três nomes abstratos diferentes em documentação, testes e produto.
 
 ### 1.14 Resultado das pesquisas consolidadas
 
@@ -3995,9 +4015,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-970 | oracle E1 e limites | `runtime-liveness-machine.mjs` é host-puro, adversarial e ligado a Última Luz; corpus cobre closure, completion/cancel races, generation, reclaim e shutdown; não prova scheduler/clock/OS I/O, fairness absoluta, advanced reclamation, device, recovery distribuído ou terminação de user code | snapshot manual; máquina runtime; declarar allocator/verifier implementado; ampliar E0/B0/A0; timing real; corpus sem símbolos ou decisões |
 | W-971 | público Python inicial | Python é público inicial nas seções 0.1 e 0.4; scripts, automação, ciência, dados e AI entram no público; pessoa com Python realiza o Tour, workflow single-file e workflow científico básico antes de ownership baixo nível; ownership e effects continuam explícitos nas boundaries | adiar Python até depois de 1.0; tratar Python somente como documentação; prometer compatibilidade dinâmica; copiar o modelo baixo nível para o onboarding |
 | W-972 | low-ceremony sem dynamic core | defaults, keyword arguments, unpacking, comprehensions, generators, collections e display são ergonomias para estudo R1; carriers exploratórios são `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; `Table`/DataFrame completo fica em package first-party; TAB0 definiu o boundary e TAB1 fechou declarations, contracts, oracles e host evidence de CSV/Parquet/Arrow como design; providers e `w-compile`/`w-run` permanecem missing; duck typing, monkey patching, dynamic global object model, GIL, ambient imports e unchecked reflection não entram | `Any` universal; object model dinâmico; reflection unchecked; import ambiental; decidir todas as ergonomias como syntax vigente agora |
-| W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e `entryForm` explícito/implícito; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; dependency form externa permanece **Pesquisa** | manifest sibling, metadata inline e `--with` como forma final já escolhida; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
-| W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis, nunca stale ou implicitamente recompilados; resubmission explícita recria e executa effects; redefinição/reset fecha admission, drena children/waits, encerra loans/views e faz drops E1, rejeitando ou escalando se foreign retention permanece | dynamic mode; replay automático de effects; redefinição que mantém dependents silenciosamente; liberar estado vivo; reset que ignora drain; notebook transcript como source de release |
-| W-975 | Jupyter como tooling | PYN3 fecha o adapter Jupyter 5.5 sobre PYN2, `presentation.Presentable`, MIME/data bounded e export `.w`/package sem hidden replay; interrupt solicita structured cancellation; nomes de check/export permanecem **Pesquisa** | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; fingir kill de foreign code; replay oculto; segundo session model |
+| W-973 | arquivo único hermético | `w run path/file.w -- <args>` usa somente imports explícitos, a root do script ou package context selecionado, e `entryForm` explícito/implícito; fora de package cria package/product efêmero com std e módulos locais; não faz recursive/cwd/PATH/environment discovery, não baixa remote implicitamente e não deixa estado oculto; W-1245 fixa dependency como record P0 explícito | compact dependency constructor; manifest sibling; metadata inline em comment; `--with`; scan recursivo; ambient package discovery; top-level execution arbitrário; download implícito; lock sem digest ou provenance |
+| W-974 | session transacional e generational | `w repl` usa parser, checker e HIR normais; failed submission preserva a generation corrente; declaration aceita cria generation; dependents invalidados ficam indisponíveis; resubmission explícita recria e executa effects; redefinição/reset fecha admission e drena ownership E1; W-1246 usa token one-shot para consentimento e W-1247 exporta receipts sem persistir heap vivo | dynamic mode; replay automático; stale dependents; confirmação booleana; liberar estado vivo; restaurar tasks/resources/capabilities; notebook transcript como source de release |
+| W-975 | Jupyter como tooling | PYN3 fecha o adapter Jupyter 5.5 sobre PYN2, `presentation.Presentable`, MIME/data bounded e export `.w`/package sem hidden replay; W-1248/1249 usam output append-only e history tail-only; W-1250 fixa os comandos iniciais | Jupyter como linguagem; notebook como artifact/release source default; MIME sem limite; update handle sem owner; history search ambiental; fingir kill de foreign code; replay oculto; segundo session model |
 | W-976 | interop científico | Python Array API standard é checklist T2; DLPack e Arrow C Data são adapters first-party T2; Python buffer pertence à bridge; copy, device, stream, ownership, lifetime e release são explícitos e provados | Array API como semântica normativa W; copy implícito; lifetime ou release ambiental; buffer protocol no core; pandas clone na std |
 | W-977 | dados exploratórios e tabulares | dados usam `json.Value`, schema, `data.Batch<Row>` ou `data.DynamicBatch` explícitos; DataFrame completo é package first-party antes de std estável; TAB0 fecha o carrier mínimo e TAB1 fecha CSV/Parquet/Arrow workflow; sem clone pandas | duck-typed rows; dataframe universal na std agora; object global dinâmico; schema inferido sem limites; tratar ecossistema como syntax |
 | W-978 | ergonomia R1 | R1 compara comprehensions com pipelines/loops, checked broadcasting com broadcast explícito, negative/end-relative indices, unpacking/destructuring, display e labels reordenáveis; labels permanecem em ordem até evidence de ganho | escolher syntax final sem R1; broadcast implícito; labels reordenáveis por default; mudar lookup/reproducibility por conveniência |
@@ -4115,7 +4135,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1090 | compiled dependent | função `doubled` guarda hard edge para `limit`; redefine invalida transitivamente com reason e closure | usar `let doubled`, preservar function stale, recompilar automaticamente |
 | W-1091 | redefinição explícita | nova versão invalida dependents sem recompilação/rerun; resubmission é explícita; old version não é current lookup | replay de cell, lookup old version, rebind que muda effects sem receipt |
 | W-1092 | type invalidation | mudança de type/layout invalida values, code e witnesses pertinentes | manter value vivo com layout antigo, invalidar somente name |
-| W-1093 | drain preflight | closure separa symbol graph de owner scopes e deriva replaceability/retention/deadline de provider events; resource/task ativo exige `allowDrain` estruturado | booleans de conclusão no caso, iniciar drop durante preflight, drenar sibling |
+| W-1093 | drain preflight | closure separa symbol graph de owner scopes e deriva replaceability/retention/deadline de provider events; W-1246 substitui `allowDrain` público por token estruturado validado | booleans de conclusão no caso, iniciar drop durante preflight, drenar sibling |
 | W-1094 | preflight rejection | known unreplaceable, quota, retention ou confirmação ausente rejeita antes de executing/effects e mantém generation antiga, staged scope e outputs removidos | publicar e depois rejeitar, liberar old resource, rebase silencioso |
 | W-1095 | drain pós-publication | falha/deadline após publish mantém nova generation committed e sessão degraded, bloqueando mutações | rollback da publication, marcar ready, aceitar mutation em degraded |
 | W-1096 | reset boundary | reset/restart incrementa incarnation, faz preflight/publish/drain e registra force boundary | reset sem drain, incarnation reutilizada, prometer cleanup foreign |
@@ -4140,13 +4160,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1115 | counter e silent | execution_count é ExecutionOrdinal; silent força no-history/output e só aceita submission read-only/non-suspending/effect-free sem publication; mutation silenciosa falha no preflight | counter como GenerationId, silent mutation, ordinal para completion/inspect, output oculto ainda executado |
 | W-1116 | user expressions e stdin | user expressions são read-only/effect-free por key após success; stdin respeita allow_stdin, um request bounded e routing original; password nunca persiste; input bloqueia export até parametrização | user expression mutar state, input ambiental, password em history, mais de um waiter sem bound |
 | W-1117 | status e cancellation | outcomes PYN2 mapeiam para ok/error, sem status aborted; interrupt confirma admission e execute reply confirma drain; shutdown ok só após safe close | traceback Python falso, interrupt afirmar termination, shutdown success antes de drain, rollback de committed degraded |
-| W-1118 | requests read-only | completion/inspect/is_complete usam snapshot committed e Unicode codepoint offsets; inspect inclui plain text; history tail é baseline, range/search ficam Pesquisa | executar completion, ler staging, byte offset como codepoint, history raw ilimitada |
+| W-1118 | requests read-only | completion/inspect/is_complete usam snapshot committed e Unicode codepoint offsets; inspect inclui plain text; W-1249 fecha history como tail-only | executar completion, ler staging, byte offset como codepoint, history raw ilimitada |
 | W-1119 | metadata e identidades | metadata `w` versionada liga request/incarnation/generation/ordinal/outcome/digests/exportability; msg_id/cell ID/counter nunca substituem identities W; secrets/live values não entram | identity por frontend/timestamp, capability em metadata, cell ID como BindingId, client clock ordenar sessão |
 | W-1120 | notebook como exploração | nbformat cell IDs são validados; outputs/trust não são source nem prova W; export reproduzível exige notebook mais receipt manifest explícito | `.ipynb` como release source, notebook signature como build proof, output codegen, hidden sidecar ambiental |
 | W-1121 | prova de export | export valida source digest, committed chain, binding versions/edges, lock/context/target, effects e ausência de stdin/secret/degraded/live resource; não executa | replay oculto, export com unknown effect, capturar live value, aceitar cell invalidada ou silent mutation |
 | W-1122 | ordem e resultado do export | pure declarations usam topological order com ordinal como tie break; effects preservam execution order; conflito/redefinition não-lossless falha; resultado é PYN1/package mais audit manifest | renomear/remover binding, reexecutar, inserir value literal, ordem do documento como autoridade, comentário gerado de prose |
-| W-1123 | output transitório | tail expression summary não cria `_`/`ans`; display_id/update/clear/progress live ficam Pesquisa até owner/drain contract | binding implícito, handle frontend string cru, update atravessar reset, lifetime não bounded |
-| W-1124 | status do bundle PYN3 | PYN3 fecha design e oracles; ZeroMQ, sanitizer, kernel process, frontend, compiler/runtime/providers, DLPack e nomes CLI permanecem missing/Pesquisa conforme seção | apresentar oracle como kernel implementado, iniciar provider, misturar DLPack, congelar CLI sem estudo humano |
+| W-1123 | output transitório | tail expression summary não cria `_`/`ans`; W-1248 fecha output como append-only e não reserva live update API | binding implícito, handle frontend string cru, update atravessar reset, lifetime não bounded |
+| W-1124 | status do bundle PYN3 | PYN3 fecha design e oracles; ZeroMQ, sanitizer, kernel process, frontend, compiler/runtime/providers e DLPack continuam missing; W-1250 fecha nomes CLI | apresentar oracle como kernel implementado, iniciar provider, misturar DLPack, descoberta ambiental de sessão |
 | W-1125 | baseline DLPack PYN4 | DLPack 1.3 versioned é a baseline documental; `DLManagedTensor` legacy é rejeitado e provider/compiler/runtime ficam missing | tratar legacy como vigente, executar o provider a partir do oracle, declarar compatibilidade sem release proof |
 | W-1126 | major/minor version mismatch | major mismatch chama somente deleter uma vez sem dereference; minor mismatch aceita somente fields/enums conhecidos | ler fields após major mismatch, aceitar unknown minor fields, liberar duas vezes |
 | W-1127 | DLPack flags | somente read-only, producer-copied e subbyte-padded são conhecidos; unknown flags rejeitam | ignorar flags desconhecidas, reinterpretar subbyte, usar producer-copied como zero-copy |
@@ -4267,6 +4287,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1242 | resolução nominal | imports, requirements e bindings formam o grafo; plugin runtime exige registry capability fora do core | lookup de ServiceRef por string, runtime registry global, nome concedendo authority |
 | W-1243 | adapters lock-fixed | toolchain, deployment ou product fixa adapter, conformance e digest; v0 não publica registry/SPI de package | adapter baixado ou registrado durante startup, source shape reservado sem corpus |
 | W-1244 | commit provider fechado | um provider por turn, frontier bounded e terminal receipt estável determinam committed/aborted/unknown e owner drain | 2PC implícito, cancellation substituindo decisão, receipt stale publicando state |
+| W-1245 | dependency de script explícita | `script.dependencies` usa somente o record P0; add/remove/resolve editam record e lock atomicamente | compact constructor, comment metadata, sibling manifest, `--with` |
+| W-1246 | confirmação de drain | token opaco one-shot liga sessão, generation, closure, ação e deadline; `:drain` consome o token sem repetir source | boolean de caller, consentimento ambiental, replay automático, token reutilizável |
+| W-1247 | sessão efêmera | `:receipts` exporta manifest bounded/redacted; heap, bindings vivos, tasks, resources, handles e capabilities não são restaurados | imagem do heap, startup restore, serialização de capability, transcript como source |
+| W-1248 | apresentação append-only | itens ricos são imutáveis e ordenados; progresso cria item novo bounded | `display_id`, update, clear, live handle sem owner/drain/quota |
+| W-1249 | history tail-only | Jupyter aceita somente tail bounded e redacted; range/search retornam diagnostic explícito | índice persistente de raw source, busca ambiental, resposta parcial |
+| W-1250 | CLI inicial de notebook | `w notebook check`, `w notebook export` e `:receipts` usam paths explícitos e não executam cells ocultamente | label abstrato, descoberta ambiental de sessão, hidden replay |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

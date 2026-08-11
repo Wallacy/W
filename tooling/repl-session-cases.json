@@ -6,13 +6,16 @@
     "W-974",
     "W-1076", "W-1077", "W-1078", "W-1079", "W-1080", "W-1081", "W-1082", "W-1083", "W-1084", "W-1085", "W-1086",
     "W-1087", "W-1088", "W-1089", "W-1090", "W-1091", "W-1092", "W-1093", "W-1094", "W-1095", "W-1096", "W-1097", "W-1098",
-    "W-1099", "W-1100", "W-1101", "W-1102", "W-1103", "W-1104", "W-1105", "W-1106"
+    "W-1099", "W-1100", "W-1101", "W-1102", "W-1103", "W-1104", "W-1105", "W-1106",
+    "W-1246", "W-1247"
   ],
   "references": [
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionId" },
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot" },
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" },
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "ResourceEvent" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "DrainConfirmation" },
+    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionPersistence" },
     { "path": "reference/last-light/repl_session_oracle.w", "symbol": "doubled" }
   ],
   "cases": [
@@ -130,10 +133,32 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-resource-rebind" },
         { "op": "submit", "requestId": "one", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "submit", "requestId": "two", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true, "targets": ["watcher"] }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
+        { "op": "submit", "requestId": "two", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"], "targets": ["watcher"] }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
         { "op": "inspect", "name": "watcher" }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "lastOutcome": "committed", "lastCleanupDrain": "ready", "ownerScopeCount": 1 } }
+    },
+    {
+      "id": "PYN2-standalone-drain-token",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "DrainConfirmation" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-drain-token" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "command", "text": ":drain drain:valid", "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "committed", "lastCleanupDrain": "ready", "ownerScopeCount": 0 } }
+    },
+    {
+      "id": "PYN2-drain-boolean-is-not-proof",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "DrainConfirmation" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-drain-bool" },
+        { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
+        { "op": "command", "text": ":drain drain:valid", "allowDrain": { "confirmed": true, "token": "drain:valid" }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
+        { "op": "status" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "rejected", "lastCleanupDrain": "rejected-preflight", "lastReceiptDiagnostic": "W-SESSION-0012", "ownerScopeCount": 1 } }
     },
     {
       "id": "PYN2-copy-staging-and-snapshot",
@@ -284,6 +309,16 @@
       "expected": { "status": "accepted", "assertions": { "ordinal": 3, "historyCountAtMost": 2, "historyBytesAtMost": 2400, "historyEvictedAtLeast": 1, "historyRawSource": null } }
     },
     {
+      "id": "PYN2-receipt-manifest-has-no-live-state",
+      "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionPersistence" }],
+      "operations": [
+        { "op": "open", "sessionId": "pyn2-receipts", "historyPolicy": { "rawSource": "redact" } },
+        { "op": "submit", "requestId": "one", "source": "let secret = 1", "declarations": [{ "name": "secret", "value": 1 }] },
+        { "op": "command", "text": ":receipts horizon-receipts.json" }
+      ],
+      "expected": { "status": "accepted", "assertions": { "ordinal": 1, "generationDisplay": "g1", "historyCount": 1, "historyRawSource": null, "reads": 1, "lastReadSource": "committed-snapshot" } }
+    },
+    {
       "id": "PYN2-output-truncate-reserve",
       "references": [{ "path": "reference/last-light/repl_session_oracle.w", "symbol": "SubmissionReceipt" }],
       "operations": [
@@ -354,7 +389,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-quit" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "command", "text": ":quit", "force": true },
+        { "op": "command", "text": ":quit", "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }] }] },
         { "op": "verify", "checks": { "phase": "closed" } }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1" } }
@@ -479,7 +514,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-close" },
         { "op": "submit", "requestId": "resource", "source": "let resource = watch()", "declarations": [{ "name": "resource", "persistentResource": true, "resource": "foreign" }] },
-        { "op": "quit", "force": true, "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "foreign", "active": true, "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] }
+        { "op": "quit", "force": true, "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"], "afterFailure": true }, "resourceEvents": [{ "resource": "foreign", "active": true, "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "committed", "lastReceiptForceBoundary": true } }
     },
@@ -613,7 +648,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-drain-deadline", "limits": { "drainTimeMs": 10 } },
         { "op": "submit", "requestId": "resource", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }], "deadlineMs": 1000 }] }
+        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable", "events": [{ "kind": "close", "outcome": "ready" }], "deadlineMs": 1000 }] }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "rejected", "lastCleanupDrain": "rejected-preflight", "lastReceiptDiagnostic": "W-SESSION-0024" } }
     },
@@ -655,7 +690,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-owner-degraded" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "deadline" }] },
+        { "op": "submit", "requestId": "replace", "source": "let watcher = watch2()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher2" }], "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [{ "resource": "watcher", "active": true, "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "deadline" }] },
         { "op": "status" }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g2", "lastOutcome": "degraded", "mutationBlocked": true, "ownerScopeCount": 2, "ownerScopeStates": ["faulted", "owned"] } }
@@ -666,7 +701,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-reset-facts" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true }, "resourceEvents": [] },
+        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [] },
         { "op": "status" }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "incarnation": 1, "generationDisplay": "g1", "lastOutcome": "rejected", "mutationBlocked": false, "ownerScopeCount": 1, "ownerScopeStates": ["owned"], "effectsCount": 0, "lastReceiptDiagnostic": "W-SESSION-0012" } }
@@ -677,7 +712,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-reset-degraded" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "watcher" }] },
-        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "failure" }] },
+        { "op": "reset", "requestId": "reset", "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [{ "resource": "watcher", "providerState": "replaceable" }], "drainEvents": [{ "phase": "post-publish", "outcome": "failure" }] },
         { "op": "status" }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "incarnation": 2, "generationDisplay": "g0", "lastOutcome": "degraded", "mutationBlocked": true, "ownerScopeCount": 1, "ownerScopeStates": ["faulted"] } }
@@ -688,7 +723,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-close-blocked" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "foreign" }] },
-        { "op": "quit", "requestId": "quit", "allowDrain": { "confirmed": true }, "resourceEvents": [] },
+        { "op": "quit", "requestId": "quit", "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"] }, "resourceEvents": [] },
         { "op": "status" }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "degraded", "ownerScopeCount": 1, "ownerScopeStates": ["closing"] } }
@@ -699,7 +734,7 @@
       "operations": [
         { "op": "open", "sessionId": "pyn2-close-force-registry" },
         { "op": "submit", "requestId": "owner", "source": "let watcher = watch()", "declarations": [{ "name": "watcher", "persistentResource": true, "resource": "foreign" }] },
-        { "op": "quit", "requestId": "quit", "force": true, "allowDrain": { "confirmed": true }, "resourceEvents": [{ "resource": "foreign", "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] },
+        { "op": "quit", "requestId": "quit", "force": true, "allowDrain": { "confirmed": true, "evidence": "validated-token", "token": "drain:valid", "bindings": ["session", "incarnation", "generation", "closure", "action", "deadline"], "afterFailure": true }, "resourceEvents": [{ "resource": "foreign", "providerState": "foreign-retained", "events": [{ "kind": "retention", "outcome": "foreign-retained" }] }] },
         { "op": "verify", "checks": { "phase": "closed" } }
       ],
       "expected": { "status": "accepted", "assertions": { "ordinal": 2, "generationDisplay": "g1", "lastOutcome": "committed", "lastReceiptForceBoundary": true, "ownerScopeCount": 1, "ownerScopeStates": ["force-boundary"] } }
