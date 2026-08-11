@@ -29,6 +29,8 @@ std/
     contracts.w
   database/
     contracts.w
+  fs/
+    contracts.w
   http/
     contracts.w
   io/
@@ -104,12 +106,21 @@ O provider `std.memory@1` continua missing. O source não fixa o allocator geral
 layout físico do handle ou estratégia de drop ledger.
 `process/contracts.w` materializa os owners nominais de um entry nativo.
 `Arguments` preserva `OsString`; `Context` projeta stdio, network, signals,
-services e deadline somente quando o product concede a capability. `Input`
+services, filesystem e deadline somente quando o product concede a capability. `Input`
 mantém um cursor e produz linhas UTF-8 bounded. `Output` preserva progress e não
 intercala bytes de calls admitidas. Signal registrations são geracionais e
 estruturadas. O provider `std.process@1` continua missing. O módulo não cria um
 singleton `process`; `process.args` e `process.context` são projections do
 compiler limitadas ao entry root.
+`fs/contracts.w` materializa `FileSystem` como uma capability ligada a uma raiz.
+`Path` preserva bytes Unix ou unidades UTF-16 Windows; `Utf8Path` faz conversão
+fallible, e ambos usam `copy` por `Duplicable`. `File<rights>` usa rights
+estáticos, I/O posicional, append próprio,
+snapshot bounded e durability explícita. Directory streams não fazem recursion
+ou sorting, resolução de path usa limites finitos do root profile e mutation de
+namespace fica na mesma authority. O provider
+`std.fs@1` continua missing; o source não executa syscalls nem concede cwd
+ambiental.
 `accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
 `Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
 um static record de module scope; `accelerator.module` não é uma função runtime.

@@ -206,6 +206,7 @@ alvo de execução independente.
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, readable Web, channel CH0, rendezvous, permits, close e owner recovery |
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
+| `fs_oracle.w` | root capability, native paths, rights, snapshot e publicação durable de arquivo |
 | `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
 | `process_oracle.w` | Arguments nativos, ExitCode, signals e Context root-scoped sem singleton ambiental |
@@ -969,6 +970,42 @@ idêntico com fallback, `writev` e `WSASend`.
 O teste posicional lê blocos sobrepostos com um `shared File`. A ordem de
 completion pode mudar. Cada bloco deve manter o offset solicitado. O cursor
 sequencial continua único e rejeita duas leituras concorrentes.
+
+### 3.5.5 Arquivo das Receitas Extintas
+
+Famílias: authority de filesystem, paths nativos, rights, namespace e
+durability.
+
+`fs_oracle.w` usa somente o `FileSystem` concedido ao entry root. O source abre
+handles com rights estáticos, captura snapshots bounded, escreve um arquivo de
+staging com offsets posicionais e publica por rename. A confirmação durable é
+uma sequência explícita: `finish(.data)`, rename e `syncNamespace(at:)`.
+
+Aceite:
+
+- nenhum cwd, path absoluto, `PATH` ou filesystem global concede authority;
+- `scope(at:)` deriva uma raiz menor sem ampliar rights;
+- o provider prova containment sob limites finitos, inclusive ao seguir
+  symlinks;
+- `Path` preserva a representação nativa e `Utf8Path` faz conversão fallible;
+- display lossy nunca participa de lookup ou identity;
+- rights inválidos falham antes de chamar o provider;
+- append seleciona o offset dentro da operação do provider;
+- shared positional I/O não insere lock; overlap sem ordering fica visível;
+- cursor sequencial consome um owner e nunca aparece em `shared File`;
+- snapshot valida limite e versão antes de publicar bytes;
+- adquirir a listagem pode suspender; o stream é single-pass, bounded e mantém
+  a ordem do provider;
+- limit ou I/O error termina o stream depois do prefixo já entregue;
+- rename no-replace é o default; replace regular é explícito e não cruza mounts;
+- namespace atomic não implica durable;
+- falha de namespace sync informa que o novo nome já foi publicado;
+- `sync(.none)` e drop não inserem uma solicitação de persistência;
+- cancellation mantém buffers e borrows até o provider drenar a completion.
+
+O provider `std.fs@1` continua missing. FS0 é um oracle de design e não executa
+syscalls reais. Um staging file órfão exige reconciliation separada; uma
+`unknownOutcome` de rename nunca autoriza retry ou delete cego.
 
 ### 3.6 Salão Prisma
 

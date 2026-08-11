@@ -14864,8 +14864,10 @@ portabilidade sem esconder thread consumption.
 
 #### 14.2.6 Filesystem, rights e offsets
 
-**Forma vigente:** `FileSystem` é uma capability concedida pelo host. `File` é um
-handle move-first com rights estáticos:
+**Forma vigente:** `FileSystem` é uma capability root-scoped concedida pelo
+host. Ela representa uma única raiz de namespace e um conjunto máximo de
+operações. Não existe filesystem global, cwd ambiental ou lookup por `PATH`.
+`File` é um handle move-first com rights estáticos:
 
 ```w
 let menu = try await files.open<[.read]>(menuPath)
@@ -14876,8 +14878,56 @@ let journal = try await files.open<[.write, .append]>(
 ```
 
 `File<[.read]>` não compila uma call de write. O static list é um subset fechado
-de `FileRight`; ele não substitui a verificação dinâmica de path, sandbox,
-quota ou permissão do sistema.
+de `FileRight`, não pode ser vazio e não aceita duplicatas. `.read`, `.write` e
+`.append` liberam somente os members correspondentes. Creation diferente de
+`.openExisting` exige `.write` ou `.append`. Esses facts não substituem a
+verificação dinâmica de path, sandbox, quota ou permissão do sistema.
+
+`FileCreation` possui quatro disposições portáteis. `.openExisting` exige uma
+regular file existente e preserva conteúdo. `.create` cria se ausente e
+preserva se existente. `.createNew` falha quando o nome já existe. `.replace`
+cria ou trunca uma regular file no mesmo nome; não é publicação atômica. Um
+caller que precisa publicar conteúdo completo usa staging e `rename`.
+
+**W-1302 — resolução parte de uma authority:** toda operação interpreta `Path`
+relativamente ao `FileSystem` que a recebeu. Path absoluto, componente `..` ou
+symlink que alcance fora da raiz falha antes de abrir um handle. O provider
+prova containment durante a resolução; normalização lexical não é prova. Um
+symlink pode ser seguido somente quando cada resultado permanece na mesma raiz.
+O profile portátil não cria, lê ou manipula o symlink em si; `std.posix` e APIs
+de target podem oferecer isso com rights próprios.
+
+O provider profile fixa limites finitos para unidades nativas, componentes
+visitados e travessias de symlink. Esses valores entram na recipe. Exceder um
+limite estrutural declarado produz `IoError.invalidInput`; esgotar travessias sem
+provar containment produz `IoError.resourceExhausted`. A resolução não continua
+com um path parcialmente validado.
+
+`files.scope(at: directory)` cria outro `FileSystem` limitado a um descendente
+não vazio. O provider prova que o path é directory e que a nova raiz retém ou
+reduz rights, sem ampliar o namespace. Essa derivação permite entregar least
+authority a uma biblioteca sem criar outra API de sandbox.
+
+Um product pode montar várias roots do host sob nomes explícitos de um único
+namespace virtual, por exemplo `config`, `cache` e `data`. Essa tabela pertence
+ao artifact/startup binding; não expõe paths físicos e não cria cwd. Rights são
+aplicados por mount. Estar no mesmo namespace virtual não torna rename entre
+mounts atômico.
+
+`FileSystem`, child scopes, directory streams, snapshots e files são owners de
+handles retidos. Um resultado pode sobreviver ao wrapper usado para criá-lo,
+mas não ao root de host que concedeu a capability. Drop de um wrapper não
+revoga os outros handles; shutdown fecha admission e drena todos antes de
+liberar a authority raiz.
+
+**W-1303 — path preserva o host:** `Path` mantém bytes Unix ou unidades UTF-16
+Windows sem perda. `Utf8Path` mantém texto W válido e rejeita NUL. Conversão de
+`Path` para `Utf8Path` é fallible; o error informa o início da primeira sequência
+UTF-8 inválida ou a unidade UTF-16 sem par. `displayLossy` serve somente para UI
+e diagnostics. Equality textual, case folding ou normalização Unicode nunca
+prova que dois paths apontam para a mesma entrada. Essa identidade pertence ao
+provider e não é um value público estável. `Path` e `Utf8Path` atendem a
+`Duplicable`; source W usa `copy path`, não uma operação ambiental de clone.
 
 Arquivos seekable usam I/O posicional por default:
 
@@ -14905,7 +14955,7 @@ um snapshot ou valida a identidade e a versão do arquivo.
 Uma operação sequencial cria um owner de cursor:
 
 ```w
-var reader = (take menu).reader(from: FileOffset.zero)
+var reader = (take menu).reader(from: FileOffset(0))
 let step = try await reader.read(appendTo: inout block, maximum: 4096)
 ```
 
@@ -14921,6 +14971,54 @@ fornecida pelo adapter. Isso não promete que um payload grande é indivisível.
 move o handle para `shared File` de forma explícita ou abre handles
 independentes. Positional I/O é obrigatório no shared form; um cursor mutável
 não se torna shareable.
+
+**W-1307 — sharing remove estado implícito, não conflito externo:** reads e
+writes posicionais sobre ranges disjuntos podem progredir em paralelo. Duas
+reads sobrepostas também são seguras. Um write que sobrepõe outro write ou uma
+read sem happens-before permanece válido, mas a observação é provider-ordered e
+nondeterminística. O compiler não insere lock; quando offsets e extents são
+comprováveis, o linter recomenda ordering ou particionamento. Append concorrente
+serializa a escolha de cada offset, não fixa a ordem entre payloads nem torna um
+payload grande indivisível. Sem happens-before, append também interfere com I/O
+posicional porque seu offset só é selecionado dentro da operação do provider.
+
+`append(source:)` usa a operação append do provider. Ele não observa
+`metadata.byteLength` e depois chama `write(at:)`. O resultado é `WriteStep`;
+um payload grande não recebe promessa de atomicidade. O cursor criado por
+`reader(from:)` consome um `File` com `.read` e atualiza seu offset somente
+depois de progress confirmado.
+
+**W-1304 — snapshot é uma cópia bounded e explícita:**
+`snapshot(maximumBytes:)` materializa um `FileSnapshot` imutável. O provider
+valida limite, identidade e versão antes e depois da leitura. Mudança durante a
+captura produz `SnapshotError.changedDuringRead`; limite falha antes de reservar
+o payload. `FileSnapshot` atende a `SnapshotByteSource<IoError>` e mantém
+`byteCount` e bytes estáveis até drop. A operação não transforma um `File`
+mutável em snapshot por type cast.
+
+`metadata(at:)` devolve somente kind e byte length opcional. `.some(length)` é
+válido somente para regular file; outros kinds usam `.none`. Timestamps, owner,
+permissions nativas e file ID não entram no contrato portátil. A aquisição com
+`try await files.entries(at:, limits:)` pode suspender. Ela devolve um stream
+single-pass de `DirectoryEntry`; cada nome é `OsString`, a ordem é
+provider-defined e o stream não faz recursion, sorting ou path join. Limits
+cobrem entries, units por nome e units totais. Se um limit ou I/O error ocorrer,
+o prefixo já entregue permanece consumido e o stream termina com
+`DirectoryError`. `kindHint` pode ser `.none` ou mudar antes da próxima call;
+código que depende do kind consulta `metadata` sob a mesma authority.
+
+**W-1305 — mutation de namespace é uma operação fechada:** `createDirectory`,
+`removeFile`, `removeEmptyDirectory` e `rename` operam na mesma authority e no
+mesmo mount. Elas não seguem uma boundary para outro `FileSystem`. `rename` usa
+`.keepExisting` por default; `.replaceFile` substitui somente regular file.
+Success é atômico para o namespace. `NamespaceError.unknownOutcome` informa que
+o provider não pode provar qual nome ficou publicado; retry cego continua
+rejeitado.
+
+Atomicidade de namespace não implica durability. Depois de write + sync do
+arquivo + rename, um profile que promete crash durability ainda precisa
+sincronizar o parent namespace. `syncNamespace(at:)` explicita essa etapa; um
+provider que não consegue cumpri-la retorna `.unsupported`.
 
 #### 14.2.7 Sockets e message boundaries
 
@@ -15167,14 +15265,29 @@ defer async {
 possui handle; um TCP half-close e um file sync possuem contratos diferentes.
 
 - `flush` envia buffers de user space ao adapter seguinte;
+- `sync(.none)` é um no-op explícito e não chama o provider;
 - `sync(.data)` solicita data durability;
 - `sync(.all)` inclui metadata conforme o filesystem;
-- `finish` executa a obrigação do tipo e consome o owner;
+- `syncNamespace(at:)` solicita durability de uma mutation de diretório;
+- `finish(.none)` fecha e consome o owner sem solicitar durability;
+- `finish(.data | .all)` sincroniza, fecha e consome o owner;
 - `deinit` fecha o handle físico de forma síncrona e best-effort.
+
+O member `sync` existe somente em `File` com `.write` ou `.append`.
+`finish(.none)` continua disponível em qualquer `File` porque consome e fecha o
+owner sem solicitar persistência.
 
 Um error de `deinit` entra no trace. Ele não pode ser lançado. Código que depende
 da confirmação usa `finish` ou `sync`. Um handle compartilhado não oferece
 `finish` até o programa recuperar ownership único.
+
+**W-1306 — durability nunca é inferida:** `FileCreation`, `FileRight` e
+`RenamePolicy` selecionam semântica lógica, não cache policy. `sync(.data)`,
+`sync(.all)`, `finish(.data | .all)` e `syncNamespace(at:)` são as únicas
+solicitações portáteis de persistência. Success confirma que o provider cumpriu
+o profile declarado; ele não promete que hardware externo ignorou sua própria
+cache. `sync(.none)`, `finish(.none)`, drop, rename e process exit não inserem
+sync.
 
 #### 14.2.10 Streams, framing e limites
 
@@ -17776,7 +17889,7 @@ liga módulos fora do grafo e não concede capability implícita.
 | Família de capability | Exemplos de módulos | Condição de disponibilidade |
 |---|---|---|
 | valores e memória | prelude, text, bytes, collections, memory, atomic, reflect | target suporta a representação e os contratos estáticos |
-| host e execução | process, io, task, stream, channel, synchronization, service | profile concede capability, queues e budgets bounded |
+| host e execução | process, fs, io, task, stream, channel, synchronization, service | profile concede capability, queues e budgets bounded |
 | codecs e integração | json, url, http, net, database, cache, build | provider status e digest satisfazem o module contract |
 | ciência e devices | si, science, tensor, dlpack, accelerator | target/device facts e provider scoped estão disponíveis |
 | observabilidade e teste | log, trace, metrics, test, benchmark | recipe declara outputs, limits e reachability |
@@ -18299,6 +18412,7 @@ limitado ao mesmo root:
 |---|---|---|
 | `stdin` | `process.Input` | `.stdio` |
 | `stdout`, `stderr` | `process.Output` | `.stdio` |
+| `filesystem` | `fs.FileSystem` | `.filesystem` |
 | `network` | `net.Network` | `.network` |
 | `signals` | `process.SignalRegistry` | `.signals` |
 | `services` | `process.Services` | `.services` |
@@ -18340,10 +18454,11 @@ Depois do grace period, a fault policy do host decide o boundary. Retornar
 `ExitCode` seleciona somente o status normal; typed error, panic, signal fatal e
 forced boundary continuam outcomes distintos.
 
-`std/process/contracts.w` é a projection source deste contrato. O Context não
-expõe environment, cwd, filesystem, clock wall, secrets, process memory ou
-handles arbitrários. Cada família futura precisa de member, capability, limits
-e provider próprios.
+`std/process/contracts.w` é a projection source deste contrato. `filesystem`
+expõe somente a raiz `fs.FileSystem` concedida pelo product; não expõe cwd ou
+namespace ambiental. O Context não expõe environment, clock wall, secrets,
+process memory ou handles arbitrários. Cada família futura precisa de member,
+capability, limits e provider próprios.
 
 ## 15. Números, ranges e unidades
 
@@ -19882,12 +19997,12 @@ let text: String = try native.toString()
 let label: String = native.displayLossy()
 ```
 
-`Path` preserva a representação nativa. `Utf8Path` exige UTF-8 válido, mas
-mantém as regras de path do target. Filesystem, argv e environment não usam
-`String` como substituto de `OsString`.
+`std.fs.Path` preserva a representação nativa. `std.fs.Utf8Path` exige UTF-8
+válido, mas mantém as regras de path do target. Filesystem, argv e environment
+não usam `String` como substituto de `OsString`.
 
 ```w
-let nativePath = Path(native)
+let nativePath = try Path(native)
 let utf8Path = try Utf8Path(nativePath)
 let restored = Path.fromUtf8(utf8Path)
 ```
@@ -28241,8 +28356,9 @@ de memória pode ignorar join, cancellation, provider drain ou reclamation.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 
-**Exemplo:** o catálogo declara `std.fs`. O freeze exige signatures, errors,
-capabilities e complexity bounds para esse módulo.
+**Exemplo:** `std.fs` só ganhou classificação de design depois de fixar
+signatures, errors, capabilities, limites e casos FS0. O provider executável
+continua uma gate de implementação, não uma lacuna semântica do módulo.
 
 Nenhuma família funcional está sem posição. A especificação ainda não possui a
 mesma profundidade em todas as famílias. A coluna final abaixo exige somente
