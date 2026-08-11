@@ -111,6 +111,7 @@ O corpus compara, no mínimo:
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
 - erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
 - declaração `let x: shared T = value` e `share(..., using:)` recuperável contra factory nominal, `tryShare` e promotion em calls;
+- String refinada, resource gate e carrier de boundary contra `InlineString`, reserva e fixed array universal;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
 - signature invariável contra variance e effect widening implícitos;
@@ -188,7 +189,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 69 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 70 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -264,7 +265,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 169 formas derivadas do corpus pelo runner nesta revisão. O runner
+mede as 174 formas derivadas do corpus pelo runner nesta revisão. O runner
 junta as linhas com LF e sem newline final. A contagem vem do script e muda
 quando alternativas cross-language entram ou saem. Para a tarefa e para cada
 forma, ele registra:
@@ -1450,6 +1451,27 @@ typed effects, valores armazenáveis e trace sidecar. O
 separa panic de error recuperável. W usa teardown da fault boundary e não expõe
 unwind recuperável no source.
 
+#### 1.5.5 Texto limitado e storage
+
+[`SmallString`](https://llvm.org/doxygen/classllvm_1_1SmallString.html) usa
+storage inline de `SmallVector` e pode crescer além desse storage. O
+[`inplace_vector` P0843R14](https://www9.open-std.org/JTC1/SC22/WG21/docs/papers/2024/p0843r14.html),
+[`static_string`](https://www.boost.org/library/latest/static_string/) e
+[`ArrayString`](https://docs.rs/arrayvec/latest/arrayvec/struct.ArrayString.html)
+colocam capacidade fixa no tipo. Essas formas resolvem footprint previsível e
+ausência de allocation dinâmica. Elas também criam conversões, overflow e APIs
+paralelas.
+
+W separa o limite do valor, a policy de recursos e o layout da boundary. Um
+`String<(.bytes.count <= N)>` publica o valor aceito. O gate
+`no-general-allocation` prova o grafo operacional. Um adapter publica count,
+extent e bytes quando outra ABI precisa observar o layout.
+
+Essa composição preserva uma única API de texto. Ela permite que o mesmo source
+use storage inline, uma arena ou um carrier flat conforme o produto. Um tipo
+especializado continua justificado quando muda operações ou complexidade, como
+Rope ou texto indexado.
+
 ### 1.6 Services, packing e deployment
 
 O modelo separa graph lógico, packing físico e deployment. workerd declara
@@ -1493,7 +1515,7 @@ leitura.
 |---|---:|---|
 | superfície e semântica estática | 97–98% | G0–G5 fecham syntax, F0 fecha a forma canônica inicial, S0 integra semantics e D0 fecha diagnostics estruturados; checker e catálogo completo ainda precisam de oracles executáveis |
 | compilador, runtime e ecossistema | 75–85% | as camadas e os contratos estão definidos; spikes de HIR, ABI, scheduler, wire e resolver ainda podem corrigir o design |
-| ergonomia com evidência | 65–72% | R0 cobre 69/69, R0S mede a superfície derivada por script e R1 possui 21 bundles contrabalanceados do Última Luz que promovem 32/69 casos R0; participantes e modelos ainda não foram executados |
+| ergonomia com evidência | 65–72% | R0 cobre 70/70, R0S mede a superfície derivada por script e R1 possui 21 bundles contrabalanceados do Última Luz que promovem 32/70 casos R0; participantes e modelos ainda não foram executados |
 | validação executável | 55–65% | Tree-sitter, F0, S0, wire, R0/R1, M1, E0, B0 e P0 cobrem oracles iniciais; ainda não existe formatter, type-checker, evaluator, interface checker, HIR, scheduler, adapter ou runtime W |
 | prontidão para design freeze | 70–80% | existe uma baseline coerente; faltam cinco ciclos de fechamento abaixo |
 | prontidão para repository próprio | 90–95% | W possui autoridade, tooling, std e produto de referência separados; a extração não depende do design freeze |
@@ -1557,7 +1579,7 @@ O índice gerado usa esta tabela somente como projeção.
 | adoção de `Bytes` por `String` | **Provável** | owner transfer é claro; reuse depende do allocator/layout |
 | Bytes, paths nativos e C strings distintos | **Possível agora** | fronteiras conhecidas; conversões preservam perda e terminador |
 | graphemes default e normalização versionados | **Possível agora** | tabelas Unicode geradas; custo linear permanece visível |
-| `InlineString` com capacity no tipo | **Provável** | storage explícito atende embedded e ABI; overflow e boundary permanecem visíveis |
+| `InlineString` com capacity no tipo | **Rejeitado por enquanto** | refinement, gate de allocation e carrier físico cobrem os três contratos sem outro tipo textual |
 | strict numerics e overflow verificado | **Possível agora** | backend oferece operações adequadas |
 | literal exato até materialização | **Possível agora** | big integer e rational decimal ficam no frontend |
 | conversões pelo domínio completo | **Possível agora** | tabela fechada e facts de refinement decidem sem heurística |
@@ -2406,7 +2428,7 @@ Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
 |---|---|---|
 | tipos | typed property path e `StateGraph` const | anonymous sum/record, constraint list, GAT, packs e existential opening |
 | compile time | `WMeta1` com chunks CBOR | callable const indireto, SMT geral e autotuning no build |
-| memória | `InlineString`, trusted foreign facts e layout privado por evidence | public unpin, high-bit baseline, cache contract no tipo e async-close universal |
+| memória | texto bounded por composição, trusted foreign facts e layout privado por evidence | `InlineString`, public unpin, high-bit baseline, cache contract no tipo e async-close universal |
 | execução | dynamic execution-domain selection, topology types, advanced atomics, fences e sync | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
 | workflow | roots explícitos por service/`SupervisorRef`, steps e outbox | child workflow/`continueAsNew` intrínsecos, durable race, absolute core sleep, user compaction e 2PC implícito |
 | I/O | `ReadBatch`, `io.transfer` e commit-provider SPI interno fechado | zero-copy implícito, `flush` universal e transaction multi-provider |
@@ -3439,7 +3461,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-221 | bundle Unicode | edição, tabelas e digests fixos para UAX #15/#29/#31 e UTS #39 | versão do host; ICU obrigatório |
 | W-222 | texto do host | `OsString`, `Path`, `Utf8Path` e `PackagePath` distintos; colisão NFC rejeitada | paths sempre String; bytes portáveis do OS |
 | W-223 | C strings | `CString`/view separados, NUL verificado e inbound bounded | String sempre NUL; scan C ilimitado |
-| W-224 | storage textual | refinement não fixa layout; reserva mínima é operação; capacity/SSO exatos não são properties | capacity pública; SSO observável |
+| W-224 | storage textual | refinement não fixa layout; reserva mínima é operação; W-1276 separa limite, resource gate e boundary | capacity pública; SSO observável |
 | W-225 | estruturas textuais | rope, piece table, interning e tree string são especializadas | tree string geral; representation ABI única |
 | W-226 | ordem de avaliação | esquerda para direita e sequenciada; formas condicionais short-circuit | ordem não especificada; optimizer escolhe |
 | W-227 | resultados borrowed | `ref`/`inout` em tipos e retorno, provenance inferida e interface registrada | lifetime no source; lookup owned |
@@ -3652,7 +3674,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-434 | esvaziar String | `clear` mantém storage; `reset` libera; `takeAll` transfere conteúdo | Boolean `keepingCapacity`; um método ambíguo; builder separado |
 | W-435 | String e Bytes | carrier T0 compatível; adoption e `intoBytes` consomem sem allocation geral | layout público igual; cópia obrigatória; cast implícito |
 | W-436 | caches de texto | reads não alocam nem mutam; summaries eager permitidos; índice alocante usa tipo próprio | cache lazy invisível; owner muta por read; grapheme ordinal O(1) |
-| W-437 | String especializada | SSO invisível medido; `InlineString`, Rope, IndexedText e tree string são tipos próprios | threshold público de SSO; uma String universal adaptativa |
+| W-437 | String especializada (substituída) | W-1276 retira `InlineString`; Rope e texto indexado permanecem tipos próprios porque mudam operações | threshold público de SSO; tipo distinto apenas por storage |
 | W-438 | ponteiro textual | somente borrow scoped; persistência usa CString ou buffer pinned sem relocation; pin do descriptor não basta | pointer estável de String; NUL obrigatório; raw pointer safe |
 | W-439 | String no self-host | flat UTF-8, bytes, append/reserve, views, conversions e ownership; Unicode avançado não bloqueia SH0 | grapheme/locale antes do parser; C runtime de String permanente |
 | W-440 | data race | bytes sobrepostos, concorrência, write e ausência de happens-before; atomics concorrentes precisam de extent idêntico; safe W rejeita | race com resultado definido; check somente em runtime; atomic parcial sobreposto |
@@ -4079,7 +4101,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 1 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
 | W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/69`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 69 bullets como auditoria completa do ledger; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 69/69 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 70/70 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -4101,11 +4123,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | 21 bundles, 51 variantes e 84 tarefas cobrem os domínios R1 atuais com source base, inputs, digests e oracle; 32/69 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | 21 bundles, 51 variantes e 84 tarefas cobrem os domínios R1 atuais com source base, inputs, digests e oracle; 32/70 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 69 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 70 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std verificável | profiles cobrem 324 exports em 23 módulos, 23/23 requisitos e oito carriers (Blob/FormData missing); declarations estão draft-ready, 84 superfícies são verificadas e 17/17 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
@@ -4135,7 +4157,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-917 | endurecimento executável M1 | schema M1 fixa 184 casos e 603 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle e ciclos, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, construção pinned, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 32/69 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 32/70 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 | W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
@@ -4202,7 +4224,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-984 | acesso relativo ao fim | `.last` é Forma vigente, retorna `ref String?` e absorve empty sem guard; arithmetic `count - 1` é alternativa com guard; negative indexing é Rejeitado por enquanto por signed/unsigned, `-0`, empty, bounds e contexto; `get(fromEnd:)` e `suffix` são Pesquisa; C# `^1` é alternativa documental | index negativo sem guard; usar `^1` como syntax W; underflow unsigned; converter empty em panic |
 | W-985 | ordem de labels de call | a call é sequência ordenada de labels; overload e initializer selecionam essa forma antes de tipos; ordem de declaração é Forma vigente; default em `currency` cria `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` cria terceira sequência; política unordered colapsa as formas completas e diagnostica antes de types; reordering é Pesquisa/Alternativa | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
 | W-986 | tuple destructuring fixo | binding de tuple/struct de shape fixo é Forma vigente; projections `.0`/`.1` preservam uma avaliação e exigem `copy` ou borrow explícito para componente move-only; starred unpacking é Rejeitado por enquanto por ownership, aridade dinâmica e partial moves; `each collection` continua call-rest | reavaliar `word()`; starred na grammar; tratar `each` como destructuring; mover tuple parcial |
-| W-987 | corpus R1, contagens e limites | o corpus tem 69 casos R0, 21 bundles, 51 variantes, 84 tarefas e 32/69 promovidos; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
+| W-987 | corpus R1, contagens e limites | o corpus tem 70 casos R0, 21 bundles, 51 variantes, 84 tarefas e 32/70 promovidos; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
 | W-988 | carrier Batch mínimo | `data.Batch<Row>` é finito, owned, columnar, imutável após publicação, schema fechado, row count comum e vazio válido; schema sem fields exige row count explícito; payload publica somente depois da validação | `Table<Row>` estável; DataFrame no core; colunas com counts diferentes; batch vazio como erro; mutação depois da publicação |
 | W-989 | DynamicBatch e Array<Row> | `data.DynamicBatch` pode publicar schema runtime; binding tipado explícito valida antes de publicar o `data.Batch<Row>`; `Array<Row>` continua válido para algoritmos row-centric e é rejeitado como carrier universal; DataFrame completo é package first-party | duck typing; `Any` carrier; Array como coluna universal; DataFrame estável na std |
 | W-990 | trigger de data.Row | `struct X: data.Row` ativa synthesis por identidade do protocol, struct-only, all-or-none e stored instance fields em declaration order; witness manual e DTO dedicado continuam | annotation genérica; macro; nome textual; synthesis parcial; reflection como trigger |
@@ -4491,6 +4513,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1273 | evidence IL0 | machine/corpus/test host derivam layout aplicado/não aplicado, partition e boundaries; não medem cache nem executam W | snapshot como compiler, target inventado pelo caller, performance claim sem measurement |
 | W-1274 | grafia de shared ownership | `shared T` e `weak T` são prefixos de ownership; `shared T?` é Option do handle e `shared Option<T>` possui payload opcional | `Shared<T>`, `shared<T>`, wrapper de std, optionalidade ambígua |
 | W-1275 | allocator fora de `shared T` | product profile escolhe o default; `try share(..., using:)` recebe capability scoped e preserva origin | allocator como generic slot, case de módulo criando instance, `try` no tipo |
+| W-1276 | texto bounded por composição | refinement limita valor, resource gate limita allocation e carrier de adapter publica layout | `InlineString<N>` no core, capacity como property de String, threshold source |
+| W-1277 | placement textual privado | byte bound fornece extent máximo; escape, target, profile e cost model escolhem inline, static, flat ou arena | storage source obrigatório, general allocation escondida sob gate, truncation |
+| W-1278 | mutation refinada | cada mutation prova o predicate na saída; unknown usa staging base e reconstrução fallible | check oculto, truncation, panic implícito, valor refinado temporariamente inválido |
+| W-1279 | boundary textual física | adapter declara count, fixed bytes, encoding, offsets, padding, bytes não usados e overflow | refinement como ABI, layout W privado atravessando boundary, capacity inferida publicada |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

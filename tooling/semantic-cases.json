@@ -3861,6 +3861,100 @@
           }
         ]
       }
+    },
+    {
+      "id": "S0-POS-refinement-preserving-mutation",
+      "kind": "positive",
+      "rule": "W-1278",
+      "source": [
+        "type HorizonLabel = String<(.bytes.count <= 64)>",
+        "fn appendLabel(label: inout HorizonLabel, suffix: view String): Bool {",
+        "  guard suffix.bytes.count <= 64 - label.bytes.count else return false",
+        "  label.append(suffix)",
+        "  return true",
+        "}"
+      ],
+      "expect": {
+        "focus": { "text": "label.append(suffix)" },
+        "semanticResult": {
+          "resultType": "()",
+          "category": "value",
+          "flow": { "kind": "next" },
+          "ownerDelta": [
+            { "operation": "mutate", "place": "label", "type": "HorizonLabel" }
+          ],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            {
+              "kind": "range",
+              "subject": "label.bytes.count + suffix.bytes.count",
+              "value": "<=64"
+            },
+            {
+              "kind": "refinement",
+              "subject": "label.bytes.count",
+              "value": "<=64"
+            }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "guard", "operation": "prove", "subject": "combined-byte-count<=64" },
+              { "id": "summary", "operation": "read-summary", "subject": "String.append" },
+              { "id": "mutation", "operation": "mutate", "subject": "label" },
+              { "id": "postcondition", "operation": "prove-refinement", "subject": "HorizonLabel" }
+            ],
+            "edges": [
+              { "from": "guard", "to": "summary", "kind": "true" },
+              { "from": "summary", "to": "mutation", "kind": "next" },
+              { "from": "mutation", "to": "postcondition", "kind": "next" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-NEG-refinement-mutation-without-postcondition",
+      "kind": "negative",
+      "rule": "W-1278",
+      "baseline": "S0-POS-refinement-preserving-mutation",
+      "failureField": "proofFacts",
+      "source": [
+        "type HorizonLabel = String<(.bytes.count <= 64)>",
+        "fn appendUnchecked(label: inout HorizonLabel, suffix: view String) {",
+        "  label.append(suffix)",
+        "}"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-TYPE-0123",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "label.append(suffix)" },
+            "labels": [
+              {
+                "role": "mutation-place",
+                "selector": { "text": "label: inout HorizonLabel" }
+              },
+              {
+                "role": "refinement-declaration",
+                "selector": {
+                  "text": "HorizonLabel = String<(.bytes.count <= 64)>"
+                }
+              }
+            ],
+            "facts": {
+              "expectedPredicate": ".bytes.count <= 64",
+              "operation": "String.append",
+              "place": "label",
+              "proof": "unknown-postcondition"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
     }
   ]
 }

@@ -2641,6 +2641,7 @@ mas não como reparos especulativos.
 |---|---|
 | `W-SEM-0001` | expected use ou result category não combina com o node |
 | `W-TYPE-0120` | branches ou operands não possuem type comum seguro e único |
+| `W-TYPE-0123` | mutation não prova o refinement do place resultante |
 | `W-INIT-0001` | place é lido antes de definite initialization |
 | `W-MOVE-0002` | place está moved, dropped ou indisponível num predecessor |
 | `W-BORROW-0001` | borrow conflita, escapa ou cruza suspension sem storage estável |
@@ -5301,6 +5302,41 @@ fn pair(left: Small, right: Small): Pair {
 
 Se a prova é `unknown`, o programa usa o constructor fallible. Uma annotation
 ou build profile não substitui a prova.
+
+Uma mutation sobre um binding refinado precisa provar o predicate após a
+operação. A prova usa os fatos do ponto de controle e o summary verificado da
+operação. Um caminho de erro recuperável precisa preservar o valor anterior ou
+provar o predicate do valor resultante.
+
+```w
+type HorizonLabel = String<(.bytes.count <= 64)>
+
+fn appendLabel(label: inout HorizonLabel, suffix: view String): Bool {
+  guard suffix.bytes.count <= 64 - label.bytes.count else return false
+  label.append(suffix)
+  return true
+}
+```
+
+O guard prova que `append` preserva o limite. Uma call opaca ou uma mutation
+sem postcondition suficiente falha com `W-TYPE-0123`. O diagnostic registra o
+place, o predicate esperado, a operação e os fatos insuficientes. W não insere
+truncation, panic ou validação runtime para manter o refinement.
+
+Uma transformação que precisa sair temporariamente do predicate usa um valor
+base separado. O programa valida o resultado antes de substituir o binding
+refinado:
+
+```w
+var candidate: String = copy label
+candidate.append(untrustedSuffix)
+let checked = try HorizonLabel(take candidate)
+label = take checked
+```
+
+O binding refinado permanece válido em cada ponto observável. O compiler pode
+derivar summaries de bodies W. Uma função foreign ou opaca recebe um summary
+verificado do adapter ou permanece conservadora.
 
 Os precedentes de refinements ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
@@ -19605,7 +19641,8 @@ Comparações com carriers de texto de outras linguagens ficam em
 
 ### 16.9 Representações especializadas
 
-Um refinement limita valores. Ele não promete layout ou capacidade.
+Um refinement limita valores. Ele não promete layout, capacidade reservada ou
+origem de allocation.
 
 ```w
 type ShortLabel = String<(.scalars.count <= 40)>
@@ -19614,27 +19651,58 @@ type GuestName = String<(.graphemes.count in 1...80)>
 let buffer = String(reservingBytes: 4096)
 ```
 
-`InlineString<capacity: N>` é **Provável** como tipo de storage explícito.
-Overflow é fallible, capacity faz parte do tipo e o layout só é público numa
-boundary declarada. Rope, piece table, interning e tree string ficam em tipos
-ou packages especializados.
+**W-1276 — texto limitado compõe contratos existentes:** W não adiciona
+`InlineString<N>` ao design corrente. A forma separaria `String` apenas pela
+estratégia de storage. Três contratos existentes cobrem as necessidades sem um
+segundo tipo textual:
+
+| Necessidade | Contrato W |
+|---|---|
+| limitar o valor | `String<(.bytes.count <= N)>` |
+| impedir allocator geral | gate `no-general-allocation` |
+| publicar bytes e offsets | carrier de boundary declarado pelo adapter |
 
 ```w
-let label: InlineString<capacity: 64> = try InlineString("Last Light")
+type HorizonLabel = String<(.bytes.count <= 64)>
+
+let label: HorizonLabel = "Last Light"
 let document = Rope.from(largeText)
 ```
 
-O compiler pode escolher storage especializado para um refinement quando a
-escolha for invisível. Um ABI que exige capacidade inline usa um tipo físico.
+Rope, piece table, interning e texto indexado continuam em tipos ou packages
+especializados. Eles mudam operações, complexidade ou identidade. Storage
+inline, isoladamente, não muda a semântica de `String`.
 
-SSO invisível e `InlineString` público resolvem problemas diferentes. SSO reduz
-allocations sem prometer threshold, tamanho ou layout. `InlineString` promete
-que um limite físico faz parte do tipo e precisa definir overflow, conversão,
-ABI e tamanho por target.
+**W-1277 — storage privado deriva de provas e profile:** um limite estático de
+bytes permite storage inline, static, flat ou proveniente de uma arena. O
+compiler escolhe a forma conforme escape, target, profile e cost model. O
+source não escolhe um threshold.
 
-O primeiro protótipo de `String` usa UTF-8 válido sobre um buffer growable. O
-protótipo seguinte compara SSO com storage inline explícito. Nenhum threshold
-entra no contrato antes dos benchmarks.
+Um entry com `no-general-allocation` exige uma forma compatível para cada call
+alcançável. O compiler usa storage privado, uma origem permitida ou rejeita o
+build com a call chain e a decisão de placement. Ele não troca silenciosamente
+um erro de allocation por truncation.
+
+```text
+w check memory --require no-general-allocation restaurant.embedded
+w explain memory restaurant.embedded::renderHorizonLabel
+```
+
+**W-1278 — mutation preserva refinement localmente:** uma mutation de
+`String<Predicate>` precisa provar `Predicate` depois da operação. A prova pode
+usar um guard e o summary da operação. Se a prova permanecer `unknown`, o
+programa usa um `String` base e reconstrói o refinement de forma fallible. Essa
+regra vale para todo tipo refinado e está definida na seção 8.6.
+
+**W-1279 — layout textual pertence à boundary:** uma ABI, device record,
+shared-memory frame ou formato persistente com extent fixo usa count validado e
+`[u8; N]` num carrier explícito. O adapter publica offsets, alignment, padding,
+encoding, bytes não usados e overflow. O refinement de `String` não publica
+esses fatos.
+
+O primeiro protótipo de `String` usa UTF-8 válido sobre um buffer growable. Um
+profile posterior pode comparar SSO, storage inline privado e arena fixa.
+Nenhum threshold entra no contrato source antes de benchmarks reproduzíveis.
 
 Literal/static, inline e dinâmica precisam produzir os mesmos resultados,
 errors, índices e bytes. Sanitizers, debug e ABI C usam o fallback flat quando a
