@@ -3,7 +3,7 @@
   "status": "design-oracle-input",
   "id": "R1-call-label-order",
   "title": "Money initializer label order at the Last Light restaurant",
-  "r0Cases": ["R0-call-label-order"],
+  "r0Cases": ["R0-call-label-order", "R0-overload-shape"],
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "Money(majorUnits",
