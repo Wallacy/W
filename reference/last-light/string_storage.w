@@ -3,6 +3,17 @@
 import * from std.memory
 import * from std.text
 
+export type HorizonSignLabel = String<(.bytes.count <= 64)>
+
+export fn appendToHorizonSign(
+  label: inout HorizonSignLabel,
+  suffix: view String,
+): Bool {
+  guard suffix.bytes.count <= 64 - label.bytes.count else return false
+  label.append(suffix)
+  return true
+}
+
 export fn joinAnnouncements(
   lines: ref Array<String>,
   memory: ref Allocator,
@@ -135,4 +146,18 @@ test "String mutation never creates an implicit alias temporary" {
   let ownedSuffix = suffix.materialize()
   title.append(ownedSuffix)
   expect title == "Last LightLast Light"
+}
+
+test "a byte-bounded sign preserves its refinement during mutation" for appendToHorizonSign {
+  var label: HorizonSignLabel = "Last Light"
+
+  expect appendToHorizonSign(inout label, suffix: " remains open")
+  expect label == "Last Light remains open"
+
+  let before = copy label
+  expect !appendToHorizonSign(
+    inout label,
+    suffix: " beyond the final observable edge of the universe",
+  )
+  expect label == before
 }

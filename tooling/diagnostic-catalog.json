@@ -1188,6 +1188,24 @@
       "fixes": {}
     },
     {
+      "code": "W-TYPE-0123",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a mutation does not prove the refinement predicate for its resulting place",
+      "requiredFacts": {
+        "expectedPredicate": "string",
+        "operation": "string",
+        "place": "string",
+        "proof": "string"
+      },
+      "labelRoles": {
+        "mutation-place": { "minimum": 1, "maximum": 1 },
+        "refinement-declaration": { "minimum": 1, "maximum": 1 }
+      },
+      "fixes": {}
+    },
+    {
       "code": "W-INIT-0001",
       "state": "active",
       "phase": "semantic.ownership",

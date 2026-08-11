@@ -1582,6 +1582,43 @@
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-bounded-text-storage",
+      "reviewItem": "String refinada, resource gate e carrier de boundary contra `InlineString`, reserva e fixed array universal",
+      "decisions": ["W-224", "W-405", "W-406", "W-432", "W-437", "W-1276", "W-1277", "W-1278", "W-1279"],
+      "task": "Keep a sign within 64 UTF-8 bytes, prove bounded mutation, and let an embedded product reject general allocation.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "type HorizonLabel = String<(.bytes.count <= 64)>",
+          "guard suffix.bytes.count <= 64 - label.bytes.count else return false",
+          "label.append(suffix)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "inline-string-type",
+          "language": "w-rejected",
+          "source": [
+            "let label: InlineString<capacity: 64> = try InlineString(\"Last Light\")"
+          ],
+          "expectedDifference": "A second text type couples the value bound to one storage strategy and duplicates conversions and mutation APIs."
+        },
+        {
+          "name": "reservation-only",
+          "language": "w-alternative",
+          "source": ["let label = String(reservingBytes: 64)"],
+          "expectedDifference": "Reservation is an estimate. It does not constrain the value or prove the absence of later allocation."
+        },
+        {
+          "name": "fixed-array-domain-value",
+          "language": "w-alternative",
+          "source": ["struct HorizonLabel { count: u8, bytes: [u8; 64] }"],
+          "expectedDifference": "A fixed carrier is correct at a physical boundary, but it duplicates String semantics in ordinary domain code."
+        }
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

@@ -603,7 +603,8 @@ escapar a view por uma task detached.
 
 ### 3.3.3 Letreiro que Guarda as Últimas Palavras
 
-Famílias: String flat, literal static, SSO, reserva, mutation, carrier e OOM.
+Famílias: String flat, literal static, storage privado, refinement, reserva,
+mutation, carrier e OOM.
 
 Aceite:
 
@@ -613,6 +614,11 @@ Aceite:
 - COW não desloca allocation ou budget para uma mutation futura;
 - SSO pode mudar por target sem mudar source, resultado ou ABI pública;
 - a API não expõe capacity nem threshold de SSO;
+- `HorizonSignLabel` limita o valor a 64 bytes sem criar outro tipo de storage;
+- um guard prova que append preserva o refinement em cada saída;
+- uma mutation sem postcondition suficiente falha no checker;
+- `no-general-allocation` exige storage privado compatível ou rejeita o build;
+- um layout físico usa carrier de boundary. O refinement não publica offsets;
 - `tryReserve(minimumBytes:)` usa o total mínimo e mantém o valor na falha;
 - append e replace não alocam quando a reserva comprovada basta;
 - `clear()` mantém storage e `reset()` o libera;
@@ -1971,6 +1977,8 @@ Aceite:
 - `WireName` prova 64 bytes;
 - `ScalarName` prova no máximo 256 bytes;
 - `DisplayName` não prova um limite estático de bytes;
+- `HorizonSignLabel` compõe limite, mutation provada e placement inferido;
+- `InlineString<N>` não é necessário para obter storage bounded privado;
 - `w explain performance` separa fato, decisão, estimate e measurement;
 - `InterferenceCounters` permite layout privado sem adicionar `cache` a
   `Atomic<T>`;
