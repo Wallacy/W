@@ -7405,6 +7405,12 @@ W separa quatro contratos:
 Somente o primeiro contrato define o significado normal do programa. Os outros
 podem mudar por target ou profile sem alterar o resultado observável.
 
+Gerência automática em W significa que o compiler prova lifetime, insere os
+drop paths e escolhe placement sem pedir stack, heap, arena, GC ou reference
+counting no caminho comum. O source escolhe a semântica com `ref`, `inout`,
+`take` e `copy`. `pin`, `shared` e `Arena` aparecem somente quando o contrato
+real exige endereço estável, owners múltiplos ou storage bounded explícito.
+
 Todo valor que exige cleanup possui um owner. O compilador controla
 inicialização, move, borrow, escape e drop. A escada semântica é:
 
@@ -7676,32 +7682,9 @@ O par `S0-POS-share-lifetime-independent` e
 `S0-NEG-share-borrow-dependent` fixa que `shareable` não repara uma origin de
 borrow. A falha usa `W-BORROW-0010` antes de alocar o control block.
 
-O corpus M1 mantém uma forma aceita e uma inversão para cada regra crítica:
-
-| Regra | Forma aceita | Inversão rejeitada |
-|---|---|---|
-| reborrow | `M1-exclusive-parent-disjoint-children` | `M1-reborrow-child-widens-parent` |
-| duplicated child | `M1-duplicate-child-releases-parent-after-all-ends` | `M1-duplicate-child-keeps-parent-frozen` |
-| ProofFacts | `M1-proof-fact-index-inequality` | `M1-proof-fact-wrong-place-rejected` |
-| active variant | `M1-enum-active-variant-fields-disjoint` | `M1-enum-active-variant-wrong-place-rejected` |
-| dependency copy | `M1-copy-shared-edge-releases-after-both-drops` | `M1-copy-shared-edge-blocks-until-both-drops` |
-| owner drop | `M1-owner-drop-unblocked-after-dependent-drop` | `M1-owner-drop-blocked-by-stored-edge` |
-| dependency access | `M1-exclusive-dependency-write` | `M1-shared-dependency-write-rejected` |
-| dependency overlap | `M1-exclusive-dependency-disjoint-field` | `M1-exclusive-dependency-overlaps-shared` |
-| dependency identity | `M1-array-ref-duplicate-origin-preserved` | `M1-ambiguous-dependency-origin` |
-| dependency join | `M1-dependent-store-joins-origins` | `M1-dependent-join-reads-source` |
-| service boundary | `M1-immortal-service-with-boundary-capabilities` | `M1-immortal-service-needs-boundary-capabilities` |
-| persistence boundary | `M1-immortal-persistence-with-schema` | `M1-immortal-persistence-needs-schema` |
-| await | `M1-await-stable-referent-accepted` | `M1-await-stable-aggregate-unstable-referent` |
-| pin | `M1-pinned-handle-move-with-active-loan` | `M1-pinned-handle-drop-with-active-loan` |
-| interface | `M1-bodyless-result-slots-remain-distinct` | `M1-interface-witness-divergence` |
-| body result mapping | `M1-interface-body-maps-origins` | `M1-interface-body-missing-result-slot` |
-| import interface key | `M1-abi-exact` | `M1-interface-key-presence-asymmetric` e `M1-interface-keys-both-absent` |
-| FFI inline | `M1-language-function-explicit-proof` | `M1-language-function-needs-proof` |
-
-[`borrowed_values.w`](reference/last-light/borrowed_values.w) mostra as formas W
-positivas. [`memory-transition-cases.json`](tooling/memory-transition-cases.json)
-contém as inversões e os estados esperados.
+M1 precisa manter uma forma aceita e uma inversão para cada regra crítica. O
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
+a matriz e os artefatos; este contrato define os diagnostics e os facts.
 
 #### 9.2.2 Placement e alocação inferida
 
@@ -8217,31 +8200,13 @@ reclamation pertencem ao provider do device.
 O contract fixa major, mode e capabilities. O nome de um allocator sozinho não
 concede mobilidade.
 
-#### 9.6.4 Oracle físico A0
+#### 9.6.4 Evidence física A0
 
-**Exemplo:** o oracle injeta falha durante growth. Ele exige que o receipt antigo
-e seu prefixo continuem válidos.
+**Exemplo:** uma falha de growth preserva o receipt anterior e seu prefixo.
 
-O corpus A0 modela:
-
-- layout, alignment, zero-size e limits do provider;
-- allocate, zeroing, excess capacity, resize e fallback;
-- strong failure e exact-once deallocation;
-- origin token, provider lifetime e mobility de domain;
-- loans, pinning, address leases e relocation;
-- progress requirements, bulk release e rehome;
-- logical retirement separado de physical reuse.
-
-O modelo usa bytes pequenos e providers host independentes. Ele não mede um
-allocator real. Benchmarks de `system`, mimalloc e fixed continuam no gate de
-implementação. A0 também não repete cleanup tipado de destino ou aritmética de
-endereços físicos. Esses eixos compõem M1 e L0, respectivamente.
-
-`tooling/allocation-cases.json` fixa 48 casos e 123 operações. A máquina pura
-está em `tooling/allocation-machine.mjs`. Treze testes host independentes do
-snapshot repetem as propriedades críticas. `allocator_oracle.w` liga cada
-família ao produto Última Luz. Esses artefatos são evidência de design. Eles não
-são um allocator, um verifier ou um runtime W.
+A0 precisa inverter cada regra física sem repetir M1 ou L0. O
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
+escopo, contagens, limites e artefatos. A0 não é allocator, verifier ou runtime.
 
 #### 9.6.5 Origem e mobilidade
 
@@ -8703,22 +8668,7 @@ boxing, mas precisa de fallback e não pode alterar operações IEEE.
 **Exemplo:** guardar `f64` em `Array<f64>` preserva os bits de um NaN. O
 compiler não usa o payload desse NaN para representar `.none`.
 
-#### 9.9.5 Hipóteses históricas e resultado
-
-Os spikes históricos permanecem úteis como adversarial corpus. Eles não formam
-o modelo semântico:
-
-| Hipótese | Estado | Motivo |
-|---|---|---|
-| dois low bits distinguem integer, float, compound e shared | **Rejeitado** | reduz range e precisão, altera IEEE e exige alignment universal |
-| high bits guardam length, subtype ou reference count | **Rejeitado na baseline** | address width, MTE, PAC, ABI e mutation variam por target |
-| pointer identifica owner, object ou generation | **Rejeitado** | reuse de endereço, ABA, move e provenance são fatos diferentes |
-| uma word tagged substitui todos os valores W | **Rejeitado** | aggregates, capabilities, SIMD, C ABI e device pointers exigem carriers próprios |
-| heap implícita por módulo controla todo lifetime | **Rejeitado como default** | import não cria instance; `Arena` e service ownership cobrem o caso delimitado |
-
-Uma implementação pode recuperar uma técnica rejeitada em um container interno
-especializado. Ela precisa manter o valor lógico completo, oferecer fallback e
-passar os oracles diferenciais.
+#### 9.9.5 Baseline por fronteira
 
 **Baseline v0 de representação:** a técnica é escolhida pela fronteira, não pelo
 nome do tipo:
@@ -8745,8 +8695,8 @@ Uma tag MTE pertence ao pointer nativo do provider. Uma tag lógica low-bit do W
 pertence ao carrier interno. O lowering não mistura as duas. A forma entregue ao
 allocator preserva o pointer e o estado externo exigidos pelo target.
 
-O oracle [`representation_oracle.w`](reference/last-light/representation_oracle.w)
-testa essa matriz contra as fronteiras do Última Luz.
+A matriz histórica e o oracle diferencial ficam no
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 ### 9.10 Negociação, hardening e instrumentação
 
@@ -9452,6 +9402,11 @@ W separa quatro eixos:
 Um executor não cria isolation por existir. Um executor serial pode atender mais
 de uma isolation boundary. Uma boundary pode migrar entre threads.
 
+O compiler pode trocar coroutine, protothread, event loop, pool ou queue quando
+preserva a árvore de lifetime, os suspension points, a ordem do domínio e os
+edges de publicação. O source escolhe intenção e boundaries; ele não escolhe a
+estrutura interna do scheduler.
+
 ### 12.2 Quatro formas de executar
 
 ```w
@@ -9574,13 +9529,10 @@ Os diagnostics desta policy são:
 
 [`tooling/execution-ergonomics-cases.json`](tooling/execution-ergonomics-cases.json),
 a máquina pura em [`tooling/execution-ergonomics-machine.mjs`](tooling/execution-ergonomics-machine.mjs),
-o host test e o snapshot JSONL mantêm os positivos, negativos e a informação
-desta policy. A máquina deriva labels, call forms, SCC, projections,
-doctest terminals, campos de módulo e lifecycle de lane dinâmica a partir de
-inputs estruturados. O corpus fixa 61 casos: 23 positivos, 36 negativos e duas
-informações. Quinze testes host exercem entradas independentes. O checker compara
-o resultado derivado contra o expected. Esses artefatos são oracles de design;
-eles não são compiler, scheduler ou runtime W.
+o host test e o snapshot JSONL mantêm os positivos, negativos e as informações
+desta policy. O [perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução)
+registra escopo e contagens. Esses artefatos não são compiler, scheduler ou
+runtime W.
 
 ### 12.3 `Task` e ownership
 
@@ -10300,10 +10252,9 @@ capability, pool, fallback ou affinity. A redução entra no deployment digest e
 não exige recompilar o artifact.
 
 `w explain execution <product>` mostra requirements, bindings, shared pools,
-limites e reduções. O oracle
-[`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
-`async let`, domain explícito de `spawn`, FIFO serial, gate `.parallel` e redução
-de capacity. Declarar ou importar domain não cria queue, thread ou executor.
+limites e reduções. Declarar ou importar domain não cria queue, thread ou
+executor. O oracle e sua cobertura ficam no
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 ### 12.7 Mobilidade e captures
 
@@ -10958,29 +10909,14 @@ atomics. `lockFree` não faz parte da promessa. O profile mede throughput,
 latency, contention e allocation antes de selecionar uma implementação por
 target.
 
-#### 12.9.12 Oracle
+#### 12.9.12 Evidence
 
-**Exemplo:** dois balcões enviam pedidos para um maître único enquanto o
-scheduler cancela cada operação antes e depois do commit.
+**Exemplo:** cancellation antes e depois do commit não perde um item do channel.
 
-O ensaio do restaurante verifica:
-
-- dois producers e um consumer com capacity 0, 1 e 64;
-- fechamento pelo último sender e close gracioso pelo receiver;
-- receiver abortivo com itens e permits pendentes;
-- recuperação do item em `.full` e `.closed`;
-- cancellation antes e depois de cada commit;
-- FIFO por sender e ausência de ordem presumida entre senders;
-- `trySend` sem bypass;
-- stream owned, stream de `view String` e erro terminal;
-- `Stream.cancel()` default e override com drain e cleanup único;
-- adapter bounded sem producer órfão;
-- uma, duas e quatro worker threads;
-- TSan, leak sanitizer e allocation fault injection.
-
-O scheduler virtual explora os interleavings pequenos. Invariantes verificam
-que cada item termina exatamente em um receiver, um error que o devolve ou um
-cleanup. Nenhum item some entre esses estados.
+O oracle precisa explorar interleavings, cancellation, close, backpressure e
+cleanup sem alterar o contrato acima. O
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
+a matriz do ensaio e seus limites.
 
 ### 12.10 Memory model, atomics e locks
 
@@ -11078,45 +11014,13 @@ suporte.
 O lowering usa o modelo C++20. W remove orders inválidas da superfície safe e
 mantém `volatile`, atomics e synchronization como contratos diferentes.
 
-##### Corpus de execução E0
+##### Evidence E0
 
-**Exemplo:** `mixAcrossTwoKitchens` permite que as duas cozinhas executem em
-paralelo. Os resultados ficam visíveis ao parent somente depois do join. Pedir
-cancelamento de uma cozinha não publica seu estado parcial.
-
-[`tooling/execution-concurrency-cases.json`](tooling/execution-concurrency-cases.json)
-mantém 57 sequências ligadas a symbols do Última Luz. A
-[`máquina E0`](tooling/execution-concurrency-machine.mjs) executa 527 operações
-sobre:
-
-- lifecycle `reserved` até `joined`, com outcome posterior ao cleanup;
-- cancelamento idempotente, causas monotônicas e propagação descendente;
-- autoridade de cancelamento, scope exit e handles one-shot;
-- arbitragem fail-fast por ordem lexical;
-- eventos sequenced-before e as dez origens happens-before desta seção;
-- races entre acessos ordinários sem path de publicação;
-- modification order por localização e reads-from explícita;
-- ordem total `.sequential`, release sequences e fences;
-- subsets de order, matriz de compare-exchange e RMW;
-- extent atômico, view mista, payload exclusivo e lifetime;
-- tickets comuns e de barreira, inclusive cancellation antes do body.
-
-O runner aceita 31 sequências e rejeita 26.
-[`Dez testes host`](tooling/execution-concurrency-reference.test.mjs)
-verificam transições independentes do corpus. O snapshot guarda o estado final,
-os edges e um trace compacto de cada operação. Todo caso aponta para source do
-Última Luz. O gate exige cobertura 10/10: oito origens gerais e os dois edges
-de ticket do dispatch de barreira. M1 continua como oracle separado para owner,
-place loan, pin, origins e boundary.
-
-E0 não é scheduler, checker ou runtime W. Ele recebe task, storage, extent,
-lifetime e reads-from já resolvidos. Ele valida um witness. Ele não executa
-valores nem enumera todas as execuções permitidas pelo modelo C++20.
-
-E0 também não prova liveness, fairness, preemption, oversubscription,
-task-frame allocation, partial projections, reentrância de service, device
-scope, reclamation, ABA ou execução distribuída. Esses itens permanecem gates
-separados antes do freeze de execução.
+E0 precisa cobrir as origens de happens-before desta seção, lifecycle, races,
+orders, extents e tickets de barreira. Ele valida um witness já resolvido; não
+enumera todas as execuções nem prova liveness. O
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
+corpus, contagens e limites.
 
 #### 12.10.2 Storage `atomic`
 
@@ -11547,11 +11451,10 @@ service DiningRoom {
 }
 ```
 
-**W-1184 — evidence de lock:** LM0 possui 33 casos e 114 operações: 19 aceitos,
-13 rejeitados e uma fault. Oito testes host independentes cobrem protected
-loans, FIFO, try sem bypass, cancellation, unlock, drop, fault boundary e a
-seleção entre synchronization forms. O oracle não implementa compiler,
-scheduler, runtime ou provider `std.sync@1`.
+**W-1184 — evidence de lock:** LM0 precisa cobrir protected loans, FIFO, try sem
+bypass, cancellation, unlock, drop, fault boundary e seleção da forma de
+sincronização. Contagens e limites ficam no
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 #### 12.10.7 `SnapshotCell`
 
@@ -11630,11 +11533,10 @@ owner explícito atrás de service, domain ou lock. A baseline também não exp�
 `tryPublish`: falha de allocation antes da publicação segue a policy normal de
 OOM e mantém a versão anterior corrente.
 
-**W-1180 — evidence de snapshot:** o corpus SP0 liga essa superfície ao Última
-Luz. Ele cobre readers antigos e novos, error, publicação concorrente,
-retirement bounded, drop único, OOM pré-publicação, close e estratégias
-equivalentes.
-O oracle não implementa o provider, o scheduler ou o runtime W.
+**W-1180 — evidence de snapshot:** SP0 precisa cobrir readers antigos e novos,
+error, publicação concorrente, retirement bounded, drop único, OOM
+pré-publicação, close e estratégias equivalentes. Contagens e limites ficam no
+[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 #### 12.10.8 Diagnostics e gate
 
@@ -11893,9 +11795,10 @@ Cleanup incompleto não vira success/canceled. O host libera seu cleanup registr
 o trace registra roots não concluídos e cada generation mantém seus slots,
 registrations e completions isolados.
 
-O oracle E1 é host-puro e adversarial. Ele não prova scheduler, clock, OS I/O,
-fairness absoluta, device scopes, distributed recovery ou terminação de user
-code. SP0 fecha a semântica safe de versões publicadas. A estratégia física de
+E1 não prova scheduler, clock, OS I/O, fairness absoluta, device scopes,
+distributed recovery ou terminação de user code. Seu corpus e seus limites
+ficam no [perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
+SP0 fecha a semântica safe de versões publicadas. A estratégia física de
 reclamation continua uma escolha de provider e exige testes reais.
 
 ### 12.13 Transação estruturada
