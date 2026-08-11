@@ -322,7 +322,7 @@
     {
       "id": "R0-refinement-subject",
       "reviewItem": "`T<(.member predicate)>` contra `value.member`, `where` e constructor",
-      "decisions": ["W-014", "W-144"],
+      "decisions": ["W-014", "W-144", "W-1288"],
       "task": "Restrict a menu title by its grapheme count without a runtime constructor API.",
       "selected": {
         "language": "w",

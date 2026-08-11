@@ -386,6 +386,25 @@ String<(value.graphemes.count == 10)>
 A forma curta é **Forma vigente**. `value` continua disponível para
 desambiguação e diagnostics.
 
+**W-1288 — subject contextual:** depois que o schema resolve um
+`predicate_argument` como refinement, `value` é um binding compile-time
+imutável fornecido pelo compiler para o valor candidato completo. Ele precede
+lookup lexical e baixa para o mesmo subject explícito que uma referência
+iniciada por `.`. Um símbolo externo chamado `value` precisa de qualificação de
+módulo nesse refinement. Em outro slot estático ou fora do predicate, `value`
+continua um identifier comum.
+
+O binding contextual não possui storage, address ou lifetime próprio. Ele não
+pode escapar, ser capturado ou receber mutation. A ConstIR grava a identity do
+subject e a projection completa; ela não preserva a grafia curta ou explícita.
+Assim, estas formas permanecem idênticas mesmo quando existe outro símbolo
+lexical chamado `value`:
+
+```w
+String<(.scalars.count <= 40)>
+String<(value.scalars.count <= 40)>
+```
+
 Um tipo generic já aplicado recebe o refinement em outro envelope.
 `Array<u8><(.count <= 64)>` não mistura o element type com o predicate.
 
@@ -5340,6 +5359,8 @@ verificado do adapter ou permanece conservadora.
 
 Os precedentes de refinements ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
+O ensaio entre `.member`, `value.member` e validação fora do tipo fica em
+[`RATIONALE.md` §1.3.22](RATIONALE.md#1322-subject-de-refinement).
 
 O predicate permanece dentro do contrato estático e não cria um slot chamado
 `where`.

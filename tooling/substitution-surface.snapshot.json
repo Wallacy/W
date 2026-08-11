@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:87f67457268577c91171fa89dcb3540452752db91530aef8b2d85dc635d22ce2",
+  "corpusDigest": "sha256:55efa37625161511a0a2e46f8a90793d541a1f85e5afaa4277cd15339d50a343",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {

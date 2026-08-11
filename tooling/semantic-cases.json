@@ -1525,6 +1525,79 @@
       }
     },
     {
+      "id": "S0-POS-contract-explicit-refinement-subject",
+      "kind": "positive",
+      "rule": "W-1288",
+      "source": [
+        "const value: usize = 120",
+        "type ExplicitLabel = String<(value.scalars.count <= 40)>"
+      ],
+      "expect": {
+        "focus": { "text": "String<(value.scalars.count <= 40)>" },
+        "semanticResult": {
+          "resultType": "String<(value.scalars.count <= 40)>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "refinement-subject", "subject": "String", "value": "contextual:value" },
+            { "kind": "refinement", "subject": "value.scalars.count", "value": "<=40" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "String" },
+              { "id": "subject", "operation": "bind-refinement-subject", "subject": "value" },
+              { "id": "predicate", "operation": "const-predicate", "subject": "value.scalars.count<=40" },
+              { "id": "result", "operation": "apply-refinement", "subject": "String" }
+            ],
+            "edges": [
+              { "from": "head", "to": "subject", "kind": "candidate" },
+              { "from": "subject", "to": "predicate", "kind": "projection" },
+              { "from": "predicate", "to": "result", "kind": "true" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "id": "S0-POS-contract-value-remains-lexical-outside-refinement",
+      "kind": "positive",
+      "rule": "W-1288",
+      "source": [
+        "const value: usize = 4",
+        "struct Buffer<count: usize> {}",
+        "type Four = Buffer<(value)>"
+      ],
+      "expect": {
+        "focus": { "text": "Buffer<(value)>" },
+        "semanticResult": {
+          "resultType": "Buffer<count: 4>",
+          "category": "type",
+          "flow": { "kind": "next" },
+          "ownerDelta": [],
+          "effectSummary": { "signature": [], "control": [], "operational": [] },
+          "proofFacts": [
+            { "kind": "lexical-const", "subject": "value", "value": "4" },
+            { "kind": "value-slot", "subject": "count", "value": "4" }
+          ],
+          "evaluationGraph": {
+            "nodes": [
+              { "id": "head", "operation": "resolve-type", "subject": "Buffer" },
+              { "id": "value", "operation": "resolve-lexical-const", "subject": "value" },
+              { "id": "result", "operation": "apply-contract", "subject": "Buffer" }
+            ],
+            "edges": [
+              { "from": "value", "to": "result", "kind": "argument" },
+              { "from": "head", "to": "result", "kind": "head" }
+            ]
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
       "id": "S0-POS-contract-ordered-slots",
       "kind": "positive",
       "rule": "W-757",
@@ -3074,6 +3147,70 @@
               "expectedType": "Bool",
               "head": "Array<Order>",
               "predicateType": "usize"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-explicit-subject-shadows-lexical-value",
+      "kind": "negative",
+      "rule": "W-1288",
+      "baseline": "S0-POS-contract-explicit-refinement-subject",
+      "failureField": "proofFacts",
+      "source": [
+        "const value: Bool = true",
+        "type InvalidLabel = String<(value)>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0003",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": "value", "occurrence": 1 },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "String" } }
+            ],
+            "facts": {
+              "expectedType": "Bool",
+              "head": "String",
+              "predicateType": "String"
+            },
+            "notes": [],
+            "fixes": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "S0-NEG-contract-no-implicit-subject-outside-refinement",
+      "kind": "negative",
+      "rule": "W-1288",
+      "baseline": "S0-POS-contract-value-remains-lexical-outside-refinement",
+      "failureField": "proofFacts",
+      "source": [
+        "struct Buffer<count: usize> {}",
+        "type InvalidBuffer = Buffer<(.count)>"
+      ],
+      "expect": {
+        "diagnostics": [
+          {
+            "code": "W-CONTRACT-0002",
+            "phase": "semantic.type",
+            "severity": "error",
+            "primary": { "text": ".count" },
+            "labels": [
+              { "role": "contract-head", "selector": { "text": "Buffer", "occurrence": 1 } },
+              { "role": "slot-declaration", "selector": { "text": "count", "occurrence": 0 } }
+            ],
+            "facts": {
+              "actualKind": "unbound-contextual-member",
+              "expectedKind": "value:usize",
+              "head": "Buffer",
+              "slot": "count"
             },
             "notes": [],
             "fixes": []
