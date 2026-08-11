@@ -193,6 +193,7 @@ alvo de execução independente.
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS, locks scoped e snapshots publicados |
+| `lazy_oracle.w` | estado lógico, lowering, reentrada, publicação e drop de `Lazy` |
 | `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
 | `streams.w` | stream pull, readable Web, channel CH0, rendezvous, permits, close e owner recovery |
@@ -1168,6 +1169,13 @@ Aceite:
 - rounding policy é parte da operação;
 - overflow não usa binary float;
 - `Versioned` não concede atomicidade fora do serial turn;
+- `priceTable` usa lowering isolado no service serial e não cria lock;
+- um owner concorrente seleciona um winner e publica um valor completo;
+- um contender em domain non-blocking falha sem prova de isolamento;
+- reentrada dinâmica falha a fault boundary e não produz deadlock;
+- cancellation só fica observável depois da publicação e do cleanup;
+- assignment exclusiva antes do primeiro read descarta o initializer;
+- captures ou valor executam drop uma vez conforme o estado final;
 - `some PricingPolicy` converte para `any PricingPolicy` sem perder o valor;
 - falha após captura executa um refund idempotente uma vez;
 - retry mutante só ocorre com idempotency key.

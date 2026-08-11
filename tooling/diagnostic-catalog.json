@@ -1668,6 +1668,66 @@
       "fixes": {}
     },
     {
+      "code": "W-LAZY-0001",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a Lazy initializer uses an effect outside the synchronous nonthrowing contract",
+      "requiredFacts": { "actualEffect": "string", "allowedEffects": "string-set", "property": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LAZY-0002",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a potentially contended Lazy access is reachable from a non-blocking domain",
+      "requiredFacts": { "domain": "string", "proof": "string", "property": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LAZY-0003",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a Lazy initializer reenters its own initialization dependency cycle",
+      "requiredFacts": { "cycle": "string[]", "property": "string", "winner": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LAZY-0004",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a Lazy assignment or modify operation lacks exclusive authority",
+      "requiredFacts": { "actualAuthority": "string", "operation": "string", "property": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LAZY-0005",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a Lazy lowering lacks required ownership, mobility, lifetime, or shareability facts",
+      "requiredFacts": { "lowering": "string", "missingFacts": "string-set", "property": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-LAZY-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a Lazy owner is mutated or destroyed before initializer and waiters drain",
+      "requiredFacts": { "activeInitializer": "boolean", "property": "string", "waiters": "integer" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
       "code": "W-BORROW-0001",
       "state": "active",
       "phase": "semantic.ownership",

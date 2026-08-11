@@ -1,0 +1,667 @@
+{
+  "$schema": "w-lazy-behavior-cases-1",
+  "status": "design-oracle-input",
+  "fixtures": {
+    "local": [
+      {
+        "op": "declare",
+        "lowering": "local",
+        "owner": "local-binding",
+        "initializerEffects": ["compute", "allocate"],
+        "capturesOwned": true
+      }
+    ],
+    "isolated": [
+      {
+        "op": "declare",
+        "lowering": "isolated",
+        "owner": "lastLight-service-turn",
+        "initializerEffects": ["compute", "allocate"],
+        "capturesOwned": true
+      }
+    ],
+    "concurrent": [
+      {
+        "op": "declare",
+        "lowering": "concurrent",
+        "owner": "shared-price-book",
+        "initializerEffects": ["compute", "allocate"],
+        "capturesOwned": true,
+        "capturesTransferable": true,
+        "capturesLifetimeIndependent": true,
+        "valueShareable": true
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "LZ0-accepted-local-first-access",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "nextLazyState" },
+      "decisions": ["W-1193", "W-1194", "W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "main" },
+        { "op": "publish", "actor": "main", "value": "prices-v1" },
+        { "op": "read", "actor": "main" },
+        { "op": "close" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "closed",
+        "initializerRuns": 1,
+        "observedValues": ["prices-v1"],
+        "captureDrops": 1,
+        "valueDrops": 1
+      }
+    },
+    {
+      "id": "LZ0-accepted-serial-service-lowering",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/restaurant.w", "symbol": "var Lazy priceTable" },
+      "decisions": ["W-1193", "W-1194", "W-1196"],
+      "fixtures": ["isolated"],
+      "operations": [
+        { "op": "beginAccess", "actor": "order-turn" },
+        { "op": "publish", "actor": "order-turn", "value": "prices-v1" },
+        { "op": "read", "actor": "status-turn" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "initialized",
+        "initializerRuns": 1,
+        "observedValues": ["prices-v1"],
+        "physicalContains": ["lowering:isolated", "isolated-claim:order-turn"]
+      }
+    },
+    {
+      "id": "LZ0-accepted-concurrent-winner-and-waiter",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "waitForWinner" },
+      "decisions": ["W-1193", "W-1194", "W-1196"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "left", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "right", "blockingDomain": true },
+        { "op": "publish", "actor": "left", "value": "prices-v1" },
+        { "op": "resumeAccess", "actor": "right", "blockingDomain": true },
+        { "op": "read", "actor": "left", "blockingDomain": true }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "initialized",
+        "initializerRuns": 1,
+        "observedValues": ["prices-v1", "prices-v1"],
+        "waiterPhases": { "right": "resumed" },
+        "happensBefore": ["publish:1->read:right", "publish:1->read:left"]
+      }
+    },
+    {
+      "id": "LZ0-accepted-concurrent-multiple-waiters",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1193", "W-1194"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "a", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "b", "blockingDomain": true },
+        { "op": "publish", "actor": "winner", "value": "prices-v1" },
+        { "op": "resumeAccess", "actor": "a", "blockingDomain": true },
+        { "op": "resumeAccess", "actor": "b", "blockingDomain": true }
+      ],
+      "expect": {
+        "status": "accepted",
+        "initializerRuns": 1,
+        "observedValues": ["prices-v1", "prices-v1"],
+        "waiterPhases": { "a": "resumed", "b": "resumed" }
+      }
+    },
+    {
+      "id": "LZ0-accepted-preinitialized-proof-nonblocking",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "canBlockWhenContended" },
+      "decisions": ["W-1194"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "set", "exclusive": true, "value": "prices-v1" },
+        { "op": "read", "actor": "reader", "initializedBeforePublication": true }
+      ],
+      "expect": {
+        "status": "accepted",
+        "initializerRuns": 0,
+        "observedValues": ["prices-v1"]
+      }
+    },
+    {
+      "id": "LZ0-accepted-exclusive-proof-nonblocking",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1194", "W-1195"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "owner", "exclusiveProof": true },
+        { "op": "publish", "actor": "owner", "value": "prices-v1" }
+      ],
+      "expect": { "status": "accepted", "initializerRuns": 1, "phase": "initialized" }
+    },
+    {
+      "id": "LZ0-accepted-assignment-before-access",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "assignExclusive" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "set", "exclusive": true, "value": "manual-v1" },
+        { "op": "read", "actor": "main" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "initializerRuns": 0,
+        "observedValues": ["manual-v1"],
+        "captureDrops": 1,
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-accepted-assignment-after-access",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "assignExclusive" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "main" },
+        { "op": "publish", "actor": "main", "value": "prices-v1" },
+        { "op": "set", "exclusive": true, "value": "prices-v2" },
+        { "op": "read", "actor": "main" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "observedValues": ["prices-v2"],
+        "valueDrops": 1,
+        "publication": 2
+      }
+    },
+    {
+      "id": "LZ0-accepted-modify-initializes",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        {
+          "op": "modify",
+          "exclusive": true,
+          "initializerValue": "prices-v1",
+          "value": "prices-v1-modified"
+        },
+        { "op": "read", "actor": "main" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "initializerRuns": 1,
+        "modifications": 1,
+        "observedValues": ["prices-v1-modified"]
+      }
+    },
+    {
+      "id": "LZ0-accepted-modify-existing-value",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "set", "exclusive": true, "value": "prices-v1" },
+        { "op": "modify", "exclusive": true, "value": "prices-v2" },
+        { "op": "read", "actor": "main" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "initializerRuns": 0,
+        "modifications": 1,
+        "observedValues": ["prices-v2"],
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-accepted-winner-cancellation-after-publish",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "publish" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "requestCancellation", "actor": "winner" },
+        { "op": "publish", "actor": "winner", "value": "prices-v1" },
+        { "op": "observeCancellation", "actor": "winner" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "phase": "initialized",
+        "cancellations": { "winner": "observed" }
+      }
+    },
+    {
+      "id": "LZ0-accepted-waiter-cancellation-after-publish",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "waitForWinner" },
+      "decisions": ["W-1194", "W-1195"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "waiter", "blockingDomain": true },
+        { "op": "requestCancellation", "actor": "waiter" },
+        { "op": "publish", "actor": "winner", "value": "prices-v1" },
+        { "op": "resumeAccess", "actor": "waiter", "blockingDomain": true },
+        { "op": "observeCancellation", "actor": "waiter" }
+      ],
+      "expect": {
+        "status": "accepted",
+        "observedValues": ["prices-v1"],
+        "cancellations": { "waiter": "observed" }
+      }
+    },
+    {
+      "id": "LZ0-accepted-never-read-drops-captures",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "close" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [{ "op": "close" }],
+      "expect": {
+        "status": "accepted",
+        "phase": "closed",
+        "initializerRuns": 0,
+        "captureDrops": 1,
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-accepted-published-value-drops-once",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "close" },
+      "decisions": ["W-1195", "W-1196"],
+      "fixtures": ["isolated"],
+      "operations": [
+        { "op": "beginAccess", "actor": "turn" },
+        { "op": "publish", "actor": "turn", "value": "prices-v1" },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "captureDrops": 1, "valueDrops": 1 }
+    },
+    {
+      "id": "LZ0-accepted-allocation-effect",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/restaurant.w", "symbol": "loadPriceTable" },
+      "decisions": ["W-1193"],
+      "fixtures": ["isolated"],
+      "operations": [
+        { "op": "beginAccess", "actor": "turn" },
+        { "op": "publish", "actor": "turn", "value": "allocated-prices" }
+      ],
+      "expect": { "status": "accepted", "initializerRuns": 1 }
+    },
+    {
+      "id": "LZ0-rejected-suspending-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLogicalState" },
+      "decisions": ["W-1193"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["suspend"],
+          "capturesOwned": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0001", "phase": "undeclared" }
+    },
+    {
+      "id": "LZ0-rejected-throwing-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLogicalState" },
+      "decisions": ["W-1193"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["throws"],
+          "capturesOwned": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0001" }
+    },
+    {
+      "id": "LZ0-rejected-io-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLogicalState" },
+      "decisions": ["W-1193"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["io"],
+          "capturesOwned": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0001" }
+    },
+    {
+      "id": "LZ0-rejected-blocking-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLogicalState" },
+      "decisions": ["W-1193"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "isolated",
+          "initializerEffects": ["blocking"],
+          "capturesOwned": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0001" }
+    },
+    {
+      "id": "LZ0-rejected-operational-initializer-effect",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLogicalState" },
+      "decisions": ["W-1193"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "isolated",
+          "initializerEffects": ["service"],
+          "capturesOwned": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0001" }
+    },
+    {
+      "id": "LZ0-rejected-first-access-in-nonblocking-domain",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "canBlockWhenContended" },
+      "decisions": ["W-1194"],
+      "fixtures": ["concurrent"],
+      "operations": [{ "op": "beginAccess", "actor": "reader" }],
+      "expect": { "status": "rejected", "error": "W-LAZY-0002", "phase": "uninitialized" }
+    },
+    {
+      "id": "LZ0-rejected-contender-in-nonblocking-domain",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "canBlockWhenContended" },
+      "decisions": ["W-1194"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "contender" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0002", "phase": "initializing" }
+    },
+    {
+      "id": "LZ0-rejected-nontransferable-captures",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1194", "W-1195"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "concurrent",
+          "initializerEffects": ["compute"],
+          "capturesOwned": true,
+          "capturesTransferable": false,
+          "capturesLifetimeIndependent": true,
+          "valueShareable": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0005" }
+    },
+    {
+      "id": "LZ0-rejected-short-lived-captures",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1194", "W-1195"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "concurrent",
+          "initializerEffects": ["compute"],
+          "capturesOwned": true,
+          "capturesTransferable": true,
+          "capturesLifetimeIndependent": false,
+          "valueShareable": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0005" }
+    },
+    {
+      "id": "LZ0-rejected-nonshareable-value",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1194"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "concurrent",
+          "initializerEffects": ["compute"],
+          "capturesOwned": true,
+          "capturesTransferable": true,
+          "capturesLifetimeIndependent": true,
+          "valueShareable": false
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0005" }
+    },
+    {
+      "id": "LZ0-accepted-local-borrowed-capture",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1195"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["compute"],
+          "captureLifetimeValid": true
+        },
+        { "op": "close" }
+      ],
+      "expect": { "status": "accepted", "phase": "closed", "captureDrops": 1 }
+    },
+    {
+      "id": "LZ0-rejected-expired-borrowed-capture",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1195"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["compute"],
+          "captureLifetimeValid": false
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0005" }
+    },
+    {
+      "id": "LZ0-rejected-known-reentry-cycle",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "beginAccess" },
+      "decisions": ["W-1195"],
+      "operations": [
+        {
+          "op": "declare",
+          "lowering": "local",
+          "initializerEffects": ["compute"],
+          "capturesOwned": true,
+          "knownCycle": true
+        }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0003" }
+    },
+    {
+      "id": "LZ0-rejected-set-without-exclusive-authority",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "assignExclusive" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [{ "op": "set", "exclusive": false, "value": "manual-v1" }],
+      "expect": { "status": "rejected", "error": "W-LAZY-0004" }
+    },
+    {
+      "id": "LZ0-rejected-modify-without-exclusive-authority",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [{ "op": "modify", "exclusive": false, "value": "manual-v1" }],
+      "expect": { "status": "rejected", "error": "W-LAZY-0004" }
+    },
+    {
+      "id": "LZ0-rejected-close-during-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initializing" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner" },
+        { "op": "close" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0006", "phase": "initializing" }
+    },
+    {
+      "id": "LZ0-rejected-set-during-initializer",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initializing" },
+      "decisions": ["W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner" },
+        { "op": "set", "exclusive": true, "value": "manual-v1" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0006", "phase": "initializing" }
+    },
+    {
+      "id": "LZ0-rejected-close-with-waiter",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "waitForWinner" },
+      "decisions": ["W-1195"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "waiter", "blockingDomain": true },
+        { "op": "close" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0006" }
+    },
+    {
+      "id": "LZ0-rejected-local-concurrent-contender",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "LazyLowering" },
+      "decisions": ["W-1194"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner" },
+        { "op": "beginAccess", "actor": "other" }
+      ],
+      "expect": { "status": "rejected", "error": "W-LAZY-0005" }
+    },
+    {
+      "id": "LZ0-rejected-wrong-publisher",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "publish" },
+      "decisions": ["W-1193"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "publish", "actor": "other", "value": "prices-v1" }
+      ],
+      "expect": { "status": "rejected", "error": "lazyPublisherNotWinner" }
+    },
+    {
+      "id": "LZ0-rejected-resume-before-publication",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "waitForWinner" },
+      "decisions": ["W-1193", "W-1194"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "waiter", "blockingDomain": true },
+        { "op": "resumeAccess", "actor": "waiter", "blockingDomain": true }
+      ],
+      "expect": { "status": "rejected", "error": "lazyWaiterResumedBeforePublication" }
+    },
+    {
+      "id": "LZ0-fault-dynamic-reentry",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "beginAccess" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true }
+      ],
+      "expect": {
+        "status": "fault",
+        "error": "W-LAZY-0003",
+        "phase": "faulted",
+        "captureDrops": 1,
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-fault-initializer-panic",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "panicInitializer" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner" },
+        { "op": "panic", "actor": "winner" }
+      ],
+      "expect": {
+        "status": "fault",
+        "error": "lazyInitializerPanic",
+        "phase": "faulted",
+        "captureDrops": 1,
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-fault-initializer-out-of-memory",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "panicInitializer" },
+      "decisions": ["W-1193", "W-1195"],
+      "fixtures": ["local"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner" },
+        { "op": "allocationFault", "actor": "winner" }
+      ],
+      "expect": {
+        "status": "fault",
+        "error": "lazyInitializerOutOfMemory",
+        "phase": "faulted",
+        "publication": 0,
+        "captureDrops": 1,
+        "valueDrops": 0
+      }
+    },
+    {
+      "id": "LZ0-fault-panic-wakes-waiters-for-boundary",
+      "kind": "fault",
+      "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "panicInitializer" },
+      "decisions": ["W-1194", "W-1195", "W-1196"],
+      "fixtures": ["concurrent"],
+      "operations": [
+        { "op": "beginAccess", "actor": "winner", "blockingDomain": true },
+        { "op": "beginAccess", "actor": "waiter", "blockingDomain": true },
+        { "op": "panic", "actor": "winner" }
+      ],
+      "expect": {
+        "status": "fault",
+        "error": "lazyInitializerPanic",
+        "waiterPhases": { "waiter": "faulted" },
+        "physicalContains": ["wake-waiters-for-boundary-fault"]
+      }
+    }
+  ]
+}

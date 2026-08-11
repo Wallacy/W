@@ -45,6 +45,7 @@ linguagem.
 | `channel-cases.json` + máquina CH0 | 47 sequências e 333 operações (28 aceitas + 19 rejeitadas), 12 testes host; ownership linear, capacity 0/1/64, admission FIFO, permits, cancellation, close, abort, happens-before e estratégias ring/mutex | oracle host bounded; não implementa checker, scheduler, runtime, allocator ou provider `Channel` W |
 | `scoped-lock-cases.json` + máquina LM0 | 42 casos e 171 operações (25 aceitos + 16 rejeitados + uma fault), onze testes host; payload encapsulado, FIFO, fases read/write, try sem bypass, cancellation, fault boundary e seleção de primitive | oracle host de locks escopados; não implementa compiler, scheduler, runtime ou provider `std.sync@1` |
 | `snapshot-cell-cases.json` + máquina SP0 | 27 casos e 82 operações (14 aceitos + 12 rejeitados + uma fault), sete testes host; publication order, version stability, retirement bounded, drop único e quatro estratégias equivalentes | oracle host de snapshot publicado; não implementa compiler, runtime, scheduler ou provider `std.sync@1` |
+| `lazy-behavior-cases.json` + máquina LZ0 | winner, waiters, lowering, publication edge, reentrada, cancellation, mutation e drop | oracle host de `Lazy`; não implementa compiler, runtime ou provider de parking |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
@@ -282,11 +283,13 @@ integrações de editor.
    no root do repositório.
 10. Para validar o recorte SP0 sem executar runtime, execute
    `bun run check:snapshot-cell` no root do repositório.
-11. Para validar a composição MX0 sem executar compiler ou runtime, execute
+11. Para validar o recorte LZ0 sem executar compiler ou runtime, execute
+   `bun run check:lazy` no root do repositório.
+12. Para validar a composição MX0 sem executar compiler ou runtime, execute
    `bun run check:ownership-execution` no root do repositório.
-12. Para validar o channel CH0 sem executar compiler ou runtime, execute
+13. Para validar o channel CH0 sem executar compiler ou runtime, execute
    `bun run check:channel` no root do repositório.
-13. Para validar o recorte TAB1 sem executar W, execute
+14. Para validar o recorte TAB1 sem executar W, execute
    `bun tooling/check-tabular-adapter-cases.mjs --write` e
    `bun test tooling/tabular-adapter-reference.test.mjs`.
 

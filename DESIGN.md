@@ -5058,13 +5058,8 @@ Services usam o instance descriptor e o host. Enums usam seus cases. Um
 refined type usa seu constructor fallible. Nenhuma dessas formas ganha `init`
 por simetria.
 
-A segurança em duas fases segue o objetivo da
-[inicialização do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization/).
-O risco de representar bytes ainda inválidos aparece no contrato de
-[`MaybeUninit`](https://doc.rust-lang.org/core/mem/union.MaybeUninit.html).
-O compact constructor de
-[records Java](https://docs.oracle.com/en/java/javase/15/docs/specs/records-jls.html)
-mostra o valor de validar antes de publicar o aggregate.
+Precedentes e alternativas de inicialização ficam no
+[`RATIONALE.md` §1.5](RATIONALE.md#15-memória-layout-errors-e-cleanup).
 
 ### 8.4 Propriedades computadas
 
@@ -5148,11 +5143,13 @@ o storage e gera os accessors. A inicialização do field chama `init` do
 behavior. Ela não chama `set`. Um behavior publica seu contrato adicional de
 custo conforme a seção 10.
 
-Swift permite
-[properties read-only com `async` e `throws`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0310-effectful-readonly-properties.md).
-W rejeita essa forma por enquanto. A rejeição preserva a expectativa de acesso
-rápido e local. A separação entre stored e computed properties também segue as
-[propriedades do Swift](https://docs.swift.org/swift-book/LanguageGuide/Properties.html).
+Um behavior definido pelo programa continua sob o teto property-safe. `Lazy`
+é um behavior padrão reconhecido pelo compiler. Ele acrescenta somente os
+efeitos controlados e as provas definidos na seção 10.
+
+W rejeita property `async` ou `throws` por enquanto. Um método nomeado mantém
+`try`, `await` e o custo visíveis no call site. Evidência comparativa fica no
+[`RATIONALE.md` §1.5](RATIONALE.md#15-memória-layout-errors-e-cleanup).
 
 ### 8.5 Option e ausência
 
@@ -8745,47 +8742,126 @@ high-bit:       rejected; profile portable
 
 ## 10. Property behaviors
 
-O uso continua simples:
+Um behavior transforma um binding ou field em uma propriedade lógica. Ele
+possui backing storage, accessors e obrigações de drop. Reflection mostra a
+propriedade lógica e não expõe o backing storage.
+
+O uso de inicialização tardia continua simples:
 
 ```w
 var Lazy heatProfile = deriveHeatProfile(model)
 ```
 
-Uma declaração experimental é:
+Um behavior definido pelo programa aceita somente `init`, `get`, `set` e
+`modify` síncronos e sem `throws`. Ele não suspende, bloqueia, faz I/O, cria
+tasks ou adquire authority. Behavior não concede mobilidade ou atomicidade.
 
-```w
-behavior Lazy<Value> for Value {
-  storage var cached: Value?
-  initialValue
+**W-1193 — estado lógico de `Lazy`:** `Lazy` é um behavior padrão reconhecido
+pelo compiler. Ele possui estes estados lógicos:
 
-  init { cached = .none }
+```text
+uninitialized(initializer)
+  → initializing(winner)
+  → initialized(value)
+  → closed
 
-  mut get {
-    if let value = cached { return value }
-    let value = initialValue()
-    cached = .some(value)
-    return value
-  }
-
-  set(newValue) { cached = .some(newValue) }
-}
+initializing(winner) → faulted
+uninitialized(initializer) → initialized(value) // atribuição exclusiva
 ```
 
-A primeira implementação aceita somente `init`, `get`, `set` e `modify`
-síncronos e sem `throws`. Um accessor que suspende, faz rede ou bloqueia exige
-uma API nomeada. Behavior não concede mobilidade ou atomicidade.
+O primeiro acesso escolhe um winner. Somente esse winner executa o initializer.
+Somente essa execução pode publicar um valor produzido pelo initializer.
+Readers posteriores observam o valor completo. Contenders não executam outro
+initializer.
 
-Cada behavior publica seu custo na interface compilada. `Lazy` pode calcular,
-alocar e guardar o valor uma vez. O nome `Lazy` torna essa diferença visível na
-declaração. `w explain` mostra o initializer e o storage gerado.
+O initializer é `neverSuspend` e não usa `throws`. Ele não faz I/O, network,
+service call, device transfer, blocking ou authority acquisition. Ele pode
+calcular e alocar conforme o contrato de custo publicado. Trabalho suspensível
+ou falível usa um método nomeado e um resultado explícito.
 
-Composição v0 usa um behavior composto nomeado. Lista por vírgula e nesting
+**W-1194 — lowering por prova:** a semântica lógica não depende do lowering:
+
+| Prova do owner | Lowering permitido | Custo do acesso inicial |
+|---|---|---|
+| local ou exclusivo | flag e storage locais | initializer |
+| service ou domain serial | flag e storage isolados | initializer |
+| acesso concorrente possível | estado atômico e parking privado | initializer ou wait bloqueante |
+
+O compiler remove synchronization quando ownership ou isolation provam acesso
+único. No lowering concorrente, a publicação cria um edge release/acquire para
+cada reader que observa o valor.
+
+A interface marca `initialization` e `blockingWhenContended`. Um domain
+non-blocking rejeita um acesso que pode encontrar outro winner. O acesso só é
+aceito quando uma prova mostra isolamento, exclusividade ou inicialização antes
+da publicação do owner. `Lazy` nunca suspende uma task de forma oculta.
+
+O lowering concorrente exige que o valor possa ser lido pelo conjunto de
+callers permitido. Captures transferidos para o initializer precisam ser
+`transferable` e `lifetimeIndependent`. `Lazy` não torna o owner, o valor ou os
+captures shareable por si só.
+
+Captures locais seguem as regras normais de `copy`, `ref`, `take` e `weak`. Um
+`ref` armazenado precisa sobreviver até a publicação ou o drop do binding. O
+resource lens mostra esse loan prolongado.
+
+**W-1195 — reentrada, mutation e lifetime:** reentrada conhecida no mesmo
+initializer é erro. Um cycle dinâmico no mesmo execution context falha a fault
+boundary em vez de bloquear. Outro execution context espera o winner. W não
+expõe poisoning, retry ou `Once` raw.
+
+Cancellation não interrompe o initializer nem o wait bloqueante. O runtime
+observa o pedido depois da publicação e do cleanup. Panic no initializer falha
+a fault boundary. OOM segue a policy normal de allocation e não publica valor
+parcial. Waiters não recebem um valor parcial.
+
+Atribuição e `modify` exigem autoridade exclusiva sobre o place. Uma atribuição
+antes do primeiro acesso encerra os capture paths e impede a execução do
+initializer. Uma atribuição posterior executa drop do valor anterior uma vez.
+`modify` inicializa quando necessário e abre o `inout` normal. Não existe setter
+concorrente implícito.
+
+Se o valor nunca for lido, drop encerra somente os capture paths do initializer.
+Se o valor for publicado, drop libera o valor uma vez. O owner não termina
+durante initializer, waiters, borrows ou modify ativos. O HIR liga dependencies
+ao owner da propriedade; ele não cria uma closure que possui `self`.
+
+Cada behavior publica custo e efeitos na interface compilada. `w explain
+property` mostra estado, initializer, captures, possível blocking, lowering,
+prova, storage e provider. O provider de parking continua missing.
+
+```text
+$ w explain property restaurant.lastLight.priceTable
+state:       uninitialized → initializing → initialized
+lowering:    isolated flag + storage
+blocking:    no
+proof:       serial service turn
+initializer: compute + allocation estimate
+provider:    none
+```
+
+Composição usa um behavior composto nomeado. Lista por vírgula e nesting
 arbitrário não entram enquanto ordem, exclusivity e drop não tiverem uma regra
 simples.
+
+`atomic` é um storage modifier, não um behavior. `var atomic Lazy value`
+continua inválido. A implementação privilegiada de `Lazy` não concede atomic
+storage a behaviors definidos pelo programa.
 
 Range continua responsável por `contains` e `clamp`. Um behavior `Clamped` só
 serve quando a propriedade precisa aplicar uma policy em toda atribuição. Ele
 não substitui o refined type nem o `Range`.
+
+**W-1196 — evidence LZ0:** a máquina host deriva winner único, waiters,
+publicação, lowering equivalente, reentrada, cancellation, mutation exclusiva,
+panic e drop. O oracle não executa W nem implementa compiler, runtime ou
+provider.
+
+Os diagnostics `W-LAZY-*` cobrem efeito do initializer, blocking domain,
+reentrada, exclusividade, mobility e drain.
+
+Precedentes e alternativas ficam no
+[`RATIONALE.md` §1.4.6](RATIONALE.md#146-inicialização-lazy-concorrente).
 
 ## 11. Erros, panic, OOM e cleanup
 
@@ -11200,7 +11276,8 @@ oferece. Esta tabela fecha a baseline safe:
 | reads paralelos e write in-place síncrono | `ReadWriteLock<T>` | `Mutex<T>` continua preferível quando reads não dominam |
 | versão imutável read-heavy | `SnapshotCell<T>` | RCU e grace period ficam internos ao provider |
 | transferência ou mailbox | `Channel<T>` ou service | condition variable rejeitada na safe std |
-| inicialização estática | const/module initialization | `Once` raw rejeitado; lazy concorrente permanece Pesquisa |
+| inicialização estática | const/module initialization | não cria ordem de inicialização runtime |
+| inicialização tardia | `var Lazy` | `Once` raw e async lazy rejeitados na baseline |
 | join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
 | park por palavra atômica | primitive privada do runtime | `Atomic.wait/notify` público permanece Pesquisa |
 
@@ -11261,16 +11338,10 @@ writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
 failure, drain e seleção entre storage e domain. O oracle não executa W nem
 implementa o provider.
 
-Uma condition variable separa predicate, lock e wakeup. Channels, task outcomes
-e services mantêm o evento junto de ownership e cancellation. Compatibilidade
-com APIs C usa adapter `unsafe`. A pesquisa de lazy concorrente precisa fechar
-winner, reentrada, error, panic e cancellation antes de escolher um nome ou um
-property behavior.
-
-Uma barreira de device pertence ao contract do kernel. Uma barreira CPU
-reutilizável precisa declarar participantes, desistência, cancellation e
-generation. `Atomic.wait/notify` precisa separar uma wait bloqueante de uma wait
-que suspende task. Nenhuma dessas pesquisas bloqueia o caminho comum.
+Condition variable, barreira CPU reutilizável e `Atomic.wait/notify` não entram
+na baseline safe. Uma barreira de device pertence ao contract do kernel.
+`var Lazy` fecha inicialização tardia; seu provider de parking permanece
+missing.
 
 Os diagnostics `W-LOCK-*` possuem escape, suspensão, blocking domain, reentrada,
 fault boundary, access mode, copy, drain e provider order. `W-SYNC-*` informa
@@ -27458,6 +27529,8 @@ tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
 Evidência, comparações e limites ficam em
 [`RATIONALE.md` §1.13](RATIONALE.md#113-evidência-de-apresentação-jupyter-e-export-pyn3).
 Este contrato não implementa kernel, transport, compiler, runtime, provider ou sanitizer.
+Os diagnostics `W-PRESENTATION-*`, `W-JUPYTER-*` e `W-EXPORT-*` cobrem essas
+três boundaries de tooling.
 
 ### 24.2 Recursos deliberadamente ausentes
 
@@ -27573,7 +27646,7 @@ evidência de design:
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum | fixar manifest e conformance mínima de cada target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
-| memória e execução | M1/A0/E0/E1/LM0/SP0 fecham ownership, allocation, closure, synchronization e reclamation | fechar device scopes, profiles e equivalência dos providers; HIR, allocator e scheduler reais ficam pós-freeze |
+| memória e execução | M1/A0/E0/E1/LM0/SP0/LZ0 fecham ownership, allocation, closure, synchronization e reclamation | fechar device scopes, profiles e equivalência dos providers; HIR, allocator e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fecha turn, gate, transaction e pipeline; wWire tem baseline | fechar queues, deduplication, recovery e faults de processo/rede |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
