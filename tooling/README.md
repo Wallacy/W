@@ -208,6 +208,28 @@ O fixture é [`reference/last-light/tensor_interop.w`](../reference/last-light/t
 Ele não executa W e não fornece provider DLPack, Python, CUDA, ROCm ou C
 Exchange. `std.tensor@1` e `std.dlpack@1` permanecem missing.
 
+### Device execution DEV0
+
+[`device-execution-machine.mjs`](device-execution-machine.mjs) deriva o scope
+`Launch`, descriptor fechado, staging de ownership, submit/completion receipts,
+dependencies de Queue, cancellation, device loss, generations, budgets e
+equivalência CPU/device. O corpus, checker, snapshot e teste host ficam em
+[`device-execution-cases.json`](device-execution-cases.json),
+[`check-device-execution-cases.mjs`](check-device-execution-cases.mjs),
+[`device-execution-results.snapshot.jsonl`](device-execution-results.snapshot.jsonl)
+e [`device-execution-reference.test.mjs`](device-execution-reference.test.mjs).
+
+Use:
+
+```sh
+bun run check:device-execution
+```
+
+O fixture é
+[`reference/last-light/device_execution_oracle.w`](../reference/last-light/device_execution_oracle.w).
+O oracle não executa W, kernel, driver ou provider. `std.accelerator@1`
+permanece missing.
+
 TextMate é a integração nativa e mais curta para obter cores no VS Code. A
 gramática Tree-sitter é a única candidata a descrever estrutura entre esses
 artefatos; TextMate e o scanner temporário do portal são projeções lexicais, não

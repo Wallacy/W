@@ -802,6 +802,9 @@ podem continuar necessários quando o gate do target exigir.
 `last-light-accelerators` exige um provider por target device. O
 `last-light-ai-lab` é um host executable separado. Ele consome device bundles
 por digest. O native product não incorpora CUDA, ROCm e Vulkan por inferência.
+Cada execução abre um `accelerator.Launch` ligado ao digest do module e à Queue
+selecionada. O scope fecha admission e drena completion antes de liberar device
+storage. O build não autoriza transfer, CPU fallback ou stream ordinal oculto.
 
 O oracle de cross-build do `menu-compiler` adiciona outra row:
 

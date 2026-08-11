@@ -596,6 +596,20 @@
       "bounds": ["total-bytes", "representation-count", "text-bytes", "image-bytes", "image-width", "image-height", "image-pixels", "json-depth", "json-nodes"],
       "complexity": { "time": "linear-bounded-payload", "space": "bounded-by-limits" }
     },
+    "accelerator-module": {
+      "capabilities": ["accelerator-provider", "tensor-device-provider"],
+      "effects": ["device-execution", "synchronization"],
+      "failures": { "mode": "typed", "types": ["accelerator.LaunchError"] },
+      "bounds": ["closed-static-record", "typed-launch-stub", "module-identity", "effect-manifest", "no-runtime-lookup"],
+      "complexity": { "time": "compile-time-synthesis", "space": "bounded-by-module" }
+    },
+    "accelerator-launch": {
+      "capabilities": ["accelerator-provider", "tensor-device-provider"],
+      "effects": ["suspension", "device-execution", "synchronization", "ownership-transfer", "cancellation-drain"],
+      "failures": { "mode": "typed", "types": ["accelerator.LaunchError"] },
+      "bounds": ["owned-scope", "queue-bound", "provider-generation", "explicit-transfer", "completion-receipt", "cleanup-drain"],
+      "complexity": { "time": "provider-bounded", "space": "bounded-by-limits" }
+    },
     "tensor-device": {
       "capabilities": ["tensor-device-provider"],
       "effects": ["allocation", "ownership-transfer"],
@@ -2127,6 +2141,30 @@
       ]
     },
     {
+      "id": "std.accelerator",
+      "availability": "accelerator-provider",
+      "source": "std/accelerator/contracts.w",
+      "designAnchors": ["12.7.2", "18.5", "24.3.2"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.accelerator@1",
+        "status": "missing",
+        "gates": ["module-manifest", "queue-receipts", "ownership-staging", "cancellation-drain", "device-loss", "provider-equivalence"]
+      },
+      "consumer": {
+        "path": "reference/last-light/device_execution_oracle.w",
+        "symbols": ["forecastOnDevice", "copyForecastToHost", "compareStrictForecast"]
+      },
+      "apis": [
+        { "symbol": "LaunchError", "kind": "enum", "profile": "accelerator-launch" },
+        { "symbol": "Limits", "kind": "struct", "profile": "value-contract", "members": [{ "symbol": "init", "profile": "value-contract" }, { "symbol": "standard", "profile": "value-contract" }] },
+        { "symbol": "ModuleIdentity", "kind": "struct", "profile": "accelerator-module", "members": [{ "symbol": "same", "profile": "accelerator-module" }] },
+        { "symbol": "KernelModule", "kind": "protocol", "profile": "accelerator-module" },
+        { "symbol": "Launch", "kind": "struct", "profile": "accelerator-launch", "members": [{ "symbol": "close", "profile": "accelerator-launch" }] },
+        { "symbol": "open", "kind": "fn", "profile": "accelerator-launch" }
+      ]
+    },
+    {
       "id": "std.tensor",
       "availability": "tensor-device-provider",
       "source": "std/tensor/contracts.w",
@@ -2269,6 +2307,7 @@
     { "binding": "parquet", "module": "std.parquet" },
     { "binding": "streaming", "module": "std.stream" },
     { "binding": "url", "module": "std.url" },
+    { "binding": "accelerator", "module": "std.accelerator" },
     { "binding": "tensor", "module": "std.tensor" },
     { "binding": "dlpack", "module": "std.dlpack" }
   ],
@@ -2421,6 +2460,24 @@
       "kind": "symbol",
       "consumer": "reference/last-light/pyn3_oracle.w",
       "profile": "presentation-contract",
+      "status": "draft"
+    },
+    {
+      "id": "dev0-accelerator-module-synthesis",
+      "module": "std.accelerator",
+      "surface": "module",
+      "kind": "symbol",
+      "consumer": "reference/last-light/ai_harness.w",
+      "profile": "accelerator-module",
+      "status": "missing"
+    },
+    {
+      "id": "dev0-accelerator-open",
+      "module": "std.accelerator",
+      "surface": "open",
+      "kind": "symbol",
+      "consumer": "reference/last-light/device_execution_oracle.w",
+      "profile": "accelerator-launch",
       "status": "draft"
     },
     {

@@ -127,6 +127,7 @@ spawn<.compute> let plan = optimize(take snapshot)
 | suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
+| executar kernel | as mesmas quatro formas + `accelerator.Launch` | Queue e transfer explícitas; owner, cancel e join não mudam |
 | reads concorrentes e write exclusivo | `spawn<domain>` + `.barrier` | tickets e loans verificados num grafo fechado |
 | proteger critical section curta | `Mutex` ou `AsyncMutex` | closure scoped; sem guard ou suspensão enquanto protege |
 | publicar versão read-heavy | `SnapshotCell` | readers veem versões completas; reclamation é automática |
@@ -9659,10 +9660,11 @@ pode remover affinity, isolation, ordering ou mobility.
 pacote declara os dois nomes. Um domínio serial `kitchen.thermal` pode usar o
 pool, mas conserva sua strand serial. O deployment não pode torná-lo paralelo.
 
-`.device` não autoriza um `spawn` comum a migrar W code para GPU, DSP ou ASIC.
-Device transfer, kernel selection, launch e synchronization usam as APIs domain da
-seção 18.5. Um adapter pode usar um domain com `.device` para seus jobs de host;
-o kernel continua sendo outro artifact e outro contrato.
+`.device` não autoriza `spawn` a migrar W code arbitrário para GPU, DSP ou ASIC.
+Kernel selection e launch usam o descriptor e o scope de
+[12.7.2](#1272-device-scopes-e-kernels). Um adapter pode usar um domain com
+`.device` para seus jobs de host; o kernel continua outro artifact. `await`,
+`async let` e `spawn` controlam o launch como qualquer operação suspensiva.
 
 Um módulo publica requirements, mas não escolhe um domínio oculto para `spawn`
 ou `parallelMap`. Importar um módulo nunca cria executor, queue ou thread.
@@ -10150,6 +10152,123 @@ Inline execution, queue serial, pool paralelo ou coroutine lowering precisam
 produzir o mesmo owner graph, outcome, drop ledger e happens-before projection.
 Diferenças físicas podem aparecer no trace e em `w explain execution`; elas não
 podem mudar o resultado lógico.
+
+#### 12.7.2 Device scopes e kernels
+
+**Exemplo:** o kernel direto continua uma função W comum. O descriptor gera um
+launch tipado para device sem criar uma quinta forma de execução:
+
+```w
+export const lastLightKernels = accelerator.module<{
+  forecast: forecastKernel,
+  normalize: normalizeKernel,
+}>()
+
+let limits = accelerator.Limits.standard()
+var launch = try await accelerator.open(
+  module: ref lastLightKernels,
+  on: ref queue,
+  limits: ref limits,
+)
+defer async {
+  do {
+    try await (take launch).close()
+  } catch error {
+    Trace.current.recordCleanupError(error)
+  }
+}
+
+async let prediction = lastLightKernels.forecast.launch(
+  using: ref launch,
+  features: ref deviceFeatures,
+  weights: ref deviceWeights,
+)
+let deviceResult = try await prediction
+```
+
+**W-1211 — descriptor fechado:** `accelerator.module<{...}>()` é uma síntese
+compile-time sobre static record. Cada field nomeia uma função kernel e gera um
+handle com método `launch`. O descriptor possui identity, manifest de effects,
+ABI, address spaces, numeric modes e CPU implementation. Renomear um field muda
+a interface; lista heterogênea, lookup por string e registro runtime falham.
+
+O símbolo original permanece chamável diretamente no host. O launch gerado
+recebe `using: ref accelerator.Launch<Module>` seguido dos parâmetros originais
+e devolve o mesmo result type. Ele é `maySuspend` e adiciona somente
+`accelerator.LaunchError`; o kernel baseline é `neverSuspend`, nonthrowing e
+retorna failures de domínio como valor. O manifest fecha os effects aceitos;
+recursion, task, service, host I/O, dynamic dispatch e FFI de host falham.
+
+**W-1212 — scope owned:** `accelerator.open` cria um `Launch<Module>` move-only
+ligado a um module, Queue, Device, provider generation e Limits. O lifecycle é:
+
+```text
+declared → opening → ready → closing → closed
+                          ↘ faulted → draining → closed
+```
+
+O scope abre admission somente depois de validar module, queue, device, numeric
+profile e provider. `close` fecha admission, drena todos os submissions,
+recolhe errors assíncronos, libera registrations uma vez e consome o owner. Um
+device scope não depende de `deinit`; async cleanup usa `defer async`.
+
+**W-1213 — ownership e transfer:** argumentos passam pelo mesmo staging de
+12.7.1. `take`, `copy`, `ref` e `inout` mantêm seu significado. Um tensor
+borrowed precisa residir no Device da Queue ou ter mapping host-shared provado.
+`inout` exige loan exclusivo até completion. Transfer, materialization e copy
+de payload são APIs explícitas de `std.tensor`; launch nunca as insere. Scalars
+`Copy` podem entrar no command record quando a ABI publica seus bytes e o
+receipt cobra esse custo.
+
+O result owner só fica disponível depois de completion e cleanup. Host code não
+lê device storage sem transferência explícita.
+
+**W-1214 — submission estruturada:** uma invocation passa por:
+
+```text
+staged → submitted → deviceRunning → bodySettled
+       → providerDrained → cleanup → outcomeCommitted → joined
+```
+
+`try await` mantém a wait na task atual. `async let` e `spawn` criam children
+normais. Cancelamento antes de `submitted` impede o launch e limpa staging.
+Depois de `submitted`, W não presume preemption: o provider conclui ou drena o
+trabalho antes de cleanup e outcome. Completion que já fez `bodySettled` vence
+cancelamento tardio; cancelamento anterior pode descartar o result somente
+depois do drain.
+
+**W-1215 — queue e happens-before:** submit e completion usam receipts cunhados
+pelo provider, nunca `ready: true` do caller. Um Launch possui uma Queue. O
+provider pode executar invocations independentes fora de ordem, mas precisa
+preservar as dependency edges derivadas de owner, loan, result e explicit wait.
+Nenhuma ordem entre Launches ou Queues é implícita. Cross-queue handoff usa
+transfer ou adapter que publique o receipt de synchronization.
+
+O completion receipt cria o edge device→host que publica result e
+mutation autorizada. Queue order não concede owner, não amplia loan e não torna
+storage host-addressable. Workgroup barrier e device atomic permanecem dentro
+do kernel contract; não são `spawn<..., .barrier>` nem `Atomic<T>` de host.
+
+**W-1216 — fault e geração:** admission, compile, submit e completion failures
+produzem `LaunchError`. Device loss ou provider protocol violation falha o
+Launch, fecha admission e drena ou põe em quarantine owners que o host ainda não
+pode liberar. Completion de generation antiga é suprimida depois do drain. Uma
+falha de kernel não faz unwind W no device; ela chega como error do launch ou
+falha a device fault boundary conforme o manifest.
+
+**W-1217 — profile e equivalência:** Limits cobrem invocations vivas, command
+bytes, argument bytes, result bytes, dependency edges, device allocation
+retida, completion records e cleanup deadline. Product e deployment selecionam
+provider, Device e Queue; source não usa ordinal físico ou stream integer.
+
+CPU fallback exige provas de module, numeric mode, layout, effects e memory
+plan, sem transfer oculta. `.strict` exige o mesmo value e failure point;
+`.reproducible`, o algoritmo versionado; `.fast`, a tolerância declarada.
+
+**W-1218 — evidência DEV0:** o corpus DEV0 deriva scope, staging, submission,
+completion, cancellation, queue dependencies, device loss, stale generation,
+budgets e equivalência CPU/device. O oracle host não executa W, kernel, driver
+ou accelerator. Providers reais continuam sujeitos ao gate 24.3.2.
 
 ### 12.8 Task groups e backpressure
 
@@ -20556,8 +20675,10 @@ Um modo numérico não é uma build flag global. O tipo de resultado não escond
 policy usada. Trace e `w explain performance` registram kernel, layout,
 accumulator, vector width e device.
 
+Um kernel continua função W direta. O descriptor, scope, completion e provider
+ficam definidos uma vez em [12.7.2](#1272-device-scopes-e-kernels).
 Transferência de device permanece explícita. Fusion pode eliminar um
-intermediate lógico, mas não pode inserir uma transferência oculta.
+intermediate lógico, mas não pode inserir transferência oculta.
 
 O mesmo contrato de device e copy vale para o carrier tabular fechado em
 [14.4.1](#1441-carrier-tabular). Um target diferente exige argumento
@@ -27346,10 +27467,10 @@ precisam passar fault injection sem task, waiter, loan ou resource órfão. Uma
 transferência entre domains não pode criar copy, share, retain ou mobility
 ocultos.
 
-E0, E1, MX0, LM0, SP0, LZ0 e B0 fornecem modelos de design. A alegação pública
-exige HIR, runtime e providers reais, stress tests, sanitizers e replay nos
-targets prometidos. Até esse ponto, a forma correta é “modelo estruturado de
-execução definido; implementação missing”. O gate não exige thread por task,
+E0, E1, MX0, LM0, SP0, LZ0, B0 e DEV0 fornecem modelos de design. A alegação
+pública exige HIR, runtime e providers reais, stress tests, sanitizers e replay
+nos targets prometidos. Até esse ponto, a forma correta é “modelo estruturado
+de execução definido; implementação missing”. O gate não exige thread por task,
 lock-free universal nem o mesmo lowering físico em todos os targets.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
@@ -27369,11 +27490,15 @@ evidência de design:
 | workflows Python/científicos | PYN0–PYN4, TAB0 e TAB1 fecham script, sessão, notebook, dados e tensor interop | fechar import-root/dependency, rich display, DLPack real e latency gates |
 | targets e host profiles | target facts e availability não mudam a semântica comum | fixar manifest e conformance mínima de cada target prometido |
 | ABI e metadata | L0 e WMeta fixam layout, container e readers de evidence | ligar wrappers ELF, Mach-O, COFF e Wasm ao container comum |
-| memória e execução | M1/A0/E0/E1/LM0/SP0/LZ0 fecham ownership, allocation, closure, synchronization e reclamation | fechar device scopes, profiles e equivalência dos providers; HIR, allocator e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fecha turn, gate, transaction e pipeline; wWire tem baseline | fechar queues, deduplication, recovery e faults de processo/rede |
 | packages e releases | P0 fecha resolver, lock, CAS, recipe, mirror e rebuild | fechar prerelease, trust, archive safety e rebuild independente |
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
+
+M1/A0/E0/E1/LM0/SP0/LZ0/DEV0 fecham o contrato de ownership, allocation,
+closure, synchronization, reclamation e device launch no nível de design. HIR,
+allocator, scheduler, drivers e providers executáveis são gates de implementação
+e da alegação pública; não são lacunas de syntax ou semântica para o freeze.
 
 Contagens de casos, operações, APIs e cobertura são projeções. Elas ficam
 em [`DESIGN-INDEX.md`](DESIGN-INDEX.md), não neste contrato.
@@ -27898,6 +28023,7 @@ Saída: uma máquina limpa reconstrói o mesmo payload sem rede durante o build.
 - units/refinements completos;
 - BigInt, FixedDecimal, Rational, Complex e math accuracy profiles;
 - tensor CPU, `@`, accumulators e modes numéricos;
+- descriptor de kernel, `std.accelerator`, scope `Launch` e providers CPU/device;
 - `f16`, `bf16`, quantization e requantization explícitas;
 - SIMD explícito e por range, storage estreito experimental e `w explain performance`;
 - rebuild em estágios;
@@ -27915,6 +28041,7 @@ Saída: design W demonstrado de ponta a ponta e pronto para revisão pública.
 | services | closed turn, admission e cycle são previsíveis? | três workloads, failure injection e trace |
 | units | `<>` supera `[]` em uso real? | estudo humano e modelo |
 | ML | shape/operator reduzem erros sem esconder cost? | corpus CPU/SIMD/device |
+| device | scope, queue, owner e completion preservam o mesmo grafo? | DEV0, fault injection e providers CPU/device |
 | performance | facts aceleram sem mudar semântica ou layout público? | differential oracles, optimization records e benchmarks |
 | packages | resolver e evidence model são operáveis? | projeto real offline/reproduzido |
 | ABI | source, W exact, C e component ficam distintos? | mismatch, header, symbols, allocator e version-skew oracles |
