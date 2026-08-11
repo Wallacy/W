@@ -244,7 +244,7 @@ test "a published menu exposes one complete revision" {
 // state.withLock((value: ref State) => ref value)
 // state.withLock((value: ref State) => state.withLock(inspect))
 // copy state
-// RwLock(ApologyLedgerState(revision: 0, messages: []))
+// ReadWriteLock(ApologyLedgerState(revision: 0, messages: [])) // Pesquisa.
 // snapshots.read((menu: ref PublishedMenu) => await inspect(menu))
 // snapshots.read((menu: ref PublishedMenu) => ref menu)
 // snapshots.publish(ref nextMenu)
