@@ -16,20 +16,20 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 28064 |
-| tokens aproximados de `DESIGN.md` | 291500 |
-| linhas de `RATIONALE.md` | 4087 |
-| tokens aproximados de `RATIONALE.md` | 112600 |
+| linhas de `DESIGN.md` | 28147 |
+| tokens aproximados de `DESIGN.md` | 292600 |
+| linhas de `RATIONALE.md` | 4151 |
+| tokens aproximados de `RATIONALE.md` | 114000 |
 | seções numeradas | 27 |
-| seções terminais com evidência local | 329/329 |
-| decisões | 1218 (W-001–W-1218) |
+| seções terminais com evidência local | 330/330 |
+| decisões | 1228 (W-001–W-1228) |
 | famílias de viabilidade | 182 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 69 |
 | casos de substituição estruturados | 69/69 |
-| decisões referenciadas por casos R0 | 129/1218 |
-| decisões classificadas para design freeze | 409/1218 (129 source + 319 oracle + 8 explícitas; 47 overlaps) |
-| decisões ainda sem classe de freeze | 809 |
+| decisões referenciadas por casos R0 | 129/1228 |
+| decisões classificadas para design freeze | 409/1228 (129 source + 319 oracle + 8 explícitas; 47 overlaps) |
+| decisões ainda sem classe de freeze | 819 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 169 |
 | surface lexemes das formas vigentes R0 | 1404 total; mediana 16; máximo 52 |
@@ -49,6 +49,7 @@
 | casos/operações de locks escopados LM0 | 42/171 (25 aceitos + 16 rejeitados + 1 fault; oito testes host) |
 | casos/operações do carrier de snapshot SP0 | 27/82 (14 aceitos + 12 rejeitados + 1 fault; sete testes host) |
 | casos/operações do kernel de boundary effects B0 | 39/320 (25 aceitos + 14 rejeitados) |
+| casos/operações de service recovery SR0 | 48/392 (18 aceitos + 30 rejeitados; 17 testes host) |
 | casos/operações do kernel de packages e releases P0 | 44/379 (22 aceitos + 22 rejeitados) |
 | casos/operações do workflow single-file PYN1 | 95/546 (23 aceitos + 72 rejeitados) |
 | casos/operações da sessão transacional PYN2 | 67/287 (53 aceitos + 14 rejeitados) |
@@ -65,8 +66,8 @@
 | snapshots de diagnostic D0 | 54 |
 | snapshots F0 no formato D0 | 21 |
 | codes D0 catalogados | 237/153 |
-| sources W no root do Última Luz | 89 |
-| sources W em todo o Última Luz | 97 |
+| sources W no root do Última Luz | 90 |
+| sources W em todo o Última Luz | 98 |
 | sources W no rascunho da std | 23 |
 | módulos/APIs catalogados da std SDK0 | 23/326 |
 | superfícies qualificadas da std usadas pelo Última Luz | 84 |
@@ -127,28 +128,28 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 10 | 8632–8754 | 1400 | Property behaviors |
 | 11 | 8755–9100 | 2700 | Erros, panic, OOM e cleanup |
 | 12 | 9101–11952 | 30800 | Concorrência, paralelismo e execução |
-| 13 | 11953–14092 | 21200 | Módulos de execução, services e entries |
-| 14 | 14093–17762 | 46500 | Prelude e SDK |
-| 15 | 17763–18462 | 7100 | Números, ranges e unidades |
-| 16 | 18463–20035 | 13200 | Texto, bytes e collections |
-| 17 | 20036–20380 | 4000 | Matrizes, tensors e ML |
-| 18 | 20381–20834 | 4400 | Performance e custo |
-| 19 | 20835–21216 | 4300 | FFI, unsafe e ilhas de linguagem |
-| 20 | 21217–22751 | 16600 | Compilador e bootstrap |
-| 21 | 22752–24778 | 19200 | Packages, builds e releases |
-| 22 | 24779–25285 | 4900 | Tooling e interface para máquinas |
-| 23 | 25286–26689 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 26690–27527 | 11500 | Design freeze e pendências |
-| 25 | 27528–27738 | 1900 | Produto de referência Última Luz |
-| 26 | 27739–28064 | 4000 | Plano de implementação |
+| 13 | 11953–14174 | 22200 | Módulos de execução, services e entries |
+| 14 | 14175–17844 | 46500 | Prelude e SDK |
+| 15 | 17845–18544 | 7100 | Números, ranges e unidades |
+| 16 | 18545–20117 | 13200 | Texto, bytes e collections |
+| 17 | 20118–20462 | 4000 | Matrizes, tensors e ML |
+| 18 | 20463–20916 | 4400 | Performance e custo |
+| 19 | 20917–21298 | 4300 | FFI, unsafe e ilhas de linguagem |
+| 20 | 21299–22833 | 16600 | Compilador e bootstrap |
+| 21 | 22834–24860 | 19200 | Packages, builds e releases |
+| 22 | 24861–25367 | 4900 | Tooling e interface para máquinas |
+| 23 | 25368–26771 | 16600 | Protocolos e pesquisas de ecossistema |
+| 24 | 26772–27610 | 11500 | Design freeze e pendências |
+| 25 | 27611–27821 | 1900 | Produto de referência Última Luz |
+| 26 | 27822–28147 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–2821 | 42900 | Evidência comparativa |
-| 2 | 2822–2852 | 500 | Proveniência |
-| 3 | 2853–4087 | 69200 | Ledger |
+| 1 | 14–2875 | 43600 | Evidência comparativa |
+| 2 | 2876–2906 | 500 | Proveniência |
+| 3 | 2907–4151 | 69800 | Ledger |
 
 ## Bundles de leitura
 
@@ -157,10 +158,10 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 | Bundle | Seções | Linhas | Tokens aproximados | Foco |
 |---|---:|---:|---:|---|
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7140 | 65400 | promessa, símbolos, source, módulos, funções e tipos |
-| segurança e execução | 9, 10, 11, 12, 13 | 7141–14092 | 73100 | ownership, errors, tasks, domains, services e entries |
-| SDK e performance | 14, 15, 16, 17, 18, 19 | 14093–21216 | 79500 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 21217–26689 | 57300 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 26690–28064 | 17400 | freeze, Última Luz, gates e roadmap |
+| segurança e execução | 9, 10, 11, 12, 13 | 7141–14174 | 74100 | ownership, errors, tasks, domains, services e entries |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 14175–21298 | 79500 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 21299–26771 | 57300 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 26772–28147 | 17400 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

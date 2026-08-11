@@ -205,6 +205,7 @@ alvo de execução independente.
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
 | `supervision.w` | turn curto, `WorkKeyRef`, identity keyed e cancelamento |
 | `workflow.w` | points duráveis, retry, timer, evento e compensação |
+| `service_recovery_oracle.w` | fault matrix, dedup, FIFO por sender e isolamento de generation |
 | `simulation.w` | cenários, algoritmo por ticks, capacidade, energia e receita |
 | `presentation.w` | resposta tipada e render portátil ou ANSI |
 | `pyn3_oracle.w` | fixture PYN3 para apresentação typed, adapter Jupyter e export comprovado |
@@ -2170,11 +2171,18 @@ Aceite:
 - deployment reduz o envelope sem mudar os bytes do artifact;
 - operation version não muda em um root ativo.
 
-O oracle adversarial enche admission e inbox, cancela em cada suspension point,
-derruba o supervisor antes e depois de cada journal commit e troca o deployment.
-Ele também injeta event duplicado, timeout concorrente, history divergente e
-versão ausente. Cada caso precisa terminar com ownership, outcome e trace
-definidos.
+#### Recovery SR0
+
+`service_recovery_oracle.w` fixa as decisões puras de fault, deduplication,
+mailbox e generation. O oracle host fica em
+[`tooling/service-recovery-machine.mjs`](../../tooling/service-recovery-machine.mjs).
+Seu corpus derruba a instance antes e depois dos commits de input e outcome,
+perde a reply, repete effect IDs, corrompe records, excede quotas e força restart
+storms. Cada caso termina com ownership, outcome e generation definidos.
+
+SR0 contém 48 casos e 392 operações, com checker, snapshot e 17 testes host
+independentes. Ele compõe B0 e E1. Ele não executa W, wWire, SQLite, filesystem,
+network ou provider.
 
 ### 3.36 Bilheteria para Muitos Universos
 

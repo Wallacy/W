@@ -248,6 +248,8 @@ O supervisor `fulfillment` liga `fulfillOrderDurably`. O artifact fixa:
 - `confidentiality: .hostEncrypted`;
 - quotas separadas para roots, running e admission queue;
 - budgets de history, step e inbox;
+- retry window, outcome records e tombstones de `EffectId`;
+- restart intensity e instance generation;
 - adapters compatíveis.
 
 O deployment seleciona o adapter por role:
@@ -270,6 +272,10 @@ O lock grava o digest do adapter. Um adapter em memória pode executar o oracle
 volátil, mas não satisfaz `recovery: .required`. Storage sem encryption at rest
 não satisfaz `.hostEncrypted`. Essas regras impedem o deployment de reduzir as
 garantias do product.
+
+O profile `sqlite-workflow` usa filesystem local. WAL em network filesystem não
+satisfaz o contract. Uma tentativa nova troca `callId`; reconciliação mantém o
+mesmo `effectId` somente dentro da retry window declarada.
 
 ### 3.4 Libraries e fronteiras ABI
 
