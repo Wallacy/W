@@ -35,15 +35,15 @@ export fn route(
 }
 
 export fn recoverableRoute(
-  gate: usize,
-  memory: ref Allocator,
+  gate entryGate: usize,
+  memory allocator: ref Allocator,
 ): WelcomeRoute throws AllocationError {
-  let concrete = capture(copy gate) (arrival) => Welcome(
+  let concrete = capture(copy entryGate) (arrival) => Welcome(
     orderId: arrival.orderId,
-    gate: gate,
+    gate: entryGate,
   )
   let handler: any fn(Arrival): Welcome =
-    try erase(take concrete, using: memory)
+    try erase(take concrete, using: allocator)
   return WelcomeRoute(handler: take handler)
 }
 
@@ -100,7 +100,7 @@ test "explicit erasure exposes allocation recovery" for recoverableRoute {
 }
 
 test "callable modes expose mutation and consumption" {
-  var nextTicket = ticketSequence(initial: 40)
+  var nextTicket = ticketSequence(40)
   expect nextTicket() == 41
   expect nextTicket() == 42
 

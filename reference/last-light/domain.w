@@ -90,7 +90,7 @@ export enum PartySize {
 
 export fn classifyParty(
   stage: ServiceStage,
-  guests: GuestCount,
+  named guests: GuestCount,
 ): PartySize {
   return switch (stage, guests) {
     case (.accepted, 1...4): .intimate

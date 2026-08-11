@@ -247,7 +247,7 @@ export struct URL: Duplicable {
 
   export init(_ input: String, base: ref URL) throws UrlParseError {
     self.record = unsafe {
-      try stdURLParseRelative(input, base: base.record)
+      try stdURLParseRelative(input, base.record)
     }
   }
 
@@ -268,51 +268,51 @@ export struct URL: Duplicable {
   }
 
   export static fn canParse(_ input: ref String, base: ref URL): Bool {
-    return unsafe { stdURLCanParseRelative(input, base: base.record) }
+    return unsafe { stdURLCanParseRelative(input, base.record) }
   }
 
   export href: view String {
-    get => unsafe { stdURLView(record, component: .href) }
+    get => unsafe { stdURLView(record, .href) }
   }
 
   export origin: view String {
-    get => unsafe { stdURLView(record, component: .origin) }
+    get => unsafe { stdURLView(record, .origin) }
   }
 
   export protocol: view String {
-    get => unsafe { stdURLView(record, component: .protocol) }
+    get => unsafe { stdURLView(record, .protocol) }
   }
 
   export username: view String {
-    get => unsafe { stdURLView(record, component: .username) }
+    get => unsafe { stdURLView(record, .username) }
   }
 
   export password: view String {
-    get => unsafe { stdURLView(record, component: .password) }
+    get => unsafe { stdURLView(record, .password) }
   }
 
   export host: view String {
-    get => unsafe { stdURLView(record, component: .host) }
+    get => unsafe { stdURLView(record, .host) }
   }
 
   export hostname: view String {
-    get => unsafe { stdURLView(record, component: .hostname) }
+    get => unsafe { stdURLView(record, .hostname) }
   }
 
   export port: view String {
-    get => unsafe { stdURLView(record, component: .port) }
+    get => unsafe { stdURLView(record, .port) }
   }
 
   export pathname: view String {
-    get => unsafe { stdURLView(record, component: .pathname) }
+    get => unsafe { stdURLView(record, .pathname) }
   }
 
   export search: view String {
-    get => unsafe { stdURLView(record, component: .search) }
+    get => unsafe { stdURLView(record, .search) }
   }
 
   export hash: view String {
-    get => unsafe { stdURLView(record, component: .hash) }
+    get => unsafe { stdURLView(record, .hash) }
   }
 
   export fn searchParams(): URLSearchParams {
@@ -333,58 +333,58 @@ export struct URL: Duplicable {
 
   export mut fn setHref(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .href, value: value)
+      try stdURLReplaceComponent(record, .href, value)
     }
   }
 
   export mut fn setProtocol(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .protocol, value: value)
+      try stdURLReplaceComponent(record, .protocol, value)
     }
   }
 
   export mut fn setUsername(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .username, value: value)
+      try stdURLReplaceComponent(record, .username, value)
     }
   }
 
   export mut fn setPassword(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .password, value: value)
+      try stdURLReplaceComponent(record, .password, value)
     }
   }
 
   export mut fn setHost(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .host, value: value)
+      try stdURLReplaceComponent(record, .host, value)
     }
   }
 
   export mut fn setHostname(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .hostname, value: value)
+      try stdURLReplaceComponent(record, .hostname, value)
     }
   }
 
   export mut fn setPort(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .port, value: value)
+      try stdURLReplaceComponent(record, .port, value)
     }
   }
 
   export mut fn setPathname(_ value: String): () throws UrlMutationError {
     record = unsafe {
-      try stdURLReplaceComponent(record, component: .pathname, value: value)
+      try stdURLReplaceComponent(record, .pathname, value)
     }
   }
 
   export mut fn setSearch(_ value: String) {
-    record = unsafe { stdURLReplaceSearch(record, value: value) }
+    record = unsafe { stdURLReplaceSearch(record, value) }
   }
 
   export mut fn setHash(_ value: String) {
-    record = unsafe { stdURLReplaceHash(record, value: value) }
+    record = unsafe { stdURLReplaceHash(record, value) }
   }
 
   export mut fn editSearchParams<Failure: Error>(
@@ -401,6 +401,6 @@ export struct URL: Duplicable {
     } else {
       .some(take encoded)
     }
-    record = unsafe { stdURLReplaceQuery(record, query: query) }
+    record = unsafe { stdURLReplaceQuery(record, query) }
   }
 }

@@ -20,8 +20,8 @@ export enum TaskLocalVisibility {
 }
 
 export const fn taskLocalVisibility(
-  boundary: ContextBoundary,
-  hasBinding: Bool,
+  named boundary: ContextBoundary,
+  named hasBinding: Bool,
 ): TaskLocalVisibility {
   guard hasBinding else return .defaultValue
 
@@ -44,7 +44,7 @@ export struct TaskLocalPopFacts {
   dependenciesClosed: Bool
 }
 
-export const fn canPopTaskLocal(facts: TaskLocalPopFacts): Bool {
+export const fn canPopTaskLocal(named facts: TaskLocalPopFacts): Bool {
   return facts.operationSettled
     && facts.childrenDrained
     && facts.dependenciesClosed
@@ -70,7 +70,7 @@ export struct ThreadLocalFacts {
 }
 
 export const fn threadLocalDecision(
-  facts: ThreadLocalFacts,
+  named facts: ThreadLocalFacts,
 ): ThreadLocalDecision {
   if !facts.copyable { return .typeMustBeCopy }
   if facts.hasDrop { return .dropNotAllowed }

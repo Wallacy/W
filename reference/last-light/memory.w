@@ -71,12 +71,12 @@ export enum SharedCycleDisposition {
 }
 
 export const fn expectedSharedCycleDisposition(
-  phase: SharedCyclePhase,
-  forward: SharedEdgeRelease,
-  backward: SharedEdgeRelease,
-  closed: Bool,
-  drained: Bool,
-  rootReachesCycle: Bool,
+  named phase: SharedCyclePhase,
+  named forward: SharedEdgeRelease,
+  named backward: SharedEdgeRelease,
+  named closed: Bool,
+  named drained: Bool,
+  named rootReachesCycle: Bool,
 ): SharedCycleDisposition {
   if forward == .weak || backward == .weak { return .accepted }
 

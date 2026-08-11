@@ -62,24 +62,24 @@ foreign intrinsic from "std.build@1" {
   type ContextHandle
 
   async fn stdBuildReadString(
-    handle: ref ContextHandle,
-    input: const Input<String>,
-    maximumBytes: usize<(1...)>,
+    named handle: ref ContextHandle,
+    named input: const Input<String>,
+    named maximumBytes: usize<(1...)>,
   ): String throws Error
   async fn stdBuildReadBytes(
-    handle: ref ContextHandle,
-    input: const Input<Bytes>,
-    maximumBytes: usize<(1...)>,
+    named handle: ref ContextHandle,
+    named input: const Input<Bytes>,
+    named maximumBytes: usize<(1...)>,
   ): Bytes throws Error
   async fn stdBuildWriteString(
-    handle: ref ContextHandle,
-    output: const Output<String>,
-    value: take String,
+    named handle: ref ContextHandle,
+    named output: const Output<String>,
+    named value: take String,
   ): () throws Error
   async fn stdBuildWriteBytes(
-    handle: ref ContextHandle,
-    output: const Output<Bytes>,
-    value: take Bytes,
+    named handle: ref ContextHandle,
+    named output: const Output<Bytes>,
+    named value: take Bytes,
   ): () throws Error
   fn stdBuildContextDrop(handle: inout ContextHandle)
 }
@@ -105,27 +105,27 @@ export struct Context {
   // declared call, action, and host-profile/toolchain-plan bound. Time and
   // space are linear in encoded bytes with bounded overhead.
   export async fn read(
-    input: const Input<String>,
-    maximumBytes: usize<(1...)>,
+    string input: const Input<String>,
+    maximumBytes limit: usize<(1...)>,
   ): String throws Error {
     return unsafe {
       try await stdBuildReadString(
         handle: ref handle,
         input: input,
-        maximumBytes: maximumBytes,
+        maximumBytes: limit,
       )
     }
   }
 
   export async fn read(
-    input: const Input<Bytes>,
-    maximumBytes: usize<(1...)>,
+    bytes input: const Input<Bytes>,
+    maximumBytes limit: usize<(1...)>,
   ): Bytes throws Error {
     return unsafe {
       try await stdBuildReadBytes(
         handle: ref handle,
         input: input,
-        maximumBytes: maximumBytes,
+        maximumBytes: limit,
       )
     }
   }
@@ -134,27 +134,27 @@ export struct Context {
   // provider prepares one candidate in private staging. A second write for
   // one binding invalidates the action, including unsafe or foreign calls.
   export async fn write(
-    output: const Output<String>,
-    value: take String,
+    string output: const Output<String>,
+    value content: take String,
   ): () throws Error {
     unsafe {
       try await stdBuildWriteString(
         handle: ref handle,
         output: output,
-        value: take value,
+        value: take content,
       )
     }
   }
 
   export async fn write(
-    output: const Output<Bytes>,
-    value: take Bytes,
+    bytes output: const Output<Bytes>,
+    value content: take Bytes,
   ): () throws Error {
     unsafe {
       try await stdBuildWriteBytes(
         handle: ref handle,
         output: output,
-        value: take value,
+        value: take content,
       )
     }
   }
@@ -163,7 +163,7 @@ export struct Context {
     // Safe W proves that async borrows completed or passed cancellation drain
     // before this synchronous deinit. Drop releases the wrapper and residual
     // handle exactly once. It does not wait or drain.
-    unsafe { stdBuildContextDrop(handle: inout handle) }
+    unsafe { stdBuildContextDrop(inout handle) }
   }
 }
 

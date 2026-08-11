@@ -28,9 +28,9 @@ export fn forecastKernel<
   outputs: usize,
 >(
   features: ref FeatureBatch<rows: rows, columns: inputs>,
-  weights: ref WeightMatrix<inputs: inputs, outputs: outputs>,
+  weights model: ref WeightMatrix<inputs: inputs, outputs: outputs>,
 ): FeatureBatch<rows: rows, columns: outputs> {
-  return features @ weights
+  return features @ model
 }
 
 export fn normalizeKernel<rows: usize, columns: usize>(

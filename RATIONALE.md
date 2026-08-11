@@ -1148,6 +1148,38 @@ obrigaria `try` para uma falha impossível. Uma futura conversão textual pode
 lançar sem contaminar os dois caminhos inteiros. O oracle host não executa W.
 `w-compile`, `w-run`, estudo humano e estudo de modelos permanecem missing.
 
+#### 1.3.25 Labels uniformes em callables
+
+**Exemplo:** `fn reserve(order: Order, audit: Audit, id: ReservationId)` aceita
+`reserve(order, audit, id)`. A posição de `audit` e `id` não cria labels. Uma
+API que deseja comunicar papéis declara-os: `fn move(from source: Point, to
+destination: Point)` exige `move(from: current, to: next)`.
+
+A regra anterior tornava o primeiro parâmetro posicional e os seguintes
+nomeados. Ela economizava tokens na declaration, mas exigia memorizar uma
+exceção por índice e fazia uma simples inserção de parâmetro alterar a forma das
+calls seguintes. W-1290 usa quatro formas ortogonais:
+
+- `name: T` é posicional em qualquer índice;
+- `named name: T` exige o label `name:` e mantém o mesmo binding;
+- `external internal: T` exige `external:`;
+- `_ name: T` aceita a forma posicional ou `name:` no mesmo slot.
+
+Initializers e payloads labeled permanecem record-like. Nesses contratos,
+`name: T` exige label em qualquer índice porque os argumentos descrevem fields
+ou cases, não uma sequência callable comum. Assim, a regra não enfraquece
+`Type(field: value)` nem a evolução de schemas.
+
+A máquina de execution ergonomics deriva formas completas antes de type
+ranking, detecta colisões por owner e ignora payload declarations de enum. O
+gate `check-source-call-shapes.mjs` aplica a mesma derivação ao produto Última
+Luz e à std. Ele valida calls diretas resolvíveis no arquivo. Para calls
+importadas ou de member, o gate só acusa a migração quando toda declaration
+corrente conhecida rejeita a forma e a policy retirada a aceitava. Name
+resolution e witness conformance completos continuam responsabilidade do
+checker S0. Nenhum desses oracles executa W. Estudo humano e estudo de modelos
+permanecem missing.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -2803,7 +2835,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | M1 memory transition | 184 casos, 603 operações | 82 aceitos, 102 rejeitados | checker puro | não executa W |
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
-| execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
+| execution ergonomics | 69 casos | 27 positivos, 40 negativos, 2 informações | 24 testes | não compila nem agenda W |
 | E0 concurrency | 73 casos, 677 operações | 38 aceitos, 35 rejeitados; 10/10 origens HB | 17 testes | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
@@ -3394,7 +3426,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-001 | função | `fn name(...): Return` | `func`; retorno `->`; sem keyword |
 | W-002 | bindings | `const`/`let`/`var` | `let mut`; uma única keyword |
 | W-003 | modifiers | ordem fixa antes de `fn` | ordem livre; effects após retorno |
-| W-004 | labels | primeiro posicional, demais nomeados | todos nomeados; todos posicionais |
+| W-004 | labels (retired) | regra inicial: primeiro posicional e demais nomeados; W-1290 substitui por parâmetros comuns posicionais em qualquer índice e labels declaradas explicitamente | todos nomeados; inferir label pela posição |
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | W-006 | capture | inferência + `capture(...)` | `[capture]`; somente inferência |
 | W-007 | visibility | módulo default; `export` individual ou coletivo; `package` não é access modifier | package visibility; `public/private` |
@@ -4680,6 +4712,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1287 | stub e artifact | stub preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI; open só valida/abre | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
 | W-1288 | subject explícito de refinement | `value` é binding contextual imutável do candidate dentro do predicate e baixa para a mesma ConstIR de `.member`; lookup lexical exige qualificação | `value` ambiental, shadow dependente de imports, storage sintético ou HIR diferente para a forma longa |
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
+| W-1290 | labels callable uniformes | `name: T` é posicional em qualquer índice; `named name: T` exige label homônimo; `external internal: T` exige label distinto e `_ name: T` torna o label opcional; initializers e enum payloads permanecem record-like | labels inferidas pela posição, todos nomeados, reorder, ranking por tipo |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

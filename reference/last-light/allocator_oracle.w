@@ -76,7 +76,7 @@ export const fn isPowerOfTwo(value: usize): Bool {
 
 export const fn acceptsLayout(
   profile: ref AllocatorProviderProfile,
-  layout: AllocationLayout,
+  named layout: AllocationLayout,
 ): Bool {
   return isPowerOfTwo(layout.alignment)
     && layout.size <= profile.maximumBytes
@@ -93,12 +93,12 @@ export const fn oldReceiptSurvives(result: ResizeResult): Bool {
 
 export const fn progressAccepts(
   use: AllocationUse,
-  progress: AllocatorProgress,
+  progress capability: AllocatorProgress,
 ): Bool {
   return switch use {
     case .ordinary: true
-    case .realTime: progress.one(.bounded, .waitFree)
-    case .interrupt: progress == .waitFree
+    case .realTime: capability.one(.bounded, .waitFree)
+    case .interrupt: capability == .waitFree
   }
 }
 

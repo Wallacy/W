@@ -1427,7 +1427,8 @@ Um type parameter é posicional e não recebe label. Um value parameter sem `_`
 usa seu nome como label externo e interno. A forma `external internal: Type`
 separa explicitamente esses nomes e aceita `external: value` no call.
 `label_omission` (`_`) torna o label externo opcional; ele não remove o
-binding interno.
+binding interno. Esta é a policy do schema de um generic head. Calls runtime
+seguem a policy uniforme da seção 7.2.1 e não inferem labels pela posição.
 O marker não indica ordem preferencial ou quantidade:
 
 ```w
@@ -2830,7 +2831,7 @@ Um parâmetro de chamada pode exigir um argumento compile-time com `const`:
 ```w
 fn prepare(
   statement: const database.Query<WorldKey, WorldRow>,
-  parameters: WorldKey,
+  named parameters: WorldKey,
 ): PreparedQuery
 
 const worldById = database.Query<WorldKey, WorldRow>(...)
@@ -4134,14 +4135,19 @@ A ordem canônica é:
 Esse unit type possui um único valor, também escrito `()`. `Never` identifica
 uma função ou expressão que não retorna ao caller.
 
-**W-1160 — labels opcionais:** os parâmetros callable usam uma policy fechada
-de labels. O primeiro `name: T`
-sem `_` é `positionalOnly`. Os parâmetros seguintes `name: T` são
-`required(name)`. A forma `external internal: T` é `required(external)`; por
-exemplo, `to range: T` usa `to` como label externo e `range` como nome
-interno. `label` não é uma keyword. `_ name: T` é `optional(name)`: a call
-aceita a forma posicional e a forma `name:`. O nome interno permanece
-disponível no body.
+**W-1290 — policy uniforme de labels callable:** um parâmetro callable
+`name: T` é `positionalOnly` em qualquer posição. A policy não muda porque um
+parâmetro vem primeiro ou depois de outro. O modifier contextual
+`named name: T` é `required(name)`. A forma `external internal: T` é
+`required(external)`; por exemplo, `to range: T` usa `to` como label externo e
+`range` como nome interno. `label` não é uma keyword. `_ name: T` preserva a
+decisão W-1160 e é `optional(name)`: a call aceita a forma posicional e a forma
+`name:`. O nome interno permanece disponível no body.
+
+Esta policy vale para funções, methods, closures nomeadas e requirements.
+Initializers sintetizados ou explícitos e payloads labeled de enum continuam
+record-like conforme a seção 7.4: `name: T` publica label obrigatório em todos
+os slots. A diferença vem do tipo de declaration, nunca do índice do parâmetro.
 
 Os argumentos mantêm a ordem da declaração. Labels identificam papéis, mas não
 permitem reordenar argumentos. O checker expande as formas de call antes de
@@ -4151,17 +4157,30 @@ overload inválido. O formatter preserva a forma escrita na call. A interface,
 
 ```w
 fn reserve(order: Order, audit: Audit, id: ReservationId) {}
-reserve(order, audit: audit, id: id)
+reserve(order, audit, id)
+
+fn auditedReserve(order: Order, named audit: Audit, named id: ReservationId) {}
+auditedReserve(order, audit: audit, id: id)
+
+fn move(from source: Point, to destination: Point) {}
+move(from: current, to: next)
 
 fn note(_ message: String) {}
 note("ready")
 note(message: "ready")
+
+fn inspect(named: Bool) {}
+inspect(flag)
 ```
 
-O primeiro `order` é positional-only; `audit` e `id` são required-named. As
-duas calls de `note` selecionam um único slot com label opcional. Uma
+`order`, `audit` e `id` em `reserve` são positional-only. `named audit` e
+`named id` exigem os labels homônimos sem duplicar bindings. `from` e `to` são
+labels obrigatórios distintos; `source` e `destination` são os nomes internos.
+As duas calls de `note` selecionam um único slot com label opcional. Uma
 declaration que publique `note(_ message: String)` e `note(message: String)` é
-rejeitada por colisão após a normalização.
+rejeitada por colisão após a normalização. `named` é contextual: em
+`inspect`, ele é somente o nome de um parâmetro posicional porque não precede
+outro nome de parâmetro.
 
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
 `mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
@@ -4338,7 +4357,7 @@ overload set não seleciona uma declaração. O programa cria uma closure explí
 
 ```w
 let estimator = (power, duty, duration) =>
-  expectedEnergy(power, duty: duty, during: duration)
+  expectedEnergy(power, duty, during: duration)
 ```
 
 O expected type da variável não escolhe a declaração.
@@ -4632,7 +4651,7 @@ fn closingNotice(
   return capture(take log) () => (take log).seal()
 }
 
-var nextTicket = counter(initial: 40)
+var nextTicket = counter(40)
 let ticket = nextTicket()
 
 let close = closingNotice(take shiftLog)
@@ -4960,10 +4979,13 @@ export struct PidController {
 
 `init` é contextual ao corpo de `struct` ou `object`. Ele não recebe `fn`,
 `static`, `mut`, `async` ou return type. Ele pode receber visibilidade,
-`unsafe` e `throws E`. A policy de labels da seção 7.2 vale também para
-initializers: o primeiro `name: T` é `positionalOnly`, os seguintes são
-`required(name)`, e `_ name: T` publica `optional(name)`. `_` não remove o
-label; ele aceita as formas posicional e `name:` no mesmo slot.
+`unsafe` e `throws E`. Construção é record-like: em initializer explícito,
+`name: T` publica `required(name)` em qualquer posição. A forma
+`external internal: T` publica `required(external)`, e `_ name: T` publica
+`optional(name)`. A mesma regra vale para payloads labeled de enum. Assim,
+`Type(field: value)` continua alinhado ao initializer sintetizado, enquanto uma
+API posicional escreve essa intenção com `_`. `named` é rejeitado nesses dois
+contexts porque `name: T` já publica exatamente o mesmo contrato record-like.
 
 Um tipo pode declarar vários initializers. Suas formas de call devem ser
 disjuntas conforme a seção 7.2.1:
@@ -7081,7 +7103,7 @@ genérica nem cria codecs ou schemas de boundary.
 `T...` declara zero ou mais argumentos do mesmo tipo:
 
 ```w
-fn schedule(table: TableId, courses: Course...): usize {
+fn schedule(table: TableId, named courses: Course...): usize {
   for course in courses {
     queue(table, course: course)
   }
@@ -7133,7 +7155,9 @@ O function type preserva o rest marker:
 let scheduler: fn(TableId, Course...): usize = schedule
 ```
 
-Callable conversion exige o mesmo prefixo, element type, label e ownership.
+Callable conversion exige o mesmo prefixo, element type, rest marker e
+ownership. Labels e defaults pertencem à declaration e não entram no function
+type. Uma call pelo function value fornece os argumentos de forma posicional.
 
 Uma declaração rest representa um conjunto de call shapes. O compiler rejeita
 qualquer interseção com outra declaração:
@@ -9383,6 +9407,7 @@ Os diagnostics desta policy são:
 | `W-LABEL-0004` | formas aceitas colidem após normalização |
 | `W-LABEL-0005` | call usa label desconhecido ou forma posicional/nomeada inválida |
 | `W-LABEL-0006` | call repete label ou fornece o mesmo slot normalizado duas vezes |
+| `W-LABEL-0007` | `named` redundante em initializer ou payload record-like |
 | `W-SUSPEND-0001` | call `maySuspend` sem `await`, `async let` ou `spawn` |
 | `W-SUSPEND-0002` | `await` removível em callable `neverSuspend` |
 | `W-SUSPEND-0003` | blocking wait geral em execução estruturada |
@@ -16561,12 +16586,12 @@ ReadableStream<Bytes, Failure>.from(
 mut async next() -> Item? throws Failure
 take async cancel() -> () throws Failure
 
-take tee(maximumBufferedItems: usize<(1...)>)
+take tee(items maximumBufferedItems: usize<(1...)>)
   -> (ReadableStream<Item, Failure>, ReadableStream<Item, Failure>)
   throws ReadableStreamUseError
   where Item: Duplicable, Failure: Duplicable
 
-take tee(maximumBufferedBytes: usize<(1...)>)
+take tee(bytes maximumBufferedBytes: usize<(1...)>)
   -> (ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>)
   throws ReadableStreamUseError
   where Failure: Duplicable
@@ -16671,7 +16696,7 @@ refinements positivos. Não existem `CountQueuingStrategy`,
 `ByteLengthQueuingStrategy`, controller público ou high-water mark oculto no
 constructor SDK0.
 
-`tee(maximumBufferedItems:)` consome o source e devolve dois owners. Ele existe
+`tee(items:)` consome o source e devolve dois owners. Ele existe
 somente quando `Item` e `Failure` atendem a `Duplicable`, porque cada branch deve
 observar valores independentes e o mesmo error terminal. O limite conta itens
 duplicados que uma branch ainda não consumiu. Ele não tenta medir o tamanho
@@ -18093,10 +18118,25 @@ não possui initializer público. A interface expõe somente overloads explícit
 para `Input<String>`, `Input<Bytes>`, `Output<String>` e `Output<Bytes>`:
 
 ```w
-async fn read(input: const Input<String>, maximumBytes: usize<(1...)>): String throws build.Error
-async fn read(input: const Input<Bytes>, maximumBytes: usize<(1...)>): Bytes throws build.Error
-async fn write(output: const Output<String>, value: take String): () throws build.Error
-async fn write(output: const Output<Bytes>, value: take Bytes): () throws build.Error
+async fn read(
+  string input: const Input<String>,
+  maximumBytes limit: usize<(1...)>,
+): String throws build.Error
+
+async fn read(
+  bytes input: const Input<Bytes>,
+  maximumBytes limit: usize<(1...)>,
+): Bytes throws build.Error
+
+async fn write(
+  string output: const Output<String>,
+  value content: take String,
+): () throws build.Error
+
+async fn write(
+  bytes output: const Output<Bytes>,
+  value content: take Bytes,
+): () throws build.Error
 ```
 
 `Input` e `Output` são descriptors const phantom-typed. O nome possui de 1 a
@@ -21556,7 +21596,7 @@ hermético satisfaz este contrato.
 nesting, strings, comments, CRLF, UTF-8, empty body, suffix W, alias `.c`, edit,
 source map, fallback, lock, digests e limits. São 15 casos aceitos, 28 rejeitados
 e duas informações; nove testes host não leem o snapshot. A gramática
-Tree-sitter possui corpus separado e scanner externo. Um dos 23 pares F0 prova
+Tree-sitter possui corpus separado e scanner externo. Um dos 24 pares F0 prova
 que a assinatura muda sem alterar os bytes do body. Esses oracles não executam
 o frontend C, compiler W, formatter ou builder.
 
@@ -24830,10 +24870,10 @@ enum MenuTransformError: Error {
 }
 
 async fn transform(ctx: build.Context): () throws MenuTransformError {
-  let source = try await ctx.read(menuSource, maximumBytes: 64<KiB>)
+  let source = try await ctx.read(string: menuSource, maximumBytes: 64<KiB>)
   let compiled = try compileMenu(source)
   let MenuBytecode(bytes, _) = take compiled
-  try await ctx.write(menuBytecode, take bytes)
+  try await ctx.write(bytes: menuBytecode, value: take bytes)
 }
 
 entry(transform)
@@ -24916,23 +24956,23 @@ genérico ou codec aberto:
 
 ```w
 async fn read(
-  input: const Input<String>,
-  maximumBytes: usize<(1...)>,
+  string input: const Input<String>,
+  maximumBytes limit: usize<(1...)>,
 ): String throws build.Error
 
 async fn read(
-  input: const Input<Bytes>,
-  maximumBytes: usize<(1...)>,
+  bytes input: const Input<Bytes>,
+  maximumBytes limit: usize<(1...)>,
 ): Bytes throws build.Error
 
 async fn write(
-  output: const Output<String>,
-  value: take String,
+  string output: const Output<String>,
+  value content: take String,
 ): () throws build.Error
 
 async fn write(
-  output: const Output<Bytes>,
-  value: take Bytes,
+  bytes output: const Output<Bytes>,
+  value content: take Bytes,
 ): () throws build.Error
 ```
 

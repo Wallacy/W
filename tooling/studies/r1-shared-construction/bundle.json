@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "makeMenuRoot",
-    "digest": "sha256:3542d6f4f4c7de65119cee04ce694f83057bef33a837787240fba3a8b4e2ec02"
+    "digest": "sha256:eb9cc70c69f82c7c7bd7c18c564f9149b3112cd7e3e617f6fe7dfee0fb5c2b76"
   },
   "variants": [
     {
@@ -15,7 +15,7 @@
       "role": "alternative",
       "language": "w",
       "path": "explicit-share.w",
-      "digest": "sha256:8705d1e135c30d658ed355e87a34bb979d16089c7523e8de7d51e6738d1ddd25",
+      "digest": "sha256:45dcf6594f804722536de0bba0c47f9746edd4fa8d04cf007389da59c09c62c3",
       "changedConstructs": ["share expression allocation", "share(using:) recoverable allocation", "explicit ownership operation"]
     },
     {
@@ -23,7 +23,7 @@
       "role": "alternative",
       "language": "w",
       "path": "distinct-try-share.w",
-      "digest": "sha256:4e1d7c8fea665dc1f04a5a6b02858f09110fa6e0b7c1d1e479ae52c523ba1480",
+      "digest": "sha256:f331964b3b56030ff37311bfbb28af2568f92788bbdfdf84caac8b51202de4a3",
       "changedConstructs": ["distinct tryShare verb", "allocator in recoverable path", "recoverable allocation effect"]
     },
     {

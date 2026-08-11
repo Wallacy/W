@@ -93,7 +93,7 @@ export protocol PantryLeaseApi {
 }
 
 export protocol PantryApi {
-  async fn reserve(course: Course, guests: GuestCount): StockReservation throws PantryError
+  async fn reserve(course: Course, named guests: GuestCount): StockReservation throws PantryError
 }
 
 export protocol OvenObserverApi {
@@ -104,7 +104,7 @@ export protocol OvenLeaseApi: OvenObserverApi {
   async fn preheat(): OvenReady throws OvenError
   async fn bake(
     mixture: take Mixture,
-    readiness: take OvenReady,
+    named readiness: take OvenReady,
   ): Dish throws OvenError
   async fn close()
 }
@@ -113,7 +113,7 @@ export protocol OvenApi {
   async fn telemetry(): OvenTelemetry throws OvenError
   async fn acquire(
     target: Temperature,
-    duration: PhysicalDuration,
+    named duration: PhysicalDuration,
   ): ServiceRef<OvenLeaseApi> throws OvenError
 }
 
@@ -151,11 +151,11 @@ export struct PidController {
   }
 }
 
-fn integralMayAdvance(rawDuty: f64, error: f64): Bool {
+fn integralMayAdvance(rawDuty: f64, error controllerError: f64): Bool {
   return switch rawDuty {
     case 0.0...1.0: true
-    case ..<0.0 if error > 0.0: true
-    case 1.0>.. if error < 0.0: true
+    case ..<0.0 if controllerError > 0.0: true
+    case 1.0>.. if controllerError < 0.0: true
     case _: false
   }
 }
@@ -192,13 +192,16 @@ export fn expectedEnergy(
 
 export fn expectedEnergy(
   power: Power,
-  duty: DutyCycle,
+  duty dutyCycle: DutyCycle,
   during duration: PhysicalDuration,
 ): Energy {
-  return energy(power * duty, during: duration)
+  return energy(power * dutyCycle, during: duration)
 }
 
-export fn mix(ingredients: ref Array<Ingredient>, recipe: ref Recipe): Mixture throws KitchenError {
+export fn mix(
+  ingredients: ref Array<Ingredient>,
+  named recipe: ref Recipe,
+): Mixture throws KitchenError {
   guard !ingredients.isEmpty else throw .emptyStock
   return Mixture(course: recipe.course, mass: ingredients.totalMass(), homogeneity: ingredients.homogeneity())
 }

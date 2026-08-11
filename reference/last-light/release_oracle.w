@@ -26,22 +26,22 @@ enum IndependenceVerdict {
 }
 
 const fn compareBuilderIndependence(
-  first: BuilderEvidence,
-  second: BuilderEvidence,
+  first left: BuilderEvidence,
+  second right: BuilderEvidence,
 ): IndependenceVerdict {
-  if first.builderIdentity == second.builderIdentity {
+  if left.builderIdentity == right.builderIdentity {
     return .sameBuilder
   }
 
-  if first.operatorIdentity == second.operatorIdentity {
+  if left.operatorIdentity == right.operatorIdentity {
     return .sameOperator
   }
 
-  if first.credentialIdentity == second.credentialIdentity {
+  if left.credentialIdentity == right.credentialIdentity {
     return .sameCredential
   }
 
-  if first.executionRootIdentity == second.executionRootIdentity {
+  if left.executionRootIdentity == right.executionRootIdentity {
     return .sameExecutionRoot
   }
 
@@ -126,29 +126,29 @@ enum ReproductionVerdict {
 }
 
 const fn compareBuildEvidence(
-  first: BuildEvidence,
-  second: BuildEvidence,
+  first left: BuildEvidence,
+  second right: BuildEvidence,
 ): ReproductionVerdict {
-  if !first.inputsComplete || !second.inputsComplete {
+  if !left.inputsComplete || !right.inputsComplete {
     return .incompleteEvidence
   }
 
-  if !first.outputsComplete || !second.outputsComplete {
+  if !left.outputsComplete || !right.outputsComplete {
     return .incompleteEvidence
   }
 
-  if first.sourceTreeDigest != second.sourceTreeDigest
-    || first.packageLockDigest != second.packageLockDigest
-    || first.recipeDigest != second.recipeDigest
-    || first.toolchainDigest != second.toolchainDigest
-    || first.targetDigest != second.targetDigest
-    || first.runtimeClosureDigest != second.runtimeClosureDigest
-    || first.environmentProjectionDigest != second.environmentProjectionDigest {
+  if left.sourceTreeDigest != right.sourceTreeDigest
+    || left.packageLockDigest != right.packageLockDigest
+    || left.recipeDigest != right.recipeDigest
+    || left.toolchainDigest != right.toolchainDigest
+    || left.targetDigest != right.targetDigest
+    || left.runtimeClosureDigest != right.runtimeClosureDigest
+    || left.environmentProjectionDigest != right.environmentProjectionDigest {
     return .inputMismatch
   }
 
-  if first.payloadDigest != second.payloadDigest
-    || first.artifactDigest != second.artifactDigest {
+  if left.payloadDigest != right.payloadDigest
+    || left.artifactDigest != right.artifactDigest {
     return .artifactMismatch
   }
 
@@ -170,16 +170,16 @@ enum ReleaseDecision {
 }
 
 const fn verifyRelease(
-  policy: ReleasePolicy,
-  maintainerThresholdMet: Bool,
-  payloadDigestMatches: Bool,
-  independentRebuilders: u16,
-  quorum: QuorumDecision,
-  provenance: ProvenanceVerdict,
-  sourcePublic: Bool,
-  transparencyRecorded: Bool,
-  revoked: Bool,
-  yanked: Bool,
+  named policy: ReleasePolicy,
+  named maintainerThresholdMet: Bool,
+  named payloadDigestMatches: Bool,
+  named independentRebuilders: u16,
+  named quorum: QuorumDecision,
+  named provenance: ProvenanceVerdict,
+  named sourcePublic: Bool,
+  named transparencyRecorded: Bool,
+  named revoked: Bool,
+  named yanked: Bool,
 ): ReleaseDecision {
   if revoked {
     return .rejectRevoked
@@ -375,12 +375,12 @@ test "signing roles remain separate" for rolesMayShareKey {
   expect !rolesMayShareKey(.registry, .platform)
 }
 
-const fn builderEvidence(builderIdentity: EvidenceDigest): BuilderEvidence {
+const fn builderEvidence(builderIdentity identity: EvidenceDigest): BuilderEvidence {
   return BuilderEvidence(
-    builderIdentity: builderIdentity,
-    operatorIdentity: builderIdentity + 100,
-    credentialIdentity: builderIdentity + 200,
-    executionRootIdentity: builderIdentity + 300,
+    builderIdentity: identity,
+    operatorIdentity: identity + 100,
+    credentialIdentity: identity + 200,
+    executionRootIdentity: identity + 300,
   )
 }
 
@@ -483,7 +483,7 @@ test "a provenance mismatch blocks a verified release" for verifyRelease {
   ) == .rejectReproduction
 }
 
-const fn completeEvidence(builderIdentity: EvidenceDigest): BuildEvidence {
+const fn completeEvidence(builderIdentity identity: EvidenceDigest): BuildEvidence {
   return BuildEvidence(
     inputsComplete: true,
     outputsComplete: true,
@@ -496,7 +496,7 @@ const fn completeEvidence(builderIdentity: EvidenceDigest): BuildEvidence {
     environmentProjectionDigest: 17,
     payloadDigest: 18,
     artifactDigest: 19,
-    builderIdentity: builderIdentity,
+    builderIdentity: identity,
   )
 }
 

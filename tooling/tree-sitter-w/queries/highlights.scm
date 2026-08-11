@@ -91,6 +91,11 @@
   "workspace"
 ] @keyword.modifier
 
+((parameter
+  label: (identifier) @keyword.modifier
+  name: (identifier))
+ (#eq? @keyword.modifier "named"))
+
 [
   "as"
   "any"

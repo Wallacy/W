@@ -104,11 +104,11 @@ struct CapabilityLimits {
 }
 
 const fn fitsCapabilityLimits(
-  limits: CapabilityLimits,
-  imports: u32,
-  exports: u32,
-  ordinals: u16,
-  pipelineEntries: u16,
+  named limits: CapabilityLimits,
+  named imports: u32,
+  named exports: u32,
+  named ordinals: u16,
+  named pipelineEntries: u16,
 ): Bool {
   return imports <= limits.importSlots
     && exports <= limits.exportSlots

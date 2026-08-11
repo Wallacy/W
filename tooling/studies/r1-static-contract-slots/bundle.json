@@ -39,7 +39,7 @@
       "role": "alternative",
       "language": "w",
       "path": "split-call.w",
-      "digest": "sha256:f096c52e87871f208fe5936b9d7229a3d25c7917dc307c6d64397dae98e9c422",
+      "digest": "sha256:757cdf263f51f7998137a826b92fb27de52cf3a6f24e7429f4f076f82bf50005",
       "changedConstructs": [
         "full static contract on the type head",
         "restricted static categories on the generic call",

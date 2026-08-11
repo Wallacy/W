@@ -9,7 +9,7 @@ fn mix(value: Int): Int {
   return value * value + 1
 }
 
-async fn planPair(left: Int, right: Int): MixResult {
+async fn planPair(left: Int, named right: Int): MixResult {
   spawn<.compute> let port = mix(left)
   spawn<.compute> let starboard = mix(right)
   let (portValue, starboardValue) = await (port, starboard)

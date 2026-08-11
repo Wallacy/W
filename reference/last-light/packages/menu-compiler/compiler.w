@@ -82,11 +82,11 @@ fn checkedMenuSymbol(value: usize): MenuSymbol throws MenuCompileError {
   }
 }
 
-fn parseUnsigned(text: ref String, line: usize): u32 throws MenuCompileError {
+fn parseUnsigned(text: ref String, line sourceLine: usize): u32 throws MenuCompileError {
   do {
     return try u32.parse(text)
   } catch {
-    throw .invalidNumber(value: copy text, line: line)
+    throw .invalidNumber(value: copy text, line: sourceLine)
   }
 }
 

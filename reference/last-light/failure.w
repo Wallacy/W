@@ -33,9 +33,9 @@ export fn optionalGuestName(input: ref String): GuestName? {
 
 export fn requireGuest(
   guests: ref Map<GuestId, Guest>,
-  id: GuestId,
+  id guestId: GuestId,
 ): ref Guest throws ServiceLookupError {
-  return try guests[id].orThrow(.missingGuest(id))
+  return try guests[guestId].orThrow(.missingGuest(guestId))
 }
 
 export fn archiveSnapshot(
@@ -48,19 +48,19 @@ export fn archiveSnapshot(
 
 export fn captureLookup(
   guests: ref Map<GuestId, Guest>,
-  id: GuestId,
+  id guestId: GuestId,
 ): Result<ref Guest, ServiceLookupError> {
-  return Result.capture(() => try requireGuest(guests, id: id))
+  return Result.capture(() => try requireGuest(guests, id: guestId))
 }
 
 export fn recoverGuest(
   guests: ref Map<GuestId, Guest>,
-  id: GuestId,
+  id guestId: GuestId,
 ): ref Guest throws ServiceLookupError {
   do {
-    return try requireGuest(guests, id: id)
-  } catch .corruptRecord(let recordId) if recordId == id {
-    throw .missingGuest(id)
+    return try requireGuest(guests, id: guestId)
+  } catch .corruptRecord(let recordId) if recordId == guestId {
+    throw .missingGuest(guestId)
   } catch error {
     throw error
   }
@@ -68,13 +68,13 @@ export fn recoverGuest(
 
 export fn decodeWithCleanup(
   source: ref Bytes,
-  trace: inout Array<CleanupStep>,
+  trace cleanupTrace: inout Array<CleanupStep>,
 ): Course throws ServiceLookupError {
-  trace.append(.opened)
-  defer { trace.append(.closed) }
+  cleanupTrace.append(.opened)
+  defer { cleanupTrace.append(.closed) }
 
   guard source.count > 0 else throw .corruptRecord(0)
-  trace.append(.decoded)
+  cleanupTrace.append(.decoded)
   return .horizonCake
 }
 

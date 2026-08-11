@@ -113,8 +113,8 @@ export fn activePricingPolicy(table: take PriceTable): some PricingPolicy {
   return table
 }
 
-export fn quote(policy: ref any PricingPolicy, course: Course): Money throws BillingError {
-  return try policy.price(for: course)
+export fn quote(policy: ref any PricingPolicy, course selectedCourse: Course): Money throws BillingError {
+  return try policy.price(for: selectedCourse)
 }
 
 export fn paymentKey(orderId: OrderId): IdempotencyKey {

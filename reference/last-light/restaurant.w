@@ -87,10 +87,10 @@ struct OrderState {
 
 async fn prepareDish(
   order: take Order,
-  pantry: ref ServiceRef<PantryApi>,
-  ovens: ref ServiceRef<OvenApi>,
-  oracle: ref ServiceRef<OracleApi>,
-  probe: ref ServiceRef<AromaProbeApi>,
+  named pantry: ref ServiceRef<PantryApi>,
+  named ovens: ref ServiceRef<OvenApi>,
+  named oracle: ref ServiceRef<OracleApi>,
+  named probe: ref ServiceRef<AromaProbeApi>,
 ): Dish throws RestaurantError {
   let planning = planningRequest(order)
   let Order(guests, course, ...) = take order

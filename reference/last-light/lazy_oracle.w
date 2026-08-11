@@ -24,7 +24,7 @@ export enum LazyLowering {
 }
 
 export const fn nextLazyState(
-  from state: LazyLogicalState,
+  state: LazyLogicalState,
   on event: LazyEvent,
 ): LazyLogicalState? {
   return switch (state, event) {

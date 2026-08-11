@@ -248,7 +248,7 @@ fn isNoCorsSafelistedMediaType(value: ref String): Bool {
 }
 
 object NoCorsSafelist {
-  fn contains(name: ref HeaderName, value: ref String): Bool {
+  fn contains(name: ref HeaderName, named value: ref String): Bool {
     if value.bytes.count > 128 { return false }
 
     return switch name.text() {
@@ -1026,12 +1026,12 @@ export struct FormData: Duplicable {
 
   export mut fn append(
     name: String,
-    blob: take Blob,
-    filename: String = "blob",
+    blob file: take Blob,
+    filename fileName: String = "blob",
   ): () throws FormDataError {
     try appendEntry(
       name: take name,
-      value: .blob(take blob, filename: take filename),
+      value: .blob(take file, filename: take fileName),
     )
   }
 
@@ -1044,12 +1044,12 @@ export struct FormData: Duplicable {
 
   export mut fn set(
     name: String,
-    blob: take Blob,
-    filename: String = "blob",
+    blob file: take Blob,
+    filename fileName: String = "blob",
   ): () throws FormDataError {
     try setEntry(
       name: take name,
-      value: .blob(take blob, filename: take filename),
+      value: .blob(take file, filename: take fileName),
     )
   }
 
@@ -1441,16 +1441,16 @@ foreign intrinsic from "std.http@1" {
     limits: FormDataLimits,
   ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpRequestClone(
-    handle: inout RequestHandle,
-    maximumBufferedBytes: usize<(1...)>,
+    named handle: inout RequestHandle,
+    named maximumBufferedBytes: usize<(1...)>,
   ): (RequestHandle, RequestHandle) throws BodyCloneError
   fn stdHttpRequestDrop(handle: inout RequestHandle)
 
   fn stdHttpResponseCreate(
-    take body: BodySource?,
-    status: StatusCode,
-    statusText: String,
-    take headers: Headers,
+    named body: take BodySource?,
+    named status: StatusCode,
+    named statusText: String,
+    named headers: take Headers,
   ): ResponseHandle throws ResponseError
   fn stdHttpResponseError(): ResponseHandle
   fn stdHttpResponseStatus(handle: ref ResponseHandle): u16<(0..<600)>
@@ -1479,8 +1479,8 @@ foreign intrinsic from "std.http@1" {
     limits: FormDataLimits,
   ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpResponseClone(
-    handle: inout ResponseHandle,
-    maximumBufferedBytes: usize<(1...)>,
+    named handle: inout ResponseHandle,
+    named maximumBufferedBytes: usize<(1...)>,
   ): (ResponseHandle, ResponseHandle) throws BodyCloneError
   fn stdHttpResponseDrop(handle: inout ResponseHandle)
 
@@ -1516,8 +1516,8 @@ foreign intrinsic from "std.http@1" {
   async fn stdHttpServe<Failure: Error>(
     at address: net.ListenAddress,
     using network: ref net.Network,
-    limits: ServerLimits,
-    handler: some async fn(take Request, Context): Response throws Failure,
+    named limits: ServerLimits,
+    named handler: some async fn(take Request, Context): Response throws Failure,
   ): () throws ServerError
 }
 
@@ -1530,7 +1530,7 @@ export struct Request {
 
   export init(_ input: take String, take init: RequestInit = RequestInit()) throws RequestError {
     self.handle = unsafe {
-      try stdHttpRequestFromString(input: ref input, take init)
+      try stdHttpRequestFromString(ref input, take init)
     }
   }
 
@@ -1538,135 +1538,135 @@ export struct Request {
     // The owned URL entry consumes the URL in the foreign call. Borrowed URL
     // callers use the explicitly copying overload below.
     self.handle = unsafe {
-      try stdHttpRequestFromOwnedURL(input: take input, take init)
+      try stdHttpRequestFromOwnedURL(take input, take init)
     }
   }
 
   export init(copying input: ref URL, take init: RequestInit = RequestInit()) throws RequestError {
     self.handle = unsafe {
-      try stdHttpRequestFromURLCopy(input: input, take init)
+      try stdHttpRequestFromURLCopy(input, take init)
     }
   }
 
   export init(take input: Request, take override: RequestOverride = RequestOverride()) throws RequestError {
     self.handle = take input.handle
-    unsafe { try stdHttpRequestOverride(handle: inout self.handle, take override) }
+    unsafe { try stdHttpRequestOverride(inout self.handle, take override) }
   }
 
   export method: Method {
-    get => unsafe { stdHttpRequestMethod(handle: ref handle) }
+    get => unsafe { stdHttpRequestMethod(ref handle) }
   }
 
   export url: ref URL {
-    get => unsafe { stdHttpRequestURL(handle: ref handle) }
+    get => unsafe { stdHttpRequestURL(ref handle) }
   }
 
   export headers: ref Headers {
-    get => unsafe { stdHttpRequestHeaders(handle: ref handle) }
+    get => unsafe { stdHttpRequestHeaders(ref handle) }
   }
 
   export signal: ref AbortSignal {
-    get => unsafe { stdHttpRequestSignal(handle: ref handle) }
+    get => unsafe { stdHttpRequestSignal(ref handle) }
   }
 
   export bodyUsed: Bool {
-    get => unsafe { stdHttpRequestBodyUsed(handle: ref handle) }
+    get => unsafe { stdHttpRequestBodyUsed(ref handle) }
   }
 
   export destination: RequestDestination {
-    get => unsafe { stdHttpRequestDestination(handle: ref handle) }
+    get => unsafe { stdHttpRequestDestination(ref handle) }
   }
 
   export mode: RequestMode {
-    get => unsafe { stdHttpRequestMode(handle: ref handle) }
+    get => unsafe { stdHttpRequestMode(ref handle) }
   }
 
   export credentials: CredentialsMode {
-    get => unsafe { stdHttpRequestCredentials(handle: ref handle) }
+    get => unsafe { stdHttpRequestCredentials(ref handle) }
   }
 
   export cache: CacheMode {
-    get => unsafe { stdHttpRequestCache(handle: ref handle) }
+    get => unsafe { stdHttpRequestCache(ref handle) }
   }
 
   export redirect: RedirectMode {
-    get => unsafe { stdHttpRequestRedirect(handle: ref handle) }
+    get => unsafe { stdHttpRequestRedirect(ref handle) }
   }
 
   export referrer: RequestReferrer {
-    get => unsafe { stdHttpRequestReferrer(handle: ref handle) }
+    get => unsafe { stdHttpRequestReferrer(ref handle) }
   }
 
   export referrerPolicy: ReferrerPolicy {
-    get => unsafe { stdHttpRequestReferrerPolicy(handle: ref handle) }
+    get => unsafe { stdHttpRequestReferrerPolicy(ref handle) }
   }
 
   export integrity: view String {
-    get => unsafe { stdHttpRequestIntegrity(handle: ref handle) }
+    get => unsafe { stdHttpRequestIntegrity(ref handle) }
   }
 
   export duplex: Duplex {
-    get => unsafe { stdHttpRequestDuplex(handle: ref handle) }
+    get => unsafe { stdHttpRequestDuplex(ref handle) }
   }
 
   export priority: Priority {
-    get => unsafe { stdHttpRequestPriority(handle: ref handle) }
+    get => unsafe { stdHttpRequestPriority(ref handle) }
   }
 
   // This consuming extraction is the W spelling of the Body.body stream.
   export take fn body(): ReadableStream<Bytes, HttpBodyError>? {
-    return unsafe { stdHttpRequestBody(handle: inout handle) }
+    return unsafe { stdHttpRequestBody(inout handle) }
   }
 
-  export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError {
-    return unsafe { try await stdHttpRequestBytes(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError {
+    return unsafe { try await stdHttpRequestBytes(inout handle, limit) }
   }
 
-  export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError {
-    return unsafe { try await stdHttpRequestText(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError {
+    return unsafe { try await stdHttpRequestText(inout handle, limit) }
   }
 
-  export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError {
-    return unsafe { try await stdHttpRequestBlob(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError {
+    return unsafe { try await stdHttpRequestBlob(inout handle, limit) }
   }
 
   export take async fn formData(
-    limits: FormDataLimits = FormDataLimits.standard(),
+    limits formLimits: FormDataLimits = FormDataLimits.standard(),
   ): FormData throws BodyDecodeError<FormDataError> {
-    return unsafe { try await stdHttpRequestFormData(handle: inout handle, limits: limits) }
+    return unsafe { try await stdHttpRequestFormData(inout handle, formLimits) }
   }
 
   export take async fn json<Value: json.Decodable>(
-    maximumBytes: usize<(1...)>,
-    profile: json.Profile = .interoperable,
-    unknownMembers: json.UnknownMemberPolicy = .reject,
+    maximumBytes byteLimit: usize<(1...)>,
+    profile decodeProfile: json.Profile = .interoperable,
+    unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject,
   ): Value throws BodyDecodeError<json.DecodeError> {
     return try await json(
-      limits: json.Limits(maximumBytes: maximumBytes),
-      profile: profile,
-      unknownMembers: unknownMembers,
+      limits: json.Limits(maximumBytes: byteLimit),
+      profile: decodeProfile,
+      unknownMembers: memberPolicy,
     )
   }
 
   export take async fn json<Value: json.Decodable>(
-    limits: json.Limits,
-    profile: json.Profile = .interoperable,
-    unknownMembers: json.UnknownMemberPolicy = .reject,
+    limits decodeLimits: json.Limits,
+    profile decodeProfile: json.Profile = .interoperable,
+    unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject,
   ): Value throws BodyDecodeError<json.DecodeError> {
     // JSON is ordinary W composition: consume bounded bytes, then decode with
     // std.json. The HTTP provider does not own a generic JSON intrinsic.
     var payload: Bytes
     do {
-      payload = try await bytes(maximumBytes: limits.maximumBytes)
+      payload = try await bytes(maximumBytes: decodeLimits.maximumBytes)
     } catch error {
       throw .body(error)
     }
     do {
       return try json.decode<Value>(
         ref payload,
-        limits: limits,
-        profile: profile,
-        unknownMembers: unknownMembers,
+        limits: decodeLimits,
+        profile: decodeProfile,
+        unknownMembers: memberPolicy,
       )
     } catch error {
       throw .codec(error)
@@ -1674,19 +1674,19 @@ export struct Request {
   }
 
   export take fn clone(
-    maximumBufferedBytes: usize<(1...)>,
+    maximumBufferedBytes bufferLimit: usize<(1...)>,
   ): (Request, Request) throws BodyCloneError {
     let (left, right) = unsafe {
       try stdHttpRequestClone(
         handle: inout handle,
-        maximumBufferedBytes: maximumBufferedBytes,
+        maximumBufferedBytes: bufferLimit,
       )
     }
     return (Request(validatedHandle: left), Request(validatedHandle: right))
   }
 
   deinit {
-    unsafe { stdHttpRequestDrop(handle: inout handle) }
+    unsafe { stdHttpRequestDrop(inout handle) }
   }
 }
 
@@ -1829,44 +1829,44 @@ export struct Response {
   }
 
   export static fn json<Value: json.Encodable>(
-    value: ref Value,
-    maximumBytes: usize<(1...)>,
-    status: StatusCode = StatusCode.ok,
-    statusText: String = "",
-    profile: json.Profile = .interoperable,
-    take headers: Headers = Headers(),
+    value input: ref Value,
+    maximumBytes byteLimit: usize<(1...)>,
+    status responseStatus: StatusCode = StatusCode.ok,
+    statusText responseStatusText: String = "",
+    profile encodeProfile: json.Profile = .interoperable,
+    headers responseHeaders: take Headers = Headers(),
   ) throws ResponseError {
     return try json(
-      value: ref value,
-      limits: json.Limits(maximumBytes: maximumBytes),
-      status: status,
-      statusText: take statusText,
-      profile: profile,
-      headers: take headers,
+      value: ref input,
+      limits: json.Limits(maximumBytes: byteLimit),
+      status: responseStatus,
+      statusText: take responseStatusText,
+      profile: encodeProfile,
+      headers: take responseHeaders,
     )
   }
 
   export static fn json<Value: json.Encodable>(
-    value: ref Value,
-    limits: json.Limits,
-    status: StatusCode = StatusCode.ok,
-    statusText: String = "",
-    profile: json.Profile = .interoperable,
-    take headers: Headers = Headers(),
+    value input: ref Value,
+    limits encodeLimits: json.Limits,
+    status responseStatus: StatusCode = StatusCode.ok,
+    statusText responseStatusText: String = "",
+    profile encodeProfile: json.Profile = .interoperable,
+    headers responseHeaders: take Headers = Headers(),
   ) throws ResponseError {
     // Encoding is borrowed and composed with the ordinary Bytes Response;
     // no generic JSON operation crosses the std.http provider seam.
     var encoded: Bytes
     do {
       encoded = try json.encode(
-        ref value,
-        limits: limits,
-        profile: profile,
+        ref input,
+        limits: encodeLimits,
+        profile: encodeProfile,
       )
     } catch error {
       throw .encoding(error)
     }
-    var preparedHeaders = take headers
+    var preparedHeaders = take responseHeaders
     do {
       if !(try preparedHeaders.has("content-type")) {
         try preparedHeaders.set("content-type", "application/json")
@@ -1876,96 +1876,96 @@ export struct Response {
     }
     return try Response(
       take encoded,
-      status: status,
-      statusText: take statusText,
+      status: responseStatus,
+      statusText: take responseStatusText,
       headers: take preparedHeaders,
     )
   }
 
   export status: u16<(0..<600)> {
-    get => unsafe { stdHttpResponseStatus(handle: ref handle) }
+    get => unsafe { stdHttpResponseStatus(ref handle) }
   }
 
   export ok: Bool {
-    get => unsafe { stdHttpResponseOk(handle: ref handle) }
+    get => unsafe { stdHttpResponseOk(ref handle) }
   }
 
   export statusText: view String {
-    get => unsafe { stdHttpResponseStatusText(handle: ref handle) }
+    get => unsafe { stdHttpResponseStatusText(ref handle) }
   }
 
   export headers: ref Headers {
-    get => unsafe { stdHttpResponseHeaders(handle: ref handle) }
+    get => unsafe { stdHttpResponseHeaders(ref handle) }
   }
 
   export url: URL? {
-    get => unsafe { stdHttpResponseURL(handle: ref handle) }
+    get => unsafe { stdHttpResponseURL(ref handle) }
   }
 
   export redirected: Bool {
-    get => unsafe { stdHttpResponseRedirected(handle: ref handle) }
+    get => unsafe { stdHttpResponseRedirected(ref handle) }
   }
 
   export type: ResponseType {
-    get => unsafe { stdHttpResponseType(handle: ref handle) }
+    get => unsafe { stdHttpResponseType(ref handle) }
   }
 
   export bodyUsed: Bool {
-    get => unsafe { stdHttpResponseBodyUsed(handle: ref handle) }
+    get => unsafe { stdHttpResponseBodyUsed(ref handle) }
   }
 
   export take fn body(): ReadableStream<Bytes, HttpBodyError>? {
-    return unsafe { stdHttpResponseBody(handle: inout handle) }
+    return unsafe { stdHttpResponseBody(inout handle) }
   }
 
-  export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError {
-    return unsafe { try await stdHttpResponseBytes(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError {
+    return unsafe { try await stdHttpResponseBytes(inout handle, limit) }
   }
 
-  export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError {
-    return unsafe { try await stdHttpResponseText(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError {
+    return unsafe { try await stdHttpResponseText(inout handle, limit) }
   }
 
-  export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError {
-    return unsafe { try await stdHttpResponseBlob(handle: inout handle, maximumBytes: maximumBytes) }
+  export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError {
+    return unsafe { try await stdHttpResponseBlob(inout handle, limit) }
   }
 
   export take async fn formData(
-    limits: FormDataLimits = FormDataLimits.standard(),
+    limits formLimits: FormDataLimits = FormDataLimits.standard(),
   ): FormData throws BodyDecodeError<FormDataError> {
-    return unsafe { try await stdHttpResponseFormData(handle: inout handle, limits: limits) }
+    return unsafe { try await stdHttpResponseFormData(inout handle, formLimits) }
   }
 
   export take async fn json<Value: json.Decodable>(
-    maximumBytes: usize<(1...)>,
-    profile: json.Profile = .interoperable,
-    unknownMembers: json.UnknownMemberPolicy = .reject,
+    maximumBytes byteLimit: usize<(1...)>,
+    profile decodeProfile: json.Profile = .interoperable,
+    unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject,
   ): Value throws BodyDecodeError<json.DecodeError> {
     return try await json(
-      limits: json.Limits(maximumBytes: maximumBytes),
-      profile: profile,
-      unknownMembers: unknownMembers,
+      limits: json.Limits(maximumBytes: byteLimit),
+      profile: decodeProfile,
+      unknownMembers: memberPolicy,
     )
   }
 
   export take async fn json<Value: json.Decodable>(
-    limits: json.Limits,
-    profile: json.Profile = .interoperable,
-    unknownMembers: json.UnknownMemberPolicy = .reject,
+    limits decodeLimits: json.Limits,
+    profile decodeProfile: json.Profile = .interoperable,
+    unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject,
   ): Value throws BodyDecodeError<json.DecodeError> {
     // Keep Response JSON on the same W composition path as Request JSON.
     var payload: Bytes
     do {
-      payload = try await bytes(maximumBytes: limits.maximumBytes)
+      payload = try await bytes(maximumBytes: decodeLimits.maximumBytes)
     } catch error {
       throw .body(error)
     }
     do {
       return try json.decode<Value>(
         ref payload,
-        limits: limits,
-        profile: profile,
-        unknownMembers: unknownMembers,
+        limits: decodeLimits,
+        profile: decodeProfile,
+        unknownMembers: memberPolicy,
       )
     } catch error {
       throw .codec(error)
@@ -1973,19 +1973,19 @@ export struct Response {
   }
 
   export take fn clone(
-    maximumBufferedBytes: usize<(1...)>,
+    maximumBufferedBytes bufferLimit: usize<(1...)>,
   ): (Response, Response) throws BodyCloneError {
     let (left, right) = unsafe {
       try stdHttpResponseClone(
         handle: inout handle,
-        maximumBufferedBytes: maximumBufferedBytes,
+        maximumBufferedBytes: bufferLimit,
       )
     }
     return (Response(validatedHandle: left), Response(validatedHandle: right))
   }
 
   deinit {
-    unsafe { stdHttpResponseDrop(handle: inout handle) }
+    unsafe { stdHttpResponseDrop(inout handle) }
   }
 }
 
@@ -1997,11 +1997,11 @@ export struct RandomSource {
   }
 
   export fn integer(in range: Range<i32>): i32 {
-    return unsafe { stdHttpRandomInteger(handle: ref handle, range: range) }
+    return unsafe { stdHttpRandomInteger(ref handle, range) }
   }
 
   deinit {
-    unsafe { stdHttpRandomDrop(handle: inout handle) }
+    unsafe { stdHttpRandomDrop(inout handle) }
   }
 }
 
@@ -2015,11 +2015,11 @@ export struct DatabaseRegistry {
   export fn get(
     binding: const database.Binding,
   ): some database.Database {
-    return unsafe { stdHttpDatabaseGet(handle: ref handle, binding: binding) }
+    return unsafe { stdHttpDatabaseGet(ref handle, binding) }
   }
 
   deinit {
-    unsafe { stdHttpDatabaseRegistryDrop(handle: inout handle) }
+    unsafe { stdHttpDatabaseRegistryDrop(inout handle) }
   }
 }
 
@@ -2036,11 +2036,11 @@ export struct CacheRegistry {
   >(
     binding: const cache.LocalBinding<Key, Value>,
   ): some cache.LocalCache<Key, Value> {
-    return unsafe { stdHttpCacheGet(handle: ref handle, binding: binding) }
+    return unsafe { stdHttpCacheGet(ref handle, binding) }
   }
 
   deinit {
-    unsafe { stdHttpCacheRegistryDrop(handle: inout handle) }
+    unsafe { stdHttpCacheRegistryDrop(inout handle) }
   }
 }
 
@@ -2073,12 +2073,12 @@ export struct Template {
     values: ref Array<Value>,
   ): String throws TemplateError {
     return unsafe {
-      try stdHttpTemplateRender(handle: ref handle, values: values)
+      try stdHttpTemplateRender(ref handle, values)
     }
   }
 
   deinit {
-    unsafe { stdHttpTemplateDrop(handle: inout handle) }
+    unsafe { stdHttpTemplateDrop(inout handle) }
   }
 }
 
@@ -2091,12 +2091,12 @@ export struct TemplateRegistry {
 
   export fn get(binding: const TemplateBinding): Template {
     return Template(validatedHandle: unsafe {
-      stdHttpTemplateGet(handle: ref handle, binding: binding)
+      stdHttpTemplateGet(ref handle, binding)
     })
   }
 
   deinit {
-    unsafe { stdHttpTemplateRegistryDrop(handle: inout handle) }
+    unsafe { stdHttpTemplateRegistryDrop(inout handle) }
   }
 }
 
@@ -2113,44 +2113,44 @@ export struct Context {
   // request root.
   export random: RandomSource {
     get => RandomSource(validatedHandle: unsafe {
-      stdHttpContextRandom(handle: ref handle)
+      stdHttpContextRandom(ref handle)
     })
   }
 
   export databases: DatabaseRegistry {
     get => DatabaseRegistry(validatedHandle: unsafe {
-      stdHttpContextDatabases(handle: ref handle)
+      stdHttpContextDatabases(ref handle)
     })
   }
 
   export caches: CacheRegistry {
     get => CacheRegistry(validatedHandle: unsafe {
-      stdHttpContextCaches(handle: ref handle)
+      stdHttpContextCaches(ref handle)
     })
   }
 
   export templates: TemplateRegistry {
     get => TemplateRegistry(validatedHandle: unsafe {
-      stdHttpContextTemplates(handle: ref handle)
+      stdHttpContextTemplates(ref handle)
     })
   }
 
   // The provider returns an owned/duplicated signal. Its lifetime is
   // independent from the Context value, but never outlives the request root.
   export signal: AbortSignal {
-    get => unsafe { stdHttpContextSignal(handle: ref handle) }
+    get => unsafe { stdHttpContextSignal(ref handle) }
   }
 
   deinit {
-    unsafe { stdHttpContextDrop(handle: inout handle) }
+    unsafe { stdHttpContextDrop(inout handle) }
   }
 }
 
 export async fn serve<Failure: Error>(
   at address: net.ListenAddress,
   using network: ref net.Network,
-  limits: ServerLimits,
-  handler: some async fn(take Request, Context): Response throws Failure,
+  named limits: ServerLimits,
+  named handler: some async fn(take Request, Context): Response throws Failure,
 ): () throws ServerError {
   return unsafe {
     try await stdHttpServe(

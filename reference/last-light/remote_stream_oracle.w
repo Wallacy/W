@@ -17,9 +17,9 @@ export enum StreamCreditDecision {
 }
 
 export const fn expectedCreditDecision(
-  granted: StreamCreditTotals,
-  sent: StreamSentTotals,
-  nextLogicalBytes: u64,
+  named granted: StreamCreditTotals,
+  named sent: StreamSentTotals,
+  named nextLogicalBytes: u64,
 ): StreamCreditDecision {
   if sent.items > granted.items || sent.bytes > granted.bytes {
     return .protocolFailure
@@ -37,16 +37,16 @@ export const fn expectedCreditDecision(
 }
 
 export const fn creditUpdateIsValid(
-  previous: StreamCreditTotals,
-  next: StreamCreditTotals,
+  named previous: StreamCreditTotals,
+  named next: StreamCreditTotals,
 ): Bool {
   return next.items >= previous.items && next.bytes >= previous.bytes
 }
 
 export const fn aggregateGrantFits(
-  limit: StreamCreditTotals,
-  reserved: StreamCreditTotals,
-  requested: StreamCreditTotals,
+  named limit: StreamCreditTotals,
+  named reserved: StreamCreditTotals,
+  named requested: StreamCreditTotals,
 ): Bool {
   if reserved.items > limit.items || reserved.bytes > limit.bytes {
     return false
@@ -162,103 +162,103 @@ export struct StreamStep {
 }
 
 export const fn advanceStream(
-  state: StreamState,
-  event: StreamEvent,
+  state currentState: StreamState,
+  event nextEvent: StreamEvent,
 ): StreamStep {
-  return switch (state.phase, event) {
+  return switch (currentState.phase, nextEvent) {
     case (.opening, .opened): StreamStep(
-      state: StreamState(phase: .open, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .open, deliveredItems: currentState.deliveredItems),
       action: .opened,
     )
     case (.opening, .openRejected): StreamStep(
-      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .failed, deliveredItems: currentState.deliveredItems),
       action: .openFailed,
     )
     case (.opening, .reset): StreamStep(
-      state: StreamState(phase: .draining, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .draining, deliveredItems: currentState.deliveredItems),
       action: .resetRequested,
     )
     case (.open, .item): StreamStep(
       state: StreamState(
         phase: .open,
-        deliveredItems: state.deliveredItems + 1,
+        deliveredItems: currentState.deliveredItems + 1,
       ),
       action: .itemDelivered,
     )
     case (.open, .complete): StreamStep(
-      state: StreamState(phase: .ended, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .ended, deliveredItems: currentState.deliveredItems),
       action: .terminalEnd,
     )
     case (.open, .applicationError): StreamStep(
-      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .failed, deliveredItems: currentState.deliveredItems),
       action: .terminalFailure,
     )
     case (.open, .boundaryError): StreamStep(
-      state: StreamState(phase: .failed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .failed, deliveredItems: currentState.deliveredItems),
       action: .terminalFailure,
     )
     case (.open, .reset): StreamStep(
-      state: StreamState(phase: .draining, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .draining, deliveredItems: currentState.deliveredItems),
       action: .resetRequested,
     )
     case (.draining, .item): StreamStep(
-      state: state,
+      state: currentState,
       action: .discardedDuringDrain,
     )
     case (.draining, .reset): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.draining, .complete): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.draining, .applicationError): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.draining, .boundaryError): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.draining, .drainCompleted): StreamStep(
-      state: StreamState(phase: .canceled, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .canceled, deliveredItems: currentState.deliveredItems),
       action: .canceledAndDrained,
     )
     case (.ended, .reset): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.failed, .reset): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.canceled, .reset): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.canceled, .drainCompleted): StreamStep(
-      state: state,
+      state: currentState,
       action: .noOp,
     )
     case (.ended, .item): StreamStep(
-      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .protocolFailed, deliveredItems: currentState.deliveredItems),
       action: .protocolFailure,
     )
     case (.failed, .item): StreamStep(
-      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .protocolFailed, deliveredItems: currentState.deliveredItems),
       action: .protocolFailure,
     )
     case (.canceled, .item): StreamStep(
-      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .protocolFailed, deliveredItems: currentState.deliveredItems),
       action: .protocolFailure,
     )
     case (.protocolFailed, _): StreamStep(
-      state: state,
+      state: currentState,
       action: .protocolFailure,
     )
     case (_, _): StreamStep(
-      state: StreamState(phase: .protocolFailed, deliveredItems: state.deliveredItems),
+      state: StreamState(phase: .protocolFailed, deliveredItems: currentState.deliveredItems),
       action: .protocolFailure,
     )
   }

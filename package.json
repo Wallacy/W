@@ -18,6 +18,7 @@
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:execution-ergonomics": "bun test tooling/execution-ergonomics-reference.test.mjs && bun tooling/check-execution-ergonomics-cases.mjs",
+    "check:source-calls": "bun tooling/check-source-call-shapes.mjs",
     "check:web-bodies": "bun test tooling/web-body-reference.test.mjs && bun tooling/check-web-body-cases.mjs",
     "check:foreign-bodies": "bun test tooling/foreign-body-reference.test.mjs && bun tooling/check-foreign-body-cases.mjs",
     "check:ownership-execution": "bun test tooling/ownership-execution-reference.test.mjs && bun tooling/check-ownership-execution-cases.mjs",

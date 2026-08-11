@@ -53,11 +53,11 @@ fn normalized<rows: usize, columns: usize>(
 
 export fn forecast<tables: usize, features: usize, courses: usize>(
   observations: ref Tensor<f32, shape: [tables, features]>,
-  weights: ref Tensor<f32, shape: [features, courses]>,
+  weights modelWeights: ref Tensor<f32, shape: [features, courses]>,
 ): Forecast<tables: tables, courses: courses> throws OracleError {
   guard tables > 0 else throw .emptyBatch
 
-  let logits = observations @ weights
+  let logits = observations @ modelWeights
   let demand = try normalized(logits.softmax(axis: 1))
   let confidence = try demand.map((value) => try Probability(value))
 

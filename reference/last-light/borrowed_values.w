@@ -51,9 +51,9 @@ export fn readDisjointOvens(kitchen: ref Kitchen): OvenReadings {
 
 // The aggregate carries the menu and body origins. It does not keep either
 // referent alive. Moving the aggregate transfers its dependency edges.
-export fn borrowMenu(menu: ref Menu, body: view String): BorrowedMenu {
+export fn borrowMenu(menu: ref Menu, body documentBody: view String): BorrowedMenu {
   let title = ref menu.title
-  let document = MenuDocument(title: title, body: body)
+  let document = MenuDocument(title: title, body: documentBody)
   var labels: Array<ref String> = Array<ref String>()
   // Keep a reference to the title. The array owns only its own storage.
   labels.append(title)

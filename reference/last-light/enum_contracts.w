@@ -125,23 +125,23 @@ export fn preparedValue<T>(outcome: ReadyOutcome<T>): T {
 
 export fn reserveCourse(
   ingredientsReady: Bool,
-  delaySeconds: u32,
+  delaySeconds delay: u32,
 ): WorkStage throws RecoverableServiceFault {
   if !ingredientsReady {
     throw .ingredientsMissing("Horizon Cake")
   }
-  if delaySeconds > 0 {
-    throw .delayed(delaySeconds)
+  if delay > 0 {
+    throw .delayed(delay)
   }
   return .preparing
 }
 
 export fn reservationMessage(
   ingredientsReady: Bool,
-  delaySeconds: u32,
+  delaySeconds delay: u32,
 ): String {
   do {
-    let stage = try reserveCourse(ingredientsReady, delaySeconds: delaySeconds)
+    let stage = try reserveCourse(ingredientsReady, delaySeconds: delay)
     return workInstruction(stage)
   } catch .ingredientsMissing(let dish) {
     return "Missing ingredients for ${dish}"

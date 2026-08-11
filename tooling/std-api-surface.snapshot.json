@@ -39,13 +39,13 @@
           "wpt-dom-abort"
         ]
       },
-      "catalogedDeclarationsDigest": "77dd3aaa6d6c50d0c4eb24ac0d9b654a7a7b2317c3b7bd359ee66f998a9b2ff4",
+      "catalogedDeclarationsDigest": "a3a9f9f5cb9c4256254db42d13ad686ed66b5fc6a3380668d807f4dc96a0a743",
       "apis": [
         {
           "symbol": "AbortController",
           "kind": "struct",
           "signature": "export struct AbortController",
-          "declarationDigest": "433f5484b044c9d67c4ffd660e4db7b496a7addb51ac80a59ebf0f4ddb3f79b5",
+          "declarationDigest": "85020ff77b08e4cd70d41a9468631854568cc9db9d982c77acec8a584d2ee3e0",
           "line": 137,
           "profile": "web-abort-control",
           "members": [
@@ -105,7 +105,7 @@
           "symbol": "AbortSignal",
           "kind": "struct",
           "signature": "export struct AbortSignal: Duplicable",
-          "declarationDigest": "f05909a4bec738df2bbd5eafa06f90c3929cb9bb647c47aca64cace50550ed5e",
+          "declarationDigest": "91acce95bc6dce236b2b2d2f6b9367a4665b97160c642516ddb004e960cd4a24",
           "line": 59,
           "profile": "web-abort-carrier",
           "members": [
@@ -231,7 +231,7 @@
           "queue-receipts"
         ]
       },
-      "catalogedDeclarationsDigest": "6a15738c05ac0e4f45bcf4c4450d263fe96e5a6f1c48bfbef0772515fd728cd3",
+      "catalogedDeclarationsDigest": "51833657d336289d972ac73650f8005709d9eb1bf07bc5f9c61b395258d7ba2d",
       "apis": [
         {
           "symbol": "KernelModule",
@@ -246,7 +246,7 @@
           "symbol": "Launch",
           "kind": "struct",
           "signature": "export struct Launch<Module: KernelModule>",
-          "declarationDigest": "7d8a343f194724e944db2f251c872ffaa86f7c6e2a95593f9722d11563f9bfe2",
+          "declarationDigest": "3b6cbc7ea2cc6ecb67e8918f4d7f751f0d003306ae32f4765064e46d4ae912ea",
           "line": 100,
           "profile": "accelerator-launch",
           "members": [
@@ -352,7 +352,7 @@
           "schema-footer-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "2f5080cd06324e2d01396e1f3c9974f1c886ab07fc2117075ccc0a5d3d957940",
+      "catalogedDeclarationsDigest": "d27346e07020cdcd08fad1976719635263b2ac30b7c413e4b05f1a30c1ad267c",
       "apis": [
         {
           "symbol": "BlockingQuota",
@@ -376,7 +376,7 @@
           "symbol": "CArrayHandle",
           "kind": "struct",
           "signature": "export struct CArrayHandle",
-          "declarationDigest": "d8283dd26b02d69d156e31387acaca0059b0c3af1172cd81a78d62a32042df3d",
+          "declarationDigest": "86265dcbc17a3fb22783baf130afea0911dfe401cc9ff78480e965e88de6acfb",
           "line": 306,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -430,7 +430,7 @@
           "symbol": "CStreamHandle",
           "kind": "struct",
           "signature": "export struct CStreamHandle",
-          "declarationDigest": "4a9fd06858e05958d3ec37807025bbaeaa14760adc9c6a8d1db950667e7d52d9",
+          "declarationDigest": "f5c9450675de071b41d782d8529d35bc01a4089116e541437172b20d59232a22",
           "line": 318,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -583,7 +583,7 @@
           "symbol": "exportCArray",
           "kind": "fn",
           "signature": "export fn exportCArray<Row: data.Row>( batch: ref data.Batch<Row>, options: CExportOptions = CExportOptions.standard(), ): CArrayHandle throws CExportError",
-          "declarationDigest": "33a343d7764d6100d755e7ecf90f6306e6e5004d886f2307914bb021249d167c",
+          "declarationDigest": "d566306175591918b0495d77acafc3e8ff23848546f9fc6110f4fe94205be6ce",
           "line": 572,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -592,7 +592,7 @@
           "symbol": "importCArray",
           "kind": "fn",
           "signature": "export fn importCArray<Row: data.Row>( handle: take CArrayHandle, options: CImportOptions = CImportOptions.standard(), ): data.Batch<Row> throws CImportError",
-          "declarationDigest": "7c831d78d03f9aaa1f1a5be7cb2a191a2a4f6ffde50258e40b257602b92f4f14",
+          "declarationDigest": "ba92a5edf2c35c6b84ce3fa3edcecce04dfd9cf05a28af60051a445f3e21f7ba",
           "line": 533,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -601,7 +601,7 @@
           "symbol": "importCArrayDynamic",
           "kind": "fn",
           "signature": "export fn importCArrayDynamic( handle: take CArrayHandle, options: CImportOptions = CImportOptions.standard(), ): data.DynamicBatch throws CImportError",
-          "declarationDigest": "40944a5381aa0b3111cd3f813643234f75cfbfe6e048a847a2ea30bfc3854b4e",
+          "declarationDigest": "fd739db765bdf479024d37066bcf865e53ab73342c91763080fef236d7de6769",
           "line": 545,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -610,7 +610,7 @@
           "symbol": "importCStream",
           "kind": "fn",
           "signature": "export fn importCStream<Row: data.Row>( handle: take CStreamHandle, options: CStreamImportOptions = CStreamImportOptions.standard(), ): some Stream<data.Batch<Row>, CImportError>",
-          "declarationDigest": "607f2ee959dbe481b0296c8b4618535df16ebd8ee74d0f806c56dc327c31c4eb",
+          "declarationDigest": "602ccc5edaa1860318de35914ab8c16d33a93efeb061fc1cae600875794b6b82",
           "line": 554,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -619,7 +619,7 @@
           "symbol": "importCStreamDynamic",
           "kind": "fn",
           "signature": "export fn importCStreamDynamic( handle: take CStreamHandle, options: CStreamImportOptions = CStreamImportOptions.standard(), ): some Stream<data.DynamicBatch, CImportError>",
-          "declarationDigest": "152ed0d64969c8dfbd48b385122f134e2ccd2af203bb7696ccae6cea27f51a28",
+          "declarationDigest": "3f54a4e313b487a4653bf4607701e2c53fbf9ac0bc22a82e4eea88f4b597cc3c",
           "line": 563,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -648,13 +648,13 @@
       "id": "std.blob",
       "availability": "bundled-portable",
       "source": "std/blob/contracts.w",
-      "catalogedDeclarationsDigest": "5e321fc2a707a4dbbad6432fb299c137306e58ca205ead723ffeb34e871437bf",
+      "catalogedDeclarationsDigest": "d3f99d9f296c19031414772919daf5a3c7d806dee26b98a925ae74a7c2a7934f",
       "apis": [
         {
           "symbol": "Blob",
           "kind": "struct",
           "signature": "export struct Blob: Duplicable & SnapshotByteSource<BlobError>",
-          "declarationDigest": "be6070d820d655e75726567f3228e7d12cf47ee3d392d8d32e22f115555ed30c",
+          "declarationDigest": "a66ddddd6121a434e7f44e42b1cce0aa4737ffed53d2b3c1e3b623c493424e81",
           "line": 57,
           "profile": "blob-carrier",
           "members": [
@@ -754,7 +754,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, maximum: usize<(1...)>, ): SnapshotReadStep throws BlobError",
+                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): SnapshotReadStep throws BlobError",
                   "line": 153
                 }
               ],
@@ -800,13 +800,13 @@
           "strict-utf8-and-byte-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "bd8562b3c6d279760597ae96e797c42333a14fc6e3067a71513ce8fadaad82de",
+      "catalogedDeclarationsDigest": "53f1accca3f865c3d952e4fc7a56f24dbbabe712ee909c93d5dc4bab7b1efb45",
       "apis": [
         {
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "d4e38cef54f86b50ae43b15429bd50620d0d55501cd325702c4ee8e97a527693",
+          "declarationDigest": "fc5b354ea1e6048977b7233aa1d6742962200f7128ff4244f55ae8406ea40f39",
           "line": 97,
           "profile": "build-context",
           "members": [
@@ -814,11 +814,11 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export async fn read( input: const Input<String>, maximumBytes: usize<(1...)>, ): String throws Error",
+                  "signature": "export async fn read( string input: const Input<String>, maximumBytes limit: usize<(1...)>, ): String throws Error",
                   "line": 107
                 },
                 {
-                  "signature": "export async fn read( input: const Input<Bytes>, maximumBytes: usize<(1...)>, ): Bytes throws Error",
+                  "signature": "export async fn read( bytes input: const Input<Bytes>, maximumBytes limit: usize<(1...)>, ): Bytes throws Error",
                   "line": 120
                 }
               ],
@@ -828,11 +828,11 @@
               "symbol": "write",
               "overloads": [
                 {
-                  "signature": "export async fn write( output: const Output<String>, value: take String, ): () throws Error",
+                  "signature": "export async fn write( string output: const Output<String>, value content: take String, ): () throws Error",
                   "line": 136
                 },
                 {
-                  "signature": "export async fn write( output: const Output<Bytes>, value: take Bytes, ): () throws Error",
+                  "signature": "export async fn write( bytes output: const Output<Bytes>, value content: take Bytes, ): () throws Error",
                   "line": 149
                 }
               ],
@@ -1195,13 +1195,13 @@
           "schema-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "7919dd961c403ae24fe947ba87c933edc8c6e7dc5c52f1f3c310e27c013bc8f8",
+      "catalogedDeclarationsDigest": "31e2126fe3d9029898e1ad91467e6f8847367d8b2c550a1698f66e6475c9b75b",
       "apis": [
         {
           "symbol": "Batch",
           "kind": "struct",
           "signature": "export struct Batch<Element: Row>",
-          "declarationDigest": "7eb839200bc2d7d7f0d1ed6ba3bc5b4ee83e2fe59ef783e73dadec0255cbde30",
+          "declarationDigest": "6831cd9863f93466891f92620efd18c47ea2d8c7c0b8608b8887409c41b04374",
           "line": 793,
           "profile": "data-carrier",
           "status": "draft"
@@ -1237,7 +1237,7 @@
           "symbol": "BytesColumn",
           "kind": "struct",
           "signature": "export struct BytesColumn<Owner: Row>",
-          "declarationDigest": "b4a0d01f6d47888c2f44ab50763b7d0dfd412e689af63342e1b6105e794bb001",
+          "declarationDigest": "2c551bad95c2e56e819d057e6c6fd7e6c3a5589eebf1bf13628800de257f1db6",
           "line": 757,
           "profile": "data-carrier",
           "status": "draft"
@@ -1246,7 +1246,7 @@
           "symbol": "Column",
           "kind": "struct",
           "signature": "export struct Column<Owner: Row, Value>",
-          "declarationDigest": "4ea03fc570d7c42beb13a91e79c91a19d5910daf2f5851136750a699f90ba72a",
+          "declarationDigest": "e819ef48cf619729a02bfcf2a523d5b584a15b32d8e1c1bb8f328668899cc445",
           "line": 715,
           "profile": "data-carrier",
           "status": "draft"
@@ -1264,7 +1264,7 @@
           "symbol": "DateValue",
           "kind": "struct",
           "signature": "export struct DateValue",
-          "declarationDigest": "797a93216034f9716dad9694c2c8a0a54abe74f9cacd9ad59cf63583209c5fb0",
+          "declarationDigest": "e7867975797d598ac77ff385f0940acf3dcf917f049fec5014176a9b44669f37",
           "line": 245,
           "profile": "data-carrier",
           "status": "draft"
@@ -1273,7 +1273,7 @@
           "symbol": "DecimalValue",
           "kind": "struct",
           "signature": "export struct DecimalValue",
-          "declarationDigest": "32879cd6962a750553461fa9bcf619f1c2b62a361f8852f35ec8c9ea24facb29",
+          "declarationDigest": "b88158349330c501287c666cad3ecdfa37398a85eb3ff0d7d22ecbd700155c7a",
           "line": 216,
           "profile": "data-carrier",
           "status": "draft"
@@ -1282,7 +1282,7 @@
           "symbol": "DynamicBatch",
           "kind": "struct",
           "signature": "export struct DynamicBatch",
-          "declarationDigest": "43806270fadabbaff14cd261e97308f6e61a528ebe6f94f6ba9d9575f851aa35",
+          "declarationDigest": "15aa462f2151a14a5143651bd12832bc81c1192819a63dd7fa8fc5b3991bde0a",
           "line": 835,
           "profile": "data-carrier",
           "status": "draft"
@@ -1291,7 +1291,7 @@
           "symbol": "DynamicColumn",
           "kind": "struct",
           "signature": "export struct DynamicColumn",
-          "declarationDigest": "019b755d34ef0a01c995a11aeaa805551ade59163f1b7ae619493a66355a3f09",
+          "declarationDigest": "bf84e72684085759f44b2b39e99c61c7e8ec189e88c4b5c0815177216d2e8b81",
           "line": 777,
           "profile": "data-carrier",
           "status": "draft"
@@ -1318,7 +1318,7 @@
           "symbol": "DynamicListValue",
           "kind": "struct",
           "signature": "export struct DynamicListValue",
-          "declarationDigest": "82ceeb775a8bdc5edfbeb3e09f3691db207c7d02156cb607cd13985dacc5fa8e",
+          "declarationDigest": "81f48a4528a09bbb4e2fdf6fbdfea34c0fcaaf3e74c65085952d9e8b6c2bae33",
           "line": 622,
           "profile": "data-carrier",
           "status": "draft"
@@ -1327,7 +1327,7 @@
           "symbol": "DynamicMapValue",
           "kind": "struct",
           "signature": "export struct DynamicMapValue",
-          "declarationDigest": "114dcbaad86fae06e9593896d8f687fa4987709f47557679ac6600d48b2c33c7",
+          "declarationDigest": "030e7dbbc4fbca1d88f7b8968323a4f66087f6dad9f90e9f276d8c1ed2fc0639",
           "line": 639,
           "profile": "data-carrier",
           "status": "draft"
@@ -1336,7 +1336,7 @@
           "symbol": "DynamicNestedValue",
           "kind": "struct",
           "signature": "export struct DynamicNestedValue",
-          "declarationDigest": "f3fe8ab1dbd26f81fe2853ff25ba14858675038bbbf055a5bf3b9799fa6970d8",
+          "declarationDigest": "aaa991f34581c4d11e4ce8dfc19a6a22b74dd152c38c492760cfac78c240b15a",
           "line": 656,
           "profile": "data-carrier",
           "status": "draft"
@@ -1372,7 +1372,7 @@
           "symbol": "FixedDecimalType",
           "kind": "struct",
           "signature": "export struct FixedDecimalType",
-          "declarationDigest": "a6a61ccccec7db26e49b50677498c8571a95303117887352f56abeddcdf19fca",
+          "declarationDigest": "23053f7a6f07d35b43affc80647e4d36ccfdb052cd75dd5b8120ba29833704e6",
           "line": 57,
           "profile": "data-carrier",
           "status": "draft"
@@ -1390,7 +1390,7 @@
           "symbol": "InstantValue",
           "kind": "struct",
           "signature": "export struct InstantValue",
-          "declarationDigest": "aad0eece9059795af7ff9c6a3e96300e6a8cb477e091fed16bcaa63c3767cb9f",
+          "declarationDigest": "1f53526f0289993de318e56acf6b51583804c1ac0e979aa88a2f1311ee9fc35e",
           "line": 273,
           "profile": "data-carrier",
           "status": "draft"
@@ -1435,7 +1435,7 @@
           "symbol": "LocalDateTimeValue",
           "kind": "struct",
           "signature": "export struct LocalDateTimeValue",
-          "declarationDigest": "946adb19147be9d16eadde65f93d85cac3883e143a7c07220a3663b20253cc84",
+          "declarationDigest": "de9cc3bbbd4e389803fbcc1fe183873ea6b72b2fd6a7effd151fa8f00b8e2ddb",
           "line": 287,
           "profile": "data-carrier",
           "status": "draft"
@@ -1444,7 +1444,7 @@
           "symbol": "LogicalType",
           "kind": "struct",
           "signature": "export struct LogicalType",
-          "declarationDigest": "51e6222c89256e0dd4d727f47ec2cdcd7e83a35fd2e11929a1a147f57a4c3242",
+          "declarationDigest": "42e8e68227c3f9d807df473a851675d5a2bfd48c2d582a14c27f558761fcb029",
           "line": 71,
           "profile": "data-carrier",
           "status": "draft"
@@ -1489,7 +1489,7 @@
           "symbol": "Schema",
           "kind": "struct",
           "signature": "export struct Schema",
-          "declarationDigest": "9b19dee0842095bd77a78dabff4bd557de494047d0d0d6b74b98d0c38cd2ac32",
+          "declarationDigest": "6800591a55ef5608c394de6187695415680efe5dc96a3f5207b679a24426a1a3",
           "line": 564,
           "profile": "data-carrier",
           "status": "draft"
@@ -1534,7 +1534,7 @@
           "symbol": "StringColumn",
           "kind": "struct",
           "signature": "export struct StringColumn<Owner: Row>",
-          "declarationDigest": "3879f971cda3eb58f0710c0c37a0d2a1329fbbde517d7a92b74a05313e422a68",
+          "declarationDigest": "1ff86e96ff2f800a1b4576d1ac4e82dfa1b4951df74e622a8529e335fdebe572",
           "line": 735,
           "profile": "data-carrier",
           "status": "draft"
@@ -1552,7 +1552,7 @@
           "symbol": "TimeValue",
           "kind": "struct",
           "signature": "export struct TimeValue",
-          "declarationDigest": "83b47ee76e1c16ae59346b8ddd91c9489cae82514e451972234402f284b39d0a",
+          "declarationDigest": "454f64f85d7e9e84f3af3dd29ffa038602e185e0a5c6b00b5b5a2953ce6b6296",
           "line": 259,
           "profile": "data-carrier",
           "status": "draft"
@@ -1561,7 +1561,7 @@
           "symbol": "UUIDValue",
           "kind": "struct",
           "signature": "export struct UUIDValue",
-          "declarationDigest": "45f639c5a04b0757190d4de9c59f16410119feacab07b4d5949a42937cf6741e",
+          "declarationDigest": "a426f0e43b4b772042179c697ded66e6928a48f6b773b08f1c08e0381afbbfb0",
           "line": 233,
           "profile": "data-carrier",
           "status": "draft"
@@ -1572,7 +1572,7 @@
       "id": "std.database",
       "availability": "database-adapter",
       "source": "std/database/contracts.w",
-      "catalogedDeclarationsDigest": "8e88a607d2cb4536838ddf93399877914466ad4efa9c3435ecfe996867dcb782",
+      "catalogedDeclarationsDigest": "4ba72d5069b2252e5d8ddda0c0889c939c3ad14b177a729afdec66a453e61e95",
       "apis": [
         {
           "symbol": "Binding",
@@ -1596,7 +1596,7 @@
           "symbol": "Database",
           "kind": "protocol",
           "signature": "export protocol Database: Transactional<Transaction, TransactionContract, DatabaseError>",
-          "declarationDigest": "4aba0571bcac4fd5572bc6aa55d655ed24cd3791cb731537f3f92548bc015075",
+          "declarationDigest": "d29ef6270d063403f3d6155599aac242f3939f41ec8f5df86cb117aa94b25410",
           "line": 117,
           "profile": "database-provider",
           "status": "draft"
@@ -1650,7 +1650,7 @@
           "symbol": "Transaction",
           "kind": "protocol",
           "signature": "export protocol Transaction",
-          "declarationDigest": "56ce2f25fc56a0639888ff0ec37f0c3ea6eaf55151b89bdee49ab17f6db80548",
+          "declarationDigest": "f3b83165c309f2c500327b47536e2e890f81bdac3a2f73d8884d72f27ed6c5a8",
           "line": 89,
           "profile": "database-transaction",
           "status": "draft"
@@ -1701,7 +1701,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "43598c7012ee898109709ce559fd7dfcf32e7acdc2674669897fecd43a90909c",
+      "catalogedDeclarationsDigest": "5f6dfbcfa34f571b4fd6fb32b2b1f274fd26f2f592dbe4a950d05861e1621120",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1716,7 +1716,7 @@
           "symbol": "DynamicImportedTensor",
           "kind": "struct",
           "signature": "export struct DynamicImportedTensor",
-          "declarationDigest": "87e57a3d98c0e6f84a570511617233a58529326e74e211936c9c8e880d56b7a3",
+          "declarationDigest": "b40278f1a48770f75a6b5a7204d4feeb9fecbe2738f9b5d62bf09cb1bb9a1fab",
           "line": 124,
           "profile": "dlpack-import",
           "members": [
@@ -1765,7 +1765,7 @@
           "symbol": "ImportedTensor",
           "kind": "struct",
           "signature": "export struct ImportedTensor<Element, shape: StaticList<usize>>",
-          "declarationDigest": "5fd09549e61139cd377d44a6b5bc9ed36a035b96e97e6e33ae04a53c065db0a1",
+          "declarationDigest": "0242390319ff250b032cc79de69a6291280b756349e6380a991ea1d1126ee4e3",
           "line": 103,
           "profile": "dlpack-import",
           "members": [
@@ -1817,7 +1817,7 @@
           "symbol": "ManagedTensor",
           "kind": "struct",
           "signature": "export struct ManagedTensor",
-          "declarationDigest": "feecb7f6eb4a55ba1271385ca80c397445803c90c8dc57c2b8892f43714ac052",
+          "declarationDigest": "a1fd66b9dd11c58978de2b6f71cb5fe72288bf43409cb49f584b5e5adb024ea8",
           "line": 90,
           "profile": "dlpack-carrier",
           "status": "draft"
@@ -1880,7 +1880,7 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "7ceda3e99ce989936bce5c7453e6bc78e908946f1967f71918b23a41814a41d9",
+      "catalogedDeclarationsDigest": "77312018a60cc06a07cfb1407de683a2984045f40bd62da5afcb71398daa9375",
       "apis": [
         {
           "symbol": "BodyCloneError",
@@ -1931,7 +1931,7 @@
           "symbol": "CacheRegistry",
           "kind": "struct",
           "signature": "export struct CacheRegistry",
-          "declarationDigest": "2720acd39392d59807441ceaed78aa67837732de3a731f8150c162c709813d15",
+          "declarationDigest": "1fbd6c903e944839c043098ca64dfdb8c0f551ee13e824c7130df01a17c6d13d",
           "line": 2026,
           "profile": "http-context",
           "members": [
@@ -1952,7 +1952,7 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "fe16b5bc88fb099851530184f0e0727885c073280ec2bc514426037fba4c77ec",
+          "declarationDigest": "cb3acb226df4947837d78978ae3187a883887f4bb5e217a38fcfa4824173e470",
           "line": 2103,
           "profile": "http-context",
           "members": [
@@ -2027,7 +2027,7 @@
           "symbol": "DatabaseRegistry",
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
-          "declarationDigest": "6474e19a878ede485e74ce325207ebbf55dee4588027bef941fb6978240fff83",
+          "declarationDigest": "761b5bbca15e305eecbd5cf19dd0d0121fb07852cdb7461fc90d6e0830603df8",
           "line": 2008,
           "profile": "http-context",
           "members": [
@@ -2057,7 +2057,7 @@
           "symbol": "FormData",
           "kind": "struct",
           "signature": "export struct FormData: Duplicable",
-          "declarationDigest": "d032f77263fdd9e4cef7ea58bbed0e6c17236e91bbf20772450d9ff93e55a180",
+          "declarationDigest": "98f8fc34c184177c1796a49637d5c6d2e0bd1d4140ec8b7b936773653e6023e6",
           "line": 892,
           "profile": "form-data-value",
           "members": [
@@ -2111,7 +2111,7 @@
                   "line": 1020
                 },
                 {
-                  "signature": "export mut fn append( name: String, blob: take Blob, filename: String = \"blob\", ): () throws FormDataError",
+                  "signature": "export mut fn append( name: String, blob file: take Blob, filename fileName: String = \"blob\", ): () throws FormDataError",
                   "line": 1027
                 }
               ],
@@ -2125,7 +2125,7 @@
                   "line": 1038
                 },
                 {
-                  "signature": "export mut fn set( name: String, blob: take Blob, filename: String = \"blob\", ): () throws FormDataError",
+                  "signature": "export mut fn set( name: String, blob file: take Blob, filename fileName: String = \"blob\", ): () throws FormDataError",
                   "line": 1045
                 }
               ],
@@ -2516,7 +2516,7 @@
           "symbol": "RandomSource",
           "kind": "struct",
           "signature": "export struct RandomSource",
-          "declarationDigest": "b6705b6dcef83199aaf6f8bf4882d412d1abb127b5c7952f08bab99705c675a8",
+          "declarationDigest": "f77a8c642a83631f2893c0539296d0951b7f0a67fcb306b9a55a3dd501589b78",
           "line": 1992,
           "profile": "http-context",
           "members": [
@@ -2555,7 +2555,7 @@
           "symbol": "Request",
           "kind": "struct",
           "signature": "export struct Request",
-          "declarationDigest": "56bc9fdd2a572aa6fbf4a0776c114c4bf308f623629f6291b0e2699b020f5374",
+          "declarationDigest": "995aa7250aa4bb29651cbca2c92f5b87f97f6c2e699808eb8cfaddefb1fbac22",
           "line": 1524,
           "profile": "http-request",
           "members": [
@@ -2760,7 +2760,7 @@
               "symbol": "bytes",
               "overloads": [
                 {
-                  "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
+                  "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
                   "line": 1621
                 }
               ],
@@ -2770,7 +2770,7 @@
               "symbol": "text",
               "overloads": [
                 {
-                  "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
+                  "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
                   "line": 1625
                 }
               ],
@@ -2780,7 +2780,7 @@
               "symbol": "blob",
               "overloads": [
                 {
-                  "signature": "export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError",
+                  "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
                   "line": 1629
                 }
               ],
@@ -2790,7 +2790,7 @@
               "symbol": "formData",
               "overloads": [
                 {
-                  "signature": "export take async fn formData( limits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
+                  "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
                   "line": 1633
                 }
               ],
@@ -2800,11 +2800,11 @@
               "symbol": "json",
               "overloads": [
                 {
-                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
                   "line": 1639
                 },
                 {
-                  "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
                   "line": 1651
                 }
               ],
@@ -2814,7 +2814,7 @@
               "symbol": "clone",
               "overloads": [
                 {
-                  "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
+                  "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Request, Request) throws BodyCloneError",
                   "line": 1676
                 }
               ],
@@ -2923,7 +2923,7 @@
           "symbol": "Response",
           "kind": "struct",
           "signature": "export struct Response",
-          "declarationDigest": "f472c220e6152c34898247fe4b8dd53d5548f6e065aa73a244e33d81378eb1e8",
+          "declarationDigest": "7614eda1c56ae706004dbce3f527f2c8f2252c6645a7c7bf61848af84ea3d392",
           "line": 1693,
           "profile": "http-response",
           "members": [
@@ -2979,19 +2979,19 @@
               "symbol": "json",
               "overloads": [
                 {
-                  "signature": "export static fn json<Value: json.Encodable>( value: ref Value, maximumBytes: usize<(1...)>, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
+                  "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, maximumBytes byteLimit: usize<(1...)>, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
                   "line": 1831
                 },
                 {
-                  "signature": "export static fn json<Value: json.Encodable>( value: ref Value, limits: json.Limits, status: StatusCode = StatusCode.ok, statusText: String = \"\", profile: json.Profile = .interoperable, take headers: Headers = Headers(), ) throws ResponseError",
+                  "signature": "export static fn json<Value: json.Encodable>( value input: ref Value, limits encodeLimits: json.Limits, status responseStatus: StatusCode = StatusCode.ok, statusText responseStatusText: String = \"\", profile encodeProfile: json.Profile = .interoperable, headers responseHeaders: take Headers = Headers(), ) throws ResponseError",
                   "line": 1849
                 },
                 {
-                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes: usize<(1...)>, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "signature": "export take async fn json<Value: json.Decodable>( maximumBytes byteLimit: usize<(1...)>, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
                   "line": 1939
                 },
                 {
-                  "signature": "export take async fn json<Value: json.Decodable>( limits: json.Limits, profile: json.Profile = .interoperable, unknownMembers: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
+                  "signature": "export take async fn json<Value: json.Decodable>( limits decodeLimits: json.Limits, profile decodeProfile: json.Profile = .interoperable, unknownMembers memberPolicy: json.UnknownMemberPolicy = .reject, ): Value throws BodyDecodeError<json.DecodeError>",
                   "line": 1951
                 }
               ],
@@ -3099,7 +3099,7 @@
               "symbol": "bytes",
               "overloads": [
                 {
-                  "signature": "export take async fn bytes(maximumBytes: usize<(1...)>): Bytes throws HttpBodyError",
+                  "signature": "export take async fn bytes(maximumBytes limit: usize<(1...)>): Bytes throws HttpBodyError",
                   "line": 1921
                 }
               ],
@@ -3109,7 +3109,7 @@
               "symbol": "text",
               "overloads": [
                 {
-                  "signature": "export take async fn text(maximumBytes: usize<(1...)>): String throws HttpBodyError",
+                  "signature": "export take async fn text(maximumBytes limit: usize<(1...)>): String throws HttpBodyError",
                   "line": 1925
                 }
               ],
@@ -3119,7 +3119,7 @@
               "symbol": "blob",
               "overloads": [
                 {
-                  "signature": "export take async fn blob(maximumBytes: usize<(1...)>): Blob throws HttpBodyError",
+                  "signature": "export take async fn blob(maximumBytes limit: usize<(1...)>): Blob throws HttpBodyError",
                   "line": 1929
                 }
               ],
@@ -3129,7 +3129,7 @@
               "symbol": "formData",
               "overloads": [
                 {
-                  "signature": "export take async fn formData( limits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
+                  "signature": "export take async fn formData( limits formLimits: FormDataLimits = FormDataLimits.standard(), ): FormData throws BodyDecodeError<FormDataError>",
                   "line": 1933
                 }
               ],
@@ -3139,7 +3139,7 @@
               "symbol": "clone",
               "overloads": [
                 {
-                  "signature": "export take fn clone( maximumBufferedBytes: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
+                  "signature": "export take fn clone( maximumBufferedBytes bufferLimit: usize<(1...)>, ): (Response, Response) throws BodyCloneError",
                   "line": 1975
                 }
               ],
@@ -3180,8 +3180,8 @@
         {
           "symbol": "serve",
           "kind": "fn",
-          "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, limits: ServerLimits, handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
-          "declarationDigest": "11a2bf72109c5f7f956d5f421cdd4687530258194bd6c4d414818efb85f973db",
+          "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, named limits: ServerLimits, named handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
+          "declarationDigest": "9d9862d70a183298de077f13a3b3813a6648a549a42a5421fd4e8bcc7b665b4a",
           "line": 2149,
           "profile": "http-server",
           "status": "draft",
@@ -3223,7 +3223,7 @@
           "symbol": "Template",
           "kind": "struct",
           "signature": "export struct Template",
-          "declarationDigest": "f6e207cfb4a97c3b35e26d153b18ec11e1ec176f60e056c3b8c267cb0804b741",
+          "declarationDigest": "299e1b1b8fa043986291f91ebd76799e2b3688e95921d5c919effa68ca47489e",
           "line": 2065,
           "profile": "template-provider",
           "members": [
@@ -3307,7 +3307,7 @@
           "symbol": "TemplateRegistry",
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
-          "declarationDigest": "e22549b44aaf4b057d6f8fbd651d8da2a8c1621d4b1ce0d4fcb4a74bb6c70388",
+          "declarationDigest": "3fd4df06f1d57a2b5650e62ac1abdf76fd611c0623cbbe7339af9cc57be1fe91",
           "line": 2085,
           "profile": "http-context",
           "members": [
@@ -3342,7 +3342,7 @@
           "snapshot-positional-read"
         ]
       },
-      "catalogedDeclarationsDigest": "efcb483ce9c826131bb298c6f18e58b9a8b2abc4523bd783719264355c283e27",
+      "catalogedDeclarationsDigest": "940a045d6fa6fa964795fb54c0750e76f9dad494fcad9d47868c413e887307e7",
       "apis": [
         {
           "symbol": "ByteSink",
@@ -3357,7 +3357,7 @@
           "symbol": "ByteSource",
           "kind": "protocol",
           "signature": "export protocol ByteSource<Failure: Error>",
-          "declarationDigest": "ca1ad9ae6b8ed908b62adae664342385b559cc1f53ba9f78c184a2f4e0e91fb9",
+          "declarationDigest": "dd686b24fef81c93a9e404708537440d465b2d3c2f9f39ca13ddc67ddb4e2d26",
           "line": 25,
           "profile": "byte-source",
           "status": "draft"
@@ -3375,7 +3375,7 @@
           "symbol": "SnapshotByteSource",
           "kind": "protocol",
           "signature": "export protocol SnapshotByteSource<Failure: Error>",
-          "declarationDigest": "835cfba298fc24d2e8d3778d18ffebc31aecedf0bd21617ad9185584bef14b31",
+          "declarationDigest": "77741f256e869de0271593f23dbbc42033e6c1d9f5d372fbd8848e5b18487f4d",
           "line": 37,
           "profile": "snapshot-byte-source",
           "status": "draft"
@@ -3429,13 +3429,13 @@
           "web-differential-vectors"
         ]
       },
-      "catalogedDeclarationsDigest": "cff395c4afce0ee7af968b2e2bacfee565b0842943519d4cfec69ac6bdf2cd62",
+      "catalogedDeclarationsDigest": "1c773ffc632ce9cf2b7b2f4e775c22454bf7a528349e5b9f8ea8e03df2e048f7",
       "apis": [
         {
           "symbol": "ArrayReader",
           "kind": "struct",
           "signature": "export struct ArrayReader",
-          "declarationDigest": "2a113cb1bc0ad8307bba4d488c9f3024f90cea52ffa7cc9652236417d92a41a5",
+          "declarationDigest": "9296cbf5770ff24441205955f53d9aa805ec4e633fe314f25770b055fc3e6443",
           "line": 681,
           "profile": "json-codec-carrier",
           "members": [
@@ -3456,7 +3456,7 @@
           "symbol": "ArrayWriter",
           "kind": "struct",
           "signature": "export struct ArrayWriter",
-          "declarationDigest": "644bbabdd7bdbe5d92c13530f6d43422715390538bfce0d0c6b86163bf5a5f7e",
+          "declarationDigest": "693f1b52299d89f2214fcf7651b52812015fe7fdfa9af796b49a3ad01abdee7f",
           "line": 545,
           "profile": "json-codec-carrier",
           "members": [
@@ -3494,8 +3494,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Decoded: Decodable>( bytes: ref Bytes, limits: Limits, profile: Profile = .interoperable, unknownMembers: UnknownMemberPolicy = .reject, ): Decoded throws DecodeError",
-          "declarationDigest": "6a759f25048e4b91232c84445ed87ebde95af146ece96b04dfa7636fa3042853",
+          "signature": "export fn decode<Decoded: Decodable>( bytes: ref Bytes, named limits: Limits, named profile: Profile = .interoperable, named unknownMembers: UnknownMemberPolicy = .reject, ): Decoded throws DecodeError",
+          "declarationDigest": "9e249b85d386c83261c78ee588ea7b3c76b1148c5a79d61077c00d4bf761da86",
           "line": 715,
           "profile": "json-codec-carrier",
           "status": "draft"
@@ -3521,8 +3521,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export fn encode<Value: Encodable>( value: ref Value, limits: Limits, profile: Profile = .interoperable, ): Bytes throws EncodeError",
-          "declarationDigest": "8566b2736ef7b976a26497b215880979897116a0aecb0cfbf1b6ba27a0978ac5",
+          "signature": "export fn encode<Value: Encodable>( value: ref Value, named limits: Limits, named profile: Profile = .interoperable, ): Bytes throws EncodeError",
+          "declarationDigest": "5e9e4365610f83086099a42ab2d1ad9cfb26e9339f13cd5b5da36251c22f01d7",
           "line": 705,
           "profile": "json-codec-carrier",
           "status": "draft"
@@ -3683,7 +3683,7 @@
           "symbol": "Number",
           "kind": "struct",
           "signature": "export struct Number: Duplicable & Equatable",
-          "declarationDigest": "9bd14ee8eece87babf2c69db94d8f1fd72ca1ddc1b4f8d821363daf5adb07521",
+          "declarationDigest": "c5863ef179d2a0b14067614cfd8c4c1162d0b430994fbabce6025b3b6b309750",
           "line": 153,
           "profile": "value-contract",
           "members": [
@@ -3879,7 +3879,7 @@
           "symbol": "ObjectReader",
           "kind": "struct",
           "signature": "export struct ObjectReader",
-          "declarationDigest": "faa5215c37875c8a2de046a8ea48334bbe91520828e10a2a6ff151b36bfe3ce6",
+          "declarationDigest": "423541460e30ceca15f6ca94062d61afe8d9b224c65a445a167c3ffab5c49ac9",
           "line": 649,
           "profile": "json-codec-carrier",
           "members": [
@@ -3910,7 +3910,7 @@
           "symbol": "ObjectWriter",
           "kind": "struct",
           "signature": "export struct ObjectWriter",
-          "declarationDigest": "05928d43b24132e7be9b8f40dca6bb8e3b261070eb488173ecf43dd727d0bd98",
+          "declarationDigest": "29a103848480dfbf9d3d950507745f9d65d1f02813629c063392549f179e0f1b",
           "line": 512,
           "profile": "json-codec-carrier",
           "members": [
@@ -3918,7 +3918,7 @@
               "symbol": "field",
               "overloads": [
                 {
-                  "signature": "export mut fn field<Value: Encodable>( name: ref String, value: ref Value, ): () throws EncodeError",
+                  "signature": "export mut fn field<Value: Encodable>( name: ref String, named value: ref Value, ): () throws EncodeError",
                   "line": 519
                 }
               ],
@@ -3940,7 +3940,7 @@
           "symbol": "Reader",
           "kind": "struct",
           "signature": "export struct Reader",
-          "declarationDigest": "5101b4dc04df9c0439d961b4ab27d59fa69f6d69674e9a940c160033a3be623f",
+          "declarationDigest": "16808276333db62a39bd08c2e2eb1b832d20da4f9add1a2d8e0e3b9aa73118d7",
           "line": 571,
           "profile": "json-codec-carrier",
           "members": [
@@ -4087,7 +4087,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "80915c1e3427ccbf1168d57975f629f3ef68f1d6dd8fda8ed720d35ebb175d55",
+          "declarationDigest": "0bfb570335e4b67fa202a8e879af24ff817f17cecb6ae2d98ac01fd3fc7c1fc5",
           "line": 450,
           "profile": "json-codec-carrier",
           "members": [
@@ -4180,7 +4180,7 @@
           "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "b03aed698e5885051bced54b0c3701dc257ff02610a82b401f6428b258fdf5d5",
+      "catalogedDeclarationsDigest": "6f236f106eeb3168e2c5cf35fa9aedf1d4b52370e9cd08f70eca6ca0e064ac9c",
       "apis": [
         {
           "symbol": "AcceptedTcp",
@@ -4537,7 +4537,7 @@
           "symbol": "HostName",
           "kind": "struct",
           "signature": "export struct HostName: Duplicable & Equatable & Hashable",
-          "declarationDigest": "8f709456333bbcf8a4180528e6cee966f08a44ff829ddea3c231785ac4b837c6",
+          "declarationDigest": "ec057ca8e8be5ad6e8ed4306f8ebbe366ff2b8a32d3daf48b4dc7047e4ee0124",
           "line": 293,
           "profile": "net-address-value",
           "members": [
@@ -4588,7 +4588,7 @@
           "symbol": "IpAddress",
           "kind": "enum",
           "signature": "export enum IpAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "805168c027c415fc2027794359aa1bfe783318bf7421c9a1e7226c3ae2414aee",
+          "declarationDigest": "5eba17db96d08fc8763ad7021c92417023a7bf55e1019be48c234d713522d1c5",
           "line": 174,
           "profile": "net-address-value",
           "members": [
@@ -4649,7 +4649,7 @@
           "symbol": "Ipv4Address",
           "kind": "struct",
           "signature": "export struct Ipv4Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "dee298faa17d8cfdc5ce65187a9e2ca6439005eac3620f81784938b8c4de8c46",
+          "declarationDigest": "6c549c77c1fd6d8b2e57cf6dcd6d03848910a6d8947da5e72c32ef13c12cdad9",
           "line": 60,
           "profile": "net-address-value",
           "members": [
@@ -4740,7 +4740,7 @@
           "symbol": "Ipv6Address",
           "kind": "struct",
           "signature": "export struct Ipv6Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "9af6a0ae21eb5bfc2044eb394971e0d5052297da9e1169bed6c375bb3093cc83",
+          "declarationDigest": "2cba71fd25d8bc3cf4b05995be4dbb57245f15b61a1c82126d162cc0006e0003",
           "line": 110,
           "profile": "net-address-value",
           "members": [
@@ -4935,7 +4935,7 @@
           "symbol": "Network",
           "kind": "struct",
           "signature": "export struct Network",
-          "declarationDigest": "46df5307924e569945440e76da7864547306e5497a4edd1652539b2481748258",
+          "declarationDigest": "dabbda65115e26da8fc100b19298ec721bfe9ffe85bfbd1a4d1be843c22099ba",
           "line": 698,
           "profile": "net-listener-carrier",
           "members": [
@@ -4943,7 +4943,7 @@
               "symbol": "resolve",
               "overloads": [
                 {
-                  "signature": "export async fn resolve( _ host: ref HostName, port: u16<(1...65_535)>, limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
+                  "signature": "export async fn resolve( _ host: ref HostName, named port: u16<(1...65_535)>, named limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
                   "line": 708
                 }
               ],
@@ -4953,7 +4953,7 @@
               "symbol": "connectTcp",
               "overloads": [
                 {
-                  "signature": "export async fn connectTcp( to endpoint: ref Endpoint, options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
+                  "signature": "export async fn connectTcp( to endpoint: ref Endpoint, named options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
                   "line": 723
                 }
               ],
@@ -4963,7 +4963,7 @@
               "symbol": "listenTcp",
               "overloads": [
                 {
-                  "signature": "export async fn listenTcp( at address: ref ListenAddress, limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
+                  "signature": "export async fn listenTcp( at address: ref ListenAddress, named limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
                   "line": 737
                 }
               ],
@@ -4973,7 +4973,7 @@
               "symbol": "bindUdp",
               "overloads": [
                 {
-                  "signature": "export async fn bindUdp( at address: ref ListenAddress, limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
+                  "signature": "export async fn bindUdp( at address: ref ListenAddress, named limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
                   "line": 751
                 }
               ],
@@ -5069,7 +5069,7 @@
           "symbol": "SocketAddress",
           "kind": "struct",
           "signature": "export struct SocketAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "a1ae170de2a0719c20e23d70f3fc8882945074c0d56b816b4f75876b372339a8",
+          "declarationDigest": "b63dbf9dc5c1989f2feec7a9bfd685963beacd802484ea258ba15a3556790420",
           "line": 224,
           "profile": "net-address-value",
           "members": [
@@ -5173,7 +5173,7 @@
           "symbol": "TcpConnection",
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
-          "declarationDigest": "47ddf7b43577c2972104cc0e46069a95d59bb3806219bbf2cbffc0ead3f49f0a",
+          "declarationDigest": "7d8bf4261060138dea41a7943d98f35ebb31fabb7720569b7a4461c6c8d05a60",
           "line": 773,
           "profile": "net-transport",
           "members": [
@@ -5201,7 +5201,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
                   "line": 792
                 }
               ],
@@ -5244,7 +5244,7 @@
           "symbol": "TcpListener",
           "kind": "struct",
           "signature": "export struct TcpListener",
-          "declarationDigest": "a236a7fc371e27a1d057f6988ed07629ee25eaab0038877e19410731031ff6e0",
+          "declarationDigest": "0fb1bcd9828aeecbdc4967595d6cee6b157718df66ac4e0eccf4f9bd321c66bc",
           "line": 912,
           "profile": "net-transport",
           "members": [
@@ -5275,7 +5275,7 @@
           "symbol": "TcpReadHalf",
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
-          "declarationDigest": "8c22e55d6d0e279b21747765a04f30b777ae54a69572680e07532c220fc01566",
+          "declarationDigest": "5f7b7fe168189b82f2593029640f7c0d749a73415a09bfc17354878c6b78c8c3",
           "line": 838,
           "profile": "net-transport",
           "members": [
@@ -5283,7 +5283,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
                   "line": 848
                 }
               ],
@@ -5296,7 +5296,7 @@
           "symbol": "TcpWriteHalf",
           "kind": "struct",
           "signature": "export struct TcpWriteHalf: ByteSink<NetworkError>",
-          "declarationDigest": "d719c6cb1392d4e966e1c3661ddbb41c8d52afcedb9ddf412d7b541134f84e55",
+          "declarationDigest": "9e49edc1c6516a06236783d1d509a761690d6db87244ee539094b8d6ffda3f50",
           "line": 868,
           "profile": "net-transport",
           "members": [
@@ -5327,7 +5327,7 @@
           "symbol": "UdpReceiveHalf",
           "kind": "struct",
           "signature": "export struct UdpReceiveHalf",
-          "declarationDigest": "6c43d4bf28a810e2392d4bb1631dbaf5135ea7be284d2096b26c4e143bd8cf56",
+          "declarationDigest": "727ab0044524f2388fbd6ee98f3cada28b99a8e3425caad82af29ca3d931b95d",
           "line": 996,
           "profile": "net-transport",
           "members": [
@@ -5348,7 +5348,7 @@
           "symbol": "UdpSendHalf",
           "kind": "struct",
           "signature": "export struct UdpSendHalf",
-          "declarationDigest": "847b45a5699d952225fd9a9d86830404743810d9861190ee5417410264bfc802",
+          "declarationDigest": "5bd56319472334c3e0cf03f4beb6ed2d8135e5de6ea92f96463aa022b2de061d",
           "line": 1019,
           "profile": "net-transport",
           "members": [
@@ -5369,7 +5369,7 @@
           "symbol": "UdpSocket",
           "kind": "struct",
           "signature": "export struct UdpSocket",
-          "declarationDigest": "f0b766afd30bd3514ef6d9bd627d9936b0893d09a1fb51502160526f27baece5",
+          "declarationDigest": "20a84a60fd2899ff51b3f3aa465a48318b1cceab334991035480a0769b5c1774",
           "line": 943,
           "profile": "net-transport",
           "members": [
@@ -5664,7 +5664,7 @@
           "writer-bounds"
         ]
       },
-      "catalogedDeclarationsDigest": "512c238606cb43ef78946e76af6621b6c385c46fb90b14fcbb24f04145e3f1af",
+      "catalogedDeclarationsDigest": "1b5ed129680a3c987e0e007e78bc9055c186727d75280d21373e2132835d005f",
       "apis": [
         {
           "symbol": "Error",
@@ -5679,7 +5679,7 @@
           "symbol": "Jpeg",
           "kind": "struct",
           "signature": "export struct Jpeg",
-          "declarationDigest": "0c619c15b5c2f4d80667942109cb2506848d7d2124ad3cf4d52cf2defe207008",
+          "declarationDigest": "eb11199a135ad652a875c836ac243600c3778bded13bff682a090e8bef7b9673",
           "line": 157,
           "profile": "presentation-contract",
           "status": "draft"
@@ -5852,7 +5852,7 @@
           "symbol": "MediaType",
           "kind": "struct",
           "signature": "export struct MediaType: Equatable",
-          "declarationDigest": "8c6d3dea47f33dc46f10904751adee68fdaac1060a38eafebf8b9c7db86a53bf",
+          "declarationDigest": "2d1757759493bf8d931b933034de8e28244a084c6f98b38fe3a0ae9544f57841",
           "line": 119,
           "profile": "presentation-contract",
           "members": [
@@ -5913,7 +5913,7 @@
           "symbol": "Png",
           "kind": "struct",
           "signature": "export struct Png",
-          "declarationDigest": "261427e6d13efc49edc8b4ed6a3b21262d1ae5e106af8b8fdbc9c28ea68c879d",
+          "declarationDigest": "4ee9752634af4249d225a4491ee50153b6e7719501bc1371a94c3b1297b8f179",
           "line": 145,
           "profile": "presentation-contract",
           "status": "draft"
@@ -5931,7 +5931,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "1ad35ed8208f17460160e04106ab447a108de6c2a0b1acb36043f6dbc624479d",
+          "declarationDigest": "caa2f72f170fd3a899b951373b1ddb8c65977ce262e60cd17670c15cd5789008",
           "line": 175,
           "profile": "presentation-contract",
           "members": [
@@ -6008,7 +6008,7 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "f5335b884fcc9f1f1a60261a6a40897519c9462c3f71e818f3a45fb82a827f80",
+      "catalogedDeclarationsDigest": "05117c9b6e8c387f4a14129a94c646e2a1ed3c28e591a3fc54f11ab26511a898",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -6032,7 +6032,7 @@
           "symbol": "TaskLocal",
           "kind": "struct",
           "signature": "export struct TaskLocal<Value>",
-          "declarationDigest": "4411724a8505b78b782574fb69c3364488bdc3d228cda53b08ce1d4e1eea3e18",
+          "declarationDigest": "3365109c82e8efc0c416464046674d5ab494579945164bd8fdd289d2c3174bf4",
           "line": 45,
           "profile": "task-local-descriptor",
           "members": [
@@ -6060,7 +6060,7 @@
               "symbol": "withValue",
               "overloads": [
                 {
-                  "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, operation: some fn(): Result throws Failure, ): Result throws Failure",
+                  "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, named operation: some fn(): Result throws Failure, ): Result throws Failure",
                   "line": 65
                 }
               ],
@@ -6107,13 +6107,13 @@
           "target-availability"
         ]
       },
-      "catalogedDeclarationsDigest": "ee16b76b6ceb3cb01535d4d15e6b66d7e962fd003cc0bb6c89701817a2afff2d",
+      "catalogedDeclarationsDigest": "017d54cfb3f5ca77982723e1b78c9d5b93648f84cd46f1659022720b77f5cf94",
       "apis": [
         {
           "symbol": "ThreadLocal",
           "kind": "struct",
           "signature": "export struct ThreadLocal<Value: Copy>",
-          "declarationDigest": "bfa8bcec79d09bbd5cbde2397b294cbded0105a438a55219628d21d36c81f089",
+          "declarationDigest": "59e95c8f0110e09056aaeda7205e92b9aa9f6d11d07938689f1ba9d75a1d6ed0",
           "line": 21,
           "profile": "thread-local-descriptor",
           "members": [
@@ -6365,13 +6365,13 @@
           "wpt-streams"
         ]
       },
-      "catalogedDeclarationsDigest": "0d1084afad3e21ed2da367ce3dc5ceabb863bf8cfbc6d3f3af3e2c1476e3ddc0",
+      "catalogedDeclarationsDigest": "c574d97d85595e8a241f2bd9a8ff178181c6a32683ce4c0d459705d722dc0c20",
       "apis": [
         {
           "symbol": "ReadableStream",
           "kind": "struct",
           "signature": "export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure>",
-          "declarationDigest": "31e16f85b8c0ef4289722bb4fa81ef7b0810a7d0634497d2ac201cf54c57ee53",
+          "declarationDigest": "6e8355d6ca78244628b77f2442cf88924042be01f53f3f53f72cde1c05f3a6e9",
           "line": 89,
           "profile": "web-stream-carrier",
           "members": [
@@ -6413,11 +6413,11 @@
               "symbol": "tee",
               "overloads": [
                 {
-                  "signature": "export take fn tee( maximumBufferedItems: usize<(1...)>, ): ( ReadableStream<Item, Failure>, ReadableStream<Item, Failure>, ) throws ReadableStreamUseError",
+                  "signature": "export take fn tee( items maximumBufferedItems: usize<(1...)>, ): ( ReadableStream<Item, Failure>, ReadableStream<Item, Failure>, ) throws ReadableStreamUseError",
                   "line": 122
                 },
                 {
-                  "signature": "export take fn tee( maximumBufferedBytes: usize<(1...)>, ): ( ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>, ) throws ReadableStreamUseError",
+                  "signature": "export take fn tee( bytes maximumBufferedBytes: usize<(1...)>, ): ( ReadableStream<Bytes, Failure>, ReadableStream<Bytes, Failure>, ) throws ReadableStreamUseError",
                   "line": 179
                 }
               ],
@@ -6427,7 +6427,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws Failure",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws Failure",
                   "line": 160
                 }
               ],
@@ -6464,13 +6464,13 @@
           "version-linearization"
         ]
       },
-      "catalogedDeclarationsDigest": "5f80170752ce8749cb68f9729568e6797f6d3ea5eeb032c5056ea58cc9f7b9e6",
+      "catalogedDeclarationsDigest": "188b0824e04044935bfe1bb02c562d491c030b1450cab6e70235eed973c68705",
       "apis": [
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
           "signature": "export struct SnapshotCell<Value>",
-          "declarationDigest": "326ae5b1cbc802d0a36f993621865e107152929427fd27a1c5e4ae84125df88b",
+          "declarationDigest": "69a98ca9d56c9b43a9f547908261c8adffe5405ec905cc3a56c3a6f3f534715c",
           "line": 35,
           "profile": "snapshot-cell-carrier",
           "members": [
@@ -6535,13 +6535,13 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "da03d29858b28827dcb97d094a4770e5a6860439c3131b9597492e3be0d2d935",
+      "catalogedDeclarationsDigest": "0d9454dfcbc6b08ddfbc5d3aea6dbbc4078ff7fb15e0de236c22d5d512803fac",
       "apis": [
         {
           "symbol": "Device",
           "kind": "struct",
           "signature": "export struct Device",
-          "declarationDigest": "b9c3b0b3ae3257be7b0306350c905e0ca7cbfe0fd980a53d8b7ff3535aa13ad5",
+          "declarationDigest": "05f4bc67d853f0eab106497565882b9fcdd7889c1709e3d19827882ec3f33efa",
           "line": 50,
           "profile": "tensor-device",
           "members": [
@@ -6620,7 +6620,7 @@
           "symbol": "Queue",
           "kind": "struct",
           "signature": "export struct Queue",
-          "declarationDigest": "0bf6a1f0f9d080e4a8e233e3d0a0f591b116d96348859059cbc389cd4db2e84f",
+          "declarationDigest": "2a56aa0fc78805dcce8b624594f4e1a743942278d34cb8102809811585fbdc06",
           "line": 68,
           "profile": "tensor-queue",
           "members": [
@@ -6680,13 +6680,13 @@
           "wpt-url"
         ]
       },
-      "catalogedDeclarationsDigest": "7b2571ab92239d5b089e3a813048aed5c317111b991164582ae2aadc31fe930a",
+      "catalogedDeclarationsDigest": "90a837baa8301bab4a7e7bd855f3fa03d33edc811f8ed24f4ac8fd2f9d3c1243",
       "apis": [
         {
           "symbol": "URL",
           "kind": "struct",
           "signature": "export struct URL: Duplicable",
-          "declarationDigest": "afab4b5f7305bc1b3812557df644dea50f4f3831ff9eae3961ca6336bda19bf4",
+          "declarationDigest": "5dffdc1de6825092dcfa80b36caf57d3fca23a6dfeab7007ec7d31618780d326",
           "line": 241,
           "profile": "web-url-carrier",
           "members": [

@@ -48,6 +48,8 @@ const requiredIds = new Set([
   "EE-POS-doc-example",
   "EE-POS-doc-example-two-blocks",
   "EE-NEG-doc-example-ambient",
+  "EE-NEG-record-named-marker",
+  "EE-POS-named-remains-identifier",
   "EE-POS-flat-std",
   "EE-NEG-flat-std-tier-field",
 ])
@@ -102,10 +104,10 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
     errors.push(`${item.id}: generic identity`)
   }
   if (expected.callablePolicy) {
-    const policy = callableDeclaration(result, expected)?.params[0]?.policy
+    const policy = callableDeclaration(result, expected)?.params[expected.parameterIndex ?? 0]?.policy
     if (policy !== expected.callablePolicy) errors.push(`${item.id}: callable policy ${policy}`)
   }
-  if (expected.forms && JSON.stringify(callableDeclaration(result, expected)?.params[0]?.forms) !== JSON.stringify(expected.forms)) {
+  if (expected.forms && JSON.stringify(callableDeclaration(result, expected)?.params[expected.parameterIndex ?? 0]?.forms) !== JSON.stringify(expected.forms)) {
     errors.push(`${item.id}: forms`)
   }
   if (expected.callableExternal !== undefined && callableDeclaration(result, expected)?.params[expected.parameterIndex ?? 0]?.external !== expected.callableExternal) {

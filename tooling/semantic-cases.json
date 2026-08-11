@@ -820,7 +820,7 @@
       "kind": "positive",
       "rule": "W-773",
       "source": [
-        "fn estimate(base: Int, courses: Int...): Int {",
+        "fn estimate(base: Int, named courses: Int...): Int {",
         "  return base",
         "}",
         "fn total(planned: ref Array<Int>): Int {",
@@ -2142,7 +2142,7 @@
       "baseline": "S0-POS-expr-final-each",
       "failureField": "evaluationGraph",
       "source": [
-        "fn estimate(base: Int, courses: Int...): Int {",
+        "fn estimate(base: Int, named courses: Int...): Int {",
         "  return base",
         "}",
         "fn total(planned: ref Array<Int>): Int {",

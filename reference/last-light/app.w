@@ -82,8 +82,8 @@ fn launchMode(args: ref ProcessArguments): LaunchMode throws AppError {
   return .cli
 }
 
-async fn runConsole(ctx: ProcessContext, mode: RenderMode): ProcessExitCode throws AppError {
-  let welcome = renderResponse(.help, mode: mode)
+async fn runConsole(ctx: ProcessContext, mode renderMode: RenderMode): ProcessExitCode throws AppError {
+  let welcome = renderResponse(.help, mode: renderMode)
   try await ctx.stdout.write(welcome)
 
   for try await line in ctx.stdin.lines(maximumBytes: commandLimit) {
@@ -94,7 +94,7 @@ async fn runConsole(ctx: ProcessContext, mode: RenderMode): ProcessExitCode thro
       authority: .localOperator,
     )
     let shouldStop = requestsShutdown(response)
-    let output = renderResponse(take response, mode: mode)
+    let output = renderResponse(take response, mode: renderMode)
     try await ctx.stdout.write(output)
 
     if shouldStop {
@@ -105,10 +105,10 @@ async fn runConsole(ctx: ProcessContext, mode: RenderMode): ProcessExitCode thro
   return .success
 }
 
-async fn runTui(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode throws AppError {
+async fn runTui(args: ProcessArguments, ctx context: ProcessContext): ProcessExitCode throws AppError {
   let backend = terminalBackendLabel(nativeTerminalBackend())
   print("Opening the final terminal with the ${backend} adapter.")
-  return try await runConsole(ctx, mode: .ansi)
+  return try await runConsole(context, mode: .ansi)
 }
 
 async fn runServer(ctx: ProcessContext): ProcessExitCode throws AppError {

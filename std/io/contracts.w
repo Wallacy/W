@@ -25,7 +25,7 @@ export struct WriteAllError<Cause: Error>: Error {
 export protocol ByteSource<Failure: Error> {
   mut async fn read(
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): ReadStep throws Failure
 }
 
@@ -40,7 +40,7 @@ export protocol SnapshotByteSource<Failure: Error> {
   async fn read(
     at offset: u64,
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): SnapshotReadStep throws Failure
 }
 

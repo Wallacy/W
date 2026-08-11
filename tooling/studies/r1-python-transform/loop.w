@@ -7,7 +7,7 @@ struct ArrivalTicket {
 
 fn urgentOrderIds(
   tickets: ref Array<ArrivalTicket>,
-  limit: usize,
+  named limit: usize,
 ): Array<u64> {
   var urgent: Array<u64> = []
   if limit == 0 { return urgent }

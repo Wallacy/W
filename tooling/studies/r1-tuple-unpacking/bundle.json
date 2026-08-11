@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/packages/menu-compiler/compiler.w",
     "symbol": "word()",
-    "digest": "sha256:5a9ab853167fce297d934d7529812d4369891a0dae2af9757dd65e87723fd4f2"
+    "digest": "sha256:7d1ddf74f17a526f1dda4f0f97414ff817bec353e6d19b9b22d91980fc670f50"
   },
   "variants": [
     {

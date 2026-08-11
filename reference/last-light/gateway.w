@@ -34,8 +34,8 @@ enum HostAuthority {
   remoteClient
 }
 
-const fn canDispatch(command: ref Command, authority: HostAuthority): Bool {
-  return switch (authority, command) {
+const fn canDispatch(command: ref Command, authority hostAuthority: HostAuthority): Bool {
+  return switch (hostAuthority, command) {
     case (.remoteClient, .shutdown): false
     case (_, _): true
   }
@@ -53,24 +53,24 @@ fn gatewayProblemCode(error: ref GatewayError): ProblemCode? {
 
 async fn dispatch(
   command: take Command,
-  restaurant: ref ServiceRef<RestaurantApi>,
-  authority: HostAuthority,
+  restaurant lastLight: ref ServiceRef<RestaurantApi>,
+  authority hostAuthority: HostAuthority,
 ): AppResponse throws DispatchError {
-  guard canDispatch(command, authority: authority) else throw .unauthorizedCommand
+  guard canDispatch(command, authority: hostAuthority) else throw .unauthorizedCommand
 
   return switch command {
     case .help:
       .help
     case .menu:
-      .menu(try await restaurant.menu())
+      .menu(try await lastLight.menu())
     case .place(let order):
-      .placed(try await restaurant.place(take order))
+      .placed(try await lastLight.place(take order))
     case .status(let orderId):
-      .status(orderId, try await restaurant.status(orderId))
+      .status(orderId, try await lastLight.status(orderId))
     case .cancel(let orderId):
-      .cancelled(orderId, try await restaurant.cancel(orderId))
+      .cancelled(orderId, try await lastLight.cancel(orderId))
     case .dashboard:
-      .dashboard(await restaurant.snapshot())
+      .dashboard(await lastLight.snapshot())
     case .simulate(let profile):
       .simulation(try simulateShift(profile))
     case .shutdown:

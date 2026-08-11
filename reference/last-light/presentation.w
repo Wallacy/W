@@ -45,14 +45,14 @@ fn serviceStageName(stage: ServiceStage): String {
   }
 }
 
-fn writeHeading(title: view String, mode: RenderMode, to output: inout String) {
-  if mode == .ansi {
+fn writeHeading(title: view String, mode renderMode: RenderMode, to output: inout String) {
+  if renderMode == .ansi {
     output.append("\u{1B}[1;34m")
   }
 
   output.append(title)
 
-  if mode == .ansi {
+  if renderMode == .ansi {
     output.append("\u{1B}[0m")
   }
 
@@ -100,7 +100,7 @@ fn writeDashboard(snapshot: ref RestaurantSnapshot, to output: inout String) {
   }
 }
 
-export fn renderResponse(response: take AppResponse, mode: RenderMode): String {
+export fn renderResponse(response: take AppResponse, named mode: RenderMode): String {
   var output = String()
 
   if mode == .ansi {

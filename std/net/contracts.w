@@ -75,7 +75,7 @@ export struct Ipv4Address: Duplicable & Equatable & Hashable {
   }
 
   export static fn parse(_ text: ref String): Ipv4Address throws AddressError {
-    return unsafe { try stdNetIpv4Parse(text: text) }
+    return unsafe { try stdNetIpv4Parse(text) }
   }
 
   export static fn loopback(): Ipv4Address {
@@ -91,7 +91,7 @@ export struct Ipv4Address: Duplicable & Equatable & Hashable {
   }
 
   export fn text(): String {
-    return unsafe { stdNetIpv4Format(address: ref self) }
+    return unsafe { stdNetIpv4Format(ref self) }
   }
 
   export fn duplicate(): Ipv4Address {
@@ -138,7 +138,7 @@ export struct Ipv6Address: Duplicable & Equatable & Hashable {
   }
 
   export static fn parse(_ text: ref String): Ipv6Address throws AddressError {
-    return unsafe { try stdNetIpv6Parse(text: text) }
+    return unsafe { try stdNetIpv6Parse(text) }
   }
 
   export static fn loopback(): Ipv6Address {
@@ -155,7 +155,7 @@ export struct Ipv6Address: Duplicable & Equatable & Hashable {
 
   // Formatting follows RFC 5952. Scope IDs never enter this formatter.
   export fn text(): String {
-    return unsafe { stdNetIpv6Format(address: ref self) }
+    return unsafe { stdNetIpv6Format(ref self) }
   }
 
   export fn duplicate(): Ipv6Address {
@@ -177,7 +177,7 @@ export enum IpAddress: Duplicable & Equatable & Hashable {
 
   // This parser accepts only an IP literal. It never performs DNS.
   export static fn parse(_ text: ref String): IpAddress throws AddressError {
-    return unsafe { try stdNetIpParse(text: text) }
+    return unsafe { try stdNetIpParse(text) }
   }
 
   export fn family(): AddressFamily {
@@ -254,7 +254,7 @@ export struct SocketAddress: Duplicable & Equatable & Hashable {
   // IPv6 scope text stays inside brackets. Host names are rejected, and
   // parsing never performs DNS. Scope zero is rejected; none means absent.
   export static fn parse(_ text: ref String): SocketAddress throws AddressError {
-    return unsafe { try stdNetSocketAddressParse(text: text) }
+    return unsafe { try stdNetSocketAddressParse(text) }
   }
 
   export fn family(): AddressFamily {
@@ -264,7 +264,7 @@ export struct SocketAddress: Duplicable & Equatable & Hashable {
   export fn text(): String {
     // Formatting emits the canonical form accepted by parse, so a valid value
     // round-trips. IPv6 uses brackets and keeps a nonzero scope inside.
-    return unsafe { stdNetSocketAddressFormat(address: ref self) }
+    return unsafe { stdNetSocketAddressFormat(ref self) }
   }
 
   export fn duplicate(): SocketAddress {
@@ -295,7 +295,7 @@ export struct HostName: Duplicable & Equatable & Hashable {
 
   export init(_ value: String) throws AddressError {
     self.canonical = unsafe {
-      try stdNetHostNameNormalize(value: ref value)
+      try stdNetHostNameNormalize(ref value)
     }
   }
 
@@ -602,33 +602,33 @@ foreign intrinsic from "std.net@1" {
   fn stdNetHostNameNormalize(value: ref String): String throws AddressError
 
   async fn stdNetResolve(
-    network: ref NetworkHandle,
-    host: ref HostName,
-    port: u16<(1...65_535)>,
-    limits: ref ResolveLimits,
+    named network: ref NetworkHandle,
+    named host: ref HostName,
+    named port: u16<(1...65_535)>,
+    named limits: ref ResolveLimits,
   ): Array<SocketAddress> throws NetworkError
   async fn stdNetConnectTcp(
-    network: ref NetworkHandle,
-    endpoint: ref Endpoint,
-    options: ref ConnectOptions,
+    named network: ref NetworkHandle,
+    named endpoint: ref Endpoint,
+    named options: ref ConnectOptions,
   ): TcpConnectionHandle throws NetworkError
   async fn stdNetListenTcp(
-    network: ref NetworkHandle,
-    address: ref ListenAddress,
-    limits: ref ListenerLimits,
+    named network: ref NetworkHandle,
+    named address: ref ListenAddress,
+    named limits: ref ListenerLimits,
   ): TcpListenerHandle throws NetworkError
   async fn stdNetBindUdp(
-    network: ref NetworkHandle,
-    address: ref ListenAddress,
-    limits: ref DatagramLimits,
+    named network: ref NetworkHandle,
+    named address: ref ListenAddress,
+    named limits: ref DatagramLimits,
   ): UdpSocketHandle throws NetworkError
 
   fn stdNetTcpLocalAddress(handle: ref TcpConnectionHandle): SocketAddress
   fn stdNetTcpPeerAddress(handle: ref TcpConnectionHandle): SocketAddress
   async fn stdNetTcpRead(
-    handle: inout TcpConnectionHandle,
+    named handle: inout TcpConnectionHandle,
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): ReadStep throws NetworkError
   async fn stdNetTcpWrite(
     handle: inout TcpConnectionHandle,
@@ -643,9 +643,9 @@ foreign intrinsic from "std.net@1" {
   fn stdNetTcpDrop(handle: inout TcpConnectionHandle)
 
   async fn stdNetTcpReadHalfRead(
-    handle: inout TcpReadHalfHandle,
+    named handle: inout TcpReadHalfHandle,
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): ReadStep throws NetworkError
   fn stdNetTcpReadHalfDrop(handle: inout TcpReadHalfHandle)
 
@@ -669,23 +669,23 @@ foreign intrinsic from "std.net@1" {
     handle: inout UdpSocketHandle,
   ): (UdpReceiveHalfHandle, UdpSendHalfHandle)
   async fn stdNetUdpReceive(
-    handle: inout UdpSocketHandle,
-    maximumBytes: usize<(1...)>,
+    named handle: inout UdpSocketHandle,
+    named maximumBytes: usize<(1...)>,
   ): Datagram throws NetworkError
   async fn stdNetUdpSend(
-    handle: inout UdpSocketHandle,
-    source: view Bytes,
+    named handle: inout UdpSocketHandle,
+    named source: view Bytes,
     to address: ref SocketAddress,
   ): () throws NetworkError
   fn stdNetUdpDrop(handle: inout UdpSocketHandle)
   async fn stdNetUdpReceiveHalfReceive(
-    handle: inout UdpReceiveHalfHandle,
-    maximumBytes: usize<(1...)>,
+    named handle: inout UdpReceiveHalfHandle,
+    named maximumBytes: usize<(1...)>,
   ): Datagram throws NetworkError
   fn stdNetUdpReceiveHalfDrop(handle: inout UdpReceiveHalfHandle)
   async fn stdNetUdpSendHalfSend(
-    handle: inout UdpSendHalfHandle,
-    source: view Bytes,
+    named handle: inout UdpSendHalfHandle,
+    named source: view Bytes,
     to address: ref SocketAddress,
   ): () throws NetworkError
   fn stdNetUdpSendHalfDrop(handle: inout UdpSendHalfHandle)
@@ -707,8 +707,8 @@ export struct Network {
   // cancellation drains the operation before its borrow or buffer is released.
   export async fn resolve(
     _ host: ref HostName,
-    port: u16<(1...65_535)>,
-    limits: ResolveLimits = ResolveLimits(),
+    named port: u16<(1...65_535)>,
+    named limits: ResolveLimits = ResolveLimits(),
   ): Array<SocketAddress> throws NetworkError {
     return unsafe {
       try await stdNetResolve(
@@ -722,7 +722,7 @@ export struct Network {
 
   export async fn connectTcp(
     to endpoint: ref Endpoint,
-    options: ConnectOptions = ConnectOptions(),
+    named options: ConnectOptions = ConnectOptions(),
   ): TcpConnection throws NetworkError {
     let connection = unsafe {
       try await stdNetConnectTcp(
@@ -736,7 +736,7 @@ export struct Network {
 
   export async fn listenTcp(
     at address: ref ListenAddress,
-    limits: ListenerLimits = ListenerLimits(),
+    named limits: ListenerLimits = ListenerLimits(),
   ): TcpListener throws NetworkError {
     let listener = unsafe {
       try await stdNetListenTcp(
@@ -750,7 +750,7 @@ export struct Network {
 
   export async fn bindUdp(
     at address: ref ListenAddress,
-    limits: DatagramLimits = DatagramLimits(),
+    named limits: DatagramLimits = DatagramLimits(),
   ): UdpSocket throws NetworkError {
     let socket = unsafe {
       try await stdNetBindUdp(
@@ -766,7 +766,7 @@ export struct Network {
     // Safe code reaches deinit only after borrows have drained. Residual
     // physical or latched state is cleared, then the capability is released
     // once.
-    unsafe { stdNetNetworkDrop(handle: inout handle) }
+    unsafe { stdNetNetworkDrop(inout handle) }
   }
 }
 
@@ -782,16 +782,16 @@ export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
   }
 
   export fn localAddress(): SocketAddress {
-    return unsafe { stdNetTcpLocalAddress(handle: ref handle) }
+    return unsafe { stdNetTcpLocalAddress(ref handle) }
   }
 
   export fn peerAddress(): SocketAddress {
-    return unsafe { stdNetTcpPeerAddress(handle: ref handle) }
+    return unsafe { stdNetTcpPeerAddress(ref handle) }
   }
 
   export mut async fn read(
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): ReadStep throws NetworkError {
     return unsafe {
       try await stdNetTcpRead(
@@ -804,13 +804,13 @@ export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
 
   export mut async fn write(source: view Bytes): WriteStep throws NetworkError {
     return unsafe {
-      try await stdNetTcpWrite(handle: inout handle, source: source)
+      try await stdNetTcpWrite(inout handle, source)
     }
   }
 
   export take fn split(): (TcpReadHalf, TcpWriteHalf) {
     let (read, write) = unsafe {
-      stdNetTcpSplit(handle: inout handle)
+      stdNetTcpSplit(inout handle)
     }
     return (
       TcpReadHalf(validatedHandle: read),
@@ -823,7 +823,7 @@ export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
   // consumed on success, error, or cancellation.
   export take async fn finishWriting(): TcpReadHalf throws NetworkError {
     let read = unsafe {
-      try await stdNetTcpFinishWriting(handle: inout handle)
+      try await stdNetTcpFinishWriting(inout handle)
     }
     return TcpReadHalf(validatedHandle: read)
   }
@@ -831,7 +831,7 @@ export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
   deinit {
     // Safe code reaches deinit after borrows have drained. Unsplit drop then
     // aborts the connection, clears residual state, and releases once.
-    unsafe { stdNetTcpDrop(handle: inout handle) }
+    unsafe { stdNetTcpDrop(inout handle) }
   }
 }
 
@@ -847,7 +847,7 @@ export struct TcpReadHalf: ByteSource<NetworkError> {
 
   export mut async fn read(
     appendTo destination: inout Bytes,
-    maximum: usize<(1...)>,
+    named maximum: usize<(1...)>,
   ): ReadStep throws NetworkError {
     return unsafe {
       try await stdNetTcpReadHalfRead(
@@ -861,7 +861,7 @@ export struct TcpReadHalf: ByteSource<NetworkError> {
   // Dropping a read half ends receive authority only. It does not finish the
   // sibling write half.
   deinit {
-    unsafe { stdNetTcpReadHalfDrop(handle: inout handle) }
+    unsafe { stdNetTcpReadHalfDrop(inout handle) }
   }
 }
 
@@ -877,7 +877,7 @@ export struct TcpWriteHalf: ByteSink<NetworkError> {
 
   export mut async fn write(source: view Bytes): WriteStep throws NetworkError {
     return unsafe {
-      try await stdNetTcpWriteHalfWrite(handle: inout handle, source: source)
+      try await stdNetTcpWriteHalfWrite(inout handle, source)
     }
   }
 
@@ -887,7 +887,7 @@ export struct TcpWriteHalf: ByteSink<NetworkError> {
   // half observes reset or aborted rather than hanging.
   export take async fn finish(): () throws NetworkError {
     return unsafe {
-      try await stdNetTcpWriteHalfFinish(handle: inout handle)
+      try await stdNetTcpWriteHalfFinish(inout handle)
     }
   }
 
@@ -895,7 +895,7 @@ export struct TcpWriteHalf: ByteSink<NetworkError> {
     // After all borrows drain, an unfinished write half aborts the whole
     // connection. The sibling read half receives reset or aborted rather than
     // hanging.
-    unsafe { stdNetTcpWriteHalfDrop(handle: inout handle) }
+    unsafe { stdNetTcpWriteHalfDrop(inout handle) }
   }
 }
 
@@ -921,7 +921,7 @@ export struct TcpListener {
 
   export mut async fn accept(): AcceptedTcp throws NetworkError {
     let (connection, peer) = unsafe {
-      try await stdNetTcpAccept(handle: inout handle)
+      try await stdNetTcpAccept(inout handle)
     }
     return AcceptedTcp(
       validatedConnection: TcpConnection(validatedHandle: connection),
@@ -930,13 +930,13 @@ export struct TcpListener {
   }
 
   export fn localAddresses(): Array<SocketAddress> {
-    return unsafe { stdNetTcpLocalAddresses(handle: ref handle) }
+    return unsafe { stdNetTcpLocalAddresses(ref handle) }
   }
 
   deinit {
     // Safe code reaches deinit after accept borrows have drained. Residual
     // listener state is cleared and the handle is released once.
-    unsafe { stdNetTcpListenerDrop(handle: inout handle) }
+    unsafe { stdNetTcpListenerDrop(inout handle) }
   }
 }
 
@@ -951,11 +951,11 @@ export struct UdpSocket {
   }
 
   export fn localAddresses(): Array<SocketAddress> {
-    return unsafe { stdNetUdpLocalAddresses(handle: ref handle) }
+    return unsafe { stdNetUdpLocalAddresses(ref handle) }
   }
 
   export take fn split(): (UdpReceiveHalf, UdpSendHalf) {
-    let (receive, send) = unsafe { stdNetUdpSplit(handle: inout handle) }
+    let (receive, send) = unsafe { stdNetUdpSplit(inout handle) }
     return (
       UdpReceiveHalf(validatedHandle: receive),
       UdpSendHalf(validatedHandle: send),
@@ -989,7 +989,7 @@ export struct UdpSocket {
   deinit {
     // Safe code reaches deinit after receive/send borrows have drained.
     // Residual socket state is cleared and the handle is released once.
-    unsafe { stdNetUdpDrop(handle: inout handle) }
+    unsafe { stdNetUdpDrop(inout handle) }
   }
 }
 
@@ -1012,7 +1012,7 @@ export struct UdpReceiveHalf {
   }
 
   deinit {
-    unsafe { stdNetUdpReceiveHalfDrop(handle: inout handle) }
+    unsafe { stdNetUdpReceiveHalfDrop(inout handle) }
   }
 }
 
@@ -1037,7 +1037,7 @@ export struct UdpSendHalf {
   }
 
   deinit {
-    unsafe { stdNetUdpSendHalfDrop(handle: inout handle) }
+    unsafe { stdNetUdpSendHalfDrop(inout handle) }
   }
 }
 

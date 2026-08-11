@@ -98,14 +98,14 @@ struct Scenario {
 
 fn simulatedOrder(
   orderId: OrderId,
-  guestId: GuestId,
-  name: GuestName,
-  guests: GuestCount,
-  course: Course,
-  arrivalTick: SimulationTick,
-  preparationTicks: SimulationTicks,
-  patienceTicks: SimulationTicks,
-  timeline: u32,
+  named guestId: GuestId,
+  named name: GuestName,
+  named guests: GuestCount,
+  named course: Course,
+  named arrivalTick: SimulationTick,
+  named preparationTicks: SimulationTicks,
+  named patienceTicks: SimulationTicks,
+  named timeline: u32,
 ): SimulatedOrder {
   return SimulatedOrder(
     order: Order(
@@ -195,11 +195,11 @@ fn scenario(profile: SimulationProfile): Scenario {
   }
 }
 
-fn countStage(orders: ref Array<SimulatedOrder>, stage: SimulationStage): u32 {
+fn countStage(orders: ref Array<SimulatedOrder>, stage selectedStage: SimulationStage): u32 {
   var count = 0_u32
 
   for ref order in orders {
-    if order.stage == stage {
+    if order.stage == selectedStage {
       count += 1
     }
   }
@@ -227,11 +227,11 @@ fn isTerminal(orders: ref Array<SimulatedOrder>): Bool {
 
 fn record(
   events: inout Array<SimulationEvent>,
-  tick: SimulationTick,
-  orderId: OrderId,
-  stage: SimulationStage,
+  tick currentTick: SimulationTick,
+  orderId selectedOrderId: OrderId,
+  stage nextStage: SimulationStage,
 ) {
-  events.append(SimulationEvent(tick: tick, orderId: orderId, stage: stage))
+  events.append(SimulationEvent(tick: currentTick, orderId: selectedOrderId, stage: nextStage))
 }
 
 export fn simulateShift(profile: SimulationProfile): SimulationReport throws SimulationError {

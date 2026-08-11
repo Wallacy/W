@@ -22,12 +22,12 @@ export fn serviceTemperatures(
 
 export fn correctTemperatures(
   values: inout Array<f64>,
-  offset: f64,
+  offset correction: f64,
 ): inout view Array<f64> {
   let inout corrected: view Array<f64> = values[1..<values.count]
 
   for inout temperature in corrected {
-    temperature += offset
+    temperature += correction
   }
 
   return corrected

@@ -105,7 +105,7 @@ export struct Launch<Module: KernelModule> {
   }
 
   export take async fn close() throws LaunchError {
-    unsafe { try await stdAcceleratorClose(handle: take handle.raw) }
+    unsafe { try await stdAcceleratorClose(take handle.raw) }
   }
 }
 
@@ -130,14 +130,14 @@ foreign intrinsic from "std.accelerator@1" {
   type LaunchHandle
 
   fn stdAcceleratorModuleIdentitySame(
-    left: ref ModuleIdentityHandle,
-    right: ref ModuleIdentityHandle,
+    named left: ref ModuleIdentityHandle,
+    named right: ref ModuleIdentityHandle,
   ): Bool
 
   async fn stdAcceleratorOpen<Module: KernelModule>(
-    module: ref Module,
-    queue: ref tensor.Queue,
-    limits: ref Limits,
+    named module: ref Module,
+    named queue: ref tensor.Queue,
+    named limits: ref Limits,
   ): LaunchHandle throws LaunchError
 
   async fn stdAcceleratorClose(

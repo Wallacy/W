@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "Money",
-    "digest": "sha256:1487008ffa56f4fbca61f457a6f77f6de4cb82a65d304839432641fc7902b433"
+    "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
   },
   "variants": [
     {

@@ -10,8 +10,8 @@ export enum HorizonBodyError: Error {
 }
 
 export fn horizonObservationForm(
-  station: String,
-  image: take Bytes,
+  named station: String,
+  named image: take Bytes,
 ): http.FormData throws http.FormDataError {
   var form = http.FormData(
     limits: http.FormDataLimits(

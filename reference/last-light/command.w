@@ -50,14 +50,14 @@ fn decodeCourse(value: view String): Course throws CommandError {
   }
 }
 
-fn decodeOrder(fields: ref Array<view String>, span: SourceSpan): Order throws CommandError {
-  guard fields.count >= 5 else throw .missingField(name: "order", span: span)
+fn decodeOrder(fields: ref Array<view String>, span location: SourceSpan): Order throws CommandError {
+  guard fields.count >= 5 else throw .missingField(name: "order", span: location)
 
-  let orderIdCarrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
-  let guestIdCarrier = try u64.parse(fields[2]).mapError((_) => .invalidNumber(name: "guest-id", span: span))
+  let orderIdCarrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: location))
+  let guestIdCarrier = try u64.parse(fields[2]).mapError((_) => .invalidNumber(name: "guest-id", span: location))
   let orderId = OrderId(orderIdCarrier)
   let guestId = GuestId(guestIdCarrier)
-  let guests = try GuestCount.parse(fields[3]).mapError((_) => .invalidNumber(name: "guests", span: span))
+  let guests = try GuestCount.parse(fields[3]).mapError((_) => .invalidNumber(name: "guests", span: location))
   let course = try decodeCourse(fields[4])
   var notes: String? = .none
 
@@ -74,17 +74,17 @@ fn decodeOrder(fields: ref Array<view String>, span: SourceSpan): Order throws C
   )
 }
 
-fn decodeOrderId(fields: ref Array<view String>, span: SourceSpan): OrderId throws CommandError {
-  guard fields.count >= 2 else throw .missingField(name: "order-id", span: span)
-  let carrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: span))
+fn decodeOrderId(fields: ref Array<view String>, span location: SourceSpan): OrderId throws CommandError {
+  guard fields.count >= 2 else throw .missingField(name: "order-id", span: location)
+  let carrier = try u64.parse(fields[1]).mapError((_) => .invalidNumber(name: "order-id", span: location))
   return OrderId(carrier)
 }
 
 fn decodeSimulationProfile(
   fields: ref Array<view String>,
-  span: SourceSpan,
+  span location: SourceSpan,
 ): SimulationProfile throws CommandError {
-  guard fields.count >= 2 else throw .missingField(name: "simulation-profile", span: span)
+  guard fields.count >= 2 else throw .missingField(name: "simulation-profile", span: location)
 
   return switch fields[1] {
     case "quiet": .quietOrbit

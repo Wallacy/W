@@ -359,9 +359,9 @@ foreign intrinsic from "std.parquet@1" {
 
   // Host/provider boundary: capability creation is explicit and scoped.
   fn stdParquetKeyResolverFromCapability(
-    capability: take ParquetKeyCapability,
-    scope: KeyScope,
-    limits: ref Limits,
+    named capability: take ParquetKeyCapability,
+    named scope: KeyScope,
+    named limits: ref Limits,
   ): ParquetKeyResolverHandle throws KeyResolverError
 
   fn stdParquetDecode<Row: data.Row, SourceFailure: Error,

@@ -1,0 +1,59 @@
+==================
+Callable label policies are explicit and independent of position
+==================
+
+fn reserve(
+  order: Order,
+  named audit: Audit,
+  _ note: String,
+  to destination: Table,
+) {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block)))
+
+==================
+Named remains an identifier without a following parameter name
+==================
+
+fn inspect(named: Bool) {}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (block)))

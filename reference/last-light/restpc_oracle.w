@@ -11,9 +11,9 @@ enum RestPcOperation {
 
 const fn expectedOperation(
   for method: http.Method,
-  path: ref String,
+  path resourcePath: ref String,
 ): RestPcOperation {
-  return switch (method, path) {
+  return switch (method, resourcePath) {
     case (.get, "/menu"): .getResource
     case (.query, "/orders"): .queryOrders
     case (.post, "/commands"): .submitCommand

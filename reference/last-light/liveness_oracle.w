@@ -21,7 +21,7 @@ enum TaskClosureEvent {
 }
 
 const fn nextTaskClosurePhase(
-  from state: TaskClosurePhase,
+  state: TaskClosurePhase,
   on event: TaskClosureEvent,
 ): TaskClosurePhase? {
   return switch (state, event) {
@@ -75,7 +75,7 @@ enum CancelDisposition {
 }
 
 const fn nextRuntimeWaitPhase(
-  from state: RuntimeWaitPhase,
+  state: RuntimeWaitPhase,
   on event: RuntimeWaitEvent,
 ): RuntimeWaitPhase? {
   return switch (state, event) {
@@ -92,8 +92,8 @@ const fn nextRuntimeWaitPhase(
 
 const fn completionDisposition(
   state: RuntimeWaitPhase,
-  generationMatches: Bool,
-  providerOutcome: ProviderOutcome,
+  named generationMatches: Bool,
+  named providerOutcome: ProviderOutcome,
 ): CompletionDisposition {
   if state == .terminal || state == .drained {
     return .lateDrained
@@ -202,7 +202,7 @@ enum ShutdownAction {
 }
 
 const fn nextBoundaryShutdownPhase(
-  from state: BoundaryShutdownPhase,
+  state: BoundaryShutdownPhase,
   on action: ShutdownAction,
 ): BoundaryShutdownPhase? {
   return switch (state, action) {

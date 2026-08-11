@@ -23,14 +23,14 @@ fn standardWelcome(arrival: Arrival = Arrival(orderId: 0)): Welcome {
   return Welcome(orderId: arrival.orderId, gate: 1)
 }
 
-fn route(gate: usize): any fn(Arrival): Welcome {
+fn route(named gate: usize): any fn(Arrival): Welcome {
   return capture(copy gate) (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: gate,
   )
 }
 
-fn ticketSequence(initial: usize): some mut fn(): usize {
+fn ticketSequence(named initial: usize): some mut fn(): usize {
   var next = initial
 
   return capture(take next) () => {
@@ -55,9 +55,9 @@ fn recoverableRoute(
 }
 
 fn observeCallableModel(
-  gate: usize,
-  initial: usize,
-  orderIds: take Array<u64>,
+  named gate: usize,
+  named initial: usize,
+  named orderIds: take Array<u64>,
 ): CallableObservation {
   let greeter: fn(Arrival): Welcome = standardWelcome
   let first = greeter(Arrival(orderId: 42))

@@ -235,23 +235,23 @@ export struct EncodeDialect {
 
 foreign intrinsic from "std.csv@1" {
   fn stdCsvDecodeDialect(
-    delimiter: u8,
-    quote: u8,
-    header: HeaderPolicy,
-    whitespace: WhitespacePolicy,
-    nullDecode: NullDecodePolicy,
-    boolTokens: BoolTokenPolicy,
-    floatTokens: FloatTokenPolicy,
-    limits: ref Limits,
+    named delimiter: u8,
+    named quote: u8,
+    named header: HeaderPolicy,
+    named whitespace: WhitespacePolicy,
+    named nullDecode: NullDecodePolicy,
+    named boolTokens: BoolTokenPolicy,
+    named floatTokens: FloatTokenPolicy,
+    named limits: ref Limits,
   ): DecodeDialect throws ConfigError
   fn stdCsvEncodeDialect(
-    delimiter: u8,
-    quote: u8,
-    header: HeaderPolicy,
-    nullEncode: NullEncodePolicy,
-    formula: FormulaPolicy,
-    floatPolicy: WriterFloatPolicy,
-    limits: ref Limits,
+    named delimiter: u8,
+    named quote: u8,
+    named header: HeaderPolicy,
+    named nullEncode: NullEncodePolicy,
+    named formula: FormulaPolicy,
+    named floatPolicy: WriterFloatPolicy,
+    named limits: ref Limits,
   ): EncodeDialect throws ConfigError
 }
 

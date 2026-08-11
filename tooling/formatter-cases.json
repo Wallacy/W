@@ -61,10 +61,10 @@
     },
     {
       "id": "F0-multiline-signature-and-call",
-      "decisions": ["W-708", "W-773"],
+      "decisions": ["W-708", "W-773", "W-1290"],
       "input": {
         "lines": [
-          "fn reserve(order:Order,inventory:Inventory,audit:Audit,deadline:Deadline,idempotencyKey:IdempotencyKey,observability:Observability):Reservation throws KitchenError{",
+          "fn reserve(order:Order,inventory:Inventory,named audit:Audit,named deadline:Deadline,named idempotencyKey:IdempotencyKey,named observability:Observability):Reservation throws KitchenError{",
           "return inventory.reserve(order,audit:audit,deadline:deadline,idempotencyKey:idempotencyKey,observability:observability)",
           "}"
         ]
@@ -73,10 +73,10 @@
         "fn reserve(",
         "  order: Order,",
         "  inventory: Inventory,",
-        "  audit: Audit,",
-        "  deadline: Deadline,",
-        "  idempotencyKey: IdempotencyKey,",
-        "  observability: Observability,",
+        "  named audit: Audit,",
+        "  named deadline: Deadline,",
+        "  named idempotencyKey: IdempotencyKey,",
+        "  named observability: Observability,",
         "): Reservation throws KitchenError {",
         "  return inventory.reserve(",
         "    order,",
@@ -204,7 +204,7 @@
     },
     {
       "id": "F0-optional-label-slots",
-      "decisions": ["W-1160"],
+      "decisions": ["W-1160", "W-1290"],
       "input": {
         "lines": [
           "struct OvenSession<_ state:OvenSessionState>{}",
@@ -226,6 +226,28 @@
         "",
         "open(\"oven\")",
         "open(name: \"oven\")"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-contextual-named-parameter",
+      "decisions": ["W-708", "W-1290"],
+      "input": {
+        "lines": [
+          "fn query(count:usize,named context:Context){}",
+          "query(20,context:ctx)",
+          "fn inspect(named:Bool){}",
+          "inspect(flag)"
+        ]
+      },
+      "output": [
+        "fn query(count: usize, named context: Context) {}",
+        "",
+        "query(20, context: ctx)",
+        "",
+        "fn inspect(named: Bool) {}",
+        "",
+        "inspect(flag)"
       ],
       "requiredSemicolons": []
     },
@@ -328,16 +350,16 @@
     },
     {
       "id": "F0-const-call-parameter",
-      "decisions": ["W-548", "W-708"],
+      "decisions": ["W-548", "W-708", "W-1290"],
       "input": {
         "lines": [
-          "fn prepare(statement:const database.Query<WorldKey,WorldRow>,parameters:WorldKey):PreparedQuery{return database.prepare(statement,parameters:parameters)}"
+          "fn prepare(statement:const database.Query<WorldKey,WorldRow>,named parameters:WorldKey):PreparedQuery{return database.prepare(statement,parameters:parameters)}"
         ]
       },
       "output": [
         "fn prepare(",
         "  statement: const database.Query<WorldKey, WorldRow>,",
-        "  parameters: WorldKey,",
+        "  named parameters: WorldKey,",
         "): PreparedQuery {",
         "  return database.prepare(statement, parameters: parameters)",
         "}"

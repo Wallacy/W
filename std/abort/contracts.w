@@ -38,7 +38,7 @@ foreign intrinsic from "std.abort-state@1" {
   fn stdAbortSignalAlready(reason: AbortReason): AbortSignalHandle
   fn stdAbortSignalTimeout(timeout: TaskTimeout): AbortSignalHandle
   fn stdAbortSignalAny(
-    maximumSources: AbortSourceLimit,
+    named maximumSources: AbortSourceLimit,
     _ sources: ref AbortSignal...,
   ): AbortSignalHandle throws AbortSignalCombineError
 
@@ -50,8 +50,8 @@ foreign intrinsic from "std.abort-state@1" {
 
   fn stdAbortControllerCreate(): (AbortControllerHandle, AbortSignalHandle)
   fn stdAbortControllerAbort(
-    authority: ref AbortControllerHandle,
-    reason: AbortReason,
+    named authority: ref AbortControllerHandle,
+    named reason: AbortReason,
   )
   fn stdAbortControllerDrop(authority: inout AbortControllerHandle)
 }
@@ -66,7 +66,7 @@ export struct AbortSignal: Duplicable {
   export static fn abort(
     reason: AbortReason = .requested(.userRequest),
   ): AbortSignal {
-    let handle = unsafe { stdAbortSignalAlready(reason: reason) }
+    let handle = unsafe { stdAbortSignalAlready(reason) }
     return AbortSignal(validatedHandle: handle)
   }
 
@@ -75,7 +75,7 @@ export struct AbortSignal: Duplicable {
     // signal state. Creator/root cancellation does not abort this signal. A
     // timer-budget admission failure publishes .cancellation and requests the
     // current structural cancellation.
-    let handle = unsafe { stdAbortSignalTimeout(timeout: timeout) }
+    let handle = unsafe { stdAbortSignalTimeout(timeout) }
     return AbortSignal(validatedHandle: handle)
   }
 
@@ -100,21 +100,21 @@ export struct AbortSignal: Duplicable {
   }
 
   export aborted: Bool {
-    get => unsafe { stdAbortSignalAborted(handle: handle) }
+    get => unsafe { stdAbortSignalAborted(handle) }
   }
 
   export reason: AbortReason? {
-    get => unsafe { stdAbortSignalReason(handle: handle) }
+    get => unsafe { stdAbortSignalReason(handle) }
   }
 
   export fn duplicate(): AbortSignal {
-    let duplicate = unsafe { stdAbortSignalDuplicate(handle: handle) }
+    let duplicate = unsafe { stdAbortSignalDuplicate(handle) }
     return AbortSignal(validatedHandle: duplicate)
   }
 
   export fn throwIfAborted(): () throws AbortReason {
     guard let reason = unsafe {
-      stdAbortSignalReason(handle: handle)
+      stdAbortSignalReason(handle)
     } else return
 
     throw reason
@@ -123,11 +123,11 @@ export struct AbortSignal: Duplicable {
   // A committed abort completion returns its reason. Otherwise, waiting task
   // cancellation removes this waiter and propagates as a control outcome.
   export async fn wait(): AbortReason {
-    return unsafe { await stdAbortSignalWait(handle: handle) }
+    return unsafe { await stdAbortSignalWait(handle) }
   }
 
   deinit {
-    unsafe { stdAbortSignalDrop(handle: inout handle) }
+    unsafe { stdAbortSignalDrop(inout handle) }
   }
 }
 
@@ -160,6 +160,6 @@ export struct AbortController {
   }
 
   deinit {
-    unsafe { stdAbortControllerDrop(authority: inout authority) }
+    unsafe { stdAbortControllerDrop(inout authority) }
   }
 }
