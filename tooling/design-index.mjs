@@ -270,6 +270,7 @@ const oracleCorpusFiles = [
   "lazy-behavior-cases.json",
   "ownership-execution-cases.json",
   "channel-cases.json",
+  "context-local-cases.json",
   "scoped-lock-cases.json",
   "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
@@ -489,6 +490,17 @@ const channelOperations = channelCorpus.cases.reduce(
   0,
 );
 const acceptedChannelCases = channelCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const contextLocalCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "context-local-cases.json"), "utf8"),
+);
+const contextLocalCases = contextLocalCorpus.cases.length;
+const contextLocalOperations = contextLocalCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedContextLocalCases = contextLocalCorpus.cases.filter(
   (testCase) => testCase.kind === "accepted",
 ).length;
 const scopedLockCorpus = JSON.parse(
@@ -873,6 +885,12 @@ output.push(
     `${channelCases}/${channelOperations} ` +
     `(${acceptedChannelCases} aceitos + ` +
     `${channelCases - acceptedChannelCases} rejeitados; 12 testes host) |`,
+);
+output.push(
+  `| casos/operações de contexto local CTX0 | ` +
+    `${contextLocalCases}/${contextLocalOperations} ` +
+    `(${acceptedContextLocalCases} aceitos + ` +
+    `${contextLocalCases - acceptedContextLocalCases} rejeitados; seis testes host) |`,
 );
 output.push(
   `| casos/operações de lock da linguagem LM1 | ` +

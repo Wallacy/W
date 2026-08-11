@@ -16,20 +16,20 @@
 
 | Métrica | Valor |
 |---|---:|
-| linhas de `DESIGN.md` | 28429 |
-| tokens aproximados de `DESIGN.md` | 296500 |
-| linhas de `RATIONALE.md` | 4361 |
-| tokens aproximados de `RATIONALE.md` | 118700 |
+| linhas de `DESIGN.md` | 28463 |
+| tokens aproximados de `DESIGN.md` | 296900 |
+| linhas de `RATIONALE.md` | 4371 |
+| tokens aproximados de `RATIONALE.md` | 118900 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 335/335 |
-| decisões | 1267 (W-001–W-1267) |
+| decisões | 1268 (W-001–W-1268) |
 | famílias de viabilidade | 182 |
 | slices normativos de grammar | 6 |
 | requisitos de ratificação comparativa | 69 |
 | casos de substituição estruturados | 69/69 |
-| decisões referenciadas por casos R0 | 130/1267 |
-| decisões classificadas para design freeze | 439/1267 (130 source + 349 oracle + 8 explícitas; 48 overlaps) |
-| decisões ainda sem classe de freeze | 828 |
+| decisões referenciadas por casos R0 | 130/1268 |
+| decisões classificadas para design freeze | 442/1268 (130 source + 352 oracle + 8 explícitas; 48 overlaps) |
+| decisões ainda sem classe de freeze | 826 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 170 |
 | surface lexemes das formas vigentes R0 | 1404 total; mediana 16; máximo 52 |
@@ -46,6 +46,7 @@
 | casos/operações do behavior Lazy LZ0 | 40/118 (16 aceitos + 20 rejeitados + 4 fault; 12 testes host) |
 | casos/operações da composição de ownership e execução MX0 | 46/274 (23 aceitos + 23 rejeitados; 14 testes host) |
 | casos/operações de channel bounded CH0 | 47/333 (28 aceitos + 19 rejeitados; 12 testes host) |
+| casos/operações de contexto local CTX0 | 25/94 (10 aceitos + 15 rejeitados; seis testes host) |
 | casos/operações de lock da linguagem LM1 | 39/86 (21 aceitos + 17 rejeitados + 1 fault; 11 testes host) |
 | casos/operações do carrier de snapshot SP0 | 27/82 (14 aceitos + 12 rejeitados + 1 fault; sete testes host) |
 | casos/operações do kernel de boundary effects B0 | 39/320 (25 aceitos + 14 rejeitados) |
@@ -66,14 +67,14 @@
 | outcomes SemanticResult S0 | 108 |
 | snapshots de diagnostic D0 | 54 |
 | snapshots F0 no formato D0 | 23 |
-| codes D0 catalogados | 249/155 |
-| sources W no root do Última Luz | 91 |
-| sources W em todo o Última Luz | 99 |
-| sources W no rascunho da std | 23 |
-| módulos/APIs catalogados da std SDK0 | 23/324 |
+| codes D0 catalogados | 259/165 |
+| sources W no root do Última Luz | 92 |
+| sources W em todo o Última Luz | 100 |
+| sources W no rascunho da std | 24 |
+| módulos/APIs catalogados da std SDK0 | 24/326 |
 | superfícies qualificadas da std usadas pelo Última Luz | 84 |
-| requisitos do Última Luz com contrato std SDK0 | 23/23 |
-| requisitos do Última Luz ausentes na std SDK0 | 1/23 |
+| requisitos do Última Luz com contrato std SDK0 | 25/25 |
+| requisitos do Última Luz ausentes na std SDK0 | 1/25 |
 
 A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para planejar leitura.
 
@@ -84,6 +85,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | BORROW | 10 | 10 |
 | CAPABILITY | 1 | 1 |
 | CONST | 7 | 7 |
+| CONTEXT | 7 | 7 |
 | CONTRACT | 5 | 5 |
 | DIAGNOSTIC | 1 | 1 |
 | DOC | 2 | 2 |
@@ -110,6 +112,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | SESSION | 28 | 28 |
 | STD | 1 | 1 |
 | SUSPEND | 4 | 4 |
+| TLS | 3 | 3 |
 | TYPE | 3 | 3 |
 | USE | 1 | 1 |
 | WIRE | 1 | 1 |
@@ -137,22 +140,22 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 | 16 | 18666–20238 | 13200 | Texto, bytes e collections |
 | 17 | 20239–20588 | 4100 | Matrizes, tensors e ML |
 | 18 | 20589–21042 | 4400 | Performance e custo |
-| 19 | 21043–21578 | 6400 | FFI, unsafe e ilhas de linguagem |
-| 20 | 21579–23113 | 16600 | Compilador e bootstrap |
-| 21 | 23114–25140 | 19200 | Packages, builds e releases |
-| 22 | 25141–25647 | 4900 | Tooling e interface para máquinas |
-| 23 | 25648–27051 | 16600 | Protocolos e pesquisas de ecossistema |
-| 24 | 27052–27892 | 11500 | Design freeze e pendências |
-| 25 | 27893–28103 | 1900 | Produto de referência Última Luz |
-| 26 | 28104–28429 | 4000 | Plano de implementação |
+| 19 | 21043–21612 | 6800 | FFI, unsafe e ilhas de linguagem |
+| 20 | 21613–23147 | 16600 | Compilador e bootstrap |
+| 21 | 23148–25174 | 19200 | Packages, builds e releases |
+| 22 | 25175–25681 | 4900 | Tooling e interface para máquinas |
+| 23 | 25682–27085 | 16600 | Protocolos e pesquisas de ecossistema |
+| 24 | 27086–27926 | 11500 | Design freeze e pendências |
+| 25 | 27927–28137 | 1900 | Produto de referência Última Luz |
+| 26 | 28138–28463 | 4000 | Plano de implementação |
 
 ## Navegação compacta de RATIONALE
 
 | Seção | Linhas | Tokens aproximados | Tema |
 |---:|---:|---:|---|
-| 1 | 14–3046 | 46400 | Evidência comparativa |
-| 2 | 3047–3077 | 500 | Proveniência |
-| 3 | 3078–4361 | 71800 | Ledger |
+| 1 | 14–3055 | 46500 | Evidência comparativa |
+| 2 | 3056–3086 | 500 | Proveniência |
+| 3 | 3087–4371 | 71800 | Ledger |
 
 ## Bundles de leitura
 
@@ -162,9 +165,9 @@ Use um bundle para uma revisão de domínio. Depois leia somente os headings e I
 |---|---:|---:|---:|---|
 | orientação e superfície | 0, 1, 2, 3, 4, 5, 6, 7, 8 | 15–7151 | 65600 | promessa, símbolos, source, módulos, funções e tipos |
 | segurança e execução | 9, 10, 11, 12, 13 | 7152–14282 | 75500 | ownership, errors, tasks, domains, services e entries |
-| SDK e performance | 14, 15, 16, 17, 18, 19 | 14283–21578 | 81900 | módulos, números, texto, tensors, custo, C e unsafe |
-| compiler e distribuição | 20, 21, 22, 23 | 21579–27051 | 57300 | frontend, HIR, packages, releases, tooling e protocolos |
-| validação e decisões | 24, 25, 26 | 27052–28429 | 17400 | freeze, Última Luz, gates e roadmap |
+| SDK e performance | 14, 15, 16, 17, 18, 19 | 14283–21612 | 82300 | módulos, números, texto, tensors, custo, C e unsafe |
+| compiler e distribuição | 20, 21, 22, 23 | 21613–27085 | 57300 | frontend, HIR, packages, releases, tooling e protocolos |
+| validação e decisões | 24, 25, 26 | 27086–28463 | 17400 | freeze, Última Luz, gates e roadmap |
 
 O bundle agrupa seções para planejamento; os intervalos não são uma nova autoridade.
 

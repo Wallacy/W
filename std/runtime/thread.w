@@ -1,0 +1,62 @@
+// Native thread-local storage for narrow system and adapter use.
+//
+// A task can migrate after suspension. ThreadLocal therefore does not model
+// task context, an execution domain, or an isolation boundary.
+
+foreign intrinsic from "std.runtime.thread-local@1" {
+  type ThreadLocalIdentity
+
+  const fn stdThreadLocalKey<Value: Copy>(initial: Value): ThreadLocalIdentity
+
+  fn stdThreadLocalRead<Value: Copy>(
+    identity: ref ThreadLocalIdentity,
+  ): Value
+
+  fn stdThreadLocalWrite<Value: Copy, Result, Failure: Error>(
+    identity: ref ThreadLocalIdentity,
+    operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure
+}
+
+export struct ThreadLocal<Value: Copy> {
+  identity: ThreadLocalIdentity
+
+  init(validatedIdentity: ThreadLocalIdentity) {
+    self.identity = validatedIdentity
+  }
+
+  export static const fn key(initial: Value): ThreadLocal<Value> {
+    let identity = unsafe { stdThreadLocalKey(initial: initial) }
+    return ThreadLocal<Value>(validatedIdentity: identity)
+  }
+
+  export fn read(): Value {
+    return unsafe { stdThreadLocalRead(identity: identity) }
+  }
+
+  export fn write<Result, Failure: Error>(
+    _ operation: some fn(inout Value): Result throws Failure,
+  ): Result throws Failure {
+    return unsafe {
+      try stdThreadLocalWrite(
+        identity: identity,
+        operation: operation,
+      )
+    }
+  }
+}
+
+struct ThreadLocalTestCounters {
+  const samples = ThreadLocal<u64>.key(initial: 0)
+}
+
+test "native threads keep independent slots" {
+  let first = ThreadLocalTestCounters.samples.read()
+  let second = ThreadLocalTestCounters.samples.write((value: inout u64) => {
+    value += 1
+    return value
+  })
+
+  expect first == 0
+  expect second == 1
+}

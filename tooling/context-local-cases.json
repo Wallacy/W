@@ -1,0 +1,325 @@
+{
+  "$schema": "w-context-local-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "CTX0-accepted-task-default",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "taskLocalVisibility" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "getTaskLocal", "task": "root", "key": "order" }
+      ],
+      "expect": { "readValues": ["none"], "activeBindingValues": [] }
+    },
+    {
+      "id": "CTX0-accepted-task-binding",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/execution.w", "symbol": "withValue" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-42", "ownership": "move" },
+        { "op": "getTaskLocal", "task": "root", "key": "order" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "success" },
+        { "op": "getTaskLocal", "task": "root", "key": "order" }
+      ],
+      "expect": { "readValues": ["order-42", "none"], "activeBindingValues": [] }
+    },
+    {
+      "id": "CTX0-accepted-task-rebind-lifo",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "canPopTaskLocal" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "beginTaskScope", "task": "root", "scope": "inner", "key": "order", "value": "order-2", "ownership": "copy", "copyable": true },
+        { "op": "getTaskLocal", "task": "root", "key": "order" },
+        { "op": "closeTaskScope", "task": "root", "scope": "inner", "operationSettled": true, "dependenciesClosed": true, "outcome": "error" },
+        { "op": "getTaskLocal", "task": "root", "key": "order" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "success" }
+      ],
+      "expect": { "readValues": ["order-2", "order-1"], "activeBindingValues": [] }
+    },
+    {
+      "id": "CTX0-accepted-child-snapshot",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "asyncChild" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "spawnChild", "parent": "root", "child": "cook", "scope": "outer", "form": "asyncLet" },
+        { "op": "beginTaskScope", "task": "root", "scope": "inner", "key": "order", "value": "order-2", "ownership": "copy", "copyable": true },
+        { "op": "getTaskLocal", "task": "root", "key": "order" },
+        { "op": "getTaskLocal", "task": "cook", "key": "order" },
+        { "op": "closeTaskScope", "task": "root", "scope": "inner", "operationSettled": true, "dependenciesClosed": true, "outcome": "success" },
+        { "op": "settleChild", "child": "cook" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "success" }
+      ],
+      "expect": { "readValues": ["order-2", "order-1"], "activeBindingValues": [] }
+    },
+    {
+      "id": "CTX0-accepted-all-child-forms",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "spawnedChild" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-9", "ownership": "move" },
+        { "op": "spawnChild", "parent": "root", "child": "a", "scope": "outer", "form": "asyncLet" },
+        { "op": "spawnChild", "parent": "root", "child": "b", "scope": "outer", "form": "taskGroup" },
+        { "op": "spawnChild", "parent": "root", "child": "c", "scope": "outer", "form": "spawn" },
+        { "op": "getTaskLocal", "task": "a", "key": "order" },
+        { "op": "getTaskLocal", "task": "b", "key": "order" },
+        { "op": "getTaskLocal", "task": "c", "key": "order" },
+        { "op": "settleChild", "child": "a" },
+        { "op": "settleChild", "child": "b" },
+        { "op": "settleChild", "child": "c" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "canceled" }
+      ],
+      "expect": { "readValues": ["order-9", "order-9", "order-9"], "activeBindingValues": [] }
+    },
+    {
+      "id": "CTX0-accepted-boundaries-use-default",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "ContextBoundary" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-7", "ownership": "move" },
+        { "op": "crossBoundary", "parent": "root", "target": "service", "kind": "service" },
+        { "op": "crossBoundary", "parent": "root", "target": "wire", "kind": "wire" },
+        { "op": "crossBoundary", "parent": "root", "target": "device", "kind": "device" },
+        { "op": "crossBoundary", "parent": "root", "target": "callback", "kind": "foreignCallback" },
+        { "op": "crossBoundary", "parent": "root", "target": "entry", "kind": "hostEntry" },
+        { "op": "getTaskLocal", "task": "service", "key": "order" },
+        { "op": "getTaskLocal", "task": "wire", "key": "order" },
+        { "op": "getTaskLocal", "task": "device", "key": "order" },
+        { "op": "getTaskLocal", "task": "callback", "key": "order" },
+        { "op": "getTaskLocal", "task": "entry", "key": "order" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "panicBoundary" }
+      ],
+      "expect": { "readValues": ["none", "none", "none", "none", "none"] }
+    },
+    {
+      "id": "CTX0-accepted-module-const-key",
+      "kind": "accepted",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/execution.w", "symbol": "TaskLocal" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "trace", "symbol": "requestTrace", "type": "TraceId", "context": "moduleConst", "defaultConst": true, "shareable": true, "default": "zero" },
+        { "op": "getTaskLocal", "task": "root", "key": "trace" }
+      ],
+      "expect": { "readValues": ["zero"], "taskKeyIdentities": ["requestTrace:TraceId"] }
+    },
+    {
+      "id": "CTX0-accepted-tls-independent-slots",
+      "kind": "accepted",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/system_escapes.w", "symbol": "NativeCounters.samples" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "initial": 0 },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "writeThreadLocal", "task": "root", "key": "samples", "action": "increment" },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t2" },
+        { "op": "readThreadLocal", "task": "root", "key": "samples" },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "readThreadLocal", "task": "root", "key": "samples" }
+      ],
+      "expect": { "threadReadValues": [0, 1], "threadReadThreads": ["t2", "t1"] }
+    },
+    {
+      "id": "CTX0-accepted-tls-error-keeps-mutation",
+      "kind": "accepted",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "ThreadLocalDecision" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "initial": 0 },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "writeThreadLocal", "task": "root", "key": "samples", "action": "increment", "throws": true },
+        { "op": "readThreadLocal", "task": "root", "key": "samples" }
+      ],
+      "expect": { "threadReadValues": [1], "threadWriteOutcomes": ["error"] }
+    },
+    {
+      "id": "CTX0-accepted-tls-thread-end-has-no-drop",
+      "kind": "accepted",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "threadLocalDecision" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "initial": 0 },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "readThreadLocal", "task": "root", "key": "samples" },
+        { "op": "endThread", "thread": "t1" }
+      ],
+      "expect": { "threadReadValues": [0], "traceIncludes": ["tls-end:t1:1:drops=0"] }
+    },
+    {
+      "id": "CTX0-rejected-task-key-not-const",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/execution.w", "symbol": "TaskLocal" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "local", "defaultConst": false, "shareable": true, "default": "none" }
+      ],
+      "expect": { "error": "W-CONTEXT-0001" }
+    },
+    {
+      "id": "CTX0-rejected-task-value-not-shareable",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "TaskLocalVisibility" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "oven", "symbol": "Trace.oven", "type": "OvenSession", "context": "associatedConst", "defaultConst": true, "shareable": false, "default": "closed" }
+      ],
+      "expect": { "error": "W-CONTEXT-0002" }
+    },
+    {
+      "id": "CTX0-rejected-task-mutable-binding",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "TaskLocalVisibility" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "mutable": true, "default": "none" }
+      ],
+      "expect": { "error": "W-CONTEXT-0003" }
+    },
+    {
+      "id": "CTX0-rejected-task-authority",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "ContextBoundary" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "admin", "symbol": "Trace.admin", "type": "AdminCapability", "context": "associatedConst", "defaultConst": true, "shareable": true, "authority": true, "default": "none" }
+      ],
+      "expect": { "error": "W-CONTEXT-0003" }
+    },
+    {
+      "id": "CTX0-rejected-hidden-copy",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/execution.w", "symbol": "withValue" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move", "hiddenCopy": true }
+      ],
+      "expect": { "error": "W-CONTEXT-0004" }
+    },
+    {
+      "id": "CTX0-rejected-boundary-inheritance",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "serviceCall" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "crossBoundary", "parent": "root", "target": "service", "kind": "service", "inherit": true }
+      ],
+      "expect": { "error": "W-CONTEXT-0005" }
+    },
+    {
+      "id": "CTX0-rejected-pop-before-child-drain",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "childrenDrained" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "spawnChild", "parent": "root", "child": "cook", "scope": "outer", "form": "spawn" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": true, "outcome": "success" }
+      ],
+      "expect": { "error": "W-CONTEXT-0006", "openScopeIds": ["outer"] }
+    },
+    {
+      "id": "CTX0-rejected-task-dependency-escape",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "dependenciesClosed" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "escapeTaskLocalDependency", "task": "root", "key": "order" }
+      ],
+      "expect": { "error": "W-CONTEXT-0007" }
+    },
+    {
+      "id": "CTX0-rejected-task-pop-open-dependency",
+      "kind": "rejected",
+      "decisions": ["W-1236", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "canPopTaskLocal" },
+      "operations": [
+        { "op": "declareTaskKey", "key": "order", "symbol": "Trace.requestId", "type": "OrderId?", "context": "associatedConst", "defaultConst": true, "shareable": true, "default": "none" },
+        { "op": "beginTaskScope", "task": "root", "scope": "outer", "key": "order", "value": "order-1", "ownership": "move" },
+        { "op": "closeTaskScope", "task": "root", "scope": "outer", "operationSettled": true, "dependenciesClosed": false, "outcome": "success" }
+      ],
+      "expect": { "error": "W-CONTEXT-0007" }
+    },
+    {
+      "id": "CTX0-rejected-tls-noncopy",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/system_escapes.w", "symbol": "ThreadLocal" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "session", "symbol": "Native.session", "type": "Socket", "context": "associatedConst", "initialConst": true, "copy": false, "hasDrop": true, "nativeTls": true, "initial": "closed" }
+      ],
+      "expect": { "error": "W-TLS-0001" }
+    },
+    {
+      "id": "CTX0-rejected-tls-drop",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "dropNotAllowed" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "session", "symbol": "Native.session", "type": "OwnedSession", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": true, "nativeTls": true, "initial": "closed" }
+      ],
+      "expect": { "error": "W-TLS-0001" }
+    },
+    {
+      "id": "CTX0-rejected-tls-provider-missing",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "nativeTlsUnavailable" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": false, "initial": 0 }
+      ],
+      "expect": { "error": "W-TLS-0002" }
+    },
+    {
+      "id": "CTX0-rejected-tls-fiber-emulation",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "fiberEmulationRejected" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "fiberEmulation": true, "initial": 0 }
+      ],
+      "expect": { "error": "W-TLS-0002" }
+    },
+    {
+      "id": "CTX0-rejected-tls-write-suspends",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "operationMaySuspend" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "initial": 0 },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "writeThreadLocal", "task": "root", "key": "samples", "action": "increment", "maySuspend": true }
+      ],
+      "expect": { "error": "W-TLS-0003" }
+    },
+    {
+      "id": "CTX0-rejected-tls-write-escapes",
+      "kind": "rejected",
+      "decisions": ["W-1237", "W-1268"],
+      "source": { "path": "reference/last-light/context_local_oracle.w", "symbol": "dependencyEscapes" },
+      "operations": [
+        { "op": "declareThreadKey", "key": "samples", "symbol": "NativeCounters.samples", "type": "u64", "context": "associatedConst", "initialConst": true, "copy": true, "hasDrop": false, "nativeTls": true, "initial": 0 },
+        { "op": "placeTaskOnThread", "task": "root", "thread": "t1" },
+        { "op": "writeThreadLocal", "task": "root", "key": "samples", "action": "increment", "dependencyEscapes": true }
+      ],
+      "expect": { "error": "W-TLS-0003" }
+    }
+  ]
+}

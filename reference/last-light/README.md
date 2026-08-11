@@ -192,6 +192,7 @@ alvo de execução independente.
 | `packages/menu-compiler/package.w` | `.tool` product publicável do compiler |
 | `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
+| `context_local_oracle.w` | inheritance de task-local, drain, boundaries e TLS físico |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
 | `synchronization.w` | atomics, memory orders, CAS, `lock` residual e snapshots publicados |
 | `lazy_oracle.w` | estado lógico, lowering, reentrada, publicação e drop de `Lazy` |
@@ -1262,10 +1263,19 @@ Aceite:
 - volatile não cria atomicidade, synchronization ou uma view comum dos bytes;
 - o interrupt handler satisfaz o effect envelope do host slot;
 - task-local drena children antes de restaurar o binding anterior;
+- child captura o binding task-local vigente na criação, sem copy ou retain;
+- service, wire, device, callback e novo entry observam somente o default;
 - TLS safe aceita somente `Copy` sem drop e closure `neverSuspend`;
+- uma task que migra entre threads observa slots TLS distintos;
 - `retain` é verificado no symbol manifest do payload final;
 - `fn<Asm>` declara target, clobbers, memory, stack, unwind e volatility;
 - nenhum raw interrupt frame, TLS borrow ou assembly unwind escapa da boundary.
+
+CTX0 contém 25 casos e 94 operações: dez casos aceitos, 15 rejeitados e seis
+testes host. Ele deriva descriptor nominal, rebind LIFO, snapshot por child,
+drain, boundaries, slots por thread, mutation síncrona, migration e
+availability. O oracle não executa W, scheduler, TLS nativo ou provider
+runtime.
 
 ### 3.10 Despensa Selada
 
