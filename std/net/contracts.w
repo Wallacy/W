@@ -589,6 +589,8 @@ foreign intrinsic from "std.net@1" {
   type TcpWriteHalfHandle
   type TcpListenerHandle
   type UdpSocketHandle
+  type UdpReceiveHalfHandle
+  type UdpSendHalfHandle
 
   fn stdNetIpv4Parse(text: ref String): Ipv4Address throws AddressError
   fn stdNetIpv4Format(address: ref Ipv4Address): String
@@ -663,6 +665,9 @@ foreign intrinsic from "std.net@1" {
   fn stdNetTcpListenerDrop(handle: inout TcpListenerHandle)
 
   fn stdNetUdpLocalAddresses(handle: ref UdpSocketHandle): Array<SocketAddress>
+  fn stdNetUdpSplit(
+    handle: inout UdpSocketHandle,
+  ): (UdpReceiveHalfHandle, UdpSendHalfHandle)
   async fn stdNetUdpReceive(
     handle: inout UdpSocketHandle,
     maximumBytes: usize<(1...)>,
@@ -673,6 +678,17 @@ foreign intrinsic from "std.net@1" {
     to address: ref SocketAddress,
   ): () throws NetworkError
   fn stdNetUdpDrop(handle: inout UdpSocketHandle)
+  async fn stdNetUdpReceiveHalfReceive(
+    handle: inout UdpReceiveHalfHandle,
+    maximumBytes: usize<(1...)>,
+  ): Datagram throws NetworkError
+  fn stdNetUdpReceiveHalfDrop(handle: inout UdpReceiveHalfHandle)
+  async fn stdNetUdpSendHalfSend(
+    handle: inout UdpSendHalfHandle,
+    source: view Bytes,
+    to address: ref SocketAddress,
+  ): () throws NetworkError
+  fn stdNetUdpSendHalfDrop(handle: inout UdpSendHalfHandle)
 
   fn stdNetNetworkDrop(handle: inout NetworkHandle)
 }
@@ -927,9 +943,8 @@ export struct TcpListener {
 export struct UdpSocket {
   handle: UdpSocketHandle
 
-  // SDK0 deliberately serializes mutating operations on one socket: at most
-  // one receive or one send may be in flight. A future directional split can
-  // relax this boundary.
+  // W-1252: the whole socket serializes mutation. A consuming split creates
+  // one independent receive cursor and one independent send cursor.
 
   init(validatedHandle: UdpSocketHandle) {
     self.handle = validatedHandle
@@ -937,6 +952,14 @@ export struct UdpSocket {
 
   export fn localAddresses(): Array<SocketAddress> {
     return unsafe { stdNetUdpLocalAddresses(handle: ref handle) }
+  }
+
+  export take fn split(): (UdpReceiveHalf, UdpSendHalf) {
+    let (receive, send) = unsafe { stdNetUdpSplit(handle: inout handle) }
+    return (
+      UdpReceiveHalf(validatedHandle: receive),
+      UdpSendHalf(validatedHandle: send),
+    )
   }
 
   export mut async fn receive(
@@ -967,6 +990,54 @@ export struct UdpSocket {
     // Safe code reaches deinit after receive/send borrows have drained.
     // Residual socket state is cleared and the handle is released once.
     unsafe { stdNetUdpDrop(handle: inout handle) }
+  }
+}
+
+export struct UdpReceiveHalf {
+  handle: UdpReceiveHalfHandle
+
+  init(validatedHandle: UdpReceiveHalfHandle) {
+    self.handle = validatedHandle
+  }
+
+  export mut async fn receive(
+    maximumBytes: usize<(1...)>,
+  ): Datagram throws NetworkError {
+    return unsafe {
+      try await stdNetUdpReceiveHalfReceive(
+        handle: inout handle,
+        maximumBytes: maximumBytes,
+      )
+    }
+  }
+
+  deinit {
+    unsafe { stdNetUdpReceiveHalfDrop(handle: inout handle) }
+  }
+}
+
+export struct UdpSendHalf {
+  handle: UdpSendHalfHandle
+
+  init(validatedHandle: UdpSendHalfHandle) {
+    self.handle = validatedHandle
+  }
+
+  export mut async fn send(
+    source: view Bytes,
+    to address: ref SocketAddress,
+  ): () throws NetworkError {
+    return unsafe {
+      try await stdNetUdpSendHalfSend(
+        handle: inout handle,
+        source: source,
+        to: address,
+      )
+    }
+  }
+
+  deinit {
+    unsafe { stdNetUdpSendHalfDrop(handle: inout handle) }
   }
 }
 

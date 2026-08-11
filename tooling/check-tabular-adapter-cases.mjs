@@ -43,10 +43,14 @@ for (let number = 1006; number <= 1045; number += 1) {
   if (!ledgerIdSet.has(id)) errors.push(`missing reserved decision ${id}`);
   if (!corpus.decisionIds?.includes(id)) errors.push(`cases do not cover ${id}`);
 }
+if (!ledgerIdSet.has("W-1251")) errors.push("missing decision W-1251");
+if (!corpus.decisionIds?.includes("W-1251")) errors.push("cases do not cover W-1251");
 
 const requiredIds = [
   "TAB1-data-publish-and-identity",
   "TAB1-data-borrow-view-copy-owner",
+  "TAB1-data-nested-explicit-materialization",
+  "TAB1-data-nested-universal-view-rejected",
   "TAB1-decode-error-after-publication",
   "TAB1-encode-partial-progress",
   "TAB1-cancel-drains-waits",

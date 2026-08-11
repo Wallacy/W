@@ -60,6 +60,7 @@ TAB1 telemetry / data_formats.w
   → C Data import trusted
   → todos os batches no mesmo schema, rows e outcome
   → `String?` view somente no scope; `copy` materializa owner
+  → nested/custom exige projeção tipada, adapter ou materialização explícita
 
 last-light-observatory / LastLightObservatory
   → swarm de satélites e sensores do horizonte
@@ -2076,8 +2077,8 @@ nativo. Todos usam o mesmo modelo de mensagem.
 `net_oracle.w` fixa o carrier de network SDK0. Ele usa somente constructors e
 parse textual estrito para IPv4, IPv6, socket e listen addresses. O oracle
 também chama resolve e connect com limits finitos e descriptors borrowed,
-separa os cursors TCP, demonstra `finishWriting` e termina o write half com
-`finish`, aceita uma conexão no listener e preserva truncation no UDP. Ele não
+separa os cursors TCP e UDP, demonstra `finishWriting` e termina o write half
+TCP com `finish`, aceita uma conexão no listener e preserva truncation no UDP. Ele não
 alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O

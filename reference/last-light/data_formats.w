@@ -69,6 +69,8 @@ export fn summarize(
   }
   // `.warning` is a compiler-generated descriptor.  The returned column is a
   // loan tied to `batch`; neither the column nor its view is returned.
+  // Nested or custom fields do not receive a universal view.  Their adapters
+  // project a typed core field or materialize an owner explicitly.
   let warning: view data.StringColumn<TabularTelemetryRow> = batch.column(.warning)
   let warningView: view String? = warning.view(at: 0)
   let (warningViewLength, warningWasNull) = switch warningView {

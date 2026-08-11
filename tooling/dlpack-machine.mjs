@@ -107,6 +107,7 @@ function initialState() {
     wUnique: null,
     wEvents: [],
     python: { attached: false, gil: false, interpreter: "open", leases: 0, jobs: 0, events: [] },
+    cExchangeCalls: [],
     receipts: [],
     events: [],
     copies: [],
@@ -676,10 +677,16 @@ function runOperation(state, operation) {
   } else if (op === "hiddenCopy") {
     fail("W-DLPACK-0028", { reason: "payload copy must be named by materialize or copyToHost" });
   } else if (op === "cExchange") {
-    if (operation.ownership !== "owned" || operation.escapes === true || operation.suspends === true) {
-      fail("W-DLPACK-0032", { reason: "C Exchange N0 rejects non-owning or suspended callbacks" });
+    const valid = operation.bridge === "python" && operation.apiStatic === true &&
+      operation.capsuleName === "dlpack_exchange_api" && operation.gilHeld === true &&
+      operation.ownership === "borrowed" && operation.escapes !== true &&
+      operation.suspends !== true && operation.streamResolved === true &&
+      operation.controlReturned === true && operation.ownerHeldUntilWorkDrained === true;
+    if (!valid) {
+      fail("W-DLPACK-0032", { reason: "C Exchange N0 must be static, Python-scoped, non-owning, non-suspending, stream-resolved, and keep the producer through work drain" });
     }
-    fail("W-DLPACK-0032", { reason: "C Exchange remains Pesquisa" });
+    state.cExchangeCalls.push({ scope: "callback", ownership: "borrowed", stream: "producer-current" });
+    state.events.push("python-c-exchange-n0-returned");
   } else if (op === "leaseReserve") {
     if (state.leases >= state.limits.leases) fail("W-DLPACK-0014", { limit: "leases" });
     state.leases += 1;
@@ -751,6 +758,7 @@ export function compactDLPackState(state) {
     copies: state.copies,
     receipts: state.receipts,
     python: state.python,
+    cExchangeCalls: state.cExchangeCalls,
     events: state.events,
   };
 }

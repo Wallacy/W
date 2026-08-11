@@ -70,6 +70,16 @@ test "literal materialization keeps radix and exponent" {
   expect stars > 6.0e23
 }
 
+// W-1253: radix is explicit and never changes canonical decimal Display.
+test "integer radix parsing and formatting stay explicit" {
+  expect try u16.parse("ff", radix: 16) == 255
+  expect try i16.parse("-7f", radix: 16) == -127
+  expect u16(255).format(radix: 16) == "ff"
+  expect u16(255).format(radix: 16, uppercase: true) == "FF"
+  expect u16(5).format(radix: 2) == "101"
+  expect u16(255).display() == "255"
+}
+
 test "safe conversion is unique and value preserving" for addPortions {
   expect addPortions(250, right: 2) == 252
   expect try narrowTrayCount(65_535) == 65_535

@@ -99,7 +99,9 @@ if (corpus.$schema !== "w-dlpack-cases-1") error("DLPack corpus schema is invali
 if (corpus.status !== "design-oracle-input") error("DLPack corpus must be a design-oracle input.");
 if (corpus.machine !== "dlpack-machine-pyn4") error("DLPack corpus machine name is invalid.");
 for (const decision of corpus.decisions ?? []) {
-  if (!/^W-11(?:2[5-9]|3[0-9]|4[0-7])$/.test(decision)) error(`unexpected DLPack decision ${decision}.`);
+  if (!/^W-11(?:2[5-9]|3[0-9]|4[0-7])$/.test(decision) && decision !== "W-1254") {
+    error(`unexpected DLPack decision ${decision}.`);
+  }
   if (!ledgerIdSet.has(decision)) error(`DLPack decision ${decision} is absent from the RATIONALE ledger.`);
   covered.set(decision, { accepted: false, rejected: false });
 }
