@@ -532,6 +532,13 @@ package {
             ready: { jobs: 1_024, frameBytes: 64MiB }
             fallback: .reject
           },
+          {
+            id: "synchronization::apology"
+            capabilities: [.serial]
+            pool: "cpu"
+            ready: { jobs: 1_024, frameBytes: 64MiB }
+            fallback: .reject
+          },
         ]
         dynamicSerial: {
           pool: "cpu"

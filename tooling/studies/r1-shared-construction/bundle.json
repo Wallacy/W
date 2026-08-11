@@ -7,16 +7,16 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "makeMenuRoot",
-    "digest": "sha256:7231f05fdb1466eafd16668680f75b4dd567b078763dac041e0c437c5e35fe12"
+    "digest": "sha256:3542d6f4f4c7de65119cee04ce694f83057bef33a837787240fba3a8b4e2ec02"
   },
   "variants": [
     {
       "id": "overloaded-share",
-      "role": "selected",
+      "role": "alternative",
       "language": "w",
       "path": "explicit-share.w",
-      "digest": "sha256:8908da3578202644ad0cf46ce852fd41b74f58956186f0695ec4ac5801ceb80f",
-      "changedConstructs": ["share normal allocation", "share(using:) recoverable allocation", "explicit ownership operation"]
+      "digest": "sha256:8705d1e135c30d658ed355e87a34bb979d16089c7523e8de7d51e6738d1ddd25",
+      "changedConstructs": ["share expression allocation", "share(using:) recoverable allocation", "explicit ownership operation"]
     },
     {
       "id": "distinct-try-share",
@@ -28,11 +28,11 @@
     },
     {
       "id": "contextual-type",
-      "role": "alternative",
+      "role": "selected",
       "language": "w",
       "path": "contextual-type.w",
-      "digest": "sha256:624bf27307448eb5e48514e546ccbfa4e0b99a7da5b47881fd0d715d4b0e1f77",
-      "changedConstructs": ["expected-type promotion", "implicit allocation operation", "repeated shared type"]
+      "digest": "sha256:767c027835f11f6e595f1148832c20a0d50b8706615894e8b802e0d5b0133218",
+      "changedConstructs": ["written shared declaration", "binding-only allocation", "explicit ownership qualifier"]
     }
   ],
   "entry": "makeRoot",
@@ -53,7 +53,7 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain where shared ownership begins, which form can throw, and why expected type does not allocate."
+      "instruction": "Explain where shared ownership begins, which form can throw, and why only a written declaration allocates contextually."
     },
     {
       "kind": "recall",
@@ -62,11 +62,11 @@
     },
     {
       "kind": "repair",
-      "instruction": "Repair missing take, hidden contextual promotion, or recoverable allocation that uses share.",
+      "instruction": "Repair missing take, argument or return promotion, or recoverable custom allocation without share(using:).",
       "mutations": {
         "overloaded-share": "Remove take from an existing owner or omit try from share(using:).",
         "distinct-try-share": "Replace tryShare without hiding the recoverable failure boundary.",
-        "contextual-type": "Rely on the expected shared type without an explicit operation."
+        "contextual-type": "Move the shared expectation from a written declaration into an argument or return context."
       }
     },
     {
@@ -85,7 +85,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:a4ecf9b1023bd0fb43667c3d28519a8917892c56fc7df607daf1a77201a6855c"
+    "digest": "sha256:1dfaa8721ba4c5df9b7afbb24d0c2b8761a9ed1c61b5671bab30ef33b0cf3e68"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle", "M1"],

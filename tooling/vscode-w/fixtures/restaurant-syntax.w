@@ -125,6 +125,18 @@ object FixtureMetrics {
   var atomic completed: u64 = 0
 }
 
+object FixtureLedger {
+  entries: shared Array<String>
+
+  init() {
+    self.entries = []
+  }
+
+  fn snapshot(): Array<String> {
+    return lock entries as values { copy values }
+  }
+}
+
 export service lastLight: RestaurantApi {
   pantry: ServiceRef<PantryApi>
   var Lazy calibration = loadCalibration()

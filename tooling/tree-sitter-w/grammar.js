@@ -32,6 +32,7 @@ const CONTROL_KEYWORDS = [
   "for",
   "guard",
   "if",
+  "lock",
   "pipeline",
   "repeat",
   "return",
@@ -1259,6 +1260,7 @@ module.exports = grammar({
         $.closure_expression,
         $.capture_expression,
         $.pipeline_expression,
+        $.lock_expression,
         $.transaction_expression,
         $.unsafe_expression,
         $.if_expression,
@@ -1439,6 +1441,16 @@ module.exports = grammar({
         field("name", $.identifier),
       ),
     pipeline_expression: ($) => prec.right(seq("pipeline", $.block)),
+    lock_expression: ($) =>
+      prec.right(
+        seq(
+          "lock",
+          field("target", $._expression),
+          "as",
+          field("binding", $.identifier),
+          field("body", $.block),
+        ),
+      ),
     transaction_expression: ($) =>
       prec.right(
         seq(

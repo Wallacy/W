@@ -1667,17 +1667,18 @@
       }
     },
     {
-      "id": "S0-POS-share-default-allocation",
+      "id": "S0-POS-shared-declaration-default-allocation",
       "kind": "positive",
-      "rule": "W-1177",
+      "rule": "W-1256",
       "source": [
         "struct Menu { title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
-        "  return share(take value)",
+        "  let result: shared Menu = take value",
+        "  return result",
         "}"
       ],
       "expect": {
-        "focus": { "text": "share(take value)" },
+        "focus": { "text": "let result: shared Menu = take value" },
         "semanticResult": {
           "resultType": "shared Menu",
           "category": "value",
@@ -1693,14 +1694,14 @@
           "proofFacts": [
             { "kind": "lifetime-independent", "subject": "value", "value": "true" },
             { "kind": "allocation-origin", "subject": "result.$control", "value": "product.default" },
-            { "kind": "allocation-failure", "subject": "share", "value": "panic-policy" }
+            { "kind": "allocation-failure", "subject": "shared declaration", "value": "panic-policy" }
           ],
           "evaluationGraph": {
             "nodes": [
               { "id": "source", "operation": "resolve-owner", "subject": "value" },
               { "id": "lifetime", "operation": "verify-lifetime-independent", "subject": "value" },
               { "id": "allocator", "operation": "resolve-general-allocator", "subject": "product.default" },
-              { "id": "result", "operation": "create-shared-owner", "subject": "shared Menu" }
+              { "id": "result", "operation": "bind-explicit-shared-owner", "subject": "shared Menu" }
             ],
             "edges": [
               { "from": "source", "to": "lifetime", "kind": "next" },
@@ -1760,8 +1761,8 @@
     {
       "id": "S0-NEG-share-implicit-promotion",
       "kind": "negative",
-      "rule": "W-1177",
-      "baseline": "S0-POS-share-default-allocation",
+      "rule": "W-1256",
+      "baseline": "S0-POS-shared-declaration-default-allocation",
       "failureField": "ownerDelta",
       "source": [
         "struct Menu { title: String }",
@@ -1873,11 +1874,11 @@
       "rule": "W-1207",
       "source": [
         "object ObserverHub {",
-        "  callbacks: Mutex<Array<any fn(): ()>>",
+        "  callbacks: shared Array<any fn(): ()> = []",
         "  fn add(callback: take any fn(): ()) {",
-        "    callbacks.withLock((items) => {",
+        "    lock callbacks as items {",
         "      items.append(take callback)",
-        "    })",
+        "    }",
         "  }",
         "  fn refresh() {}",
         "}",
@@ -1927,11 +1928,11 @@
       "failureField": "proofFacts",
       "source": [
         "object ObserverHub {",
-        "  callbacks: Mutex<Array<any fn(): ()>>",
+        "  callbacks: shared Array<any fn(): ()> = []",
         "  fn add(callback: take any fn(): ()) {",
-        "    callbacks.withLock((items) => {",
+        "    lock callbacks as items {",
         "      items.append(take callback)",
-        "    })",
+        "    }",
         "  }",
         "  fn refresh() {}",
         "}",
@@ -1947,7 +1948,7 @@
             "severity": "error",
             "primary": { "text": "capture(copy hub)" },
             "labels": [
-              { "role": "cycle-edge", "selector": { "text": "callbacks.withLock" } },
+              { "role": "cycle-edge", "selector": { "text": "lock callbacks" } },
               { "role": "cycle-edge", "selector": { "text": "capture(copy hub)" } }
             ],
             "facts": {

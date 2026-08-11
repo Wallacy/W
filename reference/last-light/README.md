@@ -193,7 +193,7 @@ alvo de execução independente.
 | `menus/final.menu` | input do build transform |
 | `execution.w` | task groups bounded, outcomes, ordering e cancelamento |
 | `mobility.w` | transferência exclusiva, sharing verificado e captures |
-| `synchronization.w` | atomics, memory orders, CAS, locks scoped e snapshots publicados |
+| `synchronization.w` | atomics, memory orders, CAS, `lock` residual e snapshots publicados |
 | `lazy_oracle.w` | estado lógico, lowering, reentrada, publicação e drop de `Lazy` |
 | `abort.w` | AbortSignal Web bounded, controller move-only, timeout, `any` e ponte HTTP |
 | `json.w` | JSON bounded, profiles I-JSON/RFC 8259, synthesis explícita, cursors scoped e oracles de falha |
@@ -763,17 +763,17 @@ Aceite:
 - release/acquire não concede borrow nem prolonga lifetime;
 - operações atômicas concorrentes usam endereço e extent idênticos;
 - `atomic.fence` exige reads-from atômica e rejeita `.relaxed`;
-- `Mutex.withLock` não deixa borrow ou guard escapar;
-- `AsyncMutex.withLock` suspende na aquisição, não dentro da closure;
-- o payload do lock não precisa ser shareable;
-- tickets de lock são FIFO, e `tryWithLock` não ultrapassa waiter;
-- cancellation durante a espera não executa a closure;
+- `lock owner as value` bloqueia somente em contexto blocking;
+- `await lock` suspende na aquisição, nunca dentro do body;
+- `try lock` não espera e não avalia o body quando devolve `.busy`;
+- o body não suspende, não lança application error e não deixa borrow escapar;
+- cancellation durante `await lock` não executa o body;
 - cancellation depois do grant é observada somente depois do unlock;
 - panic falha a fault boundary do lock em vez de publicar state parcial;
+- admission de lock não promete FIFO ou fairness;
 - domain concorrente com `.barrier` cobre o caminho task-owned;
-- `ReadWriteLock.read` agrupa readers síncronos anteriores ao próximo writer;
-- `ReadWriteLock.write` executa sozinho e impede bypass de readers tardios;
-- `tryRead` e `tryWrite` não bloqueiam nem ultrapassam tickets;
+- domain serial cobre state mutável task-owned sem async mutex;
+- read/write lock e wrappers de mutex não entram na safe std;
 - condition variable e `Once` raw não entram na safe std;
 - `SnapshotCell.read` observa uma versão completa sem deixar borrow escapar;
 - `publish` consome uma nova versão e não espera readers da versão anterior;
@@ -792,11 +792,11 @@ Failure injection cobre cancellation antes e depois da aquisição async. O trac
 confirma que cada critical section libera o lock uma vez. Benchmarks separam
 latency sem contenção, contenção na mesma cache line e counters particionados.
 
-O corpus LM0 possui 42 casos e 171 operações: 25 aceitos, 16 rejeitados e uma
-fault. Onze testes host cobrem locks exclusivos e read/write, admission FIFO e
-por fases, try sem bypass, cancellation, protected loans, fault boundary e
-seleção entre atomic, lock, domain barrier, snapshot, channel e service. Eles
-não executam W nem o provider `std.sync@1`.
+O corpus LM1 possui 39 casos e 86 operações: 21 aceitos, 17 rejeitados e uma
+fault. Ele cobre as três formas da linguagem, busy sem avaliação, cancellation,
+protected loans, fault boundary, drain e seleção entre owner, atomic, lock,
+domain, snapshot, channel e service. Ele rejeita wrappers e read/write lock.
+Onze testes host não executam W nem um provider runtime.
 
 O corpus SP0 possui 27 casos e 82 operações: 14 aceitos, 12 rejeitados e uma
 fault de allocation antes da publicação. Sete testes host cobrem versões,
@@ -1355,9 +1355,10 @@ Aceite:
 - um borrow fica ligado ao strong handle que o criou; outro alias pode morrer;
 - shared handle não concede `inout` e weak exige `upgrade()` antes do acesso;
 - `OriginSet` de borrow e `AllocationOriginSet` de storage não se substituem;
-- `share(temporary)` usa o allocator geral e a policy normal de OOM;
+- `let root: shared T = temporary` mostra o primeiro owner no binding;
+- `share(temporary)` continua disponível em expression context;
 - `try share(..., using:)` torna `AllocationError` e allocator bounded explícitos;
-- expected type sozinho não promove um owner único para `shared T`;
+- argumento, return e inference não promovem owner único para `shared T`;
 - `share(dependent)` falha até o payload ser lifetime-independent;
 - o allocator do control block continua vivo até o último weak handle;
 - mover ownership por `spawn` exige `transferable`;
@@ -2736,8 +2737,8 @@ O Book deve mostrar pares lado a lado:
 | storage atômico | `var atomic value: T` | wrapper obrigatório ou behavior `Atomic` |
 | order atômica | `load<.acquire>()` | `load(order:)` runtime e relaxed default |
 | compare-exchange | enum result e orders estáticas | Boolean e combinações runtime |
-| lock | `withLock` scoped | `lock`/`unlock` manual ou guard público |
-| lock de task | aquisição async, closure sync | guard mantido através de `await` |
+| exclusão residual | `lock`/`await lock`/`try lock` scoped | wrapper Mutex, unlock manual ou guard público |
+| state de task | domain/service por default; `await lock` é fallback | AsyncMutex e guard mantido através de `await` |
 | RCU | tipo especializado após prova de reclamation | policy automática por property |
 
 Preferência visual não é medida antes das tarefas de leitura e correção.

@@ -23,17 +23,17 @@ function expectField(caseId, name, actual, expected) {
   }
 }
 
-function firstLock(result) {
-  return Object.values(result.state.locks)[0] ?? null
+function firstOwner(result) {
+  return Object.values(result.state.owners)[0] ?? null
 }
 
-if (corpus.$schema !== "w-scoped-lock-cases-1") errors.push("schema")
+if (corpus.$schema !== "w-language-lock-cases-1") errors.push("schema")
 if (corpus.status !== "design-oracle-input") errors.push("status")
-if (!Array.isArray(corpus.cases) || corpus.cases.length < 25) errors.push("coverage")
+if (!Array.isArray(corpus.cases) || corpus.cases.length < 30) errors.push("coverage")
 
 for (const [index, item] of (corpus.cases ?? []).entries()) {
   const location = `cases[${index}]`
-  if (!/^LM0-(?:accepted|rejected|fault)-[a-z0-9-]+$/.test(item.id ?? "")) {
+  if (!/^LM1-(?:accepted|rejected|fault)-[a-z0-9-]+$/.test(item.id ?? "")) {
     errors.push(`${location}: id`)
   }
   if (ids.has(item.id)) errors.push(`${location}: duplicate id ${item.id}`)
@@ -60,36 +60,36 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
 
   const result = runScopedLockOperations(item.operations)
   const expected = item.expect ?? {}
-  const lock = firstLock(result)
+  const owner = firstOwner(result)
   if (result.status !== item.kind) {
     errors.push(`${item.id}: kind ${item.kind} does not match derived ${result.status}`)
   }
   expectField(item.id, "status", result.status, expected.status)
   expectField(item.id, "error", result.error, expected.error)
-  expectField(item.id, "phase", lock?.phase, expected.phase)
-  expectField(item.id, "value", lock?.value, expected.value)
-  expectField(item.id, "holder", lock?.holder, expected.holder)
-  expectField(item.id, "readers", lock?.readers, expected.readers)
-  expectField(item.id, "queue", lock?.queue, expected.queue)
-  expectField(item.id, "drops", lock?.drops, expected.drops)
+  expectField(item.id, "allocation", owner?.allocation, expected.allocation)
+  expectField(item.id, "phase", owner?.phase, expected.phase)
+  expectField(item.id, "value", owner?.value, expected.value)
+  expectField(item.id, "holder", owner?.holder, expected.holder)
+  expectField(item.id, "waiters", owner?.waiters, expected.waiters)
+  expectField(item.id, "drops", owner?.drops, expected.drops)
+  expectField(item.id, "bodyEvaluations", owner?.bodyEvaluations, expected.bodyEvaluations)
   expectField(item.id, "reads", result.state.reads, expected.reads)
   expectField(item.id, "selections", result.state.selections, expected.selections)
   expectField(item.id, "failedBoundaries", result.state.failedBoundaries, expected.failedBoundaries)
   expectField(
     item.id,
     "outcomes",
-    lock?.outcomes.map((outcome) => outcome.outcome),
+    owner?.outcomes.map((outcome) => outcome.outcome),
     expected.outcomes,
   )
   expectField(
     item.id,
     "outcomeCancellations",
-    lock?.outcomes.map((outcome) => outcome.cancellation),
+    owner?.outcomes.map((outcome) => outcome.cancellation),
     expected.outcomeCancellations,
   )
-  expectField(item.id, "cancellations", lock?.cancellations, expected.cancellations)
-  expectField(item.id, "happensBefore", lock?.happensBefore, expected.happensBefore)
-  expectField(item.id, "closedPhases", lock?.closedPhases, expected.closedPhases)
+  expectField(item.id, "cancellations", owner?.cancellations, expected.cancellations)
+  expectField(item.id, "happensBefore", owner?.happensBefore, expected.happensBefore)
   expectField(
     item.id,
     "tryResults",
@@ -101,16 +101,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   results.push({ caseId: item.id, ...result })
 }
 
-for (const decision of [
-  "W-1181",
-  "W-1182",
-  "W-1183",
-  "W-1184",
-  "W-1189",
-  "W-1190",
-  "W-1191",
-  "W-1192",
-]) {
+for (const decision of ["W-1256", "W-1257", "W-1258", "W-1259", "W-1260"]) {
   if (!(corpus.cases ?? []).some((item) => item.decisions?.includes(decision))) {
     errors.push(`missing decision coverage ${decision}`)
   }
@@ -135,6 +126,6 @@ const accepted = corpus.cases.filter((item) => item.kind === "accepted").length
 const rejected = corpus.cases.filter((item) => item.kind === "rejected").length
 const faults = corpus.cases.filter((item) => item.kind === "fault").length
 process.stdout.write(
-  `LM0 scoped locks: ${corpus.cases.length} cases, ${operationCount} operations ` +
+  `LM1 language lock: ${corpus.cases.length} cases, ${operationCount} operations ` +
   `(${accepted} accepted, ${rejected} rejected, ${faults} fault).\n`,
 )

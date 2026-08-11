@@ -110,7 +110,7 @@ O corpus compara, no mínimo:
 - static record/list contra interpretações universais de extension e constraints;
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
 - erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
-- overloads `share(value)` normal e `try share(value, using:)` recuperável contra `tryShare` separado e promotion contextual;
+- declaração `let x: shared T = value` e `share(..., using:)` recuperável contra factory nominal, `tryShare` e promotion em calls;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
 - signature invariável contra variance e effect widening implícitos;
@@ -983,13 +983,14 @@ a semântica de W-746, W-769, W-770, W-771, W-772 ou W-147.
 
 #### 1.3.20 Criação do primeiro owner `shared`
 
-**Exemplo:** `share(MenuSection(...))` cria o primeiro owner com a policy normal;
-`try share(take draft, using: memory)` escolhe recovery e allocator.
+**Exemplo:** `let root: shared MenuSection = MenuSection(...)` cria o primeiro
+owner com a policy normal; `try share(take draft, using: memory)` escolhe
+recovery e allocator.
 
 O bundle
 [`r1-shared-construction`](tooling/studies/r1-shared-construction) compara três
-formas parseáveis: um verbo com overload normal/fallible, `tryShare` como verbo
-separado e promotion pelo expected type. Os inputs cobrem temporary, binding
+formas parseáveis: declaração `shared`, verbo normal/fallible e `tryShare`
+separado. Os inputs cobrem temporary, binding
 existente, allocator bounded, payload lifetime-dependent e falha antes da
 publicação do handle. O oracle host verifica consumo, cleanup e failure policy;
 ele não aloca um control block W.
@@ -997,14 +998,12 @@ ele não aloca um control block W.
 Rust separa `Arc::new`/`Rc::new` das variantes `try_new`. Swift ARC mantém
 reference counting automático para instances de class. O working draft de C++
 define factories `make_shared` e `allocate_shared`. W não copia essas
-superfícies: o qualifier `shared` continua sendo o tipo e um verbo no value
-expression torna allocation e mudança de ownership observáveis.
-
-A forma selecionada reduz ceremony sem introduzir promotion contextual. O label
-`using:` seleciona o overload fallible, e `try` torna a boundary recuperável
-visível; um segundo verbo repetia essa informação. Tree-sitter e o oracle host
-são a evidência atual; `w-compile`, `w-run`, estudo humano e estudo de modelos
-permanecem missing.
+superfícies. W permite um único contexto declarativo: initializer de binding ou
+stored field cujo tipo `shared T` está escrito. Argumento, return, inference e
+overload não promovem. `share` permanece explícito em expression context; o
+label `using:` e `try` mostram allocator e failure recuperável. Tree-sitter e o
+oracle host são a evidência atual; `w-compile`, `w-run`, estudo humano e estudo
+de modelos permanecem missing.
 
 ### 1.4 Concorrência, paralelismo e execução
 
@@ -1187,7 +1186,7 @@ A documentação do kernel Linux sobre
 Ela também exige que readers anteriores terminem antes do reuse. W preserva
 essa divisão em `SnapshotCell`, mas não expõe grace periods no safe source.
 
-#### 1.4.5 Locks de leitura e escrita
+#### 1.4.5 Exclusão mútua residual
 
 [`std::sync::RwLock` do Rust](https://doc.rust-lang.org/std/sync/struct.RwLock.html)
 delega a priority policy ao sistema operacional e documenta um caso em que uma
@@ -1208,15 +1207,31 @@ O
 expõe shared/exclusive access, mas declara que não é fair nem FIFO. O
 [`pthread_rwlock_rdlock`](https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_rwlock_rdlock.html)
 também condiciona admission a writers bloqueados e ao profile de scheduling.
-Logo, nenhum primitive do host fornece sozinho a policy lógica de W.
+Logo, nenhum primitive do host fornece sozinho uma policy lógica portátil.
 
-Domains cobrem o caminho task-owned com placement, tickets e cancellation.
-`SnapshotCell` cobre publicação imutável; `Mutex` e `AsyncMutex` cobrem critical
-sections. Code freestanding e adapters sem task runtime ainda precisam de
-reads simultâneos sobre storage mutável. W-1189 a W-1192 fecham esse espaço com
-`ReadWriteLock<T>`, closures scoped e admission por fases. O provider e o
-benchmark continuam ausentes; isso limita claims de performance, não a
-semântica da safe std.
+A documentação de
+[`Mutex` de Swift](https://developer.apple.com/documentation/synchronization/mutex)
+confirma o caso residual: critical section curta sobre state usado por threads
+síncronas. Ela também mostra o custo de uma superfície nominal e de uma closure
+utilitária. O
+[`os_unfair_lock`](https://developer.apple.com/documentation/os/os_unfair_lock_lock)
+bloqueia eficientemente e não promete fairness; exigir FIFO em W impediria esse
+lowering sem melhorar o resultado de um programa data-race-free.
+
+O guia oficial de
+[data-race safety de Swift](https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/dataracesafety/)
+separa isolation domain de lock e alerta que suspension encerra uma critical
+section. Essa fronteira coincide com W: task-owned state usa domain ou service;
+o body de `lock` nunca suspende. A declaração `shared`, a operação `lock` e a
+HIR de places permitem ao compiler verificar o padrão sem `Mutex<T>` no tipo.
+
+W-1257 a W-1260 substituem a direção W-1181 a W-1192. `lock`, `await lock` e
+`try lock` compartilham uma gate lógica da allocation `shared`; wrappers
+`Mutex`, `AsyncMutex` e `ReadWriteLock` saem da safe std antes de 1.0. Read-heavy
+usa `SnapshotCell`; tasks usam domain barrier; scalar usa atomic. O fallback
+exclusivo permanece para callback/FFI síncrono e state local realmente
+compartilhado. Um adapter `unsafe` ainda pode expor RW lock quando um benchmark
+e um target contract provarem ganho que essas formas não cobrem.
 
 Condition variables foram consideradas pelo mesmo critério. Separar predicate,
 lock e notification cria uma protocol surface em que lost wakeup e lifetime do
@@ -1226,8 +1241,8 @@ para usar condition, futex ou parking internamente.
 
 `Once` raw também não entra. Const/module initialization resolve o caso
 estático. `var Lazy` cobre o caso tardio sem publicar uma primitive de estado.
-Barreiras cíclicas permanecem uma pesquisa separada porque precisam definir
-identidade, saída e failure de participantes.
+W-1255 rejeita a barreira cíclica genérica: TaskGroup, domain barrier ou service
+já carregam identity, saída e failure no lifecycle correto.
 
 Atomic waiting possui uma fronteira menor. O
 [draft C++](https://www.eel.is/c++draft/atomics.wait) confirma que esperar por
@@ -1660,9 +1675,9 @@ O índice gerado usa esta tabela somente como projeção.
 | `var atomic` e orders estáticas | **Possível agora** | superfície baixa diretamente para atomic load/store/RMW/cmpxchg |
 | fallback atomic não lock-free | **Provável** | runtime striped lock preserva semântica; signals e freestanding exigem profile |
 | `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
-| `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
-| closure de `AsyncMutex.withLock` sem suspension | **Possível agora** | tickets FIFO, cancellation e unlock possuem contrato LM0 |
-| `ReadWriteLock<T>` na safe std | **Possível agora** | closures scoped e fases writer-aware fecham a semântica; provider e benchmark continuam gates de implementação |
+| `lock` scoped da linguagem | **Possível agora** | HIR de place, body fechado e cleanup runtime fecham unlock sem guard |
+| `await lock` residual | **Possível agora** | cancellation e unlock possuem contrato LM1; domain/service continuam preferidos |
+| `ReadWriteLock<T>` na safe std | **Rejeitado** | domain barrier, SnapshotCell e lock exclusivo cobrem a baseline com menos policy |
 | condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
 | `Atomic.wait/notify` suspensivo | **Possível agora** | fast path, tickets, cancellation, lifetime, ABA e provider possuem contratos fechados; runtime real e benchmark continuam gates |
 | barreira cíclica/reutilizável | **Rejeitado** | W-1255 usa TaskGroup, domain barrier ou service conforme o lifecycle; uma primitive universal esconderia perda, generation e failure |
@@ -2476,9 +2491,9 @@ storage com readers simultâneos e um writer, mas deixa priority ao OS. O
 um writer espera e proíbe upgrade, downgrade e recursive read locking.
 
 W conserva domains seriais estáticos, lanes seriais dinâmicas e barrier de
-domain para trabalho estruturado. `ReadWriteLock<T>` não é alias dessas formas.
-Ele usa tickets e fases para storage síncrono; benchmark posterior decide quando
-recomendá-lo em vez de `Mutex`, `SnapshotCell` ou domain barrier.
+domain para trabalho estruturado. W-1259 retira `ReadWriteLock<T>` da baseline:
+`SnapshotCell` cobre versão imutável, `lock` cobre exclusão síncrona e um adapter
+especializado continua possível quando benchmark e target justificarem.
 
 CH0 usa [`streams.w`](reference/last-light/streams.w) como source e a
 [`channel-machine.mjs`](tooling/channel-machine.mjs) para derivar o estado. O
@@ -2536,7 +2551,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
 | CH0 bounded channel | 47 casos, 333 operações | 28 aceitos, 19 rejeitados | 12 testes | não implementa scheduler, runtime ou provider W |
-| LM0 scoped locks | 42 casos, 171 operações | 25 aceitos, 16 rejeitados, 1 fault | 11 testes | não implementa `std.sync@1` |
+| LM1 language lock | métricas derivadas pelo checker | sync/await/try e alternativas | testes host | não implementa runtime/provider |
 | SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
 
 E0 cobre lifecycle, cancellation, fail-fast, as dez origens de happens-before,
@@ -2546,8 +2561,8 @@ reentrância de service, device scope, reclamation, ABA ou execução distribuí
 
 E1 separa scheduler, clock e provider do contrato de closure. MX0 usa um único
 witness para testar owner graph e task lifecycle juntos; ele impede que duas
-provas isoladas escondam copy, share, rollback ou drop divergente. LM0 cobre
-loans, FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0
+provas isoladas escondam copy, share, rollback ou drop divergente. LM1 cobre
+loans, busy sem body, cancellation, unlock, drop e fault boundary. SP0
 cobre readers antigos e novos, publicação concorrente, retirement bounded,
 drop, OOM antes de publish, close e estratégias equivalentes.
 
@@ -3073,7 +3088,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| W-025 | shared | `share(value)` normal, `try share(value, using:)` recuperável, `copy` para novo owner e `weak()` | `tryShare` separado; ARC implícito; promotion por expected type; block-region-only (retired) |
+| W-025 | shared | declaração `shared T` cria o primeiro owner em binding/field; `share(value)` cobre expression context; `try share(value, using:)` cobre allocator recuperável; `copy` e `weak()` são explícitos | `tryShare` separado; ARC implícito; promotion por call/return/inference; block-region-only (retired) |
 | W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
@@ -3463,7 +3478,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-412 | allocator profiles | build profile fixa `.system`, `.none` ou runtime contract; plan fixa provider; mimalloc exige benchmark | override global obrigatório; allocator escolhido por import; path no manifest |
 | W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
 | W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
-| W-415 | criação shared | `share(value)` usa policy normal; `try share(value, using:)` aceita allocator explícito; não há promotion implícita | `tryShare` separado; constructor wrapper nominal; expected type aloca; shared universal |
+| W-415 | criação shared (refinada) | W-1256 promove somente initializer de storage anotado `shared`; `share` cobre expression context e `using:` cobre allocator explícito | promotion em argumento/return/overload; `tryShare`; wrapper nominal; shared universal |
 | W-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
 | W-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
 | W-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
@@ -3498,9 +3513,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-447 | borrow atômico | `ref` obtém Atomic; payload comum abre somente por `inout`/consumo exclusivo; edge não concede authority nem lifetime | `ref T` comum; misturar views atômicas e não atômicas; release prolonga owner |
 | W-448 | lock-free | não é implícito; const `isLockFree` e contrato `lockFree: true` | garantir toda largura; runtime query sem target fixo |
 | W-449 | ABI atômica | layout W opaco; operações concorrentes usam endereço + extent idênticos; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal; larguras parcialmente sobrepostas |
-| W-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
-| W-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
-| W-452 | RwLock e RCU (retired) | direção anterior agrupava primitives distintas; W-1178 fecha SnapshotCell e mantém RCU safe rejeitado | policy automática por property; RCU default universal |
+| W-450 | mutex síncrono (retired) | W-1257 preserva a critical section scoped como `lock` da linguagem e remove o wrapper | lock/unlock manual; guard; poisoning; wrapper nominal |
+| W-451 | mutex assíncrono (retired) | W-1257 preserva aquisição suspensiva como `await lock`; domain/service lideram para task-owned state | guard cruza await; wrapper async; mutex síncrono no worker cooperativo |
+| W-452 | RwLock e RCU (retired) | W-1259 rejeita RW lock baseline; W-1178 fecha SnapshotCell e mantém RCU safe em adapter | policy automática por property; RCU default universal; fairness do host como contrato |
 | W-453 | contenção | explanation record mostra lowering, lock-free, waits e de-atomicization provada; cache isolation é provável com target contract | prometer performance por `atomic`; padding universal; enfraquecer order sem prova |
 | W-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
 | W-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
@@ -3939,7 +3954,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 69 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std verificável | profiles cobrem 328 exports em 23 módulos, 26/26 requisitos e oito carriers (Blob/FormData missing); declarations estão draft-ready, 84 superfícies são verificadas e 17/17 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
+| W-891 | catálogo std verificável | profiles cobrem 324 exports em 23 módulos, 23/23 requisitos e oito carriers (Blob/FormData missing); declarations estão draft-ready, 84 superfícies são verificadas e 17/17 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em quatro cases, Body consuming e clone bounded; errors, guards, transfer e commit são tipados; `Context` e `serve` são extensions, com serve usando carrier `std.net`; provider único `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal com `T??`; aliases `path`, `query` ou `decodeJson`; clone sem bound; constructors `Response.text`, `.bytes`, `.stream` e `.html`; Blob/FormData parcial |
@@ -4225,22 +4240,22 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1174 | leitura tolerante a staleness | `load<.relaxed>()` continua atômica; storage comum só participa quando happens-before ou barreira prova a ordem; o modifier `atomic` nunca expõe uma view comum dos mesmos bytes | read não atômica concorrente porque o valor pode ser antigo, relaxed como non-atomic, weakening silencioso, `volatile` como synchronization |
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
 | W-1176 | claim de memória | gerência automática exige prova real de owner/borrow/drop/reclamation, placement semanticamente neutro e contratos explícitos para shared/pin/FFI/OOM | alegar memória resolvida por existir um borrow checker, exigir GC/ARC universal, usar resultado de oracle host como implementação |
-| W-1177 | criação shared ergonômica | `share(value)` usa allocator geral e policy normal; `try share(value, using:)` torna recovery e allocator explícitos; owner existente exige `take`; expected type nunca promove | `tryShare` separado, `try share` obrigatório no caminho comum, allocation escondida pelo expected type, `Shared<T>.make`, promotion automática em argumento ou return |
+| W-1177 | criação shared ergonômica (refinada) | W-1256 seleciona storage `shared` explícito no caminho comum; `share` permanece em expression context e `using:` torna recovery explícita | `tryShare`, wrapper nominal, promotion em argumento/return/overload, retain implícito |
 | W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
 | W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
 | W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
-| W-1181 | lock escopado | `Mutex<T>`, `AsyncMutex<T>` e `ReadWriteLock<T>` encapsulam payload non-shareable, expõem `ref`/`inout` por closure `neverSuspend` e não publicam guard | guard escapante, await protegido, payload shareable obrigatório, recursive lock |
-| W-1182 | lock admission e failure | tickets FIFO, try sem bypass, cancel pré-grant remove waiter, cancel pós-grant espera unlock e panic falha a fault boundary | barging, poisoning recuperável, closure repetida, unlock antes de cleanup |
-| W-1183 | conjunto mínimo de synchronization | atomic, locks, domain barrier, SnapshotCell, channel e service têm papéis distintos; condition e Once raw não entram na safe std; read/write síncrono segue W-1189 | copiar toda primitive host, condition sem ownership, RCU safe |
-| W-1184 | oracle LM0 | máquina host pura cobre locks sync/async/read-write, queue, cancellation, failure, lifetime e seleção; não executa provider ou runtime W | expected echo, chamar model de scheduler, caso sem símbolo Última Luz |
+| W-1181 | wrappers de lock (retired) | W-1257 substitui Mutex/AsyncMutex/RWLock por uma construção scoped sobre `shared T` | preservar wrappers por compatibilidade pré-1.0; guard escapante; recursive lock |
+| W-1182 | FIFO de lock (retired) | W-1258 mantém mutual exclusion, cancellation e edges, mas não promete FIFO/fairness para permitir lowering eficiente | fairness host como semântica; poisoning; unlock antes de cleanup |
+| W-1183 | conjunto mínimo (refinado) | W-1259 usa owner/domain/service/atomic/snapshot/channel antes do único fallback `lock` | copiar primitives host; condition sem ownership; RCU safe; RW lock universal |
+| W-1184 | oracle LM0 (retired) | W-1260 substitui o corpus por LM1 da construção da linguagem e alternativas lock-avoiding | manter expected antigo após mudar semântica; chamar host model de runtime |
 | W-1185 | plano cross-axis de ownership | as quatro formas de execução usam PlaceId, LoanId, OriginSet, owner delta e drop obligations comuns; placement não cria outra memória | ownership por scheduler, copy/share implícito, ARC para reparar capture inválida |
 | W-1186 | staging e fechamento cross-axis | capture passa parent→staging→child; rejection limpa uma vez; cleanup precede outcome e join restaura somente a autoridade permitida | rollback de take, outcome antes de cleanup, loan lexical encerrado por evento runtime invisível |
 | W-1187 | publicação e ownership | happens-before publica mutation autorizada sem conceder owner, ampliar loan ou ressuscitar binding; scope exit cancela, drena e faz join | cancellation como rollback, join como share, binding movido volta por error |
 | W-1188 | oracle MX0 | máquina host pura compõe staging, mobility, loans, admission, cancellation, cleanup, outcome, join e drop sem substituir M1/E0/E1 | colar snapshots independentes, expected echo, chamar modelo de compiler/runtime |
-| W-1189 | read/write síncrono | `ReadWriteLock<T>` protege storage síncrono por closures `read`/`write` e `try*`; domain barrier continua task-owned | tratar lock e domain como aliases, guard público, async read/write lock baseline |
-| W-1190 | admission read/write | tickets abrem ou ampliam a fase com o prefixo contíguo de readers; writer pendente bloqueia readers posteriores e `try*` não ultrapassa fila | fairness do host, barging, starvation por readers, recursion garantida, upgrade ou downgrade |
-| W-1191 | lifetime e provider read/write | phase close deriva edges, application error libera, panic falha boundary, drop espera drain e provider preserva a policy de W | poisoning, liberar payload com reader, prometer SRW/pthread fairness, benchmark como semântica |
-| W-1192 | evidence read/write LM0 | oracle host deriva reader phases, writer exclusivo, no-bypass, blocking, failure, drain e seleção; provider W continua missing | expected echo, chamar oracle de runtime, caso sem consumer Last Light |
+| W-1189 | read/write síncrono (retired) | W-1259 substitui por SnapshotCell, domain barrier ou lock exclusivo conforme o problema | manter API só porque hosts oferecem; tratar lock e domain como aliases |
+| W-1190 | admission read/write (retired) | fases e tickets permanecem evidência histórica; nenhuma fairness RW entra na linguagem | fairness do host, barging, upgrade/downgrade ou recursive read como contrato |
+| W-1191 | provider read/write (retired) | adapter unsafe pode fixar provider/target sem criar primitive safe universal | poisoning, liberar payload vivo, benchmark como semântica |
+| W-1192 | evidence read/write LM0 (retired) | casos anteriores preservam a alternativa em history/rationale; LM1 testa o contrato vigente | chamar oracle antigo de runtime ou de decisão corrente |
 | W-1193 | estado lógico Lazy | `var Lazy` possui initializer armazenado, winner único e uma publicação completa do initializer; contenders não repetem a execução | inicialização duplicada, retorno parcial, `Once` raw, carrier separado para o caso comum |
 | W-1194 | lowering Lazy por prova | local, isolation serial e estado atômico com parking preservam a mesma semântica; interface publica `blockingWhenContended` | nome distinto por lowering, wait oculto em domain non-blocking, sincronização sempre ativa |
 | W-1195 | failure e lifetime Lazy | initializer é sync/nonthrowing; reentrada dinâmica e panic falham boundary; mutation exige exclusividade; cada capture path e valor retido termina uma vez | poisoning recuperável, retry implícito, cancellation durante initializer, setter concorrente, self-owning closure |
@@ -4304,6 +4319,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1253 | radix explícito | parse/format usam radix refinado 2...36, ASCII, lowercase default e uppercase opcional sem mudar Display | locale, prefixo ou whitespace implícito, radix runtime inválido, canonical decimal variável |
 | W-1254 | C Exchange N0 | bridge Python pode usar table estática como fast path call-scoped, non-owning, não suspensivo e no current producer stream; metadata morre no retorno e uma lease mantém o producer até o work receipt drenar; N1 usa carrier versioned | expor na std, reter DLTensor temporário, liberar producer antes do drain, atravessar suspension, esconder fallback ou tratar otimização como semântica |
 | W-1255 | barreira cíclica | safe std não inclui primitive genérica; phase local usa TaskGroup, epochs usam domain barrier e participantes duráveis usam service/workflow | participant loss implícita, reset de generation silencioso, cancellation sem outcome, barreira universal |
+| W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; inference usa `share`; allocator custom usa `try share(..., using:)`; argumento e return não promovem | promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
+| W-1257 | lock da linguagem | `lock`, `await lock` e `try lock` abrem body scoped sobre `shared T`; body não suspende, não lança application error e não escapa dependency | Mutex/AsyncMutex wrapper, guard, unlock manual, await no body, body repetido |
+| W-1258 | gate e lifecycle | HIR/interface preservam allocation/place/access; overlapping concurrent access usa a mesma gate; unlock publica release/acquire; cancellation e drop drenam; sem poisoning ou cross-boundary | análise textual global, gate cruzar process, plain read disputar write, FIFO host como prova |
+| W-1259 | seleção lock-avoiding | owner/domain/service/atomic/barrier/SnapshotCell/channel precedem lock; RW lock e wrappers saem da safe std; adapter especializado exige target e benchmark | lock-first, RW universal, async mutex para task-owned state, read comum de atomic stale |
+| W-1260 | evidence LM1 | 39 casos/86 operações e 11 testes host derivam as três formas, busy sem body, cancellation, edges, reentry, boundary, drain e substituições; não executam W/provider | reciclar LM0 read/write, expected echo, chamar modelo de runtime/compiler |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

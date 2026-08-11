@@ -23,7 +23,7 @@
       "decision": "W-741",
       "category": "probable-with-fallback",
       "reason": "Each advanced execution primitive needs its own bounded semantics and liveness evidence.",
-      "fallback": "Use static domains, bounded MPSC channels, basic atomics, scoped locks, and Mutex<shared T> snapshots.",
+      "fallback": "Use static domains, bounded MPSC channels, basic atomics, language lock, and SnapshotCell versions.",
       "gate": "Add a separate oracle for topology, cancellation, liveness, target support, and failure before promotion."
     },
     {

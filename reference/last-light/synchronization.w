@@ -1,13 +1,9 @@
-// Atomic publication and scoped locks at the Last Light restaurant.
+// Atomic publication, isolation domains, and the lock fallback at Last Light.
+
+module synchronization<domains: [.serial(.apology)]>
 
 import atomic from std
-import {
-  AsyncMutex,
-  LockAttempt,
-  Mutex,
-  ReadWriteLock,
-  SnapshotCell,
-} from std.sync
+import { SnapshotCell } from std.sync
 
 export enum SignState {
   dark
@@ -116,89 +112,61 @@ export unsafe fn acquireTelemetryFence(): () {
   atomic.fence<.acquire>()
 }
 
-export struct ApologyLedgerState {
+export struct ApologyLedgerState: Duplicable {
   revision: u64
   messages: Array<String>
 }
 
 export object ThreadApologyLedger {
-  state: Mutex<ApologyLedgerState>
+  state: shared ApologyLedgerState
 
   export init() {
-    self.state = Mutex(ApologyLedgerState(revision: 0, messages: []))
+    self.state = ApologyLedgerState(revision: 0, messages: [])
   }
 
   fn record(message: take String): u64 {
-    return state.withLock((ledger: inout ApologyLedgerState) => {
+    return lock state as ledger {
       ledger.messages.append(take message)
       ledger.revision += 1
-      return ledger.revision
-    })
+      ledger.revision
+    }
   }
 
   fn snapshot(): ApologyLedgerState {
-    return state.withLock(
-      (ledger: ref ApologyLedgerState) => copy ledger,
-    )
+    return lock state as ledger { copy ledger }
   }
 
   fn trySnapshot(): LockAttempt<ApologyLedgerState> {
-    return state.tryWithLock(
-      (ledger: ref ApologyLedgerState) => copy ledger,
-    )
+    return try lock state as ledger { copy ledger }
   }
 }
 
-export object TaskApologyLedger {
-  state: AsyncMutex<ApologyLedgerState>
-
-  export init() {
-    self.state = AsyncMutex(ApologyLedgerState(revision: 0, messages: []))
-  }
-
-  async fn record(message: take String): u64 {
-    return await state.withLock((ledger: inout ApologyLedgerState) => {
-      ledger.messages.append(take message)
-      ledger.revision += 1
-      return ledger.revision
-    })
-  }
-
-  async fn snapshot(): ApologyLedgerState {
-    return await state.withLock(
-      (ledger: ref ApologyLedgerState) => copy ledger,
-    )
-  }
+fn recordApology(
+  state: inout ApologyLedgerState,
+  message: take String,
+): u64 {
+  state.messages.append(take message)
+  state.revision += 1
+  return state.revision
 }
 
-export object ReadMostlyApologyLedger {
-  state: ReadWriteLock<ApologyLedgerState>
+export async fn recordOnApologyDomain(
+  state: inout ApologyLedgerState,
+  message: take String,
+): u64 {
+  spawn<.apology> let revision = recordApology(
+    inout state,
+    message: take message,
+  )
+  return await revision
+}
 
-  export init() {
-    self.state = ReadWriteLock(ApologyLedgerState(revision: 0, messages: []))
-  }
-
-  fn record(message: take String): u64 {
-    return state.write((ledger: inout ApologyLedgerState) => {
-      ledger.messages.append(take message)
-      ledger.revision += 1
-      return ledger.revision
-    })
-  }
-
-  fn revision(): u64 {
-    return state.read((ledger: ref ApologyLedgerState) => ledger.revision)
-  }
-
-  fn snapshot(): ApologyLedgerState {
-    return state.read((ledger: ref ApologyLedgerState) => copy ledger)
-  }
-
-  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
-    return state.tryRead(
-      (ledger: ref ApologyLedgerState) => copy ledger,
-    )
-  }
+// This is the rare task fallback. State owned by the task subsystem should use
+// its domain or a service instead of making every call await a lock.
+export async fn snapshotForeignSharedState(
+  state: shared ApologyLedgerState,
+): ApologyLedgerState {
+  return await lock state as ledger { copy ledger }
 }
 
 export struct PublishedMenu: Duplicable {
@@ -273,6 +241,15 @@ test "a scoped synchronous lock returns an owned snapshot" {
   }
 }
 
+test "a serial domain owns task state without an async mutex" {
+  var ledger = ApologyLedgerState(revision: 0, messages: [])
+  expect await recordOnApologyDomain(
+    inout ledger,
+    message: "Sorry for the temporal delay",
+  ) == 1
+  expect ledger.revision == 1
+}
+
 test "a published menu exposes one complete revision" {
   let menus = HorizonMenuPublication(PublishedMenu(
     revision: 1,
@@ -292,20 +269,6 @@ test "a published menu exposes one complete revision" {
   expect snapshot.courses.count == 2
 }
 
-test "a read mostly ledger keeps reads scoped and writes exclusive" {
-  let ledger = ReadMostlyApologyLedger()
-  expect ledger.record("Sorry for the final delay") == 1
-  expect ledger.revision() == 1
-
-  let snapshot = ledger.snapshot()
-  expect snapshot.messages == ["Sorry for the final delay"]
-
-  expect switch ledger.trySnapshot() {
-    case .acquired(let value): value.revision == 1
-    case .busy: false
-  }
-}
-
 // Compile-fail assays:
 // state.load<.release>()                  // LoadOrder rejects release.
 // state.store<.acquire>(.closed)          // StoreOrder rejects acquire.
@@ -315,14 +278,13 @@ test "a read mostly ledger keeps reads scoped and writes exclusive" {
 // take revision while a wait is registered
 // revision.withExclusive(...) while a wait is registered
 // (ref state).withExclusive((value: inout SignState) => value = .dark)
-// state.withLock((value: inout State) => await suspend(value))
-// state.withLock((value: ref State) => ref value)
-// state.withLock((value: ref State) => state.withLock(inspect))
+// lock state as value { await suspend(ref value) }
+// lock state as value { ref value }
+// lock state as value { lock state as nested { nested.revision } }
 // copy state
-// state.read((value: ref State) => await suspend(value))
-// state.read((value: ref State) => ref value)
-// state.read((value: ref State) => state.write(update))
-// state.write((value: inout State) => state.read(inspect))
+// Mutex<State>(state)
+// AsyncMutex<State>(state)
+// ReadWriteLock<State>(state)
 // snapshots.read((menu: ref PublishedMenu) => await inspect(menu))
 // snapshots.read((menu: ref PublishedMenu) => ref menu)
 // snapshots.publish(ref nextMenu)

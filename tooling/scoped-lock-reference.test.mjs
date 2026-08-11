@@ -2,209 +2,190 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { runScopedLockOperations, selectSynchronization } from "./scoped-lock-machine.mjs"
 
-function create(kind = "async", value = 0) {
+const validBody = {
+  neverSuspend: true,
+  neverThrow: true,
+  nonBlocking: true,
+  resultIndependent: true,
+}
+
+function create(value = 0) {
   return {
-    op: "create",
-    lock: "ledger",
-    kind,
+    op: "declareShared",
+    owner: "ledger",
+    form: "declaration",
+    context: "binding",
+    explicitSharedType: true,
+    source: "temporary",
+    lifetimeIndependent: true,
     boundary: "restaurant",
     value,
-    owned: true,
-    transferable: true,
-    lifetimeIndependent: true,
-    shareable: false,
   }
 }
 
-function request(task, access = "ref", blockingAllowed = undefined) {
+function request(task, form = "await", access = "ref") {
   return {
     op: "request",
-    lock: "ledger",
+    owner: "ledger",
     task,
+    form,
     access,
     boundary: "restaurant",
-    ...(blockingAllowed === undefined ? {} : { blockingAllowed }),
+    ...(form === "sync" ? { blockingAllowed: true } : {}),
+    body: validBody,
   }
 }
 
-test("a protected payload need not be shareable", () => {
-  const result = runScopedLockOperations([
-    create("sync", "owner-only"),
-    { op: "tryAcquire", lock: "ledger", task: "reader", access: "ref", boundary: "restaurant" },
-    { op: "read", lock: "ledger", task: "reader" },
-    { op: "finish", lock: "ledger", task: "reader", outcome: "success" },
-  ])
+test("an explicit shared declaration is the allocation operation", () => {
+  const result = runScopedLockOperations([create("menu")])
   assert.equal(result.status, "accepted")
-  assert.deepEqual(result.state.reads, ["owner-only"])
+  assert.equal(result.state.owners.ledger.allocation, "product.default")
+  assert.deepEqual(result.state.receipts, [
+    { operation: "shared", owner: "ledger", allocation: "product.default" },
+  ])
 })
 
-test("async admission is FIFO and creates unlock to grant edges", () => {
+test("context does not promote an argument or return to shared", () => {
+  const result = runScopedLockOperations([{ ...create(), context: "return" }])
+  assert.equal(result.error, "W-OWNERSHIP-0013")
+  assert.deepEqual(result.state.owners, {})
+})
+
+test("custom allocation remains an explicit recoverable share operation", () => {
+  const result = runScopedLockOperations([{
+    op: "share",
+    owner: "ledger",
+    form: "share",
+    explicitOperation: true,
+    source: "binding",
+    take: true,
+    lifetimeIndependent: true,
+    allocator: "request.arena",
+    recoverable: true,
+    boundary: "restaurant",
+    value: "menu",
+  }])
+  assert.equal(result.state.owners.ledger.allocation, "request.arena")
+})
+
+test("unlock publishes a release acquire edge", () => {
   const result = runScopedLockOperations([
     create(),
-    request("first", "inout"),
-    request("second", "inout"),
-    { op: "grant", lock: "ledger", task: "first" },
-    { op: "write", lock: "ledger", task: "first", value: 1 },
-    { op: "finish", lock: "ledger", task: "first", outcome: "success" },
-    { op: "grant", lock: "ledger", task: "second" },
-    { op: "write", lock: "ledger", task: "second", value: 2 },
-    { op: "finish", lock: "ledger", task: "second", outcome: "success" },
+    request("writer", "sync", "inout"),
+    { op: "grant", owner: "ledger", task: "writer" },
+    { op: "write", owner: "ledger", task: "writer", value: 1 },
+    { op: "finish", owner: "ledger", task: "writer", resultIndependent: true },
+    request("reader"),
+    { op: "grant", owner: "ledger", task: "reader" },
   ])
-  const lock = result.state.locks.ledger
-  assert.equal(lock.value, 2)
-  assert.equal(lock.happensBefore.includes("unlock:0->grant:1"), true)
+  assert.equal(result.state.owners.ledger.value, 1)
+  assert.equal(result.state.owners.ledger.happensBefore.includes("unlock:0->grant:1"), true)
 })
 
-test("cancellation before grant removes a waiter", () => {
-  const result = runScopedLockOperations([
-    create(),
-    request("holder"),
-    { op: "grant", lock: "ledger", task: "holder" },
-    request("cancelled"),
-    request("next"),
-    { op: "cancelWait", lock: "ledger", task: "cancelled" },
-    { op: "finish", lock: "ledger", task: "holder", outcome: "success" },
-    { op: "grant", lock: "ledger", task: "next" },
-  ])
-  assert.equal(result.state.locks.ledger.holder, "next")
-  assert.deepEqual(result.state.locks.ledger.cancellations, ["removed:cancelled"])
-})
-
-test("cancellation after grant is observed after unlock", () => {
-  const result = runScopedLockOperations([
-    create(),
-    request("writer", "inout"),
-    { op: "grant", lock: "ledger", task: "writer" },
-    { op: "cancelHeld", lock: "ledger", task: "writer" },
-    { op: "write", lock: "ledger", task: "writer", value: 1 },
-    { op: "finish", lock: "ledger", task: "writer", outcome: "success" },
-  ])
-  assert.equal(result.state.locks.ledger.value, 1)
-  assert.equal(result.state.locks.ledger.outcomes[0].cancellation, "after-unlock")
-})
-
-test("try acquisition does not bypass a queued ticket", () => {
+test("provider admission is not a language FIFO promise", () => {
   const result = runScopedLockOperations([
     create(),
     request("first"),
-    { op: "tryAcquire", lock: "ledger", task: "late", access: "ref", boundary: "restaurant" },
+    request("second"),
+    { op: "grant", owner: "ledger", task: "second" },
   ])
-  assert.deepEqual(result.state.receipts.at(-1), {
-    operation: "try",
-    task: "late",
-    result: "busy",
-  })
+  assert.equal(result.status, "accepted")
+  assert.equal(result.state.owners.ledger.holder, "second")
+  assert.deepEqual(result.state.owners.ledger.waiters, ["first"])
 })
 
-test("panic fails the owning fault boundary", () => {
+test("try lock does not evaluate or consume its body while busy", () => {
   const result = runScopedLockOperations([
-    create("sync"),
-    request("writer", "inout", true),
-    { op: "grant", lock: "ledger", task: "writer" },
-    { op: "panic", lock: "ledger", task: "writer" },
+    create("owned"),
+    {
+      op: "tryAcquire",
+      owner: "ledger",
+      task: "reader",
+      access: "ref",
+      boundary: "restaurant",
+      providerBusy: true,
+      body: validBody,
+    },
+  ])
+  assert.equal(result.state.owners.ledger.bodyEvaluations, 0)
+  assert.equal(result.state.owners.ledger.value, "owned")
+  assert.equal(result.state.receipts.at(-1).result, "busy")
+})
+
+test("await cancellation drains before grant and defers after grant", () => {
+  const before = runScopedLockOperations([
+    create(),
+    request("cancelled"),
+    { op: "cancelWait", owner: "ledger", task: "cancelled" },
+  ])
+  assert.deepEqual(before.state.owners.ledger.waiters, [])
+
+  const after = runScopedLockOperations([
+    create(),
+    request("writer", "await", "inout"),
+    { op: "grant", owner: "ledger", task: "writer" },
+    { op: "cancelHeld", owner: "ledger", task: "writer" },
+    { op: "finish", owner: "ledger", task: "writer", resultIndependent: true },
+  ])
+  assert.equal(after.state.owners.ledger.outcomes[0].cancellation, "after-unlock")
+})
+
+test("the body cannot suspend throw block or escape", () => {
+  for (const [field, code] of [
+    ["neverSuspend", "W-LOCK-0002"],
+    ["neverThrow", "W-LOCK-0011"],
+    ["nonBlocking", "W-LOCK-0012"],
+    ["resultIndependent", "W-LOCK-0001"],
+  ]) {
+    const result = runScopedLockOperations([
+      create(),
+      {
+        op: "tryAcquire",
+        owner: "ledger",
+        task: "reader",
+        access: "ref",
+        boundary: "restaurant",
+        body: { ...validBody, [field]: false },
+      },
+    ])
+    assert.equal(result.error, code)
+  }
+})
+
+test("a panic fails the whole fault boundary", () => {
+  const result = runScopedLockOperations([
+    create(),
+    {
+      op: "tryAcquire",
+      owner: "ledger",
+      task: "writer",
+      access: "inout",
+      boundary: "restaurant",
+      body: validBody,
+    },
+    { op: "panic", owner: "ledger", task: "writer" },
   ])
   assert.equal(result.status, "fault")
-  assert.equal(result.state.locks.ledger.phase, "faulted")
   assert.deepEqual(result.state.failedBoundaries, ["restaurant"])
 })
 
-test("the synchronization selector keeps distinct architectures distinct", () => {
+test("selection prefers W ownership and execution primitives", () => {
+  assert.equal(selectSynchronization({ uniqueOwner: true }), "owner")
   assert.equal(selectSynchronization({ scalar: true, singleLocation: true }), "atomic")
+  assert.equal(selectSynchronization({ taskOwnedMutableState: true }), "serial-domain")
   assert.equal(
-    selectSynchronization({
-      parallelReads: true,
-      exclusiveWrite: true,
-      staticDomain: true,
-      closedAccessGraph: true,
-    }),
+    selectSynchronization({ parallelReads: true, exclusiveTaskWrite: true, closedAccessGraph: true }),
     "domain-barrier",
   )
+  assert.equal(selectSynchronization({ immutableVersions: true, readHeavy: true }), "snapshot-cell")
   assert.equal(
-    selectSynchronization({ readHeavy: true, replaceWholeVersion: true }),
-    "snapshot-cell",
+    selectSynchronization({ synchronousForeign: true, shortCriticalSection: true, sameBoundary: true }),
+    "language-lock",
   )
-  assert.equal(
-    selectSynchronization({
-      parallelReads: true,
-      exclusiveWrite: true,
-      synchronousContext: true,
-    }),
-    "read-write-lock",
-  )
-  assert.equal(selectSynchronization({ durable: true }), "service")
+  assert.equal(selectSynchronization({ readWriteLockRequested: true }), "rejected-read-write-lock")
 })
 
-test("read write admission batches only the reader prefix before a writer", () => {
-  const result = runScopedLockOperations([
-    create("read-write"),
-    request("reader-a", "ref", true),
-    request("reader-b", "ref", true),
-    request("writer", "inout", true),
-    request("late-reader", "ref", true),
-    { op: "grantPhase", lock: "ledger", tasks: ["reader-a", "reader-b"] },
-    { op: "finish", lock: "ledger", task: "reader-b", outcome: "success" },
-    { op: "finish", lock: "ledger", task: "reader-a", outcome: "success" },
-    { op: "grantPhase", lock: "ledger", task: "writer" },
-    { op: "write", lock: "ledger", task: "writer", value: 1 },
-    { op: "finish", lock: "ledger", task: "writer", outcome: "success" },
-    { op: "grantPhase", lock: "ledger", tasks: ["late-reader"] },
-  ])
-  const lock = result.state.locks.ledger
-  assert.equal(result.status, "accepted")
-  assert.equal(lock.holder, null)
-  assert.deepEqual(lock.readers, ["late-reader"])
-  assert.deepEqual(lock.queue, [])
-  assert.deepEqual(lock.closedPhases, [
-    { phase: 0, access: "read", tickets: [0, 1] },
-    { phase: 1, access: "write", tickets: [2] },
-  ])
-})
-
-test("a queued writer prevents a late try read from joining active readers", () => {
-  const result = runScopedLockOperations([
-    create("read-write"),
-    { op: "tryAcquire", lock: "ledger", task: "reader", access: "ref", boundary: "restaurant" },
-    request("writer", "inout", true),
-    { op: "tryAcquire", lock: "ledger", task: "late", access: "ref", boundary: "restaurant" },
-  ])
-  assert.equal(result.status, "accepted")
-  assert.deepEqual(
-    result.state.receipts
-      .filter((receipt) => receipt.operation === "try")
-      .map((receipt) => receipt.result),
-    ["acquired", "busy"],
-  )
-})
-
-test("a blocking reader at the head joins the active reader phase", () => {
-  const result = runScopedLockOperations([
-    create("read-write", 5),
-    { op: "tryAcquire", lock: "ledger", task: "first", access: "ref", boundary: "restaurant" },
-    request("second", "ref", true),
-    { op: "grantPhase", lock: "ledger", tasks: ["second"] },
-  ])
-  assert.equal(result.status, "accepted")
-  assert.deepEqual(result.state.locks.ledger.readers, ["first", "second"])
-})
-
-test("scoped access rejects suspension, escape and reentry", () => {
-  const base = [
-    create(),
-    { op: "tryAcquire", lock: "ledger", task: "reader", access: "ref", boundary: "restaurant" },
-  ]
-  assert.equal(
-    runScopedLockOperations([...base, { op: "suspend", lock: "ledger", task: "reader" }]).error,
-    "W-LOCK-0002",
-  )
-  assert.equal(
-    runScopedLockOperations([...base, { op: "escape", lock: "ledger", task: "reader" }]).error,
-    "W-LOCK-0001",
-  )
-  assert.equal(
-    runScopedLockOperations([
-      ...base,
-      { op: "tryAcquire", lock: "ledger", task: "reader", access: "ref", boundary: "restaurant" },
-    ]).error,
-    "W-LOCK-0004",
-  )
+test("ordinary overlapping access cannot bypass the language gate", () => {
+  const result = runScopedLockOperations([create(), { op: "unguardedOverlap", owner: "ledger" }])
+  assert.equal(result.error, "W-LOCK-0013")
 })

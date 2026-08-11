@@ -122,14 +122,14 @@ spawn<.compute> let plan = optimize(take snapshot)
 | mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
 | transferir ownership | `take` | o source perde o owner uma vez |
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
-| criar owners múltiplos reais | `share(value)`, `try share(..., using:)` e `copy sharedHandle` | allocation e cada retain ficam visíveis |
+| criar owners múltiplos reais | `let x: shared T = value`, `share(value)`, `try share(..., using:)` e `copy handle` | a declaração ou a operação mostra allocation; cada retain continua explícito |
 | observar owner sem mantê-lo vivo | `weak` e `upgrade()` | acesso exige adquirir owner forte opcional |
 | suspender a task atual | `await` | mesmo job; cancellation e cleanup estruturados |
 | criar child no domínio atual | `async let` | handle lexical, join e drain obrigatórios |
 | criar child em outro domínio | `spawn<domain> let` | placement explícito; serial ou paralelo conforme o domain |
 | executar kernel | as mesmas quatro formas + `accelerator.Launch` | Queue e transfer explícitas; owner, cancel e join não mudam |
 | reads concorrentes e write exclusivo | `spawn<domain>` + `.barrier` | tickets e loans verificados num grafo fechado |
-| proteger critical section curta | `Mutex` ou `AsyncMutex` | closure scoped; sem guard ou suspensão enquanto protege |
+| proteger critical section curta | `lock`, `await lock` ou `try lock` sobre `shared T` | fallback da linguagem; sem guard, wrapper ou suspensão no body |
 | publicar versão read-heavy | `SnapshotCell` | readers veem versões completas; reclamation é automática |
 | atualizar scalar concorrente | `var atomic` | operação, extent e memory order explícitos ou sequenciais |
 | esperar mudança atômica | `await value.wait(whileEqual:)` | suspensão cancelável; notification e lifetime explícitos |
@@ -211,6 +211,13 @@ Toda proposta deve informar:
 5. comportamento em dois targets;
 6. alternativa mais simples;
 7. teste, oracle e critério de remoção.
+
+Antes de adicionar uma primitive, wrapper ou design pattern, a proposta deriva
+um caso real de Last Light e tenta compor os mecanismos vigentes. Para state
+concorrente, a ordem de avaliação é ownership local, domain/service, atomic,
+snapshot, channel, `lock` residual e adapter `unsafe`. Uma superfície nova só
+entra quando essa composição não expressa o problema ou quando evidência de
+custo mostra uma perda material. Precedente em outra linguagem não basta.
 
 Cada contrato normativo deve incluir ou apontar para um exemplo verificável. O
 exemplo pode ser source válido, diagnostic esperado ou cenário canônico. Uma
@@ -1868,6 +1875,7 @@ primary_expression = identifier
                    | switch_expression
                    | unsafe_expression
                    | pipeline_expression
+                   | lock_expression
                    | transaction_expression
                    | panic_expression ;
 
@@ -2064,6 +2072,7 @@ policies que não cabem nos operators fechados.
 ```ebnf
 unsafe_expression = "unsafe" value_block ;
 pipeline_expression = "pipeline" pipeline_block ;
+lock_expression = "lock" expression "as" identifier value_block ;
 transaction_expression = "transaction" contract_arguments?
                          identifier "=" expression transaction_block ;
 panic_expression = "panic" argument_list ;
@@ -2124,7 +2133,7 @@ escreve no mesmo place. `&&=`, `||=`, `??=` e `@=` continuam rejeitados.
 | `W-OWNERSHIP-0010` | prefix exige place, owner, borrow ou mobilidade incompatível |
 | `W-BORROW-0010` | `share` recebe payload com origin de borrow dinâmica |
 | `W-OWNERSHIP-0011` | place owned e movível chama member `take fn` sem `(take receiver)` |
-| `W-OWNERSHIP-0013` | expected type, return ou parâmetro tenta promover owner único para `shared` |
+| `W-OWNERSHIP-0013` | argumento, return ou inferência tenta criar `shared` sem declaração ou operação explícita |
 | `W-OWNERSHIP-0014` | grafo fechado contém ciclo forte que só poderia terminar pelo próprio `deinit` |
 | `W-OWNERSHIP-0015` | closure escapante exigiria retain ou transferência implícita de owner move-first |
 
@@ -7575,10 +7584,31 @@ object MenuSection {
 }
 ```
 
-**W-1177 — criação do primeiro owner compartilhado:** `share(value)` cria o
-primeiro owner com o allocator geral do product. A operação segue a policy
-normal de allocation: não adiciona `throws`, mas OOM pode encerrar a fault
-boundary. O nome mantém allocation e mudança de ownership visíveis:
+**W-1256 — primeiro owner declarativo:** uma declaração que escreve
+literalmente `shared T` pode consumir seu initializer `T` e criar o primeiro
+owner com o allocator geral do product. A anotação é a operação visível; ela
+segue a policy normal de allocation, não adiciona `throws`, e OOM pode encerrar
+a fault boundary:
+
+```w
+let root: shared MenuSection = MenuSection(
+  title: "Dinner",
+  parent: .none,
+  children: [],
+)
+```
+
+Essa conversão existe somente no initializer de um binding ou stored field com
+tipo `shared` escrito no source. Ela não participa de overload resolution, não
+converte argumento e não usa apenas o result type de uma função. Um owner já
+existente exige `take`:
+
+```w
+let root: shared MenuSection = take draft
+```
+
+`share(value)` continua a operação explícita para inferência e expression
+contexts. O overload com `using:` seleciona allocator e failure recuperável:
 
 ```w
 fn share<T>(value: take T): shared T
@@ -7586,7 +7616,6 @@ fn share<T>(value: take T, using memory: ref Allocator): shared T throws Allocat
 ```
 
 ```w
-let root = share(MenuSection(title: "Dinner", parent: .none, children: []))
 let local = try share(
   MenuSection(title: "Supper", parent: .none, children: []),
   using: memory,
@@ -7595,12 +7624,12 @@ let observer = copy root
 let parent = root.weak()
 ```
 
-Um temporary não usa `take`. Um binding existente exige `share(take value)` ou
-`try share(take value, using: memory)`. O label `using:` seleciona o overload
-fallible antes da análise de effects; por isso, a call exige `try`, `try?` ou
-`catch`. W não promove owner único por expected type, return type ou parâmetro.
-`W-OWNERSHIP-0013` aponta o contexto. O caller escolhe `share(take value)` ou
-altera a API; o diagnostic não insere allocation automaticamente.
+Um temporary não usa `take`. Um binding existente exige `take` tanto na forma
+declarativa quanto em `share`. O label `using:` seleciona o overload fallible
+antes da análise de effects; por isso, a call exige `try`, `try?` ou `catch`.
+`W-OWNERSHIP-0013` aponta argumento, return ou contexto inferido que tentou
+promover sem uma declaração `shared` ou uma operação `share` explícita. O
+diagnostic nunca altera overload ou insere allocation num call.
 
 As duas operações exigem payload `.lifetimeIndependent`. Elas não prolongam
 `ref`, `view`, `inout` ou capture borrowed. O `AllocationOriginMap` preserva as
@@ -8581,12 +8610,12 @@ Uma recomendação de `shared` exige prova de owners múltiplos. Uma de `atomic`
 exige prova de accesses concorrentes, extent único e operação compatível.
 
 O conjunto de synchronization fica fechado na tabela da
-[seção 12.10.7](#12107-locks-síncronos-e-assíncronos). Esta seção define somente
+[seção 12.10.7](#12107-exclusão-mútua-como-último-recurso). Esta seção define somente
 como tooling escolhe uma recomendação. A ordem de prova é:
 
 1. separar ownership por scope, subplace disjunto, `take` e join;
 2. usar `ref`, `inout` ou `copy` quando access, escape e duplication permitem;
-3. selecionar um carrier da tabela 12.10.7 pela topologia de acesso;
+3. selecionar uma forma da tabela 12.10.7 pela topologia de acesso;
 4. validar lifetime, capability, admission e custo antes de mostrar o fix.
 
 Um grafo fechado com reads em paralelo e write exclusivo pode recomendar
@@ -11330,36 +11359,45 @@ perdida, FIFO, notify one/all, cancel race, drain, ABA, orders e
 release/acquire. Ela não executa W nem implementa scheduler, parking provider
 ou runtime.
 
-#### 12.10.7 Locks síncronos e assíncronos
+#### 12.10.7 Exclusão mútua como último recurso
 
-**W-1181 — lock escopado:** os locks safe são owners move-only e shareable. A
-inicialização consome `T<(.transferable && .lifetimeIndependent)>`; o payload
-não precisa ser shareable. Somente uma closure protegida recebe `ref` ou
-`inout`; W não publica guard.
+**W-1257 — uma construção da linguagem:** W não expõe `Mutex<T>`,
+`AsyncMutex<T>`, `ReadWriteLock<T>` ou guard na safe std. Um `shared T` possui
+uma gate lógica que o lowering pode omitir quando nenhum acesso exige exclusão.
+Essa gate é identidade semântica de acesso, não field obrigatório do control
+block. Um programa que não usa `lock` não paga allocation, tamanho ou chamada
+de provider de lock. O target pode usar storage inline, side table ou primitive
+do host sem tornar a representação observável.
+Três formas cobrem a borda restante:
 
-| Carrier | Aquisição | Acesso | Admission |
-|---|---|---|---|
-| `Mutex<T>` | bloqueia thread | `withLock` | um ticket FIFO |
-| `AsyncMutex<T>` | suspende task | `await withLock` | um ticket FIFO cancelável |
-| `ReadWriteLock<T>` | bloqueia thread | `read` ou `write` | fases da W-1190 |
-
-Exemplos de acesso exclusivo:
+| Forma | Espera | Contexto |
+|---|---|---|
+| `lock owner as value { ... }` | bloqueia a thread | callback síncrono, FFI ou domain `.blocking` |
+| `await lock owner as value { ... }` | suspende a task atual | task que não pode mover o state para um domain owner |
+| `try lock owner as value { ... }` | nunca espera | qualquer contexto; devolve `LockAttempt<R>` |
 
 ```w
-let snapshot = ledger.withLock(
-  (value: ref ApologyLedgerState) => copy value,
-)
+let revision = lock ledger as state {
+  state.messages.append(take message)
+  state.revision += 1
+  state.revision
+}
 
-let receipt = await asyncLedger.withLock((value: inout ApologyLedgerState) => {
-  value.record(order)
-  return copy value.lastReceipt
-})
+let snapshot = await lock ledger as state { copy state }
+
+let attempted = try lock ledger as state { copy state }
 ```
 
-Toda closure é `neverSuspend` e executa exatamente uma vez depois do grant. Seu
-resultado não pode conter borrow, view ou dependency do payload. `return` e
-application error liberam o acesso antes do resultado. A variante `try*` nunca
-bloqueia e usa um enum para distinguir contenção de um resultado optional:
+`lock` infere `ref` quando o body somente lê e `inout` quando ele escreve. O
+binding existe apenas no body. O último expression produz o resultado. O body é
+`neverSuspend`, `neverThrow` e não chama efeito conhecido como blocking. Ele
+executa no máximo uma vez depois do grant. Seu resultado não contém borrow,
+view ou dependency do payload. Validação que pode falhar e trabalho que pode
+suspender ocorrem antes; a critical section somente confirma ou publica state.
+
+`try lock` é uma forma contextual, não o operador geral de propagação de error.
+Como o body não lança application error, não há ambiguidade. Em `.busy`, o body
+não é avaliado; um `take` escrito dentro dele conserva o owner. O resultado é:
 
 ```w
 enum LockAttempt<T> {
@@ -11368,124 +11406,78 @@ enum LockAttempt<T> {
 }
 ```
 
-A interface compilada marca cada aquisição síncrona com o fato `blocking`. O
-verifier rejeita a call num domain non-blocking sem adapter:
+`LockAttempt<T>` pertence ao prelude da linguagem. Ele não aloca, não lança e
+não é export de `std.sync`.
 
-```w
-spawn<.blocking> let snapshot = ledger.withLock(
-  (value: ref ApologyLedgerState) => copy value,
-)
-```
+**W-1258 — acesso e lifecycle:** o target precisa ser um place estável
+`shared T` dentro da mesma fault boundary. A HIR registra allocation identity,
+place, access set, sync/async/try admission e resultado independente. Quando um
+lock pode escrever um place, todo acesso concorrente que pode sobrepor esse
+place usa a mesma gate, um atomic, um snapshot ou um isolation domain. A
+interface semântica preserva esse fato; o compiler não depende de análise
+global textual. Fields imutáveis e disjuntos permanecem livres quando a prova
+de place fecha.
 
-Receiver e closure de `try*` seguem a ordem normal da call. A closure é
-construída uma vez; em `.busy`, o body não executa e captures usam os drop paths
-normais. `capture(take owner)` transfere o owner mesmo quando o lock está
-ocupado. Para preservá-lo, o caller usa `ref`, `copy` ou tenta antes de construir
-trabalho owned.
+Unlock cria um edge release/acquire para a aquisição que observa a liberação.
+W não promete ordem FIFO, fairness ou latency máxima: essas propriedades não
+mudam o resultado de um programa correto e impediriam lowerings eficientes do
+host. Um `try lock` sem holder ou reservation adquire; sob contention pode
+devolver `.busy`. `await lock` remove uma espera cancelada antes do grant.
+Depois do grant, cancellation fica observável somente depois do unlock.
 
-**W-1182 — admission e failure:** `Mutex` e `AsyncMutex` concedem tickets FIFO.
-`tryWithLock` devolve `.busy` quando existe holder ou waiter. Cancellation de
-`AsyncMutex` antes do grant remove o ticket sem executar a closure. Depois do
-grant, cancellation fica observável somente depois do unlock.
+Reentrada conhecida falha antes de esperar. O resource lens mostra ordens entre
+gates e cycles possíveis. O runtime libera a gate somente depois de body,
+borrows e waiters drenarem; o payload executa drop uma vez. W não usa poisoning.
+Panic falha a fault boundary; nenhum waiter continua sobre state possivelmente
+parcial. Uma gate nunca atravessa process, fault boundary ou shared-memory ABI.
 
-O unlock cria um edge release/acquire para a aquisição seguinte. O provider
-pode estacionar thread ou task, mas não pode mudar a ordem lógica, repetir a
-closure ou conceder dois acessos simultâneos.
+**W-1259 — seleção lock-avoiding:** W escolhe a forma que também expressa o
+problema, em vez de publicar uma coleção de locks:
 
-Admission lógica não promete latency máxima ou progresso quando scheduler,
-host ou closure não progride. Reentrada conhecida falha pelo `HeldLockSet`.
-O resource lens informa ordens entre locks, mas não elimina ciclos dependentes
-de input, FFI ou adapters `unsafe`.
+| Necessidade | Forma corrente |
+|---|---|
+| owner local ou state por task | owner, `ref`, `inout` e join estruturado |
+| state mutável de subsystem | domain serial ou service turn |
+| scalar ou state de uma palavra | `Atomic<T>` |
+| reads paralelos e write in-place em tasks | domain concorrente + `.barrier` |
+| versão imutável read-heavy | `SnapshotCell<T>` |
+| transferência, mailbox ou close | `Channel<T>` ou service |
+| callback/FFI síncrono sobre state local compartilhado | `lock` curto |
+| algoritmo especializado de kernel ou OS | adapter `unsafe` com contrato |
 
-W não usa poisoning. Um lock pertence à fault boundary em que foi criado e não
-cruza essa boundary. Um panic durante a closure falha a boundary inteira; seus
-waiters não retomam sobre state parcial. Teardown físico libera a primitive,
-mas não publica o payload para outra boundary.
+`ReadWriteLock` fica rejeitado na baseline. Domain barrier já resolve o caso de
+tasks; `SnapshotCell` resolve snapshots síncronos; e `lock` cobre a exceção
+in-place. Um adapter especializado pode provar outro algoritmo sem tornar sua
+fairness, reclamation ou upgrade parte da linguagem. `AsyncMutex` também fica
+rejeitado: `await lock` oferece a borda rara, e domain/service continua a forma
+recomendada para state owned por tasks.
 
-O wrapper só executa drop depois de closures, borrows e waiters drenarem; o
-payload executa drop uma vez. `w explain synchronization` mostra admission,
-contention, tempo protegido e provider sem transformar medida em garantia.
+`w explain synchronization` aplica regras provadas, sem reescrever o programa:
 
-**W-1183 — conjunto mínimo:** W não adiciona uma primitive só porque o host a
-oferece. Esta tabela fecha a baseline safe:
+- shared owner que permaneceu único sugere owner normal;
+- lock usado por um único domain sugere mover o state para esse domain;
+- uma única location escalar sugere `atomic`;
+- reads de versões completas sugerem `SnapshotCell` ou domain barrier;
+- body com call blocking, suspension, escape ou custo não limitado produz
+  error ou warning conforme o execution profile.
 
-| Necessidade | Forma corrente | Regra |
-|---|---|---|
-| scalar concorrente | `Atomic<T>` | CAS não concede lifetime nem invariantes entre fields |
-| critical section síncrona | `Mutex<T>` | acesso ocorre numa closure scoped |
-| critical section de task | `AsyncMutex<T>` | a closure protegida não suspende |
-| reads paralelos e write in-place em tasks | domain concorrente + `.barrier` | ordena dispatch, placement e subtree |
-| reads paralelos e write in-place síncrono | `ReadWriteLock<T>` | use `Mutex<T>` quando reads não dominam |
-| versão imutável read-heavy | `SnapshotCell<T>` | reclamation fica dentro do provider |
-| transferência ou mailbox | `Channel<T>` ou service | o payload troca de owner |
-| inicialização estática | const/module initialization | não cria ordem runtime |
-| inicialização tardia | `var Lazy` | publica um único outcome lógico |
-| join lexical | `Task`, tuple ou `TaskGroup` | o owner sempre faz join ou drain |
-| park por palavra atômica | `await Atomic.wait` + `notifyOne`/`notifyAll` | não transporta ownership nem close |
+Uma load relaxada continua sendo uma operação atomic. W nunca troca uma load
+atomic por read comum enquanto pode existir writer concorrente. Staleness
+aceitável escolhe `load<.relaxed>()`; ela não autoriza data race.
 
-**W-1189 — read/write síncrono:** `ReadWriteLock<T>` é a Forma vigente para
-storage síncrono ou freestanding com reads simultâneos e write exclusivo. Ele
-não substitui um domain concorrente com barrier. O domain ordena tasks,
-placement, cancellation e a subtree estruturada. O lock protege um valor entre
-threads que não precisam de task runtime.
+**W-1260 — evidence LM1:** o oracle host deriva as três formas, acesso scoped,
+busy sem avaliação, cancellation, release/acquire, reentrada, boundary, drain e
+as substituições lock-avoiding. Ele rejeita wrappers e read/write lock na safe
+std. O oracle não executa W nem implementa provider.
 
-Quatro operações formam a superfície específica:
-
-```w
-let revision = ledger.read((state: ref ApologyLedgerState) => state.revision)
-
-let next = ledger.write((state: inout ApologyLedgerState) => {
-  state.revision += 1
-  return state.revision
-})
-
-let current = ledger.tryRead((state: ref ApologyLedgerState) => state.revision)
-let updated = ledger.tryWrite((state: inout ApologyLedgerState) => {
-  state.revision += 1
-  return state.revision
-})
-```
-
-`read` e `write` exigem contexto síncrono ou domain com blocking. `tryRead` e
-`tryWrite` devolvem `LockAttempt<R>`. W não adiciona um read/write lock async na
-baseline; task-owned state usa domain barrier, `SnapshotCell` ou `AsyncMutex`.
-
-**W-1190 — admission por fases:** todo pedido bloqueante recebe um ticket
-monotônico. Um writer na cabeça recebe acesso exclusivo. Um reader na cabeça
-abre uma fase que admite o prefixo contíguo de readers anterior ao próximo
-writer. Um reader posterior não ultrapassa um writer em espera. Assim, readers
-progridem em paralelo sem permitir starvation por readers novos.
-
-Um reader bloqueante na cabeça pode entrar na fase ativa; todo prefixo anterior
-ao writer seguinte entra junto. `tryRead` entra somente quando a fila está
-vazia. `tryWrite` exige nenhum holder e fila vazia. Nenhuma tentativa ultrapassa
-um ticket admitido. Reentrada conhecida é erro; cycles dependentes de runtime
-podem bloquear. Não existem operações de upgrade ou downgrade.
-
-**W-1191 — edges, failure e provider:** o unlock de um writer sincroniza com a
-fase seguinte. O fechamento de uma fase de readers ocorre depois do unlock de
-todos os seus readers e sincroniza com a fase seguinte. Readers na mesma fase
-não ganham ordem entre si. `return` e application error liberam o acesso antes
-do resultado; panic falha a fault boundary sem publicar state parcial.
-
-O wrapper só executa drop depois de holders e waiters drenarem. Um provider pode
-usar SRWLOCK, pthread rwlock, parking ou uma fila própria, mas precisa preservar
-as fases e os tickets de W. A fairness do host não é autoridade. O provider
-`std.sync@1` continua missing; o benchmark compara `ReadWriteLock`, `Mutex`,
-`SnapshotCell` e domain barrier antes de selecionar lowering. Falta de ganho
-mensurável pode mudar a recomendação, não a semântica.
-
-**W-1192 — evidence LM0:** a máquina host de locks deriva fases de readers,
-writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
-failure, drain e seleção entre storage e domain. O oracle não executa W nem
-implementa o provider.
+O corpus LM1 possui 39 casos e 86 operações: 21 aceitos, 17 rejeitados e um
+fault. Onze testes host derivam os invariants sem ler o snapshot. Os diagnostics
+`W-LOCK-*` cobrem target, escape, suspensão, blocking, reentrada, boundary,
+access, drain, grant, cancellation, application error e overlap. `W-SYNC-*`
+rejeita wrappers que não pertencem à safe std.
 
 Uma barreira de device pertence ao contract do kernel. O provider de parking de
 `var Lazy` permanece missing.
-
-Os diagnostics `W-LOCK-*` possuem escape, suspensão, blocking domain, reentrada,
-fault boundary, access mode, copy, drain e provider order. `W-SYNC-*` informa
-que uma primitive não pertence à safe std e lista as formas vigentes.
 
 Services, channels e immutable snapshots lideram para state de domínio. Um
 service serial não precisa de atomic ou lock para seu state interno:
@@ -27832,7 +27824,7 @@ precisam passar fault injection sem task, waiter, loan ou resource órfão. Uma
 transferência entre domains não pode criar copy, share, retain ou mobility
 ocultos.
 
-E0, E1, MX0, LM0, SP0, LZ0, B0 e DEV0 fornecem modelos de design. A alegação
+E0, E1, MX0, LM1, SP0, LZ0, B0 e DEV0 fornecem modelos de design. A alegação
 pública exige HIR, runtime e providers reais, stress tests, sanitizers e replay
 nos targets prometidos. Até esse ponto, a forma correta é “modelo estruturado
 de execução definido; implementação missing”. O gate não exige thread por task,
@@ -27864,7 +27856,7 @@ evidência de design:
 | bootstrap W0 | SH0–SH7 separam seed C, subset W e self-host | congelar source inventory, host contracts e fronteira do seed |
 | ergonomia comparativa | R0/R0S/R1 guardam substituições e variantes observáveis | ratificar formas que ainda mudam source ou registrar waiver motivado |
 
-M1/A0/E0/E1/LM0/SP0/LZ0/DEV0 fecham ownership, allocation, closure,
+M1/A0/E0/E1/LM1/SP0/LZ0/DEV0 fecham ownership, allocation, closure,
 synchronization, reclamation e device launch no nível de design. B0/SR0 fecham
 turn, effect e recovery de service. HIR, allocator, scheduler, wire, storage,
 drivers e providers executáveis são gates de implementação e da alegação

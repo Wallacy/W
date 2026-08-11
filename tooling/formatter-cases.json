@@ -402,6 +402,21 @@
         "}"
       ],
       "requiredSemicolons": []
+    },
+    {
+      "id": "F0-language-lock",
+      "decisions": ["W-1257", "W-1258"],
+      "input": {
+        "lines": [
+          "fn snapshot(state:shared Ledger):Ledger{return lock state as value{copy value}}"
+        ]
+      },
+      "output": [
+        "fn snapshot(state: shared Ledger): Ledger {",
+        "  return lock state as value { copy value }",
+        "}"
+      ],
+      "requiredSemicolons": []
     }
   ]
 }
