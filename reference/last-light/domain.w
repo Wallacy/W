@@ -159,16 +159,13 @@ export struct Money {
 
   export const zeroCredits = Money(minorUnits: 0, currency: .cr)
 
-  export const init(minorUnits: i128, currency: Currency) {
-    self.minorUnits = minorUnits
+  export const init(minorUnits value: i128, currency: Currency) {
+    self.minorUnits = value
     self.currency = currency
   }
 
-  export init(majorUnits: i64, currency: Currency) throws DomainError {
-    let minorUnits = try i128.checkedMultiply(i128(majorUnits), 100)
-      .mapError((_) => .overflow)
-
-    self = Money(minorUnits: minorUnits, currency: currency)
+  export const init(majorUnits value: i64, currency: Currency) {
+    self = Money(minorUnits: i128(value) * 100, currency: currency)
   }
 }
 

@@ -8,8 +8,8 @@ struct Money {
   minorUnits: i64
   currency: Currency
 
-  init(majorUnits: i64, currency: Currency) {
-    self.minorUnits = majorUnits * 100
+  init(majorUnits value: i64, currency: Currency) {
+    self.minorUnits = value * 100
     self.currency = currency
   }
 }

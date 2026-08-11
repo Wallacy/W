@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "Money(majorUnits",
-    "digest": "sha256:31ac00382e95cef96f775d4b9f2e7627138da0336d438c74c844aedb8ea75f34"
+    "digest": "sha256:a87286d4ee5b642ad9a77e7c1616c6ad1586bcecf81af8b807b33ca6a1a471fa"
   },
   "variants": [
     {
@@ -15,7 +15,7 @@
       "role": "selected",
       "language": "w",
       "path": "fixed-order.w",
-      "digest": "sha256:9d65d106643f81b343b8f0281952d191ed804b95cf366518cfa53183cf2af819",
+      "digest": "sha256:3db36d24f4e306f91d94899576cb97a0f7ba49954947366c49ddb89dd661dd1d",
       "changedConstructs": ["declaration-order labels", "initializer selection", "three distinct call shapes"]
     },
     {
@@ -23,7 +23,7 @@
       "role": "alternative",
       "language": "w",
       "path": "reordered.w",
-      "digest": "sha256:dfaa98b2dea4b38d66df2c9012ca029a8f289fec9986db45351f753144e5ba35",
+      "digest": "sha256:90d0a04e39bd2be735e1e2e322bd7d0253c207defed5025caa54632e09221f06",
       "changedConstructs": ["reordered labels", "same call shape intent"]
     }
   ],

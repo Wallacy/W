@@ -6,14 +6,13 @@ struct Money {
   minorUnits: i128
   currency: Currency
 
-  init(minorUnits: i128, currency: Currency) {
-    self.minorUnits = minorUnits
+  const init(minorUnits value: i128, currency: Currency) {
+    self.minorUnits = value
     self.currency = currency
   }
 
-  init(majorUnits: i64, currency: Currency) throws DomainError {
-    let minorUnits = checkedMultiply(majorUnits, by: 100)
-    self = Money(minorUnits: minorUnits, currency: currency)
+  const init(majorUnits value: i64, currency: Currency) {
+    self = Money(minorUnits: i128(value) * 100, currency: currency)
   }
 }
 
@@ -49,6 +48,7 @@ fn quote(): Money {
         (parameter_list
           (parameter
             (identifier)
+            (identifier)
             (type
               (type_name
                 (type_identifier))))
@@ -74,6 +74,7 @@ fn quote(): Money {
         (parameter_list
           (parameter
             (identifier)
+            (identifier)
             (type
               (type_name
                 (type_identifier))))
@@ -82,21 +83,7 @@ fn quote(): Money {
             (type
               (type_name
                 (type_identifier)))))
-        (type
-          (type_name
-            (type_identifier)))
         (block
-          (binding_declaration
-            (pattern
-              (identifier))
-            (call_expression
-              (identifier)
-              (argument_list
-                (argument
-                  (identifier))
-                (argument
-                  (identifier)
-                  (number_literal)))))
           (expression_statement
             (assignment_expression
               (identifier)
@@ -105,7 +92,13 @@ fn quote(): Money {
                 (argument_list
                   (argument
                     (identifier)
-                    (identifier))
+                    (binary_expression
+                      (call_expression
+                        (identifier)
+                        (argument_list
+                          (argument
+                            (identifier))))
+                      (number_literal)))
                   (argument
                     (identifier)
                     (identifier))))))))))
