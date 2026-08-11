@@ -406,3 +406,330 @@ test("only exclusive authority opens an atomic payload", () => {
     operation: 3,
   });
 });
+
+test("atomic wait resumes through the observed release", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "initial",
+      storage: "epoch",
+      order: "relaxed",
+      value: 0,
+    },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "publish",
+      storage: "epoch",
+      order: "release",
+      value: 1,
+    },
+    { op: "atomicNotify", task: "root", id: "notify", storage: "epoch", mode: "all" },
+    {
+      op: "atomicWaitResume",
+      task: "waiter",
+      id: "wait-resume",
+      storage: "epoch",
+      order: "acquire",
+      observes: "publish",
+      ticket: 0,
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters).toEqual([]);
+  expect(result.state.edges).toContainEqual({
+    from: "publish",
+    to: "wait-resume",
+    kind: "atomicReleaseAcquire",
+  });
+});
+
+test("notifyOne selects the oldest eligible atomic waiter", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "initial",
+      storage: "epoch",
+      order: "relaxed",
+      value: 0,
+    },
+    { op: "reserveTask", task: "first", parent: "root" },
+    { op: "publishTask", task: "first", id: "first-start", after: "root-start" },
+    { op: "reserveTask", task: "second", parent: "root" },
+    { op: "publishTask", task: "second", id: "second-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "first",
+      id: "first-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    {
+      op: "atomicWaitStart",
+      task: "second",
+      id: "second-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 1,
+    },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "publish",
+      storage: "epoch",
+      order: "release",
+      value: 1,
+    },
+    { op: "atomicNotify", task: "root", id: "notify", storage: "epoch", mode: "one" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.events.notify.wokenTickets).toEqual([0]);
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters).toMatchObject([
+    { ticket: 0, state: "notified" },
+    { ticket: 1, state: "waiting" },
+  ]);
+});
+
+test("cancellation drains a waiter before storage destruction", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "initial",
+      storage: "epoch",
+      order: "relaxed",
+      value: 0,
+    },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    { op: "requestCancel", task: "waiter", reason: "scope closing" },
+    {
+      op: "atomicWaitCancel",
+      task: "waiter",
+      id: "wait-cancel",
+      storage: "epoch",
+      ticket: 0,
+    },
+    { op: "destroyStorage", task: "root", id: "destroy", storage: "epoch" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters).toEqual([]);
+  expect(result.state.atomicWaitQueues["epoch@0:all"].history.at(-1)).toMatchObject({
+    ticket: 0,
+    outcome: "canceled",
+  });
+});
+
+test("an ABA value does not complete atomic wait", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "initial",
+      storage: "epoch",
+      order: "relaxed",
+      value: 0,
+    },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "transient",
+      storage: "epoch",
+      order: "release",
+      value: 1,
+    },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "aba",
+      storage: "epoch",
+      order: "release",
+      value: 0,
+    },
+    { op: "atomicNotify", task: "root", id: "notify", storage: "epoch", mode: "all" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.events.notify.wokenTickets).toEqual([]);
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters[0]).toMatchObject({
+    ticket: 0,
+    state: "waiting",
+  });
+});
+
+test("the atomic wait fast path does not allocate a parking queue", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "published",
+      storage: "epoch",
+      order: "release",
+      value: 1,
+    },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-fast",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "published",
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.atomicWaitQueues).toEqual({});
+  expect(result.state.events["wait-fast"]).toMatchObject({
+    kind: "atomicWaitImmediate",
+    waiting: false,
+  });
+});
+
+test("a notified atomic waiter reparks when ABA restores its expected value", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    { op: "atomicStore", task: "root", id: "initial", storage: "epoch", order: "relaxed", value: 0 },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    { op: "atomicStore", task: "root", id: "transient", storage: "epoch", order: "release", value: 1 },
+    { op: "atomicNotify", task: "root", id: "notify", storage: "epoch", mode: "all" },
+    { op: "atomicStore", task: "root", id: "aba", storage: "epoch", order: "release", value: 0 },
+    {
+      op: "atomicWaitRecheck",
+      task: "waiter",
+      id: "repark",
+      storage: "epoch",
+      order: "acquire",
+      observes: "aba",
+      ticket: 0,
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.events.repark.kind).toBe("atomicWaitReparked");
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters[0]).toMatchObject({
+    ticket: 0,
+    state: "waiting",
+    notification: null,
+  });
+});
+
+test("a committed notification wins a later cancellation", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "createStorage", task: "root", id: "create", storage: "epoch", mode: "atomic" },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "initial",
+      storage: "epoch",
+      order: "relaxed",
+      value: 0,
+    },
+    { op: "reserveTask", task: "waiter", parent: "root" },
+    { op: "publishTask", task: "waiter", id: "waiter-start", after: "root-start" },
+    {
+      op: "atomicWaitStart",
+      task: "waiter",
+      id: "wait-register",
+      storage: "epoch",
+      order: "acquire",
+      expected: 0,
+      observes: "initial",
+      ticket: 0,
+    },
+    {
+      op: "atomicStore",
+      task: "root",
+      id: "published",
+      storage: "epoch",
+      order: "release",
+      value: 1,
+    },
+    { op: "atomicNotify", task: "root", id: "notify", storage: "epoch", mode: "one" },
+    { op: "requestCancel", task: "waiter", reason: "deadline" },
+    { op: "atomicWaitCancel", task: "waiter", id: "late-cancel", storage: "epoch", ticket: 0 },
+    {
+      op: "atomicWaitResume",
+      task: "waiter",
+      id: "wait-resume",
+      storage: "epoch",
+      order: "acquire",
+      observes: "published",
+      ticket: 0,
+    },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.events["late-cancel"].outcome).toBe("notificationWon");
+  expect(result.state.tasks.waiter.cancellation.requestedReasons).toContain("deadline");
+  expect(result.state.atomicWaitQueues["epoch@0:all"].waiters).toEqual([]);
+});

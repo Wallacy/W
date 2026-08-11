@@ -969,6 +969,284 @@
         { "op": "atomicFence", "task": "root", "id": "invalid-fence", "order": "relaxed" }
       ],
       "expected": { "status": "rejected", "code": "invalidAtomicFenceOrder", "operation": 2 }
+    },
+    {
+      "id": "E0-atomic-wait-fast-path",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "waitForChange" }],
+      "decisions": ["W-1201", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-published", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "early-notify", "storage": "epoch", "mode": "one" },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-fast", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-published" },
+        { "op": "destroyStorage", "task": "root", "id": "epoch-destroy", "storage": "epoch" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-wait-notify-all",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "publish(_ next" }],
+      "decisions": ["W-441", "W-1201", "W-1202", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-publish", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "epoch-notify", "storage": "epoch", "mode": "all" },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-publish", "ticket": 0 },
+        { "op": "destroyStorage", "task": "root", "id": "epoch-destroy", "storage": "epoch" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-notify-one-is-fifo",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "notifyOneWithoutChange" }],
+      "decisions": ["W-1202", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "first", "parent": "root" },
+        { "op": "publishTask", "task": "first", "id": "first-start", "after": "root-start" },
+        { "op": "reserveTask", "task": "second", "parent": "root" },
+        { "op": "publishTask", "task": "second", "id": "second-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "first", "id": "first-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicWaitStart", "task": "second", "id": "second-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 1 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-publish", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "first-notify", "storage": "epoch", "mode": "one" },
+        { "op": "atomicWaitResume", "task": "first", "id": "first-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-publish", "ticket": 0 },
+        { "op": "atomicNotify", "task": "root", "id": "second-notify", "storage": "epoch", "mode": "one" },
+        { "op": "atomicWaitResume", "task": "second", "id": "second-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-publish", "ticket": 1 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-wait-cancel-drains",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "waitForChange" }],
+      "decisions": ["W-1202", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "requestCancel", "task": "waiter", "reason": "scope closing" },
+        { "op": "atomicWaitCancel", "task": "waiter", "id": "wait-cancel", "storage": "epoch", "ticket": 0 },
+        { "op": "destroyStorage", "task": "root", "id": "epoch-destroy", "storage": "epoch" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-notify-wins-late-cancel",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "notifyAll" }],
+      "decisions": ["W-1202", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-publish", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "epoch-notify", "storage": "epoch", "mode": "all" },
+        { "op": "requestCancel", "task": "waiter", "reason": "deadline" },
+        { "op": "atomicWaitCancel", "task": "waiter", "id": "late-cancel", "storage": "epoch", "ticket": 0 },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-publish", "ticket": 0 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-notify-without-waiter",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "notifyOneWithoutChange" }],
+      "decisions": ["W-1201", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "atomicNotify", "task": "root", "id": "epoch-notify", "storage": "epoch", "mode": "one" },
+        { "op": "destroyStorage", "task": "root", "id": "epoch-destroy", "storage": "epoch" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-wait-rejects-release-order",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "wait<.release>" }],
+      "decisions": ["W-1201", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "invalid-wait", "storage": "epoch", "order": "release", "expected": 0, "observes": "epoch-initial", "ticket": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "invalidAtomicWaitOrder", "operation": 6 }
+    },
+    {
+      "id": "E0-atomic-wait-requires-stable-storage",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "waitForChange" }],
+      "decisions": ["W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "unstable-wait", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitRequiresStableStorage", "operation": 5 }
+    },
+    {
+      "id": "E0-atomic-storage-waits-before-destroy",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "take revision while" }],
+      "decisions": ["W-1202", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "destroyStorage", "task": "root", "id": "epoch-destroy", "storage": "epoch" }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitersNotDrained", "operation": 7 }
+    },
+    {
+      "id": "E0-atomic-store-does-not-notify",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "revision.notifyAll" }],
+      "decisions": ["W-1201", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-publish", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-publish", "ticket": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitNotNotified", "operation": 8 }
+    },
+    {
+      "id": "E0-atomic-wait-does-not-observe-aba",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic revision" }],
+      "decisions": ["W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-transient", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-aba", "storage": "epoch", "order": "release", "value": 0 },
+        { "op": "atomicNotify", "task": "root", "id": "epoch-notify", "storage": "epoch", "mode": "all" },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-aba", "ticket": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitNotNotified", "operation": 10 }
+    },
+    {
+      "id": "E0-atomic-wait-reparks-after-aba",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "var atomic revision" }],
+      "decisions": ["W-1202", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-transient", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "first-notify", "storage": "epoch", "mode": "all" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-aba", "storage": "epoch", "order": "release", "value": 0 },
+        { "op": "atomicWaitRecheck", "task": "waiter", "id": "wait-repark", "storage": "epoch", "order": "acquire", "observes": "epoch-aba", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-final", "storage": "epoch", "order": "release", "value": 2 },
+        { "op": "atomicNotify", "task": "root", "id": "second-notify", "storage": "epoch", "mode": "all" },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "acquire", "observes": "epoch-final", "ticket": 0 }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "E0-atomic-wait-ticket-is-monotonic",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "waitForChange" }],
+      "decisions": ["W-1202", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 1 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitTicketOutOfOrder", "operation": 6 }
+    },
+    {
+      "id": "E0-atomic-wait-registration-needs-ticket",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "waitForChange" }],
+      "decisions": ["W-1202", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial" }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitTicketMissing", "operation": 6 }
+    },
+    {
+      "id": "E0-atomic-wait-order-is-one-contract",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "wait<.acquire>" }],
+      "decisions": ["W-1201", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "atomicStore", "task": "root", "id": "epoch-publish", "storage": "epoch", "order": "release", "value": 1 },
+        { "op": "atomicNotify", "task": "root", "id": "epoch-notify", "storage": "epoch", "mode": "all" },
+        { "op": "atomicWaitResume", "task": "waiter", "id": "wait-resume", "storage": "epoch", "order": "relaxed", "observes": "epoch-publish", "ticket": 0 }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitOrderMismatch", "operation": 9 }
+    },
+    {
+      "id": "E0-atomic-exclusive-waits-for-waiters",
+      "references": [{ "path": "../reference/last-light/synchronization.w", "symbol": "withExclusive(...) while" }],
+      "decisions": ["W-1202", "W-1203", "W-1205"],
+      "operations": [
+        { "op": "reserveTask", "task": "root" },
+        { "op": "publishTask", "task": "root", "id": "root-start" },
+        { "op": "createStorage", "task": "root", "id": "epoch-create", "storage": "epoch", "mode": "atomic" },
+        { "op": "atomicStore", "task": "root", "id": "epoch-initial", "storage": "epoch", "order": "relaxed", "value": 0 },
+        { "op": "reserveTask", "task": "waiter", "parent": "root" },
+        { "op": "publishTask", "task": "waiter", "id": "waiter-start", "after": "root-start" },
+        { "op": "atomicWaitStart", "task": "waiter", "id": "wait-register", "storage": "epoch", "order": "acquire", "expected": 0, "observes": "epoch-initial", "ticket": 0 },
+        { "op": "beginAtomicExclusive", "task": "root", "id": "exclusive", "storage": "epoch", "token": "epoch-token", "authority": "inout" }
+      ],
+      "expected": { "status": "rejected", "code": "atomicWaitersActive", "operation": 7 }
     }
   ]
 }

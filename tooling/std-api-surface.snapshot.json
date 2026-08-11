@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "f8bc2a06a0d83086d379e4394996b110bd32db47eba9052a852c699df8d7fb79",
+  "catalogDigest": "0a452c903b8a11480f4cbc942197f5aa08d84792ff85c158f7476016d515ebf2",
   "summary": {
     "modules": 22,
     "catalogedApis": 320,

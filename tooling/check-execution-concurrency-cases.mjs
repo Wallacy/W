@@ -75,6 +75,9 @@ function compactState(state) {
     ...(Object.keys(state.atomicExclusive).length > 0
       ? { atomicExclusive: state.atomicExclusive }
       : {}),
+    ...(Object.keys(state.atomicWaitQueues).length > 0
+      ? { atomicWaitQueues: state.atomicWaitQueues }
+      : {}),
     ...(Object.keys(state.domains).length > 0 ? { domains: state.domains } : {}),
     lastFailFastTrigger: state.lastFailFastTrigger,
     lastArbitration: state.lastArbitration,

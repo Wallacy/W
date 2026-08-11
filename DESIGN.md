@@ -129,6 +129,7 @@ spawn<.compute> let plan = optimize(take snapshot)
 | proteger critical section curta | `Mutex` ou `AsyncMutex` | closure scoped; sem guard ou suspensão enquanto protege |
 | publicar versão read-heavy | `SnapshotCell` | readers veem versões completas; reclamation é automática |
 | atualizar scalar concorrente | `var atomic` | operação, extent e memory order explícitos ou sequenciais |
+| esperar mudança atômica | `await value.wait(whileEqual:)` | suspensão cancelável; notification e lifetime explícitos |
 
 `async` na declaration fixa um contrato quando a interface precisa dele; a HIR
 também infere suspensão. `spawn` não significa thread nem paralelismo por si só.
@@ -8631,7 +8632,7 @@ declara domain, participants, retired bounds, deleter context, shutdown,
 memory orders e progress por target.
 
 Safe W usa owner único, `shared`, scopes, services, channels, locks ou
-[`SnapshotCell`](#12107-snapshotcell). `Atomic<shared T>` continua rejeitado.
+[`SnapshotCell`](#12108-snapshotcell). `Atomic<shared T>` continua rejeitado.
 Uma collection concorrente pode usar reclamation interna `unsafe`, mas publica
 bounds, progress, cleanup e fault behavior.
 
@@ -9358,7 +9359,10 @@ O resumo não desaparece quando o nome concreto é indireto.
 `await` em callable `neverSuspend` pode produzir uma informação removível. Ele
 não altera o resultado. Não existe call-site `sync` genérico. A espera blocking
 geral é rejeitada, pois pode deadlockar um domain serial ou causar reentrância.
-Uma boundary host bounded e dedicada permanece **Pesquisa** e não é fix-it.
+**W-1204 — boundary blocking:** uma call foreign marcada `blocking` usa
+`spawn<.blocking>` ou uma fault boundary física, conforme a seção 12.11. Essa
+adaptação não é um fix-it automático: ela muda placement, cancellation,
+ownership e failure.
 
 Os diagnostics desta policy são:
 
@@ -11209,7 +11213,95 @@ O lifetime da localização cobre todas as operações. Destruir um `Atomic<T>` 
 o owner de um payload publicado exige que nenhuma operação futura possa usar
 esse storage. Release/acquire não substitui essa prova.
 
-#### 12.10.6 Locks síncronos e assíncronos
+#### 12.10.6 Espera atômica suspensiva
+
+**W-1201 — superfície de espera:** `Atomic<T>.wait` suspende a task enquanto a
+representação atômica é igual ao valor informado. A operação devolve uma
+representação diferente observada pela load que conclui a call. `notifyOne` e
+`notifyAll` são operações síncronas e retornam `Unit`.
+
+```w
+var observed = revision.load<.acquire>()
+
+while observed < minimumRevision {
+  observed = await revision.wait<.acquire>(whileEqual: observed)
+}
+
+revision.store<.release>(nextRevision)
+revision.notifyAll()
+```
+
+O contrato estático de `wait` aceita `LoadOrder`. A forma sem contrato usa
+`.sequential`. `wait` é `maySuspend` e um cancellation point; o compiler infere
+esse efeito como em qualquer outra call suspensiva. Store, RMW e
+compare-exchange não notificam implicitamente.
+
+O fast path faz uma load e retorna sem criar waiter quando o valor já difere.
+O slow path executa check, registro e novo check como uma operação lógica única.
+Uma modificação e notification concorrentes não podem se perder entre essas
+etapas. Wake espúria do host fica interna: W volta a verificar e só retorna um
+valor diferente de `whileEqual`.
+
+Suspender libera o permit runnable de um domain serial como qualquer `await`.
+O frame e suas obrigações continuam vivos. Cada task fornece seu próprio waiter
+node, e a parking table usa buckets bounded pelo execution profile. O fast path
+não aloca nem entra nessa table.
+
+**W-1202 — tickets e cancelamento:** cada localização possui tickets
+monotônicos. `notifyOne` seleciona o waiter elegível mais antigo; `notifyAll`
+seleciona todos os elegíveis. Um waiter é elegível quando a modification order
+contém uma representação posterior diferente do valor esperado.
+
+Cancellation antes do commit da notification remove o ticket e drena o
+registro. Depois do commit, a notification vence; `wait` devolve o valor, e o
+signal continua pendente para o próximo cancellation point. Destruir, mover ou
+abrir `withExclusive` sobre o wrapper exige zero waiters. `Task.withTimeout`
+compõe timeout sem outra variante de `wait`.
+
+O receiver precisa de identidade e endereço estáveis durante o slow path. Um
+binding local que cruza `await` fica no frame estável da task; o compiler cria
+esse placement sem `pin` no source. Storage que pode mover ou terminar antes do
+drain é rejeitado. O ticket mantém uma obrigação runtime, não um owner do
+payload. A parking key inclui a generation do storage; uma notification tardia
+não alcança outro `Atomic` que reutilizou o mesmo endereço físico.
+
+O checker registra um loan `ref Atomic<T>` até retorno ou cancel drain. Esse
+loan não abre `T`, mas impede move, drop e `withExclusive` durante a espera.
+
+**W-1203 — memória e provider:** `notifyOne` e `notifyAll` não são fences e não
+criam `synchronizes-with`. O edge vem da load que conclui `wait`: uma load
+`.acquire` sincroniza com a release ou release sequence que ela observa. Uma
+notification antes da modificação não publica dados.
+
+Como a comparação usa a representação corrente, `wait` não detecta uma mudança
+transitória que voltou ao valor esperado. Protocolos de evento usam um contador
+de generation amplo o suficiente em vez de um Boolean reutilizado.
+
+O provider pode usar futex, `WaitOnAddress`, WebAssembly atomic wait ou uma
+parking table da runtime. Ele pode acordar threads extras, mas somente os
+tickets selecionados concluem. Um profile sem task parking rejeita `wait`; as
+demais operações `Atomic<T>` continuam disponíveis. O fallback não faz spin
+ilimitado nem bloqueia silenciosamente um worker cooperativo.
+
+Uma primitive host bloqueante só entra quando o profile estaciona uma thread
+dedicada. Um executor cooperativo usa a parking table e retoma a task como job;
+ele não chama futex ou `WaitOnAddress` no worker que executa outras tasks.
+
+`lockFree: true` não torna `wait` lock-free. Interrupts, signal handlers e
+outros contexts que não podem suspender usam somente operações atômicas
+compatíveis com seu profile.
+
+`Atomic.wait/notify` é a primitive avançada por palavra. Channel, task outcome,
+service, domain e `SnapshotCell` continuam preferíveis quando também precisam
+transportar ownership, close, failure ou uma versão completa. Condition
+variable continua fora da safe std. Barreira cíclica permanece Pesquisa.
+
+**W-1205 — evidence E0:** a máquina host deriva fast path, registro sem wake
+perdida, FIFO, notify one/all, cancel race, drain, ABA, orders e
+release/acquire. Ela não executa W nem implementa scheduler, parking provider
+ou runtime.
+
+#### 12.10.7 Locks síncronos e assíncronos
 
 **W-1181 — lock escopado:** os locks safe são owners move-only e shareable. A
 inicialização consome `T<(.transferable && .lifetimeIndependent)>`; o payload
@@ -11300,7 +11392,7 @@ oferece. Esta tabela fecha a baseline safe:
 | inicialização estática | const/module initialization | não cria ordem de inicialização runtime |
 | inicialização tardia | `var Lazy` | `Once` raw e async lazy rejeitados na baseline |
 | join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
-| park por palavra atômica | primitive privada do runtime | `Atomic.wait/notify` público permanece Pesquisa |
+| park por palavra atômica | `await Atomic.wait` + `notifyOne`/`notifyAll` | baixo nível; não transporta ownership ou close |
 
 **W-1189 — read/write síncrono:** `ReadWriteLock<T>` é a Forma vigente para
 storage síncrono ou freestanding com reads simultâneos e write exclusivo. Ele
@@ -11359,8 +11451,8 @@ writer exclusivo, ticket sem bypass, `try*`, blocking diagnostics, memory edges,
 failure, drain e seleção entre storage e domain. O oracle não executa W nem
 implementa o provider.
 
-Condition variable, barreira CPU reutilizável e `Atomic.wait/notify` não entram
-na baseline safe. Uma barreira de device pertence ao contract do kernel.
+Condition variable e barreira CPU reutilizável não entram na baseline safe. Uma
+barreira de device pertence ao contract do kernel.
 `var Lazy` fecha inicialização tardia; seu provider de parking permanece
 missing.
 
@@ -11377,7 +11469,7 @@ service DiningRoom {
 }
 ```
 
-#### 12.10.7 `SnapshotCell`
+#### 12.10.8 `SnapshotCell`
 
 **W-1178 — snapshot publicado:** `SnapshotCell<T>` é o caminho safe para state
 read-heavy com versões imutáveis. Ele exige
@@ -11454,7 +11546,7 @@ owner explícito atrás de service, domain ou lock. A baseline também não exp�
 `tryPublish`: falha de allocation antes da publicação segue a policy normal de
 OOM e mantém a versão anterior corrente.
 
-#### 12.10.8 Diagnostics e gate
+#### 12.10.9 Diagnostics e gate
 
 O compiler usa a família `W-SNAPSHOT-*` e rejeita:
 
@@ -11467,6 +11559,8 @@ O compiler usa a família `W-SNAPSHOT-*` e rejeita:
 - acesso atômico e não atômico aos mesmos bytes;
 - operações atômicas com extent parcialmente sobreposto;
 - operação durante `withExclusive` ou depois do fim do lifetime;
+- `wait` com order de store, storage instável ou waiter não drenado;
+- provider de parking ausente no profile selecionado;
 - callback de `SnapshotCell.read` que suspende ou deixa uma dependency escapar;
 - payload de snapshot sem os três facts exigidos;
 - mutation da versão publicada ou cópia do owner `SnapshotCell`.
@@ -28102,7 +28196,8 @@ antes de sair do scope.
 - blocking adapter, drain e callback scheduling;
 - `TaskLocal<T>` estruturado e `ThreadLocal<T>` com accessor síncrono;
 - locks escopados, dispatch de barreira e topology types bounded;
-- protótipos separados para lazy concorrente, barreira cíclica e atomic wait/notify;
+- provider e benchmark de lazy concorrente e atomic wait/notify;
+- protótipo separado para barreira cíclica;
 - HIR verificada antes do lowering async;
 - executor cooperativo e pool paralelo bounded;
 - schema de domain e `executionProfiles` data-only;

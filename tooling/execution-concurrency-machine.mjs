@@ -26,6 +26,7 @@ const ATOMIC_FENCE_ORDERS = new Set([
 const ATOMIC_EXCLUSIVE_AUTHORITIES = new Set(["ref", "inout", "consumed"]);
 const COMPARE_EXCHANGE_RESULTS = new Set(["exchanged", "mismatch"]);
 const DISPATCH_MODES = new Set(["ordinary", "barrier"]);
+const ATOMIC_NOTIFY_MODES = new Set(["one", "all"]);
 
 export class ExecutionConcurrencyError extends Error {
   constructor(code) {
@@ -36,6 +37,14 @@ export class ExecutionConcurrencyError extends Error {
 
 function clone(value) {
   return structuredClone(value);
+}
+
+function isAtomicValue(value) {
+  return (
+    typeof value === "boolean" ||
+    typeof value === "string" ||
+    (Number.isInteger(value) && Number.isSafeInteger(value))
+  );
 }
 
 function requireTask(state, name) {
@@ -191,6 +200,51 @@ function requireLatestModification(state, operation) {
 function appendAtomicModification(state, eventId) {
   const event = state.events[eventId];
   atomicModificationOrder(state, event.atomicLocation).push(eventId);
+}
+
+function latestAtomicModification(state, operation) {
+  const order = state.atomicModificationOrder[atomicLocationKey(operation)] ?? [];
+  const eventId = order.at(-1);
+  return eventId ? { eventId, event: state.events[eventId] } : null;
+}
+
+function atomicValuesEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function requireAtomicWaitStorage(state, operation) {
+  const lifetime = requireLiveStorage(state, operation.storage);
+  if (!lifetime || lifetime.mode !== "atomic") {
+    throw new ExecutionConcurrencyError("atomicWaitRequiresStableStorage");
+  }
+  checkAtomicAvailability(state, operation);
+  return lifetime;
+}
+
+function atomicWaitQueue(state, operation) {
+  const location = atomicLocationKey(operation);
+  state.atomicWaitQueues[location] ??= {
+    nextTicket: 0,
+    waiters: [],
+    history: [],
+  };
+  return { location, queue: state.atomicWaitQueues[location] };
+}
+
+function activeAtomicWaiters(state, storage) {
+  return Object.entries(state.atomicWaitQueues)
+    .filter(([location]) => location.startsWith(`${storage}@`))
+    .flatMap(([, queue]) => queue.waiters);
+}
+
+function requireAtomicWaiter(state, operation) {
+  const queue = state.atomicWaitQueues[atomicLocationKey(operation)];
+  if (!queue) throw new ExecutionConcurrencyError("atomicWaiterNotRegistered");
+  const waiter = queue.waiters.find((candidate) => candidate.ticket === operation.ticket);
+  if (!waiter || waiter.task !== operation.task) {
+    throw new ExecutionConcurrencyError("atomicWaiterNotRegistered");
+  }
+  return { queue, waiter };
 }
 
 function recordSequentialOperation(state, eventId) {
@@ -466,6 +520,9 @@ function applyOperation(state, operation) {
       if (state.atomicExclusive[operation.storage]) {
         throw new ExecutionConcurrencyError("storageDestroyedDuringExclusivePayload");
       }
+      if (activeAtomicWaiters(state, operation.storage).length > 0) {
+        throw new ExecutionConcurrencyError("atomicWaitersNotDrained");
+      }
       addEvent(state, operation, { task: operation.task, kind: "storageDestroy" });
       lifetime.live = false;
       return;
@@ -705,6 +762,7 @@ function applyOperation(state, operation) {
       const candidate = atomicEvent(operation, "atomicStore", "write", operation.order, {
         atomicModification: true,
         rmw: false,
+        ...(operation.value === undefined ? {} : { value: clone(operation.value) }),
       });
       checkMemoryAccess(state, candidate);
       const event = addEvent(state, operation, candidate);
@@ -737,6 +795,7 @@ function applyOperation(state, operation) {
         atomicModification: true,
         rmw: true,
         observes: operation.observes,
+        ...(operation.value === undefined ? {} : { value: clone(operation.value) }),
       });
       checkMemoryAccess(state, candidate);
       const event = addEvent(state, operation, candidate);
@@ -764,6 +823,7 @@ function applyOperation(state, operation) {
           atomicModification: exchanged,
           rmw: exchanged,
           weak: operation.weak ?? false,
+          ...(operation.value === undefined ? {} : { value: clone(operation.value) }),
         },
       );
       checkMemoryAccess(state, candidate);
@@ -801,6 +861,180 @@ function applyOperation(state, operation) {
       }
       return;
     }
+    case "atomicWaitStart": {
+      if (!ATOMIC_LOAD_ORDERS.has(operation.order)) {
+        throw new ExecutionConcurrencyError("invalidAtomicWaitOrder");
+      }
+      const task = requireTask(state, operation.task);
+      requireState(task, "published", "atomicWaitRequiresPublishedTask");
+      requireAtomicWaitStorage(state, operation);
+      const latest = latestAtomicModification(state, operation);
+      if (!latest || latest.eventId !== operation.observes || latest.event.value === undefined) {
+        throw new ExecutionConcurrencyError("atomicWaitObservationMismatch");
+      }
+
+      const waiting = atomicValuesEqual(latest.event.value, operation.expected);
+      if (waiting && operation.ticket === undefined) {
+        throw new ExecutionConcurrencyError("atomicWaitTicketMissing");
+      }
+      const location = atomicLocationKey(operation);
+      const nextTicket = state.atomicWaitQueues[location]?.nextTicket ?? 0;
+      if (waiting && operation.ticket !== nextTicket) {
+        throw new ExecutionConcurrencyError("atomicWaitTicketOutOfOrder");
+      }
+      const waits = waiting ? atomicWaitQueue(state, operation) : null;
+      const candidate = atomicEvent(
+        operation,
+        waiting ? "atomicWaitRegistered" : "atomicWaitImmediate",
+        "read",
+        operation.order,
+        {
+          observes: operation.observes,
+          expected: clone(operation.expected),
+          ...(operation.ticket === undefined ? {} : { ticket: operation.ticket }),
+          waiting,
+        },
+      );
+      checkMemoryAccess(state, candidate);
+      const event = addEvent(state, operation, candidate);
+
+      if (waiting) {
+        waits.queue.nextTicket += 1;
+        waits.queue.waiters.push({
+          task: operation.task,
+          ticket: operation.ticket,
+          expected: clone(operation.expected),
+          order: operation.order,
+          state: "waiting",
+          registered: event,
+          notification: null,
+          observed: null,
+        });
+      } else {
+        synchronizeAcquire(state, operation.observes, event, operation.order);
+      }
+      return;
+    }
+    case "atomicNotify": {
+      requireTask(state, operation.task);
+      requireAtomicWaitStorage(state, operation);
+      const location = atomicLocationKey(operation);
+      const queue = state.atomicWaitQueues[location];
+      const latest = latestAtomicModification(state, operation);
+      const eligible = latest && queue
+        ? queue.waiters
+            .filter(
+              (waiter) =>
+                waiter.state === "waiting" &&
+                latest.event.value !== undefined &&
+                !atomicValuesEqual(latest.event.value, waiter.expected),
+            )
+            .sort((left, right) => left.ticket - right.ticket)
+        : [];
+      const selected = operation.mode === "one" ? eligible.slice(0, 1) : eligible;
+      const event = addEvent(state, operation, {
+        task: operation.task,
+        kind: operation.mode === "one" ? "atomicNotifyOne" : "atomicNotifyAll",
+        storage: operation.storage,
+        atomicLocation: location,
+        wokenTickets: selected.map((waiter) => waiter.ticket),
+      });
+      for (const waiter of selected) {
+        waiter.state = "notified";
+        waiter.notification = event;
+        waiter.observed = latest.eventId;
+      }
+      return;
+    }
+    case "atomicWaitResume": {
+      requireAtomicWaitStorage(state, operation);
+      const { queue, waiter } = requireAtomicWaiter(state, operation);
+      if (waiter.state !== "notified") {
+        throw new ExecutionConcurrencyError("atomicWaitNotNotified");
+      }
+      if (waiter.order !== operation.order) {
+        throw new ExecutionConcurrencyError("atomicWaitOrderMismatch");
+      }
+      const latest = latestAtomicModification(state, operation);
+      if (!latest || latest.eventId !== operation.observes || latest.event.value === undefined) {
+        throw new ExecutionConcurrencyError("atomicWaitObservationMismatch");
+      }
+      if (atomicValuesEqual(latest.event.value, waiter.expected)) {
+        throw new ExecutionConcurrencyError("atomicWaitValueUnchanged");
+      }
+      const candidate = atomicEvent(operation, "atomicWaitResumed", "read", operation.order, {
+        observes: operation.observes,
+        expected: clone(waiter.expected),
+        ticket: operation.ticket,
+        notification: waiter.notification,
+      });
+      checkMemoryAccess(state, candidate);
+      const event = addEvent(state, operation, candidate);
+      synchronizeAcquire(state, operation.observes, event, operation.order);
+      queue.waiters = queue.waiters.filter((candidateWaiter) => candidateWaiter !== waiter);
+      queue.history.push({
+        task: operation.task,
+        ticket: operation.ticket,
+        outcome: "resumed",
+        observed: operation.observes,
+        notification: waiter.notification,
+      });
+      return;
+    }
+    case "atomicWaitRecheck": {
+      requireAtomicWaitStorage(state, operation);
+      const { waiter } = requireAtomicWaiter(state, operation);
+      if (waiter.state !== "notified") {
+        throw new ExecutionConcurrencyError("atomicWaitNotNotified");
+      }
+      if (waiter.order !== operation.order) {
+        throw new ExecutionConcurrencyError("atomicWaitOrderMismatch");
+      }
+      const latest = latestAtomicModification(state, operation);
+      if (!latest || latest.eventId !== operation.observes || latest.event.value === undefined) {
+        throw new ExecutionConcurrencyError("atomicWaitObservationMismatch");
+      }
+      if (!atomicValuesEqual(latest.event.value, waiter.expected)) {
+        throw new ExecutionConcurrencyError("atomicWaitRecheckValueChanged");
+      }
+      const candidate = atomicEvent(operation, "atomicWaitReparked", "read", operation.order, {
+        observes: operation.observes,
+        expected: clone(waiter.expected),
+        ticket: operation.ticket,
+        notification: waiter.notification,
+      });
+      checkMemoryAccess(state, candidate);
+      addEvent(state, operation, candidate);
+      waiter.state = "waiting";
+      waiter.notification = null;
+      waiter.observed = null;
+      return;
+    }
+    case "atomicWaitCancel": {
+      requireAtomicWaitStorage(state, operation);
+      const task = requireTask(state, operation.task);
+      if (!hasCancellation(task)) {
+        throw new ExecutionConcurrencyError("atomicWaitCancelWithoutSignal");
+      }
+      const { queue, waiter } = requireAtomicWaiter(state, operation);
+      const notificationWon = waiter.state === "notified";
+      addEvent(state, operation, {
+        task: operation.task,
+        kind: "atomicWaitCancellation",
+        storage: operation.storage,
+        ticket: operation.ticket,
+        outcome: notificationWon ? "notificationWon" : "canceled",
+      });
+      if (!notificationWon) {
+        queue.waiters = queue.waiters.filter((candidateWaiter) => candidateWaiter !== waiter);
+        queue.history.push({
+          task: operation.task,
+          ticket: operation.ticket,
+          outcome: "canceled",
+        });
+      }
+      return;
+    }
     case "beginAtomicExclusive": {
       requireTask(state, operation.task);
       const lifetime = requireLiveStorage(state, operation.storage);
@@ -815,6 +1049,9 @@ function applyOperation(state, operation) {
       }
       if (state.atomicExclusive[operation.storage]) {
         throw new ExecutionConcurrencyError("atomicPayloadAlreadyExclusive");
+      }
+      if (activeAtomicWaiters(state, operation.storage).length > 0) {
+        throw new ExecutionConcurrencyError("atomicWaitersActive");
       }
       addEvent(state, operation, { task: operation.task, kind: "atomicExclusiveBegin" });
       state.atomicExclusive[operation.storage] = {
@@ -1068,6 +1305,7 @@ export function validateExecutionOperation(operation) {
         idTask() &&
         string("storage") &&
         ATOMIC_ORDERS.has(operation.order) &&
+        (operation.value === undefined || isAtomicValue(operation.value)) &&
         memoryRange()
       );
     case "atomicLoad":
@@ -1084,6 +1322,7 @@ export function validateExecutionOperation(operation) {
         string("storage") &&
         string("observes") &&
         ATOMIC_ORDERS.has(operation.order) &&
+        (operation.value === undefined || isAtomicValue(operation.value)) &&
         memoryRange()
       );
     case "atomicCompareExchange":
@@ -1095,6 +1334,7 @@ export function validateExecutionOperation(operation) {
         ATOMIC_ORDERS.has(operation.failureOrder) &&
         COMPARE_EXCHANGE_RESULTS.has(operation.result) &&
         (operation.weak === undefined || typeof operation.weak === "boolean") &&
+        (operation.value === undefined || isAtomicValue(operation.value)) &&
         memoryRange()
       );
     case "atomicFence":
@@ -1102,6 +1342,52 @@ export function validateExecutionOperation(operation) {
         idTask() &&
         ATOMIC_ORDERS.has(operation.order) &&
         (operation.observes === undefined || string("observes"))
+      );
+    case "atomicWaitStart":
+      return (
+        idTask() &&
+        string("storage") &&
+        string("observes") &&
+        ATOMIC_ORDERS.has(operation.order) &&
+        isAtomicValue(operation.expected) &&
+        (operation.ticket === undefined ||
+          (Number.isInteger(operation.ticket) && operation.ticket >= 0)) &&
+        memoryRange()
+      );
+    case "atomicNotify":
+      return (
+        idTask() &&
+        string("storage") &&
+        ATOMIC_NOTIFY_MODES.has(operation.mode) &&
+        memoryRange()
+      );
+    case "atomicWaitResume":
+      return (
+        idTask() &&
+        string("storage") &&
+        string("observes") &&
+        ATOMIC_LOAD_ORDERS.has(operation.order) &&
+        Number.isInteger(operation.ticket) &&
+        operation.ticket >= 0 &&
+        memoryRange()
+      );
+    case "atomicWaitRecheck":
+      return (
+        idTask() &&
+        string("storage") &&
+        string("observes") &&
+        ATOMIC_LOAD_ORDERS.has(operation.order) &&
+        Number.isInteger(operation.ticket) &&
+        operation.ticket >= 0 &&
+        memoryRange()
+      );
+    case "atomicWaitCancel":
+      return (
+        idTask() &&
+        string("storage") &&
+        Number.isInteger(operation.ticket) &&
+        operation.ticket >= 0 &&
+        memoryRange()
       );
     case "beginAtomicExclusive":
       return (
@@ -1171,6 +1457,7 @@ export function runExecutionProgram(operations) {
     atomicModificationOrder: {},
     sequentialOrder: [],
     atomicExclusive: {},
+    atomicWaitQueues: {},
     domains: {},
     lastFailFastTrigger: null,
     lastArbitration: null,
