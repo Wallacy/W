@@ -10384,6 +10384,69 @@ target, adapter e digest. Essa forma é **Provável** somente dentro de
 `foreign` ou de um runtime provider. Uma assertion local do usuário fica
 **Rejeitado**.
 
+#### 12.7.1 Composição automática de ownership e execução MX0
+
+**Exemplo:** duas courses são movidas para children diferentes. O parent recebe
+os resultados somente depois que cleanup e join fecham os dois caminhos:
+
+```w
+async let local = finishCourse(take localCourse)
+spawn<.compute> let parallel = finishCourse(take parallelCourse)
+let (localResult, parallelResult) = await (local, parallel)
+```
+
+**W-1185 — plano único de ownership:** call direta, `await`, `async let` e
+`spawn` usam os mesmos `PlaceId`, `LoanId`, `OriginSet`, owner deltas e drop
+obligations. A forma de execução muda task e placement; ela não cria uma segunda
+semântica de memória.
+
+| Forma | Owner e storage | Autoridade do parent |
+|---|---|---|
+| call direta | permanece na activation atual | segue a assinatura durante a call |
+| `await` | permanece na task atual; values live podem ir para o resumable frame | loans que cruzam suspensão exigem referent estável |
+| `async let` | argumentos e captures passam por staging e depois pertencem ao child | depende de `take`, `copy`, `ref` ou `inout` até o join |
+| `spawn<domain>` | usa o mesmo staging e acrescenta os facts do domínio destino | aplica também `transferable`, `shareable` e affinity |
+
+O compiler pode escolher register, stack, task frame ou heap para implementar o
+plano. Ele não insere `copy`, `share`, ARC ou GC para fazer um programa inválido
+passar. `copy` e ownership compartilhado permanecem decisões observáveis do
+source ou de uma API explícita.
+
+**W-1186 — staging e fechamento:** callee, argumentos e captures são avaliados
+uma vez no parent. Antes da publicação, owners consumidos pertencem ao staging.
+Depois da publicação, pertencem ao child. Falha de avaliação não cria handle;
+budget rejection cria o handle inline canceled e limpa o staging uma vez. Em
+success, error ou cancellation, o outcome só fica disponível depois destas
+etapas:
+
+```text
+body settled → cleanup dos captures → drop ou outcome owner
+             → loans drenados → outcome committed → join
+```
+
+Um owner `take` não volta por error ou cancellation. Ele volta somente quando o
+success result o contém. Uma capture `copy` preserva o owner original e limpa a
+cópia do child. `ref` e `inout` preservam o owner original; a reserva lexical do
+loan termina no join, mesmo quando o cleanup físico terminou antes.
+
+**W-1187 — publicação não concede ownership:** o edge child-complete→join torna
+efeitos e mutation autorizada visíveis. Ele não ressuscita um binding movido,
+não transforma `ref` em `inout` e não prolonga uma origin. Cancellation também
+não publica state parcial e não executa rollback. Scope exit cancela, drena e
+faz join dos children restantes antes de liberar owners e frames do parent.
+
+Inline execution, queue serial, pool paralelo ou coroutine lowering precisam
+produzir o mesmo owner graph, outcome, drop ledger e happens-before projection.
+Diferenças físicas podem aparecer no trace e em `w explain execution`; elas não
+podem mudar o resultado lógico.
+
+**W-1188 — evidence MX0:** o oracle cross-axis precisa inverter staging,
+transfer, loans, admission, cancellation, cleanup, outcome, join e drop no mesmo
+witness. M1 continua autoridade para memória, E0 para ordering e E1 para runtime
+closure. MX0 prova somente a composição entre esses contratos. Evidência,
+contagens e limites ficam em
+[`RATIONALE.md` §1.15](RATIONALE.md#115-evidence-de-memória-e-execução).
+
 ### 12.8 Task groups e backpressure
 
 Estrutura estática usa `async let` ou `spawn<domain> let`. Coleções dinâmicas usam
@@ -28153,8 +28216,8 @@ oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 372/1184
-decisões: 129 pelo eixo source, 282 pelo eixo oracle e oito explicitamente. Há
+declara todos os eixos obrigatórios. O freeze audit classifica 376/1188
+decisões: 129 pelo eixo source, 286 pelo eixo oracle e oito explicitamente. Há
 47 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
 eixos. As 812 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
@@ -28200,8 +28263,9 @@ outcome, cleanup e trace.
 
 W só pode ser descrito publicamente como tendo “resolvido concorrência e
 paralelismo” depois que compiler, runtime e adapters reais passarem E0/E1 e as
-matrizes de profiles/providers cobrirem os targets prometidos. Antes disso, a
-forma correta é “contrato definido; implementação missing”.
+matrizes de profiles/providers cobrirem os targets prometidos. MX0 também deve
+provar que os mesmos schedules preservam owner graph, cleanup e drop. Antes
+disso, a forma correta é “contrato definido; implementação missing”.
 
 ### 24.3.2 Gate de gerência automática de memória
 
@@ -28214,9 +28278,10 @@ annotations; quando placement entre register, stack, frame, heap e arena não
 mudar o resultado; e quando `shared`, pinning, FFI e OOM preservarem seus
 contratos explícitos.
 
-M1, A0, SP0, ABI e adapters reais devem passar os mesmos casos em debug e release.
-Até esse ponto, a forma correta é “modelo de memória definido; implementação
-missing”. O gate não exige GC ou reference counting como estratégia universal.
+M1, A0, SP0, MX0, ABI e adapters reais devem passar os mesmos casos em debug e
+release. Até esse ponto, a forma correta é “modelo de memória definido;
+implementação missing”. O gate não exige GC ou reference counting como
+estratégia universal.
 
 ### 24.4 Artefatos que ainda bloqueiam o design freeze
 

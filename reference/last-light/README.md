@@ -220,6 +220,7 @@ alvo de execução independente.
 | `lifecycle_oracle.w` | transições de task, turn de service e commit uncertainty |
 | `scheduler_oracle.w` | replay lógico, packing físico e fault outcomes determinísticos |
 | `liveness_oracle.w` | runtime closure E1, waits, completion/cancel races, frame/outcome reclamation e shutdown |
+| `ownership_execution_oracle.w` | composição MX0 entre ownership, suspensão, child staging, cleanup, outcome e join |
 | `domain_oracle.w` | seleção de domain, admission e redução bounded de capacity |
 | `remote_stream_oracle.w` | eligibility, créditos, lifecycle, fault points e relay de service stream |
 | `transaction_oracle.w` | transaction scope local/remoto, commit e incerteza |
@@ -1833,6 +1834,32 @@ Aceite:
 O corpus E1 não é runtime W. Ele não prova scheduler, clock, OS I/O, fairness
 absoluta, hazard/epoch/RCU, device scopes, recovery distribuído ou terminação de
 user code.
+
+### 3.30.2 Ownership e execução MX0
+
+Famílias: owner graph, suspensão, staging, mobility, loans, admission,
+cancellation, cleanup, outcome, join e drop.
+
+`ownership_execution_oracle.w` usa as quatro formas de execução no mesmo fluxo.
+O corpus host possui 46 casos, 274 operações e 14 testes independentes. Ele
+aceita:
+
+- call direta e `await` na task corrente sem inventar `share`;
+- `async let` e `spawn` com captures `take`, `copy`, `ref` e `inout` explícitos;
+- owner em staging antes da publicação e no child depois dela;
+- rejection de admission sem body e com cleanup único;
+- cleanup antes de outcome committed e join;
+- mutation por `inout` visível somente depois do join;
+- saída de escopo que cancela, drena, faz join e destrói resultados ignorados;
+- lowering inline ou queued com o mesmo estado lógico.
+
+Ele rejeita uso do parent durante `await`, binding movido, borrow instável,
+capture incompatível com o domínio, join prematuro ou repetido, owner em outcome
+de falha, child órfão e saída sem progress cooperativo. O preflight de saída não
+altera siblings quando o drain não pode começar.
+
+MX0 não executa W. Ele compõe M1, E0 e E1 e não substitui o checker, allocator,
+scheduler, runtime ou provider.
 
 ### 3.31 Balcão dos Oito Bits e das Sessenta e Quatro Colheres
 

@@ -17,6 +17,7 @@
     "check:docs": "bun run --cwd tooling/tree-sitter-w check:docs",
     "check:execution": "bun tooling/check-execution-concurrency-cases.mjs",
     "check:execution-ergonomics": "bun test tooling/execution-ergonomics-reference.test.mjs && bun tooling/check-execution-ergonomics-cases.mjs",
+    "check:ownership-execution": "bun test tooling/ownership-execution-reference.test.mjs && bun tooling/check-ownership-execution-cases.mjs",
     "check:liveness": "bun test tooling/runtime-liveness-reference.test.mjs && bun tooling/check-runtime-liveness-cases.mjs",
     "check:locks": "bun test tooling/scoped-lock-reference.test.mjs && bun tooling/check-scoped-lock-cases.mjs",
     "check:links": "bun tooling/check-markdown-links.mjs",

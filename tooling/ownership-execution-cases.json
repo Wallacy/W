@@ -1,0 +1,694 @@
+{
+  "$schema": "w-ownership-execution-cases-1",
+  "status": "design-oracle-input",
+  "cases": [
+    {
+      "id": "MX0-accepted-direct-keeps-owner",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectDirect" },
+      "decisions": ["W-1185", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "c1", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "directAccess", "owner": "course", "access": "read" },
+        { "op": "dropOwner", "owner": "course" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "taskPhases": [] }
+    },
+    {
+      "id": "MX0-accepted-await-stable-frame",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectAfterYield" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "c2", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "suspendParent", "owner": "course", "mode": "ref", "referentStable": true, "originSurvives": true },
+        { "op": "resumeParent" },
+        { "op": "directAccess", "owner": "course", "access": "read" },
+        { "op": "dropOwner", "owner": "course" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "parentSuspended": false, "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-accepted-async-take-return",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1185", "W-1186", "W-1187", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "local", "value": "c3", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "localTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "local" }] },
+        { "op": "admitChild", "task": "localTask", "accepted": true },
+        { "op": "startChild", "task": "localTask" },
+        { "op": "childAccess", "task": "localTask", "owner": "local", "access": "write", "value": "c3-finished" },
+        { "op": "settleChild", "task": "localTask", "outcome": "success", "returnOwners": ["local"] },
+        { "op": "finishCleanup", "task": "localTask" },
+        { "op": "joinChild", "task": "localTask", "bindings": { "local": "localResult" } },
+        { "op": "dropOwner", "owner": "localResult" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "outcomes": ["success"], "droppedOwners": ["localResult"], "happensBefore": ["stage:localTask->start:localTask", "commit:localTask->join:localTask"] }
+    },
+    {
+      "id": "MX0-accepted-spawn-take-return",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1185", "W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "parallel", "value": "c4", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "parallelTask", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "take", "owner": "parallel" }] },
+        { "op": "admitChild", "task": "parallelTask", "accepted": true },
+        { "op": "startChild", "task": "parallelTask" },
+        { "op": "settleChild", "task": "parallelTask", "outcome": "success", "returnOwners": ["parallel"] },
+        { "op": "finishCleanup", "task": "parallelTask" },
+        { "op": "joinChild", "task": "parallelTask", "bindings": { "parallel": "parallelResult" } },
+        { "op": "dropOwner", "owner": "parallelResult" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "outcomes": ["success"], "droppedOwners": ["parallelResult"] }
+    },
+    {
+      "id": "MX0-accepted-copy-preserves-source",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "TrackedCourse" },
+      "decisions": ["W-1185", "W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "source", "value": "menu", "transferable": true, "shareable": true, "duplicable": true },
+        { "op": "stageChild", "task": "copyTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "copy", "owner": "source", "as": "childCopy" }] },
+        { "op": "admitChild", "task": "copyTask", "accepted": true },
+        { "op": "startChild", "task": "copyTask" },
+        { "op": "settleChild", "task": "copyTask", "outcome": "success" },
+        { "op": "finishCleanup", "task": "copyTask" },
+        { "op": "joinChild", "task": "copyTask" },
+        { "op": "directAccess", "owner": "source", "access": "read" },
+        { "op": "dropOwner", "owner": "source" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["childCopy", "source"], "taskPhases": ["joined"] }
+    },
+    {
+      "id": "MX0-accepted-shareable-ref",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "read-only", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "reader", "accepted": true },
+        { "op": "startChild", "task": "reader" },
+        { "op": "childAccess", "task": "reader", "owner": "course", "access": "read" },
+        { "op": "directAccess", "owner": "course", "access": "read" },
+        { "op": "settleChild", "task": "reader", "outcome": "success" },
+        { "op": "finishCleanup", "task": "reader" },
+        { "op": "joinChild", "task": "reader" },
+        { "op": "dropOwner", "owner": "course" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "loanPhases": ["released"], "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-accepted-inout-visible-after-join",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "updateWithChild" },
+      "decisions": ["W-1185", "W-1186", "W-1187", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "ledger", "value": 0, "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "update", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "inout", "owner": "ledger", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "update", "accepted": true },
+        { "op": "startChild", "task": "update" },
+        { "op": "childAccess", "task": "update", "owner": "ledger", "access": "write", "value": 1 },
+        { "op": "settleChild", "task": "update", "outcome": "success" },
+        { "op": "finishCleanup", "task": "update" },
+        { "op": "joinChild", "task": "update" },
+        { "op": "directAccess", "owner": "ledger", "access": "read" },
+        { "op": "dropOwner", "owner": "ledger" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "ownerValues": { "ledger": 1 }, "loanPhases": ["released"], "happensBefore": ["stage:update->start:update", "commit:update->join:update"] }
+    },
+    {
+      "id": "MX0-accepted-admission-rejects-take-once",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "TrackedCourse" },
+      "decisions": ["W-1186", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "pressure", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "pressured", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "pressured", "accepted": false },
+        { "op": "joinChild", "task": "pressured" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "outcomes": ["canceled"], "bodyStarted": [false] }
+    },
+    {
+      "id": "MX0-accepted-admission-rejects-copy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "TrackedCourse" },
+      "decisions": ["W-1185", "W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "source", "value": "copyable", "transferable": true, "shareable": true, "duplicable": true },
+        { "op": "stageChild", "task": "pressured", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "copy", "owner": "source", "as": "copy" }] },
+        { "op": "admitChild", "task": "pressured", "accepted": false },
+        { "op": "joinChild", "task": "pressured" },
+        { "op": "directAccess", "owner": "source", "access": "read" },
+        { "op": "dropOwner", "owner": "source" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["copy", "source"], "bodyStarted": [false] }
+    },
+    {
+      "id": "MX0-accepted-admission-releases-inout-at-join",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "updateWithChild" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "ledger", "value": 0, "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "pressured", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "inout", "owner": "ledger", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "pressured", "accepted": false },
+        { "op": "joinChild", "task": "pressured" },
+        { "op": "directAccess", "owner": "ledger", "access": "write", "value": 2 },
+        { "op": "dropOwner", "owner": "ledger" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "ownerValues": { "ledger": 2 }, "loanPhases": ["released"], "outcomes": ["canceled"] }
+    },
+    {
+      "id": "MX0-accepted-evaluation-failure-has-no-handle",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "bad-argument", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "failed", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "failEvaluation", "task": "failed" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["evaluationFailed"], "droppedOwners": ["course"], "bodyStarted": [false] }
+    },
+    {
+      "id": "MX0-accepted-cancel-before-start-drains",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelTrackedCourse" },
+      "decisions": ["W-1186", "W-1187", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "cancel-before", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "cancelChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "canceled" },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "outcomes": ["canceled"], "bodyStarted": [false] }
+    },
+    {
+      "id": "MX0-accepted-cancel-active-drains",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelDiscardedCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "cancel-active", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "suspendChild", "task": "courseTask" },
+        { "op": "cancelChild", "task": "courseTask" },
+        { "op": "resumeChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "canceled" },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "outcomes": ["canceled"], "bodyStarted": [true] }
+    },
+    {
+      "id": "MX0-accepted-error-drops-before-join",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourseAfterYield" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "error", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "error" },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "outcomes": ["error"] }
+    },
+    {
+      "id": "MX0-accepted-late-cancel-keeps-success",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourseAfterYield" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "success", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "success", "returnOwners": ["course"] },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "cancelChild", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask", "bindings": { "course": "result" } },
+        { "op": "dropOwner", "owner": "result" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "outcomes": ["success"], "cancelRequested": [true], "droppedOwners": ["result"] }
+    },
+    {
+      "id": "MX0-accepted-frame-reclaims-before-join",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "frame", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "success", "returnOwners": ["course"] },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "reclaimFrame", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask", "bindings": { "course": "result" } },
+        { "op": "dropOwner", "owner": "result" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "frameReclaimed": [true], "outcomes": ["success"] }
+    },
+    {
+      "id": "MX0-accepted-inline-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1185", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "strategy", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "spawn", "domain": "compute", "strategy": "inline", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "success" },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "physicalPrefix": "inline:start" }
+    },
+    {
+      "id": "MX0-accepted-queued-strategy",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1185", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "strategy", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "courseTask", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "courseTask", "accepted": true },
+        { "op": "startChild", "task": "courseTask" },
+        { "op": "settleChild", "task": "courseTask", "outcome": "success" },
+        { "op": "finishCleanup", "task": "courseTask" },
+        { "op": "joinChild", "task": "courseTask" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "droppedOwners": ["course"], "physicalPrefix": "queued:start" }
+    },
+    {
+      "id": "MX0-accepted-scope-exit-drains-children",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelDiscardedCourse" },
+      "decisions": ["W-1186", "W-1187", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "local", "value": "local", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "createOwner", "owner": "parallel", "value": "parallel", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "localTask", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "local" }] },
+        { "op": "stageChild", "task": "parallelTask", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "take", "owner": "parallel" }] },
+        { "op": "admitChild", "task": "localTask", "accepted": true },
+        { "op": "admitChild", "task": "parallelTask", "accepted": true },
+        { "op": "startChild", "task": "localTask" },
+        { "op": "startChild", "task": "parallelTask" },
+        { "op": "scopeExit", "cooperative": true }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined", "joined"], "outcomes": ["canceled", "canceled"], "droppedOwners": ["local", "parallel"] }
+    },
+    {
+      "id": "MX0-accepted-await-ref-with-child-reader",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectAfterYield" },
+      "decisions": ["W-1185", "W-1187", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "shared-read", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "reader", "accepted": true },
+        { "op": "startChild", "task": "reader" },
+        { "op": "suspendParent", "owner": "course", "mode": "ref", "referentStable": true, "originSurvives": true },
+        { "op": "childAccess", "task": "reader", "owner": "course", "access": "read" },
+        { "op": "resumeParent" },
+        { "op": "settleChild", "task": "reader", "outcome": "success" },
+        { "op": "finishCleanup", "task": "reader" },
+        { "op": "joinChild", "task": "reader" },
+        { "op": "dropOwner", "owner": "course" },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "loanPhases": ["released"], "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-accepted-scope-exit-cancels-published-child",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelDiscardedCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "not-started", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "scopeExit", "cooperative": false }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "outcomes": ["canceled"], "bodyStarted": [false], "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-accepted-scope-exit-discards-success-result",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "finished", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "success", "returnOwners": ["course"] },
+        { "op": "finishCleanup", "task": "child" },
+        { "op": "scopeExit", "cooperative": false }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "outcomes": ["success"], "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-accepted-scope-exit-releases-ref-loan",
+      "kind": "accepted",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1185", "W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "borrowed", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "reader", "accepted": true },
+        { "op": "startChild", "task": "reader" },
+        { "op": "scopeExit", "cooperative": true }
+      ],
+      "expect": { "status": "accepted", "scope": "closed", "taskPhases": ["joined"], "loanPhases": ["released"], "droppedOwners": ["course"] }
+    },
+    {
+      "id": "MX0-rejected-parent-uses-moved-owner",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "moved", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "directAccess", "owner": "course", "access": "read" }
+      ],
+      "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
+    },
+    {
+      "id": "MX0-rejected-unstable-await-borrow",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectAfterYield" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "unstable", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "suspendParent", "owner": "course", "mode": "ref", "referentStable": false, "originSurvives": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0004" }
+    },
+    {
+      "id": "MX0-rejected-parent-access-while-await-suspended",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectAfterYield" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "suspended", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "suspendParent", "owner": "course", "mode": "ref", "referentStable": true, "originSurvives": true },
+        { "op": "directAccess", "owner": "course", "access": "read" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionParentSuspended" }
+    },
+    {
+      "id": "MX0-rejected-await-inout-conflicts-child-ref",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "updateWithChild" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "ledger", "value": 0, "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "ledger", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "reader", "accepted": true },
+        { "op": "startChild", "task": "reader" },
+        { "op": "suspendParent", "owner": "ledger", "mode": "inout", "referentStable": true, "originSurvives": true }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0002" }
+    },
+    {
+      "id": "MX0-rejected-nontransferable-take",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1185"],
+      "operations": [
+        { "op": "createOwner", "owner": "affine", "value": "local", "transferable": false, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "take", "owner": "affine" }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
+    },
+    {
+      "id": "MX0-rejected-spawn-without-domain",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1185"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "no-domain", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "spawn", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-PLACEMENT-0002" }
+    },
+    {
+      "id": "MX0-rejected-nonshareable-ref",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "mutable", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
+    },
+    {
+      "id": "MX0-rejected-expired-ref-origin",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "short", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": false }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0003" }
+    },
+    {
+      "id": "MX0-rejected-parent-accesses-inout-before-join",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "updateWithChild" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "ledger", "value": 0, "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "update", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "inout", "owner": "ledger", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "update", "accepted": true },
+        { "op": "directAccess", "owner": "ledger", "access": "read" }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0002" }
+    },
+    {
+      "id": "MX0-rejected-child-writes-through-ref",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "read-only", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] },
+        { "op": "admitChild", "task": "reader", "accepted": true },
+        { "op": "startChild", "task": "reader" },
+        { "op": "childAccess", "task": "reader", "owner": "course", "access": "write", "value": "changed" }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0009" }
+    },
+    {
+      "id": "MX0-rejected-drop-with-child-ref",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "inspectInCompute" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "borrowed", "transferable": true, "shareable": true, "duplicable": false },
+        { "op": "stageChild", "task": "reader", "form": "spawn", "domain": "compute", "strategy": "queued", "captures": [{ "mode": "ref", "owner": "course", "referentStable": true, "originSurvives": true }] },
+        { "op": "dropOwner", "owner": "course" }
+      ],
+      "expect": { "status": "rejected", "error": "W-BORROW-0008" }
+    },
+    {
+      "id": "MX0-rejected-join-before-cleanup",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourseAfterYield" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "early", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "success", "returnOwners": ["course"] },
+        { "op": "joinChild", "task": "child", "bindings": { "course": "result" } }
+      ],
+      "expect": { "status": "rejected", "error": "compositionJoinBeforeCleanup" }
+    },
+    {
+      "id": "MX0-rejected-double-join",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "join", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "success" },
+        { "op": "finishCleanup", "task": "child" },
+        { "op": "joinChild", "task": "child" },
+        { "op": "joinChild", "task": "child" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionJoinRepeated" }
+    },
+    {
+      "id": "MX0-rejected-nonsuccess-returns-owner",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelTrackedCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "rollback", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "cancelChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "canceled", "returnOwners": ["course"] }
+      ],
+      "expect": { "status": "rejected", "error": "compositionNonSuccessOwner" }
+    },
+    {
+      "id": "MX0-rejected-result-binding-missing",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "result", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "success", "returnOwners": ["course"] },
+        { "op": "finishCleanup", "task": "child" },
+        { "op": "joinChild", "task": "child" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionResultBindingCount" }
+    },
+    {
+      "id": "MX0-rejected-uncaptured-child-access",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "captured", "value": "yes", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "createOwner", "owner": "hidden", "value": "no", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "captured" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "childAccess", "task": "child", "owner": "hidden", "access": "read" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionOwnerNotCaptured" }
+    },
+    {
+      "id": "MX0-rejected-close-with-unjoined-child",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelTrackedCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "orphan", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "closeScope" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionScopeHasUnjoinedChild" }
+    },
+    {
+      "id": "MX0-rejected-detached-child",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "fourOwnershipForms" },
+      "decisions": ["W-1185", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "detached", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "spawn", "domain": "compute", "strategy": "queued", "detached": true, "captures": [{ "mode": "take", "owner": "course" }] }
+      ],
+      "expect": { "status": "rejected", "error": "compositionDetachedChildRejected" }
+    },
+    {
+      "id": "MX0-rejected-copy-nonduplicable",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "TrackedCourse" },
+      "decisions": ["W-1185", "W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "unique", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "copy", "owner": "course", "as": "copy" }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
+    },
+    {
+      "id": "MX0-rejected-copy-nontransferable",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "TrackedCourse" },
+      "decisions": ["W-1185", "W-1186"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "affine-copy", "transferable": false, "shareable": true, "duplicable": true },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "copy", "owner": "course", "as": "copy" }] }
+      ],
+      "expect": { "status": "rejected", "error": "W-OWNERSHIP-0010" }
+    },
+    {
+      "id": "MX0-rejected-scope-exit-needs-progress",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "cancelDiscardedCourse" },
+      "decisions": ["W-1186", "W-1187"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "blocked", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "scopeExit", "cooperative": false }
+      ],
+      "expect": { "status": "rejected", "error": "compositionScopeExitNeedsProgress" }
+    },
+    {
+      "id": "MX0-rejected-success-before-body",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "not-started", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "settleChild", "task": "child", "outcome": "success" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionBodyNotStarted" }
+    },
+    {
+      "id": "MX0-rejected-invalid-outcome",
+      "kind": "rejected",
+      "source": { "path": "reference/last-light/ownership_execution_oracle.w", "symbol": "finishCourse" },
+      "decisions": ["W-1186", "W-1188"],
+      "operations": [
+        { "op": "createOwner", "owner": "course", "value": "unknown", "transferable": true, "shareable": false, "duplicable": false },
+        { "op": "stageChild", "task": "child", "form": "asyncLet", "strategy": "queued", "captures": [{ "mode": "take", "owner": "course" }] },
+        { "op": "admitChild", "task": "child", "accepted": true },
+        { "op": "startChild", "task": "child" },
+        { "op": "settleChild", "task": "child", "outcome": "unknown" }
+      ],
+      "expect": { "status": "rejected", "error": "compositionOutcomeInvalid" }
+    }
+  ]
+}
