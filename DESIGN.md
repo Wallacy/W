@@ -6642,13 +6642,9 @@ O carrier de `any P` não atravessa C, wire ou persistence como layout implícit
 Essas boundaries usam façade, schema ou adapter explícito. W exact exige a mesma
 `WAbiKey` e a mesma policy de erasure nos dois lados.
 
-O estudo R1 fixa as formas source e a diferença entre failure normal e recovery
-explícito. M1 deriva inline ou spill a partir da policy, preserva as origins do
-payload, adiciona a origin do box, rejeita spill proibido, consome o source numa
-falha de allocation e mantém dependency edges após erasure. O caso
-`M1-erasure-interface-maps-box-origin` fixa o `AllocationOriginMap`. Esses
-oracles provam o contrato lógico. Eles não fixam layout físico nem executam um
-allocator real.
+O compiler deriva inline ou spill a partir da policy. Spill preserva as origins
+do payload, adiciona a origin do box, rejeita storage proibido, consome o source
+numa falha de allocation e mantém dependency edges depois da erasure.
 
 `any P` não conforma automaticamente a `P`. O design vigente também não abre existentials
 de forma implícita para uma função generic:
@@ -7567,13 +7563,8 @@ Cada diagnostic sugere reordenar, encerrar scope, materializar, copiar, fazer
 `take` antes do borrow, separar ou limpar um container, ou usar pin quando o
 endereço for realmente necessário. O diagnostic não inventa annotation.
 
-O par `S0-POS-share-lifetime-independent` e
-`S0-NEG-share-borrow-dependent` fixa que `shareable` não repara uma origin de
-borrow. A falha usa `W-BORROW-0010` antes de alocar o control block.
-
-M1 precisa manter uma forma aceita e uma inversão para cada regra crítica. O
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução) registra
-a matriz e os artefatos; este contrato define os diagnostics e os facts.
+`shareable` não repara uma origin de borrow. A falha usa `W-BORROW-0010` antes
+de alocar o control block.
 
 #### 9.2.2 Placement e alocação inferida
 
@@ -7927,7 +7918,7 @@ entra na `WAbiKey` quando o carrier de ABI permanece igual.
 debugger ou hardening ainda podem escolher o fallback. Os dois profiles precisam
 preservar o mesmo contrato semântico.
 
-#### 9.6.1 Contrato físico do provider A0
+#### 9.6.1 Contrato físico do provider
 
 **Exemplo:** `Array<Dish>.tryReserve` pede um layout. O provider devolve um
 receipt opaco. O container não recebe somente um pointer sem origem.
@@ -9516,7 +9507,7 @@ sinal durante a janela bounded de `defer async`. Um adapter pode declarar que
 uma operação externa não é cancelável; isso não permite que código W esconda um
 scope inteiro do shutdown.
 
-E1 limita a máscara ao node de cleanup. Um `defer async` pode criar somente
+O contrato de closure limita a máscara ao node de cleanup. Um `defer async` pode criar somente
 trabalho estruturado dentro desse node e herda a deadline de cleanup. O sinal de
 cancelamento recebido durante a máscara fica registrado, mas não é reentregue no
 node; um cancelamento local explícito continua válido. A grace expirada ou a
@@ -10746,8 +10737,8 @@ Cada localização atômica possui sua própria modification order. Operações
 `.sequential` também participam de uma ordem total no scope correspondente.
 Uma relação reads-from não cria synchronizes-with por si só.
 
-Toda leitura atômica observa uma modificação ou a inicialização. E0 omite o ID
-somente quando o witness usa a inicialização e não cria um edge entre tasks.
+Toda leitura atômica observa uma modificação ou a inicialização. O witness omite
+o ID somente quando usa a inicialização e não cria um edge entre tasks.
 
 Duas operações formam uma data race quando estas condições são verdadeiras:
 
@@ -11215,16 +11206,24 @@ oferece. Esta tabela fecha a baseline safe:
 | scalar concorrente | `Atomic<T>` | CAS não concede lifetime ou invariantes entre fields |
 | critical section síncrona | `Mutex<T>` | guard público e mutex recursivo rejeitados |
 | critical section de task | `AsyncMutex<T>` | closure protegida nunca suspende |
-| reads paralelos e write in-place | domain concorrente + `.barrier` | `RwLock<T>` rejeitado na safe std |
+| reads paralelos e write in-place em tasks | domain concorrente + `.barrier` | ordena dispatch, placement e subtree |
+| reads paralelos e write in-place síncrono | `Mutex<T>` até existir outro contrato | `ReadWriteLock<T>` permanece Pesquisa |
 | versão imutável read-heavy | `SnapshotCell<T>` | RCU e grace period ficam internos ao provider |
 | transferência ou mailbox | `Channel<T>` ou service | condition variable rejeitada na safe std |
 | inicialização estática | const/module initialization | `Once` raw rejeitado; lazy concorrente permanece Pesquisa |
 | join lexical | `Task`, tuple ou `TaskGroup` | barreira cíclica/reutilizável permanece Pesquisa |
 | park por palavra atômica | primitive privada do runtime | `Atomic.wait/notify` público permanece Pesquisa |
 
-`RwLock<T>` duplica o domain concorrente com barrier, mas perde placement,
-ticket subtree e prova lexical de loans. Uma implementação foreign continua
-possível num adapter `unsafe`; ela não se torna uma segunda baseline.
+**W-1189 — read/write síncrono:** `ReadWriteLock<T>` e domain concorrente com
+barrier não são equivalentes. O lock
+protege storage em code síncrono ou freestanding. O domain ordena dispatch de
+tasks, placement, cancellation e ticket subtree. O design vigente prioriza
+`Mutex`, `SnapshotCell` e domain porque os consumers atuais cabem nessas formas.
+
+`ReadWriteLock<T>` permanece **Pesquisa**, não rejeitado. Para entrar na safe
+std, ele precisa de closures `ref`/`inout` sem guard público, fairness declarada,
+diagnostic de blocking domain, nenhuma operação de upgrade/downgrade e benchmark
+contra as três formas vigentes. Adapter de host continua possível em `unsafe`.
 
 Uma condition variable separa predicate, lock e wakeup. Channels, task outcomes
 e services mantêm o evento junto de ownership e cancellation. Compatibilidade
@@ -11249,11 +11248,6 @@ service DiningRoom {
   var served: u64 = 0 // O closed turn fornece isolation.
 }
 ```
-
-**W-1184 — evidence de lock:** LM0 precisa cobrir protected loans, FIFO, try sem
-bypass, cancellation, unlock, drop, fault boundary e seleção da forma de
-sincronização. Contagens e limites ficam no
-[perfil de evidence](RATIONALE.md#115-evidence-de-memória-e-execução).
 
 #### 12.10.7 `SnapshotCell`
 
@@ -11551,7 +11545,8 @@ e outcome movido à outcome cell. TCB e outcome cell vivem até join, observer o
 retention expiry. Reclaim exige zero children, registrations, queue tickets,
 timers, wakers e runtime refs; o handle normal não precisa ser joined para
 liberar os bytes do execution frame. Storage só passa de `retired` a
-`reclaimable` depois desse gate; A0 continua sendo o contrato físico do provider.
+`reclaimable` depois desse gate; [§9.6.1](#961-contrato-físico-do-provider)
+continua sendo o contrato físico.
 
 Liveness é uma matriz, não uma promessa de término eventual:
 
@@ -26881,8 +26876,8 @@ alternativas e gaps fica em
 horizonte e escolhe um menu no implicit default. O source continua um oracle de
 design. Ele não afirma execução W.
 
-PYN1 fecha a forma de workflow single-file. O header contextual `script { ... }`
-é o primeiro item opcional da raiz `module_source`. Ele reutiliza o subset
+O workflow single-file usa o header contextual `script { ... }` como primeiro
+item opcional da raiz `module_source`. Ele reutiliza o subset
 `manifest_record` data-only. Ele exige `edition`; `dependencies`, `lock` e
 `requires` são os únicos fields adicionais. `schema` é redundante. Dependencies
 não vazias exigem `lock`, e sem dependencies `lock` é proibido. `requires` usa
@@ -26902,7 +26897,7 @@ dentro de package. Fora de package, o arquivo
 usa contexto efêmero com std e módulos locais explícitos. `w context` mostra a
 seleção. A ferramenta não faz merge silencioso entre contexts.
 
-PYN1 grava `entryForm: explicit | implicit | missing`. Para `implicit`, a
+O parser grava `entryForm: explicit | implicit | missing`. Para `implicit`, a
 evidence grava o digest do body e facts de effects. O host aceita implicit
 somente no root executável e rejeita import, declaration-after-statement,
 explicit+implicit, entry missing e typed error sem tratamento. Isso não modela
@@ -26926,7 +26921,8 @@ selecionado. Digest não concede authority.
 `w run <path/file.w>` seleciona package, standalone ou contexto efêmero pelas
 regras acima e então faz compile/run normal. Ele nunca resolve constraint,
 altera lock, instala package ou executa action oculto. Fetch, CAS, artifact,
-signature, authority e offline seguem P0. Mismatch falha antes de build e entry;
+signature, authority e offline seguem [§21.1.6](#2116-contexts-de-resolução-e-lock).
+Mismatch falha antes de build e entry;
 bytes divergentes são retired. Records de artifact, handle transitivo e output
 consumido entram na recipe e na product identity por digest, nunca pela lista
 ambiental do CAS.
@@ -26955,7 +26951,7 @@ normalizados:
 Path físico serve discovery, diagnóstico e provenance, não identity ou recipe.
 Baseline channels e authorities são inputs separados. `w context` explica root,
 lock, fetch, authority, capability e recipe. Run temporário ou falho não deixa
-estado oculto. Promotion valida o candidate P0 sem re-resolver, preserva graph,
+estado oculto. Promotion valida o candidate `package.lock` sem re-resolver, preserva graph,
 entry e requirements e emite provenance que liga script, locks e manifest.
 
 Os commands fechados para o header são:
@@ -26973,7 +26969,7 @@ edition/dependencies e troca somente `lock`. CAS pode receber o objeto antes,
 mas failure não altera os bytes do source. `--with` permanece rejeitado como
 forma final.
 
-A forma record P0 continua explícita. Compact dependency constructor fica em
+A forma record canônica continua explícita. Compact dependency constructor fica em
 **Pesquisa**.
 
 O estado desta subseção é **Direção**. Evidência, fixture, comparação com PEP 723
@@ -26987,7 +26983,7 @@ implementado.
 **Exemplo:** uma sessão preserva `snapshot = 6` quando `limit` muda para `4`,
 mas invalida a função que possui lookup compilado de `limit`.
 
-PYN2 fecha a sessão efêmera de `w repl`. A sessão usa parser, checker e HIR
+`w repl` abre uma sessão efêmera com parser, checker e HIR
 normais. Ela não cria um dynamic mode.
 
 ##### Identidade e fronteira da sessão
@@ -27061,8 +27057,9 @@ collected → parsed → checked → staged → preflight → executing → sett
 Falha de parse ou type-check gera receipt com `rejected`, sem effects e sem
 generation nova. O ordinal é atribuído a toda submission completa que guarda
 history, inclusive erro; incomplete, completion, inspect e cancel de request
-queued não incrementam. Falha de runtime antes de `publish` limpa o staged
-scope com drop E1. Effects externos já observados permanecem no receipt e no
+queued não incrementam. Falha de runtime antes de `publish` limpa o staged scope
+pelo contrato de closure de [§12.12.1](#12121-runtime-closure-e-liveness).
+Effects externos já observados permanecem no receipt e no
 histórico. `recordEffects` registra invocation observed e o outcome durável do
 provider (`committed`, `rolledBack`, `unknown` ou `observed`); não infere
 rollback de uma falha runtime. Só uma capability/provider que declara
@@ -27071,7 +27068,7 @@ pode produzir `unknown`. W não promete transaction externa geral.
 
 `publish` é atômico. Depois dele, a sessão fecha admission somente dos owner
 scopes invalidados, solicita cancelamento, drena children e waits, encerra
-loans e views e executa drops E1. Siblings e owners não invalidados continuam
+loans e views e executa os drops estruturados. Siblings e owners não invalidados continuam
 admitidos. Falha de drain depois de `publish` não desfaz a publicação. A nova
 generation permanece `committed`, a sessão fica `degraded` e mutações futuras
 ficam bloqueadas até reset ou escalation explícita.
@@ -27081,21 +27078,17 @@ cancel active antes de `publish` cria receipt com ordinal, cancela/joins staged
 children e não publica; cancel depois de `publish` não faz rollback e pode deixar
 `degraded`, sobretudo para foreign non-cooperative ou deadline.
 
-O preflight de drain calcula closure, replaceability, quota, foreign retention e
-deadline sem mutar a sessão e antes de `executing`/effects. Esses fatos vêm de
-states/events do resource/provider; a máquina não recebe booleans de conclusão
-como `replaceability` ou `postPublishFailure`. Resource/task ativo exige uma
-confirmação estruturada `allowDrain`; forma CLI exata fica **Pesquisa**.
-Retenção conhecida, quota, deadline ou resource não substituível rejeita e
-preserva a generation antiga. Depois de `publish`, qualquer mudança nos facts
-ou falha/deadline no drain deixa a nova generation committed e a sessão
-`degraded`, sem rollback da publicação. `reset` cria nova incarnation, abre `g0`
-e usa o mesmo preflight. `force` é uma boundary registrada no histórico; não
-promete cleanup de código externo. Uma rejeição de `reset` no preflight não
-muta incarnation, generation, phase ou owner scopes, e não executa effects;
-somente ordinal, receipt e history avançam. `:quit` é diferente: o pedido fecha
-admission antes do drain e, se bloqueado sem `force`, deixa a sessão `closing`
-com o registry observável.
+Antes de effects, o preflight deriva closure, replaceability, quota, foreign
+retention e deadline dos states/events de resource e provider. Ele não aceita
+booleans fornecidos pelo caller como prova. Retenção, quota, deadline ou resource
+não substituível rejeita e preserva a generation antiga. Resource ou task ativo
+exige confirmação estruturada de drain; a forma CLI permanece **Pesquisa**.
+
+Falha depois de `publish` mantém a nova generation committed e deixa a sessão
+`degraded`; não existe rollback da publicação. `reset` abre outra incarnation em
+`g0` e usa o mesmo preflight. Sua rejeição altera somente ordinal, receipt e
+history. `:quit` fecha admission antes do drain e pode deixar a sessão `closing`.
+`force` é uma fault boundary registrada, não uma promessa de cleanup externo.
 
 ##### Grafo de bindings e mutação cross-generation
 
@@ -27150,33 +27143,26 @@ exemplo de compiled dependent.
 
 ##### Lifetime estruturado, output e limites
 
-Children e waits locais à submission liquidam antes do commit. O owner
-synthetic é async/structured por definição: top-level `await` não exige uma
-annotation do chamador. Eventos de child passam por `settled`, cleanup, outcome
-e `joined`; detach, escape ou child não-joined rejeita antes de publish.
-`spawn` local e `defer` são settled nessa fase; só um owner persistente pode
-virar binding da sessão. Resource ou task persistent torna-se owner da
-generation scope que vira child da sessão no commit. Não existe detached task ou
-reparent retroativo. `ref`, `borrow` e `view` lexical não atravessam submission.
-Safe view owner-backed exige owner e hard dependency. History guarda metadata, source e
-digests, não live values, opaque capabilities ou handles serializados.
+Children, waits, cancellation, cleanup e join seguem as seções
+[12.3–12.5](#123-task-e-ownership) e [12.12.1](#12121-runtime-closure-e-liveness).
+O wrapper interativo fornece um owner async e estruturado; por isso top-level
+`await` não exige annotation. Child detached, loan escapante ou child não joined
+rejeita antes de publish. Um resource persistente vira owner da generation scope
+e child da sessão no commit; não existe reparent retroativo. `ref`, `borrow` e
+`view` lexical não atravessam submission. Uma view owner-backed exige owner e
+hard dependency.
 
 Cada output carrega `RequestId`, `ExecutionOrdinal` e candidate generation.
 External print pode sair antes da falha e permanece observável. Result display
 staged não entra no snapshot committed após falha.
 
-History é bounded por count e bytes na memória. Source bruto pode conter segredo
-enquanto estiver em memória; a policy explícita de abertura pode redigir o raw
-source. Não há `~/.w_history`, startup script, import de cwd/environment ou
-persistência implícita. Opaque capabilities e live values nunca serializam.
-Persist e export explícitos ficam em **Pesquisa**. Cada receipt guarda source
-bruto conforme a policy, normalized digest, status, before/after generations,
-effects, diagnostics, invalidation, cleanup e degraded outcome. History reservation
-rejeita um record individual maior que o cap antes de effects; não executa para
-depois expulsar o próprio receipt. Output externo reserva/streama budget e
-registra truncation/cancelamento quando policy permitir. A policy default
-preserva `deliveredBytes`: entrega parcial é `truncated`; sem bytes restantes o
-item é `dropped`, nunca é mascarado como rollback.
+History guarda metadata, source e digests, não live values, opaque capabilities
+ou handles serializados. Ele é bounded por count e bytes. A policy de abertura
+pode redigir source bruto; não existe history file, startup script, import
+ambiental ou persistência implícita. Persist e export explícitos ficam em
+**Pesquisa**. A reservation do receipt ocorre antes de effects. Output reserva
+budget e registra `deliveredBytes`, `truncated` ou `dropped`; falha nunca é
+mascarada como rollback.
 
 Quotas cobrem source, total de bindings (não só declarations novas), hard edges,
 HIR/artifacts, history reservation, tasks/resources, output bytes, diagnostic
@@ -27199,7 +27185,7 @@ continuam fora deste checkpoint.
 notebook. Ela não coleta o stream inteiro, não copia um tensor do device e não
 cria um binding implícito.
 
-PYN3 é um adapter de tooling sobre a sessão PYN2. Ele não cria outro parser,
+O adapter de tooling usa a sessão transacional. Ele não cria outro parser,
 outro checker, outro runtime ou um modo dinâmico da linguagem. O mesmo
 `SessionId`, a mesma `SessionIncarnation`, o mesmo writer FIFO e as mesmas
 regras de publish, cancellation, cleanup e degraded outcome continuam
@@ -27208,7 +27194,7 @@ autoritativos.
 O bloco tem três contratos separados:
 
 1. `std.presentation` produz representações tipadas e bounded;
-2. o kernel adapta o protocolo Jupyter à sessão PYN2;
+2. o kernel adapta o protocolo Jupyter à sessão;
 3. o export transforma cells comprovadas em source W e audit manifest sem
    replay oculto.
 
@@ -27361,13 +27347,13 @@ authenticate -> IOPub busy -> process -> reply -> related IOPub -> IOPub idle
 
 `busy` e `idle` carregam o mesmo parent correlation. `idle` ocorre somente
 depois do reply e de todos os outputs associados. Shell execute requests entram
-no writer FIFO de PYN2. Control interrupt e shutdown têm admission prioritária,
-mas só podem solicitar cancellation, reset ou close pelos contratos PYN2. Eles
+no writer FIFO da sessão. Control interrupt e shutdown têm admission prioritária,
+mas só podem solicitar cancellation, reset ou close pelos contratos da sessão. Eles
 não mutam o graph diretamente.
 
 O mapeamento de status é explícito:
 
-| Outcome PYN2 | Reply Jupyter | Estado W |
+| Outcome da sessão | Reply Jupyter | Estado W |
 |---|---|---|
 | committed e ready | `ok` | generation publicada ou preservada |
 | parse, type ou runtime error antes de publish | `error` | generation preservada |
@@ -27379,9 +27365,9 @@ O adapter não usa o status `aborted`, que o protocolo depreca. Um traceback
 Jupyter contém somente diagnostic W bounded e redacted. Ele não inventa stack
 Python.
 
-`execution_count` é exatamente o counter corrente de `ExecutionOrdinal` PYN2.
+`execution_count` é exatamente o counter corrente de `ExecutionOrdinal`.
 Ele nunca representa `GenerationId`. Um execute com `store_history: true`
-reserva e incrementa o ordinal antes de executar conforme PYN2. `silent: true`
+reserva e incrementa o ordinal conforme o contrato da sessão. `silent: true`
 força `store_history: false`, suprime `execute_input`, `execute_result`,
 `display_data` e streams, e não incrementa o counter. Todo `execute_reply`,
 inclusive silent, no-history e error, devolve o counter corrente.
@@ -27466,7 +27452,7 @@ uma linearização única e lossless para source W, o export falha.
 
 Quando a estrutura é representável, o export produz um destes resultados:
 
-- single-file PYN1 com header e default entry;
+- single-file com header e default entry;
 - package W quando mais de um módulo ou entry é necessário;
 - audit manifest com source digests, ordered receipts, lock root, toolchain,
   target, effects e motivos de exclusão.
@@ -27482,7 +27468,7 @@ tooling. Isso preserva W-975 sem congelar uma CLI antes do estudo humano.
 
 Evidência, comparações e limites ficam em
 [`RATIONALE.md` §1.13](RATIONALE.md#113-evidência-de-apresentação-jupyter-e-export-pyn3).
-PYN3 não implementa kernel, transport, compiler, runtime, provider ou sanitizer.
+Este contrato não implementa kernel, transport, compiler, runtime, provider ou sanitizer.
 
 ### 24.2 Recursos deliberadamente ausentes
 

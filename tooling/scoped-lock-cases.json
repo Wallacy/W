@@ -369,12 +369,12 @@
       "expect": { "status": "rejected", "error": "W-LOCK-0010" }
     },
     {
-      "id": "LM0-rejected-rwlock-safe-surface",
+      "id": "LM0-rejected-read-write-lock-safe-surface",
       "kind": "rejected",
-      "source": { "path": "reference/last-light/synchronization.w", "symbol": "RwLock" },
-      "decisions": ["W-1183", "W-1184"],
+      "source": { "path": "reference/last-light/synchronization.w", "symbol": "ReadWriteLock" },
+      "decisions": ["W-1183", "W-1184", "W-1189"],
       "operations": [
-        { "op": "unsupported", "primitive": "RwLock" }
+        { "op": "unsupported", "primitive": "ReadWriteLock" }
       ],
       "expect": { "status": "rejected", "error": "W-SYNC-0001" }
     },

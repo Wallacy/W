@@ -240,7 +240,7 @@ function applyOperation(state, operation) {
     }
 
     case "unsupported":
-      if (!new Set(["RwLock", "Condition", "Once"]).has(operation.primitive)) {
+      if (!new Set(["ReadWriteLock", "Condition", "Once"]).has(operation.primitive)) {
         fail("lockUnsupportedEvidenceInvalid")
       }
       fail("W-SYNC-0001")

@@ -752,7 +752,8 @@ Aceite:
 - cancellation durante a espera não executa a closure;
 - cancellation depois do grant é observada somente depois do unlock;
 - panic falha a fault boundary do lock em vez de publicar state parcial;
-- domain concorrente com `.barrier` substitui `RwLock` na safe std;
+- domain concorrente com `.barrier` cobre o caminho task-owned; um
+  `ReadWriteLock` síncrono permanece Pesquisa com gate próprio;
 - condition variable e `Once` raw não entram na safe std;
 - `SnapshotCell.read` observa uma versão completa sem deixar borrow escapar;
 - `publish` consome uma nova versão e não espera readers da versão anterior;
