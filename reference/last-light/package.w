@@ -476,7 +476,6 @@ package {
   executionProfiles: [
     {
       name: "native-bounded"
-      parallelDefault: .compute
       tasks: {
         live: 16_384
         frameBytes: 256MiB
@@ -521,12 +520,25 @@ package {
         custom: [
           {
             id: "execution::thermal"
-            capabilities: [.concurrent, .parallel]
+            capabilities: [.serial]
             pool: "cpu"
             ready: { jobs: 1_024, frameBytes: 64MiB }
-            fallback: .compute
+            fallback: .reject
+          },
+          {
+            id: "domain_oracle::catalog"
+            capabilities: [.concurrent, .barrierDispatch]
+            pool: "cpu"
+            ready: { jobs: 1_024, frameBytes: 64MiB }
+            fallback: .reject
           },
         ]
+        dynamicSerial: {
+          pool: "cpu"
+          live: 128
+          aggregateReady: { jobs: 4_096, frameBytes: 64MiB }
+          laneMaximum: { jobs: 256, frameBytes: 4MiB }
+        }
       }
       cleanup: {
         asyncGrace: 5<s>
@@ -535,7 +547,6 @@ package {
     },
     {
       name: "edge-bounded"
-      parallelDefault: .compute
       tasks: {
         live: 8_192
         frameBytes: 128MiB
@@ -576,7 +587,6 @@ package {
     },
     {
       name: "benchmark-bounded"
-      parallelDefault: .compute
       tasks: {
         live: 65_536
         frameBytes: 1GiB

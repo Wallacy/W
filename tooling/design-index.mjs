@@ -708,7 +708,7 @@ output.push(
     `${executionConcurrencyCases}/${executionConcurrencyOperations} ` +
     `(${acceptedExecutionConcurrencyCases} aceitos + ` +
     `${executionConcurrencyCases - acceptedExecutionConcurrencyCases} rejeitados; ` +
-    `${synchronizationEdgeKinds.size}/8 origens happens-before) |`,
+    `${synchronizationEdgeKinds.size}/10 origens happens-before) |`,
 );
 output.push(
   `| casos/operações do kernel de runtime closure E1 | ` +

@@ -196,6 +196,174 @@ test("a fence pair needs an atomic reads-from witness", () => {
   });
 });
 
+test("a domain barrier orders earlier and later tickets", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "reserveTask", task: "before", parent: "root" },
+    { op: "reserveTask", task: "writer", parent: "root" },
+    { op: "reserveTask", task: "after", parent: "root" },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "before-admit",
+      job: "before-job",
+      jobTask: "before",
+      domain: "catalog",
+      ticket: 0,
+      mode: "ordinary",
+    },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "writer-admit",
+      job: "writer-job",
+      jobTask: "writer",
+      domain: "catalog",
+      ticket: 1,
+      mode: "barrier",
+    },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "after-admit",
+      job: "after-job",
+      jobTask: "after",
+      domain: "catalog",
+      ticket: 2,
+      mode: "ordinary",
+    },
+    { op: "domainStart", task: "before", id: "before-start", job: "before-job" },
+    { op: "domainComplete", task: "before", id: "before-done", job: "before-job" },
+    { op: "domainStart", task: "writer", id: "writer-start", job: "writer-job" },
+    { op: "domainComplete", task: "writer", id: "writer-done", job: "writer-job" },
+    { op: "domainStart", task: "after", id: "after-start", job: "after-job" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.edges).toContainEqual({
+    from: "before-done",
+    to: "writer-start",
+    kind: "domainPriorToBarrier",
+  });
+  expect(result.state.edges).toContainEqual({
+    from: "writer-done",
+    to: "after-start",
+    kind: "domainBarrierToLater",
+  });
+});
+
+test("a same-domain child remains inside its parent ticket group", () => {
+  const result = runExecutionProgram([
+    ...rootOperations(),
+    { op: "reserveTask", task: "parent", parent: "root" },
+    { op: "reserveTask", task: "child", parent: "parent" },
+    { op: "reserveTask", task: "writer", parent: "root" },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "parent-admit",
+      job: "parent-job",
+      jobTask: "parent",
+      domain: "catalog",
+      ticket: 0,
+      mode: "ordinary",
+    },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "writer-admit",
+      job: "writer-job",
+      jobTask: "writer",
+      domain: "catalog",
+      ticket: 1,
+      mode: "barrier",
+    },
+    { op: "domainStart", task: "parent", id: "parent-start", job: "parent-job" },
+    {
+      op: "domainAttachChild",
+      task: "parent",
+      id: "child-attach",
+      job: "child-job",
+      jobTask: "child",
+      domain: "catalog",
+      parentJob: "parent-job",
+    },
+    { op: "domainStart", task: "child", id: "child-start", job: "child-job" },
+    { op: "domainComplete", task: "child", id: "child-done", job: "child-job" },
+    { op: "domainComplete", task: "parent", id: "parent-done", job: "parent-job" },
+    { op: "domainStart", task: "writer", id: "writer-start", job: "writer-job" },
+  ]);
+
+  expect(result.status).toBe("accepted");
+  expect(result.state.domains.catalog.jobs["child-job"].ticket).toBe(0);
+  expect(result.state.edges).toContainEqual({
+    from: "child-attach",
+    to: "child-start",
+    kind: "parentToChild",
+  });
+  expect(result.state.edges).toContainEqual({
+    from: "child-done",
+    to: "writer-start",
+    kind: "domainPriorToBarrier",
+  });
+});
+
+test("a domain barrier neither suspends nor starts before prior work", () => {
+  const suspending = runExecutionProgram([
+    ...rootOperations(),
+    { op: "reserveTask", task: "writer", parent: "root" },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "writer-admit",
+      job: "writer-job",
+      jobTask: "writer",
+      domain: "catalog",
+      ticket: 0,
+      mode: "barrier",
+      maySuspend: true,
+    },
+  ]);
+  expect(suspending).toMatchObject({
+    status: "rejected",
+    code: "barrierMaySuspend",
+    operation: 3,
+  });
+
+  const early = runExecutionProgram([
+    ...rootOperations(),
+    { op: "reserveTask", task: "reader", parent: "root" },
+    { op: "reserveTask", task: "writer", parent: "root" },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "reader-admit",
+      job: "reader-job",
+      jobTask: "reader",
+      domain: "catalog",
+      ticket: 0,
+      mode: "ordinary",
+    },
+    {
+      op: "domainAdmit",
+      task: "root",
+      id: "writer-admit",
+      job: "writer-job",
+      jobTask: "writer",
+      domain: "catalog",
+      ticket: 1,
+      mode: "barrier",
+    },
+    { op: "domainStart", task: "reader", id: "reader-start", job: "reader-job" },
+    { op: "domainStart", task: "writer", id: "writer-start", job: "writer-job" },
+  ]);
+  expect(early).toMatchObject({
+    status: "rejected",
+    code: "domainBarrierBeforePriorCompletion",
+    operation: 7,
+  });
+});
+
 test("only exclusive authority opens an atomic payload", () => {
   const accepted = runExecutionProgram([
     ...rootOperations(),

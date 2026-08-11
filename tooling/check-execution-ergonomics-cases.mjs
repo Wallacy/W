@@ -22,9 +22,25 @@ const requiredIds = new Set([
   "EE-INFO-public-widening",
   "EE-NEG-bare-may-suspend",
   "EE-NEG-blocking-sync",
-  "EE-NEG-spawn-serial",
-  "EE-POS-spawn-nonserial-domain",
+  "EE-POS-spawn-serial-domain",
+  "EE-POS-spawn-main-domain",
+  "EE-POS-spawn-parallel-domain",
+  "EE-NEG-spawn-missing-domain",
+  "EE-NEG-spawn-unknown-domain",
   "EE-NEG-spawn-declaration-placement",
+  "EE-POS-barrier-read-write-read",
+  "EE-POS-barrier-serial-domain",
+  "EE-NEG-barrier-capability-missing",
+  "EE-NEG-barrier-may-suspend",
+  "EE-NEG-ordinary-domain-write",
+  "EE-NEG-barrier-open-access-graph",
+  "EE-POS-dynamic-serial-drain",
+  "EE-NEG-dynamic-serial-authority",
+  "EE-NEG-dynamic-serial-live-limit",
+  "EE-NEG-dynamic-serial-lane-limit",
+  "EE-NEG-dynamic-serial-aggregate-limit",
+  "EE-NEG-dynamic-serial-closed-admission",
+  "EE-NEG-dynamic-concurrent-lane",
   "EE-POS-implicit-process-projections",
   "EE-NEG-process-escape",
   "EE-NEG-process-service-crossing",
@@ -122,12 +138,35 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   if (expected.evaluation && JSON.stringify(result.suspension.staging) !== JSON.stringify(expected.evaluation)) errors.push(`${item.id}: staging`)
   if (expected.child === "structured" && result.suspension.children.length === 0) errors.push(`${item.id}: structured child`)
   if (expected.sameOptionalDomainForm !== undefined && result.placement.sameOptionalDomainForm !== expected.sameOptionalDomainForm) errors.push(`${item.id}: domain forms`)
+  if (expected.domain !== undefined) {
+    const dispatch = result.placement.dispatches.find((item) =>
+      item.domain === expected.domain && (!expected.dispatchMode || item.mode === expected.dispatchMode))
+    if (!dispatch) errors.push(`${item.id}: domain dispatch ${expected.domain}`)
+    else {
+      if (expected.scheduling !== undefined && dispatch.scheduling !== expected.scheduling) errors.push(`${item.id}: domain scheduling`)
+      if (expected.overlapWithinTarget !== undefined && dispatch.overlapWithinTarget !== expected.overlapWithinTarget) errors.push(`${item.id}: domain overlap`)
+      if (expected.barrierSupport !== undefined && dispatch.barrierSupport !== expected.barrierSupport) errors.push(`${item.id}: barrier support`)
+    }
+  }
+  if (expected.place !== undefined) {
+    const sequence = result.placement.loanSequences.find((item) => item.place === expected.place)
+    if (!sequence) errors.push(`${item.id}: loan sequence ${expected.place}`)
+    else {
+      if (expected.loanClosed !== undefined && sequence.closed !== expected.loanClosed) errors.push(`${item.id}: loan closure`)
+      if (expected.barrierEdges && JSON.stringify(sequence.edges) !== JSON.stringify(expected.barrierEdges)) errors.push(`${item.id}: barrier edges`)
+    }
+  }
   if (expected.projections && JSON.stringify(result.process.projections) !== JSON.stringify(expected.projections)) errors.push(`${item.id}: process projections`)
   if (expected.readOnly !== undefined && result.process.readOnly !== expected.readOnly) errors.push(`${item.id}: process read-only`)
   if (expected.terminal && result.doctest.examples[0]?.terminals[0]?.kind !== expected.terminal) errors.push(`${item.id}: doctest terminal`)
   if (expected.exampleCount !== undefined && result.doctest.examples.length !== expected.exampleCount) errors.push(`${item.id}: doctest example count`)
   if (expected.hermetic !== undefined && result.doctest.hermetic !== expected.hermetic) errors.push(`${item.id}: doctest hermetic`)
   if (expected.releasePayload !== undefined && result.doctest.releasePayload !== expected.releasePayload) errors.push(`${item.id}: release payload`)
+  if (expected.dynamicStatus !== undefined && result.dynamicSerial.status !== expected.dynamicStatus) errors.push(`${item.id}: dynamic status`)
+  if (expected.dynamicPhase !== undefined && result.dynamicSerial.phase !== expected.dynamicPhase) errors.push(`${item.id}: dynamic phase`)
+  if (expected.dynamicError !== undefined && result.dynamicSerial.error !== expected.dynamicError) errors.push(`${item.id}: dynamic error`)
+  if (expected.poolReuse !== undefined && result.dynamicSerial.poolReuse !== expected.poolReuse) errors.push(`${item.id}: dynamic pool reuse`)
+  if (expected.referenceExtendsOwner !== undefined && result.dynamicSerial.referenceExtendsOwner !== expected.referenceExtendsOwner) errors.push(`${item.id}: dynamic owner reference`)
   if (expected.hasTierField !== undefined && result.std.hasTierField !== expected.hasTierField) errors.push(`${item.id}: tier field`)
   if (expected.authority && JSON.stringify(result.std.authorities) !== JSON.stringify(expected.authority)) errors.push(`${item.id}: std authority`)
   results.push({
@@ -147,6 +186,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
     placement: result.placement,
     process: result.process,
     doctest: result.doctest,
+    dynamicSerial: result.dynamicSerial,
     std: result.std,
   })
 }

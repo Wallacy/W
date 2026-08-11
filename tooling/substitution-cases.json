@@ -297,8 +297,8 @@
     {
       "id": "R0-spawn-domain",
       "reviewItem": "`spawn<.compute>` contra `spawn<domain: .compute>` e `spawn on .compute`",
-      "decisions": ["W-039", "W-350", "W-725", "W-926", "W-927", "W-1160", "W-1162"],
-      "task": "Start bounded parallel planning in the product-selected compute domain.",
+      "decisions": ["W-039", "W-350", "W-725", "W-926", "W-927", "W-1160", "W-1162", "W-1172"],
+      "task": "Dispatch bounded planning to the product-selected compute domain.",
       "selected": {
         "language": "w",
         "source": ["spawn<.compute> let plan = optimize(take snapshot)"]

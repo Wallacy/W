@@ -1,6 +1,6 @@
 # W
 
-> **Working Draft · 3 de agosto de 2026**
+> **Working Draft · 10 de agosto de 2026**
 >
 > **Joy for humans. Clarity for machines.**
 >
@@ -9,6 +9,12 @@
 W é uma proposta de linguagem nativa para aplicações, sistemas, concorrência,
 paralelismo e computação científica. O compiler e o runtime ainda não existem.
 A superfície atual é um design experimental para revisão.
+
+Dois objetivos centrais orientam o design: gerência automática de memória sem
+anotações de lifetime no caminho comum e execução estruturada que mantém
+concorrência, paralelismo e placement explícitos no call site. Esses contratos
+estão especificados e possuem oracles de design. Eles ainda não são claims de
+uma implementação pronta.
 
 Contribuições humanas, assistidas por IA e automatizadas são bem-vindas. W
 avalia o resultado, a evidência e a responsabilidade. A ferramenta usada não
