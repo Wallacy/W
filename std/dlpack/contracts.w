@@ -145,7 +145,7 @@ export struct DynamicImportedTensor {
 }
 
 export async fn open<Element, shape: StaticList<usize>>(
-  take managed: ManagedTensor,
+  managed: take ManagedTensor,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
 ): ImportedTensor<Element, shape> throws DLPackError {
@@ -161,7 +161,7 @@ export async fn open<Element, shape: StaticList<usize>>(
 }
 
 export async fn openDynamic(
-  take managed: ManagedTensor,
+  managed: take ManagedTensor,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
 ): DynamicImportedTensor throws DLPackError {
@@ -175,7 +175,7 @@ export async fn openDynamic(
 }
 
 export async fn materialize<Element, shape: StaticList<usize>>(
-  take managed: ManagedTensor,
+  managed: take ManagedTensor,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
@@ -193,7 +193,7 @@ export async fn materialize<Element, shape: StaticList<usize>>(
 }
 
 export async fn materialize<Element, shape: StaticList<usize>>(
-  take imported: ImportedTensor<Element, shape>,
+  imported: take ImportedTensor<Element, shape>,
   target: ref tensor.Device,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
@@ -209,7 +209,7 @@ export async fn materialize<Element, shape: StaticList<usize>>(
 }
 
 export async fn export<Element, shape: StaticList<usize>>(
-  take value: Tensor<Element, shape>,
+  value: take Tensor<Element, shape>,
   on queue: ref tensor.Queue?,
   limits: ref Limits,
 ): ManagedTensor throws DLPackError {

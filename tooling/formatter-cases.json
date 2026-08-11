@@ -90,6 +90,31 @@
       "requiredSemicolons": []
     },
     {
+      "id": "F0-parameter-contract-placement",
+      "decisions": ["W-708", "W-1291"],
+      "input": {
+        "lines": [
+          "fn transfer(source:ref Menu,target:inout Menu,value:take Order){",
+          "consume(take value)",
+          "inspect(source)",
+          "edit(inout target)",
+          "}"
+        ]
+      },
+      "output": [
+        "fn transfer(",
+        "  source: ref Menu,",
+        "  target: inout Menu,",
+        "  value: take Order,",
+        ") {",
+        "  consume(take value)",
+        "  inspect(source)",
+        "  edit(inout target)",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
       "id": "F0-value-block-boundary",
       "decisions": ["W-772", "W-777", "W-782"],
       "input": {

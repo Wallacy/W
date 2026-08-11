@@ -104,8 +104,43 @@ function parseParameter(raw, index) {
   return { index, internal, policy: "positionalOnly", forms: ["positional"], hasDefault, variadic }
 }
 
+const leadingParameterKeywords = new Set([
+  "const",
+  "copy",
+  "inout",
+  "mut",
+  "pin",
+  "ref",
+  "shared",
+  "take",
+  "view",
+  "weak",
+])
+
+function parameterContractFacts(raw) {
+  const cleaned = splitTopLevel(raw, "=")[0].trim()
+  const leading = cleaned.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/s)
+  const leadingModifier = leadingParameterKeywords.has(leading?.[1])
+    ? leading[1]
+    : null
+  const contractMode = cleaned.match(/:\s*(const|inout|ref|take)\b/)?.[1] ?? "value"
+  if (!leadingModifier) return { contractMode }
+  const internal = leading[2]
+  const type = leading[3].trim()
+  const operationOnly = new Set(["copy", "mut", "pin"])
+  const canonicalForm = operationOnly.has(leadingModifier)
+    ? `${internal}: ${type}; ${leadingModifier} is not a parameter mode`
+    : `${internal}: ${leadingModifier} ${type}`
+  return { canonicalForm, contractMode, internal, leadingModifier }
+}
+
 function parseParameters(raw) {
-  return splitTopLevel(raw).map(parseParameter).filter(Boolean)
+  return splitTopLevel(raw)
+    .map((parameter, index) => {
+      const parsed = parseParameter(parameter, index)
+      return parsed ? { ...parsed, ...parameterContractFacts(parameter) } : null
+    })
+    .filter(Boolean)
 }
 
 function recordLabelDiagnostics(source) {
@@ -116,14 +151,27 @@ function recordLabelDiagnostics(source) {
     if (closing < 0) continue
     for (const raw of splitTopLevel(source.slice(opening + 1, closing))) {
       const parameter = raw.match(/^named\s+([A-Za-z_][A-Za-z0-9_]*)\s*:/)
-      if (!parameter) continue
-      diagnostics.push({
-        code: "W-LABEL-0007",
-        declaration: "init",
-        parameter: parameter[1],
-        context: "initializer",
-        reason: "record-label-already-required",
-      })
+      if (parameter) {
+        diagnostics.push({
+          code: "W-LABEL-0007",
+          declaration: "init",
+          parameter: parameter[1],
+          context: "initializer",
+          reason: "record-label-already-required",
+        })
+      }
+      const placement = parameterContractFacts(raw)
+      if (placement.leadingModifier) {
+        diagnostics.push({
+          code: "W-OWNERSHIP-0016",
+          declaration: "init",
+          parameter: placement.internal,
+          modifier: placement.leadingModifier,
+          canonicalForm: placement.canonicalForm,
+          context: "initializer",
+          reason: "parameter-contract-before-binding",
+        })
+      }
     }
   }
   return diagnostics
@@ -416,6 +464,18 @@ function deriveCallableLabels(source, declarations) {
   const byName = new Map()
   const diagnostics = recordLabelDiagnostics(source)
   for (const declaration of declarations) {
+    for (const parameter of declaration.params) {
+      if (!parameter.leadingModifier) continue
+      diagnostics.push({
+        code: "W-OWNERSHIP-0016",
+        declaration: declaration.name,
+        parameter: parameter.internal,
+        modifier: parameter.leadingModifier,
+        canonicalForm: parameter.canonicalForm,
+        context: "callable",
+        reason: "parameter-contract-before-binding",
+      })
+    }
     const callShapes = completeCallShapes(declaration.params)
     const scopedName = `${declaration.scope}|${declaration.name}`
     const previous = byScopedName.get(scopedName) ?? []

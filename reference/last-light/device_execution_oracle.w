@@ -89,7 +89,7 @@ export async fn copyForecastToHost<
   rows: usize,
   outputs: usize,
 >(
-  take result: FeatureBatch<rows: rows, columns: outputs>,
+  result: take FeatureBatch<rows: rows, columns: outputs>,
   host: ref tensor.Device,
   on queue: ref tensor.Queue?,
   limits: ref tensor.Limits,

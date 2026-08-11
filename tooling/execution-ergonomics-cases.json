@@ -39,6 +39,33 @@
       "expect": { "callableName": "inspect", "callablePolicy": "positionalOnly", "forms": ["positional"] }
     },
     {
+      "id": "EE-POS-parameter-contract-after-binding",
+      "kind": "positive",
+      "source": "fn transfer(source: ref Menu, target: inout Menu, payload: take Order, format: const Format) {}",
+      "expect": {
+        "callableName": "transfer",
+        "contractModes": ["ref", "inout", "take", "const"]
+      }
+    },
+    {
+      "id": "EE-NEG-parameter-contract-before-binding",
+      "kind": "negative",
+      "source": "fn consume(take value: Menu) {}",
+      "expect": { "diagnostic": "W-OWNERSHIP-0016", "callableName": "consume" }
+    },
+    {
+      "id": "EE-NEG-copy-parameter-mode",
+      "kind": "negative",
+      "source": "fn duplicate(copy value: Menu) {}",
+      "expect": { "diagnostic": "W-OWNERSHIP-0016", "callableName": "duplicate" }
+    },
+    {
+      "id": "EE-NEG-initializer-contract-before-binding",
+      "kind": "negative",
+      "source": "struct Request { init(take value: Request) {} }",
+      "expect": { "diagnostic": "W-OWNERSHIP-0016" }
+    },
+    {
       "id": "EE-POS-label-overload-owner-scoped",
       "kind": "positive",
       "source": "protocol Left { fn read(value: Value) }\nstruct Right { fn read(value: Value) {} }",
