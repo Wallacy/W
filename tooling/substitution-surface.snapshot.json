@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:21e582269e06534203dfb84ac2a3c987eabf0c1a2a5948300bbf7a526030e45d",
+  "corpusDigest": "sha256:c27176b4603cb950511c6109564ac86173a64449de09728f5377c34f8cd3f8d7",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2796,6 +2796,66 @@
             "nonWhitespaceCodePoints": 39,
             "lines": 2,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-shared-construction",
+      "task": {
+        "utf8Bytes": 96,
+        "codePoints": 96,
+        "nonWhitespaceCodePoints": 83,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a41dd69d8867c97201326dbddbd8216e5ab5f133a9ebabcfe78d01778f21d658",
+        "metrics": {
+          "utf8Bytes": 98,
+          "codePoints": 98,
+          "nonWhitespaceCodePoints": 86,
+          "lines": 2,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "always-fallible-share",
+          "language": "w-alternative",
+          "sourceDigest": "sha256:99053098b64ab4dfac38d647e6b55ee62debe757e543a1d5b5cf510ebb6a9666",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 17
+          }
+        },
+        {
+          "name": "contextual-shared-type",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:e9833afbb933c187c4c5b458e4de97c01d75083839d09d450f3f4fc3e8decc33",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "nominal-wrapper-factory",
+          "language": "rust",
+          "sourceDigest": "sha256:93ee95885c392a16ec7bc068d2eae061ae6fd55198d0797087fcdba1491ff471",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 1,
+            "surfaceLexemes": 17
           }
         }
       ]

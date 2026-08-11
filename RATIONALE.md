@@ -110,6 +110,7 @@ O corpus compara, no mínimo:
 - static record/list contra interpretações universais de extension e constraints;
 - ponteiro `fn`, `some fn` e `any fn` contra um único callable apagado;
 - erasure contextual com policy normal e `erase` fallible contra exigir uma única forma em todos os casos;
+- `share(value)` normal e `tryShare(value, using:)` recuperável contra `try share` universal e promotion contextual;
 - call posicional por valor contra labels e defaults preservados no function type;
 - `fn`, `mut fn` e `take fn` contra protocols callable separados;
 - signature invariável contra variance e effect widening implícitos;
@@ -187,7 +188,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 68 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 69 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 definida na [seção 24.3](DESIGN.md#243-recursos-deliberadamente-ausentes).
 
@@ -263,7 +264,7 @@ flag cria estado mutável que pode divergir do control flow.
 contagens determinísticas antes de qualquer participante ou modelo vê-las.
 
 [`tooling/substitution-surface.snapshot.json`](tooling/substitution-surface.snapshot.json)
-mede as 165 formas derivadas do corpus pelo runner nesta revisão. O runner
+mede as 169 formas derivadas do corpus pelo runner nesta revisão. O runner
 junta as linhas com LF e sem newline final. A contagem vem do script e muda
 quando alternativas cross-language entram ou saem. Para a tarefa e para cada
 forma, ele registra:
@@ -880,6 +881,30 @@ continua `design-oracle-input` até os gates reais substituírem os oracles. Os
 IDs W-1148 a W-1154 registram a fronteira de evidência e o status, sem duplicar
 a semântica de W-746, W-769, W-770, W-771, W-772 ou W-147.
 
+#### 1.3.20 Criação do primeiro owner `shared`
+
+**Exemplo:** `share(MenuSection(...))` cria o primeiro owner com a policy normal;
+`try tryShare(take draft, using: memory)` escolhe recovery e allocator.
+
+O bundle
+[`r1-shared-construction`](tooling/studies/r1-shared-construction) compara três
+formas parseáveis: operação explícita com policies separadas, `try share`
+universal e promotion pelo expected type. Os inputs cobrem temporary, binding
+existente, allocator bounded, payload lifetime-dependent e falha antes da
+publicação do handle. O oracle host verifica consumo, cleanup e failure policy;
+ele não aloca um control block W.
+
+Rust separa `Arc::new`/`Rc::new` das variantes `try_new`. Swift ARC mantém
+reference counting automático para instances de class. O working draft de C++
+define factories `make_shared` e `allocate_shared`. W não copia essas
+superfícies: o qualifier `shared` continua sendo o tipo e um verbo no value
+expression torna allocation e mudança de ownership observáveis.
+
+A forma selecionada reduz ceremony no caso normal sem introduzir promotion
+contextual. `tryShare` permanece distinto porque o caller escolhe uma failure
+boundary recuperável. Tree-sitter e o oracle host são a evidência atual;
+`w-compile`, `w-run`, estudo humano e estudo de modelos permanecem missing.
+
 ### 1.4 Concorrência, paralelismo e execução
 
 Esta seção preserva comparação, precedentes e alternativas. A seção 12 de
@@ -1024,6 +1049,16 @@ payload, owners fortes, owners fracos e allocator; thread-safe reference count
 não torna o payload shareable. W mantém essas distinções sem expor lifetime
 variables no source.
 
+Rust separa criação normal e recuperável em `Arc::new`/`Arc::try_new` e
+`Rc::new`/`Rc::try_new`. O
+[ARC de Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/automaticreferencecounting/)
+torna a alocação de class instance contextual, mas também torna toda class uma
+reference type. O
+[working draft de C++](https://eel.is/c++draft/util.sharedptr) preserva factories
+de shared ownership e recomenda uma única allocation. W escolhe um verbo
+explícito para a mudança de ownership, separa policy normal de recovery e deixa
+co-allocation para o optimizer.
+
 #### 1.5.2 Allocators e arenas
 
 [`Allocator` de Rust](https://doc.rust-lang.org/std/alloc/trait.Allocator.html)
@@ -1150,7 +1185,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-022 | borrow | `ref` e `inout` | lifetime annotations públicas; pointers |
 | W-023 | transfer | last-use + `take` obrigatório na API | move sempre explícito; move implícito amplo |
 | W-024 | copy | implícito só para `Copy`; `copy value` explícito usa `Duplicable` | `.clone()` universal; COW como contrato |
-| W-025 | shared | `try share(value, using:)`, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; block-region-only (retired) |
+| W-025 | shared | `share(value)` normal, `tryShare(value, using:)` recuperável, `copy` para novo owner e `weak()` | ARC implícito; promotion por expected type; block-region-only (retired) |
 | W-026 | region block (retired) | syntax `region name(using:, limit:)` liderava e baixava para `Arena`; a API foi mantida, mas o bloco foi retirado antes de W 1.0 | lifetime annotations; heap por módulo; API sem bloco |
 | W-027 | allocator | capability explícita, default fixado pelo product, system portátil e profile substituível | mimalloc universal; allocator por import; default thread-local mutável |
 | W-028 | OOM | fallible explícito; geral aborta boundary | throws universal; abort de process sempre |
@@ -1540,7 +1575,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-412 | allocator profiles | build profile fixa `.system`, `.none` ou runtime contract; plan fixa provider; mimalloc exige benchmark | override global obrigatório; allocator escolhido por import; path no manifest |
 | W-413 | allocation failure | cases estáveis, strong guarantee em `try*` e budget distinto de OOM | tamanho livre global; falha parcial; uma exception universal |
 | W-414 | inicialização de storage | safe typed allocation nunca expõe uninitialized; zero é operação/policy explícita | calloc semântico universal; bytes residuais legíveis |
-| W-415 | criação shared | intrinsic fallible `share`, allocator explícito opcional e sem promotion implícita | constructor wrapper; expected type aloca; shared universal |
+| W-415 | criação shared | `share` usa policy normal; `tryShare` é fallible e aceita allocator explícito; não há promotion implícita | constructor wrapper nominal; expected type aloca; shared universal |
 | W-416 | cópia shared | handles são move-first; `copy` torna retain visível; optimizer pode elidir | shared atende a Copy implícito; retain escondido em assignment |
 | W-417 | `ref` versus `view` | `ref` preserva place completo; `view` descreve projeção sem owner/capacity | tratar ambos como pointer + count; view nominal por tipo |
 | W-418 | mutation de view | binding/parameter `inout view T`; extent fixo e sem resize; String/CString permanecem read-only | `MutableXView`; mutation por view read-only; copy-on-write |
@@ -1987,9 +2022,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-859 | fechamento do catálogo citado | todos os codes com meaning citado possuem schema; o índice gera a contagem corrente; status permanece `projection-seed` até compiler e runners emitirem output real | declarar catálogo final pela contagem manual; reservar toda família; remover status antes do checker |
 | W-860 | expansão F0 semântica | repeat rotulado, effect/ownership prefix, receiver consuming, spawn domain, parâmetro de valor, enum subset, capture e transaction possuem pares CST-equivalentes e snapshots D0 | formatar só declarations simples; usar HIR para layout; remover grouping de ownership; reescrever slot nomeado; reordenar constructs para legibilidade |
 | W-861 | schema de substituição R0 | cada caso liga um requisito literal da seção 1 a IDs do ledger, tarefa, forma vigente, alternativas e quatro medidas | texto sem ligação; alternativa sem origem; decisão inferida pelo nome do caso |
-| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/68`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 68 bullets como 68 casos; bloquear todo commit intermediário; declarar cobertura completa por prose |
+| W-862 | cobertura progressiva R0 | check comum valida casos presentes e publica `estruturados/69`; `--require-complete` bloqueia o freeze enquanto faltar caso | tratar 69 bullets como auditoria completa do ledger; bloquear todo commit intermediário; declarar cobertura completa por prose |
 | W-863 | source comparativo R0 | forma vigente é W corrente; alternativa declara W rejeitado, pseudocode ou outra linguagem e não entra no corpus positivo | parsear alternativa como W válido; omitir language; confundir estudo planejado com resultado executado |
-| W-864 | fechamento de cobertura R0 | 68/68 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
+| W-864 | fechamento de cobertura R0 | 69/69 requisitos possuem caso estruturado; o gate do repository exige completude e o índice distingue input pronto de estudo executado | deixar o gate progressivo após completar o corpus; declarar ergonomia ratificada pela contagem; omitir formas ainda válidas como alternativas contextuais |
 | W-865 | baseline estática R0S | digest do corpus fixa bytes, code points, non-whitespace, linhas e surface lexemes de tarefa e formas; snapshot é reproduzível | contar manualmente; snapshot sem digest; depender de tokenizer remoto para drift local |
 | W-866 | limite de R0S | métrica de superfície é descritiva e não escolhe vencedor, não equivale a token de compiler/LLM e não substitui estudo humano ou de modelo | declarar forma menor como melhor; agregar snippets de escopos diferentes; chamar lexeme de token de modelo |
 | W-867 | escala de estudo R1 | R0 mede microformas; compreensão, mudança e surpresa runtime usam bundles executáveis do Última Luz com source base, input e outcome iguais; somente a construção estudada muda | extrapolar preferência de snippet; remover contexto da alternativa; usar programa diferente para cada forma |
@@ -2011,11 +2046,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-883 | limite de P0 | oracle host recebe facts de assinatura e metadata; não prova SemVer completo, TUF, Sigstore, download, archive, sandbox ou rebuild real | declarar registry implementado; tratar SHA-256 do oracle como algoritmo eterno; chamar duas simulações de builders independentes |
 | W-884 | labels estruturados ratificados | label nomeia loop ou block lexical; `continue` avança o driver; `break` sai do owner; nenhuma forma reinicia no token do label | label solto; `goto`; salto para dentro; confundir `continue label` com task yield |
 | W-885 | documentação de ausências | cada forma deliberadamente ausente mostra forma recusada, substituição W, diferença observável e caso comparativo | lista de nomes sem source; omitir motivo; apresentar alternativa recusada como syntax aceita |
-| W-886 | corpus R1 ampliado | 20 bundles, 48 variantes e 80 tarefas cobrem os domínios R1 atuais com source base, inputs, digests e oracle; 31/68 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
+| W-886 | corpus R1 ampliado | 21 bundles, 51 variantes e 84 tarefas cobrem os domínios R1 atuais com source base, inputs, digests e oracle; 32/69 casos R0 foram promovidos | extrapolar R0; variante sem contexto; outcome não fixado; chamar host oracle de execução W |
 | W-887 | estudo R1 de units | `<unit-expression>` e `[unit-expression]` preservam cálculo; a forma square faz parse como indexação e não é quantity semântica vigente | comparar snippets sem fórmula; tratar parse como type-check; escolher por contagem de caracteres |
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
-| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 68 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
+| W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 69 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
 | W-891 | catálogo std SDK0 | profiles cobrem 285 exports em 18 módulos, 14/14 requisitos contratados e oito carriers (2/8 missing: Blob e FormData); todas as declarations estão draft-ready; scan compara 67 superfícies qualificadas; `std.build.Context` é draft e `std.build@1` continua missing; 12/12 providers continuam missing | contar arquivos como cobertura; inferir API sem scan; tratar provider missing como execução; duplicar o grafo de readiness; omitir carrier ou provider ainda sem execução |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
@@ -2045,7 +2080,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-917 | endurecimento executável M1 | schema M1 fixa 165 casos e 580 operações; fecha subplace reborrow, child copies, owner access, ProofFacts ligados ao PlaceId, dependency authority, borrow/storage origins, Arena budget/close (formerly region), rehome, shared/weak lifecycle, erasure inline/spill, alias borrows, failure consuming, boundary gates, interface mappings, referent await, pin, cleanup e adapter W; preserva owner, representation, allocator e WAbiKey | aceitar origin implícita, fact sem place, endereço do aggregate como prova, share reparar borrow, mobility declarada na call, self-proof estrangeira, duplicar check M0, chamar oracle de compiler/runtime |
 | W-918 | authority de dependency edge | cada edge é obrigação de lifetime e capability; shared permite read; exclusive permite read/write; criação valida loans e edges de modo atômico; IDs são únicos; selector usa ID xor origin e a abreviação exige origin única | edge apenas como bloqueio; write por shared; origin first-match; dois selectors; conjunto parcialmente criado após conflito; operação source `accessDependency` |
 | W-919 | estudo R1 de contratos sequenciais | `StagePath` compara `StaticList<T><(predicate)>` com type e predicate fundidos em static list; source, validator, inputs e outcome permanecem iguais; a forma fused faz parse, mas é semanticamente rejeitada | snippet isolado; mudar o algoritmo; tratar static list como lista universal de constraints; chamar oracle host de evaluator W |
-| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 31/68 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
+| W-920 | cobertura de promoção R1 | índice e checker contam IDs R0 únicos ligados a bundles; 32/69 mede planejamento, não evidência humana, de modelo ou runtime | contar referências duplicadas; dividir bundles por requisitos; chamar promoção de ratificação; esconder o denominador |
 | W-921 | inversão semântica de contrato fused | S0 compara `StaticList<T><(predicate)>` com `StaticList<[T, (predicate)]>`; a segunda forma faz parse e falha com W-CONTRACT-0002 no slot `T` antes de resolver o predicate | rejeição somente em prosa; W-CONTRACT-0005 no envelope errado; interpretar lista como constraints; emitir erro secundário de `.member` |
 | W-922 | diagnostic de receiver consuming | place owned e movível em member `take fn` exige `(take receiver).member()`; call sem marker produz W-OWNERSHIP-0011 com place/type/category antes do move e não recebe fix automático; receiver não owned falha pela incompatibilidade anterior | inferir take pelo member; consumir e continuar checking; chamar todo receiver de binding; inserir fix que muda ownership; restaurar owner no error |
 | W-923 | estudo R1 de receiver consuming | `CommandStream.finish()` compara marker explícito e consumo inferido com source idêntico fora da call; success e error deixam owner indisponível no modelo hipotético; S0 rejeita a forma implicit | comparar APIs diferentes; omitir error; usar owner depois da call válida; chamar host oracle de runtime W |
@@ -2054,8 +2089,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-926 | estudo R1 de domain (retired) | decisão anterior tratava `<domain: .compute>` como variante de schema; W-1160/W-1162/W-1172 tornam as duas formas equivalentes e preservam o dispatch sem prometer simultaneidade | tratar domain como thread; aceitar alias duplo no mesmo slot; capacity um invalida spawn; chamar oracle de scheduler |
 | W-927 | formatter de domain (retired) | F0 preserva a forma positional ou named escrita e a HIR normaliza ambas; spacing e statement boundaries ficam canônicos | apagar label; inserir label; reescrever domain como frase `on`; inferir pool no formatter |
 | W-928 | proveniências de borrow e storage | `OriginSet` mantém dependency edges; `AllocationOriginSet` mantém allocator instance, lifetime, mobility, deallocator e adoption family; move transfere ambos, mas nenhum substitui o outro | um origin set universal; allocator como borrow comum; metadata em pointer; lifetimeIndependent apagar storage origin |
-| W-929 | criação de shared | `share` exige payload lifetime-independent, preserva origins internas e cria origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
-| W-930 | falha de operação consuming de storage | allocation failure de `pin`, `share`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; retry exige outcome que devolve o source | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
+| W-929 | criação de shared | `share` e `tryShare` exigem payload lifetime-independent, preservam origins internas e criam origin própria para control block; storage interno precisa sobreviver ao block; shareable só é exigido na fronteira paralela | share prolonga borrow; shareable repara lifetime; ARC universal; control block sem allocator origin |
+| W-930 | falha de operação consuming de storage | failure de `pin`, `share`, `tryShare`, `rehome` e `erase` consome e destrói o source uma vez, limpa destino parcial e não publica handle/address/existential; `share` escala por panic e recovery exige operação/outcome explícito | restaurar binding implicitamente; source parcialmente válido; leak do destino; publicar pointer ou existential antes do success |
 | W-931 | composição strong/weak | último strong executa deinit uma vez; weak mantém somente control block e allocator origin; upgrade após strong zero devolve none; último weak libera block; borrow shared fica ligado ao strong handle de origem; `inout` exige owner único; cross-domain exige payload shareable, contador thread-safe e todas origins móveis | weak acessa payload sem upgrade; borrow ligado ao contador global; alias sem relação bloqueia drop; ressurreição; contador local cruza domain; shareable ignora allocator mobility |
 | W-932 | interface de storage owned | `AllocationOriginMap` liga paths de storage do result a allocator inputs, default do product ou runtime owner; ele é separado do borrow mapping e participa da SemanticInterfaceKey | esconder lifetime do allocator; colocar mapping somente em docs; tratar owned result como lifetime-independent por definição; expor mapping oculto na C ABI |
 | W-933 | expansão de composição M1 | a tranche adiciona 21 casos e quatro testes independentes para budget/close, rehome, local versus cross-domain, share dependent, failure consuming, lifecycle strong/weak, borrows por handle e interface storage; W-938 estende o snapshot corrente | exemplo sem state; somente success; simular thread scheduler; chamar origin lógica de allocation física |
@@ -2112,7 +2147,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-984 | acesso relativo ao fim | `.last` é Forma vigente, retorna `ref String?` e absorve empty sem guard; arithmetic `count - 1` é alternativa com guard; negative indexing é Rejeitado por enquanto por signed/unsigned, `-0`, empty, bounds e contexto; `get(fromEnd:)` e `suffix` são Pesquisa; C# `^1` é alternativa documental | index negativo sem guard; usar `^1` como syntax W; underflow unsigned; converter empty em panic |
 | W-985 | ordem de labels de call | a call é sequência ordenada de labels; overload e initializer selecionam essa forma antes de tipos; ordem de declaração é Forma vigente; default em `currency` cria `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` cria terceira sequência; política unordered colapsa as formas completas e diagnostica antes de types; reordering é Pesquisa/Alternativa | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
 | W-986 | tuple destructuring fixo | binding de tuple/struct de shape fixo é Forma vigente; projections `.0`/`.1` preservam uma avaliação e exigem `copy` ou borrow explícito para componente move-only; starred unpacking é Rejeitado por enquanto por ownership, aridade dinâmica e partial moves; `each collection` continua call-rest | reavaliar `word()`; starred na grammar; tratar `each` como destructuring; mover tuple parcial |
-| W-987 | corpus R1, contagens e limites | o corpus tem 68 casos R0, 20 bundles, 48 variantes, 80 tarefas, 31/68 promovidos e cinco novos host oracles; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
+| W-987 | corpus R1, contagens e limites | o corpus tem 69 casos R0, 21 bundles, 51 variantes, 84 tarefas e 32/69 promovidos; R0S deriva sua contagem de formas por script; bundles fixam primary/adversarial inputs, digests, counterbalancing, blinding e evidência missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
 | W-988 | carrier Batch mínimo | `data.Batch<Row>` é finito, owned, columnar, imutável após publicação, schema fechado, row count comum e vazio válido; schema sem fields exige row count explícito; payload publica somente depois da validação | `Table<Row>` estável; DataFrame no core; colunas com counts diferentes; batch vazio como erro; mutação depois da publicação |
 | W-989 | DynamicBatch e Array<Row> | `data.DynamicBatch` pode publicar schema runtime; binding tipado explícito valida antes de publicar o `data.Batch<Row>`; `Array<Row>` continua válido para algoritmos row-centric e é rejeitado como carrier universal; DataFrame completo é package first-party | duck typing; `Any` carrier; Array como coluna universal; DataFrame estável na std |
 | W-990 | trigger de data.Row | `struct X: data.Row` ativa synthesis por identidade do protocol, struct-only, all-or-none e stored instance fields em declaration order; witness manual e DTO dedicado continuam | annotation genérica; macro; nome textual; synthesis parcial; reflection como trigger |
@@ -2279,7 +2314,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1151 | R1E0 assignment | bundle cobre place/RHS one-shot, ledger de ownership, commit após RHS success, preservação após failure, Unit, move-only, compound one-place e rejeição por context/AST | devolver value, encadear, duplicar owner, dropar antes do RHS ou ler/escrever place duas vezes |
 | W-1152 | R1E0 power boundary | bundle cobre `**` right-associative, unary base/exponent, `^` XOR e a separação de unit grammar | trocar `^` por power, associar à esquerda, ou exigir parentheses para exponent prefix |
 | W-1153 | R1E0 fluent self | bundle seleciona `: self` com fallthrough e compara `return self`; validator separa receiver mode, return contract, exit e storage; omitted type é Unit, `Self` é owned e `take fn` rejeita | tornar `: self` `Self` owned, exigir `return self`, copiar/mover/alocar receiver ou aceitar `take fn` |
-| W-1154 | R1E0 corpus metrics and status | scripts derivam 20 bundles, 48 variants, 80 tasks e 31/68 R0 promovidos; substitution surface é regenerada e o status permanece `design-oracle-input` | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
+| W-1154 | R1E0 corpus metrics and status | no fechamento R1E0, scripts derivaram 20 bundles, 48 variants, 80 tasks e 31/68 R0 promovidos; bundles posteriores preservam o mesmo status `design-oracle-input` | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
 | W-1155 | generic value parameters | parâmetros de valor usam `name: Type` ou `_ name: Type` (`optional(name)`), são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
 | W-1156 | generic labels e contract values (retired) | interpretação anterior: `_` removia o label externo; W-1160 substitui por label opcional, com as duas formas no mesmo slot; values mantêm associated exposure estática | primary-only, field de instance automático, reorder de labels, member callable implícito |
 | W-1157 | implicit script entry | statements finais root-only baixam para wrapper `.default` privado sem args/ctx, com `entryForm` explícito no workflow | top-level execution arbitrária, entry+implicit misturados, args/ctx implícitos, script importável |
@@ -2298,10 +2333,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1170 | comparativos de execução | Swift, GCD, Go, Java, P2300, Koka, libdill, LLVM e MLIR formam gates comparativos sem definir W ou virar dependency | backend externo como autoridade, comparação sem diferença observável |
 | W-1171 | evidence de execution ergonomics | máquina pura deriva labels/forms, suspensão/SCC/call form, placement, projections, doctest terminals/effects, std module facts e FIFO/lifecycle/budgets de jobs e frame bytes da lane serial dinâmica; checker compara expected, host test usa entradas independentes e snapshot JSONL fixa o resultado; nenhum artefato executa W | checker que ecoa strings do JSON, snapshot manual, host test tautológico, alegar compiler/runtime |
 | W-1172 | dispatch para domain serial | `spawn<domain>` cria child estruturado no domain explícito; serial aceita dispatch, executa um segmento runnable por vez, preserva FIFO no primeiro start e libera o permit durante await/join; `.parallel` é capability do domain, não da keyword | rejeitar serial, tratar spawn como thread paralela, bare `spawn let`, wait síncrono no mesmo domain, `parallelDefault` oculto |
-| W-1173 | dispatch de barreira | `spawn<domain, .barrier>` cria um ticket estruturado; prior jobs drenam, a barreira `neverSuspend` executa sozinha e libera jobs posteriores depois do cleanup; o checker pode ordenar `ref`/`inout` somente para um grafo fechado no mesmo domain | `try share`, lock oculto, barrier que suspende, placement como isolation universal, `dispatch_barrier_async` sem queue privada, read/write por convenção não verificada |
+| W-1173 | dispatch de barreira | `spawn<domain, .barrier>` cria um ticket estruturado; prior jobs drenam, a barreira `neverSuspend` executa sozinha e libera jobs posteriores depois do cleanup; o checker pode ordenar `ref`/`inout` somente para um grafo fechado no mesmo domain | shared ownership desnecessário, lock oculto, barrier que suspende, placement como isolation universal, `dispatch_barrier_async` sem queue privada, read/write por convenção não verificada |
 | W-1174 | leitura tolerante a staleness | `load<.relaxed>()` continua atômica; storage comum só participa quando happens-before ou barreira prova a ordem; o modifier `atomic` nunca expõe uma view comum dos mesmos bytes | read não atômica concorrente porque o valor pode ser antigo, relaxed como non-atomic, weakening silencioso, `volatile` como synchronization |
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
 | W-1176 | claim de memória | gerência automática exige prova real de owner/borrow/drop/reclamation, placement semanticamente neutro e contratos explícitos para shared/pin/FFI/OOM | alegar memória resolvida por existir um borrow checker, exigir GC/ARC universal, usar resultado de oracle host como implementação |
+| W-1177 | criação shared ergonômica | `share(value)` usa allocator geral e policy normal; `tryShare(value, using:)` torna recovery e allocator explícitos; owner existente exige `take`; expected type nunca promove | `try share` obrigatório no caminho comum, allocation escondida pelo expected type, `Shared<T>.make`, promotion automática em argumento ou return |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
