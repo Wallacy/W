@@ -12385,11 +12385,13 @@ primeiro statement. Use `fn` mais `entry(fnName)` para arguments, `Context`,
 return customizado ou typed errors públicos.
 
 O profile precisa declarar um adapter de body simples. `native-process@1`
-adapta `fn(): ()` para seu main portátil. O wrapper descarta arguments, devolve
-success e não cria uma variável `ctx` oculta. APIs alcançáveis ainda precisam
-das capabilities do profile; `print` usa seu lowering declarado. `w explain
-product` mostra o wrapper e essas requirements. Um profile que não declara essa
-adaptação rejeita a forma curta.
+adapta `fn(): ()` para seu main portátil. O host mantém os owners canônicos de
+`Arguments` e `Context` no entry root, mas o wrapper não os recebe como
+parâmetros, não cria bindings `args`/`ctx` e devolve success. O source só os
+observa quando escreve `process.args` ou `process.context`. APIs alcançáveis
+ainda precisam das capabilities do profile; `print` usa seu lowering
+declarado. `w explain product` mostra o wrapper e essas requirements. Um
+profile que não declara essa adaptação rejeita a forma curta.
 
 Uma função normal pode ocupar o slot default:
 
@@ -12519,8 +12521,8 @@ aparecem no package e na recipe, não como assignments executados pela aplicaç�
 
 `std.process` é um módulo da standard library plana. Ele fornece `Arguments`,
 `Context`, `ExitCode`, `Signal` e APIs portáteis. Ele não fornece um singleton
-ambiental. Outros SDKs
-fornecem `std.device`, `std.mobile` e `std.audio` para seus contexts.
+ambiental. Módulos de target fornecem `std.device`, `std.mobile` e `std.audio`
+para seus contexts.
 
 Informação sobre memory limit, resident memory ou probes exige uma capability
 do context. `ctx.resources.limits()` e `ctx.telemetry.snapshot()` são **Provável
@@ -12543,18 +12545,21 @@ event handlers dinâmicos. Esses registries não alteram o host ABI.
 
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
 
-**W-1167 — projections de process:** para roots `native-process`, `std.process` expõe duas projections intrínsecas e
-read-only:
+**W-1167 — projections de process:** para roots `native-process`, o compiler
+expõe duas projections intrínsecas e read-only do root que usa os tipos de
+`std.process`:
 
 ```w
 let args = process.args
 let context = process.context
 ```
 
-`process.args` é um snapshot/view read-only. `process.context` é a projection
-read-only do root context. O profile host concede somente os bindings declarados.
-O acesso adiciona um operational effect e um requirement explícitos. Audit e
-reachability incluem o acesso.
+`process.args` possui tipo `ref std.process.Arguments` e aponta para o único
+snapshot imutável do root. `process.context` possui tipo
+`ref std.process.Context` e aponta para o context nominal desse root. Uma nova
+leitura não duplica argv ou capabilities. O profile host concede somente os
+bindings declarados. O acesso adiciona um operational effect e um requirement
+explícitos. Audit e reachability incluem o acesso.
 
 Não existe um singleton ambiental mutável. O projection ref não pode ser
 serializado, atravessar service ou sobreviver ao entry root e à sua structured
@@ -18231,13 +18236,114 @@ target estão fechados.
 As instâncias concretas não repetem esse contrato aqui. `http.Context`, seus
 members e seu lifetime request-scoped são definidos na seção 14.3.3.
 `build.Context`, seus quatro overloads e a publicação do action-result são
-definidos na seção 21.2.4. Cada seção concreta declara o provider, os effects,
-os limits e a política de shared borrow que especializam estas regras.
+definidos na seção 21.2.4. `process.Context` e suas projections root-scoped são
+definidos abaixo. Cada seção concreta declara o provider, os effects, os limits
+e a política de shared borrow que especializam estas regras.
 
 **Rejeitado por enquanto:** `any Context` adicionaria erasure e dispatch sem
 necessidade. Um singleton global esconderia authority. Um `object` tornaria
 identity observável sem valor semântico. Um record público permitiria fabricar
 capabilities inválidas.
+
+#### 14.5.2 Processo nativo, argumentos e stdio
+
+**Exemplo:** um handler explícito recebe owners nominais. Um body implícito lê
+os mesmos valores somente quando escreve a projection:
+
+```w
+import process from std
+import std.io
+
+async fn run(
+  args: process.Arguments,
+  ctx: process.Context,
+): process.ExitCode throws WriteAllError<IoError> {
+  if args.contains("--check") { return .success }
+  try await ctx.stdout.writeAll(text: "The final check is ready.\n")
+  return .success
+}
+
+entry(run)
+```
+
+`std.process` materializa `Arguments`, `Context`, `Input`, `Output`,
+`SignalRegistry`, `SignalRegistration`, `Services`, `ExitCode`, `Signal` e seus
+errors sobre o provider versionado `std.process@1`. Todos os initializers que
+aceitam handles permanecem privados. O provider continua **missing**; o source
+fixa a interface e não afirma acesso ao processo real.
+
+**W-1296 — um único root, nenhuma variável oculta:** `native-process@1` cria um
+owner de `Arguments` e um owner de `Context` antes de chamar o descriptor. Um
+handler explícito recebe esses owners. Um entry body curto ou implícito não
+recebe parâmetros: `process.args` e `process.context` emprestam os mesmos owners
+do root. O namespace contextual `process` não é um object da std, não pode ser
+guardado e não contém `ctx` como alias.
+
+**W-1297 — argv preserva texto nativo:** `Arguments` mantém ordem e quantidade
+exatas. Cada item é `OsString`, porque Unix pode fornecer bytes que não são
+UTF-8 e Windows pode fornecer unidades UTF-16 sem pareamento. `get` devolve
+`ref OsString?`; iteração empresta os mesmos itens. `contains(String)` converte
+texto W para a representação nativa e compara exatamente. Ele não faz decode
+lossy, normalização, case folding ou locale lookup. `contains(native:)` evita a
+conversão. O owner e todas as refs terminam com o entry root.
+
+`ExitCode.success` representa zero. `ExitCode.failure(code)` aceita somente
+`1...255`, que é o envelope portátil. Um host com códigos maiores precisa de um
+adapter específico; truncamento e wrap ficam rejeitados.
+
+**W-1298 — Context projeta capabilities concretas:** `Context` é um wrapper
+nominal root-scoped. Cada getter devolve um owner retido independente, ainda
+limitado ao mesmo root:
+
+| Member | Tipo | Requirement |
+|---|---|---|
+| `stdin` | `process.Input` | `.stdio` |
+| `stdout`, `stderr` | `process.Output` | `.stdio` |
+| `network` | `net.Network` | `.network` |
+| `signals` | `process.SignalRegistry` | `.signals` |
+| `services` | `process.Services` | `.services` |
+| `deadline` | `Deadline` | root deadline |
+
+O checker deriva requirements dos members alcançados. O linker rejeita um
+product sem a capability correspondente. O wrapper não cruza service, wire,
+storage ou foreign boundary. Retenção não amplia authority e não permite que o
+owner sobreviva ao root.
+
+**W-1299 — stdio tem cursor e progress explícitos:** `Input` atende a
+`ByteSource<IoError>`. `lines(maximumBytes:)` devolve um
+`some Stream<String, InputError>` sobre o mesmo cursor. Ele aceita LF e CRLF,
+remove o delimitador, entrega uma última linha não vazia sem delimitador e faz
+decode UTF-8 estrito. O limite conta bytes antes do decode e exclui LF ou CRLF.
+Linha maior, UTF-8 inválido e I/O físico são failures diferentes. Só uma read
+opera no cursor por vez; cancellation drena a operação antes de liberar buffer
+ou loan.
+
+`Output` atende a `ByteSink<IoError>`. `writeAll(text:)` escreve os bytes UTF-8
+exatos, não acrescenta newline e devolve `WriteAllError<IoError>` com a
+quantidade já committed quando falha. O provider serializa cada call em um
+ticket, portanto os bytes de duas calls não intercalam. A ordem entre tasks é a
+ordem de admission, não a ordem lexical do source.
+
+**W-1300 — signal registration é geracional e estruturada:** `Signal` portátil
+contém `.interrupt` e `.terminate`. `SignalRegistry.register` exige conjunto
+não vazio, sem duplicatas e dentro do limite do product. Ele devolve uma
+`SignalRegistration` owned. `replace` publica uma nova generation; um evento
+já aceito usa a generation anterior. `cancel` e drop fecham admission de forma
+idempotente. Um handler aceito permanece child do entry root, não executa em
+raw signal context e drena antes do root terminar. `std.posix` pode fornecer
+signals adicionais sem ampliar o enum portátil.
+
+**W-1301 — shutdown e término permanecem separados:** `Services.drain` fecha
+admission e aguarda roots de service até o `Deadline` do host. A operação não
+transforma timeout em rollback e não encerra o processo por conta própria.
+Depois do grace period, a fault policy do host decide o boundary. Retornar
+`ExitCode` seleciona somente o status normal; typed error, panic, signal fatal e
+forced boundary continuam outcomes distintos.
+
+`std/process/contracts.w` é a projection source deste contrato. O Context não
+expõe environment, cwd, filesystem, clock wall, secrets, process memory ou
+handles arbitrários. Cada família futura precisa de member, capability, limits
+e provider próprios.
 
 ## 15. Números, ranges e unidades
 
@@ -19771,7 +19877,7 @@ conter bytes que não são UTF-8. Em Windows, ele pode conter unidades UTF-16
 sem pareamento.
 
 ```w
-let native: OsString = context.process.arguments[0]
+guard let native = process.args.get(0) else return
 let text: String = try native.toString()
 let label: String = native.displayLossy()
 ```

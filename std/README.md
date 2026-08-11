@@ -35,6 +35,8 @@ std/
     contracts.w
   memory/
     contracts.w
+  process/
+    contracts.w
   data/
     contracts.w
   csv/
@@ -100,6 +102,14 @@ provider. `fixed` liga o handle ao storage do caller sem allocation geral, e
 publica somente limit, committed e requested bytes locais.
 O provider `std.memory@1` continua missing. O source não fixa o allocator geral,
 layout físico do handle ou estratégia de drop ledger.
+`process/contracts.w` materializa os owners nominais de um entry nativo.
+`Arguments` preserva `OsString`; `Context` projeta stdio, network, signals,
+services e deadline somente quando o product concede a capability. `Input`
+mantém um cursor e produz linhas UTF-8 bounded. `Output` preserva progress e não
+intercala bytes de calls admitidas. Signal registrations são geracionais e
+estruturadas. O provider `std.process@1` continua missing. O módulo não cria um
+singleton `process`; `process.args` e `process.context` são projections do
+compiler limitadas ao entry root.
 `accelerator/contracts.w` materializa `Limits`, `KernelModule` e o owner
 `Launch<Module>`. O compiler sintetiza descriptors e launch stubs tipados de
 um static record de module scope; `accelerator.module` não é uma função runtime.
@@ -192,8 +202,9 @@ mutation; `split` cria receive/send halves únicos para progresso simultâneo.
 differential targets, capability denial, SSRF, cancellation, partial I/O, fault
 injection, sanitizers, leak, limits e fuzzing.
 
-`std.process` é um módulo de host planejado. Ele fornece `Arguments`, `Context`,
-`ExitCode`, `Signal` e o registry de signals. Named imports são recomendados.
+`std.process` é um módulo de host com draft source. Ele fornece `Arguments`,
+`Context`, `Input`, `Output`, `ExitCode`, `Signal` e o registry de signals.
+Named imports são recomendados.
 Um namespace alias, como `process.Arguments`, continua válido. O módulo não
 fornece um singleton ambiental geral chamado `process`; as duas projections
 intrínsecas abaixo são a exceção estreita para roots `native-process`. Os SDKs
@@ -306,10 +317,10 @@ failure semantics.
 
 `Duration`, `Task`, `Deadline`, `Cancellation`, `CancellationId`, `WorkId`,
 `WorkflowPointId`, `EffectId`, `EventId`, `WorkContext`, `StepContext`,
-`ProcessContext` e handles de capability ainda são intrinsics do
-compiler/runtime. `build.Context`, `Request`, `Response` e `http.Context` têm
-wrappers W draft sobre providers intrinsics versionados. `std.build@1` e
-`std.http@1` continuam missing.
+e handles de capability ainda são intrinsics do compiler/runtime.
+`process.Context`, `build.Context`, `Request`, `Response` e `http.Context` têm
+wrappers W draft sobre providers intrinsics versionados. `std.process@1`,
+`std.build@1` e `std.http@1` continuam missing.
 
 Não serão criadas classes utilitárias quando uma operação pertence ao próprio
 tipo. Exemplos:

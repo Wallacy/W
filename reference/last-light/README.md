@@ -208,6 +208,7 @@ alvo de execução independente.
 | `io.w` | byte I/O async, file posicional, buffers e chunks borrowed |
 | `data_formats.w` | fluxo TAB1 de CSV typed, Parquet snapshot, Arrow IPC e C Data trusted |
 | `net_oracle.w` | addresses tipados, resolve/connect bounded, TCP split, listener accept e UDP truncation |
+| `process_oracle.w` | Arguments nativos, ExitCode, signals e Context root-scoped sem singleton ambiental |
 | `billing.w` | Money, idempotência, existential, opaque return e behavior |
 | `dining.w` | serial turn, backpressure, applause e resposta |
 | `restaurant.w` | integração de services, tasks, ownership e compensação |
@@ -2140,6 +2141,14 @@ separa os cursors TCP e UDP, demonstra `finishWriting` e termina o write half
 TCP com `finish`, aceita uma conexão no listener e preserva truncation no UDP. Ele não
 alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 
+`process_oracle.w` fixa os valores da entry root nativa. `Arguments` preserva
+cada argumento como `OsString`; `Context` projeta somente as capabilities do
+produto; `ExitCode` separa conclusão portátil de fault. `process.args` e
+`process.context` tomam empréstimos do mesmo owner do root. Eles não criam um
+singleton ambiental. PR0 deriva stdio, signals e drain em um oracle host, mas
+não executa W, o scheduler, o sistema operacional ou o provider
+`std.process@1`.
+
 O oracle HTTP também reserva uma consulta RestPC segura e idempotente. O
 request usa o método QUERY padronizado pelo RFC 10008. O content evita uma URI
 longa e mantém o filtro tipado.
@@ -2191,7 +2200,14 @@ Aceite:
 - construção textual usa `append` no próprio `String`, sem um `StringBuilder`
   público;
 - `LastLightSimulation` executa sem service registry;
-- o target completo não consome `stdin` por duas APIs ao mesmo tempo.
+- o target completo não consome `stdin` por duas APIs ao mesmo tempo;
+- argv preserva a representação `OsString` e não faz decode lossy;
+- projeções repetidas do processo mantêm o mesmo owner sem copiar o root;
+- uma capability ausente falha no link antes de chamar um provider;
+- `stdin` possui um cursor e linhas UTF-8 estritas com limite em bytes;
+- chamadas de `stdout` não intercalam bytes e reportam progresso committed;
+- signal registrations são generational e seus callbacks são structured;
+- service drain não significa rollback, process exit ou fault recovery.
 
 O oracle de equivalência remove sequências ANSI antes da comparação. O teste de
 replay executa o mesmo profile duas vezes. Ele compara métricas e eventos campo
