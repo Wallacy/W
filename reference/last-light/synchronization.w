@@ -1,6 +1,7 @@
 // Atomic publication and scoped locks at the Last Light restaurant.
 
 import atomic from std
+import { SnapshotCell } from std.sync
 
 export enum SignState {
   dark
@@ -145,6 +146,37 @@ export object TaskApologyLedger {
   }
 }
 
+export struct PublishedMenu: Duplicable {
+  revision: u64
+  courses: Array<String>
+}
+
+export object HorizonMenuPublication {
+  snapshots: SnapshotCell<PublishedMenu>
+
+  export init(_ initial: take PublishedMenu) {
+    self.snapshots = SnapshotCell(take initial)
+  }
+
+  fn courseCount(): usize {
+    return snapshots.read(
+      (menu: ref PublishedMenu) => menu.courses.count,
+    )
+  }
+
+  fn revision(): u64 {
+    return snapshots.read((menu: ref PublishedMenu) => menu.revision)
+  }
+
+  fn snapshot(): PublishedMenu {
+    return snapshots.snapshot()
+  }
+
+  fn publish(_ next: take PublishedMenu) {
+    snapshots.publish(take next)
+  }
+}
+
 test "atomic enum transitions preserve the observed state" {
   let sign = EndOfUniverseSign()
   expect sign.observe() == .dark
@@ -171,6 +203,25 @@ test "a scoped synchronous lock returns an owned snapshot" {
   expect snapshot.messages == ["We regret the scheduling inconvenience"]
 }
 
+test "a published menu exposes one complete revision" {
+  let menus = HorizonMenuPublication(PublishedMenu(
+    revision: 1,
+    courses: ["Pan-Galactic broth"],
+  ))
+
+  expect menus.revision() == 1
+  expect menus.courseCount() == 1
+
+  menus.publish(PublishedMenu(
+    revision: 2,
+    courses: ["Pan-Galactic broth", "End-of-universe cake"],
+  ))
+
+  let snapshot = menus.snapshot()
+  expect snapshot.revision == 2
+  expect snapshot.courses.count == 2
+}
+
 // Compile-fail assays:
 // state.load<.release>()                  // LoadOrder rejects release.
 // state.store<.acquire>(.closed)          // StoreOrder rejects acquire.
@@ -179,3 +230,7 @@ test "a scoped synchronous lock returns an owned snapshot" {
 // (ref state).withExclusive((value: inout SignState) => value = .dark)
 // state.withLock((value: inout State) => await suspend(value))
 // state.withLock((value: ref State) => ref value)
+// snapshots.read((menu: ref PublishedMenu) => await inspect(menu))
+// snapshots.read((menu: ref PublishedMenu) => ref menu)
+// snapshots.publish(ref nextMenu)
+// copy snapshots

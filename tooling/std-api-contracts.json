@@ -651,6 +651,34 @@
       "failures": { "mode": "typed", "types": ["dlpack.DLPackError"] },
       "bounds": ["attached-thread-state", "lease-child", "release-job-drain", "drain-before-finalization", "no-callback-after-boundary"],
       "complexity": { "time": "constant-registration", "space": "fixed-lease" }
+    },
+    "snapshot-cell-carrier": {
+      "capabilities": ["snapshot-cell-provider"],
+      "effects": ["allocation", "synchronization", "deferred-drop"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["reader-admission", "runtime-allocation-budget", "structured-reader-lifetime", "retired-version-drain"],
+      "complexity": { "time": "constant-metadata", "space": "current-plus-retired-versions" }
+    },
+    "snapshot-cell-read": {
+      "capabilities": ["snapshot-cell-provider"],
+      "effects": ["allocation", "synchronization"],
+      "failures": { "mode": "generic", "types": ["Failure"] },
+      "bounds": ["never-suspend-closure", "reader-admission", "structured-reader-lifetime"],
+      "complexity": { "time": "constant-metadata-plus-operation", "space": "constant-metadata" }
+    },
+    "snapshot-cell-publish": {
+      "capabilities": ["snapshot-cell-provider"],
+      "effects": ["allocation", "synchronization", "deferred-drop"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["runtime-allocation-budget", "retired-version-drain", "total-publication-order"],
+      "complexity": { "time": "constant-metadata", "space": "one-version-plus-retired-versions" }
+    },
+    "snapshot-cell-copy": {
+      "capabilities": ["snapshot-cell-provider"],
+      "effects": ["allocation", "synchronization"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["duplicable-value", "runtime-allocation-budget", "structured-reader-lifetime"],
+      "complexity": { "time": "value-copy", "space": "value-copy" }
     }
   },
   "modules": [
@@ -1059,6 +1087,42 @@
             { "symbol": "cancel", "profile": "web-stream-cancel" },
             { "symbol": "tee", "overloads": 2, "profile": "web-stream-tee" },
             { "symbol": "read", "profile": "byte-source" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "std.sync",
+      "availability": "bundled-portable",
+      "source": "std/sync/contracts.w",
+      "designAnchors": ["9.11.1", "12.7", "12.10.7"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.snapshot-cell@1",
+        "status": "missing",
+        "gates": [
+          "version-linearization",
+          "reader-version-stability",
+          "reclamation-after-last-reader",
+          "drop-once",
+          "strategy-differential",
+          "asan-tsan-leak"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/synchronization.w",
+        "symbols": ["SnapshotCell", "PublishedMenu", "HorizonMenuPublication"]
+      },
+      "apis": [
+        {
+          "symbol": "SnapshotCell",
+          "kind": "struct",
+          "profile": "snapshot-cell-carrier",
+          "members": [
+            { "symbol": "init", "profile": "snapshot-cell-carrier" },
+            { "symbol": "read", "profile": "snapshot-cell-read" },
+            { "symbol": "publish", "profile": "snapshot-cell-publish" },
+            { "symbol": "snapshot", "profile": "snapshot-cell-copy" }
           ]
         }
       ]
@@ -2314,6 +2378,15 @@
       "kind": "symbol",
       "consumer": "reference/last-light/tensor_interop.w",
       "profile": "dlpack-export",
+      "status": "draft"
+    },
+    {
+      "id": "sp0-snapshot-cell",
+      "module": "std.sync",
+      "surface": "SnapshotCell",
+      "kind": "symbol",
+      "consumer": "reference/last-light/synchronization.w",
+      "profile": "snapshot-cell-carrier",
       "status": "draft"
     }
   ]

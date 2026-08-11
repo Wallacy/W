@@ -56,6 +56,8 @@ std/
     workflow.w
   stream/
     contracts.w
+  sync/
+    contracts.w
   url/
     contracts.w
 ```
@@ -74,6 +76,9 @@ estruturada. `runtime/work.w` materializa os tipos públicos usados por trabalho
 supervisionado. `runtime/workflow.w` materializa effect policies, waits e event
 delivery de workflows por steps. Uma suspensão pública contém duração restante,
 não o alarm privado do adapter. `io/contracts.w` materializa byte I/O de host.
+`sync/contracts.w` materializa `SnapshotCell`, seu read scoped e a publicação
+consuming. O provider `std.snapshot-cell@1` continua missing. O source não fixa
+reference counting, epoch, hazard pointers ou lock como estratégia.
 `json/contracts.w` materializa o codec JSON bounded de host. `Encodable`,
 `Decodable` e `Codable` exigem conformance explícita. `Writer` e `Reader` são
 cursors opacos; object e array cursors vivem somente em closures scoped.

@@ -269,6 +269,7 @@ const oracleCorpusFiles = [
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
+  "snapshot-cell-cases.json",
   "boundary-effect-cases.json",
   "package-release-cases.json",
   "script-workflow-cases.json",
@@ -431,6 +432,20 @@ const runtimeLivenessOperations = runtimeLivenessCorpus.cases.reduce(
 );
 const acceptedRuntimeLivenessCases = runtimeLivenessCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
+).length;
+const snapshotCellCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "snapshot-cell-cases.json"), "utf8"),
+);
+const snapshotCellCases = snapshotCellCorpus.cases.length;
+const snapshotCellOperations = snapshotCellCorpus.cases.reduce(
+  (count, testCase) => count + testCase.operations.length,
+  0,
+);
+const acceptedSnapshotCellCases = snapshotCellCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const faultedSnapshotCellCases = snapshotCellCorpus.cases.filter(
+  (testCase) => testCase.kind === "fault",
 ).length;
 const executionConcurrencySnapshots = fs
   .readFileSync(
@@ -716,6 +731,13 @@ output.push(
     `(${acceptedRuntimeLivenessCases} aceitos + ` +
     `${runtimeLivenessCases - acceptedRuntimeLivenessCases} rejeitados; ` +
     `sete testes host) |`,
+);
+output.push(
+  `| casos/operações do carrier de snapshot SP0 | ` +
+    `${snapshotCellCases}/${snapshotCellOperations} ` +
+    `(${acceptedSnapshotCellCases} aceitos + ` +
+    `${snapshotCellCases - acceptedSnapshotCellCases - faultedSnapshotCellCases} rejeitados + ` +
+    `${faultedSnapshotCellCases} fault; sete testes host) |`,
 );
 output.push(
   `| casos/operações do kernel de boundary effects B0 | ` +

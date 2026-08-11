@@ -26,7 +26,7 @@ linguagem.
 | `semantic-cases.json` + checker | pares S0, resultados normalizados e diagnostics D0 | expectativas estruturadas; type checker ainda não existe |
 | `execution-ergonomics-cases.json` + máquina/checker/snapshot | 61 casos (23 positivos, 36 negativos e duas informações) derivam labels, suspension, placement, barriers, process projections, doctests, std e lanes seriais dinâmicas; 15 testes host usam entradas independentes | oracle host de design; não executa W nem implementa scheduler, pool ou provider |
 | `substitution-cases.json` + checker | formas vigentes e substituídas ligadas aos 69 requisitos R0 da seção 1 de `RATIONALE.md` | oracle de design; os estudos com humanos e modelos ainda não foram executados |
-| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 365/1177 decisões estão classificadas (129 source, 275 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 47 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
+| `design-freeze-audit.json` + checker | combina eixos source, oracle e disposition explícita; 368/1180 decisões estão classificadas (129 source, 278 oracle e 8 explícitas), dois contratos exigem múltiplos eixos e 47 overlaps não inflam a cobertura | worklist do freeze; não transforma cobertura parcial em aprovação |
 | `substitution-surface.snapshot.json` + runner | baseline determinística de bytes, code points, linhas e lexemes para as 169 formas R0 derivadas pelo script | não mede compreensão, correção nem tokens de um modelo |
 | `studies/*/bundle.json` + checker | 21 bundles R1, 51 variantes e 84 tarefas; 32/69 casos R0 são promovidos | parse e oracle host não equivalem a compilar ou executar W |
 | `tabular-carrier-cases.json` + máquina/checker/snapshot | TAB0 fecha publication, schema identity, columns, chunks, copy/device, trust, owner/release e limits com casos positivos e negativos | oracle host independente; não compila W, não executa runtime e não implementa provider ou format adapter |
@@ -41,10 +41,11 @@ linguagem.
 | `allocation-cases.json` + máquina A0 | 48 sequências com 123 operações (15 aceitas + 33 rejeitadas) e 13 testes independentes | oracle host de layout, receipt, resize, provider, progress, domain e reclamation; não é allocator, verifier nem runtime W |
 | `execution-concurrency-cases.json` + máquina E0 | 57 sequências e 527 operações (31 aceitas + 26 rejeitadas) cobrem lifecycle, cancelamento, dez origens happens-before, subtrees de ticket, barriers e races | oracle host de eventos; não é scheduler, checker nem runtime W |
 | `runtime-liveness-cases.json` + máquina E1 | 41 sequências e 473 operações (19 aceitas + 22 rejeitadas), sete testes host; closure, waits, completion/cancel races, generations, frame/outcome split, blocking foreign e shutdown | oracle host de runtime closure e liveness; não prova scheduler, clock, OS I/O, allocator, verifier ou runtime W |
+| `snapshot-cell-cases.json` + máquina SP0 | 27 casos e 82 operações (14 aceitos + 12 rejeitados + uma fault), sete testes host; publication order, version stability, retirement bounded, drop único e quatro estratégias equivalentes | oracle host de snapshot publicado; não implementa compiler, runtime, scheduler ou provider `std.snapshot-cell@1` |
 | `boundary-effect-cases.json` + máquina B0 | 39 sequências e 320 operações cobrem service turn, commit gate, transaction e pipeline | oracle host de effects; não é adapter, transport ou storage real |
 | `package-release-cases.json` + máquina P0 | 44 sequências e 379 operações cobrem resolver, lock, CAS, recipe, mirror, rebuild e release | oracle host de supply chain; não é resolver, registry, CAS ou signer real |
 | `script-workflow-cases.json` + máquina PYN1 | 91 casos/533 operações (22 aceitos + 69 rejeitados, incluindo multi-target, parse evidence e sidecar records) para header, context, roots físicos opacos, imports, virtual selection, lock P0 (`contexts`/`packages`), grafo transitivo, fetch/CAS por digest, requirement admission, identity, entry, cleanup e promotion | oracle host de design; não é CLI, compiler, resolver, provider, runtime ou execução W |
-| `std-api-contracts.json` + checker SDK0 | perfis cobrem 315 exports em 21 módulos, 78 superfícies qualificadas, 20/20 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; std.data/csv/parquet/arrow/presentation/tensor/dlpack e `SnapshotByteSource` são drafts, seus 15/15 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
+| `std-api-contracts.json` + checker SDK0 | perfis cobrem 316 exports em 22 módulos, 78 superfícies qualificadas, 21/21 requisitos contratados e 2/8 carriers missing (Blob/FormData) | catálogo e snapshot são projeções; módulos catalogados, incluindo `std.sync`, são drafts e seus 16/16 providers intrinsics continuam missing; bounds determinísticos entram na recipe key; o host publica o action-result pós-handler |
 | `dlpack-cases.json` + máquina/checker/snapshot | PYN4 fecha DLPack 1.3 versioned, Device/Queue provider-scoped, zero-copy, materialização, bind dynamic, export consuming, capsule one-shot, Python lease, drain/release, dtype/layout/overflow/alignment, provenance, redaction, untrusted rejection e no hidden copy; 74 casos/325 operações (25 aceitos + 49 rejeitados) | oracle host independente; não compila ou executa W, Python, C Exchange, CUDA, ROCm, provider ou runtime |
 | [portal](../portal/README.md) | preview e leitura lexical no browser | fallback local; não compila nem prova semântica |
 
@@ -274,7 +275,9 @@ integrações de editor.
    root do repositório.
 8. Para validar o recorte E1 sem executar runtime, execute `bun run check:liveness`
    no root do repositório.
-9. Para validar o recorte TAB1 sem executar W, execute
+9. Para validar o recorte SP0 sem executar runtime, execute
+   `bun run check:snapshot-cell` no root do repositório.
+10. Para validar o recorte TAB1 sem executar W, execute
    `bun tooling/check-tabular-adapter-cases.mjs --write` e
    `bun test tooling/tabular-adapter-reference.test.mjs`.
 

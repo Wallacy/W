@@ -9002,20 +9002,15 @@ Um pointer atômico não protege o payload apontado. Compare-exchange também n�
 concede reclamation. Um algoritmo lock-free precisa nomear um reclamation
 domain, registration, retire operation, quiescence e shutdown barrier.
 
-Hazard pointers, epoch-based reclamation e RCU permanecem domain ou adapters
-`unsafe`. Eles não entram em baseline/host antes de fechar:
+Hazard pointers, epoch-based reclamation e RCU são estratégias de runtime ou de
+adapter `unsafe`. Eles não formam uma API safe geral. Um adapter especializado
+declara domain, participants, retired bounds, deleter context, shutdown,
+memory orders e progress por target.
 
-- lifetime do domain e registration de participants;
-- limits de retired records e comportamento em OOM;
-- contexto e ordem dos deleters;
-- cancellation, thread exit e task migration;
-- shutdown, leak detection e interaction com allocators;
-- memory orders e progress por target.
-
-Safe baseline/host usa owner único, `shared`, scopes, services, channels ou locks.
-`Atomic<shared T>` continua rejeitado. Uma collection concorrente pode usar
-reclamation interna `unsafe`, mas sua interface precisa publicar bounds,
-progress, cleanup e fault behavior.
+Safe W usa owner único, `shared`, scopes, services, channels, locks ou
+[`SnapshotCell`](#12107-snapshotcell). `Atomic<shared T>` continua rejeitado.
+Uma collection concorrente pode usar reclamation interna `unsafe`, mas publica
+bounds, progress, cleanup e fault behavior.
 
 W não possui cycle collector por default. Um debug profile pode detectar ciclos
 alcançáveis de control blocks. Essa instrumentação não altera o ponto de drop e
@@ -11575,9 +11570,9 @@ W não usa poisoning. Um panic termina a fault boundary física. Nenhum caller W
 continua nessa boundary para observar state possivelmente parcial.
 
 `RwLock`, condition, once, barreira coletiva e atomic wait/notify são **Pesquisa** com
-APIs scoped e contracts próprios de fairness, cancellation e failure.
-`SnapshotCell<T>` também é **Provável**. RCU genérico fica **Rejeitado** na
-safe std; reclamation customizada pertence a um adapter `unsafe`.
+APIs scoped e contracts próprios de fairness, cancellation e failure. RCU
+genérico fica **Rejeitado** na safe std; reclamation customizada pertence a um
+adapter `unsafe`.
 
 Services, channels e immutable snapshots lideram para state de domínio. Um
 service serial não precisa de atomic ou lock para seu state interno:
@@ -11588,9 +11583,94 @@ service DiningRoom {
 }
 ```
 
-#### 12.10.7 Diagnostics e gate
+#### 12.10.7 `SnapshotCell`
+
+**W-1178 — snapshot publicado:** `SnapshotCell<T>` é o caminho safe para state
+read-heavy com versões imutáveis. Ele exige
+`T<(.transferable && .shareable && .lifetimeIndependent)>`. O cell é move-only
+e shareable. O algoritmo de reclamation não aparece no source.
+
+```w
+import { SnapshotCell } from std.sync
+
+let catalog = SnapshotCell(take initialMenu)
+
+let count = catalog.read(
+  (menu: ref Menu) => menu.courses.count,
+)
+
+catalog.publish(take nextMenu)
+let owned = catalog.snapshot() // Exige Menu: Duplicable.
+```
+
+`read` executa uma closure `neverSuspend` exatamente uma vez. A closure recebe
+`ref T`. Seu resultado não pode conter esse ref, uma view ou outra dependency
+do snapshot. Success e application error liberam a registration antes de sair.
+O provider admite e registra o reader antes da call; falha anterior não executa
+a closure e segue a policy normal de OOM. Um panic usa o cleanup registry da
+fault boundary.
+
+`snapshot()` aplica `copy` dentro de `read`. Ele existe somente quando `T`
+atende a `Duplicable`. A operação pode alocar conforme o contrato de cópia.
+
+`publish(take next)` prepara a nova versão antes do ponto de publicação. Uma
+falha de allocation ou admission antes desse ponto não altera a versão atual e
+segue a policy normal de OOM. A publicação é síncrona e não espera readers da
+versão anterior.
+
+Cada cell possui uma ordem total de publicações. Um reader observa uma versão
+completa. Um reader que começou antes da publicação pode continuar na versão
+anterior. Um reader iniciado depois do retorno de `publish` observa essa versão
+ou uma posterior. Ele nunca combina fields de versões diferentes.
+
+Uma publicação cria um edge release/acquire para o reader que seleciona a nova
+versão. Sem esse edge, staleness continua permitida. O programa nunca faz uma
+leitura comum dos bytes usados pelo ponto de publicação.
+
+**W-1179 — reclamation de snapshot:** a versão substituída entra em retirement.
+O provider executa seu drop uma vez, depois do último reader daquela versão.
+Readers de versões diferentes drenam de forma independente. O drop do cell só
+ocorre depois que o verifier fecha todos os borrows estruturados.
+
+Uma versão aposentada sem reader é reclamada sem entrar em history. Cada versão
+retida possui ao menos um reader ativo. Como `read` não suspende, o máximo de
+versões retidas é limitado pelos segmentos concorrentes admitidos no execution
+profile, mais a versão corrente.
+
+O provider pode usar reference counting, epoch, hazard pointers, lock ou outra
+estratégia comprovada. Um provider baseado em lock retém a versão selecionada
+sob um lock interno curto; ele não mantém um writer gate durante a closure do
+usuário. A escolha preserva versões, edges, drop e resultado. O profile declara
+progress, read-side synchronization, allocation, retained versions, cleanup
+domain e provider digest.
+
+`read` e `publish` usam O(1) metadata, sem contar a closure, a construção de
+`T` e o drop drenado. `snapshot()` custa a duplicação de `T`. A baseline não
+promete lock-freedom ou wait-freedom. `w explain synchronization` mostra a
+estratégia e os custos do target.
+
+`SnapshotCell` não oferece mutation `inout`, update closure, retire callback ou
+grace-period API. Duas publicações concorrentes seguem a ordem total do cell;
+elas não formam um read-modify-write. Use domain com `.barrier`, lock, atomic ou
+service quando a nova versão depende atomicamente da anterior.
+
+O drop de `T` pode ser adiado, como em `shared`. Um recurso que exige um ponto
+determinístico de fechamento não fica diretamente em `SnapshotCell`; use um
+owner explícito atrás de service, domain ou lock. A baseline também não expõe
+`tryPublish`: falha de allocation antes da publicação segue a policy normal de
+OOM e mantém a versão anterior corrente.
+
+**W-1180 — evidence de snapshot:** o corpus SP0 liga essa superfície ao Última
+Luz. Ele cobre readers antigos e novos, error, publicação concorrente,
+retirement bounded, drop único, OOM pré-publicação, close e estratégias
+equivalentes.
+O oracle não implementa o provider, o scheduler ou o runtime W.
+
+#### 12.10.8 Diagnostics e gate
 
 O compiler rejeita:
+
+Os diagnostics de `SnapshotCell` usam a família `W-SNAPSHOT-*`.
 
 - borrow comum do payload atômico;
 - order incompatível com a operação;
@@ -11600,7 +11680,10 @@ O compiler rejeita:
 - retorno de borrow protegido;
 - acesso atômico e não atômico aos mesmos bytes;
 - operações atômicas com extent parcialmente sobreposto;
-- operação durante `withExclusive` ou depois do fim do lifetime.
+- operação durante `withExclusive` ou depois do fim do lifetime;
+- callback de `SnapshotCell.read` que suspende ou deixa uma dependency escapar;
+- payload de snapshot sem os três facts exigidos;
+- mutation da versão publicada ou cópia do owner `SnapshotCell`.
 
 `w explain synchronization` informa storage, order, happens-before edges,
 lock-freedom, fallback e suspension. TSan profiles verificam o programa depois
@@ -11796,8 +11879,8 @@ Cancel é idempotente: depois de terminal ou drained ele vira um registro tardio
 sem substituir o outcome. Completion tardia durante closing é drenada, restaura ou
 descarta ownership conforme o adapter, não retoma frame e não executa callback W.
 Generation mismatch nunca retoma um slot reutilizado, mas quita a registration
-antiga. No adapter IOCP, `OVERLAPPED` fica vivo até a completion; no adapter
-io_uring, o CQE do cancel e o CQE da operação podem chegar em ordem diferente.
+antiga. Adapters de plataforma seguem a seção 14.2.4; a completion do provider
+continua sendo a autoridade sobre outcome e ownership drain.
 Depois de outcome committed, cancel de Task é apenas registro tardio idempotente e
 não altera o outcome.
 
@@ -11841,8 +11924,9 @@ o trace registra roots não concluídos e cada generation mantém seus slots,
 registrations e completions isolados.
 
 O oracle E1 é host-puro e adversarial. Ele não prova scheduler, clock, OS I/O,
-fairness absoluta, hazard/epoch/RCU, device scopes, distributed recovery ou
-terminação de user code. Essas superfícies permanecem gates posteriores.
+fairness absoluta, device scopes, distributed recovery ou terminação de user
+code. SP0 fecha a semântica safe de versões publicadas. A estratégia física de
+reclamation continua uma escolha de provider e exige testes reais.
 
 ### 12.13 Transação estruturada
 
@@ -14295,12 +14379,12 @@ domains são facts de seleção; eles não formam níveis de distribuição.
 console, clock ou filesystem.
 
 Os contratos sem dependência de host ficam em módulos concretos, como
-`std.math`, `std.text`, `std.collections` e `std.memory`. Eles publicam tipos
-primitivos, String, Bytes, collections, refinements, ownership, reflection
-opt-in, `Atomic<T>` e operações puras. Cada módulo declara os próprios target
-facts; nenhum nome de módulo cria uma ordem de suporte. Esses contratos podem
-usar o runtime/allocator do target, mas não dependem de console, filesystem,
-rede, clock, locale ou OS API.
+`std.math`, `std.text`, `std.collections`, `std.memory` e `std.sync`. Eles
+publicam tipos primitivos, String, Bytes, collections, refinements, ownership,
+reflection opt-in, synchronization e operações puras. Cada módulo declara os
+próprios target facts; nenhum nome de módulo cria uma ordem de suporte. Esses
+contratos podem usar o runtime/allocator do target, mas não dependem de console,
+filesystem, rede, clock, locale ou OS API.
 
 O runtime pode injetar uma hash seed inacessível como metadata de hardening.
 Isso não cria uma random API nem altera output. Um target freestanding sem essa
@@ -17897,7 +17981,7 @@ W.
 mas o provider `std.build@1` continua **missing**.
 
 [`tooling/std-api-contracts.json`](tooling/std-api-contracts.json) liga o
-catálogo da seção 14 aos 18 módulos W atuais. Cada export usa um profile que
+catálogo da seção 14 aos módulos W atuais. Cada export usa um profile que
 declara:
 
 - availability, target facts e reachability;
@@ -17906,57 +17990,17 @@ declara:
 - origem dos bounds;
 - classes de tempo e espaço.
 
-O source W continua mostrando a assinatura completa. O checker extrai o head
-de cada declaration e calcula um digest de toda a declaration. O digest inclui
-cases, fields e methods. Uma mudança interna exige revisão mesmo quando o head
-permanece igual.
+O source W mostra a assinatura completa. O checker extrai cada declaration,
+calcula seu digest e rejeita export sem profile, anchor inexistente, consumer
+ausente, uso qualificado desconhecido e snapshot stale. A projeção atual possui
+316 exports em 22 módulos, 78 superfícies qualificadas e 21/21 requisitos com
+profile. Todos os 16 providers de implementação permanecem `missing`.
 
-O catálogo é uma projeção verificável. Ele não cria semântica fora deste
-documento. [`tooling/std-api-surface.snapshot.json`](tooling/std-api-surface.snapshot.json)
-registra 285 declarations exportadas em 18 módulos: todas possuem declaration
-draft-ready. Ele também registra 67 superfícies
-qualificadas que o Última Luz usa. O checker rejeita export sem profile, uso
-qualificado desconhecido, profile
-incompleto, anchor inexistente, consumer ausente e snapshot stale. Readiness de
-declaration mede somente a interface W. Quando uma interface depende de um
-provider intrinsic, o catálogo registra separadamente o ID, os gates e o estado
-executável. O checker confirma 14/14 requisitos contratados, 2/8 carriers
-missing (Blob e FormData) e 12/12 providers de implementação missing. Uma
-declaration `draft` não torna um provider `available`.
-
-Os 14 requisitos contratados possuem profile. `ByteSink.writeAll`,
-`http.ServerError` e `http.Headers` possuem draft pronto. O catálogo registra
-separadamente cada operação pública de Headers.
-
-Uma declaration não fica pronta quando sua relação `requires` aponta um
-requisito ou carrier obrigatório ausente. Os IDs são os mesmos das tabelas de
-requisitos e carriers; o catálogo não mantém um segundo grafo. Por isso,
-`http.ResponseError` aponta o requisito existente `sdk0-http-response-error`,
-que passa a `draft` depois que `std.json` fornece o error do codec.
-`http.HttpHandler` passa a `draft` quando `Request`, `Response` e `Context`
-existem. O provider intrínseco único `std.http@1` permanece `missing` até os
-gates primários de Fetch, Streams, WPT Fetch/Headers, WinterTC/WinterCG,
-workerd, ownership/tee, admission/cancellation, ASan/TSan/leak e
-limits/fuzzing.
-
-O Última Luz exige cinco superfícies neste bundle. `Context`, `Request`,
-`Response` e `serve` possuem declaration draft. `std.build.Context` exige o
-provider missing `std.build@1`; `serve` ainda exige `std.net@1` e
-`std.http@1`.
-
-| Módulo | Superfície | Motivo | Consumer |
-|---|---|---|---|
-| `std.build` | `Context` | declaration draft; provider `std.build@1` missing | build transform do cardápio |
-| `std.http` | `Context` | draft; provider `std.http@1` missing | gateway HTTP |
-| `std.http` | `Request` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
-| `std.http` | `Response` | draft; provider e carriers executáveis missing | benchmark e apps HTTP |
-| `std.http` | `serve` | declaration draft; carrier `sdk0-net-listener` draft; providers `std.net@1` e `std.http@1` missing | host nativo |
-
-Os consumers de JSON no Última Luz (`Command`, `AppResponse` e `WifiSession`)
-continuam targets separados de source. Eles ainda precisam de
-schemas/witnesses de domínio. A policy wire para `Quantity`/SI está fechada por
-W-903. Os witnesses de `Command`, `AppResponse` e `WifiSession` continuam
-trabalho seguinte e não entram neste bundle.
+Readiness mede somente a interface W. Provider ID, gates e estado executável
+ficam separados. Uma declaration `draft` não torna um provider `available`, e
+uma relação `requires` não fecha enquanto seu requisito obrigatório estiver
+ausente. Os IDs do catálogo reutilizam o mesmo grafo de requisitos e carriers;
+eles não criam um segundo grafo de readiness.
 
 Oito requisitos de carrier tornam o bloqueio verificável. Seis possuem draft
 e dois continuam missing. Os carriers obrigatórios do núcleo Fetch têm
@@ -17982,31 +18026,19 @@ relação de export aponta somente IDs de requisito ou carrier existentes. Ela n
 repete provider, profile ou estado. `DESIGN.md` define a relação. O JSON registra
 os IDs e o estado verificável das fontes.
 
-O status `missing` não rejeita o nome já fechado nesta seção. Ele informa que o
-SDK0 ainda não consegue publicar uma interface compilável. No campo separado de
-provider, `missing` informa que a interface compila somente quando o SDK fornece
-o algoritmo versionado. Adicionar outra API não satisfaz nenhum dos requisitos
-sem migração de design.
+O status `missing` não rejeita um nome já fechado. Ele informa que a interface
+só executa quando o target fornece o algoritmo versionado. Adicionar outra API
+não satisfaz um requisito sem migração de design.
 
 No `build-context`, o `Context` faz read de input e materializa candidatos em
 staging. A publicação do action-result pertence ao host depois do handler e não
 é um effect do `Context`.
 
-SDK0 fecha o inventário de declarations. Ele ainda não fecha os providers da
-std. A próxima revisão precisa:
-
-1. implementar e validar `std.build@1` pelos gates de binding/type/budget
-   preflight, codecs estritos, concorrência, descarte de staging e publicação
-   do action-result;
-2. implementar `std.net@1` antes de liberar execução de `serve`;
-3. catalogar operações de Request e Response depois desses carriers;
-4. adicionar um segundo consumer antes de classificar uma API como estável;
-5. implementar e validar `std.json@1` pelos gates RFC, I-JSON, Unicode,
-   fuzzing e differential vectors;
-6. implementar e validar `std.url-record@1` pelos gates URL, WPT e Unicode;
-7. implementar `std.readable-stream@1` pelos gates Streams, Fetch e workerd;
-8. implementar `std.abort-state@1` pelos gates DOM, Fetch, workerd e races;
-9. substituir digests de source por interfaces emitidas pelo checker real.
+O inventário de declarations está fechado para os módulos catalogados. O freeze
+mantém Blob e FormData como carriers ausentes, exige um segundo consumer antes
+de estabilidade e preserva todos os providers como gates pós-design. Interfaces
+emitidas pelo checker real substituirão os digests de source durante a
+implementação.
 
 Os rascunhos seguem a visibilidade da seção 6.2. `package` não é access
 modifier. Um struct com `init` explícito mantém fields privados sem modifier.
@@ -27563,7 +27595,7 @@ Uma pesquisa só avança quando possui:
 | `Atomic<T, lockFree: true>` | **Possível agora** | target e alignment resolvem o contrato em compile time |
 | `Mutex.withLock` scoped | **Possível agora** | closure não escapa e cleanup síncrono fecha unlock |
 | `AsyncMutex.withLock` sem suspension interna | **Provável** | fila cancel-safe e scheduler precisam de protótipo |
-| `SnapshotCell<T>` | **Provável** | immutable snapshot e swap fechado evitam reclamation customizada no caller |
+| `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
 | facts trusted para FFI e synchronization customizada | **Provável** | somente provider ou foreign interface fixa target, digest e negative facts |
 | domain default por módulo | **Rejeitado** | import não possui instance, lifecycle ou executor |
@@ -28648,7 +28680,7 @@ Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
 | tipos | typed property path e `StateGraph` const | anonymous sum/record, constraint list, GAT, packs e existential opening |
 | compile time | `WMeta1` com chunks CBOR | callable const indireto, SMT geral e autotuning no build |
 | memória | `InlineString`, trusted foreign facts e cache isolation | public unpin, high-bit baseline e async-close universal |
-| execução | dynamic execution-domain selection, topology types, advanced atomics, fences, sync e SnapshotCell | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
+| execução | dynamic execution-domain selection, topology types, advanced atomics, fences e sync | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
 | workflow | child workflow, fan-out e `continueAsNew` | durable race, absolute core sleep, user compaction e 2PC implícito |
 | I/O | `ReadBatch`, `io.transfer` e commit-provider SPI | zero-copy implícito, `flush` universal e transaction multi-provider |
 | services | wWire, custom adapter SPI, plugin lookup e `PersistentRef` | 0-RTT, opaque capability relay, direct introduction e distributed ref equality |
@@ -28711,15 +28743,15 @@ observável e referência para o Book.
 
 [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json) torna essa
 auditoria incremental e verificável. Uma decisão ligada a R0 recebe a classe de
-source automaticamente. Um caso F0, S0, M1, L0, E0, B0 ou P0 pode ligar seus
+source automaticamente. Um caso F0, S0, M1, L0, E0, E1, SP0, B0 ou P0 pode ligar seus
 oracles diretamente aos IDs que prova. As outras decisões exigem uma
 disposition explícita: escolha de implementação sem diferença observável,
 hipótese com fallback, item histórico, policy do projeto ou waiver motivado do
 maintainer. Uma decisão que mistura ergonomia source e comportamento observável
-declara todos os eixos obrigatórios. O freeze audit classifica 365/1177
-decisões: 123 pelo eixo source, 274 pelo eixo oracle e oito explicitamente. Há
-44 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
-eixos. As 815 restantes continuam um worklist, não uma aprovação implícita.
+declara todos os eixos obrigatórios. O freeze audit classifica 368/1180
+decisões: 129 pelo eixo source, 278 pelo eixo oracle e oito explicitamente. Há
+47 decisões com eixos sobrepostos. Duas decisões exigem formalmente ambos os
+eixos. As 812 restantes continuam um worklist, não uma aprovação implícita.
 `--require-complete` exige classificação total e todos os eixos declarados.
 
 ### 24.4 Gates que ainda precisam de prova
@@ -28777,7 +28809,7 @@ annotations; quando placement entre register, stack, frame, heap e arena não
 mudar o resultado; e quando `shared`, pinning, FFI e OOM preservarem seus
 contratos explícitos.
 
-M1, A0, ABI e adapters reais devem passar os mesmos casos em debug e release.
+M1, A0, SP0, ABI e adapters reais devem passar os mesmos casos em debug e release.
 Até esse ponto, a forma correta é “modelo de memória definido; implementação
 missing”. O gate não exige GC ou reference counting como estratégia universal.
 
@@ -28794,12 +28826,12 @@ evidência de design:
 |---|---|---|
 | grammar normativa e formatter | G0–G5 fecham parsing; F0 possui 20 pares CST-equivalentes, quatro boundaries por semicolon e snapshots D0 byte-exact | cobrir cada construção normalizada com par CST-equivalente e provar idempotência no modelo F0 |
 | regras semânticas | S0 integra typing, effects, ownership, flow e evaluation; 104 casos pareiam 52 resultados positivos com 52 inversões e outcomes JSONL | ligar cada família normativa a um resultado positivo, à inversão relevante e ao campo exato que falha |
-| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 207 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
-| std | SDK0 cataloga 315 exports em 21 módulos; todos possuem declaration draft-ready; 20/20 requisitos contratados têm profile; 2/8 carriers estão missing (Blob e FormData); 15/15 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
+| diagnostics | D0 define record, phases, spans, facts, fixes, causalidade e ordem; 47/47 diagnostics S0 possuem cobertura e o catálogo com 217 entries cobre 175 codes referenciados | catalogar todo modo de falha normativo e fixar ordem, labels, facts e política de fix sem wildcard semântico |
+| std | o catálogo possui 316 exports em 22 módulos; todos têm declaration draft-ready; 21/21 requisitos têm profile; 2/8 carriers estão missing (Blob e FormData); 16/16 providers de implementação estão missing | manter Blob/FormData como carriers explicitamente missing, validar a superfície com outro consumer além do Última Luz e preservar os providers pós-freeze |
 | workflow single-file e científico PYN1/PYN0/PYN2/PYN3/PYN4 | PYN1 fecha header contextual, root standalone, package/ephemeral context, imports explícitos, payload P0 `package.lock` com grafo transitivo, fetch/CAS por content digest, requirement admission, identity sem path físico e promotion; PYN2 fecha session/repl transacional e generational, identities, receipts, graph invalidation, scopes, drain e bounded history; PYN3 fecha presentation, adapter Jupyter e export comprovado; PYN4 fecha carrier tensorial, device/queue, DLPack 1.3, Python lease, lifecycle e evidence host; PYN0 mantém `std.tensor`/`std.dlpack`, C façade, schemas, carrier `data.Batch<Row>` TAB0 e adapters TAB1 | implementar CLI, resolver/provider, kernel/runtime/drain físico, sanitizer e ZeroMQ, providers tensor/DLPack e evidence dos gates de latency; tudo permanece pós-freeze |
 | targets e host profiles | matriz e contracts de direção | fixar schemas de manifest, availability e conformance mínima para cada target prometido na baseline |
 | ABI e formats | L0 fixa 78 casos/96 operações e dez testes host; WMeta1 W0 fixa 42 vectors byte-exact, 37 rejeições e readers Bun/C independentes | ligar fixtures dos wrappers ELF, Mach-O, COFF e Wasm ao mesmo container; adapter, fuzzing contínuo e reader de produção ficam pós-freeze |
-| memória e execução | M1 fixa 165 casos/580 operações; A0 fixa 48 casos/123 operações e 13 testes host; E0 fixa 57 casos/527 operações, dez testes host e 10/10 origens happens-before; E1 fixa 41 casos/473 operações, sete testes host e closure/liveness adversarial; o oracle de domain modela serial FIFO, dispatch de barreira e lanes seriais dinâmicas bounded | fechar device providers/scopes, reclamation avançada e unsafe adapters (hazard/epoch/RCU), e matrizes de adapters/profile ainda abertas; implementações reais de HIR, allocator e scheduler ficam pós-freeze |
+| memória e execução | M1 fixa owner/borrow; A0 fixa allocation física; E0 fixa happens-before; E1 fixa closure/liveness; SP0 fixa publicação e reclamation de snapshot; o oracle de domain fixa serial FIFO, barreira e lanes bounded | fechar device providers/scopes e matrizes de adapters/profile; hazard/epoch/RCU são escolhas internas ou adapters `unsafe`, não superfícies safe pendentes; HIR, allocator e scheduler reais ficam pós-freeze |
 | services e efeitos | B0 fixa 39 casos/320 operações de turn, gate, transaction e pipeline; wWire possui vetores iniciais | fechar queues bounded, deduplication, recovery e faults de processo/rede em modelos e codecs host independentes |
 | packages e releases | P0 fixa 44 casos/379 operações de resolver, lock, CAS, recipe, mirror, rebuild e release | fechar schemas e oracles para prerelease SemVer, TUF/Sigstore, download, archive safety e rebuild independente |
 | bootstrap W0 | gates SH0–SH7 | congelar grammar subset, std subset, source inventory, host contracts e fronteira do seed |

@@ -1027,6 +1027,11 @@ expõe o risco de manter guards durante suspension. O
 explicita premissas de fairness. W transforma essas observações em contratos
 próprios de ownership, closure, admission e profile.
 
+A documentação do kernel Linux sobre
+[RCU](https://docs.kernel.org/RCU/whatisRCU.html) separa removal de reclamation.
+Ela também exige que readers anteriores terminem antes do reuse. W preserva
+essa divisão em `SnapshotCell`, mas não expõe grace periods no safe source.
+
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
@@ -1635,7 +1640,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-449 | ABI atômica | layout W opaco; operações concorrentes usam endereço + extent idênticos; C usa wrapper e metadata | layout igual a C `_Atomic`; layout estável universal; larguras parcialmente sobrepostas |
 | W-450 | mutex síncrono | `Mutex.withLock` scoped e marcado blocking; sem guard público na baseline | lock/unlock manual; behavior Locked; poisoning |
 | W-451 | mutex assíncrono | aquisição suspende; closure protegida é sync e cancel-safe | guard cruza await; mutex síncrono no worker cooperativo |
-| W-452 | RwLock e RCU | RwLock, condition, once, barrier, wait/notify e SnapshotCell são prováveis T1; safe RCU é rejeitado | policy automática por property; RCU default universal |
+| W-452 | RwLock e RCU (retired) | direção anterior agrupava primitives distintas; W-1178 fecha SnapshotCell e mantém RCU safe rejeitado | policy automática por property; RCU default universal |
 | W-453 | contenção | explanation record mostra lowering, lock-free, waits e de-atomicization provada; cache isolation é provável com target contract | prometer performance por `atomic`; padding universal; enfraquecer order sem prova |
 | W-454 | stream assíncrono | `Stream<Item, Failure>` é protocol pull, single-pass e com cursor mutável | sequence + iterator obrigatórios; push callback; generator como semântica |
 | W-455 | término de stream | `.none` ou primeiro error são terminais; `Failure = Never` remove `try` | continuar depois de throw; sentinel; close como item |
@@ -1924,7 +1929,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-738 | volatile e MMIO | platform SDK cria `MmioRegister<T, access>` por capability; volatile não sincroniza e não é modifier geral | `var volatile`; integer cria pointer; MMIO safe sem host authority |
 | W-739 | linker placement | product/target variant liga symbol a section/address/retain com overlap e alignment verificados | annotation em source comum; import muda section; linker flag livre |
 | W-740 | assembly | `unsafe fn<Asm>` T2 declara target, operands, clobbers, memory, unwind e volatility; adapter gera provenance | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
-| W-741 | primitives de execução T1 | dynamic domain, topology types, wait/notify, advanced atomics, scoped synchronization e SnapshotCell possuem contracts distintos | um Channel muda topologia por mode; safe RCU geral; QoS na syntax de spawn; uma API universal para toda topologia |
+| W-741 | primitives de execução (retired) | direção anterior listava SnapshotCell como provável; W-1178 fecha sua superfície sem agrupar topology ou wait/notify | um Channel muda topologia por mode; safe RCU geral; uma API universal para toda topologia |
 | W-742 | evolução de workflow | child workflows, fan-out e continue-as-new T2 usam IDs determinísticos; race durável e absolute core sleep ficam rejeitados | persistir async frame; wall clock implícito; compaction definida pelo usuário |
 | W-743 | metadata publicável | WMeta1 usa header/directory e chunks em subset CBOR determinístico; profiles separam interface e object ABI; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
 | W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
@@ -2361,6 +2366,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1175 | lane serial dinâmica | `ExecutionAuthority.openSerial` cria owner lexical bounded sobre pool existente; primeiro start é FIFO, só um segmento runnable usa o permit, suspension o libera, rejeição devolve o input em `TaskAdmissionError<Input>`, close drena e refs não estendem lifetime | copiar GCD inteiro, reter worker durante suspension, restaurar binding movido, perder input na admission, fila global, sync dispatch, QoS no call site, target queues, fire-and-forget, thread por lane, executor custom safe, usar lane local no lugar de service keyed |
 | W-1176 | claim de memória | gerência automática exige prova real de owner/borrow/drop/reclamation, placement semanticamente neutro e contratos explícitos para shared/pin/FFI/OOM | alegar memória resolvida por existir um borrow checker, exigir GC/ARC universal, usar resultado de oracle host como implementação |
 | W-1177 | criação shared ergonômica | `share(value)` usa allocator geral e policy normal; `tryShare(value, using:)` torna recovery e allocator explícitos; owner existente exige `take`; expected type nunca promove | `try share` obrigatório no caminho comum, allocation escondida pelo expected type, `Shared<T>.make`, promotion automática em argumento ou return |
+| W-1178 | snapshot publicado | `SnapshotCell<T>` é move-only/shareable; `read` scoped vê uma versão, `snapshot` duplica e `publish` consome uma versão completa | guard público, ref escapante, mutation in-place, update closure escondida, safe RCU geral |
+| W-1179 | reclamation de snapshot | publicação retira a versão anterior; cada versão executa drop uma vez depois do último reader, sem esperar no publish | liberar no swap, manter tudo até drop do cell, expor grace period, `Atomic<shared T>` |
+| W-1180 | oracle SP0 | máquina host pura cobre publication order, staleness, error drain, retirement, close, OOM pré-publicação e estratégias equivalentes | chamar oracle de provider/runtime, snapshot manual, caso sem símbolo Última Luz |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
