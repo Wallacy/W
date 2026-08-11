@@ -16,16 +16,16 @@ export fn stageMenu(
   var storage: [u8; 2<MiB>] = [0; 2<MiB>]
   var staging = Arena.fixed(inout storage)
   defer { staging.clear() }
-  var stagedDishes = Array<String>(using: staging)
+  var stagedDishes = Array<String>(using: ref staging)
   try stagedDishes.tryReserve(minimumCapacity: menuDishes.count)
 
   for ref dish in menuDishes {
-    let stagedDish = try dish.tryDuplicate(using: staging)
+    let stagedDish = try dish.tryDuplicate(using: ref staging)
     stagedDishes.append(take stagedDish)
   }
 
   let staged = MenuSnapshot(
-    title: try title.tryDuplicate(using: staging),
+    title: try title.tryDuplicate(using: ref staging),
     dishes: take stagedDishes,
   )
   // Rehome changes allocation origins. It does not erase a borrow origin.
@@ -36,7 +36,7 @@ export fn stageMenu(
 export fn countEmergencyTokens(source: ref String): usize throws AllocationError {
   var storage: [u8; 64<KiB>] = [0; 64<KiB>]
   let scratch = Arena.fixed(inout storage)
-  var separators = Array<usize>(using: scratch)
+  var separators = Array<usize>(using: ref scratch)
   try separators.tryReserve(minimumCapacity: source.bytes.count)
 
   var offset: usize = 0
@@ -72,11 +72,15 @@ test "a staged menu leaves its temporary Arena" for stageMenu {
   let title = "Menu at the Observable Edge"
   let dishes = ["Photon soup", "Patient comet cake"]
 
-  let snapshot = try stageMenu(title, dishes: dishes, memory: destination)
+  let snapshot = try stageMenu(ref title, dishes: ref dishes, memory: ref destination)
 
   expect snapshot.title == title
   expect snapshot.dishes == dishes
 
   // Compile-fail assay: fixed arena storage is local to this execution domain.
-  // let count = await countStagedMenuInParallel(title, dishes, destination)
+  // let count = await countStagedMenuInParallel(
+  //   ref title,
+  //   dishes: ref dishes,
+  //   processMemory: ref destination,
+  // )
 }

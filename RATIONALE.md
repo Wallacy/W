@@ -1596,6 +1596,12 @@ e o
 informam strong failure, resize in-place e relocation. W deixa fallback e
 commit no caller e registra origem por receipt.
 
+W trata `Arena` como refinement transparente de `Allocator`. Essa escolha
+permite que collections mantenham uma única entrada `using: ref Allocator` sem
+conversão implícita, protocol público de allocation ou segunda família de
+containers. O fact `.arena` habilita `clear`; a instance e o deallocator
+continuam em `AllocationOrigin`, não no tipo.
+
 [mimalloc](https://github.com/microsoft/mimalloc) permanece provider candidate,
 não default sem evidência. Suas
 [arenas](https://microsoft.github.io/mimalloc/group__arenas.html) e
@@ -2342,8 +2348,8 @@ host e valida cada tentativa.
 **Origem: 14.2.7.1 Rede SDK0 e o carrier `std.net`**
 
 **Alternativa:** expor nomes como `"tcp4"` ou herdar file descriptors levaria
-semântica do target para source comum. SDK0 usa types fechados e não aceita raw
-sockets, descriptors herdados ou socket-option escape hatch.
+semântica do target para source comum. O gate interno SDK0 usa tipos fechados.
+Ele não aceita raw sockets, descriptors herdados ou socket-option escape hatch.
 
 **Origem: URL e URLSearchParams**
 
@@ -4750,6 +4756,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
 | W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
 | W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
+| W-1294 | uma abstração de allocator | `Arena` é alias de `Allocator<(.arena)>`; refined-to-base permite a única entrada `ref Allocator`, enquanto origin preserva instance, lifetime e deallocator | protocol de allocator público, conversão implícita de Arena, API `allocator` duplicada ou Arena como segundo provider |
+| W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

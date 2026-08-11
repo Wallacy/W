@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "ddf7834f9ce41a8b6b670e4cd9e681f46f7d11cb78eb86bb032ee0dc0d9caa46",
+  "catalogDigest": "97d710f6839b1ecdf8a7248a37d9284fc6ed0875e05ed8f0b9c1914e40faca66",
   "summary": {
-    "modules": 25,
-    "catalogedApis": 334,
-    "draftCatalogedApis": 334,
+    "modules": 26,
+    "catalogedApis": 338,
+    "draftCatalogedApis": 338,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 87,
     "referenceRequirements": 25,
@@ -13,8 +13,8 @@
     "missingReferenceRequirements": 0,
     "carrierRequirements": 8,
     "missingCarrierRequirements": 0,
-    "implementationProviders": 19,
-    "missingImplementationProviders": 19
+    "implementationProviders": 20,
+    "missingImplementationProviders": 20
   },
   "modules": [
     {
@@ -4152,6 +4152,85 @@
               "profile": "json-codec-carrier"
             }
           ],
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "id": "std.memory",
+      "availability": "bundled-portable",
+      "source": "std/memory/contracts.w",
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.memory@1",
+        "status": "missing",
+        "gates": [
+          "active-loan-clear-rejection",
+          "asan-tsan-leak",
+          "drop-ledger",
+          "fixed-storage-lifetime",
+          "origin-and-mobility",
+          "refined-to-base"
+        ]
+      },
+      "catalogedDeclarationsDigest": "c616b949a546448d658d3963b6ca13821b8a8cf5f53ca2e76b9981e58052817f",
+      "apis": [
+        {
+          "symbol": "AllocationError",
+          "kind": "enum",
+          "signature": "export enum AllocationError: Error",
+          "declarationDigest": "80b6885f1fc0a262f1e8aafb76234eefa52904a87baa4196e7f9236b463b52c9",
+          "line": 27,
+          "profile": "value-contract",
+          "status": "draft"
+        },
+        {
+          "symbol": "Allocator",
+          "kind": "struct",
+          "signature": "export struct Allocator",
+          "declarationDigest": "8c72f5a9398baff294fa7a772feb5dc238a25b17aa4b87feefc796941b883e48",
+          "line": 35,
+          "profile": "allocator-carrier",
+          "members": [
+            {
+              "symbol": "fixed",
+              "overloads": [
+                {
+                  "signature": "export static fn fixed<capacity: usize>( _ storage: inout [u8; capacity], ): Arena",
+                  "line": 42
+                }
+              ],
+              "profile": "arena-fixed"
+            },
+            {
+              "symbol": "clear",
+              "overloads": [
+                {
+                  "signature": "export mut fn clear()",
+                  "line": 57
+                }
+              ],
+              "profile": "arena-clear"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "Arena",
+          "kind": "alias",
+          "signature": "export alias Arena = Allocator<(.arena)>",
+          "declarationDigest": "2cd14c026a60609bac666cf87d19c0e97bc31c8c7b5890f082ceda17c4c56058",
+          "line": 54,
+          "profile": "allocator-carrier",
+          "status": "draft"
+        },
+        {
+          "symbol": "BudgetExceeded",
+          "kind": "struct",
+          "signature": "export struct BudgetExceeded: Copy & Equatable",
+          "declarationDigest": "49b0f6ec5ec9c1ac1295aca7f8cfc2f71cb924d9b87ef4da603eb81c02d698af",
+          "line": 21,
+          "profile": "value-contract",
           "status": "draft"
         }
       ]

@@ -750,6 +750,27 @@
       "bounds": ["attached-thread-state", "lease-child", "release-job-drain", "drain-before-finalization", "no-callback-after-boundary"],
       "complexity": { "time": "constant-registration", "space": "fixed-lease" }
     },
+    "allocator-carrier": {
+      "capabilities": ["allocation-provider"],
+      "effects": ["capability-carry", "drop"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["opaque-handle", "origin-preservation", "move-only", "provider-generation"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "arena-fixed": {
+      "capabilities": ["fixed-storage"],
+      "effects": ["storage-binding"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["caller-storage", "dependent-lifetime", "fixed-capacity", "no-general-allocation"],
+      "complexity": { "time": "constant", "space": "fixed-handle" }
+    },
+    "arena-clear": {
+      "capabilities": ["fixed-storage"],
+      "effects": ["mutation", "drop", "bulk-release"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["exclusive-receiver", "no-active-loans", "drop-ledger", "same-storage"],
+      "complexity": { "time": "linear-registered-drops", "space": "constant" }
+    },
     "scoped-lock-carrier": {
       "capabilities": ["sync-provider"],
       "effects": ["allocation", "synchronization"],
@@ -1296,6 +1317,43 @@
             { "symbol": "read", "profile": "byte-source" }
           ]
         }
+      ]
+    },
+    {
+      "id": "std.memory",
+      "availability": "bundled-portable",
+      "source": "std/memory/contracts.w",
+      "designAnchors": ["9.5", "9.6", "9.6.4", "9.11.1"],
+      "implementationProvider": {
+        "kind": "std-intrinsic",
+        "id": "std.memory@1",
+        "status": "missing",
+        "gates": [
+          "fixed-storage-lifetime",
+          "refined-to-base",
+          "drop-ledger",
+          "active-loan-clear-rejection",
+          "origin-and-mobility",
+          "asan-tsan-leak"
+        ]
+      },
+      "consumer": {
+        "path": "reference/last-light/allocation.w",
+        "symbols": ["Allocator", "Arena", "AllocationError", "stageMenu", "countEmergencyTokens"]
+      },
+      "apis": [
+        { "symbol": "BudgetExceeded", "kind": "struct", "profile": "value-contract" },
+        { "symbol": "AllocationError", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "Allocator",
+          "kind": "struct",
+          "profile": "allocator-carrier",
+          "members": [
+            { "symbol": "fixed", "profile": "arena-fixed" },
+            { "symbol": "clear", "profile": "arena-clear" }
+          ]
+        },
+        { "symbol": "Arena", "kind": "alias", "profile": "allocator-carrier" }
       ]
     },
     {

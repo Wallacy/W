@@ -1470,7 +1470,8 @@
       "expected": { "status": "rejected", "code": "opaqueLanguageLifetime", "operation": 0 }
     },
     {
-      "id": "M1-storage-origin-blocks-region-close",
+      "id": "M1-storage-origin-blocks-allocator-close",
+      "decisions": ["W-1294"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "staging", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1481,6 +1482,7 @@
     },
     {
       "id": "M1-storage-origin-closes-after-drop",
+      "decisions": ["W-1294"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "stageMenu" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "staging", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "arena", "limit": 64 },
@@ -1491,15 +1493,35 @@
       "expected": { "status": "accepted" }
     },
     {
-      "id": "M1-region-budget-is-monotonic",
-      "decisions": ["W-410"],
+      "id": "M1-arena-budget-is-monotonic",
+      "decisions": ["W-410", "W-1295"],
       "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countEmergencyTokens" }],
       "operations": [
         { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "fixed", "limit": 64 },
         { "op": "initialize", "binding": "tokens", "using": "scratch", "bytes": 48 },
         { "op": "initialize", "binding": "overflow", "using": "scratch", "bytes": 32 }
       ],
-      "expected": { "status": "rejected", "code": "budgetExceeded", "operation": 2 }
+      "expected": {
+        "status": "rejected",
+        "code": "budgetExceeded",
+        "operation": 2,
+        "facts": {
+          "limitBytes": 64,
+          "committedBytes": 48,
+          "requestedBytes": 32
+        }
+      }
+    },
+    {
+      "id": "M1-arena-charge-overflow-precedes-budget",
+      "decisions": ["W-1295"],
+      "references": [{ "path": "../reference/last-light/allocation.w", "symbol": "countEmergencyTokens" }],
+      "operations": [
+        { "op": "defineAllocator", "allocator": "scratch", "lifetime": "scoped", "mobility": "local", "adoptionFamily": "fixed", "limit": 9007199254740991 },
+        { "op": "initialize", "binding": "tokens", "using": "scratch", "bytes": 9007199254740990 },
+        { "op": "initialize", "binding": "overflow", "using": "scratch", "bytes": 2 }
+      ],
+      "expected": { "status": "rejected", "code": "sizeOverflow", "operation": 2 }
     },
     {
       "id": "M1-rehome-enables-cross-domain-transfer",

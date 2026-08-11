@@ -93,7 +93,7 @@ test "an erased callable owns its invocation environment" for route {
 test "explicit erasure exposes allocation recovery" for recoverableRoute {
   var storage: [u8; 1<KiB>] = [0; 1<KiB>]
   let memory = Arena.fixed(inout storage)
-  let selected = try recoverableRoute(gate: 3, memory: memory)
+  let selected = try recoverableRoute(gate: 3, memory: ref memory)
   let result = selected.handler(Arrival(orderId: 45, guests: try GuestCount(5)))
 
   expect result.gate == 3

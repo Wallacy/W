@@ -111,7 +111,11 @@ for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
     continue;
   }
   if (testCase.expected.status === "accepted") {
-    if (testCase.expected.code !== undefined || testCase.expected.operation !== undefined) {
+    if (
+      testCase.expected.code !== undefined ||
+      testCase.expected.operation !== undefined ||
+      testCase.expected.facts !== undefined
+    ) {
       errors.push(`${location}.expected accepted outcome cannot contain rejection fields.`);
     }
   } else if (
@@ -131,10 +135,20 @@ for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
       );
     }
   }
+  if (
+    JSON.stringify(actual.facts ?? null) !==
+    JSON.stringify(testCase.expected.facts ?? null)
+  ) {
+    errors.push(
+      `${location}.expected.facts is ${JSON.stringify(testCase.expected.facts)}; ` +
+        `actual is ${JSON.stringify(actual.facts)}.`,
+    );
+  }
   results.push({
     caseId: testCase.id,
     status: actual.status,
     ...(actual.code ? { code: actual.code, operation: actual.operation } : {}),
+    ...(actual.facts ? { facts: actual.facts } : {}),
     state: actual.state,
     trace: actual.trace,
   });
