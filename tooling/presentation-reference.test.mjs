@@ -68,4 +68,21 @@ describe("PYN3 presentation host oracle", () => {
     expect(result.status).toBe("rejected");
     expect(compactPresentationState(result.state).fallback).toBe("compilerSummary");
   });
+
+  test("progress is append-only and live display mutation is rejected", () => {
+    const progress = runPresentationProgram([
+      { op: "open" },
+      { op: "text", value: "reservation progress" },
+      { op: "vendorJson", media: "application/vnd.w.progress.v1+json", payload: { completed: 4, total: 9 } },
+      { op: "finish" },
+    ]);
+    expect(progress.status).toBe("accepted");
+    expect(progress.state.entries).toHaveLength(2);
+
+    const update = runPresentationProgram([
+      { op: "open" },
+      { op: "displayUpdate", displayId: "progress", value: "replacement" },
+    ]);
+    expect(update.error.code).toBe("W-PRESENTATION-0002");
+  });
 });

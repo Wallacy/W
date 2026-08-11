@@ -332,6 +332,8 @@ selection, package-lock root, CAS, requirements, provenance e promotion.
 Aceite:
 
 - `horizon_script.w` começa com `script { edition, dependencies, lock }`.
+- Dependency usa somente o record P0 explícito; não existe compact constructor,
+  comment metadata, sibling manifest ou `--with` na v0.
 - A dependency `chart` usa o record P0 e o lock root canônico `w.package-lock/1`; o
   digest real é `sha256:f59a22a26aa53fc0d1555350c177b8013d2f1532554861872ff87f94ab0e8cf2`,
   recomputado pelo fixture `header-ready` em `tooling/script-workflow-cases.json`;
@@ -408,7 +410,8 @@ Aceite:
   type error sem nova generation.
 - O black-hole watcher conserva owner scope através de gerações independentes.
   Drain preflight deriva closure/replaceability de provider events e exige
-  `allowDrain` estruturado. Falha pós-publication produz `degraded`.
+  confirmação ligada a session/generation/closure/deadline. `:drain` consome o
+  token sem repetir source. Falha pós-publication produz `degraded`.
 - `var broken: i32 = "x"` conserva a generation anterior e registra receipt de
   erro. Falha runtime preserva effects externos já observados.
 - Provider transactions recordam `attempted`, `committed`, `rolledBack` ou
@@ -427,6 +430,8 @@ Aceite:
 - O history é bounded por count e bytes, reserva o receipt antes de effects e
   pode redigir raw source em memory. Requests de vários frontends usam tickets
   FIFO e um único writer serial; cancellation queued não ganha ordinal.
+- `:receipts <path>` exporta manifest bounded/redacted. Heap, bindings vivos,
+  tasks, resources, handles e capabilities não são restaurados.
 - Output policy preserva bytes entregues: partial é `truncated`, item sem budget
   é `dropped`, e output de tamanho zero ainda consome a quota de count.
 
@@ -448,6 +453,8 @@ Adversariais:
 
 O host deriva state, trace, graph fingerprint, receipt, invalidation, effects e
 cleanup. Ele não compila, executa W, drena resource físico ou fornece CLI.
+O field JSON `allowDrain` é a evidence normalizada de um token já validado; ele
+não é uma opção booleana exposta à pessoa usuária.
 Jupyter/rich output é PYN3. DLPack permanece adapter de tensor separado.
 
 O fixture [`repl_session_oracle.w`](repl_session_oracle.w) também contém testes
@@ -480,6 +487,8 @@ Aceite:
 - `execution_count` é o counter corrente em todo reply; o reserved ordinal é
   separado e nullable, e `GenerationId` é opaque. Silent e user expressions
   são read-only. Stdin tem um waiter origin-routed e password não persiste;
+- output rico é append-only. Progress cria itens novos; não existe display
+  update/clear handle. History aceita somente tail bounded e redacted;
 - completion, inspect, completeness e history usam snapshot committed com
   offsets Unicode code point. Metadata usa namespace `w`;
 - export valida IDs nbformat, source String/Array, receipt manifest estruturado
@@ -489,6 +498,8 @@ Aceite:
   content-addressed deriva single-file/package sem `modules` ou `entries` da
   operação;
 - export produz single-file PYN1, package ou audit manifest sem executar.
+- `w notebook check`, `w notebook export` e `:receipts` recebem paths
+  explícitos. Check/export não executam cells nem descobrem sessões ambientais.
 
 Adversariais:
 
@@ -498,7 +509,7 @@ Adversariais:
   idle prematuro, silent mutation, user expression effectful, password em
   receipt, interrupt não admitido e shutdown antes de drain;
 - feature advertisement falso, metadata sem namespace, read de staging ou
-  byte offset;
+  byte offset, history range/search e live display mutation;
 - cell ID inválido, receipt ausente ou divergente, cell invalidada,
   redefinition, effect unknown, stdin não resolvido, ciclo, replay oculto e
   export com execute explícito.

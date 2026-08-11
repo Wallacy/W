@@ -232,7 +232,7 @@ if (corpus.machine !== "repl-session-machine-pyn2") errors.push("PYN2 machine na
 if (!Array.isArray(corpus.decisions) || corpus.decisions.length === 0) errors.push("PYN2 corpus must declare ledger IDs");
 for (const decision of corpus.decisions ?? []) {
   const number = Number(String(decision).slice(2));
-  if (!(number === 974 || (number >= 1076 && number <= 1106)) || !ledgerIdSet.has(decision)) errors.push(`unknown PYN2 ledger decision ${decision}`);
+  if (!(number === 974 || (number >= 1076 && number <= 1106) || number === 1246 || number === 1247) || !ledgerIdSet.has(decision)) errors.push(`unknown PYN2 ledger decision ${decision}`);
 }
 if (!Array.isArray(corpus.references) || corpus.references.length === 0) errors.push("PYN2 corpus references are required");
 for (const [index, reference] of (corpus.references ?? []).entries()) resolveReference(reference, `references[${index}]`);

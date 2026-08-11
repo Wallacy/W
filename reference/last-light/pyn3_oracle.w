@@ -36,6 +36,22 @@ export enum Media {
   widgetRejected
 }
 
+// W-1248/W-1249: output is immutable and history exposes only a bounded tail.
+export enum PresentationMutationPolicy {
+  appendOnly
+}
+
+export enum HistoryAccessPolicy {
+  tail
+}
+
+// W-1250: these names are the first stable tooling surface.
+export enum NotebookToolCommand {
+  notebookCheck
+  notebookExport
+  sessionReceipts
+}
+
 export enum Failure: Error {
   mediaInvalid
   mediaDuplicate

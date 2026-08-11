@@ -49,4 +49,20 @@ describe("PYN3 Jupyter host oracle", () => {
     expect(result.state.shutdown).toBe("ok");
     expect(result.state.phase).toBe("closed");
   });
+
+  test("history is bounded tail-only", () => {
+    const tail = runJupyterProgram([
+      open(),
+      frame("tail", "history_request", "shell", { hist_access_type: "tail", n: 4 }),
+      { op: "read", frameMsgId: "tail", analysis: { offsetUnit: "unicode-codepoint" } },
+    ]);
+    expect(tail.status).toBe("accepted");
+
+    const range = runJupyterProgram([
+      open(),
+      frame("range", "history_request", "shell", { hist_access_type: "range", session: 0, start: 0, stop: 4 }),
+      { op: "read", frameMsgId: "range", analysis: { offsetUnit: "unicode-codepoint" } },
+    ]);
+    expect(range.error.code).toBe("W-JUPYTER-0009");
+  });
 });

@@ -1,6 +1,16 @@
 import { expect, test } from "bun:test";
 import { runReplSessionProgram } from "./repl-session-machine.mjs";
 
+function drainProof(afterFailure = false) {
+  return {
+    confirmed: true,
+    evidence: "validated-token",
+    token: "drain:valid",
+    bindings: ["session", "incarnation", "generation", "closure", "action", "deadline"],
+    ...(afterFailure ? { afterFailure: true } : {}),
+  };
+}
+
 function identityProgram() {
   return [
     { op: "open", sessionId: "host-identities" },
@@ -85,7 +95,7 @@ test("resource owner scopes survive independent graph publication and drain only
     { op: "open", sessionId: "host-scope" },
     { op: "submit", requestId: "watch", source: "let watch = make()", declarations: [{ name: "watch", persistentResource: true, resource: "watch" }] },
     { op: "submit", requestId: "sibling", source: "let value = 1", declarations: [{ name: "value", value: 1 }] },
-    { op: "submit", requestId: "replace", source: "let watch = make2()", declarations: [{ name: "watch", persistentResource: true, resource: "watch2" }], allowDrain: { confirmed: true }, resourceEvents: [{ resource: "watch", active: true, providerState: "replaceable", events: [{ kind: "close", outcome: "ready" }] }] },
+    { op: "submit", requestId: "replace", source: "let watch = make2()", declarations: [{ name: "watch", persistentResource: true, resource: "watch2" }], allowDrain: drainProof(), resourceEvents: [{ resource: "watch", active: true, providerState: "replaceable", events: [{ kind: "close", outcome: "ready" }] }] },
   ]);
   expect(result.status).toBe("accepted");
   expect(result.state.ownerScopes).toHaveLength(1);
@@ -203,13 +213,13 @@ test("owner registry retains draining scopes on degraded publication and reset f
   const degraded = runReplSessionProgram([
     { op: "open", sessionId: "host-owner-degraded" },
     { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher" }] },
-    { op: "submit", requestId: "replace", source: "let watcher = watch2()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher2" }], allowDrain: { confirmed: true }, resourceEvents: [{ resource: "watcher", providerState: "replaceable" }], drainEvents: [{ phase: "post-publish", outcome: "deadline" }] },
+    { op: "submit", requestId: "replace", source: "let watcher = watch2()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher2" }], allowDrain: drainProof(), resourceEvents: [{ resource: "watcher", providerState: "replaceable" }], drainEvents: [{ phase: "post-publish", outcome: "deadline" }] },
   ]);
   expect(degraded.state.ownerScopes.map((scope) => scope.state).sort()).toEqual(["faulted", "owned"]);
   const reset = runReplSessionProgram([
     { op: "open", sessionId: "host-reset-failure" },
     { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher" }] },
-    { op: "reset", requestId: "reset", allowDrain: { confirmed: true }, resourceEvents: [] },
+    { op: "reset", requestId: "reset", allowDrain: drainProof(), resourceEvents: [] },
   ]);
   expect(reset.state.session.incarnation).toBe(1);
   expect(reset.state.generation.display).toBe("g1");
@@ -236,14 +246,14 @@ test("close keeps blocked registry and records force boundary", () => {
   const blocked = runReplSessionProgram([
     { op: "open", sessionId: "host-close-blocked" },
     { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "foreign" }] },
-    { op: "quit", requestId: "quit", allowDrain: { confirmed: true }, resourceEvents: [] },
+    { op: "quit", requestId: "quit", allowDrain: drainProof(), resourceEvents: [] },
   ]);
   expect(blocked.state.phase).toBe("closing");
   expect(blocked.state.ownerScopes[0].state).toBe("closing");
   const forced = runReplSessionProgram([
     { op: "open", sessionId: "host-close-force" },
     { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "foreign" }] },
-    { op: "quit", requestId: "quit", force: true, allowDrain: { confirmed: true }, resourceEvents: [{ resource: "foreign", providerState: "foreign-retained", events: [{ outcome: "foreign-retained" }] }] },
+    { op: "quit", requestId: "quit", force: true, allowDrain: drainProof(true), resourceEvents: [{ resource: "foreign", providerState: "foreign-retained", events: [{ outcome: "foreign-retained" }] }] },
   ]);
   expect(forced.state.phase).toBe("closed");
   expect(forced.state.ownerScopes[0].state).toBe("force-boundary");
@@ -271,4 +281,36 @@ test("output policy preserves delivered bytes and bounded effects", () => {
   expect(result.state.outputs.committed[0].budget).toBe("truncated");
   expect(result.state.effects).toHaveLength(1);
   expect(result.state.effectsEvicted).toBe(1);
+});
+
+test("drain requires validated one-shot evidence and does not publish a generation", () => {
+  const rejected = runReplSessionProgram([
+    { op: "open", sessionId: "host-drain-bool" },
+    { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher" }] },
+    { op: "drain", requestId: "drain", drainToken: "drain:valid", allowDrain: { confirmed: true, token: "drain:valid" }, resourceEvents: [{ resource: "watcher", providerState: "replaceable" }] },
+  ]);
+  expect(rejected.state.lastReceipt.outcome).toBe("rejected");
+  expect(rejected.state.ownerScopes).toHaveLength(1);
+
+  const accepted = runReplSessionProgram([
+    { op: "open", sessionId: "host-drain-token" },
+    { op: "submit", requestId: "owner", source: "let watcher = watch()", declarations: [{ name: "watcher", persistentResource: true, resource: "watcher" }] },
+    { op: "drain", requestId: "drain", drainToken: "drain:valid", allowDrain: drainProof(), resourceEvents: [{ resource: "watcher", providerState: "replaceable", events: [{ kind: "close", outcome: "ready" }] }] },
+  ]);
+  expect(accepted.state.lastReceipt.outcome).toBe("committed");
+  expect(accepted.state.generation.display).toBe("g1");
+  expect(accepted.state.ownerScopes).toHaveLength(0);
+});
+
+test("receipt manifest is redacted metadata and never a live session image", () => {
+  const result = runReplSessionProgram([
+    { op: "open", sessionId: "host-receipts", historyPolicy: { rawSource: "redact" } },
+    { op: "submit", requestId: "one", source: "let secret = 1", declarations: [{ name: "secret", value: 1 }] },
+    { op: "receipts", path: "horizon-receipts.json" },
+  ]);
+  expect(result.state.lastResult.kind).toBe("receipt-manifest");
+  expect(result.state.lastResult.receipts[0].source).toBeNull();
+  expect(result.state.lastResult.containsLiveValues).toBe(false);
+  expect(result.state.lastResult.containsResources).toBe(false);
+  expect(result.state.lastResult.containsCapabilities).toBe(false);
 });
