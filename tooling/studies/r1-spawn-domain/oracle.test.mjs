@@ -8,6 +8,16 @@ const bundle = JSON.parse(
 function evaluate(input) {
   const profile = input.profile;
 
+  if (profile.selectionOwner !== "product") {
+    return {
+      status: "rejected",
+      reason: "profileSelectionOwner",
+      domain: profile.domain,
+      dispatch: "explicit",
+      actualOwner: profile.selectionOwner,
+    };
+  }
+
   if (profile.capacity < 1) {
     return {
       status: "rejected",
@@ -50,6 +60,21 @@ function namedDomain(input) {
   return evaluate(input);
 }
 
+function packUnits(profile, units) {
+  if (profile.selectionOwner !== "product") {
+    return { status: "rejected", reason: "profileSelectionOwner" };
+  }
+  return {
+    status: "accepted",
+    units: units.map((unit) => ({
+      unit,
+      executionProfile: profile.id,
+      capacity: profile.capacity,
+      capabilities: [...profile.capabilities],
+    })),
+  };
+}
+
 describe("R1 spawn-domain host oracle", () => {
   for (const input of bundle.inputs) {
     test(`${input.id} preserves resolution and outcome`, () => {
@@ -57,4 +82,29 @@ describe("R1 spawn-domain host oracle", () => {
       expect(namedDomain(input)).toEqual(input.expected);
     });
   }
+
+  test("the product selection is preserved in every packed task unit", () => {
+    const profile = bundle.inputs[0].profile;
+    expect(packUnits(profile, ["restaurant", "observatory"])).toEqual({
+      status: "accepted",
+      units: [
+        {
+          unit: "restaurant",
+          executionProfile: "native-bounded",
+          capacity: 1,
+          capabilities: ["concurrent", "parallel"],
+        },
+        {
+          unit: "observatory",
+          executionProfile: "native-bounded",
+          capacity: 1,
+          capabilities: ["concurrent", "parallel"],
+        },
+      ],
+    });
+    expect(packUnits(bundle.inputs[3].profile, ["restaurant"])).toEqual({
+      status: "rejected",
+      reason: "profileSelectionOwner",
+    });
+  });
 });
