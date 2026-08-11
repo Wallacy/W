@@ -1182,15 +1182,56 @@ ownership, cancellation e close no mesmo contrato. O runtime continua livre
 para usar condition, futex ou parking internamente.
 
 `Once` raw também não entra. Const/module initialization resolve o caso
-estático. Uma forma lazy concorrente precisa decidir value, winner, reentrada,
-error, panic e cancellation antes de ser um behavior ou carrier. Barreiras
-cíclicas e atomic wait/notify permanecem pesquisas separadas porque possuem
-participantes e suspension diferentes.
+estático. `var Lazy` cobre o caso tardio sem publicar uma primitive de estado.
+Barreiras cíclicas e atomic wait/notify permanecem pesquisas separadas porque
+possuem participantes e suspension diferentes.
+
+#### 1.4.6 Inicialização lazy concorrente
+
+O [`lazy` do Swift](https://docs.swift.org/swift-book/LanguageGuide/Properties.html)
+não garante uma única execução sob primeiro acesso concorrente. Stored type
+properties do Swift possuem uma garantia diferente. Essa diferença mostra que
+o nome `lazy` sozinho não define concorrência.
+
+O [`LazyLock` do Rust](https://doc.rust-lang.org/std/sync/struct.LazyLock.html)
+bloqueia contenders e usa poisoning após panic. O
+[`OnceLock`](https://doc.rust-lang.org/std/sync/struct.OnceLock.html) separa
+consulta non-blocking, wait e inicialização. O
+[`sync.Once` do Go](https://go.dev/src/sync/once.go) prova que um CAS isolado é
+insuficiente: um contender precisa esperar a conclusão do winner. A mesma API
+também demonstra o deadlock de reentrada.
+
+W preserva a garantia útil e rejeita a superfície acidental. Um único `Lazy`
+possui winner e publicação definidos. Ownership e isolation selecionam flag
+local, storage serial ou estado atômico com parking. Panic falha a fault
+boundary, portanto W não precisa de poisoning recuperável. Reentrada dinâmica
+falha a mesma boundary em vez de bloquear para sempre.
+
+O acesso continua property syntax, mas não ganha um efeito invisível. A
+interface publica `blockingWhenContended`. Um domain non-blocking rejeita o
+acesso sem prova de isolamento ou inicialização anterior. Async lazy, I/O no
+initializer e retry falível exigiriam outra API e permanecem fora da baseline.
+
+O modelo LZ0 mede a semântica comum entre lowerings. Ele não escolhe a primitive
+do provider. Futex, parking lot, mutex interno ou uma forma target-specific são
+alternativas físicas, desde que preservem winner, edges, cancellation e drop.
 
 ### 1.5 Memória, layout, errors e cleanup
 
 Esta seção preserva precedentes usados nas seções 9 a 11 de `DESIGN.md`. W usa
 as fontes como evidência de riscos e alternativas, não como semântica herdada.
+
+A definite initialization em duas fases foi comparada com a
+[inicialização do Swift](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization/).
+[`MaybeUninit`](https://doc.rust-lang.org/core/mem/union.MaybeUninit.html) mostra
+o risco de representar bytes ainda inválidos. O compact constructor de
+[records Java](https://docs.oracle.com/en/java/javase/15/docs/specs/records-jls.html)
+mostra a validação antes da publicação do aggregate.
+
+Swift também possui
+[properties read-only com `async` e `throws`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0310-effectful-readonly-properties.md).
+W preserva property-safe accessors. Um método nomeado mantém `try`, `await` e
+efeitos operacionais visíveis no call site.
 
 #### 1.5.1 Loans, captures, pinning e ownership compartilhado
 
@@ -1430,7 +1471,7 @@ O índice gerado usa esta tabela somente como projeção.
 | storage estreito não escapante | **Provável** | exige boundary analysis, repacking e benchmark de cache/code size |
 | optimization record e `w explain performance` | **Possível agora** | facts e decisões já existem nos passes; schema precisa ser estável |
 | theorem prover ou SMT geral no build | **Rejeitado** | ProofFacts bounded cobrem a baseline e preservam reproducibility |
-| property behaviors | **Provável** | expansão HIR é viável; composição ainda precisa de teste |
+| property behaviors | **Possível agora** | `Lazy` fecha estado e lowering; composição arbitrária continua ausente |
 | obrigação linear genérica de async close | **Rejeitado** | scopes e cleanup específicos preservam errors sem async destructor universal |
 | entries e host profiles | **Provável** | default handler é claro; adapters e slot schemas precisam de protótipo |
 | `hostBindings` no product | **Possível agora** | símbolos e slots são estáticos; o linker valida a assinatura |
@@ -3668,6 +3709,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1190 | admission read/write | tickets abrem ou ampliam a fase com o prefixo contíguo de readers; writer pendente bloqueia readers posteriores e `try*` não ultrapassa fila | fairness do host, barging, starvation por readers, recursion garantida, upgrade ou downgrade |
 | W-1191 | lifetime e provider read/write | phase close deriva edges, application error libera, panic falha boundary, drop espera drain e provider preserva a policy de W | poisoning, liberar payload com reader, prometer SRW/pthread fairness, benchmark como semântica |
 | W-1192 | evidence read/write LM0 | oracle host deriva reader phases, writer exclusivo, no-bypass, blocking, failure, drain e seleção; provider W continua missing | expected echo, chamar oracle de runtime, caso sem consumer Last Light |
+| W-1193 | estado lógico Lazy | `var Lazy` possui initializer armazenado, winner único e uma publicação completa do initializer; contenders não repetem a execução | inicialização duplicada, retorno parcial, `Once` raw, carrier separado para o caso comum |
+| W-1194 | lowering Lazy por prova | local, isolation serial e estado atômico com parking preservam a mesma semântica; interface publica `blockingWhenContended` | nome distinto por lowering, wait oculto em domain non-blocking, sincronização sempre ativa |
+| W-1195 | failure e lifetime Lazy | initializer é sync/nonthrowing; reentrada dinâmica e panic falham boundary; mutation exige exclusividade; cada capture path e valor retido termina uma vez | poisoning recuperável, retry implícito, cancellation durante initializer, setter concorrente, self-owning closure |
+| W-1196 | evidence LZ0 | oracle host deriva winner, waiters, publication edge, lowerings equivalentes, cancellation, mutation e drop; provider continua missing | chamar oracle de runtime/compiler, snapshot manual, caso sem símbolo Última Luz |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

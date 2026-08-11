@@ -25,6 +25,7 @@ const corpusFiles = [
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
+  "lazy-behavior-cases.json",
   "ownership-execution-cases.json",
   "channel-cases.json",
   "scoped-lock-cases.json",

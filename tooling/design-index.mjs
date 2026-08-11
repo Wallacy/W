@@ -267,6 +267,7 @@ const oracleCorpusFiles = [
   "layout-abi-cases.json",
   "execution-concurrency-cases.json",
   "runtime-liveness-cases.json",
+  "lazy-behavior-cases.json",
   "ownership-execution-cases.json",
   "channel-cases.json",
   "scoped-lock-cases.json",
@@ -433,6 +434,37 @@ const runtimeLivenessOperations = runtimeLivenessCorpus.cases.reduce(
 );
 const acceptedRuntimeLivenessCases = runtimeLivenessCorpus.cases.filter(
   (testCase) => testCase.expected.status === "accepted",
+).length;
+const lazyBehaviorCorpus = JSON.parse(
+  fs.readFileSync(path.join(wDirectory, "tooling", "lazy-behavior-cases.json"), "utf8"),
+);
+const lazyFixtureOperations = Object.fromEntries(
+  Object.entries(lazyBehaviorCorpus.fixtures ?? {}).map(([name, operations]) => [
+    name,
+    operations.length,
+  ]),
+);
+const lazyBehaviorCases = lazyBehaviorCorpus.cases.length;
+const lazyBehaviorOperations = lazyBehaviorCorpus.cases.reduce(
+  (count, testCase) =>
+    count +
+    (testCase.operations ?? []).length +
+    (testCase.fixtures ?? []).reduce(
+      (fixtureCount, fixture) => fixtureCount + (lazyFixtureOperations[fixture] ?? 0),
+      0,
+    ),
+  0,
+);
+const acceptedLazyBehaviorCases = lazyBehaviorCorpus.cases.filter(
+  (testCase) => testCase.kind === "accepted",
+).length;
+const faultedLazyBehaviorCases = lazyBehaviorCorpus.cases.filter(
+  (testCase) => testCase.kind === "fault",
+).length;
+const lazyBehaviorHostTests = (
+  fs
+    .readFileSync(path.join(wDirectory, "tooling", "lazy-behavior-reference.test.mjs"), "utf8")
+    .match(/^test\(/gm) ?? []
 ).length;
 const ownershipExecutionCorpus = JSON.parse(
   fs.readFileSync(path.join(wDirectory, "tooling", "ownership-execution-cases.json"), "utf8"),
@@ -768,6 +800,13 @@ output.push(
     `(${acceptedRuntimeLivenessCases} aceitos + ` +
     `${runtimeLivenessCases - acceptedRuntimeLivenessCases} rejeitados; ` +
     `sete testes host) |`,
+);
+output.push(
+  `| casos/operações do behavior Lazy LZ0 | ` +
+    `${lazyBehaviorCases}/${lazyBehaviorOperations} ` +
+    `(${acceptedLazyBehaviorCases} aceitos + ` +
+    `${lazyBehaviorCases - acceptedLazyBehaviorCases - faultedLazyBehaviorCases} rejeitados + ` +
+    `${faultedLazyBehaviorCases} fault; ${lazyBehaviorHostTests} testes host) |`,
 );
 output.push(
   `| casos/operações da composição de ownership e execução MX0 | ` +

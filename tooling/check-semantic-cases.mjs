@@ -398,11 +398,11 @@ const diagnosticTablePatterns = [
   /\| `W-CONTRACT-0001`[\s\S]*?\| `W-CONTRACT-0005`[^\n]*\|/,
   /\| `W-PATTERN-0001`[\s\S]*?\| `W-MATCH-0003`[^\n]*\|/,
   /\| `W-PARSE-0020`[\s\S]*?\| `W-OWNERSHIP-0013`[^\n]*\|/,
-  /#### 3\.6\.8 Diagnostics e evidence[\s\S]*?\| `W-CONST-0001`[\s\S]*?\| `W-CONST-0007`[^\n]*\|/,
+  /#### 3\.6\.8 Diagnostics[\s\S]*?\| `W-CONST-0001`[\s\S]*?\| `W-CONST-0007`[^\n]*\|/,
   /\| `W-TYPE-0121`[^\n]*\|/,
-  /#### 8\.7\.10 Diagnostics e evidence[\s\S]*?\| `W-GENERIC-0001`[\s\S]*?\| `W-GENERIC-0005`[^\n]*\|/,
+  /#### 8\.7\.10 Diagnostics[\s\S]*?\| `W-GENERIC-0001`[\s\S]*?\| `W-GENERIC-0005`[^\n]*\|/,
   /\| `W-TYPE-0122`[^\n]*\|/,
-  /##### Diagnostics e evidence[\s\S]*?\| `W-SEM-0001`[\s\S]*?\| `W-CAPABILITY-0001`[^\n]*\|/,
+  /\| `W-SEM-0001`[^\n]*\|\n(?:\|[^\n]*\|\n)*\| `W-CAPABILITY-0001`[^\n]*\|/,
 ]
 const diagnosticTables = diagnosticTablePatterns.map((pattern) => design.match(pattern)?.[0])
 if (diagnosticTables.some((table) => table === undefined)) {
