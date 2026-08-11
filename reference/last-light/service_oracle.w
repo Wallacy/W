@@ -41,6 +41,28 @@ const fn expectedStack(for link: OracleLink): LinkStack {
   }
 }
 
+// W-1242/W-1243: core routes are nominal and adapter authorities are lock-fixed.
+enum ServiceResolutionSource {
+  nominalImport
+  typedBinding
+  runtimeName
+}
+
+const fn coreResolverAccepts(_ source: ServiceResolutionSource): Bool {
+  return source.one(.nominalImport, .typedBinding)
+}
+
+enum AdapterAuthority {
+  toolchainLock
+  deploymentLock
+  productLock
+  runtimeRegistry
+}
+
+const fn coreAdapterAccepts(_ authority: AdapterAuthority): Bool {
+  return authority.one(.toolchainLock, .deploymentLock, .productLock)
+}
+
 enum CommitEvidence {
   noDependencies
   confirmed
@@ -184,6 +206,16 @@ test "each link keeps its own implementation layer" for expectedStack {
   expect expectedStack(for: .wrpcIpc) == .wrpcSessionCodecTransport
   expect expectedStack(for: .wrpcNetwork) == .wrpcSessionCodecTransport
   expect expectedStack(for: .foreign) == .foreignAdapter
+}
+
+test "service resolution and adapters stay fixed before startup" {
+  expect coreResolverAccepts(.nominalImport)
+  expect coreResolverAccepts(.typedBinding)
+  expect !coreResolverAccepts(.runtimeName)
+  expect coreAdapterAccepts(.toolchainLock)
+  expect coreAdapterAccepts(.deploymentLock)
+  expect coreAdapterAccepts(.productLock)
+  expect !coreAdapterAccepts(.runtimeRegistry)
 }
 
 test "a commit failure differs from missing evidence" for expectedGateOutcome {

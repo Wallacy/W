@@ -1445,6 +1445,13 @@ Esses precedentes não definem a stack W. `ServiceIR`, `ServiceLink`, wRPC,
 `ServiceTransport`, packing e deployment mantêm contratos próprios. Cap'n
 Proto, Cap'n Web e gRPC permanecem foreign links, não dependências estruturais.
 
+W escolhe bindings nominais e adapters fixados no lock porque runtime lookup e
+registro aberto mudariam authority depois do build. Outro workflow durável é
+outro root iniciado por service ou supervisor, não um child com inheritance
+especial. Essa composição mantém `WorkId`, effect, cancellation e recovery
+visíveis. O output gate usa um commit provider por turn; dois providers exigem
+outbox ou steps explícitos em vez de 2PC escondido.
+
 ### 1.7 Snapshot de maturidade retirado do documento normativo
 
 Este snapshot registra planejamento de 10 de agosto de 2026. Ele não define a
@@ -1559,7 +1566,7 @@ O índice gerado usa esta tabela somente como projeção.
 | wRPC unary e capability tables | **Provável** | lifecycle está fechado; session, disconnect e security exigem fault tests |
 | service streams com dois créditos | **Provável** | source, errors, ownership, créditos e relay estão fechados; fairness e fault injection exigem protótipo |
 | `pipeline` dependente | **Provável** | forma source e DAG estão fechados; runtime, arbitragem e routing exigem protótipo |
-| output gate por commit dependency | **Provável** | closed turn e staging existem; multi-provider e abort exigem fault tests |
+| output gate por commit dependency | **Design fechado** | B0/SR0 e W-1244 fixam frontier, terminal receipt, owner drain e single-provider; provider real continua gate |
 | wWire `exact` e `compatible` | **Provável** | layout, registro e dois codecs de seed fecham a direção; decoder e fuzzer são gates |
 | introdução direta entre três services | **Rejeitado por enquanto** | relay preserva consentimento, attenuation e revocation sem outro protocol |
 | `SupervisorRef` process-local | **Provável** | owner, admission, cancellation e outcome estão fechados; restart exige oracle |
@@ -2314,9 +2321,9 @@ Todos os itens antes classificados como **Pesquisa** possuem agora uma saída:
 | compile time | `WMeta1` com chunks CBOR | callable const indireto, SMT geral e autotuning no build |
 | memória | `InlineString`, trusted foreign facts e cache isolation | public unpin, high-bit baseline e async-close universal |
 | execução | dynamic execution-domain selection, topology types, advanced atomics, fences e sync | QoS em `spawn`, permit type rule, `yield`, safe RCU e service reentrant |
-| workflow | child workflow, fan-out e `continueAsNew` | durable race, absolute core sleep, user compaction e 2PC implícito |
-| I/O | `ReadBatch`, `io.transfer` e commit-provider SPI | zero-copy implícito, `flush` universal e transaction multi-provider |
-| services | wWire, custom adapter SPI, plugin lookup e `PersistentRef` | 0-RTT, opaque capability relay, direct introduction e distributed ref equality |
+| workflow | roots explícitos por service/`SupervisorRef`, steps e outbox | child workflow/`continueAsNew` intrínsecos, durable race, absolute core sleep, user compaction e 2PC implícito |
+| I/O | `ReadBatch`, `io.transfer` e commit-provider SPI interno fechado | zero-copy implícito, `flush` universal e transaction multi-provider |
+| services | wWire, resolver nominal, adapters lock-fixed e `PersistentRef` posterior | registry do core, custom adapter SPI na v0, 0-RTT, opaque capability relay, direct introduction e distributed ref equality |
 | foreign | source islands separadas e adapters Rust/Swift após C | library unload físico e ABI W resiliente sem matriz de targets |
 | numeric e target | FixedDecimal, Rational, Complex e device kernels | Posit/Unum universal, unit sem delimiter e ASIC/FPGA como target geral |
 
@@ -3757,9 +3764,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-739 | linker placement (retired) | direção inicial movia placement ao product; W-1238 fecha payload retention e recipe | annotation em source comum; import muda section; linker flag livre |
 | W-740 | assembly (retired) | direção inicial exigia contract estático; W-1239 fecha adapter, effects e limits | asm safe; clobber implícito; naked function baseline; string passada ao backend sem scanner |
 | W-741 | primitives de execução (retired) | direção anterior listava SnapshotCell como provável; W-1178 fecha sua superfície sem agrupar topology ou wait/notify | um Channel muda topologia por mode; safe RCU geral; uma API universal para toda topologia |
-| W-742 | evolução de workflow | child workflows, fan-out e continue-as-new T2 usam IDs determinísticos; race durável e absolute core sleep ficam rejeitados | persistir async frame; wall clock implícito; compaction definida pelo usuário |
+| W-742 | evolução de workflow (retired) | W-1241 substitui child/continue intrínsecos por roots, calls, effect IDs e outbox explícitos | persistir async frame; wall clock implícito; compaction definida pelo usuário |
 | W-743 | metadata publicável | WMeta1 usa header/directory e chunks em subset CBOR determinístico; profiles separam interface e object ABI; cache interno continua recipe-exact | codec universal; JSON binário; HIR antiga vira ABI eterna |
-| W-744 | extensões de service | custom adapter, plugin lookup e PersistentRef são T2; 0-RTT, opaque relay, direct introduction e distributed equality ficam fora | authority por string; capability em unknown field; reconnect direto implícito |
+| W-744 | extensões de service (parcialmente retired) | W-1242/1243 fecham resolver nominal e adapters lock-fixed; `PersistentRef` continua separado depois da v0 | authority por string no core; capability em unknown field; reconnect direto implícito |
 | W-745 | ilhas externas posteriores (retired) | W-1233 fecha uma syntax inline e deixa source separado no build graph; providers continuam independentes | runtime externo implícito; staticlib por função; ABI W rica atravessa a ilha |
 | W-746 | loop pós-condicional | `repeat { body } while condition` executa body ao menos uma vez; `continue` avalia a condição final | rejeitar post-test loop; `do ... while`; exigir `while true` e `break` negado |
 | W-747 | block rotulado | `label: { ... }` aceita somente `break label`; saída lexical executa cleanup e não produz value | `continue` para block; label em qualquer statement; salto para dentro; break com value na baseline |
@@ -4256,6 +4263,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1238 | placement data-only | product target variant fixa section/address/alignment/visibility/retain e valida o symbol no payload final | annotation comum, object `used` como prova final, import ou flag livre alterando placement |
 | W-1239 | assembly fechada | unsafe fn<Asm> usa signature tipada e contract de target/clobber/memory/stack/unwind/volatility verificado pelo adapter | naked function, clobber/call/unwind escondido, correctness inferida do body opaco |
 | W-1240 | forwarding de suspensão | scope higher-order não escapante publica dependência simbólica da callable; call direta e await continuam distintos sem duplicar API | annotation manual, overload sync/async com a mesma forma, task escondida, blocking wait |
+| W-1241 | roots duráveis explícitos | outra execução durável começa por service ou SupervisorRef com WorkId/effect próprios; transaction/outbox pode ligar dois roots | child workflow/continueAsNew intrínseco, inheritance oculta, journal ordenado pelo scheduler |
+| W-1242 | resolução nominal | imports, requirements e bindings formam o grafo; plugin runtime exige registry capability fora do core | lookup de ServiceRef por string, runtime registry global, nome concedendo authority |
+| W-1243 | adapters lock-fixed | toolchain, deployment ou product fixa adapter, conformance e digest; v0 não publica registry/SPI de package | adapter baixado ou registrado durante startup, source shape reservado sem corpus |
+| W-1244 | commit provider fechado | um provider por turn, frontier bounded e terminal receipt estável determinam committed/aborted/unknown e owner drain | 2PC implícito, cancellation substituindo decisão, receipt stale publicando state |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

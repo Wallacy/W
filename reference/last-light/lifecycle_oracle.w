@@ -74,6 +74,37 @@ const fn nextServiceTurnState(
   }
 }
 
+// W-1244: one provider closes one bounded frontier with one terminal decision.
+enum CommitProviderState {
+  collecting
+  closing
+  committed
+  aborted
+  unknown
+}
+
+enum CommitProviderEvent {
+  registerDependency
+  closeFrontier
+  confirmCommit
+  confirmAbort
+  loseEvidence
+}
+
+const fn nextCommitProviderState(
+  from state: CommitProviderState,
+  on event: CommitProviderEvent,
+): CommitProviderState? {
+  return switch (state, event) {
+    case (.collecting, .registerDependency): .some(.collecting)
+    case (.collecting, .closeFrontier): .some(.closing)
+    case (.closing, .confirmCommit): .some(.committed)
+    case (.closing, .confirmAbort): .some(.aborted)
+    case (.closing, .loseEvidence): .some(.unknown)
+    case (_, _): .none
+  }
+}
+
 test "task outcome is published only after cleanup" for nextTaskState {
   let published = nextTaskState(.reserved, on: .publish)
   let settled = nextTaskState(.published, on: .settleSuccess)
@@ -116,4 +147,19 @@ test "commit uncertainty is not an abort" for nextServiceTurnState {
   expect nextServiceTurnState(.unknownOutcome, on: .confirmCommit) == none
   expect nextServiceTurnState(.commitFailed, on: .confirmCommit) == none
   expect nextServiceTurnState(.drained, on: .settleBody) == none
+}
+
+test "a commit provider publishes one stable terminal" for nextCommitProviderState {
+  expect nextCommitProviderState(.collecting, on: .registerDependency)
+    == .some(.collecting)
+  expect nextCommitProviderState(.collecting, on: .closeFrontier)
+    == .some(.closing)
+  expect nextCommitProviderState(.closing, on: .confirmCommit)
+    == .some(.committed)
+  expect nextCommitProviderState(.closing, on: .confirmAbort)
+    == .some(.aborted)
+  expect nextCommitProviderState(.closing, on: .loseEvidence)
+    == .some(.unknown)
+  expect nextCommitProviderState(.committed, on: .confirmAbort) == none
+  expect nextCommitProviderState(.closing, on: .registerDependency) == none
 }

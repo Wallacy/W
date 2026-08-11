@@ -575,7 +575,7 @@
       "id": "SR0-rejected-transaction-cross-provider",
       "kind": "rejected",
       "source": { "path": "reference/last-light/service_recovery_oracle.w", "symbol": "transactional" },
-      "decisions": ["W-1223", "W-1226"],
+      "decisions": ["W-1223", "W-1226", "W-1244"],
       "operations": [
         { "$use": "boot" },
         { "$use": "stageOrder", "with": { "policy": "transactional" } },

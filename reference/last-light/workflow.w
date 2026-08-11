@@ -53,6 +53,19 @@ export enum FulfillmentSignal {
 export const fulfillmentSignals =
   WorkEventBinding<FulfillmentSignal>(name: "fulfillment", version: 1)
 
+// W-1241: another durable root is an explicit call, not inherited child state.
+enum DurableComposition {
+  currentStep
+  serviceRoot
+  supervisorRoot
+  childIntrinsic
+  continueAsNewIntrinsic
+}
+
+const fn usesDurableBaseline(_ composition: DurableComposition): Bool {
+  return composition.one(.currentStep, .serviceRoot, .supervisorRoot)
+}
+
 export struct CapturedDish {
   dish: Dish
   payment: Payment
@@ -197,6 +210,14 @@ test "fulfillment signals keep closing distinct from table admission" {
   let ready: FulfillmentSignal = .tableReady(42)
   let closing: FulfillmentSignal = .restaurantClosing
   expect ready != closing
+}
+
+test "durable composition keeps each root explicit" for usesDurableBaseline {
+  expect usesDurableBaseline(.currentStep)
+  expect usesDurableBaseline(.serviceRoot)
+  expect usesDurableBaseline(.supervisorRoot)
+  expect !usesDurableBaseline(.childIntrinsic)
+  expect !usesDurableBaseline(.continueAsNewIntrinsic)
 }
 
 // Compile-fail assays:
