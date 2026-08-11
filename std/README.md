@@ -160,8 +160,9 @@ IPv6 dentro dos brackets. TCP atende diretamente a `std.io.ByteSource` e
 `ByteSink`, e `split` cria read/write halves owned. `finishWriting` faz FIN na
 connection não dividida. Calls por borrow de `Network` têm state independente.
 Calls `mut async` mantêm borrow exclusivo até completion ou cancellation drain.
-UDP mantém datagram boundaries, informa truncation e serializa uma receive ou
-send por socket. `ResolveLimits`, `ConnectOptions`,
+UDP mantém datagram boundaries e informa truncation. O socket inteiro serializa
+mutation; `split` cria receive/send halves únicos para progresso simultâneo.
+`ResolveLimits`, `ConnectOptions`,
 `ListenerLimits` e `DatagramLimits` possuem defaults finitos. O provider
 `std.net@1` continua missing até os gates de RFC 6724/8305/5952/8085,
 differential targets, capability denial, SSRF, cancellation, partial I/O, fault

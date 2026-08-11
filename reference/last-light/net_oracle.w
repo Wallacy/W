@@ -120,6 +120,8 @@ async fn listenerOracle(
 
 async fn udpOracle(
   network: ref net.Network,
+  probe: view Bytes,
+  peer: ref net.SocketAddress,
 ): () throws net.NetworkError {
   let address = .allInterfaces(port: 0, family: .any)
   var socket = try await network.bindUdp(
@@ -130,12 +132,16 @@ async fn udpOracle(
       maximumQueuedBytes: 32<KiB>,
     ),
   )
-  let datagram: net.Datagram = try await socket.receive(maximumBytes: 1<KiB>)
+  // W-1252: the two unique halves progress independently without a shared
+  // socket or lock in application source.
+  let (receive, send) = (take socket).split()
+  async let inbound = receive.receive(maximumBytes: 1<KiB>)
+  async let outbound = send.send(source: probe, to: peer)
+  let (received, _) = try await (inbound, outbound)
+  let datagram: net.Datagram = take received
   if datagram.truncated {
     expect datagram.bytes.count == 1<KiB>
   }
-  let peer = datagram.peer.duplicate()
-  try await socket.send(source: datagram.bytes, to: ref peer)
 }
 
 // Provider-gated runtime cases:
@@ -144,4 +150,5 @@ async fn udpOracle(
 // - resolve and connect apply bounded DNS, RFC 6724 ordering, and RFC 8305.
 // - split permits one read cursor and one write cursor only.
 // - finish and finishWriting send FIN. Drop without finish is abortive.
-// - UDP serializes one receive or send and reports truncation explicitly.
+// - Unsplit UDP serializes mutation; split permits one receive and one send.
+// - UDP reports truncation explicitly and preserves each datagram boundary.

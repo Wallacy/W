@@ -195,6 +195,7 @@ function applyOperation(state, operation) {
       state.schemas[operation.schemaId] = {
         identity,
         fields: operation.schema.fields.length,
+        fieldDescriptors: clone(operation.schema.fields),
         owner: operation.owner ?? "TabularTelemetryRow",
       };
       return;
@@ -299,7 +300,13 @@ function applyOperation(state, operation) {
     case "borrowView": {
       const batch = requireBatch(state, operation.batchId);
       if (batch.released) fail("batchReleased");
-      if (operation.type !== "String?" && operation.type !== "Bytes?") fail("viewOnlyForBorrowedType");
+      const schema = requireSchema(state, batch.schemaId);
+      const field = schema.fieldDescriptors.find((candidate) => candidate.name === operation.field);
+      if (!field) fail("unknownField");
+      const kind = field.logicalType.kind;
+      if (!field.nullable || (kind !== "string" && kind !== "bytes")) fail("viewOnlyForBorrowedType");
+      const expectedType = kind === "string" ? "String?" : "Bytes?";
+      if (operation.type !== expectedType) fail("fieldTypeMismatch");
       state.views.push({ batchId: operation.batchId, field: operation.field, active: true, owner: batch.identity });
       return;
     }
@@ -307,7 +314,16 @@ function applyOperation(state, operation) {
     case "copyColumn": {
       const batch = requireBatch(state, operation.batchId);
       if (batch.released) fail("batchReleased");
-      state.copies.push({ batchId: operation.batchId, field: operation.field, materialized: true, owner: batch.identity });
+      const schema = requireSchema(state, batch.schemaId);
+      const field = schema.fieldDescriptors.find((candidate) => candidate.name === operation.field);
+      if (!field) fail("unknownField");
+      state.copies.push({
+        batchId: operation.batchId,
+        field: operation.field,
+        logicalKind: field.logicalType.kind,
+        materialized: true,
+        owner: batch.identity,
+      });
       return;
     }
 

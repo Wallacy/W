@@ -485,7 +485,7 @@
       "capabilities": ["network-capability"],
       "effects": ["suspension", "network", "byte-io", "cancellation", "allocation"],
       "failures": { "mode": "typed", "types": ["NetworkError"] },
-      "bounds": ["network-capability-budget", "io-maximum", "queue-limits", "minimum-call-product-provider", "mut-operation-exclusive", "borrow-drain-before-release", "take-operation-consumed", "tcp-terminal-latched", "udp-single-mutator", "lifecycle-cleanup-once", "physical-cancel-not-promised"],
+      "bounds": ["network-capability-budget", "io-maximum", "queue-limits", "minimum-call-product-provider", "mut-operation-exclusive", "borrow-drain-before-release", "take-operation-consumed", "tcp-terminal-latched", "udp-unsplit-single-mutator", "udp-directional-split", "lifecycle-cleanup-once", "physical-cancel-not-promised"],
       "complexity": { "time": "provider-bounded", "space": "bounded-by-contract" }
     },
     "database-transaction": {
@@ -1348,6 +1348,7 @@
           "rfc6724-ordering",
           "rfc8305-happy-eyeballs-bounded",
           "tcp-udp-differential-linux-macos-windows-wasi",
+          "udp-directional-split-lifecycle",
           "capability-denial-ssrf",
           "cancellation-races",
           "partial-io",
@@ -1593,6 +1594,23 @@
           "members": [
             { "symbol": "localAddresses", "profile": "net-address-value" },
             { "symbol": "receive", "profile": "net-transport" },
+            { "symbol": "send", "profile": "net-transport" },
+            { "symbol": "split", "profile": "net-transport" }
+          ]
+        },
+        {
+          "symbol": "UdpReceiveHalf",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
+            { "symbol": "receive", "profile": "net-transport" }
+          ]
+        },
+        {
+          "symbol": "UdpSendHalf",
+          "kind": "struct",
+          "profile": "net-transport",
+          "members": [
             { "symbol": "send", "profile": "net-transport" }
           ]
         }

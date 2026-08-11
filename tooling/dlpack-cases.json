@@ -25,7 +25,8 @@
     "W-1144",
     "W-1145",
     "W-1146",
-    "W-1147"
+    "W-1147",
+    "W-1254"
   ],
   "references": [
     {
@@ -4187,9 +4188,35 @@
       }
     },
     {
+      "id": "PYN4-P-c-exchange-python-n0-scoped",
+      "decisions": [
+        "W-1147",
+        "W-1254"
+      ],
+      "operations": [
+        {
+          "op": "cExchange",
+          "bridge": "python",
+          "apiStatic": true,
+          "capsuleName": "dlpack_exchange_api",
+          "gilHeld": true,
+          "ownership": "borrowed",
+          "escapes": false,
+          "suspends": false,
+          "streamResolved": true,
+          "controlReturned": true,
+          "ownerHeldUntilWorkDrained": true
+        }
+      ],
+      "expected": {
+        "status": "accepted"
+      }
+    },
+    {
       "id": "PYN4-N-c-exchange-non-owning-suspend",
       "decisions": [
-        "W-1147"
+        "W-1147",
+        "W-1254"
       ],
       "operations": [
         {

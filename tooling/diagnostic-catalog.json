@@ -2137,7 +2137,7 @@
     { "code": "W-DLPACK-0029", "state": "active", "profile": "dlpack", "meaning": "a consuming export lacks uniqueness or lets a borrowed owner escape" },
     { "code": "W-DLPACK-0030", "state": "active", "profile": "dlpack", "meaning": "Python GIL, attached thread state, interpreter lease, or finalization drain is invalid" },
     { "code": "W-DLPACK-0031", "state": "active", "profile": "dlpack", "meaning": "a DLPack receipt or diagnostic exposes a redacted raw pointer or private field" },
-    { "code": "W-DLPACK-0032", "state": "active", "profile": "dlpack", "meaning": "the C Exchange research path lets a non-owning tensor cross suspension or escape" },
+    { "code": "W-DLPACK-0032", "state": "active", "profile": "dlpack", "meaning": "the C Exchange N0 fast path violates its static Python scope, current-stream, no-escape, no-suspension, or producer-drain contract" },
     { "code": "W-JUPYTER-0001", "state": "active", "profile": "jupyter", "meaning": "connection authentication, integrity, or replay validation fails" },
     { "code": "W-JUPYTER-0002", "state": "active", "profile": "jupyter", "meaning": "a Jupyter frame, metadata, history, or pending request exceeds a quota" },
     { "code": "W-JUPYTER-0003", "state": "active", "profile": "jupyter", "meaning": "a request lifecycle does not end after its reply and related outputs" },

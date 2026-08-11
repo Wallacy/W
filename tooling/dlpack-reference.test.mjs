@@ -63,4 +63,38 @@ describe("PYN4 DLPack host oracle", () => {
     ]);
     expect(invalid.error.code).toBe("W-DLPACK-0030");
   });
+
+  test("C Exchange N0 keeps metadata scoped and the producer through work drain", () => {
+    const accepted = runDLPackProgram([{
+      op: "cExchange",
+      bridge: "python",
+      apiStatic: true,
+      capsuleName: "dlpack_exchange_api",
+      gilHeld: true,
+      ownership: "borrowed",
+      escapes: false,
+      suspends: false,
+      streamResolved: true,
+      controlReturned: true,
+      ownerHeldUntilWorkDrained: true,
+    }]);
+    expect(accepted.status).toBe("accepted");
+    expect(accepted.result.cExchangeCalls).toEqual([
+      { scope: "callback", ownership: "borrowed", stream: "producer-current" },
+    ]);
+
+    const rejected = runDLPackProgram([{
+      op: "cExchange",
+      bridge: "python",
+      apiStatic: true,
+      capsuleName: "dlpack_exchange_api",
+      gilHeld: true,
+      ownership: "borrowed",
+      streamResolved: true,
+      controlReturned: true,
+      ownerHeldUntilWorkDrained: false,
+    }]);
+    expect(rejected.status).toBe("rejected");
+    expect(rejected.error.code).toBe("W-DLPACK-0032");
+  });
 });

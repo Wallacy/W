@@ -903,10 +903,10 @@ environment. URL, stdin e shebang permanecem rejeitados na baseline.
 Cada dependency do header usa o record normal de package com `alias`, package
 identity, version constraint, `use` e source authority. Aliases são únicos.
 `.path`, branch ou ref mutable, registry ambiental e local override são
-rejeitados para script shareable. Registry immutable é a baseline; Git/content
-source immutable continua Pesquisa quando P0 não o fecha. A resolução deriva
-um virtual-script selection/manifest digest de edition e dependencies
-normalizadas. O `lock` aponta para o payload P0 content-addressed
+rejeitados para script shareable. Registry immutable e `.git(url, revision:)`
+com commit completo usam a authority e o lock P0; nenhuma ref mutável participa.
+A resolução deriva um virtual-script selection/manifest digest de edition e
+dependencies normalizadas. O `lock` aponta para o payload P0 content-addressed
 `w.package-lock/1`: `schema`, `resolver`, `workspaceDigest`,
 `manifestDigests["virtual-script"]`, `contexts[]` e `packages[]`. O contexto
 virtual fecha root `.product("script")`, target/use, `activeSourceSet`,
@@ -11316,7 +11316,14 @@ compatíveis com seu profile.
 `Atomic.wait/notify` é a primitive avançada por palavra. Channel, task outcome,
 service, domain e `SnapshotCell` continuam preferíveis quando também precisam
 transportar ownership, close, failure ou uma versão completa. Condition
-variable continua fora da safe std. Barreira cíclica permanece Pesquisa.
+variable continua fora da safe std.
+
+**W-1255 — barreira cíclica rejeitada:** a safe std não oferece uma barreira
+reutilizável genérica. Perda, cancellation, retry e mudança de participantes
+exigem identity, generation, failure e shutdown próprios. Um phase local usa
+`TaskGroup`; reads/write epochs usam um domain com `.barrier`; participantes
+duráveis usam service ou workflow. Um adapter especializado pode expor outro
+contrato sem criar uma primitive universal.
 
 **W-1205 — evidence E0:** a máquina host deriva fast path, registro sem wake
 perdida, FIFO, notify one/all, cancel race, drain, ABA, orders e
@@ -14800,10 +14807,14 @@ falha com `messageTooLarge(maximum)` ou outro `NetworkError`. UDP não promete
 reliability, ordering ou congestion control. O profile registra a orientação do
 RFC 8085.
 
-SDK0 serializa as operações mutáveis de um mesmo `UdpSocket`: no máximo uma
-`receive` ou uma `send` fica em voo. Essa limitação é deliberada na primeira
-surface. Split direcional e protocolo genérico de datagram ficam em
-**Pesquisa**.
+**W-1252 — UDP direcional:** um `UdpSocket` não dividido serializa `receive` e
+`send`. `(take socket).split()` cria `UdpReceiveHalf` e `UdpSendHalf` únicos.
+Cada half mantém no máximo uma operação em voo, mas uma recepção e um envio
+podem progredir juntos. Drop encerra somente a authority daquele half; o control
+block físico é liberado uma vez depois que os dois halves e seus borrows drenam.
+O split não muda boundaries, truncation, atomicidade ou ordering do datagram.
+Um protocol genérico fica rejeitado até existir um segundo transporte com o
+mesmo contrato provado.
 
 **Rejeitado por enquanto:** multicast, broadcast, Unix domain sockets, named
 pipes, TLS, STARTTLS, QUIC, WebSocket e enumeração de interfaces. Esses casos
@@ -17486,10 +17497,14 @@ semantic type. O row top-level não é nullable.
 A seleção estática usa descriptor de field gerado: `batch.column(.hawkingFlux)`.
 Ela não usa lookup por String ou reflection no hot path. A seleção dynamic usa
 nome e binding tipado explícito. O acesso checked `column[index]`
-devolve um `f64` Copy. Fields non-Copy, como `String`, `Bytes` e nested values,
-permanecem **Pesquisa**: qualquer forma borrowed deve respeitar W-420,
-usando core view, callback scoped ou borrow nominal. Não existe `XView`
-automático. Essas formas são **Direção** até promoção.
+devolve um valor `Copy`.
+
+**W-1251 — acesso tabular sem cópia:** `String?` e `Bytes?` usam as views
+concretas `StringColumn.view(at:)` e `BytesColumn.view(at:)`, ligadas ao
+`Batch`. `copy(at:)` materializa um owner. Nested ou custom usa projeção de
+field tipada ou adapter semântico; sem isso, exige materialização explícita.
+Não há `view Value` universal, `XView` automático, retenção ou cópia oculta.
+Todo borrow obedece W-420 e não escapa do owner do `Batch`.
 
 Typed Batch valida tudo antes de publicar e oferece acesso random O(1). Run-end
 é materializado antes da publicação e fica `plain` com provenance do encoding
@@ -17615,17 +17630,11 @@ handles nominais indiretos: constructors `integer`, `option`, `list`, `map`,
 handle. A representação não contém enum recursivo por valor; decimal usa
 coeficiente, UUID bytes, e temporals usam counts calendar/clock/UTC/civil
 bounded, nunca String livre.
-`batch.column(.field)` usa descriptor gerado. A coluna devolvida é uma `view`
-loan ligada ao Batch; ela não retém, libera ou cria um owner. Para valores Copy, `column[index]`
-é o lowering checked de `Column.copy(at:)` e devolve valor owner;
-somente `String?` e `Bytes?` usam `StringColumn.view(at:)`/
-`BytesColumn.view(at:)` concreto, ligado ao Batch, e `copy(at:)` materializa um
-owner explícito. Não há `view Value` genérico nem `XView`. Nested ou custom sem
-projeção core exige field projection, adapter semântico ou materialização
-explícita. A grammar atual não representa uma declaration genérica condicional;
-os declarations e oracles separados registram as duas regras sem alterá-la.
-`Any`, reflection e synthesis heuristic ficam rejeitados por W-404, W-419 e
-W-420.
+O acesso a columns segue W-1251 em
+[14.4.1](#1441-carrier-tabular). A grammar não precisa de declaration genérica
+condicional: overloads concretos separam valor `Copy`, view de `String?` ou
+`Bytes?` e materialização explícita. `Any`, reflection e synthesis heuristic
+continuam rejeitados por W-404, W-419 e W-420.
 
 ##### CSV
 
@@ -18307,9 +18316,20 @@ entrada byte a byte com `Display` do valor. Assim `+1`, `01` e `-0` podem
 parsear, mas falham a validação de canonical form. O schema nunca escolhe a
 representation conforme o valor runtime.
 
-APIs de radix ficam em **Pesquisa**. Elas não mudam o texto decimal usado por
-`Display`, schemas JSON ou IDs de Last Light. Locale não é uma opção de
-formatação numérica na baseline.
+**W-1253 — radix explícito:** `T.parse(text, radix:)` e
+`value.format(radix:, uppercase:)` aceitam `radix: u8<(2...36)>`. Digits são
+ASCII `0...9`, `a...z` ou `A...Z`; parse não distingue case. Format usa lowercase
+por default, não emite prefixo e aplica `uppercase` somente a digits acima de
+nove. Sign, whitespace, `_`, range check e erro seguem as regras acima.
+
+```w
+expect try u16.parse("ff", radix: 16) == 255
+expect u16(255).format(radix: 16) == "ff"
+expect u16(255).format(radix: 16, uppercase: true) == "FF"
+```
+
+Esses overloads não mudam `Display`, schemas JSON ou IDs de Last Light. Locale
+não é uma opção de formatação numérica na baseline.
 
 ### 15.2 Ranges
 
@@ -20411,10 +20431,15 @@ rejeitado no baseline. Em major mismatch, o consumer lê somente o prefixo
 stable de versão e o deleter, chama o deleter uma vez e não dereference dtype,
 device, shape ou qualquer field poisoned. Um minor mismatch aceita somente
 fields e enums conhecidos.
-O C Exchange 1.3 é **Pesquisa** como fast path opcional. Ele não cria semântica
-adicional; a forma N0 rejeita DLTensor non-owning que escapa ou atravessa
-suspension. O bridge Python possui o `PyCapsule`, GIL e interpreter scope e não
-é parte de `std.dlpack`.
+**W-1254 — C Exchange N0:** a bridge Python pode usar a table estática
+`DLPackExchangeAPI` como fast path opcional. O `DLTensor` non-owning fica no
+stack, não escapa, não suspende e é válido somente até o callback retornar. A
+bridge mantém GIL/interpreter scope, valida a capsule `dlpack_exchange_api` e
+executa o kernel no current work stream do producer. O metadata temporário
+morre ao retornar; uma lease da bridge mantém o objeto producer vivo até o
+receipt do trabalho drenar. Retenção N1 ou ausência do fast path usa
+`DLManagedTensorVersioned` e a API Python normal. Essa otimização não faz parte
+de `std.dlpack` e não cria semântica nova.
 
 #### 17.1.2 Layout, dtype e flags
 
@@ -25139,8 +25164,8 @@ Jupyter kernel e rich output são direção de tooling e produto. O kernel
 compartilha a session do REPL, implementa o protocol Jupyter, limita MIME/data
 e solicita structured cancellation. Notebook não é artifact de release por
 default. O export para `.w` ou package canônico, em ordem canônica e sem hidden
-replay, é obrigatório antes de release. Nomes de check/export permanecem
-**Pesquisa**.
+replay, é obrigatório antes de release. W-1250 fixa `w notebook check`,
+`w notebook export` e `:receipts`, sempre com paths explícitos.
 Veja [workflows Python](#2411-workflows-python-e-científicos).
 
 LSP usa a HIR para semantic tokens, tipos, effects e rename. Tree-sitter mantém

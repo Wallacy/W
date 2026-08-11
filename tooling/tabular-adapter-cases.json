@@ -6,7 +6,7 @@
     "W-1015", "W-1016", "W-1017", "W-1018", "W-1019", "W-1020", "W-1021", "W-1022", "W-1023",
     "W-1024", "W-1025", "W-1026", "W-1027", "W-1028", "W-1029", "W-1030", "W-1031", "W-1032",
     "W-1033", "W-1034", "W-1035", "W-1036", "W-1037", "W-1038", "W-1039", "W-1040", "W-1041",
-    "W-1042", "W-1043", "W-1044", "W-1045"
+    "W-1042", "W-1043", "W-1044", "W-1045", "W-1251"
   ],
   "schema": {
     "fields": [
@@ -83,7 +83,7 @@
       "expected": { "status": "rejected", "code": "sourceNotStable" }
     },
     {
-      "id": "TAB1-data-borrow-view-copy-owner", "symbol": "summarize", "decisions": ["W-1008", "W-1009", "W-1010"],
+      "id": "TAB1-data-borrow-view-copy-owner", "symbol": "summarize", "decisions": ["W-1008", "W-1009", "W-1010", "W-1251"],
       "operations": [
         { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "warning", "logicalType": { "kind": "string" }, "nullable": true }] } },
         { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 32 },
@@ -96,12 +96,33 @@
       "expected": { "status": "accepted" }
     },
     {
-      "id": "TAB1-data-borrow-rejects-f64", "symbol": "summarize", "decisions": ["W-1009"],
+      "id": "TAB1-data-borrow-rejects-f64", "symbol": "summarize", "decisions": ["W-1009", "W-1251"],
       "operations": [
         { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "hawkingFlux", "logicalType": { "kind": "float", "width": 64 } }] } },
         { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
         { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
         { "op": "borrowView", "batchId": "batch-1", "field": "hawkingFlux", "type": "f64" }
+      ],
+      "expected": { "status": "rejected", "code": "viewOnlyForBorrowedType" }
+    },
+    {
+      "id": "TAB1-data-nested-explicit-materialization", "symbol": "summarize", "decisions": ["W-1251"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "coordinates", "logicalType": { "kind": "nested", "identity": "HorizonCoordinates" } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "copyColumn", "batchId": "batch-1", "field": "coordinates" },
+        { "op": "releaseBatch", "batchId": "batch-1" }
+      ],
+      "expected": { "status": "accepted" }
+    },
+    {
+      "id": "TAB1-data-nested-universal-view-rejected", "symbol": "summarize", "decisions": ["W-1251"],
+      "operations": [
+        { "op": "registerSchema", "schemaId": "telemetry", "schema": { "fields": [{ "name": "coordinates", "logicalType": { "kind": "nested", "identity": "HorizonCoordinates" } }] } },
+        { "op": "openSource", "sourceId": "upload", "kind": "byte", "byteCount": 16 },
+        { "op": "decode", "format": "csv", "sourceId": "upload", "schemaId": "telemetry", "batchId": "batch-1", "rows": 1 },
+        { "op": "borrowView", "batchId": "batch-1", "field": "coordinates", "type": "HorizonCoordinates" }
       ],
       "expected": { "status": "rejected", "code": "viewOnlyForBorrowedType" }
     },

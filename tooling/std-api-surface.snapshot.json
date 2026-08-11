@@ -1,11 +1,11 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "56e69d084c41dcadd83eccf94554b8b50920de90f44eae91ab71e0f7beca5d34",
+  "catalogDigest": "0652cc7309305502977f6a6dd4137233503aec7bf1751e0647f36b9675171767",
   "summary": {
     "modules": 23,
-    "catalogedApis": 326,
-    "draftCatalogedApis": 326,
+    "catalogedApis": 328,
+    "draftCatalogedApis": 328,
     "missingCatalogedApis": 0,
     "qualifiedReferenceSurfaces": 84,
     "referenceRequirements": 26,
@@ -3743,17 +3743,18 @@
           "rfc5952-format",
           "rfc6724-ordering",
           "rfc8305-happy-eyeballs-bounded",
-          "tcp-udp-differential-linux-macos-windows-wasi"
+          "tcp-udp-differential-linux-macos-windows-wasi",
+          "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "b4c2c984f02e6d227276f2e35c8f2c0ba186b51ecc1b35b9d04ad8627ab68b33",
+      "catalogedDeclarationsDigest": "b03aed698e5885051bced54b0c3701dc257ff02610a82b401f6428b258fdf5d5",
       "apis": [
         {
           "symbol": "AcceptedTcp",
           "kind": "struct",
           "signature": "export struct AcceptedTcp",
           "declarationDigest": "9fcbfccc6597d717c293473de6be62561d089a4540ad78113ff5c3db119b3860",
-          "line": 886,
+          "line": 902,
           "profile": "net-transport",
           "members": [
             {
@@ -3762,7 +3763,7 @@
               "overloads": [
                 {
                   "signature": "export connection: TcpConnection export peer: SocketAddress",
-                  "line": 887
+                  "line": 903
                 }
               ],
               "profile": "net-transport"
@@ -3773,7 +3774,7 @@
               "overloads": [
                 {
                   "signature": "export peer: SocketAddress",
-                  "line": 888
+                  "line": 904
                 }
               ],
               "profile": "net-address-value"
@@ -4502,7 +4503,7 @@
           "kind": "struct",
           "signature": "export struct Network",
           "declarationDigest": "46df5307924e569945440e76da7864547306e5497a4edd1652539b2481748258",
-          "line": 682,
+          "line": 698,
           "profile": "net-listener-carrier",
           "members": [
             {
@@ -4510,7 +4511,7 @@
               "overloads": [
                 {
                   "signature": "export async fn resolve( _ host: ref HostName, port: u16<(1...65_535)>, limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
-                  "line": 692
+                  "line": 708
                 }
               ],
               "profile": "net-listener-carrier"
@@ -4520,7 +4521,7 @@
               "overloads": [
                 {
                   "signature": "export async fn connectTcp( to endpoint: ref Endpoint, options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
-                  "line": 707
+                  "line": 723
                 }
               ],
               "profile": "net-listener-carrier"
@@ -4530,7 +4531,7 @@
               "overloads": [
                 {
                   "signature": "export async fn listenTcp( at address: ref ListenAddress, limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
-                  "line": 721
+                  "line": 737
                 }
               ],
               "profile": "net-listener-carrier"
@@ -4540,7 +4541,7 @@
               "overloads": [
                 {
                   "signature": "export async fn bindUdp( at address: ref ListenAddress, limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
-                  "line": 735
+                  "line": 751
                 }
               ],
               "profile": "net-listener-carrier"
@@ -4740,7 +4741,7 @@
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
           "declarationDigest": "47ddf7b43577c2972104cc0e46069a95d59bb3806219bbf2cbffc0ead3f49f0a",
-          "line": 757,
+          "line": 773,
           "profile": "net-transport",
           "members": [
             {
@@ -4748,7 +4749,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddress(): SocketAddress",
-                  "line": 768
+                  "line": 784
                 }
               ],
               "profile": "net-address-value"
@@ -4758,7 +4759,7 @@
               "overloads": [
                 {
                   "signature": "export fn peerAddress(): SocketAddress",
-                  "line": 772
+                  "line": 788
                 }
               ],
               "profile": "net-address-value"
@@ -4768,7 +4769,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 776
+                  "line": 792
                 }
               ],
               "profile": "byte-source"
@@ -4778,7 +4779,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 789
+                  "line": 805
                 }
               ],
               "profile": "byte-sink"
@@ -4788,7 +4789,7 @@
               "overloads": [
                 {
                   "signature": "export take fn split(): (TcpReadHalf, TcpWriteHalf)",
-                  "line": 795
+                  "line": 811
                 }
               ],
               "profile": "net-transport"
@@ -4798,7 +4799,7 @@
               "overloads": [
                 {
                   "signature": "export take async fn finishWriting(): TcpReadHalf throws NetworkError",
-                  "line": 808
+                  "line": 824
                 }
               ],
               "profile": "net-transport"
@@ -4811,7 +4812,7 @@
           "kind": "struct",
           "signature": "export struct TcpListener",
           "declarationDigest": "a236a7fc371e27a1d057f6988ed07629ee25eaab0038877e19410731031ff6e0",
-          "line": 896,
+          "line": 912,
           "profile": "net-transport",
           "members": [
             {
@@ -4819,7 +4820,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn accept(): AcceptedTcp throws NetworkError",
-                  "line": 906
+                  "line": 922
                 }
               ],
               "profile": "net-transport"
@@ -4829,7 +4830,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 916
+                  "line": 932
                 }
               ],
               "profile": "net-address-value"
@@ -4842,7 +4843,7 @@
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
           "declarationDigest": "8c22e55d6d0e279b21747765a04f30b777ae54a69572680e07532c220fc01566",
-          "line": 822,
+          "line": 838,
           "profile": "net-transport",
           "members": [
             {
@@ -4850,7 +4851,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
-                  "line": 832
+                  "line": 848
                 }
               ],
               "profile": "byte-source"
@@ -4863,7 +4864,7 @@
           "kind": "struct",
           "signature": "export struct TcpWriteHalf: ByteSink<NetworkError>",
           "declarationDigest": "d719c6cb1392d4e966e1c3661ddbb41c8d52afcedb9ddf412d7b541134f84e55",
-          "line": 852,
+          "line": 868,
           "profile": "net-transport",
           "members": [
             {
@@ -4871,7 +4872,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write(source: view Bytes): WriteStep throws NetworkError",
-                  "line": 862
+                  "line": 878
                 }
               ],
               "profile": "byte-sink"
@@ -4881,7 +4882,49 @@
               "overloads": [
                 {
                   "signature": "export take async fn finish(): () throws NetworkError",
-                  "line": 872
+                  "line": 888
+                }
+              ],
+              "profile": "net-transport"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "UdpReceiveHalf",
+          "kind": "struct",
+          "signature": "export struct UdpReceiveHalf",
+          "declarationDigest": "6c43d4bf28a810e2392d4bb1631dbaf5135ea7be284d2096b26c4e143bd8cf56",
+          "line": 996,
+          "profile": "net-transport",
+          "members": [
+            {
+              "symbol": "receive",
+              "overloads": [
+                {
+                  "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
+                  "line": 1003
+                }
+              ],
+              "profile": "net-transport"
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "symbol": "UdpSendHalf",
+          "kind": "struct",
+          "signature": "export struct UdpSendHalf",
+          "declarationDigest": "847b45a5699d952225fd9a9d86830404743810d9861190ee5417410264bfc802",
+          "line": 1019,
+          "profile": "net-transport",
+          "members": [
+            {
+              "symbol": "send",
+              "overloads": [
+                {
+                  "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
+                  "line": 1026
                 }
               ],
               "profile": "net-transport"
@@ -4893,8 +4936,8 @@
           "symbol": "UdpSocket",
           "kind": "struct",
           "signature": "export struct UdpSocket",
-          "declarationDigest": "5e9385b7549d897da93938f3168f9d80942a24571d759a95773ae347631f75a8",
-          "line": 927,
+          "declarationDigest": "f0b766afd30bd3514ef6d9bd627d9936b0893d09a1fb51502160526f27baece5",
+          "line": 943,
           "profile": "net-transport",
           "members": [
             {
@@ -4902,7 +4945,7 @@
               "overloads": [
                 {
                   "signature": "export fn localAddresses(): Array<SocketAddress>",
-                  "line": 938
+                  "line": 953
                 }
               ],
               "profile": "net-address-value"
@@ -4912,7 +4955,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn receive( maximumBytes: usize<(1...)>, ): Datagram throws NetworkError",
-                  "line": 942
+                  "line": 965
                 }
               ],
               "profile": "net-transport"
@@ -4922,7 +4965,17 @@
               "overloads": [
                 {
                   "signature": "export mut async fn send( source: view Bytes, to address: ref SocketAddress, ): () throws NetworkError",
-                  "line": 953
+                  "line": 976
+                }
+              ],
+              "profile": "net-transport"
+            },
+            {
+              "symbol": "split",
+              "overloads": [
+                {
+                  "signature": "export take fn split(): (UdpReceiveHalf, UdpSendHalf)",
+                  "line": 957
                 }
               ],
               "profile": "net-transport"
