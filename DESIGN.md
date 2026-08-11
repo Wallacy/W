@@ -2159,7 +2159,7 @@ estimate(1, courses: each xs, 2)   // W-EXPR-0007: each deve ser final
 return await try kitchen.load()    // W-EFFECT-0010: use try await
 inspect(ref makeDish())            // W-OWNERSHIP-0010: ref exige place
 stream.finish()                    // W-OWNERSHIP-0011: use (take stream).finish()
-let x: shared Dish = Dish()        // W-OWNERSHIP-0013: use share(Dish())
+return take dish                    // W-OWNERSHIP-0013 se o retorno é shared Dish
 ```
 
 Recovery de expression nunca inventa operator ou operand. Ele pode inserir um
@@ -7588,9 +7588,24 @@ object MenuSection {
 }
 ```
 
+**W-1274 — ownership é prefixo, não container nominal:** `shared T` e `weak T`
+são as grafias canônicas. A HIR pode representar cada forma como um carrier
+parametrizado pelo payload, mas o source não escreve `Shared<T>` nem
+`shared<T>`. O prefixo mantém ownership na mesma família visual de `ref T`,
+`inout T` e `atomic T`; ele não expõe um wrapper de biblioteca.
+
+O postfix `?` aplica-se ao handle completo. `shared T?` equivale a
+`Option<shared T>`. Um owner compartilhado cujo payload é opcional usa
+`shared Option<T>`. A mesma regra vale para `weak T?`:
+
+```w
+alias SelectedMenu = shared MenuSection?
+alias SharedMenuSlot = shared Option<MenuSection>
+```
+
 **W-1256 — primeiro owner declarativo:** uma declaração que escreve
 literalmente `shared T` pode consumir seu initializer `T` e criar o primeiro
-owner com o allocator geral do product. A anotação é a operação visível; ela
+owner com o allocator geral do product. A declaração é a operação visível; ela
 segue a policy normal de allocation, não adiciona `throws`, e OOM pode encerrar
 a fault boundary:
 
@@ -7626,6 +7641,25 @@ let local = try share(
 )
 let observer = copy root
 let parent = root.weak()
+```
+
+**W-1275 — allocator não integra o tipo shared:** o allocator do control block
+é uma `AllocationOrigin`, não um argumento de `shared T`. Formas como
+`shared<.request> T` ou `shared<allocator: .request> T` não fazem parte do
+design. Duas instâncias podem usar providers ou lifetimes diferentes e ainda
+ter o mesmo tipo `shared T`; o control block preserva a origem correta para
+drop, mobilidade e diagnostics.
+
+Um provider que deve atender à policy normal do produto é escolhido no build
+profile. O source continua na forma declarativa. Uma instância scoped, como a
+memória de um request, é uma capability e usa `try share(..., using:)`. Importar
+um módulo ou escrever um case enum-like não cria essa instância nem prova seu
+lifetime. `try` pertence à operação fallible e não ao tipo do binding.
+
+```w
+let productRoot: shared MenuSection = makeMenuSection("Product root")
+let requestRoot: shared MenuSection =
+  try share(makeMenuSection("Request root"), using: requestMemory)
 ```
 
 Um temporary não usa `take`. Um binding existente exige `take` tanto na forma

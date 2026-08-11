@@ -6,6 +6,9 @@ struct MenuSection {
   children: Array<shared MenuSection>
 }
 
+alias MaybeMenuSectionOwner = shared MenuSection?
+alias SharedOptionalMenuSection = shared Option<MenuSection>
+
 fn makeRoot(title: String): shared MenuSection {
   let root: shared MenuSection = MenuSection(
     title: take title,

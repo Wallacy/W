@@ -31,7 +31,7 @@
       "role": "selected",
       "language": "w",
       "path": "contextual-type.w",
-      "digest": "sha256:767c027835f11f6e595f1148832c20a0d50b8706615894e8b802e0d5b0133218",
+      "digest": "sha256:6470337e66531e097eb65036e04902ddd7a015c98f699d3a442be2990f893c0c",
       "changedConstructs": ["written shared declaration", "binding-only allocation", "explicit ownership qualifier"]
     }
   ],
@@ -39,21 +39,21 @@
   "inputs": [
     {
       "id": "fresh-default",
-      "expected": { "resultType": "shared MenuSection", "failurePolicy": "normal OOM", "allocationVisible": true }
+      "expected": { "resultType": "shared MenuSection", "typeSpelling": "shared T", "failurePolicy": "normal OOM", "allocationVisible": true }
     },
     {
       "id": "bounded-recovery",
-      "expected": { "resultType": "shared MenuSection", "failurePolicy": "throws AllocationError", "allocationVisible": true }
+      "expected": { "resultType": "shared MenuSection", "typeIdentityUnchanged": true, "failurePolicy": "throws AllocationError", "allocationVisible": true }
     },
     {
       "id": "adversarial-ownership",
-      "expected": { "missingTake": "reject", "dependentPayload": "reject", "implicitPromotion": "reject", "dropCount": 1 }
+      "expected": { "missingTake": "reject", "dependentPayload": "reject", "implicitPromotion": "reject", "allocatorTypeSlot": "reject", "containerSpelling": "reject", "dropCount": 1 }
     }
   ],
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain where shared ownership begins, which form can throw, and why only a written declaration allocates contextually."
+      "instruction": "Explain where shared ownership begins, why shared T is a prefix type, which form can throw, and why allocator origin does not change type identity."
     },
     {
       "kind": "recall",
@@ -66,7 +66,7 @@
       "mutations": {
         "overloaded-share": "Remove take from an existing owner or omit try from share(using:).",
         "distinct-try-share": "Replace tryShare without hiding the recoverable failure boundary.",
-        "contextual-type": "Move the shared expectation from a written declaration into an argument or return context."
+        "contextual-type": "Move the shared expectation from a written declaration into an argument or return context, or encode allocator origin in the type."
       }
     },
     {
@@ -85,7 +85,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:1dfaa8721ba4c5df9b7afbb24d0c2b8761a9ed1c61b5671bab30ef33b0cf3e68"
+    "digest": "sha256:866b1fc5739bdc57fb3b2c612463d314b7a3311c863183a08df1068b80ceed87"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle", "M1"],
