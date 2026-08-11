@@ -15203,47 +15203,86 @@ podem mostrar o código nativo.
 
 ```w
 export struct IoError: Error & Duplicable {
-  kind: IoErrorKind
-  operation: IoOperation
-  cause: IoCause?
+  export kind: IoErrorKind
+  export operation: IoOperation
+  export cause: ref IoCause?
 }
 
-export enum IoErrorKind {
+export enum IoErrorKind: Copy & Equatable & Hashable {
   permissionDenied
   notFound
   alreadyExists
+  notDirectory
+  isDirectory
+  directoryNotEmpty
+  readOnly
+  busy
   invalidInput
+  invalidData
   unsupported
   resourceExhausted
+  storageFull
+  quotaExceeded
   timedOut
   connectionReset
   brokenPipe
   other
 }
+
+export enum IoOperation: Copy & Equatable & Hashable {
+  resolve
+  open
+  close
+  read
+  write
+  flush
+  sync
+  metadata
+  list
+  create
+  remove
+  rename
+  connect
+  listen
+  accept
+  send
+  receive
+  shutdown
+  register
+  other
+}
 ```
 
-`IoError` é `Duplicable` porque `kind`, `operation` e `cause` são snapshots
-owned e imutáveis. Duplicar o diagnostic não duplica handle, request física ou
+**W-1308 — kind e operation descrevem a call W:** `kind` registra uma condição
+portátil. `operation` registra a operação lógica observada pelo caller, não uma
+syscall auxiliar. Um `read` implementado com poll + pread continua `.read`.
+Adapters mais específicos podem promover um `IoError` para seu error de domínio;
+eles não alteram retroativamente o snapshot original.
+
+`IoError` é `Duplicable` porque `kind`, `operation` e `cause` são snapshots owned
+e imutáveis. Duplicar o diagnostic não duplica handle, request física ou
 authority. `IoCause` não guarda file, socket, task, capability ou outro resource
-owner. Um adapter materializa código e diagnostic redigível antes de construir
-o error. Essa propriedade permite que duas branches observem o mesmo error
-terminal sem compartilhar mutation.
+owner. O provider profile fixa um limite finito para seu payload e uma política
+de redaction antes de construir o error. Essa propriedade permite que duas
+branches observem o mesmo error terminal sem compartilhar mutation.
 
 `IoCause` é opaca, target-specific e redigível. Ela não participa de igualdade,
-serialization ou resultado de domínio. Um programa pode pedir o código nativo
-somente depois de verificar o target.
+serialization ou resultado de domínio. Somente um módulo de target pode pedir o
+código nativo, depois de provar o target correspondente.
 
-`wouldBlock` não sai de uma API async: o executor registra interest e suspende.
-Uma interrupção do sistema sem progress é repetida quando não representa
-cancellation ou signal observável. EOF continua `ReadStep.end`.
+**W-1309 — controle não vira I/O error:** `wouldBlock` não sai de uma API async;
+o executor registra interest e suspende. Uma interrupção do sistema sem progress
+é repetida quando não representa cancellation ou signal observável. EOF continua
+`ReadStep.end`. Task deadline e `task.cancel()` produzem
+`TaskOutcome.canceled`, não um `IoError`.
 
-Task deadline e `task.cancel()` produzem `TaskOutcome.canceled`, não
-`IoError.timedOut`. `.timedOut` representa um timeout do protocolo, peer ou
-adapter que não é o deadline da task.
+`.timedOut` representa um timeout do protocolo, peer ou adapter que não é o
+deadline da task. `invalidData` descreve bytes recebidos de uma boundary física;
+parse de domínio continua com o error tipado do codec.
 
-`IoErrorKind` é edition-frozen. Um código novo ou desconhecido usa `.other`.
-Retriability não é Boolean do error: ela depende de operation, idempotência,
-progress e deadline.
+`IoErrorKind` e `IoOperation` são edition-frozen. Uma condição ou operação nova
+ou desconhecida usa `.other`. Retriability não é Boolean do error: ela depende
+de operation, idempotência, progress e deadline.
 
 #### 14.2.9 Finish, flush e durability
 

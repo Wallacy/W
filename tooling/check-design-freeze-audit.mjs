@@ -50,6 +50,7 @@ const corpusFiles = [
   "web-body-cases.json",
   "process-root-cases.json",
   "filesystem-cases.json",
+  "io-error-cases.json",
 ];
 const categories = new Set([
   "semantic-contract",

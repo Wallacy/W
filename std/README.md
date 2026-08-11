@@ -257,6 +257,12 @@ contract permite. Timer e event wait não mantêm um worker ativo.
 owner. Ela publica `byteCount: u64` e `read(at:appendTo:maximum:)` com offset
 `u64`, sem cursor; short reads e acessos posicionais paralelos são explícitos.
 
+`io.IoError` mantém uma condição portátil, a operação lógica W e uma causa
+nativa opaca, bounded e redigida. `wouldBlock`, EOF, interrupção sem progress e
+task cancellation permanecem resultados de controle. Eles não entram em
+`IoErrorKind`. O contrato está fechado em design; o provider `std.io@1` que
+constrói e traduz esses snapshots ainda está missing.
+
 Os módulos `data`, `csv`, `parquet` e `arrow` são o rascunho TAB1 descrito em
 [`DESIGN.md` §14.4.2](../DESIGN.md#1442-adapters-tabulares). Eles fecham
 declarations, profiles, errors, limits, progress e ownership. Os providers

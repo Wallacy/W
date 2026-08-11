@@ -152,6 +152,13 @@
       "bounds": ["source-size", "segment-count"],
       "complexity": { "time": "linear-progress", "space": "bounded-by-argument" }
     },
+    "io-error": {
+      "capabilities": [],
+      "effects": ["bounded-snapshot-duplicate"],
+      "failures": { "mode": "none", "types": [] },
+      "bounds": ["portable-kind", "logical-operation", "redacted-cause-bytes", "no-live-authority"],
+      "complexity": { "time": "constant-bounded", "space": "bounded-cause-snapshot" }
+    },
     "process-arguments": {
       "capabilities": [],
       "effects": ["borrow"],
@@ -1147,7 +1154,7 @@
       "id": "std.io",
       "availability": "byte-io-provider",
       "source": "std/io/contracts.w",
-      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4", "14.4.2"],
+      "designAnchors": ["14.2.1", "14.2.2", "14.2.3", "14.2.4", "14.2.8", "14.4.2"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.io@1",
@@ -1157,14 +1164,37 @@
           "byte-sink",
           "snapshot-positional-read",
           "parallel-short-read",
-          "limits"
+          "limits",
+          "portable-error-mapping",
+          "logical-operation",
+          "cause-redaction-bound",
+          "control-outcome-separation"
         ]
       },
       "consumer": {
         "path": "reference/last-light/io.w",
-        "symbols": ["ReadStep", "WriteStep", "WriteAllError", "ByteSource", "ByteSink"]
+        "symbols": ["IoError", "ReadStep", "WriteStep", "WriteAllError", "ByteSource", "ByteSink"]
       },
       "apis": [
+        { "symbol": "IoOperation", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "IoErrorKind", "kind": "enum", "profile": "value-contract" },
+        {
+          "symbol": "IoCause",
+          "kind": "struct",
+          "profile": "io-error",
+          "members": [{ "symbol": "duplicate", "profile": "io-error" }]
+        },
+        {
+          "symbol": "IoError",
+          "kind": "struct",
+          "profile": "io-error",
+          "members": [
+            { "symbol": "kind", "profile": "value-contract" },
+            { "symbol": "operation", "profile": "value-contract" },
+            { "symbol": "cause", "profile": "value-contract" },
+            { "symbol": "duplicate", "profile": "io-error" }
+          ]
+        },
         { "symbol": "ReadStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "SnapshotReadStep", "kind": "enum", "profile": "value-contract" },
         { "symbol": "WriteStep", "kind": "enum", "profile": "value-contract" },
@@ -3048,6 +3078,15 @@
       "kind": "symbol",
       "consumer": "reference/last-light/data_formats.w",
       "profile": "snapshot-byte-source",
+      "status": "draft"
+    },
+    {
+      "id": "ioe0-portable-error",
+      "module": "std.io",
+      "surface": "IoError",
+      "kind": "symbol",
+      "consumer": "reference/last-light/io_error_oracle.w",
+      "profile": "io-error",
       "status": "draft"
     },
     {

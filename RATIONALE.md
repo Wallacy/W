@@ -3463,6 +3463,36 @@ Alternativas rejeitadas:
 - rename como durability ou delete + rename como replace atômico;
 - async destructor ou sync escondido no drop.
 
+### 1.22 Error portátil de I/O
+
+A taxonomia usa quatro evidências primárias:
+
+- o
+  [Rust `std::io::ErrorKind`](https://doc.rust-lang.org/std/io/enum.ErrorKind.html)
+  mostra o custo de uma lista ampla e non-exhaustive para application code;
+- o
+  [WASI filesystem](https://wa.dev/wasi%3Afilesystem)
+  separa error codes de filesystem do resource de error de stream;
+- o
+  [WASI I/O](https://wa.dev/wasi%3Aio)
+  mantém o error físico opaco e permite extração por adapter específico;
+- o
+  [POSIX.1-2024](https://pubs.opengroup.org/onlinepubs/9799919799/functions/V2_chap02.html)
+  permite mais de um error aplicável e não fixa a ordem de detecção.
+
+W mantém um enum menor e edition-frozen. `.other` absorve condições futuras;
+`IoOperation` preserva a call lógica W e `IoCause` mantém evidence do target sem
+expor authority ou tornar o código nativo parte do resultado de domínio.
+
+Alternativas rejeitadas:
+
+- copiar `errno`, WASI ou todos os cases atuais do Rust;
+- enum non-exhaustive que força wildcard para todo switch;
+- usar syscall interna como operação pública;
+- serializar código ou texto nativo no resultado de domínio;
+- `wouldBlock`, EOF, interrupção ou cancellation como `IoErrorKind`;
+- `retryable: Bool` sem operation, progress, idempotência e deadline.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
@@ -4397,7 +4427,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-888 | estudo R1 de imports | flattening e module binding continuam válidos; estudo mede colisão, provenance, recall e mudança antes de recomendar estilo por contexto | proibir uma forma antes do estudo; comparar conjuntos de imports diferentes; omitir colisão preparada |
 | W-889 | estudo R1 de fail-fast | tuple await e espera lexical preservam application error; oracle mede observation tick e cancelamento como diferença estudada | mudar o error esperado; depender do scheduler host; confundir latência observada com ordem semântica universal |
 | W-890 | cobertura total de ausências | cada alternativa do ledger declara se muda source; toda ausência comparável liga forma recusada, substituição W, diferença observável e caso R0 antes do freeze | tratar 70 requisitos atuais como auditoria total; listar nome sem source; exigir caso de alternativa interna sem diferença visível |
-| W-891 | catálogo std verificável | profiles cobrem 367 APIs em 28 módulos, 29/29 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 87 superfícies são verificadas e 22/22 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
+| W-891 | catálogo std verificável | profiles cobrem 371 APIs em 28 módulos, 30/30 requisitos e oito carriers sem interface missing; declarations estão draft-ready, 87 superfícies são verificadas e 22/22 providers continuam missing | contar arquivo como cobertura, inferir API sem scan, tratar provider missing como execução ou duplicar o grafo de readiness |
 | W-892 | context de host | context público é struct nominal encapsulado sobre provider interno versionado; entry fornece owner e interface lógica esconde RuntimeContext e storage; build Context e HTTP Context mantêm interfaces separadas | existential universal; object com identity; mapa ambiental; singleton; syntax especial por SDK |
 | W-893 | build Context | read usa overloads `Input<String|Bytes>` const e limite efetivo; write usa overloads `Output<String|Bytes>`, consome value e possui effect linear por output; codecs são UTF-8 estrito ou bytes identity; `.codec` ocorre somente em `read(Input<String>)`; bounds menores do provider vêm do host profile/toolchain plan e entram na recipe key; operações concorrentes exigem bindings distintos; cancellation invalida a tentativa; o host publica um action-result/manifest atômico após success | filesystem sandbox como API; intrinsic genérico; codec universal; overwrite concorrente; output incremental implícito; Context apagado; commit/rollback ou transaction no handler; duplicate catchable que ainda publica |
 | W-894 | superfície Web | client e server compartilham Headers ordenado, Request e Response move-only, URL tipada, BodySource fechado em seis cases, Body consuming e clone bounded; Blob compõe W e FormData separa lista de multipart; `Context` e `serve` são extensions; provider `std.http@1` continua missing | API HTTP paralela; copiar JavaScript/Web IDL; BodyInit universal; aliases `path`, `query` ou `decodeJson`; clone sem bound; Blob com authority; multipart parcial |
@@ -4814,6 +4844,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1305 | mutation de namespace | create/remove/rename ficam na mesma authority; rename no-replace default, replace regular explícito e unknown outcome tipado | recursive helper core, delete+rename, cross-root ou retry cego |
 | W-1306 | durability explícita | sync data/all, finish data/all e syncNamespace são as únicas solicitações; none, drop, rename e exit não inserem persistência | flush universal, async deinit, durability por default ou promessa sobre cache externa |
 | W-1307 | interferência de arquivo | shared File usa I/O posicional; ranges disjuntos e read/read são paralelos, overlap unordered é provider-ordered com warning e append atomiza somente offset; sem ordering ele também interfere com I/O posicional | cursor compartilhado, lock implícito, tratar recurso externo como data race W ou prometer ordem de append |
+| W-1308 | IoError portátil | kind fechado, operação lógica W e cause opaco bounded; adapter de domínio pode promover o snapshot | errno público, syscall como operação, cause serializável ou enum non-exhaustive |
+| W-1309 | controle de I/O | wouldBlock suspende, interrupção sem progress repete, EOF usa ReadStep e cancellation usa TaskOutcome | transformar controle em IoError ou oferecer retryable Boolean |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.
