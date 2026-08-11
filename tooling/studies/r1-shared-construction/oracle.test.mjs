@@ -14,7 +14,7 @@ function constructShared(input) {
     return reject("lifetime-dependent");
   }
 
-  const recoverable = input.form === "tryShare" || input.form === "always-fallible";
+  const recoverable = input.form === "share-using" || input.form === "tryShare";
   if (input.allocator !== "product.default" && !recoverable) {
     return reject("allocator-requires-fallible-operation");
   }
@@ -47,14 +47,14 @@ function constructShared(input) {
 describe("R1 shared-construction host oracle", () => {
   test("selected forms separate normal and recoverable allocation", () => {
     const normal = constructShared({
-      form: "share",
+      form: "share-default",
       source: "temporary",
       take: false,
       allocator: "product.default",
       lifetimeIndependent: true,
     });
     const recoverable = constructShared({
-      form: "tryShare",
+      form: "share-using",
       source: "binding",
       take: true,
       allocator: "request.arena",
@@ -75,16 +75,16 @@ describe("R1 shared-construction host oracle", () => {
   });
 
   test("failure cleans source and partial control exactly once", () => {
-    for (const form of ["share", "tryShare"]) {
+    for (const form of ["share-default", "share-using"]) {
       const result = constructShared({
         form,
         source: "binding",
         take: true,
-        allocator: form === "share" ? "product.default" : "request.arena",
+        allocator: form === "share-default" ? "product.default" : "request.arena",
         lifetimeIndependent: true,
-        failure: form === "share" ? "outOfMemory" : "budgetExceeded",
+        failure: form === "share-default" ? "outOfMemory" : "budgetExceeded",
       });
-      expect(result.status).toBe(form === "share" ? "panic" : "allocation-error");
+      expect(result.status).toBe(form === "share-default" ? "panic" : "allocation-error");
       expect(result.published).toBe(false);
       expect(result.trace.filter((event) => event.operation === "drop-source")).toEqual([
         { operation: "drop-source", count: 1 },
@@ -95,16 +95,34 @@ describe("R1 shared-construction host oracle", () => {
     }
   });
 
+  test("a separate recoverable verb preserves the same ownership outcome", () => {
+    const selected = constructShared({
+      form: "share-using",
+      source: "binding",
+      take: true,
+      allocator: "request.arena",
+      lifetimeIndependent: true,
+    });
+    const alternative = constructShared({
+      form: "tryShare",
+      source: "binding",
+      take: true,
+      allocator: "request.arena",
+      lifetimeIndependent: true,
+    });
+    expect(alternative).toEqual(selected);
+  });
+
   test("existing owners require take and borrowed payloads remain rejected", () => {
     const missingTake = constructShared({
-      form: "share",
+      form: "share-default",
       source: "binding",
       take: false,
       allocator: "product.default",
       lifetimeIndependent: true,
     });
     const dependent = constructShared({
-      form: "tryShare",
+      form: "share-using",
       source: "binding",
       take: true,
       allocator: "request.arena",

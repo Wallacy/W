@@ -1316,7 +1316,7 @@ Aceite:
 - shared handle não concede `inout` e weak exige `upgrade()` antes do acesso;
 - `OriginSet` de borrow e `AllocationOriginSet` de storage não se substituem;
 - `share(temporary)` usa o allocator geral e a policy normal de OOM;
-- `tryShare(..., using:)` torna `AllocationError` e allocator bounded explícitos;
+- `try share(..., using:)` torna `AllocationError` e allocator bounded explícitos;
 - expected type sozinho não promove um owner único para `shared T`;
 - `share(dependent)` falha até o payload ser lifetime-independent;
 - o allocator do control block continua vivo até o último weak handle;
@@ -1333,7 +1333,7 @@ Aceite:
   completo;
 - falha de argumento, allocation ou initializer não publica endereço;
 - self-reference safe não obtém acesso ao `self` parcial;
-- falha de `pin`, `share`, `tryShare` ou `rehome` consome e limpa o source uma vez;
+- falha de `pin`, `share` ou `rehome` consome e limpa o source uma vez;
 - não existe `unpin` irrestrito depois que o endereço é publicado;
 - a lease mantém o bell e o callback state vivos até unsubscribe;
 - unsubscribe ocorre antes de liberar o callback state;

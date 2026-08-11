@@ -7,24 +7,24 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "makeMenuRoot",
-    "digest": "sha256:fdeec3433484e27c1445fbc0255e1049b59d508080d9af8d04d3e1d49ffefeed"
+    "digest": "sha256:7231f05fdb1466eafd16668680f75b4dd567b078763dac041e0c437c5e35fe12"
   },
   "variants": [
     {
-      "id": "explicit-share",
+      "id": "overloaded-share",
       "role": "selected",
       "language": "w",
       "path": "explicit-share.w",
-      "digest": "sha256:8161c3dd650388d0022a538179a7dade8263800fd4f764441242de5daae63ab7",
-      "changedConstructs": ["share normal allocation", "tryShare recoverable allocation", "explicit ownership operation"]
+      "digest": "sha256:8908da3578202644ad0cf46ce852fd41b74f58956186f0695ec4ac5801ceb80f",
+      "changedConstructs": ["share normal allocation", "share(using:) recoverable allocation", "explicit ownership operation"]
     },
     {
-      "id": "always-fallible",
+      "id": "distinct-try-share",
       "role": "alternative",
       "language": "w",
-      "path": "always-fallible.w",
-      "digest": "sha256:19e5dde193fa03533f4e94a5d9a50db1f65b7de8d8e095b72312921fae6432a8",
-      "changedConstructs": ["try on every first owner", "allocator in common path", "recoverable allocation effect"]
+      "path": "distinct-try-share.w",
+      "digest": "sha256:4e1d7c8fea665dc1f04a5a6b02858f09110fa6e0b7c1d1e479ae52c523ba1480",
+      "changedConstructs": ["distinct tryShare verb", "allocator in recoverable path", "recoverable allocation effect"]
     },
     {
       "id": "contextual-type",
@@ -64,8 +64,8 @@
       "kind": "repair",
       "instruction": "Repair missing take, hidden contextual promotion, or recoverable allocation that uses share.",
       "mutations": {
-        "explicit-share": "Remove take from an existing owner or use share with a bounded allocator.",
-        "always-fallible": "Remove try while preserving the throwing signature.",
+        "overloaded-share": "Remove take from an existing owner or omit try from share(using:).",
+        "distinct-try-share": "Replace tryShare without hiding the recoverable failure boundary.",
         "contextual-type": "Rely on the expected shared type without an explicit operation."
       }
     },
@@ -75,17 +75,17 @@
     }
   ],
   "presentationOrders": [
-    ["explicit-share", "always-fallible", "contextual-type"],
-    ["contextual-type", "explicit-share", "always-fallible"],
-    ["always-fallible", "contextual-type", "explicit-share"]
+    ["overloaded-share", "distinct-try-share", "contextual-type"],
+    ["contextual-type", "overloaded-share", "distinct-try-share"],
+    ["distinct-try-share", "contextual-type", "overloaded-share"]
   ],
   "blinding": {
-    "participantLabels": { "explicit-share": "A", "always-fallible": "B", "contextual-type": "C" },
+    "participantLabels": { "overloaded-share": "A", "distinct-try-share": "B", "contextual-type": "C" },
     "hide": ["id", "role", "path", "changedConstructs"]
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:71a7448a9ccad0bcddc0f337f0561cd11447806be0a46c150bc5901591644a1c"
+    "digest": "sha256:a4ecf9b1023bd0fb43667c3d28519a8917892c56fc7df607daf1a77201a6855c"
   },
   "evidence": {
     "current": ["tree-sitter-parse", "host-oracle", "M1"],
