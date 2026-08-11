@@ -1829,6 +1829,123 @@ uma pergunta sem decisão. Um gate pode reprovar a abordagem e exigir nova
 evidência. Até isso ocorrer, a alternativa e o fallback acima permanecem
 canônicos.
 
+### 1.15 Evidence de memória e execução
+
+Esta seção registra os ensaios que sustentam as seções 9 e 12 de
+[`DESIGN.md`](DESIGN.md). Contagens e limites não definem a linguagem. O
+contrato corrente continua no documento normativo.
+
+#### Memória M1
+
+M1 mantém uma forma aceita e uma inversão para cada regra crítica:
+
+| Regra | Forma aceita | Inversão rejeitada |
+|---|---|---|
+| reborrow | `M1-exclusive-parent-disjoint-children` | `M1-reborrow-child-widens-parent` |
+| duplicated child | `M1-duplicate-child-releases-parent-after-all-ends` | `M1-duplicate-child-keeps-parent-frozen` |
+| ProofFacts | `M1-proof-fact-index-inequality` | `M1-proof-fact-wrong-place-rejected` |
+| active variant | `M1-enum-active-variant-fields-disjoint` | `M1-enum-active-variant-wrong-place-rejected` |
+| dependency copy | `M1-copy-shared-edge-releases-after-both-drops` | `M1-copy-shared-edge-blocks-until-both-drops` |
+| owner drop | `M1-owner-drop-unblocked-after-dependent-drop` | `M1-owner-drop-blocked-by-stored-edge` |
+| dependency access | `M1-exclusive-dependency-write` | `M1-shared-dependency-write-rejected` |
+| dependency overlap | `M1-exclusive-dependency-disjoint-field` | `M1-exclusive-dependency-overlaps-shared` |
+| dependency identity | `M1-array-ref-duplicate-origin-preserved` | `M1-ambiguous-dependency-origin` |
+| dependency join | `M1-dependent-store-joins-origins` | `M1-dependent-join-reads-source` |
+| service boundary | `M1-immortal-service-with-boundary-capabilities` | `M1-immortal-service-needs-boundary-capabilities` |
+| persistence boundary | `M1-immortal-persistence-with-schema` | `M1-immortal-persistence-needs-schema` |
+| await | `M1-await-stable-referent-accepted` | `M1-await-stable-aggregate-unstable-referent` |
+| pin | `M1-pinned-handle-move-with-active-loan` | `M1-pinned-handle-drop-with-active-loan` |
+| interface | `M1-bodyless-result-slots-remain-distinct` | `M1-interface-witness-divergence` |
+| body result mapping | `M1-interface-body-maps-origins` | `M1-interface-body-missing-result-slot` |
+| import interface key | `M1-abi-exact` | `M1-interface-key-presence-asymmetric` e `M1-interface-keys-both-absent` |
+| FFI inline | `M1-language-function-explicit-proof` | `M1-language-function-needs-proof` |
+
+[`borrowed_values.w`](reference/last-light/borrowed_values.w) mostra as formas W
+positivas. [`memory-transition-cases.json`](tooling/memory-transition-cases.json)
+contém as inversões e os estados esperados.
+
+#### Alocação A0
+
+A0 modela:
+
+- layout, alignment, zero-size e limits do provider;
+- allocate, zeroing, excess capacity, resize e fallback;
+- strong failure e exact-once deallocation;
+- origin token, provider lifetime e mobility de domain;
+- loans, pinning, address leases e relocation;
+- progress requirements, bulk release e rehome;
+- logical retirement separado de physical reuse.
+
+O modelo usa bytes pequenos e providers host independentes. Ele não mede um
+allocator real. Benchmarks de `system`, mimalloc e fixed pertencem ao gate de
+implementação. A0 não repete cleanup tipado de M1 nem aritmética física de L0.
+
+#### Representação
+
+Os spikes antigos permanecem como corpus adversarial:
+
+| Hipótese | Resultado | Motivo |
+|---|---|---|
+| dois low bits distinguem integer, float, compound e shared | rejeitada | reduz range e precisão, altera IEEE e exige alignment universal |
+| high bits guardam length, subtype ou reference count | fora da baseline | address width, MTE, PAC, ABI e mutation variam por target |
+| pointer identifica owner, object ou generation | rejeitada | reuse de endereço, ABA, move e provenance são fatos diferentes |
+| uma word tagged substitui todos os valores W | rejeitada | aggregates, capabilities, SIMD, C ABI e device pointers exigem carriers próprios |
+| heap implícita por módulo controla todo lifetime | rejeitada como default | import não cria instance; `Arena` e service ownership cobrem o caso delimitado |
+
+Uma implementação interna pode recuperar uma dessas técnicas quando preserva o
+valor lógico, oferece fallback e passa os oracles diferenciais. O
+[`representation_oracle.w`](reference/last-light/representation_oracle.w)
+aplica a matriz de fronteiras ao Última Luz.
+
+#### Domains, channels e scheduler
+
+O [`domain_oracle.w`](reference/last-light/domain_oracle.w) cobre herança de
+`async let`, domínio explícito de `spawn`, FIFO serial, gate `.parallel` e
+redução de capacity.
+
+O ensaio de channel deve cobrir:
+
+- dois producers e um consumer com capacity 0, 1 e 64;
+- fechamento pelo último sender e close gracioso pelo receiver;
+- receiver abortivo com itens e permits pendentes;
+- recuperação do item em `.full` e `.closed`;
+- cancellation antes e depois de cada commit;
+- FIFO por sender e nenhuma ordem presumida entre senders;
+- `trySend` sem bypass;
+- stream owned, stream de `view String` e erro terminal;
+- `Stream.cancel()` default e override com drain e cleanup único;
+- adapter bounded sem producer órfão;
+- uma, duas e quatro worker threads;
+- TSan, leak sanitizer e allocation fault injection.
+
+O scheduler virtual deve explorar interleavings pequenos. Cada item termina num
+receiver, num error que o devolve ou num cleanup. Esse ensaio ainda não possui
+um runner host separado.
+
+#### Cobertura executável
+
+Estas eram as contagens em 11 de agosto de 2026:
+
+| Perfil | Corpus | Resultado | Host independente | Limite principal |
+|---|---:|---:|---:|---|
+| M1 memory transition | 165 casos, 580 operações | 70 aceitos, 95 rejeitados | checker puro | não executa W |
+| A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
+| execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
+| E0 concurrency | 57 casos, 527 operações | 31 aceitos, 26 rejeitados; 10/10 origens HB | checker puro | valida witness; não enumera execuções |
+| E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
+| LM0 scoped locks | 33 casos, 114 operações | 19 aceitos, 13 rejeitados, 1 fault | 8 testes | não implementa `std.sync@1` |
+| SP0 snapshot cell | 27 casos, 82 operações | 14 aceitos, 12 rejeitados, 1 fault | 7 testes | não implementa reclamation físico |
+
+E0 cobre lifecycle, cancellation, fail-fast, as dez origens de happens-before,
+races, modification order, fences, RMW, extents e tickets de barreira. Ele não
+prova liveness, fairness, preemption, oversubscription, task-frame allocation,
+reentrância de service, device scope, reclamation, ABA ou execução distribuída.
+
+E1 separa scheduler, clock e provider do contrato de closure. LM0 cobre loans,
+FIFO, `tryWithLock`, cancellation, unlock, drop e fault boundary. SP0 cobre
+readers antigos e novos, publicação concorrente, retirement bounded, drop,
+OOM antes de publish, close e estratégias equivalentes.
+
 ## 2. Proveniência
 
 A consolidação de 27 de julho de 2026 foi uma tentativa intermediária. Ela não
