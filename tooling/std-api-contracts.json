@@ -1144,7 +1144,7 @@
       "id": "std.sync",
       "availability": "bundled-portable",
       "source": "std/sync/contracts.w",
-      "designAnchors": ["9.11.1", "12.7", "12.10.6", "12.10.7"],
+      "designAnchors": ["9.11.1", "12.7", "12.10.7", "12.10.8"],
       "implementationProvider": {
         "kind": "std-intrinsic",
         "id": "std.sync@1",

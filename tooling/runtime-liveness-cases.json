@@ -695,7 +695,7 @@
         { "path": "../reference/last-light/liveness_oracle.w", "symbol": "BoundaryShutdownPhase" },
         { "path": "../reference/last-light/execution.w", "symbol": "mixCooperatively" }
       ],
-      "decisions": ["W-968", "W-970"],
+      "decisions": ["W-968", "W-970", "W-1204"],
       "operations": [
         { "op": "createTask", "task": "root" },
         { "op": "publishTask", "task": "root" },
@@ -710,7 +710,7 @@
         { "path": "../reference/last-light/liveness_oracle.w", "symbol": "ShutdownAction" },
         { "path": "../reference/last-light/scheduler_oracle.w", "symbol": "FaultBoundary" }
       ],
-      "decisions": ["W-968", "W-969"],
+      "decisions": ["W-968", "W-969", "W-1204"],
       "operations": [
         { "op": "createTask", "task": "root" },
         { "op": "publishTask", "task": "root" },

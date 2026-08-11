@@ -1183,8 +1183,26 @@ para usar condition, futex ou parking internamente.
 
 `Once` raw também não entra. Const/module initialization resolve o caso
 estático. `var Lazy` cobre o caso tardio sem publicar uma primitive de estado.
-Barreiras cíclicas e atomic wait/notify permanecem pesquisas separadas porque
-possuem participantes e suspension diferentes.
+Barreiras cíclicas permanecem uma pesquisa separada porque precisam definir
+identidade, saída e failure de participantes.
+
+Atomic waiting possui uma fronteira menor. O
+[draft C++](https://www.eel.is/c++draft/atomics.wait) confirma que esperar por
+mudança evita polling e também registra o limite ABA. O
+[`WaitOnAddress`](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitonaddress)
+e o
+[`WakeByAddressSingle`](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-wakebyaddresssingle)
+oferecem a primitive no Windows. O
+[futex do Linux](https://docs.kernel.org/locking/robust-futexes.html) usa o
+mesmo padrão de comparar, estacionar e acordar. A
+[especificação WebAssembly Threads](https://webassembly.github.io/threads/core/exec/instructions.html#exec-memory-atomic-wait)
+também separa wait e notify e mantém uma queue por endereço.
+
+W não copia o blocking de thread dessas APIs. `Atomic.wait` é uma suspensão de
+task com cancellation e lifetime estruturados. O provider pode usar as
+primitives do host, mas precisa preservar tickets, drain e a ausência de wake
+perdida. A notification não publica dados sozinha; o edge continua vindo da
+load acquire que observa uma release.
 
 #### 1.4.6 Inicialização lazy concorrente
 
@@ -1575,7 +1593,8 @@ O índice gerado usa esta tabela somente como projeção.
 | closure de `AsyncMutex.withLock` sem suspension | **Possível agora** | tickets FIFO, cancellation e unlock possuem contrato LM0 |
 | `ReadWriteLock<T>` na safe std | **Possível agora** | closures scoped e fases writer-aware fecham a semântica; provider e benchmark continuam gates de implementação |
 | condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
-| lazy concorrente, barreira cíclica e atomic wait/notify | **Pesquisa** | cada forma ainda precisa de failure, cancellation, generation e provider contract próprios |
+| `Atomic.wait/notify` suspensivo | **Possível agora** | fast path, tickets, cancellation, lifetime, ABA e provider possuem contratos fechados; runtime real e benchmark continuam gates |
+| barreira cíclica/reutilizável | **Pesquisa** | identidade, saída e failure de participantes ainda não possuem contrato fechado |
 | `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
 | facts trusted para FFI e synchronization customizada | **Provável** | somente provider ou foreign interface fixa target, digest e negative facts |
@@ -2421,7 +2440,7 @@ Estas eram as contagens em 11 de agosto de 2026:
 | A0 physical allocation | 48 casos, 123 operações | 15 aceitos, 33 rejeitados | 13 testes | não mede allocator real |
 | L0 layout e ABI | 78 casos, 96 operações | 27 aceitos, 51 rejeitados | 10 testes | não implementa linker, importer ou backend |
 | execution ergonomics | 61 casos | 23 positivos, 36 negativos, 2 informações | 15 testes | não compila nem agenda W |
-| E0 concurrency | 57 casos, 527 operações | 31 aceitos, 26 rejeitados; 10/10 origens HB | checker puro | valida witness; não enumera execuções |
+| E0 concurrency | 73 casos, 677 operações | 38 aceitos, 35 rejeitados; 10/10 origens HB | 17 testes | valida witness; não enumera execuções |
 | E1 liveness | 41 casos, 473 operações | 19 aceitos, 22 rejeitados | 7 testes | não prova clock, OS I/O ou terminação de user code |
 | MX0 ownership + execution | 46 casos, 274 operações | 23 aceitos, 23 rejeitados | 14 testes | compõe modelos; não executa checker, scheduler ou runtime W |
 | CH0 bounded channel | 47 casos, 333 operações | 28 aceitos, 19 rejeitados | 12 testes | não implementa scheduler, runtime ou provider W |
@@ -3412,7 +3431,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-871 | forma do corpus M1 | casos ligam owner, overlap, reborrow, origins, escapes, await, pin, FFI, representation, ABI e join ao Última Luz; snapshot guarda traces byte-exact; W-917 e W-918 fixam a revisão corrente | exemplos isolados sem state; caso sem source; apenas success; resultado sem trace |
 | W-872 | limite de M1 | máquina tabelada e teste Node pequeno são oracles host distintos; modelam outcomes de allocation, shared/weak e Arena (historically region) sem executar allocator, atomics, destructor graph, panic, happens-before ou cancellation física | declarar verifier implementado; reduzir memória a M1; chamar outcome lógico de allocator real; apagar segundo oracle por duplicação aparente |
 | W-873 | máquina de execução E0 | grafo separa lifecycle da task, sequência local e edges de publicação; cancelamento não cria happens-before | usar ordem do scheduler como semântica; publicar por cancel; observar outcome antes de cleanup |
-| W-874 | corpus E0 | 57 sequências e 527 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races, modification/seq-cst order, RMW, CAS, fences, extent, exclusividade, subtrees de ticket e 10/10 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
+| W-874 | corpus E0 | 73 sequências e 677 operações ligadas ao Última Luz cobrem lifecycle, cancelamento, fail-fast, drain, races, atomics, wait/notify, extent, subtrees de ticket e 10/10 origens happens-before | apenas casos aceitos; evento sem source; atomic acquire sem relação observada; trace completo repetitivo |
 | W-875 | limite de E0 | oracle host recebe task, storage/extent, lifetime e reads-from resolvidos; não prova checker, scheduler, liveness, fairness, device scope, reclamation ou distribuição | declarar runtime implementado; inferir ausência de race por execução única; tratar E0 como memory model completo |
 | W-876 | máquina de boundary effects B0 | service call, transaction e pipeline mantêm lifecycles separados; todos carregam effect identity e distinguem confirmação, falha conhecida e incerteza | um Boolean committed; cancel como rollback; transaction usada como pipeline; pipeline com rollback fictício |
 | W-877 | corpus B0 | 39 sequências e 320 operações ligadas ao Última Luz cobrem 17 transições críticas, closed/output gates, commit, abort, retry policy, DAG, drain e capabilities | somente happy path; unknown sem effect ID; retry com call ID novo e effect ID novo; node sem cleanup |
@@ -3739,6 +3758,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1198 | failure de construção pinned | falha de argumento limpa staging anterior; falha de allocation limpa staging; falha de initializer limpa fields em ordem inversa e libera storage; nenhum caminho publica endereço parcial | leak de staging, `deinit` sobre aggregate incompleto, binding parcial, rollback do source consumido |
 | W-1199 | limite de self-reference safe | `self` permanece initialization place até commit; endereço, borrow e escape do aggregate parcial falham; source safe não armazena self-reference; adapter unsafe publica somente wrapper completo | self-reference pelo initializer comum, `MaybeUninit` safe, pointer para bytes parcialmente válidos |
 | W-1200 | evidence de construção pinned M1 | M1 deriva destination root, zero move intermediário, delegação, cleanup, publication e rejeições; Last Light mantém casos direto e consuming | oracle isolado duplicando M1, snapshot manual, chamar modelo de compiler ou allocator |
+| W-1201 | espera atômica suspensiva | `await Atomic.wait<order>(whileEqual:)` devolve somente uma representação diferente; notify one/all é explícito e store não acorda implicitamente | blocking wait público, polling oculto, retorno por wake espúria, notify automático em toda store |
+| W-1202 | admission e cancellation de atomic wait | tickets monotônicos, notifyOne seleciona o elegível mais antigo, notifyAll seleciona todos; cancel pré-notify remove e pós-notify permanece pendente | wake perdida, barging, waiter órfão, cancel como rollback de notification committed |
+| W-1203 | lifetime, memória e provider de atomic wait | frame estável automático, owner drena waiters, parking key inclui generation; acquire observa release, notify não é fence; provider não bloqueia worker cooperativo | pin manual no caminho comum, owner destruído com waiter, ABA tratado como evento, spin ilimitado, endereço reutilizado, provider como autoridade |
+| W-1204 | boundary blocking coerente | foreign blocking usa `spawn<.blocking>` bounded ou fault boundary física da seção 12.11 e nunca ganha fix-it `sync` | boundary ainda Pesquisa, bloquear worker cooperativo, interromper foreign frame sem contrato, reintroduzir call-site sync |
+| W-1205 | evidence atomic wait E0 | E0 deriva fast path, check/register, FIFO, notify, cancellation, drain, ABA e release/acquire; source Última Luz fixa a superfície | chamar oracle de scheduler/runtime/provider, expected echo, caso sem símbolo consumidor |
 
 Uma revisão pode responder por ID. Uma mudança deve atualizar o exemplo, a
 grammar, o formatter, o corpus e a seção semântica correspondente.

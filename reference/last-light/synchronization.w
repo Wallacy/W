@@ -72,6 +72,19 @@ export object HorizonTelemetryEpoch {
     revision.store<.release>(1)
   }
 
+  fn publish(_ next: u64): () {
+    revision.store<.release>(next)
+    revision.notifyAll()
+  }
+
+  async fn waitForChange(after observed: u64): u64 {
+    return await revision.wait<.acquire>(whileEqual: observed)
+  }
+
+  fn notifyOneWithoutChange(): () {
+    revision.notifyOne()
+  }
+
   fn relay(): u64 {
     return revision.fetchWrappingAdd<.relaxed>(1)
   }
@@ -236,6 +249,15 @@ test "a relay updates the published telemetry epoch" {
   expect epoch.observe() == 2
 }
 
+test "an atomic wait observes a published telemetry generation" {
+  let epoch = HorizonTelemetryEpoch()
+  let observed = epoch.observe()
+  async let changed = epoch.waitForChange(after: observed)
+
+  epoch.publish(7)
+  expect await changed == 7
+}
+
 test "a scoped synchronous lock returns an owned snapshot" {
   let ledger = ThreadApologyLedger()
   expect ledger.record("We regret the scheduling inconvenience") == 1
@@ -289,6 +311,9 @@ test "a read mostly ledger keeps reads scoped and writes exclusive" {
 // state.store<.acquire>(.closed)          // StoreOrder rejects acquire.
 // state.compareExchange<success: .release, failure: .acquire>(...)
 // announcements = announcements + 1      // Split load and store.
+// await revision.wait<.release>(whileEqual: 1)
+// take revision while a wait is registered
+// revision.withExclusive(...) while a wait is registered
 // (ref state).withExclusive((value: inout SignState) => value = .dark)
 // state.withLock((value: inout State) => await suspend(value))
 // state.withLock((value: ref State) => ref value)
